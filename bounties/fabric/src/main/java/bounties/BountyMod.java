@@ -1,0 +1,126 @@
+package bounties;
+
+import bounties.core.AcceptedBounty;
+import bounties.core.BountyMath;
+import bounties.core.Completed;
+import bounties.core.PlayerBounties;
+import bounties.core.ProgressResult;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Path;
+
+/**
+ * Entrypoint for the Bounties mod.
+ *
+ * <p>Keeps the public board, per-player state, and reward delivery. The board itself
+ * is derived from the wall clock and needs no persisted state.
+ */
+public final class BountyMod implements ModInitializer {
+
+    public static final String MOD_ID = "bounties";
+    public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
+
+    private static BountyConfig config;
+    private static BountyState state;
+
+    private long lastWindow = Long.MIN_VALUE;
+
+    @Override
+    public void onInitialize() {
+        Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
+
+        config = new BountyConfig(configDir);
+        state = new BountyState(configDir);
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            config.reload();
+            state.load();
+            LOG.info("Loaded {} bounty definitions", config.pool().size());
+        });
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            state.flushNow();
+            state.shutdown();
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long now = System.currentTimeMillis();
+            long window = BountyMath.windowIndex(now);
+            if (lastWindow != Long.MIN_VALUE && window != lastWindow) {
+                server.getPlayerList().broadcastSystemMessage(
+                        Component.literal("A new bounty is available on the bounty board!")
+                                .withStyle(ChatFormatting.GOLD),
+                        false);
+            }
+            lastWindow = window;
+        });
+
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            if (!(damageSource.getEntity() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (config.pool().isEmpty()) {
+                return;
+            }
+            String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+            PlayerBounties before = state.of(player.getUUID());
+            if (before.heldCount() == 0) {
+                return;
+            }
+            ProgressResult result = before.progress(mobId);
+            state.set(player.getUUID(), result.state());
+
+            for (AcceptedBounty held : before.held()) {
+                if (!mobId.equals(held.definition().mobId())) {
+                    continue;
+                }
+                int newProgress = held.progress() + 1;
+                if (newProgress >= held.definition().requiredKills()) {
+                    continue;
+                }
+                player.sendSystemMessage(Component.literal("  " + held.definition().displayDescription()
+                                + "  " + newProgress + "/" + held.definition().requiredKills())
+                        .withStyle(ChatFormatting.GRAY));
+                Chime.progressed(player);
+            }
+
+            for (Completed completed : result.completed()) {
+                Rewards.giveDiamonds(player, completed.rewardDiamonds());
+                Chime.completed(player);
+                if (player.level().getServer() != null) {
+                    player.level().getServer().getPlayerList().broadcastSystemMessage(
+                            Component.literal(player.getName().getString() + " completed the bounty: ")
+                                    .withStyle(ChatFormatting.GREEN)
+                                    .append(Component.literal(completed.definition().displayDescription())
+                                            .withStyle(ChatFormatting.YELLOW))
+                                    .append(Component.literal(" (" + completed.rewardDiamonds() + " diamonds)")
+                                            .withStyle(ChatFormatting.AQUA)),
+                            false);
+                }
+            }
+        });
+
+        BountyCommands.register(config, state);
+
+        LOG.info("Bounties initialised (server-side only)");
+    }
+
+    public static BountyConfig config() {
+        return config;
+    }
+
+    public static BountyState state() {
+        return state;
+    }
+}

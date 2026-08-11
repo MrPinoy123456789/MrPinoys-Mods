@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "cobbleeconomy",
+  "version": "${version}",
+  "name": "Cobble Economy",
+  "description": "Cobblestone is money, diamonds are premium money. Server-side banking, payments, a resource shop and leaderboards. Vanilla clients need nothing installed.",
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "cobbleeconomy.CobbleEconomyMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "wondrous": "*"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "lecture": {
+    "weight": 25,
+    "minSeconds": 30,
+    "maxSeconds": 60
+  },
+  "roadblock": {
+    "weight": 20,
+    "minSeconds": 20,
+    "maxSeconds": 40
+  },
+  "foodcritic": {
+    "weight": 20,
+    "minSeconds": 30,
+    "maxSeconds": 45
+  },
+  "clingy": {
+    "weight": 15,
+    "minSeconds": 30,
+    "maxSeconds": 45
+  },
+  "serenade": {
+    "weight": 12,
+    "minSeconds": 15,
+    "maxSeconds": 30
+  },
+  "falsealarm": {
+    "weight": 8,
+    "minSeconds": 10,
+    "maxSeconds": 20
+  }
+}

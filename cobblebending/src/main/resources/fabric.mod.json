@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "cobblebending",
+  "version": "${version}",
+  "name": "MrPinoy's Cobble Bending",
+  "description": "Cobble bending is a combat/utility power fantasy whose ammunition is the common currency.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "cobblebending.CobbleBendingMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

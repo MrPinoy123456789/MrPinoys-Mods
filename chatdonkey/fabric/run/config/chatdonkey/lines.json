@@ -1,0 +1,238 @@
+{
+  "names": [
+    "Duncan",
+    "Señor Burro",
+    "The Auditor",
+    "Clopsworth",
+    "Muffinhoof",
+    "Sir Nibbles",
+    "Bramble",
+    "Hee-Haw Harold",
+    "Persimmon",
+    "Doreen"
+  ],
+  "lecture.open": [
+    "Oh! OH! There you are! I have been looking absolutely EVERYWHERE, hoofball!",
+    "Yoo-hoo! Don't mind me. I'm just going to stand right here. Forever! Hee-haw!",
+    "Hiiii! Guess who came all this way to discuss your choices! It's me. I'm who.",
+    "Well, well, WELL. Fancy running into you! Out here! Where I followed you!",
+    "Knock knock! It's a donkey. That's the whole joke and I think it's wonderful.",
+    "Ohmygosh, HI! I have so much to say and NONE of it is optional!",
+    "Excuse me! Excuse me. EXCUSE me. Thank you. Now then. Let's begin.",
+    "Don't bother running, sport! I'm slow, but I am extremely committed. Clop clop!"
+  ],
+  "lecture.during": [
+    "And ANOTHER thing! ...Hmm. I've forgotten it. It was scathing, though!",
+    "You know what your problem is? You don't listen. Also everything else!",
+    "I'm not mad, hoofball. I'm disappointed. And a little mad. Hee-haw!",
+    "Back in MY day we walked everywhere. I still do! Mostly right behind you!",
+    "This is a safe space. For me. To criticize you. Isn't that just lovely?",
+    "Are you even taking notes?! I'll wait. ...I'm waiting. ...Still waiting!",
+    "Oh, sure, keep doing that. It's your afternoon! I'm merely narrating it.",
+    "I've seen your house, by the way. We should talk about your house, sport.",
+    "Do you ever stop and think? No? Wellllll. That explains a great deal!",
+    "I'm helping! This IS helping! You'll thank me later. Probably never!"
+  ],
+  "hit": [
+    "OW! You hit ME! Right in my FEELINGS!",
+    "Chat saw that. Chat. Saw. That.",
+    "I'm not moving until you say you're sorry. I mean it!",
+    "Rude! RUDE! And after everything I've done for you!",
+    "That's going in my report, hoofball. I keep a report!",
+    "Violence?! In front of my salad?! I don't even have a salad!",
+    "Ohhh, so THAT'S how it is. Noted. Noted forever!",
+    "You can't hurt me. You can only disappoint me. And you HAVE!"
+  ],
+  "exit_bribed": [
+    "Ohhh, a DIAMOND! Well! Why didn't you SAY so! Mwah!",
+    "For me?! You shouldn't have! You really shouldn't have! Byeee!",
+    "A gift! I accept! I'm leaving! Everyone wins! Especially me!",
+    "Bribery! My FAVOURITE kind of conversation. Toodle-oo, sport!",
+    "Shiny! Yes! Fine! You've bought your afternoon back. Hee-haw!"
+  ],
+  "exit_grudge": [
+    "You're welcome for the company. That's all you're getting.",
+    "No gift for hitters. I have STANDARDS, hoofball!",
+    "I was going to give you something. Was!",
+    "Don't talk to me. Don't even LOOK at me. Good DAY!",
+    "Hmmph! I'm taking my rocks and going home!"
+  ],
+  "deny": [
+    "You can't ride me. We're not there yet, sport.",
+    "Hands to yourself! I'm a professional!",
+    "A saddle? A SADDLE? Read the room, hoofball!",
+    "That's not going to work on me. Nothing works on me!",
+    "Oh, is that for me? ...It isn't. I can tell. Hee-haw.",
+    "No no no. I'm the one doing things TO YOU. That's the arrangement!"
+  ],
+  "lecture.exit_bribed": [
+    "Ohhh, a DIAMOND! Well! Why didn't you say so! Mwah!",
+    "For me?! You shouldn't have! You really shouldn't have, it's so shiny!",
+    "A gift! I accept. I'm leaving. This is what class looks like, sport!",
+    "Bribery! My FAVOURITE kind of conversation! Toodle-oo!",
+    "Well now I feel bad. ...No, wait. That passed. Byeee!",
+    "You've bought yourself an afternoon. Spend it wisely, hoofball!"
+  ],
+  "lecture.exit_grudge": [
+    "You're welcome for the company. That's all you're getting.",
+    "No gift for hitters. I have STANDARDS, hoofball.",
+    "I was going to give you something. Was.",
+    "Hmmph! I'm taking my cobblestone and going home!",
+    "Don't talk to me. Don't even LOOK at me. Good DAY!",
+    "I hope you think about this. I certainly will!"
+  ],
+  "lecture.exit_waited": [
+    "Welp! That's my whole speech. I feel GREAT. You look worse. Hee-haw!",
+    "Anyway! I've said what I came to say, and I said it beautifully.",
+    "I'll leave you to it! Whatever it is. It looked unpromising, hoofball!",
+    "Okay, byeeee! Think about what I said. All of it. There'll be a quiz!",
+    "Same time next week? Don't answer, it wasn't a question. Clop clop!",
+    "Whew! Lecturing is exhausting. You're welcome for the company, sport!",
+    "Here, take this. It isn't much! Neither was your effort today. Hee-haw!",
+    "I'm off to go bother someone with better hobbies. Toodle-oo!"
+  ],
+  "foodcritic.open": [
+    "Ohmygosh, HI! Quick question! Do you have a carrot? Be honest!",
+    "Excuse me! EXCUSE me. I smell a carrot. Somewhere. On you. Hand it over!",
+    "Hiiii! I'm STARVING and you're RIGHT THERE. Do the math, hoofball!",
+    "Well hello! I don't want to be a bother, but I do want a carrot!",
+    "Yoo-hoo! I'm conducting a survey! The survey is: give me a carrot!",
+    "You look like someone with a carrot. Don't disappoint me, sport!"
+  ],
+  "foodcritic.during": [
+    "Carrot. Carrot? Carrot! ...I can do this all day, hoofball!",
+    "I'm not begging. I'm ASKING. Loudly. Repeatedly. Forever!",
+    "A carrot would fix this. Just saying! Just putting that out there!",
+    "Do you know what I HAVEN'T had recently? Take a wild guess!",
+    "I've eaten grass today. GRASS. And you have POCKETS!",
+    "I'd give YOU a carrot. If I had one. Which I don't. Hint hint!",
+    "Golden ones exist, you know. Just a fun fact! No pressure! ...Some pressure.",
+    "My stomach is writing a strongly worded letter. To you!"
+  ],
+  "foodcritic.exit_satisfied": [
+    "MMPH! Oh, that's the stuff. You're alright, hoofball. You're ALRIGHT!",
+    "*crunch* ...Mm! Mmhm! Yes! Acceptable! Barely! Delicious!",
+    "Ohhh, thank you thank you THANK you! Take this, I insist!",
+    "A carrot! An actual carrot! I take back almost everything!",
+    "You've made a friend today, sport. A loud one. Byeee!"
+  ],
+  "foodcritic.exit_golden": [
+    "A GOLDEN one?! For ME?! I'm going to cry! I'm crying! Hee-haw!",
+    "Oh my stars. Oh my STARS. You didn't have to! You DIDN'T! But you DID!",
+    "This is the best day of my entire life and I've had SEVERAL. Take this!",
+    "GOLDEN?! I'm telling everyone. EVERYONE. Here, you've earned it!"
+  ],
+  "foodcritic.exit_waited": [
+    "Nothing?! NOTHING? Fine! FINE. I'll starve. Dramatically. Elsewhere!",
+    "Not one carrot. I'll remember this, hoofball. Here, take your rocks.",
+    "Well! I've never been so ignored in my life. Hee-haw. Goodbye!",
+    "I'm going to go find someone with SNACKS. Don't follow me!",
+    "You had NOTHING. Who leaves home with nothing? Unbelievable!"
+  ],
+  "foodcritic.exit_bribed": [
+    "A diamond?! I asked for a CARROT. But... okay. Yes. Fine. Deal!",
+    "That's not a carrot. That's much better. I'll allow it! Mwah!",
+    "You can't eat a diamond, hoofball. I'll manage. Somehow. Byeee!",
+    "Ooooh, SHINY. I forgive you for the carrot thing. Toodle-oo!"
+  ],
+  "foodcritic.exit_grudge": [
+    "No carrot AND you hit me?! Absolutely not. Nothing for you!",
+    "I asked for a carrot and got a smack. I'm keeping the rocks!",
+    "You're the worst waiter I've ever had. NO tip. Good DAY!"
+  ],
+  "roadblock.open": [
+    "Whoa there! Where do YOU think you're going, hoofball?",
+    "Ah-ah-AH! This way's closed. By me. I'm the closure!",
+    "Halt! Who goes there! ...It's you. I know it's you. Halt anyway!",
+    "Oh, were you walking? Were you? How INCONVENIENT for you!",
+    "You shall not pass! ...Is that taken? It felt taken. Regardless!",
+    "New rule: this spot is mine now. And this one. And that one!"
+  ],
+  "roadblock.during": [
+    "Nope! Still here! Try going around. I'll be there too!",
+    "Ooh, a feint! Very clever. I saw it. I'm ahead of you. Literally!",
+    "This is the most productive I've felt in WEEKS, sport!",
+    "Where are we going? I'll go first. I'm always going first!",
+    "You're very determined. It's admirable! It won't work, but it's admirable!",
+    "I could do this all day. I have nowhere to be. Except here. Hee-haw!",
+    "Left? Right? Doesn't matter! I've been to both. Just now!",
+    "Am I in the way? I certainly hope so. That's the whole idea!"
+  ],
+  "roadblock.exit_waited": [
+    "Alright, you may pass. You've earned it. Barely. Hee-haw!",
+    "The road is yours again, hoofball. Use it wisely!",
+    "I've decided you're allowed to go places. Aren't you lucky!",
+    "Right! That's enough civil engineering for one day. Toodle-oo!"
+  ],
+  "serenade.open": [
+    "Ahem! AHEM! Gather round! Well — you'll do. A song! For you!",
+    "I've written something. It's about you. It's not flattering. Enjoy!",
+    "Hit it! ...There's no band. I'm the band. HEE-HAW!",
+    "Don't move! This is a PERFORMANCE and you are the AUDIENCE!"
+  ],
+  "serenade.during": [
+    "♪ Ohhhh, you were walking, and I was watchiiiing ♪",
+    "♪ Your face! Your face! It's a face I've seeeeen! ♪",
+    "♪ I know a guy, he's got no plan, that guy is you, hee-haw ♪",
+    "♪ La la LAAAA — that's the chorus, sing along! ...Or don't! ♪",
+    "♪ Nobody asked for thiiiiis, and yet, here we ARRRE ♪",
+    "♪ Braaaaaay. That one's instrumental. It's my best work ♪",
+    "♪ Verse seventeen! There are forty! ♪",
+    "♪ You could leave, but I would follow, singiiiing ♪"
+  ],
+  "serenade.exit_waited": [
+    "Thank you! THANK you! No, please, hold your applause. ...Please hold it.",
+    "And THAT'S how it's done. Tips accepted. Here, I'll go first!",
+    "My throat! My poor throat. Worth it. Every note. Toodle-oo!",
+    "I'll be here all week. I won't be. But I'll SAY it. Byeee!"
+  ],
+  "falsealarm.open": [
+    "CREEPER! CREEPER!! ...Somewhere! I heard one! RUN! Or don't!",
+    "LAVA! LAVA!! ...No, wait. That's a puddle. STILL! Be alert!",
+    "THE VOID! IT'S COMING! It's always coming! Technically!",
+    "EVERYBODY PANIC! You! You're everybody! PANIC!",
+    "I SAW SOMETHING! It was big! Or small! It was SOMETHING!"
+  ],
+  "falsealarm.during": [
+    "IT'S BEHIND YOU! ...It's not. But it COULD be! Stay sharp!",
+    "AAAAAA! ...Sorry. False alarm. AAAAAA AGAIN!",
+    "Don't look! DON'T LOOK! ...Okay, look. Nothing. TERRIFYING!",
+    "This is fine! THIS IS FINE! IS IT?! I DON'T KNOW!",
+    "Structural collapse! Of what? UNCLEAR! Keep moving!",
+    "I've done the math and we have SECONDS! Of what? SECONDS!",
+    "SOMETHING IS DEFINITELY HAPPENING SOMEWHERE!"
+  ],
+  "falsealarm.exit_waited": [
+    "False alarm! Phew! You're welcome for the vigilance, hoofball!",
+    "Crisis averted! By me! Mostly by there being no crisis!",
+    "Well, we survived. Barely. I'll take the credit. Toodle-oo!",
+    "See? Nothing! And you were SO calm about it. Suspiciously calm!"
+  ],
+  "clingy.open": [
+    "Hi. Hi. Hiiii. I'm going to stand HERE. Very close. Forever!",
+    "Oh good, you're here! I was worried you'd be somewhere else!",
+    "Do you like hugs? Doesn't matter! Proximity! We're doing proximity!",
+    "I've decided we're best friends. You weren't consulted. Hee-haw!"
+  ],
+  "clingy.during": [
+    "Am I too close? ...I'll take that as a no. Scooting closer!",
+    "This is nice. Just us. And me. Mostly me. Very close!",
+    "Personal space is a SOCIAL CONSTRUCT, hoofball!",
+    "I can hear you breathing. That's how close we are. Isn't that lovely?",
+    "Don't mind me! I'm just going to be RIGHT HERE. In your business!",
+    "Whatever you're doing, I'm doing it too. From very nearby!"
+  ],
+  "clingy.teleport": [
+    "Missed me?! I missed YOU! You can't just LEAVE, sport!",
+    "Ta-daaa! Distance is a myth! I've disproved it! Personally!",
+    "Where'd you GO?! Oh — there you are. Found you! Always will!",
+    "Nice try, hoofball! I'm faster than legs. I don't make the rules!",
+    "You RAN. From ME. We'll discuss that. Up close!"
+  ],
+  "clingy.exit_waited": [
+    "Okay! I've had my fill of you. For NOW. Byeeee!",
+    "This was lovely. Let's never do it again. Or let's! Hee-haw!",
+    "I'm going to go be close to someone else now. Don't be jealous!",
+    "Off I go! Remember: I could come back. At any time. Toodle-oo!"
+  ]
+}
