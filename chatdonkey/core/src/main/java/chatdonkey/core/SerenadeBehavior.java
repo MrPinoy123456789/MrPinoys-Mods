@@ -24,7 +24,7 @@ public final class SerenadeBehavior extends AbstractBehavior {
     private static final int STEER_INTERVAL_TICKS = 10;
 
     /** It has to hustle to keep the circle up. */
-    private static final double SPEED = 1.4;
+    private static final double SPEED = 1.7;
 
     /** How far ahead on the circle to aim, so it keeps moving rather than arriving. */
     private static final double LEAD_TICKS = 20;
@@ -56,16 +56,32 @@ public final class SerenadeBehavior extends AbstractBehavior {
         return 6 * 20;
     }
 
+    /** One note every this often -- slow enough to be a tune, not a buzz. */
+    public static final int NOTE_INTERVAL_TICKS = 10;
+
+    private int note;
+
     @Override
     protected void onStart(EventContext ctx) {
         // Start the lap from wherever it happens to have spawned, so it does not
         // snap to a fixed compass point.
         startAngle = ctx.random().nextDouble() * Math.PI * 2.0;
+
+        // He brings a backing track. The joke is that he then sings over it,
+        // in a different key, at his own tempo.
+        ctx.startMusic();
     }
 
     @Override
     protected void onTick(EventContext ctx) {
         int elapsed = ctx.elapsedTicks();
+
+        // The accompaniment: his own melody, out of tune with the record and
+        // with itself. Deliberately on a different interval to the bray so the
+        // two never settle into a rhythm together.
+        if (elapsed % NOTE_INTERVAL_TICKS == 0) {
+            ctx.singNote(note++);
+        }
 
         if (elapsed % BRAY_INTERVAL_TICKS == 0) {
             ctx.bray();

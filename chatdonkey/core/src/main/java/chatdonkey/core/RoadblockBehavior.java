@@ -29,7 +29,7 @@ public final class RoadblockBehavior extends AbstractBehavior {
     public static final double REPLANT_DISTANCE = 1.5;
 
     /** Brisk: it is trying to cut you off, not stroll after you. */
-    private static final double SPEED = 1.3;
+    private static final double SPEED = 1.6;
 
     private double lastTargetX;
     private double lastTargetZ;

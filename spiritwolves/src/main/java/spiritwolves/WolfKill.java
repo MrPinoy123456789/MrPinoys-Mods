@@ -21,24 +21,26 @@ public final class WolfKill {
             if (!(entity.level() instanceof ServerLevel level)) {
                 return;
             }
-            // Wild wolves hunt too -- keep them off the inventory walk entirely.
-            if (!(damageSource.getEntity() instanceof Wolf wolf) || !wolf.isTame()) {
-                return;
-            }
-            ServerPlayer owner = Tracker.findOwner(level, wolf.getUUID());
-            if (owner == null) {
-                return;
-            }
-            WolfRecord record = PlayerWolfRegistry.get(owner.getUUID());
-            if (record == null) {
+            Assists.forget(entity.getUUID());
+
+            if (damageSource.getEntity() instanceof Wolf wolf && wolf.isTame()) {
+                ServerPlayer owner = Tracker.findOwner(level, wolf.getUUID());
+                if (owner != null) {
+                    WolfRecord record = PlayerWolfRegistry.get(owner.getUUID());
+                    if (record != null) {
+                        Streak.onKill(wolf, owner);
+                        Fetch.recordKill(level, owner, entity.position());
+                        Souls.onKill(wolf, owner, record, entity);
+                        Verbs.onKill(wolf, owner, record, entity);
+                        VerbProcs.onKill(wolf, owner, record, entity);
+                    }
+                }
                 return;
             }
 
-            Streak.onKill(wolf, owner);
-            Fetch.recordKill(level, owner, entity.position());
-            Souls.onKill(wolf, owner, record, entity);
-            Verbs.onKill(wolf, owner, record, entity);
-            VerbProcs.onKill(wolf, owner, record, entity);
+            // Not a direct wolf kill -- check whether a summoned spirit wolf
+            // damaged the target recently.
+            Assists.claim(level, entity);
         });
     }
 }

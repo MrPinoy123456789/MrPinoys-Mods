@@ -2,11 +2,13 @@ package spiritwolves;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.item.DyeColor;
@@ -23,6 +25,16 @@ import net.minecraft.core.component.DataComponents;
  * faithful than just capturing the whole entity.
  */
 public final class WolfCapture {
+
+    /** +25% base land movement speed for all summoned spirit wolves. */
+    private static final Identifier LAND_SPEED_MODIFIER_ID =
+            Identifier.fromNamespaceAndPath(SpiritWolvesMod.MOD_ID, "land_speed");
+    private static final double LAND_SPEED_BONUS = 0.25;
+
+    /** +50% water movement efficiency for all summoned spirit wolves. */
+    private static final Identifier SWIM_SPEED_MODIFIER_ID =
+            Identifier.fromNamespaceAndPath(SpiritWolvesMod.MOD_ID, "swim_speed");
+    private static final double SWIM_SPEED_BONUS = 0.5;
 
     private WolfCapture() {}
 
@@ -63,6 +75,12 @@ public final class WolfCapture {
             attack.setBaseValue(4.0);
         }
 
+        // Spirit wolves are faster on land and better swimmers than wild wolves.
+        applyModifier(wolf.getAttribute(Attributes.MOVEMENT_SPEED), LAND_SPEED_MODIFIER_ID,
+                LAND_SPEED_BONUS, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        applyModifier(wolf.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY), SWIM_SPEED_MODIFIER_ID,
+                SWIM_SPEED_BONUS, AttributeModifier.Operation.ADD_VALUE);
+
         // A wolf captured mid-fall (or mid-death-save) carries its accumulated
         // fall distance and any residual velocity/fire in its NBT. Left alone,
         // the restored wolf reapplies fall damage -- sometimes lethal -- the
@@ -87,6 +105,17 @@ public final class WolfCapture {
         return wolf.hasCustomName() && wolf.getCustomName() != null
                 ? wolf.getCustomName().getString()
                 : null;
+    }
+
+    private static void applyModifier(AttributeInstance attribute, Identifier id, double amount,
+                                      AttributeModifier.Operation operation) {
+        if (attribute == null) {
+            return;
+        }
+        attribute.removeModifier(id);
+        if (amount != 0.0) {
+            attribute.addOrUpdateTransientModifier(new AttributeModifier(id, amount, operation));
+        }
     }
 
     /** The wolf's collar colour name, or null if uncollared. */

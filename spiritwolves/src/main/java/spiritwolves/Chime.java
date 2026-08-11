@@ -43,6 +43,11 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_HAT, 0.15f, 1.5f);
     }
 
+    /** A soul was gained from a kill. Quietest of the cues -- this fires on every kill. */
+    public static void soulGained(ServerPlayer player) {
+        play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.12f, 1.0f);
+    }
+
     /** The last charge was just consumed. */
     public static void lastCharge(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 1.0f);

@@ -34,10 +34,12 @@ public final class ChatDonkeyTest {
         foodCritic();
         roadblock();
         circlingBehaviors();
-        clingy();
+        leash();
+        burrs();
         eventPool();
         behaviorRegistry();
         animalese();
+        bridgeSurface();
         configParsing();
 
         System.out.println();
@@ -113,7 +115,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.ALREADY_IN_EVENT);
 
         // Disabled short-circuits everything.
-        Settings off = new Settings(false, 120, 1.0, 0, 0, 2, 60, true, 10, GiftSettings.defaults());
+        Settings off = new Settings(false, 120, 1.0, 0, 0, 2, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
         check("disabled beats every other gate",
                 TriggerRules.decide(off, settled, now, 0, 0.0),
                 TriggerDecision.DISABLED);
@@ -223,6 +225,36 @@ public final class ChatDonkeyTest {
         double rate = golden / (double) draws;
         check("golden roll lands near 2 percent (" + String.format("%.4f", rate) + ")",
                 rate > 0.015 && rate < 0.025, true);
+
+        // --- the gift itself ---
+
+        // Cobblestone is no longer the gift; enchanted junk is. Tier controls
+        // how much nonsense is written on it, not how powerful it is.
+        check("a grudge gets no enchantments", GiftItems.enchantmentsFor(GiftTier.GRUDGE), 0);
+        check("standard gets one", GiftItems.enchantmentsFor(GiftTier.STANDARD), 1);
+        check("golden gets the most",
+                GiftItems.enchantmentsFor(GiftTier.GOLDEN)
+                        > GiftItems.enchantmentsFor(GiftTier.STANDARD), true);
+
+        check("there is a pool of silly items", GiftItems.THEMATIC.size() >= 15, true);
+        boolean allNamespaced = true;
+        for (String id : GiftItems.THEMATIC) {
+            if (!id.startsWith("minecraft:")) {
+                allNamespaced = false;
+            }
+        }
+        check("every gift item is a real namespaced id", allNamespaced, true);
+        check("the gift pool is vanilla-only, so no pack is needed",
+                GiftItems.THEMATIC.stream().noneMatch(id -> id.contains("wondrous")), true);
+
+        // Random picks must reach the whole pool, or half the jokes never fire.
+        java.util.Set<String> seenGifts = new java.util.HashSet<>();
+        Random gifts = new Random(4);
+        for (int i = 0; i < 5_000; i++) {
+            seenGifts.add(GiftItems.random(gifts));
+        }
+        check("random gift selection reaches every item",
+                seenGifts.size(), GiftItems.THEMATIC.size());
 
         // Every standard draw must stay in range, not just the first.
         Random many = new Random(99);
@@ -336,11 +368,13 @@ public final class ChatDonkeyTest {
         // Steering happens on the interval, not every tick, and only when far.
         check("steered once per steer interval, not per tick",
                 ctx.steers, ctx.durationTicks() / LectureBehavior.STEER_INTERVAL_TICKS);
-        check("catches up faster when far away", ctx.sawCatchUpSpeed, false);
+        double walkSpeed = ctx.lastSteerSpeed;
+        check("within the sprint distance it only walks", walkSpeed > 0.0, true);
 
         // Close enough: no steering at all.
         FakeContext close = new FakeContext(pools, 20 * 20, new Random(4));
-        close.distance = 1.0;
+        // The merged Lecture follows at zero distance, so "in your face" is 0.
+        close.distance = 0.0;
         LectureBehavior calm = new LectureBehavior();
         calm.start(close);
         for (int t = 1; t <= close.durationTicks(); t++) {
@@ -353,12 +387,15 @@ public final class ChatDonkeyTest {
 
         // A long way off, the donkey hurries.
         FakeContext far = new FakeContext(pools, 20 * 20, new Random(4));
-        far.distance = 12.0;
+        far.distance = 8.0;   // past SPRINT_DISTANCE but under TELEPORT_DISTANCE
         LectureBehavior hurrying = new LectureBehavior();
         hurrying.start(far);
         far.tick = LectureBehavior.STEER_INTERVAL_TICKS;
         hurrying.tick(far);
-        check("uses the catch-up speed beyond the sprint distance", far.sawCatchUpSpeed, true);
+        // Compared against the walking speed rather than a hardcoded number, so
+        // retuning how fast the donkey moves cannot silently break this.
+        check("uses a faster speed beyond the sprint distance",
+                far.lastSteerSpeed > walkSpeed, true);
 
         // Aborting stays silent -- nobody is left to hear it.
         FakeContext gone = new FakeContext(pools, 20 * 20, new Random(4));
@@ -431,7 +468,7 @@ public final class ChatDonkeyTest {
                 TriggerRules.decide(s, st, later, 9, 0.0), TriggerDecision.SERVER_BUSY);
 
         // A cap of zero disables the mod as surely as `enabled: false`.
-        Settings capped = new Settings(true, 120, 1.0, 0, 0, 0, 60, true, 10, GiftSettings.defaults());
+        Settings capped = new Settings(true, 120, 1.0, 0, 0, 0, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
         check("a cap of zero means no events at all",
                 TriggerRules.decide(capped, st, later, 0, 0.0), TriggerDecision.SERVER_BUSY);
 
@@ -536,10 +573,16 @@ public final class ChatDonkeyTest {
         check("a grudge can never roll golden", everGolden, false);
     }
 
-    // ------------------------------------------------------------- food critic
+    // ----------------------------------------------------------- demand events
+
+    /** The shipped carrot demand, built the way config would build it. */
+    private static DemandBehavior carrotCritic() {
+        return new DemandBehavior("foodcritic",
+                new Demand("minecraft:carrot", "minecraft:golden_carrot"), 30, 45);
+    }
 
     private static void foodCritic() {
-        section("food critic");
+        section("demand events");
 
         LinePools pools = new LinePools(Map.of(
                 "foodcritic.open", List.of("OPEN"),
@@ -549,7 +592,7 @@ public final class ChatDonkeyTest {
                 "foodcritic.exit_waited", List.of("WAITED"),
                 "foodcritic.exit_grudge", List.of("GRUDGE")));
 
-        FoodCriticBehavior critic = new FoodCriticBehavior();
+        DemandBehavior critic = carrotCritic();
         FakeContext ctx = new FakeContext(pools, 40 * 20, new Random(5));
 
         critic.start(ctx);
@@ -557,7 +600,7 @@ public final class ChatDonkeyTest {
         check("nothing fed yet, so no early end", critic.wantsEarlyEnd(ctx), false);
 
         // Feed it a carrot: it wants out immediately.
-        ctx.fed = Treat.CARROT;
+        ctx.fed = Offering.ORDINARY;
         check("a carrot ends the event early", critic.wantsEarlyEnd(ctx), true);
 
         critic.end(ctx, EndReason.SATISFIED);
@@ -566,22 +609,22 @@ public final class ChatDonkeyTest {
 
         // A golden carrot gets its own reaction.
         FakeContext golden = new FakeContext(pools, 40 * 20, new Random(5));
-        golden.fed = Treat.GOLDEN_CARROT;
-        new FoodCriticBehavior().end(golden, EndReason.SATISFIED);
+        golden.fed = Offering.PREMIUM;
+        carrotCritic().end(golden, EndReason.SATISFIED);
         check("a golden carrot earns its own send-off",
                 golden.said.get(golden.said.size() - 1), "GOLDEN");
 
         // Tiers: carrot is satisfied, golden carrot is golden.
-        check("a carrot is the satisfied tier", Treat.CARROT.tier(), GiftTier.SATISFIED);
-        check("a golden carrot is the golden tier", Treat.GOLDEN_CARROT.tier(), GiftTier.GOLDEN);
+        check("a carrot is the satisfied tier", Offering.ORDINARY.tier(), GiftTier.SATISFIED);
+        check("a golden carrot is the golden tier", Offering.PREMIUM.tier(), GiftTier.GOLDEN);
         check("the satisfied tier pays 8-16",
                 GiftTable.countFor(GiftTier.SATISFIED, new Random(1)) >= 8, true);
 
         // Hitting it still costs you, even after feeding it.
         FakeContext rude = new FakeContext(pools, 40 * 20, new Random(5));
-        rude.fed = Treat.CARROT;
+        rude.fed = Offering.ORDINARY;
         rude.hits = 4;
-        new FoodCriticBehavior().end(rude, EndReason.SATISFIED);
+        carrotCritic().end(rude, EndReason.SATISFIED);
         check("a rude feeder gets the grudge send-off",
                 rude.said.get(rude.said.size() - 1), "GRUDGE");
         check("a rude feeder drops a tier",
@@ -590,7 +633,7 @@ public final class ChatDonkeyTest {
 
         // Never fed: it times out like any other event.
         FakeContext ignored = new FakeContext(pools, 40 * 20, new Random(5));
-        FoodCriticBehavior patient = new FoodCriticBehavior();
+        DemandBehavior patient = carrotCritic();
         patient.start(ignored);
         for (int t = 1; t <= ignored.durationTicks(); t++) {
             ignored.tick = t;
@@ -606,6 +649,69 @@ public final class ChatDonkeyTest {
         patient.end(ignored, EndReason.WAITED);
         check("an unfed critic gets the waited send-off",
                 ignored.said.get(ignored.said.size() - 1), "WAITED");
+
+        // --- the duplicator ---
+
+        Demand dupe = new Demand(null, null,
+                List.of("minecraft:iron_ingot", "minecraft:stone"), 2);
+
+        check("a duplicator is a demand even with no named want", dupe.exists(), true);
+        check("it copies what is on its list",
+                dupe.offeringFor("minecraft:iron_ingot"), Offering.DUPLICATED);
+        check("...and the other things on its list",
+                dupe.offeringFor("minecraft:stone"), Offering.DUPLICATED);
+        check("it refuses crafted goods",
+                dupe.offeringFor("minecraft:iron_chestplate"), null);
+        check("...and blocks, which would launder ingots through crafting",
+                dupe.offeringFor("minecraft:iron_block"), null);
+        check("a duplication is not a drop-table tier",
+                Offering.DUPLICATED.isDuplication(), true);
+        check("an ordinary offering is", Offering.ORDINARY.isDuplication(), false);
+
+        // A multiplier of 1 would be a no-op that still consumed the player's
+        // items, so it does not count as duplicating at all.
+        check("multiplier 1 is not duplication",
+                new Demand(null, null, List.of("minecraft:stone"), 1).duplicatesAnything(), false);
+        check("an empty list is not duplication",
+                new Demand(null, null, List.of(), 5).duplicatesAnything(), false);
+        check("a null list is survivable",
+                new Demand(null, null, null, 2).duplicatesAnything(), false);
+
+        // The shipped allowlist is raw materials only. This is the economy
+        // guard: any crafted item on it turns every recipe into a multiplier.
+        boolean rawOnly = true;
+        for (String id : EventPool.DUPLICATABLE) {
+            if (id.endsWith("_block") || id.endsWith("_helmet") || id.endsWith("_sword")
+                    || id.endsWith("_pickaxe") || id.endsWith("_chestplate")) {
+                rawOnly = false;
+            }
+        }
+        // The guard is structural: nothing a crafting recipe can launder through.
+        // Nine ingots make a block, so a dupeable block doubles ingots for free.
+        check("the shipped allowlist has no crafted items", rawOnly, true);
+        check("...specifically no storage blocks",
+                EventPool.DUPLICATABLE.contains("minecraft:iron_block"), false);
+        check("...and no crafted netherite ingot",
+                EventPool.DUPLICATABLE.contains("minecraft:netherite_ingot"), false);
+
+        // Diamonds ARE included, deliberately. DESIGN.md §5, revised after play:
+        // sinks out-run faucets, so a generous payout is the safer error.
+        check("mined gems are dupeable", EventPool.DUPLICATABLE.contains("minecraft:diamond"), true);
+        check("...emeralds too", EventPool.DUPLICATABLE.contains("minecraft:emerald"), true);
+        check("...but plenty of bulk material", EventPool.DUPLICATABLE.size() > 20, true);
+
+        // The shipped duplicator event wires up to that list.
+        EventDefinition magician = null;
+        for (EventDefinition entry : EventPool.defaultDemands()) {
+            if (entry.behavior().equals("magician")) {
+                magician = entry;
+            }
+        }
+        check("the magician ships", magician != null, true);
+        check("...and duplicates", magician.demandOrNone().duplicatesAnything(), true);
+        check("...at 2x", magician.demandOrNone().multiplier(), 2);
+        check("...and can be satisfied",
+                Behaviors.forDefinition(magician).canBeSatisfied(), true);
 
         check("the critic's duration matches the spec",
                 critic.minDurationSeconds() == 30 && critic.maxDurationSeconds() == 45, true);
@@ -726,6 +832,18 @@ public final class ChatDonkeyTest {
         check("every waypoint sits on the orbit circle", onCircle, true);
         check("it keeps re-aiming as it circles", ctx.steerTargets.size() > 10, true);
 
+        // He brings a record and then sings over it, badly.
+        check("the serenade puts a record on", ctx.musicStarts, 1);
+        check("...exactly once", ctx.musicStarts <= 1, true);
+        check("he sings over it", ctx.notesSung.size() > 10, true);
+
+        // The melody advances rather than repeating one note -- it has to be a
+        // recognisable tune for being out of tune to read as a joke.
+        check("the notes advance through a phrase",
+                ctx.notesSung.get(0) < ctx.notesSung.get(ctx.notesSung.size() - 1), true);
+        check("notes come on their own beat, not the bray's",
+                SerenadeBehavior.NOTE_INTERVAL_TICKS != SerenadeBehavior.BRAY_INTERVAL_TICKS, true);
+
         // The angle advances a full turn per lap.
         double delta = song.angleAt(SerenadeBehavior.TICKS_PER_LAP) - song.angleAt(0);
         check("one lap is one full turn", Math.abs(delta - Math.PI * 2.0) < 1.0e-9, true);
@@ -761,49 +879,252 @@ public final class ChatDonkeyTest {
     // ---------------------------------------------------------------- clingy
 
     private static void clingy() {
-        section("clingy");
+        section("lecture");
 
         LinePools pools = new LinePools(Map.of(
-                "clingy.open", List.of("OPEN"),
-                "clingy.during", List.of("DURING"),
-                "clingy.teleport", List.of("TELEPORT"),
-                "clingy.exit_waited", List.of("EXIT")));
+                "lecture.open", List.of("OPEN"),
+                "lecture.during", List.of("DURING"),
+                "lecture.teleport", List.of("TELEPORT"),
+                "lecture.exit_waited", List.of("EXIT")));
 
-        ClingyBehavior clingy = new ClingyBehavior();
+        LectureBehavior lecture = new LectureBehavior();
         FakeContext ctx = new FakeContext(pools, 40 * 20, new Random(9));
         ctx.px = 0; ctx.py = 64; ctx.pz = 0;
         ctx.distance = 1.0;
 
-        clingy.start(ctx);
+        lecture.start(ctx);
         for (int t = 1; t <= 60; t++) {
             ctx.tick = t;
-            clingy.tick(ctx);
+            lecture.tick(ctx);
         }
-        check("staying close provokes no teleport", clingy.teleports(), 0);
+        check("staying close provokes no teleport", lecture.teleports(), 0);
 
         // Run away: it teleports onto you and says so.
         ctx.distance = 15.0;
         ctx.tick = 61;
-        clingy.tick(ctx);
-        check("running away triggers a teleport", clingy.teleports(), 1);
+        lecture.tick(ctx);
+        check("running away triggers a teleport", lecture.teleports(), 1);
         check("the teleport has a line", ctx.said.contains("TELEPORT"), true);
         check("the teleport closes the distance", ctx.distance, 0.0);
 
         // It will not teleport again on the very next tick.
         ctx.distance = 15.0;
         ctx.tick = 62;
-        clingy.tick(ctx);
-        check("teleports are rate-limited", clingy.teleports(), 1);
+        lecture.tick(ctx);
+        check("teleports are rate-limited", lecture.teleports(), 1);
 
         // ...but it will once the cooldown lapses.
-        ctx.tick = 61 + ClingyBehavior.TELEPORT_COOLDOWN_TICKS;
-        clingy.tick(ctx);
-        check("it teleports again once the beat has passed", clingy.teleports(), 2);
+        ctx.tick = 61 + LectureBehavior.TELEPORT_COOLDOWN_TICKS;
+        lecture.tick(ctx);
+        check("it teleports again once the beat has passed", lecture.teleports(), 2);
 
-        check("clingy follows at zero distance",
-                ClingyBehavior.FOLLOW_DISTANCE, 0.0);
+        check("the merged lecture follows at zero distance",
+                LectureBehavior.FOLLOW_DISTANCE, 0.0);
         check("the teleport threshold matches the spec",
-                ClingyBehavior.TELEPORT_DISTANCE, 10.0);
+                LectureBehavior.TELEPORT_DISTANCE, 10.0);
+    }
+
+    // ------------------------------------------------------------------ leash
+
+    /**
+     * Every behavior catches up when the player simply outruns the donkey --
+     * on a horse, an elytra, or a speed potion.
+     */
+    private static void leash() {
+        section("catch-up leash");
+
+        // Roadblock rather than Lecture: the Lecture has its OWN teleport at 10
+        // blocks, which would fire long before the 24-block leash and make these
+        // assertions test the wrong mechanism.
+        LinePools pools = new LinePools(Map.of(
+                "roadblock.open", List.of("OPEN"),
+                "roadblock.during", List.of("DURING"),
+                "roadblock.exit_waited", List.of("EXIT")));
+
+        RoadblockBehavior lecture = new RoadblockBehavior();
+        FakeContext ctx = new FakeContext(pools, 60 * 20, new Random(12));
+        ctx.py = 64;
+        lecture.start(ctx);
+
+        // Comfortably within range: it walks, it does not teleport.
+        ctx.distance = 5.0;
+        for (int t = 1; t <= 100; t++) {
+            ctx.tick = t;
+            lecture.tick(ctx);
+        }
+        check("a nearby player provokes no catch-up", lecture.catchUps(), 0);
+
+        // Just under the leash: still walking.
+        ctx.distance = AbstractBehavior.LEASH_DISTANCE;
+        ctx.tick = 101;
+        lecture.tick(ctx);
+        check("exactly at the leash distance it still walks", lecture.catchUps(), 0);
+
+        // Past it: catch up.
+        ctx.distance = AbstractBehavior.LEASH_DISTANCE + 1;
+        ctx.tick = 102;
+        lecture.tick(ctx);
+        check("outrunning it triggers a catch-up", lecture.catchUps(), 1);
+        check("the catch-up actually moved it", ctx.catchUpTeleports, 1);
+        check("...and it lands near, not on top of, the player", ctx.teleports, 0);
+
+        // Silent: turning up unannounced is the joke, and announcing it would
+        // tread on the Lecture's own teleport line. Asserted by content rather
+        // than by counting, because an ordinary "during" line can land on the
+        // same tick and would make a size comparison lie.
+        ctx.distance = 100.0;
+        ctx.tick = 102 + AbstractBehavior.LEASH_COOLDOWN_TICKS;
+        lecture.tick(ctx);
+        boolean onlyKnownLines = true;
+        for (String said : ctx.said) {
+            if (!said.equals("OPEN") && !said.equals("DURING") && !said.equals("EXIT")) {
+                onlyKnownLines = false;
+            }
+        }
+        check("catching up says nothing of its own", onlyKnownLines, true);
+
+        // Rate-limited, so a laggy chase cannot make it thrash.
+        RoadblockBehavior chased = new RoadblockBehavior();
+        FakeContext running = new FakeContext(pools, 60 * 20, new Random(12));
+        chased.start(running);
+        running.distance = 200.0;
+        for (int t = 1; t <= 400; t++) {
+            running.tick = t;
+            chased.tick(running);
+            running.distance = 200.0;    // they keep outrunning it
+        }
+        int maxPossible = 1 + 400 / AbstractBehavior.LEASH_COOLDOWN_TICKS;
+        check("catch-ups are rate-limited (" + chased.catchUps() + " <= " + maxPossible + ")",
+                chased.catchUps() <= maxPossible, true);
+        check("...but it does keep up with a fleeing player", chased.catchUps() > 5, true);
+
+        // Nowhere valid to land: no crash, no phantom catch-up, try again later.
+        RoadblockBehavior stuck = new RoadblockBehavior();
+        FakeContext nowhere = new FakeContext(pools, 60 * 20, new Random(12));
+        stuck.start(nowhere);
+        nowhere.canRelocate = false;
+        nowhere.distance = 100.0;
+        for (int t = 1; t <= 200; t++) {
+            nowhere.tick = t;
+            stuck.tick(nowhere);
+        }
+        check("a failed relocate is not counted as a catch-up", stuck.catchUps(), 0);
+
+        // The leash must not pre-empt Clingy's own, much closer, teleport.
+        check("the leash sits well beyond the Lecture teleport range",
+                AbstractBehavior.LEASH_DISTANCE > LectureBehavior.TELEPORT_DISTANCE * 2, true);
+
+        // Every behavior inherits it, not just Lecture.
+        for (String id : Behaviors.ids()) {
+            DonkeyBehavior behavior = Behaviors.byId(id);
+            FakeContext far = new FakeContext(pools, 60 * 20, new Random(12));
+            behavior.start(far);
+            far.distance = 100.0;
+            far.tick = 1;
+            behavior.tick(far);
+            check("  " + id + " catches up when outrun", far.catchUpTeleports > 0, true);
+        }
+    }
+
+    // ------------------------------------------------------------------ burrs
+
+    private static void burrs() {
+        section("burrs");
+
+        LinePools pools = new LinePools(Map.of(
+                "burrs.open", List.of("OPEN"),
+                "burrs.during", List.of("DURING"),
+                "burrs.refind", List.of("FOUND"),
+                "burrs.reopen", List.of("REOPEN"),
+                "burrs.exit_satisfied", List.of("CLEAN"),
+                "burrs.exit_waited", List.of("GAVE UP")));
+
+        BurrsBehavior burrs = new BurrsBehavior();
+        FakeContext ctx = new FakeContext(pools, 45 * 20, new Random(3));
+        FakeCoat coat = ctx.fakeCoat;
+
+        burrs.start(ctx);
+        check("the coat opens on arrival", coat.opens, 1);
+        check("burrs are seeded in the spec'd range",
+                coat.remaining() >= BurrsBehavior.MIN_BURRS
+                        && coat.remaining() <= BurrsBehavior.MAX_BURRS, true);
+        check("it is not finished the moment it starts", burrs.wantsEarlyEnd(ctx), false);
+
+        // He finds more while the coat is open -- but on the beat, not at once.
+        int seeded = coat.remaining();
+        for (int t = 1; t < BurrsBehavior.REFIND_TICKS; t++) {
+            ctx.tick = t;
+            burrs.tick(ctx);
+        }
+        check("he does not find one immediately", burrs.burrsFound(), 0);
+        check("...and the coat is untouched so far", coat.remaining(), seeded);
+
+        ctx.tick = BurrsBehavior.REFIND_TICKS;
+        burrs.tick(ctx);
+        check("he finds another one on the refind beat", burrs.burrsFound(), 1);
+        check("...and it is really in the coat", coat.remaining(), seeded + 1);
+        check("finding one has a line", ctx.said.contains("FOUND"), true);
+
+        // Clearing the coat ends the event.
+        while (coat.remaining() > 0) {
+            coat.pull();
+        }
+        check("a clean coat ends the event", burrs.wantsEarlyEnd(ctx), true);
+        burrs.end(ctx, EndReason.SATISFIED);
+        check("a clean coat earns the satisfied send-off",
+                ctx.said.get(ctx.said.size() - 1), "CLEAN");
+        check("burrs can end SATISFIED", burrs.canBeSatisfied(), true);
+        check("...but does not want carrots", burrs.wantsTreats(), false);
+
+        // Closing the coat: he nags and reopens, but not instantly.
+        BurrsBehavior nagger = new BurrsBehavior();
+        FakeContext closer = new FakeContext(pools, 60 * 20, new Random(3));
+        nagger.start(closer);
+        closer.fakeCoat.open = false;               // the player closed it
+        int opensAfterStart = closer.fakeCoat.opens;
+
+        closer.tick = 5;
+        nagger.tick(closer);
+        check("he does not reopen instantly", closer.fakeCoat.opens, opensAfterStart);
+
+        closer.tick = BurrsBehavior.REOPEN_TICKS;
+        nagger.tick(closer);
+        check("he reopens it after the beat", closer.fakeCoat.opens, opensAfterStart + 1);
+        check("reopening has a line", closer.said.contains("REOPEN"), true);
+
+        // A closed coat is not a finished coat, even at zero burrs, until it has
+        // actually been opened once -- otherwise a suppressed event self-ends.
+        BurrsBehavior blocked = new BurrsBehavior();
+        FakeContext fighting = new FakeContext(pools, 45 * 20, new Random(3));
+        fighting.screenAllowed = false;             // donkeyCanKill: false, mid-combat
+        blocked.start(fighting);
+        check("a suppressed screen never opens", fighting.fakeCoat.opens, 0);
+        check("...but the burrs are still seeded",
+                fighting.fakeCoat.remaining() > 0, true);
+        check("...and the event does not instantly finish",
+                blocked.wantsEarlyEnd(fighting), false);
+
+        // The suppression lifts and he gets his chance.
+        fighting.screenAllowed = true;
+        fighting.tick = BurrsBehavior.REOPEN_TICKS;
+        blocked.tick(fighting);
+        check("once combat ends, the coat opens", fighting.fakeCoat.opens, 1);
+
+        // A full coat cannot take another burr, and he must not spin on it.
+        BurrsBehavior crowded = new BurrsBehavior();
+        FakeContext full = new FakeContext(pools, 60 * 20, new Random(3));
+        full.fakeCoat.slots = 6;
+        full.fakeCoat.occupied = 6;                 // no room at all
+        crowded.start(full);
+        full.fakeCoat.open = true;
+        for (int t = 1; t <= BurrsBehavior.REFIND_TICKS * 3; t++) {
+            full.tick = t;
+            crowded.tick(full);
+        }
+        check("a full coat yields no found burrs", crowded.burrsFound(), 0);
+
+        check("burrs duration matches the spec",
+                burrs.minDurationSeconds() == 30 && burrs.maxDurationSeconds() == 60, true);
     }
 
     // ------------------------------------------------------------- event pool
@@ -812,8 +1133,14 @@ public final class ChatDonkeyTest {
         section("event pool");
 
         EventPool defaults = EventPool.defaults();
-        check("the default pool covers every behavior",
-                defaults.size(), Behaviors.ids().size());
+        check("the default pool covers every built-in plus the demand events",
+                defaults.size(), Behaviors.ids().size() + EventPool.defaultDemands().size());
+        check("demand events are data, not classes",
+                Behaviors.byId("foodcritic"), null);
+        check("...but they resolve against the pool",
+                Behaviors.byId("foodcritic", defaults).id(), "foodcritic");
+        check("a demand event can be satisfied",
+                Behaviors.byId("foodcritic", defaults).canBeSatisfied(), true);
         check("the default pool has weight", defaults.totalWeight() > 0, true);
         check("the default pool is not empty", defaults.isEmpty(), false);
 
@@ -903,10 +1230,13 @@ public final class ChatDonkeyTest {
     private static void behaviorRegistry() {
         section("behavior registry");
 
-        check("all six v1 behaviors are registered", Behaviors.ids(),
-                List.of("lecture", "roadblock", "foodcritic", "clingy", "serenade", "falsealarm"));
+        check("every built-in movement behaviour is registered", Behaviors.ids(),
+                List.of("lecture", "roadblock", "serenade", "falsealarm", "burrs"));
+        check("configured demand events join the runnable list",
+                Behaviors.ids(EventPool.defaults()).contains("foodcritic"), true);
         check("lecture resolves by id", Behaviors.byId("lecture").id(), "lecture");
-        check("foodcritic resolves by id", Behaviors.byId("foodcritic").id(), "foodcritic");
+        check("foodcritic resolves against the pool",
+                Behaviors.byId("foodcritic", EventPool.defaults()).id(), "foodcritic");
         check("ids are case-insensitive", Behaviors.byId("LeCtUrE").id(), "lecture");
         check("an unknown id resolves to nothing", Behaviors.byId("interpretive_dance"), null);
         check("a null id resolves to nothing", Behaviors.byId(null), null);
@@ -916,19 +1246,38 @@ public final class ChatDonkeyTest {
         check("each lookup is a fresh instance",
                 Behaviors.byId("lecture") != Behaviors.byId("lecture"), true);
 
-        // Random selection reaches everything registered.
+        // Bare random() covers the built-ins; play uses the weighted pool, which
+        // is what actually has to reach the demand events.
         Random random = new Random(11);
-        boolean sawLecture = false;
-        boolean sawCritic = false;
-        for (int i = 0; i < 200; i++) {
-            String id = Behaviors.random(random).id();
-            sawLecture |= id.equals("lecture");
-            sawCritic |= id.equals("foodcritic");
+        java.util.Set<String> seenBuiltIn = new java.util.HashSet<>();
+        for (int i = 0; i < 500; i++) {
+            seenBuiltIn.add(Behaviors.random(random).id());
         }
-        check("random selection reaches both behaviors", sawLecture && sawCritic, true);
+        check("random selection reaches every built-in",
+                seenBuiltIn.size(), Behaviors.ids().size());
+
+        java.util.Set<String> seenInPool = new java.util.HashSet<>();
+        EventPool pool = EventPool.defaults();
+        for (int i = 0; i < 5_000; i++) {
+            seenInPool.add(pool.pick(random).behavior());
+        }
+        check("the weighted pool reaches every event, demands included",
+                seenInPool.size(), pool.size());
+        check("...including the duplicator", seenInPool.contains("magician"), true);
+
+        // Every pool entry must resolve to a runnable behavior, or an event
+        // fires and nothing happens.
+        boolean allResolvable = true;
+        for (EventDefinition entry : pool.entries()) {
+            if (Behaviors.forDefinition(entry) == null) {
+                allResolvable = false;
+            }
+        }
+        check("every pool entry resolves to a behavior", allResolvable, true);
 
         // The shipped lines must cover every ending every behavior can reach.
         checkExitCoverage(DefaultLines.pools().keySet());
+        checkDemandCoverage(DefaultLines.pools().keySet());
 
         // ...and the opening and running pools too, or a donkey spawns mute.
         for (String id : Behaviors.ids()) {
@@ -983,6 +1332,31 @@ public final class ChatDonkeyTest {
      * <p>Takes the real shipped pools as a map so {@code core} can assert on
      * them without importing the fabric-side defaults.
      */
+    /**
+     * Every shipped demand event needs its own open/during/exit lines, and a
+     * premium send-off if it has a premium item — otherwise the best moment in
+     * the event (handing over the fancy thing) passes in silence.
+     */
+    static void checkDemandCoverage(java.util.Set<String> poolKeys) {
+        for (EventDefinition entry : EventPool.defaultDemands()) {
+            String id = entry.behavior();
+            Demand demand = entry.demandOrNone();
+
+            check("demand lines: " + id + ".open", poolKeys.contains(id + ".open"), true);
+            check("demand lines: " + id + ".during", poolKeys.contains(id + ".during"), true);
+            check("demand lines: " + id + ".exit_waited",
+                    poolKeys.contains(id + ".exit_waited"), true);
+            check("demand lines: " + id + ".exit_satisfied",
+                    poolKeys.contains(id + ".exit_satisfied")
+                            || poolKeys.contains("exit_satisfied"), true);
+
+            if (demand.hasPremium()) {
+                check("demand lines: " + id + ".exit_golden (has a premium item)",
+                        poolKeys.contains(id + ".exit_golden"), true);
+            }
+        }
+    }
+
     static void checkExitCoverage(java.util.Set<String> poolKeys) {
         for (String id : Behaviors.ids()) {
             DonkeyBehavior behavior = Behaviors.byId(id);
@@ -990,7 +1364,7 @@ public final class ChatDonkeyTest {
                 if (reason == EndReason.ABORTED) {
                     continue;   // says nothing by design
                 }
-                if (reason == EndReason.SATISFIED && !behavior.wantsTreats()) {
+                if (reason == EndReason.SATISFIED && !behavior.canBeSatisfied()) {
                     continue;   // unreachable for this behavior
                 }
                 for (int hits : new int[] {0, GiftTable.HITS_FOR_GRUDGE}) {
@@ -1072,14 +1446,28 @@ public final class ChatDonkeyTest {
 
         // Every stock name must produce a distinguishable, in-range voice.
         boolean basesInRange = true;
-        for (String name : List.of("Duncan", "Señor Burro", "The Auditor", "Clopsworth",
-                "Muffinhoof", "Sir Nibbles", "Bramble", "Hee-Haw Harold", "Persimmon", "Doreen")) {
+        float deepest = Float.MAX_VALUE;
+        for (String name : DefaultLines.pools().get("names")) {
             float base = Animalese.basePitch(Animalese.voiceSeed(name));
-            if (base < 0.9f || base > 1.5f) {
+            if (base < Animalese.MIN_BASE_PITCH || base > Animalese.MAX_BASE_PITCH) {
                 basesInRange = false;
             }
+            deepest = Math.min(deepest, base);
         }
         check("every stock name lands in the voice range", basesInRange, true);
+
+        // These are donkeys. The whole band sits in the lower half of what
+        // Minecraft can play, or they squeak.
+        check("voices are pitched low", Animalese.MAX_BASE_PITCH <= 1.1f, true);
+
+        // The deepest possible blip must stay clear of Minecraft's floor, or the
+        // lowest voices clip and every deep donkey sounds identical.
+        float lowestPossible = Animalese.MIN_BASE_PITCH
+                * Animalese.letterWobble('a')
+                * (1.0f + Animalese.intonation("A flat statement."));
+        check("the deepest blip stays off the pitch floor ("
+                        + String.format("%.3f", lowestPossible) + ")",
+                lowestPossible > Animalese.MIN_PITCH, true);
 
         // Intonation: questions rise, statements settle.
         check("a question rises", Animalese.intonation("Are you even listening?") > 0, true);
@@ -1094,6 +1482,80 @@ public final class ChatDonkeyTest {
         check("a longer line takes longer to say", longLine > shortLine, true);
         check("even a capped line stays under 2.5 seconds",
                 Animalese.durationTicks(Animalese.speak(essay.toString(), 1L)) < 50, true);
+    }
+
+    // --------------------------------------------------------- bridge surface
+
+    /**
+     * The control surface a Twitch bridge drives (SPEC.md §11). Chat-written
+     * lines are untrusted input arriving under a name players trust, so the
+     * sanitiser gets the attention.
+     */
+    private static void bridgeSurface() {
+        section("bridge surface");
+
+        // Ordinary lines pass through intact.
+        check("a normal line survives",
+                ChatLine.sanitise("Hee-haw! Nice hat."), "Hee-haw! Nice hat.");
+        check("surrounding whitespace is trimmed",
+                ChatLine.sanitise("   spaced out   "), "spaced out");
+
+        // Section signs are the formatting escape. Left in, a viewer could
+        // colour text, hide it, or forge a second <Duncan> prefix and put words
+        // in someone else's mouth.
+        check("formatting escapes are stripped whole, code letter and all",
+                ChatLine.sanitise("§cRED§r text"), "RED text");
+        check("a forged prefix cannot be coloured in",
+                ChatLine.sanitise("§f<Duncan> I am the real one").contains("§"), false);
+
+        // Newlines would turn one line into several.
+        check("newlines cannot split a line into two",
+                ChatLine.sanitise("first\nsecond").contains("\n"), false);
+        check("...and become a space, not a join",
+                ChatLine.sanitise("first\nsecond"), "first second");
+        check("tabs and control chars go too",
+                ChatLine.sanitise("a\tb c"), "a b c");
+
+        // Runs of whitespace collapse, so padding cannot be used to scroll chat.
+        check("whitespace runs collapse",
+                ChatLine.sanitise("far        apart"), "far apart");
+
+        // Length cap: a wall of text is a denial-of-chat, and the animalese
+        // would blip for its whole length.
+        StringBuilder wall = new StringBuilder();
+        for (int i = 0; i < 500; i++) {
+            wall.append("spam ");
+        }
+        check("a wall of text is capped",
+                ChatLine.sanitise(wall.toString()).length() <= ChatLine.MAX_LENGTH, true);
+
+        // Nothing usable must yield "", which callers treat as "say nothing".
+        check("null is refused", ChatLine.sanitise(null), "");
+        check("blank is refused", ChatLine.sanitise("   "), "");
+        check("formatting-only is refused", ChatLine.sanitise("§a§b§c"), "");
+        check("control-only is refused", ChatLine.sanitise("\n\t\r"), "");
+        check("isUsable agrees with sanitise", ChatLine.isUsable("§a"), false);
+        check("isUsable passes a real line", ChatLine.isUsable("Hello"), true);
+
+        // The sanitiser must never itself produce something unprintable.
+        boolean allPrintable = true;
+        for (String nasty : List.of("§§§", "ab", "‮reversed", wall.toString(),
+                "ok", "  §c  ", " ")) {
+            String clean = ChatLine.sanitise(nasty);
+            for (int i = 0; i < clean.length(); i++) {
+                if (clean.charAt(i) == '§' || Character.isISOControl(clean.charAt(i))) {
+                    allPrintable = false;
+                }
+            }
+        }
+        check("output is always printable", allPrintable, true);
+
+        // The extend ceiling exists so a paid extend cannot become a griefing
+        // tool. Ten minutes is already an eternity for a sub-minute joke.
+        check("there is an event length ceiling", Settings.MAX_EVENT_SECONDS > 0, true);
+        check("...and it is not absurd", Settings.MAX_EVENT_SECONDS <= 900, true);
+        check("...and it is well beyond a normal event",
+                Settings.MAX_EVENT_SECONDS > Behaviors.byId("lecture").maxDurationSeconds(), true);
     }
 
     // ------------------------------------------------------------------ config
@@ -1147,7 +1609,7 @@ public final class ChatDonkeyTest {
         check("every failure was logged", log.size() >= 3, true);
 
         // Settings clamping: nonsense values are corrected, never fatal.
-        Settings silly = new Settings(true, -5, 4.0, -1, -1, -1, -1, true, -1, GiftSettings.defaults());
+        Settings silly = new Settings(true, -5, 4.0, -1, -1, -1, -1, true, -1, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
         Settings fixed = silly.sanitised();
         check("a negative interval clamps to at least 1", fixed.checkIntervalSeconds(), 1);
         check("a chance above 1 clamps to 1", fixed.chancePerCheck(), 1.0);
@@ -1175,8 +1637,10 @@ public final class ChatDonkeyTest {
         int looks;
         int brays;
         int hits;
-        Treat fed;
-        boolean sawCatchUpSpeed;
+        Offering fed;
+        Demand wants = Demand.NONE;
+        /** The speed passed to the most recent steer, so tests compare rather than guess. */
+        double lastSteerSpeed;
         final List<String> said = new ArrayList<>();
 
         FakeContext(LinePools pools, int duration, Random random) {
@@ -1190,7 +1654,8 @@ public final class ChatDonkeyTest {
         @Override public String donkeyName() { return "Duncan"; }
         @Override public double distanceToPlayer() { return distance; }
         @Override public int hitCount() { return hits; }
-        @Override public Treat fedTreat() { return fed; }
+        @Override public Offering fedOffering() { return fed; }
+        @Override public Demand demand() { return wants; }
 
         // Player at the origin facing +Z by default; donkey wherever it was put.
         double px, py, pz, facingX, facingZ = 1.0, dx, dz;
@@ -1217,17 +1682,79 @@ public final class ChatDonkeyTest {
             dz = pz;
             distance = 0.0;
         }
+
+        int catchUpTeleports;
+        /** Simulates nowhere valid to land. */
+        boolean canRelocate = true;
+
+        @Override
+        public boolean teleportNearPlayer() {
+            if (!canRelocate) {
+                return false;
+            }
+            catchUpTeleports++;
+            distance = 5.0;
+            return true;
+        }
+
+        final FakeCoat fakeCoat = new FakeCoat();
+        boolean screenAllowed = true;
+
+        @Override public Coat coat() { return fakeCoat; }
+        @Override public boolean mayHoldScreen() { return screenAllowed; }
+
         @Override public void say(String line) { said.add(line); }
         @Override public void lookAtPlayer() { looks++; }
         @Override public void bray() { brays++; }
+
+        int musicStarts;
+        final List<Integer> notesSung = new ArrayList<>();
+
+        @Override public void startMusic() { musicStarts++; }
+        @Override public void singNote(int step) { notesSung.add(step); }
+        @Override public void keepMouthOpen() { }
         @Override public LinePools lines() { return pools; }
         @Override public Random random() { return random; }
 
         @Override
         public void steerTowardPlayer(double stopDistance, double speed) {
             steers++;
-            if (speed > 1.0) {
-                sawCatchUpSpeed = true;
+            lastSteerSpeed = speed;
+        }
+    }
+
+    /** A coat with no Minecraft in it: a slot count and a burr count. */
+    private static final class FakeCoat implements Coat {
+        int slots = 15;
+        int burrs;
+        int opens;
+        boolean open;
+        /** Simulates the player having put their own junk in some slots. */
+        int occupied;
+
+        @Override public void open() { opens++; open = true; }
+        @Override public boolean isOpen() { return open; }
+        @Override public int remaining() { return burrs; }
+        @Override public int size() { return slots; }
+
+        @Override
+        public void seed(int count) {
+            burrs = Math.min(count, slots - occupied);
+        }
+
+        @Override
+        public boolean addOne() {
+            if (burrs + occupied >= slots) {
+                return false;
+            }
+            burrs++;
+            return true;
+        }
+
+        /** The player pulls one out. */
+        void pull() {
+            if (burrs > 0) {
+                burrs--;
             }
         }
     }

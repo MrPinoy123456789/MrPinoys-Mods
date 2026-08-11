@@ -54,6 +54,7 @@ final class VerbProcs {
                 return;
             }
 
+            Assists.mark(wolf, owner, victim);
             onHit(wolf, owner, record, victim, level);
         });
     }
@@ -106,6 +107,11 @@ final class VerbProcs {
         if (ravenous >= 1) {
             healOrOverheal(wolf, ravenous, 2.0f);
         }
+
+        int predator = tierOf(record, Verbs.PREDATOR);
+        if (predator >= 1 && Verbs.PREDATOR.family.contains(killed.getType())) {
+            wolf.heal(predator * 2.0f);
+        }
     }
 
     private static void healOrOverheal(Wolf wolf, int ravenousTier, float amount) {
@@ -133,13 +139,24 @@ final class VerbProcs {
             wolf.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 600, 0, true, false));
         }
 
-        int tier = tierOf(record, Verbs.BLINKSTRIKE);
-        if (tier <= 0) {
+        int light = tierOf(record, Verbs.LIGHT);
+        if (light >= 1) {
+            wolf.addEffect(new MobEffectInstance(MobEffects.GLOWING, 120, 0, true, false));
+        }
+        if (light >= 2) {
+            double nightVisionRadius = light >= 3 ? 16.0 : 8.0;
+            if (owner.distanceTo(wolf) <= nightVisionRadius) {
+                owner.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 300, 0, true, false));
+            }
+        }
+
+        int blinkTier = tierOf(record, Verbs.BLINKSTRIKE);
+        if (blinkTier <= 0) {
             return;
         }
 
         LivingEntity target = wolf.getTarget();
-        if (target == null && tier >= 3) {
+        if (target == null && blinkTier >= 3) {
             target = nearestMonster(wolf);
         }
         if (target == null || wolf.distanceTo(target) <= BLINK_RANGE) {
@@ -153,7 +170,7 @@ final class VerbProcs {
         }
 
         wolf.snapTo(target.getX(), target.getY(), target.getZ(), wolf.getYRot(), wolf.getXRot());
-        blinkCooldown.put(wolf.getUUID(), now + (tier >= 2 ? BLINK_COOLDOWN_TICKS_TIER2 : BLINK_COOLDOWN_TICKS));
+        blinkCooldown.put(wolf.getUUID(), now + (blinkTier >= 2 ? BLINK_COOLDOWN_TICKS_TIER2 : BLINK_COOLDOWN_TICKS));
     }
 
     private static LivingEntity nearestMonster(Wolf wolf) {

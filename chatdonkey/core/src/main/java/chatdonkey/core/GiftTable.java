@@ -73,11 +73,11 @@ public final class GiftTable {
      * golden carrot is the stated way to earn the golden tier (SPEC.md section
      * 5), so it must not be left to a 2% chance. Being rude still costs a tier.
      */
-    public static Gift selectFed(Treat treat, int hitCount, Random random) {
+    public static Gift selectFed(Offering treat, int hitCount, Random random) {
         return selectFed(treat, hitCount, random, GiftSettings.defaults());
     }
 
-    public static Gift selectFed(Treat treat, int hitCount, Random random, GiftSettings gifts) {
+    public static Gift selectFed(Offering treat, int hitCount, Random random, GiftSettings gifts) {
         GiftTier tier = treat.tier();
         if (hitCount >= HITS_FOR_GRUDGE) {
             tier = downgrade(tier);

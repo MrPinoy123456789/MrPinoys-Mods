@@ -1,0 +1,14 @@
+{
+  "projectPath": ":",
+  "classpaths": {
+    "test": [
+      "A:\\MrPinoys Mods\\spiritwolves\\build\\classes\\java\\test",
+      "A:\\MrPinoys Mods\\spiritwolves\\build\\resources\\test"
+    ],
+    "main": [
+      "A:\\MrPinoys Mods\\spiritwolves\\build\\classes\\java\\main",
+      "A:\\MrPinoys Mods\\spiritwolves\\build\\resources\\main",
+      "A:\\MrPinoys Mods\\spiritwolves\\build\\libs\\MrPinoys_spiritwolves-0.1.0.jar"
+    ]
+  }
+}

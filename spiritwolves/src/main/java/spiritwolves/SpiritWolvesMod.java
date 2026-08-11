@@ -21,6 +21,7 @@ public final class SpiritWolvesMod implements ModInitializer {
         Summoning.register();
         Deaths.register();
         Senses.register();
+        Assists.register();
         WolfKill.register();
         Fetch.register();
         RecallLock.register();

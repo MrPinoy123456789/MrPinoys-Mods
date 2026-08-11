@@ -97,4 +97,18 @@ public final class Triggers {
     public void grantGrace(ServerPlayer player, int minutes) {
         state(player).grantGraceUntil(System.currentTimeMillis() + minutes * 60_000L);
     }
+
+    /**
+     * Cancels immunity -- chat outbidding the streamer (SPEC.md section 7).
+     *
+     * @return false if the player had no active grace to revoke
+     */
+    public boolean revokeGrace(ServerPlayer player) {
+        PlayerTriggerState state = state(player);
+        if (!state.hasGraceAt(System.currentTimeMillis())) {
+            return false;
+        }
+        state.revokeGrace();
+        return true;
+    }
 }

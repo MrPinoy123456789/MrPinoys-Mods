@@ -34,6 +34,7 @@ public final class WondrousMod implements ModInitializer {
         FlyingBoots.register();
         Stations.register(registry);
         AreaBreak.register(registry);
+        BoomerangBall.register();
         WondrousCommands.register(registry);
 
         ServerPlayConnectionEvents.DISCONNECT.register(

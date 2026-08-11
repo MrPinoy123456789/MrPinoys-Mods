@@ -3,6 +3,8 @@ package chatdonkey;
 import chatdonkey.core.Behaviors;
 import chatdonkey.core.DonkeyBehavior;
 import chatdonkey.core.EndReason;
+import chatdonkey.core.Settings;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -27,8 +29,20 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class DonkeyCommands {
 
-    private static final SuggestionProvider<CommandSourceStack> BEHAVIOR_IDS =
-            (ctx, builder) -> SharedSuggestionProvider.suggest(Behaviors.ids(), builder);
+    /** Sentinel for "no duration override given"; the event rolls its own. */
+    private static final int NO_OVERRIDE = -1;
+
+    /**
+     * Completion for the event argument.
+     *
+     * <p>Reads the pool at completion time rather than at registration, so
+     * demand events an operator adds to {@code events.json} and loads with
+     * {@code /donkey reload} tab-complete immediately.
+     */
+    private static SuggestionProvider<CommandSourceStack> behaviorIds(Events events) {
+        return (ctx, builder) ->
+                SharedSuggestionProvider.suggest(Behaviors.ids(events.pool()), builder);
+    }
 
     private DonkeyCommands() {}
 
@@ -39,16 +53,51 @@ public final class DonkeyCommands {
 
                         .then(Commands.literal("trigger")
                                 .executes(ctx -> trigger(ctx.getSource(),
-                                        ctx.getSource().getPlayerOrException(), null, events))
+                                        ctx.getSource().getPlayerOrException(), null, NO_OVERRIDE, events))
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> trigger(ctx.getSource(),
-                                                EntityArgument.getPlayer(ctx, "player"), null, events))
+                                                EntityArgument.getPlayer(ctx, "player"), null, NO_OVERRIDE, events))
                                         .then(Commands.argument("event", StringArgumentType.word())
-                                                .suggests(BEHAVIOR_IDS)
+                                                .suggests(behaviorIds(events))
                                                 .executes(ctx -> trigger(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "event"),
+                                                        NO_OVERRIDE, events))
+                                                // Duration override: the bridge
+                                                // decides how long chat just paid for.
+                                                .then(Commands.argument("seconds",
+                                                                IntegerArgumentType.integer(
+                                                                        1, Settings.MAX_EVENT_SECONDS))
+                                                        .executes(ctx -> trigger(ctx.getSource(),
+                                                                EntityArgument.getPlayer(ctx, "player"),
+                                                                StringArgumentType.getString(ctx, "event"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                events))))))
+
+                        // --- the bridge surface (SPEC.md sections 9 and 11) ---
+
+                        .then(Commands.literal("extend")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("seconds",
+                                                        IntegerArgumentType.integer(1, 300))
+                                                .executes(ctx -> extend(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        IntegerArgumentType.getInteger(ctx, "seconds"),
                                                         events)))))
+
+                        .then(Commands.literal("say")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("line",
+                                                        StringArgumentType.greedyString())
+                                                .executes(ctx -> say(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        StringArgumentType.getString(ctx, "line"),
+                                                        events)))))
+
+                        .then(Commands.literal("ungrace")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> ungrace(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "player"), triggers))))
 
                         .then(Commands.literal("end")
                                 .executes(ctx -> end(ctx.getSource(),
@@ -73,7 +122,7 @@ public final class DonkeyCommands {
     }
 
     private static int trigger(CommandSourceStack source, ServerPlayer target,
-                               String behaviorId, Events events) {
+                               String behaviorId, int seconds, Events events) {
         if (events.isActive(target.getUUID())) {
             source.sendFailure(Component.literal(
                     target.getName().getString() + " is already being bothered."));
@@ -84,13 +133,15 @@ public final class DonkeyCommands {
         if (behaviorId == null) {
             started = events.start(target);
         } else {
-            DonkeyBehavior behavior = Behaviors.byId(behaviorId);
+            DonkeyBehavior behavior = Behaviors.byId(behaviorId, events.pool());
             if (behavior == null) {
                 source.sendFailure(Component.literal(
-                        "No such event: " + behaviorId + ". Try one of " + Behaviors.ids() + "."));
+                        "No such event: " + behaviorId + ". Try one of " + Behaviors.ids(events.pool()) + "."));
                 return 0;
             }
-            started = events.start(target, behavior);
+            started = seconds == NO_OVERRIDE
+                    ? events.start(target, behavior)
+                    : events.start(target, behavior, seconds * 20);
         }
 
         if (!started) {
@@ -101,6 +152,77 @@ public final class DonkeyCommands {
         source.sendSuccess(() -> Component.literal(
                         "A donkey has business with " + target.getName().getString() + ".")
                 .withStyle(ChatFormatting.GOLD), true);
+        return 1;
+    }
+
+    /**
+     * Lengthens a running event. "Chat pays to extend" (SPEC.md section 11) --
+     * the bribe with the sign flipped.
+     */
+    private static int extend(CommandSourceStack source, ServerPlayer target,
+                              int seconds, Events events) {
+        ActiveEvent event = events.eventFor(target.getUUID());
+        if (event == null) {
+            source.sendFailure(Component.literal(
+                    target.getName().getString() + " has no donkey to extend."));
+            return 0;
+        }
+        int granted = event.extendBy(seconds);
+        if (granted <= 0) {
+            source.sendFailure(Component.literal(
+                    "That event is already at the " + Settings.MAX_EVENT_SECONDS
+                            + " second ceiling."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                        "Extended " + target.getName().getString() + "'s donkey by "
+                                + granted + "s.")
+                .withStyle(ChatFormatting.GOLD), true);
+        // Reports the seconds actually granted, so a bridge can refund the
+        // difference when a redemption hits the ceiling.
+        return granted;
+    }
+
+    /**
+     * Puts a chat-written line in the donkey's mouth (SPEC.md section 11).
+     *
+     * <p>Sanitised on arrival regardless of upstream moderation -- see
+     * {@link chatdonkey.core.ChatLine}.
+     */
+    private static int say(CommandSourceStack source, ServerPlayer target,
+                           String line, Events events) {
+        ActiveEvent event = events.eventFor(target.getUUID());
+        if (event == null) {
+            source.sendFailure(Component.literal(
+                    target.getName().getString() + " has no donkey to speak through."));
+            return 0;
+        }
+        if (!event.sayExternal(line)) {
+            source.sendFailure(Component.literal(
+                    "Nothing usable left in that line after sanitising."));
+            return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * Revokes a grace period -- chat outbidding the streamer (SPEC.md section 7's
+     * designed bidding war).
+     */
+    private static int ungrace(CommandSourceStack source, ServerPlayer target,
+                               Triggers triggers) {
+        boolean had = triggers.revokeGrace(target);
+        if (!had) {
+            source.sendFailure(Component.literal(
+                    target.getName().getString() + " had no grace period to revoke."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                        target.getName().getString() + " is fair game again.")
+                .withStyle(ChatFormatting.GOLD), true);
+        target.sendSystemMessage(Component.literal(
+                        "The donkeys have reconsidered. You are no longer protected.")
+                .withStyle(ChatFormatting.RED));
         return 1;
     }
 
@@ -163,7 +285,7 @@ public final class DonkeyCommands {
         source.sendSuccess(() -> Component.literal("  " + events.activeCount() + " / "
                         + config.settings().maxSimultaneousEventsServerWide() + " events running")
                 .withStyle(ChatFormatting.WHITE), false);
-        source.sendSuccess(() -> Component.literal("  behaviors: " + Behaviors.ids())
+        source.sendSuccess(() -> Component.literal("  events: " + Behaviors.ids(events.pool()))
                 .withStyle(ChatFormatting.GRAY), false);
         source.sendSuccess(() -> Component.literal("  "
                         + (config.settings().enabled() ? "enabled" : "DISABLED"))

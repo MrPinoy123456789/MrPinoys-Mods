@@ -12,6 +12,7 @@ base {
 
 repositories {
     mavenLocal()
+    maven("https://maven.nucleoid.xyz")
 }
 
 dependencies {
@@ -19,6 +20,10 @@ dependencies {
     // No mappings: Minecraft ships unobfuscated since 26.1.
     implementation("net.fabricmc:fabric-loader:${property("loader_version")}")
     implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
+
+    // Server-side GUIs for the verb panel. Vanilla clients see a normal chest.
+    implementation("eu.pb4:sgui:2.1.0+26.2")
+    include("eu.pb4:sgui:2.1.0+26.2")
 }
 
 java {

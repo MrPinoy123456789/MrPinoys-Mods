@@ -161,6 +161,37 @@ meaning anything.
 
 **Playtesting says the faucet rate is acceptable.** The problem is the drain.
 
+### Revised after play: the taps are running dry, not hot
+
+The table above is theoretical maximum, not what a session actually produces. In
+practice a player has to be present for the right minigame at the right moment,
+and most of those ceilings are never approached.
+
+**The observed state is the opposite of the worry: sinks comfortably out-run
+faucets, to the point of having to hand out diamonds during testing to keep
+anything else testable.** The spiritwolves charges, the shop, and the wondrous
+items between them drain faster than four minigames fill.
+
+So, plainly, so it stops being re-litigated in every new mod:
+
+> **Do not design a new mod around fear of diamond inflation.** A new event that
+> pays a diamond for something the player earned is *fine*. Err on the side of
+> paying out. If a faucet ever genuinely runs too hot it shows up in play within
+> a day and every payout number in this suite is config — turning one down is a
+> file edit, whereas a mod that shipped stingy just feels bad and quietly never
+> gets used.
+
+This does **not** license unbounded payouts. The things still worth refusing are
+structural, not economic:
+
+- **Anything that scales with a machine rather than with play** — an AFK farm, a
+  redstone loop, or a duplication rule that a crafting recipe can be laundered
+  through. Rate-limited-by-a-human is the line, not the size of the number.
+- **Anything unbounded per unit time.** A cooldown or a roll is what keeps a
+  generous payout from becoming a printer.
+
+Judge a payout by *how often a real player can reach it*, not by how big it is.
+
 ### The nine shapes of a sink
 
 Every durable money sink in game design is one of these. A suite missing a shape
@@ -189,7 +220,14 @@ never completes. That is the shape worth repeating.
 ### The design rule
 
 > **Minigames are faucets. `cobbleeconomy` is the drain. Any new mod should
-> either add a tap or add a drain — and the suite currently needs drains.**
+> either add a tap or add a drain — and on current evidence the suite needs
+> *taps* at least as much as drains, so a generous payout is the safer error.**
+
+The earlier version of this rule said the suite "currently needs drains", which
+was true of the *shop-as-checklist* era and stopped being true once spiritwolves
+and the wondrous items landed. It is left recorded here because it was quoted at
+several design decisions that should now be revisited if they were made cautious
+on its account.
 
 ---
 
@@ -311,9 +349,12 @@ Ordered by value, not effort.
    agree through a JSON file, not a Java import.
 3. **Minigames are taps, the shop is the drain.** Know which one you are building.
 4. **Sinks must never complete.** A checklist is not an economy.
-5. **Failure directions are chosen deliberately.** Rewards drop at your feet
+5. **Be generous.** Play showed sinks out-running faucets, not the reverse. Judge
+   a payout by how often a real player can reach it, not by how large it is —
+   and refuse only what scales with a machine instead of with playing (§5).
+6. **Failure directions are chosen deliberately.** Rewards drop at your feet
    rather than vanish; a bad shop file empties the shop rather than crashing the
    server; a bad accounts file refuses to start rather than wiping balances.
-6. **Vanilla clients install nothing.** Non-negotiable.
-7. **Attachment beats payout.** The wolf a player names is worth more than the
+7. **Vanilla clients install nothing.** Non-negotiable.
+8. **Attachment beats payout.** The wolf a player names is worth more than the
    diamonds they earn.

@@ -1,5 +1,479 @@
 # Chat Donkey — progress
 
+## Play-feedback pass: merge, music, enchanted gifts, goofy face
+
+**353 tests. Clean build. 10 events, 53 line pools.**
+
+### Lecture and Clingy are one event
+
+They were two behaviors doing the same thing at different distances — follow the
+player and talk — and the pool was spending two slots on one idea. Merged:
+Lecture now closes to **zero** distance and keeps Clingy's teleport-onto-you at
+10 blocks. The clinging is what makes the lecture inescapable, rather than a
+second event that also happens to follow you.
+
+`ClingyBehavior` is deleted; its `during` lines are folded into `lecture.during`
+and its teleport lines became `lecture.teleport`.
+
+**Knock-on the tests caught:** the catch-up leash test was using Lecture, whose
+own 10-block teleport now fires long before the 24-block leash — so it was
+testing the wrong mechanism. Switched to Roadblock, which has no teleport of its
+own. Also rewrote "catching up says nothing" to assert on *content* rather than a
+line count, because an ordinary `during` line can land on the same tick and made
+the count lie.
+
+### Serenade brings a record
+
+`ctx.startMusic()` plays a real vanilla music disc from the donkey, and
+`ctx.singNote(step)` sings over it every 10 ticks.
+
+The melody is a **seven-note phrase**, not random noise — random would just sound
+like a mistake, whereas a tune delivered confidently slightly wrong sounds like
+singing. Each note is detuned by an alternating sharp/flat wobble, the phrase
+length does not divide into the backing track's bar, and the note interval (10)
+deliberately does not match the bray interval (60), so nothing ever settles into
+a rhythm together. There is a test asserting those two intervals differ.
+
+The disc is fire-and-forget: it outlasts the event, and cutting it off would need
+a stop-sound packet with the disc id tracked. Letting it play on for whoever is
+still standing there is funnier anyway.
+
+### Cobblestone is gone; gifts are enchanted junk
+
+Cobblestone was an anticlimax that landed and then got binned — a punchline
+nobody keeps is one nobody sees twice.
+
+Gifts are now a cheap silly item (`GiftItems.THEMATIC` — fishing rod, bowl,
+bone, lead, brush, clock…) carrying **nonsense enchantments**. The enchantment is
+written straight into the component rather than applied via
+`EnchantmentHelper.enchantItem`, which deliberately bypasses applicability — that
+is the whole joke. A correctly-enchanted fishing rod is a loot table; a Bowl of
+Bane of Arthropods is a character.
+
+Tier controls **absurdity, not power**: 1 enchantment at standard, 2 at
+gracious/satisfied, 3 at golden. It stays a punchline while the good endings are
+still visibly better to receive.
+
+They are real enchantments, so a grindstone — or the `wondrous` disenchanter —
+lifts them onto a book. **This is a compliment to that mod, not a dependency on
+it** (DESIGN.md §2): nothing here knows `wondrous` exists.
+
+### Premium rewards now stack
+
+`GOLDEN` used to *replace* the tier below. Now every tier above grudge gets the
+enchanted item, and gracious adds the Apology Carrot, and golden adds the carrot
+**and** the diamond. Earning the best ending should never mean losing what the
+ending below would have given you.
+
+### The goofy face — partial
+
+`donkey.setEating(true)`, re-asserted every tick because vanilla clears it when
+its own eating timer lapses.
+
+**This is not quite what was asked for.** A genuinely hanging-open jaw is
+`FLAG_OPEN_MOUTH`, which is a **private** constant behind a **protected**
+`setFlag` — unreachable without an access widener, which SPEC.md §6 permits only
+as a last resort and which is a lot of machinery for a cosmetic. `setEating` is
+the only public mouth animation on a horse and gets most of the way there.
+If the chewing face is not goofy enough in play, the access widener is about
+four lines — say so and I will add it.
+
+---
+
+## Demand events are now a template, not a class
+
+**354 tests. Clean build. 11 events, 56 line pools.**
+
+Play feedback: the Food Critic is the best of the seven, especially the diamond
+for a golden carrot. So the shape got promoted from "one hardcoded behavior" to
+**the way you add events**.
+
+### What changed
+
+`FoodCriticBehavior` and the `Treat` enum are **gone**. In their place:
+
+- `DemandBehavior` — one generic class: follow the player, ask for a thing, take
+  it and leave happy.
+- `Demand` — what it wants, as *item ids* so `core` still names no Minecraft
+  item (the trick `bounties` uses for mob ids).
+- `Offering` — `ORDINARY` / `PREMIUM` / `DUPLICATED`, replacing carrot-specific
+  values.
+
+**A demand event is now an `events.json` entry.** Anything with a `wants` field
+is one, no code involved:
+
+```json
+"foodcritic": { "weight": 20, "minSeconds": 30, "maxSeconds": 45,
+                "wants": "minecraft:carrot",
+                "wantsPremium": "minecraft:golden_carrot" }
+```
+
+Adding an eighth is that plus lines. `EventPool.of` deliberately does *not*
+reject an unknown behavior id when the entry has a `wants` — that is what makes
+demands data rather than a fixed list.
+
+### Four new demand events
+
+| Event | Wants | Premium (pays a diamond) |
+|---|---|---|
+| **Sweet Tooth** | apple | golden apple |
+| **Bookworm** | book | enchanted book |
+| **Magpie** | iron ingot | gold ingot |
+| **Alchemist** | *(see below)* | — |
+
+### The Magician — the duplicator
+
+Donkey-from-Shrek, relentlessly trying to show you his one magic trick. Hand him
+a raw resource and he hands back **double**. Crafted goods are refused, loudly.
+
+The allowlist is `EventPool.DUPLICATABLE`, and the exclusion is **structural, not
+economic**. Nine ingots make a block; doubling the block and unpacking it returns
+eighteen, so allowing any crafted item turns **every crafting recipe into a
+multiplier** and the trick into a machine. There is a test asserting nothing on
+the list ends in `_block`, `_helmet`, `_sword`, `_pickaxe` or `_chestplate`.
+
+**Diamonds, emeralds, ancient debris and netherite scrap are all on the list** —
+they are mined, not crafted, so they double like any other rock. Per DESIGN.md §5
+(revised after play) sinks out-run faucets here, so a generous payout is the safer
+error. There are tests asserting they are present, so nobody quietly removes them
+out of habit.
+
+Two guards remain, and both are about rate rather than size:
+
+- **Intake is capped at 16 per click** (`Interactions.MAX_INTAKE`). The payout is
+  a multiple of what it was given, so an uncapped intake would make one
+  right-click worth a shulker box.
+- **Hitting him three times drops the multiplier to 1** — he hands back exactly
+  what he was given. That is the duplicator's version of the grudge tier: no
+  loss, no gain, and a pointed silence.
+
+### A bug caught mid-refactor
+
+`Events.start` still resolved the chosen event through `Behaviors.byId`, which
+after the refactor only knows built-ins — so **every demand event would have
+been picked by the weighted pool and then silently failed to start**, including
+the Food Critic that already worked. Now resolved via `Behaviors.forDefinition`,
+and there is a test asserting every pool entry resolves to a runnable behavior.
+
+Also: `events.json` was writing `"multiplier": 0` onto ordinary events. Harmless
+but exactly the sort of thing that makes an operator wonder what they broke.
+Fields that do not apply are now omitted.
+
+### Economy stance — settled, do not re-litigate
+
+Earlier notes in this file hedged about diamond inflation. **That worry was
+wrong and DESIGN.md §5 has been rewritten to say so.** Play showed sinks
+comfortably out-running faucets — diamonds were being handed out manually during
+testing just to keep other things testable.
+
+The standing rule is now: judge a payout by *how often a real player can reach
+it*, not by how big it is, and err on the side of generous. What is still worth
+refusing is anything that scales with a **machine** rather than with playing —
+an AFK farm, or a duplication rule a crafting recipe can be laundered through.
+
+That is why the Magician takes raw materials only and why intake is capped, and
+it is the *whole* reason. Nothing in this mod is tuned down out of fear that a
+diamond is worth too much.
+
+---
+
+## Session 5 — M5 (new): the control surface
+
+**Status: built and building. 314 core tests. Not play-tested.**
+
+M4 was the last milestone SPEC.md defined, so I specced M5 into §13 and §9 rather
+than inventing scope silently.
+
+**The problem it solves.** §11 names four seams a Twitch bridge needs, all
+designed into v1 — and **not one of them could actually be driven from outside.**
+Duration overrides, `extend`, revoking a grace period, and a moderated
+chat-written line all existed as shapes with no command to reach them. M5 adds no
+new donkey behaviour; it is purely the API.
+
+| §11 seam | Now reachable as |
+|---|---|
+| "takes duration overrides" | `/donkey trigger <player> <event> [seconds]` |
+| "chat pays to extend" | `/donkey extend <player> <seconds>` |
+| "chat writes a line (moderated)" | `/donkey say <player> <line>` |
+| "grace purchasable *and overridable*" | `/donkey ungrace <player>` |
+
+**It stays a command surface on purpose.** That is what keeps the bridge a
+separate mod with no compile-time coupling (DESIGN.md §2). **The Twitch bridge
+itself is not this milestone and is not this mod** — it needs decisions about
+platform, auth, and what chat can buy that belong to whoever builds it.
+
+### Chat-written lines are treated as hostile input
+
+`/donkey say` ultimately carries a string from Twitch chat into every nearby
+player's chat window, under a name they trust. However well a bridge moderates,
+by the time it arrives here it is untrusted. `core/ChatLine` sanitises it:
+
+- **Formatting escapes stripped whole**, `§` and the code letter together. This
+  is the one that matters: left in, a viewer could colour their text, hide it, or
+  forge a convincing second `<Duncan>` prefix.
+- **Control characters become spaces**, so one line cannot become several.
+- **Whitespace runs collapse**, so padding cannot scroll chat.
+- **Length capped at 120**, because a wall of text is a denial-of-chat and the
+  animalese would blip for its entire length.
+
+Anything that does not survive yields `""`, which callers treat as "say nothing"
+— the failure direction is a duller donkey, never a dropped guard. 16 tests,
+including one asserting the output is *always* printable whatever goes in.
+
+My first cut stripped only the `§` and left the code letter as visible junk,
+which also let a formatting-only string survive as garbage instead of being
+refused. The tests caught it.
+
+### The extend ceiling
+
+`extend` is clamped to `Settings.MAX_EVENT_SECONDS` (600) in total. An unbounded
+extend is a griefing tool with a price tag — enough redemptions and one player
+never gets their screen back, which matters much more now that Burrs exists.
+
+The command **returns the seconds actually granted**, not just success, so a
+bridge can refund the difference when a redemption hits the ceiling.
+
+### Not verified
+
+Unplayed, like everything since M1. Specifically: whether `/donkey say` reads as
+the donkey talking or as an obvious injection, and whether 600s is the right
+ceiling given a Burrs event can hold a screen for all of it.
+
+---
+
+## Catch-up leash — the donkey can no longer be outrun
+
+295 tests, clean build.
+
+Raising `donkeySpeed` helped, but a player on a horse, under a speed potion, or
+on an elytra still leaves the donkey standing — and an event where the donkey is a
+dot on the horizon is not an event, it is a chat log.
+
+**Every behavior now catches up.** Past **24 blocks** (`AbstractBehavior.LEASH_DISTANCE`)
+the donkey stops walking and simply turns up beside you again.
+
+- Lives in `AbstractBehavior.tick`, before `onTick`, so all seven inherit it — no
+  per-behavior wiring, and the test asserts it for every registered id.
+- **Lands *near* you, not on top.** That is Clingy's move, and 24 is well beyond
+  Clingy's 10 so its gag is never pre-empted. There is a test pinning that
+  relationship.
+- **Silent.** No line, just particles at both ends. A donkey that is simply
+  *there* again when you thought you had lost it is funnier than one that
+  announces itself — and announcing it would tread on Clingy's joke.
+- Rate-limited to one every 2s, so a laggy chase cannot make it thrash.
+- Reuses `DonkeySpawn`'s footing search via a new `relocateNear`, so it never
+  arrives inside a wall, in lava, or over a drop. If there is nowhere valid it
+  stays put and retries — a failed relocate is explicitly not counted as a
+  catch-up, and there is a test for that path.
+
+Also folded the duplicated teleport-particle code in `ActiveEvent` into one
+`puff()` used by both teleports.
+
+---
+
+## Tuning pass — faster donkey, deeper voices
+
+Both from play feedback. 278 tests, clean build.
+
+### Movement
+
+The donkey was too slow, and the cause was not the navigation multipliers — a
+vanilla donkey's `MOVEMENT_SPEED` attribute is genuinely slower than a sprinting
+player, and the per-behavior multiplier *scales* that number, so a slow base
+capped everything no matter how high the multipliers went.
+
+Two changes:
+
+- **`DonkeySpawn` now sets `MOVEMENT_SPEED` at spawn**, from the new
+  **`donkeySpeed`** setting (default `0.3`, roughly horse-tier). This is the
+  master dial and it is config, so it can be tuned without a rebuild.
+- **Every per-behavior multiplier raised ~25%**, keeping the relative ordering
+  intact so each event keeps its character:
+
+| Behavior | was | now |
+|---|---|---|
+| Lecture | 1.0 / 1.35 | 1.25 / 1.7 |
+| Food Critic | 1.05 / 1.4 | 1.3 / 1.75 |
+| Roadblock | 1.3 | 1.6 |
+| Serenade | 1.4 | 1.7 |
+| False Alarm | 1.7 | 2.0 |
+| Clingy | 1.25 | 1.55 |
+| Burrs | 1.15 | 1.4 |
+
+Above roughly `donkeySpeed: 0.4` the pathfinder starts overshooting corners,
+which reads as broken rather than fast. Noted in the setting's javadoc.
+
+### Voices
+
+The animalese band moved from **0.90–1.50 down to 0.60–1.05** — donkeys, not
+chipmunks. Measured effect on the stock names: Duncan 1.304 → 0.903, Señor Burro
+→ 0.624, Clopsworth → 1.039. Still a wide spread, so two donkeys in earshot
+remain distinguishable.
+
+The floor was chosen, not guessed. Wobble and a falling sentence each pull a blip
+*below* its base, so the deepest reachable pitch is about
+`MIN_BASE_PITCH * 0.94 * 0.92`. Measured across every stock name and several
+lines, actual blips span **0.562–1.306** against Minecraft's 0.5–2.0 limits — no
+clipping. There is now a test asserting that headroom directly, so dropping the
+band further will fail loudly instead of silently flattening the deep voices.
+
+### A test that was quietly wrong
+
+`FakeContext` detected "is it sprinting?" with a hardcoded `speed > 1.0`, which
+broke the moment walking got faster than 1.0. It now records the actual speed and
+the tests **compare** walk against catch-up, so future retuning cannot silently
+break the assertion — or worse, keep passing while meaning nothing.
+
+---
+
+## Session 4 — M4 (SPEC.md §13, "The screen")
+
+**Status: built and building. 276 core tests pass. Not play-tested.**
+
+Server boots with **36 line pools across 7 events**. Zero warnings. **No new
+dependency** — the coat is the donkey's own chest inventory, as you called it.
+
+### How it works
+
+`DonkeyCoat` implements the `core` `Coat` seam over the real container:
+
+| Step | Call |
+|---|---|
+| Give him the 15 slots | `setChest(true)` |
+| Make the screen openable | `setTamed(true)` — **required**, it checks `isTamed()` |
+| Force it open (and reopen) | `openCustomInventoryScreen(player)` |
+| Read / write a slot | `getSlot(500 + i)` → `SlotAccess` |
+
+The `inventory` field is `protected`; `getSlot(500 + i)` is the public route to
+it, which is what keeps M4 free of a Mixin or access widener. Burrs are named
+dead bushes (`item_name` + lore, no `custom_data` per DESIGN.md §3), counted back
+out by that name.
+
+Three loops run at once and their interaction is the event: the player pulls
+burrs out, the donkey finds more every 8s while the coat is open, and if the
+player closes it he reopens it after 5s with a nag line.
+
+### The item-loss guard is wired and unconditional
+
+`Events.end` calls `coat.returnEverything()` **before** the donkey is discarded,
+and outside the `playerStillHere` branch. A real container means a player can put
+their own things in it, and discarding the donkey would destroy them.
+
+If the player has logged out or died, the contents **drop on the ground** at the
+donkey rather than being handed to a removed player. Losing track of a stack is
+not an option in either direction.
+
+It also doubles as the joke: burrs he never got round to losing go home with you.
+
+### A bug the tests caught
+
+The reopen and refind timers were never primed at start, so their first
+allowance was still unspent — the donkey re-opened the coat and found a new burr
+on the **very next tick** after the event began, instead of after the beat. Reads
+as a stuck loop rather than a rhythm. Both are now primed in `onStart`, and the
+tests assert the timing precisely (nothing happens before the beat, then exactly
+one thing on it) rather than only that it eventually happens.
+
+### `donkeyCanKill`
+
+New in `settings.json`, default `true` — the shipped behaviour is that the donkey
+can get you killed. Setting it `false` suppresses *screen-holding* only, and only
+while the player has taken damage in the last 8 seconds: the donkey still
+interrupts, he just stops doing it at knife-point. Damage recency is tracked
+unconditionally via `AFTER_DAMAGE` so `/donkey reload` takes effect immediately
+rather than after the next fight.
+
+### Not verified
+
+Unplayed, like the rest. In risk order:
+
+1. **`isOpen()` uses `player.containerMenu != player.inventoryMenu`** — that
+   assumes any open menu during the event is the coat. True in practice, but a
+   player who opens a chest mid-event would read as "coat open", suppressing
+   reopens until they close it. Harmless, slightly wrong, easy to tighten if it
+   shows up in play.
+2. Whether taming the donkey has any visible side effect worth caring about
+   (it should not — he is discarded at event end).
+3. Whether 5s reopen / 8s refind is funny or infuriating. Both are constants at
+   the top of `BurrsBehavior`.
+4. That the burr count reads well at 15 slots — `MIN_BURRS`/`MAX_BURRS` are 5–9.
+
+---
+
+## Design change — SPEC.md v1.1: the donkey is allowed to be costly
+
+**The "annoying, never harmful" rule is withdrawn.** It was never wanted. The
+donkey getting a player killed is now an accepted and desirable outcome.
+
+SPEC.md has been updated so this does not get re-derived from an older draft:
+
+- **§1** — the load-bearing rule is rewritten, with a revision note explaining
+  what changed and why, since the old rule was load-bearing for two other
+  sections.
+- **§2** — new locked row: *may get the player killed: yes*.
+- **§7** — the no-danger-gate reasoning no longer rests on harmlessness. Same
+  conclusion, honest reasoning. New `donkeyCanKill` setting (default `true`)
+  as a per-server dial-back, not a design hedge.
+- **§4** — the **Burrs** screen event added as v2.
+- **§13** — new **M4 — The screen**.
+
+**The distinction that survives, and it matters for M4:** the donkey still never
+*attacks*. No damage, no aggro, no projectiles. What it costs a player it costs
+by stealing their attention at a bad moment. That is why the Burrs screen is
+allowed to hold their view but the donkey will never be given a kick attack — the
+comedy is that it is oblivious to the trouble it causes, not that it is
+malicious. A donkey that knows it is endangering you is a villain; one that is
+merely desperate to discuss your choices while a creeper approaches is funny.
+
+**No code changed.** Nothing in the implementation ever enforced the old rule —
+it was shaping future design, not current behaviour. Three doc/javadoc comments
+that restated it were corrected (`README`, `ChatDonkeyMod`, `DefaultLines`).
+
+### The Burrs event, as specced (M4, not built)
+
+**No SGUI. No new dependency at all** — it uses the donkey's own chest
+inventory. An earlier draft of §4 specced a virtual SGUI screen; the real
+container is better on every axis and the spec now says so. All four calls
+verified against the merged jar:
+
+| Need | API |
+|---|---|
+| Give him an inventory | `setChest(true)` — 15 slots |
+| Force the screen open (and reopen) | `openCustomInventoryScreen(Player)` — **public** |
+| Read / write a burr slot | `getSlot(500 + i)` → `SlotAccess.get()/set()` |
+| Screen will open at all | `setTamed(true)` — **required**, it checks `isTamed()` |
+
+The `inventory` field is `protected`, but `getSlot(500 + i)` is the public route
+to it, so this needs no Mixin and no access widener.
+
+- 5–9 burrs in random slots; the player drags them out.
+- **Closable, and he reopens it** after `burrReopenSeconds` (default 5). Your
+  call and the right one — the annoyance is the nagging loop, not being trapped.
+  No reopen cap; the event duration ends it.
+- **He keeps finding more** every ~8s while the screen is open. This replaces the
+  mis-click gag from the SGUI draft, which does not survive the port (in a real
+  container the player can rearrange freely, so there is no "wrong click" to
+  punish). The time-driven version is better anyway, and it is the natural
+  difficulty knob for the Twitch bridge.
+- Clear it → `SATISFIED`. Time out → `WAITED`. Both already exist.
+
+Three things written into §4 because they will otherwise be got wrong:
+
+1. **A real container means the player can put items in**, and `discard()` at
+   event end would destroy them. **Sweep all 15 slots and `giveOrDrop` back on
+   end.** Framed as part of the joke — the burrs he never lost get shoved into
+   your inventory on the way out.
+2. **Taming is required and specific to this event.** `setTamed(true)`
+   contradicts §6 for every other behavior. Player-initiated taming and mounting
+   stay blocked by the existing `UseEntityCallback`.
+3. **Bribing requires closing the screen first.** Good beat, not a bug — preserve
+   it deliberately.
+
+Puzzle state is arithmetic and belongs in `core`; only the container calls are
+fabric-side.
+
+---
+
 ## Session 3 — M3 (SPEC.md §13, "The pool") + full audit
 
 **Status: v1 feature-complete. All six behaviors, weighted pool, full drop

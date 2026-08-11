@@ -2,8 +2,10 @@ package spiritwolves;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.wolf.Wolf;
@@ -103,6 +105,23 @@ public final class Souls {
 
     /** {@link WolfKill} listener: awards souls and announces level-ups. */
     static void onKill(Wolf wolf, ServerPlayer owner, WolfRecord record, Entity killed) {
+        if (valueOf(killed) <= 0) {
+            return;
+        }
+
+        onKill(owner, record, killed);
+
+        if (wolf.level() instanceof ServerLevel level) {
+            spawnSoulRing(level, wolf);
+        }
+        Chime.soulGained(owner);
+    }
+
+    /**
+     * Owner-only variant used by {@link Assists} when the wolf entity may have
+     * already unloaded before the target died.
+     */
+    static void onKill(ServerPlayer owner, WolfRecord record, Entity killed) {
         int value = valueOf(killed);
         if (value <= 0) {
             return;
@@ -117,6 +136,21 @@ public final class Souls {
             for (int level = levelBefore + 1; level <= levelAfter; level++) {
                 announceLevelUp(owner, record, level);
             }
+        }
+    }
+
+    private static void spawnSoulRing(ServerLevel level, Wolf wolf) {
+        double x = wolf.getX();
+        double y = wolf.getEyeY();
+        double z = wolf.getZ();
+        float radius = 0.8f;
+        int points = 12;
+
+        for (int i = 0; i < points; i++) {
+            double angle = (Math.PI * 2.0 * i) / points;
+            double px = x + Math.cos(angle) * radius;
+            double pz = z + Math.sin(angle) * radius;
+            level.sendParticles(ParticleTypes.SOUL, px, y, pz, 1, 0.0, 0.0, 0.0, 0.0);
         }
     }
 

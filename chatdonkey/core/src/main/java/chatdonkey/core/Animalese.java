@@ -40,6 +40,22 @@ public final class Animalese {
     public static final float MIN_PITCH = 0.5f;
     public static final float MAX_PITCH = 2.0f;
 
+    /**
+     * The band every donkey's voice is drawn from.
+     *
+     * <p>Deliberately in the lower half of the playable range: these are
+     * donkeys, and a chirpy Animal Crossing squeak reads as a chipmunk. Deep
+     * enough to be a bray, spread wide enough that two donkeys in earshot are
+     * still telling themselves apart.
+     *
+     * <p>The floor is not arbitrary. The wobble and a falling sentence can each
+     * pull a blip below its base, so the lowest reachable pitch is roughly
+     * {@code MIN_BASE_PITCH * 0.94 * 0.92} -- which has to stay clear of
+     * {@link #MIN_PITCH}, or the deepest voices clip and flatten out.
+     */
+    public static final float MIN_BASE_PITCH = 0.60f;
+    public static final float MAX_BASE_PITCH = 1.05f;
+
     private Animalese() {}
 
     /**
@@ -127,7 +143,7 @@ public final class Animalese {
         long mixed = voiceSeed * 0x9E3779B97F4A7C15L;
         mixed ^= (mixed >>> 32);
         float t = Math.abs(mixed % 1000) / 1000.0f;
-        return 0.9f + t * 0.6f;              // 0.9 .. 1.5
+        return MIN_BASE_PITCH + t * (MAX_BASE_PITCH - MIN_BASE_PITCH);
     }
 
     /** A narrow per-letter nudge: enough to warble, not enough to play a melody. */

@@ -11,7 +11,27 @@ package chatdonkey.core;
  */
 public abstract class AbstractBehavior implements DonkeyBehavior {
 
+    /**
+     * Outrun the donkey by this much and it gives up on walking and simply
+     * turns up next to you.
+     *
+     * <p>A donkey is faster than it was, but a player on a horse, under a speed
+     * potion, or on an elytra still leaves it standing -- and an event where the
+     * donkey is a dot on the horizon is not an event, it is a chat log. This is
+     * the floor under every behavior: whatever you are riding, it catches up.
+     *
+     * <p>Set well beyond {@link LectureBehavior#TELEPORT_DISTANCE} so the
+     * Lecture's own teleport stays its gag rather than being pre-empted by this.
+     */
+    public static final double LEASH_DISTANCE = 24.0;
+
+    /** A beat between catch-ups, so it cannot thrash on a laggy chase. */
+    public static final int LEASH_COOLDOWN_TICKS = 40;
+
+    private final RateLimit leash = new RateLimit(LEASH_COOLDOWN_TICKS);
+
     private int nextLineTick;
+    private int catchUps;
 
     /** Inclusive bounds on the gap between running lines, in ticks. */
     protected abstract int lineGapMinTicks();
@@ -39,6 +59,21 @@ public abstract class AbstractBehavior implements DonkeyBehavior {
         // Every tick, and cheap: a donkey that looks away mid-performance stops
         // reading as a performance.
         ctx.lookAtPlayer();
+
+        // Vanilla clears the chewing flag once its own eating timer lapses, so
+        // the gormless open-mouthed face has to be re-asserted or it quietly
+        // reverts to a normal donkey partway through the event.
+        ctx.keepMouthOpen();
+
+        // Before the behavior moves: if the player has simply gone, close the
+        // gap. Silent on purpose -- a donkey that is just *there* again when you
+        // thought you had lost it is funnier than one that announces itself, and
+        // announcing it would tread on the Lecture teleport's joke.
+        if (ctx.distanceToPlayer() > LEASH_DISTANCE
+                && leash.allow(ctx.elapsedTicks())
+                && ctx.teleportNearPlayer()) {
+            catchUps++;
+        }
 
         onTick(ctx);
 
@@ -83,5 +118,10 @@ public abstract class AbstractBehavior implements DonkeyBehavior {
     /** Exposed for tests: the tick at which the next running line is due. */
     public final int nextLineTick() {
         return nextLineTick;
+    }
+
+    /** Exposed for tests and tuning: how often the donkey had to catch up. */
+    public final int catchUps() {
+        return catchUps;
     }
 }

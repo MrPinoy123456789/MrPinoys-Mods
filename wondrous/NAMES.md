@@ -12,6 +12,9 @@ changes as a deliberate decision rather than a tweak.
 | `pocket_grindstone` | Take-Backsies Stone | *nvm i changed my mind* |
 | `pocket_stonecutter` | Chop Chop Cutter | *chop chop perioood* |
 | `pocket_loom` | Cutie Loom | *im so sick of rainbow everything* |
+| `pocket_disenchanter` | Soul Grinder | *give it here, ill save the good part* |
+| `pocket_smelter` | Melty Pocket | *ugh fine ill recycle your junk* |
+| `boomerang_pet_ball` | Boomerang Pet Ball | *go fetch! ...both of you* |
 
 Every one ends on the noun it is — boots, crafter, chest, stone, cutter, loom — so
 it reads as a thing in your hand rather than an instruction. "Fixing Sweetie" is

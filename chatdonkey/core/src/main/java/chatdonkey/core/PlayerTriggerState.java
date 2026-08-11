@@ -18,6 +18,7 @@ public final class PlayerTriggerState {
     private long lastCheckedAt;
     private long lastEventEndedAt = NEVER;
     private long graceUntil = NEVER;
+    private long lastDamagedAt = NEVER;
     private boolean inEvent;
 
     public PlayerTriggerState(long sessionStartedAt) {
@@ -55,6 +56,22 @@ public final class PlayerTriggerState {
     public void markEventEnded(long now) {
         this.lastEventEndedAt = now;
         this.inEvent = false;
+    }
+
+    /**
+     * When the player last took damage, for the {@code donkeyCanKill: false}
+     * gate (SPEC.md section 7).
+     *
+     * <p>Tracked unconditionally rather than only when the setting is off, so
+     * flipping it at runtime via {@code /donkey reload} takes effect
+     * immediately instead of after the next fight.
+     */
+    public void markDamaged(long now) {
+        this.lastDamagedAt = now;
+    }
+
+    public boolean tookDamageWithin(long now, int seconds) {
+        return lastDamagedAt != NEVER && now - lastDamagedAt < seconds * 1000L;
     }
 
     public long graceUntil() {

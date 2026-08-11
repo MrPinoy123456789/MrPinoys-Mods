@@ -20,9 +20,11 @@ import java.nio.file.Path;
  * donkey spawns near an active player, obstructs and lectures them for up to a
  * minute, leaves a small sarcastic gift, and vanishes.
  *
- * <p>The load-bearing rule (SPEC.md section 1): the donkey is annoying, never
- * harmful. It may cost a player time and dignity. It must never cost them
- * health, items, or a fight they were winning.
+ * <p>The load-bearing rule (SPEC.md section 1, revised in v1.1): the donkey
+ * never <em>attacks</em> -- no damage, no aggro -- but it is allowed to be
+ * costly. It takes the player's attention at the worst possible moment, and if
+ * that gets them killed, that is the feature rather than a tolerated side
+ * effect.
  *
  * <p>M1 scope: timer, spawn, the Lecture behavior, config lines, gift, despawn,
  * cooldown. No bribe, no hit reactions, no server-wide cap.
@@ -94,6 +96,16 @@ public final class ChatDonkeyMod implements ModInitializer {
             entity.invulnerableTime = 20;
             return false;
         });
+
+        // Damage recency, for the donkeyCanKill=false gate (SPEC.md section 7).
+        // Tracked always rather than only when the setting is off, so toggling
+        // it via /donkey reload takes effect immediately.
+        ServerLivingEntityEvents.AFTER_DAMAGE.register(
+                (entity, source, dealt, taken, blocked) -> {
+                    if (entity instanceof ServerPlayer player) {
+                        triggers.state(player).markDamaged(System.currentTimeMillis());
+                    }
+                });
 
         // Death mid-event ends it immediately: no gift, no cooldown penalty. The
         // donkey looting-dancing on a corpse is a v2 idea (SPEC.md section 6).

@@ -22,7 +22,7 @@ public final class FalseAlarmBehavior extends AbstractBehavior {
     private static final int STEER_INTERVAL_TICKS = 8;
 
     /** Full sprint. */
-    private static final double SPEED = 1.7;
+    private static final double SPEED = 2.0;
 
     private static final double LEAD_TICKS = 16;
 

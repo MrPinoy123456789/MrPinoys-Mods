@@ -8,6 +8,8 @@
   "requireRecentActivitySeconds": 60,
   "gracePeriodCommand": true,
   "gracePeriodMinutes": 10,
+  "donkeyCanKill": true,
+  "donkeySpeed": 0.3,
   "gifts": {
     "standardMin": 2,
     "standardMax": 8,

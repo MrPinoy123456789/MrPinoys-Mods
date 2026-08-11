@@ -103,6 +103,10 @@ public final class Fetch {
         }
 
         if (delivered > 0) {
+            WolfRecord record = PlayerWolfRegistry.get(owner.getUUID());
+            if (record != null) {
+                Verbs.onFamilyProgress(owner, record, Verbs.SCAVENGER, delivered);
+            }
             Chime.fetched(owner);
             owner.sendSystemMessage(Component.literal(
                             "Your wolf brings you " + delivered + " item(s).")

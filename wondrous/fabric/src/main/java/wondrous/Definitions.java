@@ -11,6 +11,7 @@ import net.minecraft.world.inventory.GrindstoneMenu;
 import net.minecraft.world.inventory.LoomMenu;
 import net.minecraft.world.inventory.MenuConstructor;
 import net.minecraft.world.inventory.StonecutterMenu;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -135,6 +136,35 @@ public final class Definitions {
                     PLAIN,
                     (id, inv, player) ->
                             new GrindstoneMenu(id, inv, ContainerLevelAccess.NULL)),
+
+            new Def(BoomerangBall.ID,
+                    Items.SLIME_BALL,
+                    name("Boomerang Pet Ball", ChatFormatting.GREEN),
+                    lore(voice("go fetch! ...both of you"),
+                         plain("Throw it. Your pet comes running,"),
+                         plain("then it flies back home to you.")),
+                    PLAIN,
+                    null),
+
+            new Def("pocket_disenchanter",
+                    Items.GRINDSTONE,
+                    name("Soul Grinder", ChatFormatting.DARK_PURPLE),
+                    lore(voice("give it here, ill save the good part"),
+                         plain("Destroys an enchanted item, saves its"),
+                         plain("enchantments onto a book.")),
+                    PLAIN,
+                    (id, inv, menuPlayer) ->
+                            new DisenchantMenu(id, inv, (ServerPlayer) menuPlayer)),
+
+            new Def("pocket_smelter",
+                    Items.BLAST_FURNACE,
+                    name("Melty Pocket", ChatFormatting.RED),
+                    lore(voice("ugh fine ill recycle your junk"),
+                         plain("Melts iron or golden gear into nuggets."),
+                         plain("Worn-down gear yields less.")),
+                    PLAIN,
+                    (id, inv, menuPlayer) ->
+                            new SmelterMenu(id, inv)),
 
             new Def("pocket_stonecutter",
                     Items.STONECUTTER,

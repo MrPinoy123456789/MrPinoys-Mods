@@ -12,13 +12,28 @@ package chatdonkey.core;
  * no separate line-pool reference field: {@code serenade} means
  * {@code serenade.open}. One name, one place to change it.
  */
-public record EventDefinition(String behavior, int weight, int minSeconds, int maxSeconds) {
+public record EventDefinition(String behavior, int weight, int minSeconds, int maxSeconds,
+                              Demand demand) {
+
+    public EventDefinition(String behavior, int weight, int minSeconds, int maxSeconds) {
+        this(behavior, weight, minSeconds, maxSeconds, Demand.NONE);
+    }
+
+    /** An entry naming an item it wants is a demand event; the rest are built-in. */
+    public boolean isDemand() {
+        return demandOrNone().exists();
+    }
+
+    /** Never null, even if the entry omitted the block entirely. */
+    public Demand demandOrNone() {
+        return demand == null ? Demand.NONE : demand;
+    }
 
     /** Clamps operator typos into something usable rather than throwing. */
     public EventDefinition sanitised() {
         int min = Math.max(1, minSeconds);
         int max = Math.max(min, maxSeconds);
-        return new EventDefinition(behavior, Math.max(0, weight), min, max);
+        return new EventDefinition(behavior, Math.max(0, weight), min, max, demandOrNone());
     }
 
     /** Weight 0 means "registered but never rolled" -- the way to disable one. */

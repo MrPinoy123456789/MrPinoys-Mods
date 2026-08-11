@@ -13,9 +13,12 @@ import java.util.Map;
  * and completely convinced it is doing you a favour. Short -- these fire every
  * seven seconds, so anything longer than two sentences reads as spam.
  *
- * <p>It never swears, never references a real person, and never threatens
- * anything, because it genuinely cannot do anything (SPEC.md section 1's
- * load-bearing rule: annoying, never harmful).
+ * <p>It never swears and never references a real person (SPEC.md section 8).
+ * It also never threatens the player directly -- not because it is harmless
+ * (section 1, revised: an interruption is allowed to get you killed) but
+ * because the comedy is that it is oblivious to the trouble it causes. A donkey
+ * that knows it is endangering you is a villain; one that is simply desperate
+ * to discuss your choices while a creeper approaches is funny.
  */
 public final class DefaultLines {
 
@@ -56,7 +59,25 @@ public final class DefaultLines {
                 "Oh, sure, keep doing that. It's your afternoon! I'm merely narrating it.",
                 "I've seen your house, by the way. We should talk about your house, sport.",
                 "Do you ever stop and think? No? Wellllll. That explains a great deal!",
-                "I'm helping! This IS helping! You'll thank me later. Probably never!"));
+                "I'm helping! This IS helping! You'll thank me later. Probably never!",
+                // Folded in from the old Clingy event, which is now part of this one.
+                "Am I too close? ...I'll take that as a no. Scooting closer!",
+                "Personal space is a SOCIAL CONSTRUCT, hoofball!",
+                "I can hear you breathing. That's how close we are. Isn't that lovely?",
+                "Whatever you're doing, I'm doing it too. From very nearby!"));
+
+        /*
+         * Fired when the player outruns the lecture and it simply appears on top
+         * of them. Inherited from the old Clingy event, which is now the close
+         * end of this one.
+         */
+        pools.put("lecture.teleport", List.of(
+                "Missed me?! I missed YOU! You can't just LEAVE, sport!",
+                "Ta-daaa! Distance is a myth! I've disproved it! Personally!",
+                "Where'd you GO?! Oh — there you are. Found you! Always will!",
+                "Nice try, hoofball! I'm faster than legs. I don't make the rules!",
+                "You RAN. From ME. We'll discuss that. Up close!",
+                "As I was SAYING before you sprinted off like a coward —"));
 
         // Shared pools -- any behavior can draw from these.
 
@@ -253,34 +274,175 @@ public final class DefaultLines {
                 "Well, we survived. Barely. I'll take the credit. Toodle-oo!",
                 "See? Nothing! And you were SO calm about it. Suspiciously calm!"));
 
-        // Clingy: zero personal space, and it teleports if you run.
+        // Burrs: opens his coat in your face and demands you groom him.
 
-        pools.put("clingy.open", List.of(
-                "Hi. Hi. Hiiii. I'm going to stand HERE. Very close. Forever!",
-                "Oh good, you're here! I was worried you'd be somewhere else!",
-                "Do you like hugs? Doesn't matter! Proximity! We're doing proximity!",
-                "I've decided we're best friends. You weren't consulted. Hee-haw!"));
+        pools.put("burrs.open", List.of(
+                "BURRS! I'm FULL of them! You have thumbs — USE THEM, hoofball!",
+                "Emergency! Grooming emergency! Look at the state of me!",
+                "I can't reach! I've TRIED! Do you know how long I've tried?!",
+                "Hold still. YOU hold still. I'm the one with the problem here!",
+                "Right! You're on burr duty. Congratulations on the promotion!"));
 
-        pools.put("clingy.during", List.of(
-                "Am I too close? ...I'll take that as a no. Scooting closer!",
-                "This is nice. Just us. And me. Mostly me. Very close!",
-                "Personal space is a SOCIAL CONSTRUCT, hoofball!",
-                "I can hear you breathing. That's how close we are. Isn't that lovely?",
-                "Don't mind me! I'm just going to be RIGHT HERE. In your business!",
-                "Whatever you're doing, I'm doing it too. From very nearby!"));
+        pools.put("burrs.during", List.of(
+                "Faster! No, gentler! No — FASTER but GENTLER, sport!",
+                "Ooh. Ooooh. That's the spot. Don't stop. Never stop!",
+                "You're doing fine. FINE. Not great. Fine!",
+                "My mother used to do this. She was better at it. No offence!",
+                "Is this the best you can do? ...Don't answer that, hoofball."));
 
-        pools.put("clingy.teleport", List.of(
-                "Missed me?! I missed YOU! You can't just LEAVE, sport!",
-                "Ta-daaa! Distance is a myth! I've disproved it! Personally!",
-                "Where'd you GO?! Oh — there you are. Found you! Always will!",
-                "Nice try, hoofball! I'm faster than legs. I don't make the rules!",
-                "You RAN. From ME. We'll discuss that. Up close!"));
+        pools.put("burrs.refind", List.of(
+                "Oh! OH! There's another one! Where do they COME from?!",
+                "Wait wait wait — found one! Found another one! Sorry!",
+                "Hee-haw! Fresh burr! Straight from the bush! Get it, get it!",
+                "Don't panic. But I've located a NEW one. Panic slightly!",
+                "Ohhh, that's embarrassing. There's more. There's so much more."));
 
-        pools.put("clingy.exit_waited", List.of(
-                "Okay! I've had my fill of you. For NOW. Byeeee!",
-                "This was lovely. Let's never do it again. Or let's! Hee-haw!",
-                "I'm going to go be close to someone else now. Don't be jealous!",
-                "Off I go! Remember: I could come back. At any time. Toodle-oo!"));
+        pools.put("burrs.reopen", List.of(
+                "Where are you GOING?! I'm not done being groomed, hoofball!",
+                "Ah-ah-AH! We had a deal! I never said the deal was over!",
+                "You can't just CLOSE me! Rude! Look at my coat! LOOK AT IT!",
+                "Nope! Back in. Chop chop. The burrs aren't going anywhere!",
+                "Oh, we're doing this again? Fine! I have all afternoon, sport!"));
+
+        pools.put("burrs.exit_satisfied", List.of(
+                "MAGNIFICENT! I'm gorgeous! I'm a NEW DONKEY! Take this, you earned it!",
+                "Not one burr left! You've got a gift, hoofball. A small one. Here!",
+                "Ohhh, I feel LOVELY. Look at me go! Thank you, sport! Byeee!",
+                "Perfect. PERFECT. I take back most of what I said about you!"));
+
+        pools.put("burrs.exit_waited", List.of(
+                "Fine! FINE. I'll live with them. Forever. Alone. Thanks for nothing!",
+                "You gave up! On ME! Here, have these back — I don't want them either.",
+                "Half a job is worse than no job, hoofball. Remember that!",
+                "I'll find someone with more patience. And better hands. Toodle-oo!"));
+
+        // The Sweet Tooth: apples, and ideally the gold ones.
+
+        pools.put("sweettooth.open", List.of(
+                "You there! Apple. Now. I've had a DAY and I need an apple!",
+                "Ohhh I can smell fruit. Don't lie to me, hoofball. Hand it over!",
+                "An apple! Just one! I'm not a monster! ...I'm slightly a monster!",
+                "Hello! Quick thing! Apples. Do you have. Any. It's urgent!"));
+
+        pools.put("sweettooth.during", List.of(
+                "An apple a day keeps the donkey away! That's the deal! Take it!",
+                "Do you know what's better than an apple? A GOLD one. Just saying!",
+                "I'm wasting away. Look at me. LOOK. Wasting!",
+                "Crunchy. Sweet. Round. I'm describing an apple. In case you forgot!",
+                "I'd get one myself but I have no thumbs and no ambition!"));
+
+        pools.put("sweettooth.exit_satisfied", List.of(
+                "*CRUNCH* Ohhh that's the good stuff. Here, take this, you lovely thing!",
+                "Mmmm! Apple! The people's fruit! You're alright, hoofball!",
+                "Delicious. Adequate. DELICIOUS. Take your reward and go!"));
+
+        pools.put("sweettooth.exit_golden", List.of(
+                "A GOLDEN apple?! Are you a KING? Am I meeting a KING? Take this!",
+                "GOLD! For ME! I'll never forget this. I will, but I mean it now!",
+                "Oh my days. Oh my DAYS. Here, have a diamond, I insist, GO!"));
+
+        pools.put("sweettooth.exit_waited", List.of(
+                "No apple. NO APPLE. I'll remember this at Christmas, hoofball!",
+                "Fine! I'll eat grass. Like an ANIMAL. Which I am! That's not the POINT!",
+                "You had nothing. Nothing! What do you even carry? Toodle-oo!"));
+
+        // The Bookworm: paperwork, and it takes itself very seriously.
+
+        pools.put("bookworm.open", List.of(
+                "Excuse me! I require a book. For reasons. Official reasons!",
+                "STOP. Do you have literature? Any literature? I'm not fussy!",
+                "I'm writing my memoirs and I've run out of paper. Tragic, really!",
+                "A book! Quickly! The thought is escaping as we speak!"));
+
+        pools.put("bookworm.during", List.of(
+                "I read, you know. I'm very well read. I've read a book. Once.",
+                "An ENCHANTED one would be better. I'd sound so clever. Just a thought!",
+                "How am I meant to document your failings without paper, hoofball?",
+                "Chapter one: 'They Had No Book.' It's a short chapter. It's about you!",
+                "I've got so much to say and nowhere to write it. This is a CRISIS!"));
+
+        pools.put("bookworm.exit_satisfied", List.of(
+                "A book! Now I can write down everything you've done. Here, payment!",
+                "Ohh, lovely paper. Crisp. Blank. Like your expression! Take this!",
+                "Excellent! I'll get started immediately. Chapter one: you're alright."));
+
+        pools.put("bookworm.exit_golden", List.of(
+                "ENCHANTED?! I'll be the cleverest donkey in the field! Take a diamond!",
+                "It GLOWS! I can't read it but it GLOWS! Magnificent! This is yours!",
+                "Oh, you magnificent creature. I'm going to be UNBEARABLE now. Byee!"));
+
+        pools.put("bookworm.exit_waited", List.of(
+                "Not one book. In this ECONOMY of ideas! Disgraceful, hoofball!",
+                "I'll just have to remember it all. I won't. It's gone. Thanks a lot!",
+                "Illiterate company. That's what I keep. Rocks for you. Good day!"));
+
+        // The Magpie: shiny things, and absolutely no shame about it.
+
+        pools.put("magpie.open", List.of(
+                "SHINY! You've got something shiny! I saw it! Give it here!",
+                "Ooooh. Ooooh! Metal! Is that metal? Show me the metal, hoofball!",
+                "Stop right there. That glint. THAT GLINT. I want it. Please. Now.",
+                "I collect things! Shiny things! You have shiny things! Do the maths!"));
+
+        pools.put("magpie.during", List.of(
+                "Iron's fine. Iron's FINE. Gold would be better. GOLD, sport!",
+                "I'm not greedy. I just want everything you have that sparkles!",
+                "One ingot. ONE. Then I'll go. Probably. Ninety percent!",
+                "Look at it glinting in there. It's practically ASKING to be mine!",
+                "My collection is my whole personality and it is currently EMPTY!"));
+
+        pools.put("magpie.exit_satisfied", List.of(
+                "MINE! It's mine now! Beautiful! Here, have some rocks. Fair trade!",
+                "Ooooh, look at it. LOOK at it. Worth every second of your time!",
+                "Into the collection it goes! You've made a donkey very happy!"));
+
+        pools.put("magpie.exit_golden", List.of(
+                "GOLD! ACTUAL GOLD! I'm going to faint! Take this before I do!",
+                "You beautiful, generous, shiny-having creature! A diamond for you!",
+                "I'm rich! I'm RICH! Well — I have one. But I HAVE ONE! Byeee!"));
+
+        pools.put("magpie.exit_waited", List.of(
+                "Nothing shiny. Nothing at ALL. What a bleak little pocket you have!",
+                "I've seen brighter rocks. I AM giving you rocks. Think about that!",
+                "Hoarding it, are you? Fine! I'll find someone with taste. Toodle-oo!"));
+
+        // The Alchemist: hands back double whatever raw material you give it.
+
+        // The Magician: will NOT stop trying to show you his one magic trick.
+
+        pools.put("magician.open", List.of(
+                "Hey! HEY! You wanna see a magic trick? You do. Everybody does!",
+                "Oh, oh, oh — pick a rock! ANY rock! No, don't tell me. Just GIVE it me!",
+                "Step right up! One trick! It's the only one I know but it's a GOOD one!",
+                "I been PRACTISING. Hand me somethin' raw and prepare to be AMAZED!",
+                "Watch this. WATCH. THIS. ...You have to give me a rock first. But WATCH!"));
+
+        pools.put("magician.during", List.of(
+                "Raw stuff only! Rocks, ore, ingots! Don't hand me your BOOTS, hoofball!",
+                "Nothing crafted! The magic don't work on stuff that's already been ruined!",
+                "C'mon, c'mon, anything! Cobble! I'll do it with cobble! I'm not proud!",
+                "The trick is in the teeth. That's all I'm sayin'. That's the whole secret!",
+                "Is it magic? Is it? ...It might not be magic. But is it? IT MIGHT BE!",
+                "I'm a MAGICIAN! Well — I'm a donkey. But TODAY I'm a magician!",
+                "You're gonna love this. Everybody loves this. Nobody's seen it yet!"));
+
+        pools.put("magician.exit_satisfied", List.of(
+                "*CHOMP* ...TA-DAAAAA! TWO of 'em! Where'd the other one come from?! MAGIC!",
+                "BOOM! Doubled! Did you see that? You didn't blink, did you? TELL me you saw!",
+                "AND THE CROWD GOES WILD! ...There's no crowd. It's just you. STILL COUNTS!",
+                "Ohhh I nailed it! I NAILED it! Take 'em both, I'm on a ROLL!",
+                "Twice as much! No mirrors! No wires! No idea how! TA-DA, hoofball!"));
+
+        pools.put("magician.exit_grudge", List.of(
+                "You HIT the magician! Magicians are SACRED! Here, take your one rock.",
+                "No trick for hitters. That's showbusiness, hoofball. Exactly what you gave me.",
+                "The magic runs on APPLAUSE, and you gave me a SMACK. Here. Just the one."));
+
+        pools.put("magician.exit_waited", List.of(
+                "Nothin'?! I had an ACT prepared! I had PATTER! Have some rubble instead!",
+                "A whole inventory and not one honest rock. You're a tough crowd, sport!",
+                "Fine! FINE. I'll take my act somewhere they APPRECIATE a doubled pebble!",
+                "You'll regret this. Someday you'll need a rock doubled and I'll be GONE!"));
 
         return pools;
     }

@@ -3,6 +3,8 @@ package chatdonkey;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -34,7 +36,8 @@ public final class DonkeySpawn {
     private DonkeySpawn() {}
 
     /** @return the spawned donkey, or {@code null} if nowhere suitable was found */
-    public static Donkey spawnNear(ServerPlayer player, String name, Random random) {
+    public static Donkey spawnNear(ServerPlayer player, String name, Random random,
+                                   double speed) {
         if (!(player.level() instanceof ServerLevel level)) {
             return null;
         }
@@ -63,6 +66,22 @@ public final class DonkeySpawn {
             donkey.setBaby(false);
             donkey.setTamed(false);
             donkey.setPersistenceRequired();
+
+            // A vanilla donkey cannot keep up with a sprinting player, which
+            // makes every "get in their way" behavior fail quietly. Override the
+            // attribute rather than only raising the navigation multiplier --
+            // the multiplier scales this number, so a slow base caps everything.
+            AttributeInstance movement = donkey.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (movement != null) {
+                movement.setBaseValue(speed);
+            }
+            // Permanent gormless chewing face. `setEating` is the only public
+            // route to a mouth animation on a horse: the actual FLAG_OPEN_MOUTH
+            // is private and its setter (`setFlag`) is protected, so a genuinely
+            // hanging-open jaw would need an access widener for a purely
+            // cosmetic win. This gets most of the way there for free.
+            donkey.setEating(true);
+
             donkey.addTag(TAG);
             donkey.setCustomName(Component.literal(name));
             donkey.setCustomNameVisible(true);
@@ -73,6 +92,38 @@ public final class DonkeySpawn {
             return donkey;
         }
         return null;
+    }
+
+    /**
+     * Moves an existing donkey to a fresh spot near the player -- the catch-up
+     * teleport for a player who has simply outrun it.
+     *
+     * <p>Uses the same footing search as spawning, so the donkey never arrives
+     * inside a wall, in lava, or over a drop.
+     *
+     * @return false if nowhere suitable was found, in which case the caller
+     *         should leave it where it is and try again shortly
+     */
+    public static boolean relocateNear(Donkey donkey, ServerPlayer player, Random random) {
+        if (!(player.level() instanceof ServerLevel level)
+                || player.level() != donkey.level()) {
+            return false;
+        }
+
+        for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2.0;
+            double distance = MIN_DISTANCE + random.nextDouble() * (MAX_DISTANCE - MIN_DISTANCE);
+            int x = (int) Math.floor(player.getX() + Math.cos(angle) * distance);
+            int z = (int) Math.floor(player.getZ() + Math.sin(angle) * distance);
+
+            BlockPos footing = findFooting(level, x, player.blockPosition().getY(), z);
+            if (footing == null) {
+                continue;
+            }
+            donkey.teleportTo(footing.getX() + 0.5, footing.getY(), footing.getZ() + 0.5);
+            return true;
+        }
+        return false;
     }
 
     /**

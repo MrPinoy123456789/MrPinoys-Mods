@@ -9,16 +9,6 @@
     "minSeconds": 20,
     "maxSeconds": 40
   },
-  "foodcritic": {
-    "weight": 20,
-    "minSeconds": 30,
-    "maxSeconds": 45
-  },
-  "clingy": {
-    "weight": 15,
-    "minSeconds": 30,
-    "maxSeconds": 45
-  },
   "serenade": {
     "weight": 12,
     "minSeconds": 15,
@@ -28,5 +18,80 @@
     "weight": 8,
     "minSeconds": 10,
     "maxSeconds": 20
+  },
+  "burrs": {
+    "weight": 8,
+    "minSeconds": 30,
+    "maxSeconds": 60
+  },
+  "foodcritic": {
+    "weight": 20,
+    "minSeconds": 30,
+    "maxSeconds": 45,
+    "wants": "minecraft:carrot",
+    "wantsPremium": "minecraft:golden_carrot"
+  },
+  "sweettooth": {
+    "weight": 14,
+    "minSeconds": 30,
+    "maxSeconds": 45,
+    "wants": "minecraft:apple",
+    "wantsPremium": "minecraft:golden_apple"
+  },
+  "bookworm": {
+    "weight": 14,
+    "minSeconds": 30,
+    "maxSeconds": 50,
+    "wants": "minecraft:book",
+    "wantsPremium": "minecraft:enchanted_book"
+  },
+  "magpie": {
+    "weight": 12,
+    "minSeconds": 25,
+    "maxSeconds": 45,
+    "wants": "minecraft:iron_ingot",
+    "wantsPremium": "minecraft:gold_ingot"
+  },
+  "magician": {
+    "weight": 10,
+    "minSeconds": 30,
+    "maxSeconds": 50,
+    "duplicates": [
+      "minecraft:stone",
+      "minecraft:cobblestone",
+      "minecraft:deepslate",
+      "minecraft:cobbled_deepslate",
+      "minecraft:andesite",
+      "minecraft:diorite",
+      "minecraft:granite",
+      "minecraft:tuff",
+      "minecraft:calcite",
+      "minecraft:netherrack",
+      "minecraft:sand",
+      "minecraft:gravel",
+      "minecraft:clay_ball",
+      "minecraft:flint",
+      "minecraft:coal",
+      "minecraft:charcoal",
+      "minecraft:raw_iron",
+      "minecraft:raw_copper",
+      "minecraft:raw_gold",
+      "minecraft:iron_ingot",
+      "minecraft:copper_ingot",
+      "minecraft:gold_ingot",
+      "minecraft:iron_nugget",
+      "minecraft:gold_nugget",
+      "minecraft:redstone",
+      "minecraft:lapis_lazuli",
+      "minecraft:quartz",
+      "minecraft:amethyst_shard",
+      "minecraft:glowstone_dust",
+      "minecraft:obsidian",
+      "minecraft:diamond",
+      "minecraft:emerald",
+      "minecraft:ancient_debris",
+      "minecraft:netherite_scrap"
+    ],
+    "multiplier": 2
   }
 }

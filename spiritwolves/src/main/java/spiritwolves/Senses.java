@@ -12,6 +12,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.animal.wolf.WolfSoundVariant;
 import net.minecraft.world.entity.monster.Monster;
@@ -93,6 +94,24 @@ public final class Senses {
     /** Drops the cooldown entry for a wolf that is no longer out. */
     public static void forget(UUID wolfUuid) {
         lastGrowlTick.remove(wolfUuid);
+    }
+
+    // ---- outline current target ---------------------------------------------
+
+    /**
+     * Keeps the wolf's current combat target glowing, refreshed every
+     * {@code Tracker} poll while it stays the target. Whatever set that target
+     * -- a normal fight, {@code OwnerHurtByTargetGoal}, or a wondrous item like
+     * the boomerang pet ball feeding {@code owner.setLastHurtMob} -- this is the
+     * one place that turns "the wolf is fighting something" into a glow the
+     * player can actually see, so nothing upstream of this needs to know about
+     * glowing at all.
+     */
+    public static void outlineCurrentTarget(Wolf wolf) {
+        LivingEntity target = wolf.getTarget();
+        if (target != null && target.isAlive()) {
+            target.addEffect(new MobEffectInstance(MobEffects.GLOWING, GLOW_DURATION_TICKS, 0, false, false));
+        }
     }
 
     private static void expireCooldowns(int now) {

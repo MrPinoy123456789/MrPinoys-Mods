@@ -240,6 +240,8 @@ public final class ShopConfig {
         // registry. If the wondrous mod isn't installed, this entry is skipped with
         // one log warning at the next reload; it does not stop the server starting.
         catalog.put(ShopEntry.of("big_hole_shovel", "wondrous:big_hole_shovel", 1, diamond, 12, rare));
+        catalog.put(ShopEntry.of("pocket_disenchanter", "wondrous:pocket_disenchanter", 1, diamond, 16, rare));
+        catalog.put(ShopEntry.of("pocket_smelter", "wondrous:pocket_smelter", 1, diamond, 10, rare));
 
         save(catalog);
         CobbleEconomyMod.LOG.info("Wrote a starter shop.json -- edit it to set your own prices");

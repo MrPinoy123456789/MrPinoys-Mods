@@ -2,11 +2,13 @@ package spiritwolves;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.monster.Monster;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,8 +24,6 @@ import java.util.Set;
  */
 public final class Verbs {
 
-    /** Family kills needed to unlock tier I for free. */
-    static final int UNLOCK_KILLS = 20;
 
     /** Diamonds required to attune tier II / tier III. Index 2 and 3 used. */
     static final int[] ATTUNE_COST = { 0, 0, 4, 16 };
@@ -40,17 +40,19 @@ public final class Verbs {
         final String familyLabel;
         final String unlockAdjective;
         final String unlockJournalSource;
+        final int unlockKills;
         final String[] tierEffect = new String[4];
         final String[] fillVerbPhrase = new String[4];
         final String[] fillJournalLine = new String[4];
 
         Verb(String id, String displayName, String familyLabel, String unlockAdjective,
-             String unlockJournalSource, Set<EntityType<?>> family) {
+             String unlockJournalSource, int unlockKills, Set<EntityType<?>> family) {
             this.id = id;
             this.displayName = displayName;
             this.familyLabel = familyLabel;
             this.unlockAdjective = unlockAdjective;
             this.unlockJournalSource = unlockJournalSource;
+            this.unlockKills = unlockKills;
             this.family = family;
         }
 
@@ -64,19 +66,26 @@ public final class Verbs {
     }
 
     static final Verb EMBERFANG = verb("emberfang", "Emberfang", "blazes", "burning",
-            "the Nether's flames", EntityTypes.BLAZE, EntityTypes.MAGMA_CUBE);
+            "the Nether's flames", 20, EntityTypes.BLAZE, EntityTypes.MAGMA_CUBE);
     static final Verb VENOMFANG = verb("venomfang", "Venomfang", "spiders", "venomous",
-            "the bite of spiders", EntityTypes.SPIDER, EntityTypes.CAVE_SPIDER);
+            "the bite of spiders", 20, EntityTypes.SPIDER, EntityTypes.CAVE_SPIDER);
     static final Verb RAVENOUS = verb("ravenous", "Ravenous", "the restless dead", "hungering",
-            "the flesh of the restless dead", EntityTypes.ZOMBIE, EntityTypes.DROWNED, EntityTypes.HUSK);
+            "the flesh of the restless dead", 20, EntityTypes.ZOMBIE, EntityTypes.DROWNED, EntityTypes.HUSK);
     static final Verb BONECHILL = verb("bonechill", "Bonechill", "skeletons", "chilling",
-            "the frost of old bones", EntityTypes.SKELETON, EntityTypes.STRAY);
+            "the frost of old bones", 20, EntityTypes.SKELETON, EntityTypes.STRAY);
     static final Verb WITHERBITE = verb("witherbite", "Witherbite", "wither skeletons", "withering",
-            "the wither's touch", EntityTypes.WITHER_SKELETON);
+            "the wither's touch", 20, EntityTypes.WITHER_SKELETON);
     static final Verb BLINKSTRIKE = verb("blinkstrike", "Blinkstrike", "endermen", "otherworldly",
-            "the space between endermen", EntityTypes.ENDERMAN);
+            "the space between endermen", 20, EntityTypes.ENDERMAN);
+    static final Verb SCAVENGER = verb("scavenger", "Scavenger", "combat spoils", "curious",
+            "the spoils of battle", 100);
+    static final Verb LIGHT = verb("light", "Light", "night hunts", "luminous",
+            "the dark", 50);
+    static final Verb PREDATOR = verb("predator", "Predator", "prey", "ravenous",
+            "the hunt", 20, EntityTypes.COW, EntityTypes.PIG, EntityTypes.SHEEP, EntityTypes.CHICKEN,
+            EntityTypes.RABBIT, EntityTypes.SALMON, EntityTypes.COD, EntityTypes.MOOSHROOM);
 
-    static final List<Verb> ALL = List.of(EMBERFANG, VENOMFANG, RAVENOUS, BONECHILL, WITHERBITE, BLINKSTRIKE);
+    static final List<Verb> ALL = List.of(EMBERFANG, VENOMFANG, RAVENOUS, BONECHILL, WITHERBITE, BLINKSTRIKE, SCAVENGER, LIGHT, PREDATOR);
 
     private static final Map<String, Verb> BY_ID = new LinkedHashMap<>();
 
@@ -132,13 +141,37 @@ public final class Verbs {
         BLINKSTRIKE.fillVerbPhrase[3] = "strikes fastest";
         BLINKSTRIKE.fillJournalLine[2] = "Mastered the stride of fifty endermen.";
         BLINKSTRIKE.fillJournalLine[3] = "Consumed the stride of a hundred and fifty endermen.";
+
+        SCAVENGER.tierEffect[1] = "The wolf picks up loose, unowned items within 5 blocks.";
+        SCAVENGER.tierEffect[2] = "Pickup radius increases to 8 blocks.";
+        SCAVENGER.tierEffect[3] = "Pickup radius increases to 12 blocks.";
+        SCAVENGER.fillVerbPhrase[2] = "scavenges farther";
+        SCAVENGER.fillVerbPhrase[3] = "scavenges farthest";
+        SCAVENGER.fillJournalLine[2] = "Learned to carry more from the battlefield.";
+        SCAVENGER.fillJournalLine[3] = "Became a relentless scavenger of the battlefield.";
+
+        LIGHT.tierEffect[1] = "The wolf emits a faint glow, visible through walls.";
+        LIGHT.tierEffect[2] = "The wolf's glow grants the owner Night Vision within 8 blocks.";
+        LIGHT.tierEffect[3] = "Night Vision aura expands to 16 blocks.";
+        LIGHT.fillVerbPhrase[2] = "glows brighter";
+        LIGHT.fillVerbPhrase[3] = "glows brightest";
+        LIGHT.fillJournalLine[2] = "Mastered the light of fifty night hunts.";
+        LIGHT.fillJournalLine[3] = "Mastered the light of a hundred and fifty night hunts.";
+
+        PREDATOR.tierEffect[1] = "Killing an edible animal heals the wolf for 1 heart.";
+        PREDATOR.tierEffect[2] = "Prey kills heal the wolf for 2 hearts.";
+        PREDATOR.tierEffect[3] = "Prey kills heal the wolf for 3 hearts.";
+        PREDATOR.fillVerbPhrase[2] = "feasts better";
+        PREDATOR.fillVerbPhrase[3] = "feasts best";
+        PREDATOR.fillJournalLine[2] = "Mastered the taste of fifty prey.";
+        PREDATOR.fillJournalLine[3] = "Mastered the taste of a hundred and fifty prey.";
     }
 
     private Verbs() {}
 
     private static Verb verb(String id, String displayName, String familyLabel, String unlockAdjective,
-                              String unlockJournalSource, EntityType<?>... family) {
-        return new Verb(id, displayName, familyLabel, unlockAdjective, unlockJournalSource, Set.of(family));
+                              String unlockJournalSource, int unlockKills, EntityType<?>... family) {
+        return new Verb(id, displayName, familyLabel, unlockAdjective, unlockJournalSource, unlockKills, Set.of(family));
     }
 
     static Verb byId(String id) {
@@ -165,33 +198,51 @@ public final class Verbs {
     }
 
     static State stateOf(WolfRecord record, Verb verb) {
-        int kills = record.familyKills.getOrDefault(verb.id, 0);
+        int progress = record.familyKills.getOrDefault(verb.id, 0);
         WolfRecord.VerbRecord vr = record.verbs.get(verb.id);
         int tier = vr == null ? 0 : vr.tier;
         int attunedTier = vr == null ? 0 : vr.attunedTier;
 
         if (tier <= 0) {
-            if (kills <= 0) {
+            if (progress <= 0) {
                 return State.HIDDEN;
             }
-            return kills < UNLOCK_KILLS ? State.SCENTED : State.UNLOCKED;
+            return progress < verb.unlockKills ? State.SCENTED : State.UNLOCKED;
         }
         return attunedTier > tier ? State.ATTUNED : State.UNLOCKED;
     }
 
     /** {@link WolfKill} listener: family kills always count; unlock/fill happen here. */
     static void onKill(Wolf wolf, ServerPlayer owner, WolfRecord record, Entity killed) {
+        onKill(owner, record, killed);
+    }
+
+    /**
+     * Owner-only variant used by {@link Assists} when the wolf entity may have
+     * already unloaded before the target died.
+     */
+    static void onKill(ServerPlayer owner, WolfRecord record, Entity killed) {
         Verb verb = familyOf(killed);
-        if (verb == null) {
-            return;
+        if (verb != null) {
+            onFamilyProgress(owner, record, verb, 1);
         }
 
-        int kills = record.familyKills.merge(verb.id, 1, Integer::sum);
+        if (killed instanceof Monster && killed.level() instanceof ServerLevel killLevel && isNight(killLevel)) {
+            onFamilyProgress(owner, record, LIGHT, 1);
+        }
+    }
+
+    /**
+     * Applies {@code delta} progress toward a verb's unlock/fill. Used for both
+     * family kills and the special unlock conditions for Light and Scavenger.
+     */
+    static void onFamilyProgress(ServerPlayer owner, WolfRecord record, Verb verb, int delta) {
+        int progress = record.familyKills.merge(verb.id, delta, Integer::sum);
         WolfRecord.VerbRecord vr = record.verb(verb.id);
         PlayerWolfRegistry.markDirty(owner.getUUID());
 
         if (vr.tier <= 0) {
-            if (kills >= UNLOCK_KILLS) {
+            if (progress >= verb.unlockKills) {
                 vr.tier = 1;
                 announceUnlock(owner, record, verb);
             }
@@ -199,7 +250,7 @@ public final class Verbs {
         }
 
         if (vr.attunedTier > vr.tier) {
-            vr.fillKills++;
+            vr.fillKills += delta;
             int requirement = FILL_REQUIREMENT[vr.attunedTier];
             if (vr.fillKills >= requirement) {
                 vr.tier = vr.attunedTier;
@@ -207,6 +258,11 @@ public final class Verbs {
                 announceFill(owner, record, verb, vr.tier);
             }
         }
+    }
+
+    private static boolean isNight(ServerLevel level) {
+        long dayTime = level.getDefaultClockTime() % 24000L;
+        return dayTime >= 13000L && dayTime <= 23000L;
     }
 
     private static void announceUnlock(ServerPlayer owner, WolfRecord record, Verb verb) {

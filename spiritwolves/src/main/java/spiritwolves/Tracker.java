@@ -120,7 +120,9 @@ public final class Tracker {
         }
 
         Senses.growlIfThreatened(wolf, tickCounter);
+        Senses.outlineCurrentTarget(wolf);
         VerbProcs.tickSummonedWolf(player, record, wolf);
+        Scavenger.tick(wolf, player, record);
     }
 
     /** Recalls the player's summoned wolf into the registry, silently -- no charge cost, no message. */

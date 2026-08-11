@@ -28,6 +28,18 @@ public interface DonkeyBehavior {
     }
 
     /**
+     * Whether this behavior has an exit the player can actually solve, and can
+     * therefore end {@link EndReason#SATISFIED}.
+     *
+     * <p>Distinct from {@link #wantsTreats()}: the Food Critic is satisfied by a
+     * carrot, Burrs by a clean coat. Anything that can reach {@code SATISFIED}
+     * needs lines for it, which the exit-coverage test enforces off this method.
+     */
+    default boolean canBeSatisfied() {
+        return wantsTreats();
+    }
+
+    /**
      * Whether feeding this donkey a carrot means anything.
      *
      * <p>Only the Food Critic says yes. For every other behavior a carrot is
