@@ -15,7 +15,9 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -75,13 +77,30 @@ public final class DailyState {
         return now.toLocalDate().format(DAY);
     }
 
-    private static boolean isConsecutive(String previousDay, String today) {
+    /**
+     * Whether a turn-in on {@code today} keeps the run alive. The gap is measured in
+     * days rather than required to be exactly one, so a player who misses a day does
+     * not lose a month of history — the streak counts turn-ins, and the grace window
+     * decides how long one can be left standing on its own.
+     */
+    public static boolean continuesStreak(String previousDay, String today, int graceDays) {
         try {
-            LocalDate before = LocalDate.parse(previousDay, DAY);
-            LocalDate now = LocalDate.parse(today, DAY);
-            return before.plusDays(1).equals(now);
+            long gap = ChronoUnit.DAYS.between(
+                    LocalDate.parse(previousDay, DAY), LocalDate.parse(today, DAY));
+            return gap >= 1 && gap <= graceDays;
         } catch (RuntimeException e) {
             return false;
+        }
+    }
+
+    /** How many more days the player can skip before the streak resets; 0 means today is the last chance. */
+    public static int daysOfGraceLeft(String previousDay, String today, int graceDays) {
+        try {
+            long gap = ChronoUnit.DAYS.between(
+                    LocalDate.parse(previousDay, DAY), LocalDate.parse(today, DAY));
+            return (int) Math.max(0, graceDays - gap);
+        } catch (RuntimeException e) {
+            return 0;
         }
     }
 
@@ -107,19 +126,35 @@ public final class DailyState {
                 .count();
     }
 
+    /**
+     * Returns entries sorted by streak (desc), then total done (desc), for a
+     * paginated streak board.
+     */
+    public List<Entry> topByStreak(int offset, int limit) {
+        return entries.values().stream()
+                .sorted((a, b) -> {
+                    int byStreak = Integer.compare(b.streak(), a.streak());
+                    if (byStreak != 0) return byStreak;
+                    return Integer.compare(b.totalDone(), a.totalDone());
+                })
+                .skip(offset)
+                .limit(limit)
+                .toList();
+    }
+
     // ---- writes -----------------------------------------------------------
 
     /**
-     * Records a completion and returns the new streak. A gap of more than one day
-     * resets to 1 rather than continuing, which is the whole point of a streak.
+     * Records a completion and returns the new streak. A gap wider than the grace
+     * window resets to 1 rather than continuing, which is the whole point of a streak.
      */
-    public int complete(UUID player, String name, String dayKey) {
+    public int complete(UUID player, String name, String dayKey, int graceDays) {
         Entry current = entries.get(player);
         int streak = 1;
         int total = 1;
         if (current != null) {
             total = current.totalDone() + 1;
-            if (isConsecutive(current.lastDay(), dayKey)) {
+            if (continuesStreak(current.lastDay(), dayKey, graceDays)) {
                 streak = current.streak() + 1;
             }
         }

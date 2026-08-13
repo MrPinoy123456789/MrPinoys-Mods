@@ -9,7 +9,7 @@ import java.util.List;
  * while its line is on screen.
  *
  * <p>Pure arithmetic -- this decides <em>what</em> to play and <em>when</em>,
- * and the fabric side turns each {@link Blip} into a note-block packet.
+ * and the fabric side turns each {@link Blip} into a sound packet.
  *
  * <p>Three things make it read as a voice rather than a beep:
  * <ul>

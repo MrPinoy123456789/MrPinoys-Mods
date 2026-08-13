@@ -1,6 +1,7 @@
 # MrPinoy's Cobble Bending — Build Spec
 
-> **Status:** design complete, not yet implemented. Every Minecraft signature and
+> **Status:** implemented 2026-08-08, build-verified, **not play-verified**; §16
+> definition-of-done boxes remain unchecked pending play. Every Minecraft signature and
 > component behaviour marked ✅ below was verified against the actual 26.2 merged
 > jar (`minecraft-merged-deobf-26.2.jar`) in the Gradle cache on 2026-08-08.
 > Where something is *not* verified, it says so explicitly.

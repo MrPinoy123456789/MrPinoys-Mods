@@ -10,8 +10,12 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.Optional;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -47,9 +51,14 @@ public final class WolfCapture {
         ProblemReporter reporter = ProblemReporter.DISCARDING;
         TagValueOutput out = TagValueOutput.createWithContext(reporter, level.registryAccess());
         wolf.saveWithoutId(out);
-        CompoundTag tag = out.buildResult();
-        tag.putIntArray("UUID", UUIDUtil.uuidToIntArray(wolf.getUUID()));
-        return tag;
+        out.putIntArray("UUID", UUIDUtil.uuidToIntArray(wolf.getUUID()));
+
+        ItemStack bodyArmor = wolf.getBodyArmorItem();
+        if (!bodyArmor.isEmpty()) {
+            out.store("SpiritWolvesBodyArmor", ItemStack.OPTIONAL_CODEC, bodyArmor);
+        }
+
+        return out.buildResult();
     }
 
     /**
@@ -66,6 +75,9 @@ public final class WolfCapture {
             return null;
         }
         wolf.load(in);
+
+        Optional<ItemStack> bodyArmor = in.read("SpiritWolvesBodyArmor", ItemStack.OPTIONAL_CODEC);
+        bodyArmor.ifPresent(armor -> wolf.setItemSlot(EquipmentSlot.BODY, armor));
 
         // Old broken captures sometimes stored a zero attack-damage base. Once
         // that is in the wolfTag, every restore re-applies it. Clamp it back to

@@ -32,6 +32,8 @@ public abstract class AbstractBehavior implements DonkeyBehavior {
 
     private int nextLineTick;
     private int catchUps;
+    private boolean heraldFired;
+    private int linesSaid;
 
     /** Inclusive bounds on the gap between running lines, in ticks. */
     protected abstract int lineGapMinTicks();
@@ -101,12 +103,31 @@ public abstract class AbstractBehavior implements DonkeyBehavior {
     /**
      * Says a line from this behavior's pool for {@code moment}, falling back to
      * the shared pool of the same name. Silent if neither exists.
+     *
+     * <p>'during' lines can be replaced once per event by the shared
+     * {@code herald} pool, with probability {@link EventContext#heraldChance()},
+     * and only after the opener has already landed.
      */
     protected final void say(EventContext ctx, String moment) {
-        String line = ctx.lines().pickFor(id(), moment, ctx.random());
+        String line = pickLine(ctx, moment);
         if (!line.isEmpty()) {
             ctx.say(line);
+            linesSaid++;
         }
+    }
+
+    private String pickLine(EventContext ctx, String moment) {
+        if ("during".equals(moment)
+                && !heraldFired
+                && linesSaid > 0
+                && ctx.random().nextDouble() < ctx.heraldChance()) {
+            String line = ctx.lines().pick("herald", ctx.random());
+            if (!line.isEmpty()) {
+                heraldFired = true;
+                return line;
+            }
+        }
+        return ctx.lines().pickFor(id(), moment, ctx.random());
     }
 
     private int rollLineGap(EventContext ctx) {

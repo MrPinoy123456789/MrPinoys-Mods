@@ -3,8 +3,24 @@
 You are implementing **sections 16 and 18** of `SPEC.md` in this repo
 (`a:\MrPinoys Mods\spiritwolves\SPEC.md`). Read the entire spec first — §16
 is the v3 binding/storage redesign, §18 is the v4 permanent progression
-(souls, levels, equippable combat verbs). This hand-off is a map, not a
+(souls, levels, equippable combat fangs). This hand-off is a map, not a
 replacement for the spec.
+
+> **Terminology note (renames complete — this document is older than them).**
+> What this document calls **verbs**, then **fangs**, is now **two categories of
+> ability**: **Fangs** (combat) and **Tricks** (utility, with their own slot
+> pool). `Verbs.java`/`Fangs.java` and friends are now `Abilities.java`,
+> `AbilityCommands.java`, `AbilityProcs.java`, `AbilityGui.java`, joined by
+> `Tricks.java` (Dig/Speak interactions) and `Training.java` (how tricks are
+> trained). Commands: `/spiritwolves fangs` and `/spiritwolves tricks`, both
+> opening one panel. Save key: `abilities`. Renamed: Witherbite → **Witherfang**,
+> Blinkstrike → **Voidfang**, Scavenger → **Fetch** (merged into `Fetch.java`),
+> Light → **Shine**; Predator deleted. Older saves migrate on read in
+> `WolfRecord.fromTag`. Nothing in this mod should say "verb" — other mods in
+> the suite use the word for their own unrelated systems.
+>
+> **§18 below is built and shipped**, not a plan: read it as history, and read
+> SPEC.md §18.2 for the current design.
 
 ## What already exists and works
 
@@ -26,12 +42,12 @@ death-save and handles the new **true death** branch (0 charges → delete
 registry record, revert stones).
 - `Tracker.java` — 30-tick poll. v3 polls registry, not stone `custom_data`.
 Logout/dimension-change/owner-death recall now lives here.
-- `Chime.java` — sound cues. v4 reuses it for level/verb tier-ups.
+- `Chime.java` — sound cues. v4 reuses it for level/fang tier-ups.
 - `SpiritCommands.java` — v3/v4 adds `/spiritwolves release [confirm]`,
-`/spiritwolves info`, `/spiritwolves verbs`, verb subcommands, and admin
+`/spiritwolves info`, `/spiritwolves fangs`, fang subcommands, and admin
 helpers.
 - `WolfKill.java` (created for v2) — `AFTER_DEATH` attribution hook. v4 adds
-`Souls` and `Verbs` as listeners.
+`Souls` and `Fangs` as listeners.
 
 ## What to build (build order matters)
 
@@ -82,7 +98,7 @@ Do not start §18 until §16 is solid. §18's entire state lives in the
 
 8. v3 definition of done (§16.11) — build must be clean before continuing.
 
-### Phase 2 — §18 v4: souls and verbs
+### Phase 2 — §18 v4: souls and fangs
 
 1. `Souls.java` (new)
    - Static soul-values table by `EntityType` + category fallback.
@@ -91,31 +107,31 @@ Do not start §18 until §16 is solid. §18's entire state lives in the
      sends messages, writes journal, plays chime.
    - Add fields to `WolfRecord` and `PlayerWolfRegistry`.
 
-2. `Verbs.java` (new)
-   - Static definitions for the six verbs (Emberfang, Venomfang, Ravenous,
-     Bonechill, Witherbite, Blinkstrike): family set, tier effect text, costs,
+2. `Fangs.java` (new)
+   - Static definitions for the six fangs (Emberfang, Venomfang, Ravenous,
+     Bonechill, Witherfang, Voidfang): family set, tier effect text, costs,
      flavor strings.
    - State machine: HIDDEN → SCENTED → UNLOCKED → ATTUNED → FILLED.
    - Listener on `WolfKill` to increment family kills and fill progress.
    - `attune`/`equip`/`unequip` validation helpers.
 
-3. `VerbCommands.java` (new)
-   - `/spiritwolves verbs` panel as described in §18.3.
-   - Hidden subcommands `verbs equip <id>`, `verbs unequip <id>`,
-     `verbs attune <id>`.
+3. `FangCommands.java` (new)
+   - `/spiritwolves fangs` panel as described in §18.3.
+   - Hidden subcommands `fangs equip <id>`, `fangs unequip <id>`,
+     `fangs attune <id>`.
    - Build `Component` rows with `ClickEvent` and `HoverEvent`; re-print the
      panel after every mutation.
    - Diamond removal uses the same 36-slot iteration pattern as `Tracker`.
 
-4. `VerbProcs.java` (new)
-   - On-hit/on-kill combat hooks for equipped verbs.
+4. `FangProcs.java` (new)
+   - On-hit/on-kill combat hooks for equipped fangs.
    - Read equipped state from registry, cache per wolf UUID, invalidate on
      recall.
    - All effects applied as transient state only — nothing leaks into
      `wolfTag` via capture.
 
 5. Integrate with `WolfKill`
-   - Dispatch to `Streak`, `Fetch`, `Souls`, `Verbs` in one pass.
+   - Dispatch to `Streak`, `Fetch`, `Souls`, `Fangs` in one pass.
 
 6. v4 definition of done (§18.9) — build must be clean.
 
@@ -124,9 +140,9 @@ Do not start §18 until §16 is solid. §18's entire state lives in the
 - `src/main/java/spiritwolves/PlayerWolfRegistry.java`
 - `src/main/java/spiritwolves/WolfRecord.java` (or nested in registry)
 - `src/main/java/spiritwolves/Souls.java`
-- `src/main/java/spiritwolves/Verbs.java`
-- `src/main/java/spiritwolves/VerbCommands.java`
-- `src/main/java/spiritwolves/VerbProcs.java`
+- `src/main/java/spiritwolves/Fangs.java`
+- `src/main/java/spiritwolves/FangCommands.java`
+- `src/main/java/spiritwolves/FangProcs.java`
 
 You may also create `WolfKill.java` if it doesn't exist from v2.
 
@@ -156,7 +172,7 @@ You may also create `WolfKill.java` if it doesn't exist from v2.
 - **No migration.** v1/v2 stones are treated as unbound on first touch.
 - **No GUI screens.** All UX is chat `Component` click/hover events.
 - **No permanent progression on the stone.** Progression is on the wolf.
-- **All verbs passive.** No keybinds. Procs on the wolf's own attacks/kills.
+- **All fangs passive.** No keybinds. Procs on the wolf's own attacks/kills.
 - **Build order is enforced by data flow.** Do §18 after §16 works.
 
 ## Verify in jar before coding
@@ -169,12 +185,12 @@ sessions.
 2. Entity ignition method: `setRemainingFireTicks` vs `igniteForSeconds`.
 3. Fabric API event for on-hit damage (not just on-kill), if you want
    Bonechill/Ravenous to proc on every attack. If it doesn't exist in the
-   pinned version, redesign those verbs to proc on-kill only — do not
+   pinned version, redesign those fangs to proc on-kill only — do not
    introduce a Mixin.
 4. `LivingEntity.heal(float)` and `MobEffectInstance` constructors — verify
    the exact overloads exist.
 5. `Wolf.getNavigation()` and related pathfinding, if implementing
-   Blinkstrike fully — the spec allows a simpler positional teleport first.
+   Voidfang fully — the spec allows a simpler positional teleport first.
 
 ## Conventions (same as this repo)
 

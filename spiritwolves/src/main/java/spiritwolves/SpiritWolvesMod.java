@@ -25,7 +25,9 @@ public final class SpiritWolvesMod implements ModInitializer {
         WolfKill.register();
         Fetch.register();
         RecallLock.register();
-        VerbProcs.register();
+        AbilityProcs.register();
+        Tricks.register();
+        Training.register();
         SpiritCommands.register();
 
         LOG.info("Spirit Wolves initialised (server-side only)");

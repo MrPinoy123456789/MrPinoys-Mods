@@ -1,15 +1,19 @@
 package dailyquests;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import java.util.List;
 
+import org.slf4j.Logger;
 
 /**
  * The turn-in itself.
@@ -18,6 +22,8 @@ import net.minecraft.world.item.Items;
  * A turn-in that consumes half the wheat and then fails is worse than no turn-in.
  */
 public final class TurnIn {
+
+    private static final Logger LOG = LogUtils.getLogger();
 
     private final Quests quests;
     private final DailyState state;
@@ -54,8 +60,12 @@ public final class TurnIn {
         remove(inventory, item, quest.count());
 
         int streak = state.complete(player.getUUID(),
-                player.getName().getString(), today);
-        int diamonds = Math.min(streak, quests.settings().streakDiamondCap());
+                player.getName().getString(), today, quests.settings().graceDays());
+
+        List<Quests.StreakReward> rewards = quests.settings().rewards();
+        int diamonds = diamondsForStreak(rewards, streak);
+        int maxDay = maxRewardDay(rewards);
+
         grant(player, Items.DIAMOND, diamonds);
         Chime.questTurnedIn(player);
 
@@ -68,10 +78,14 @@ public final class TurnIn {
                                 + (diamonds == 1 ? "" : "s"))
                         .withStyle(ChatFormatting.AQUA)));
 
-        if (streak >= quests.settings().streakDiamondCap()) {
+        if (streak >= maxDay && maxDay > 0) {
             player.sendSystemMessage(Component.literal(
                             "You're at the top of the streak reward. Don't break it.")
                     .withStyle(ChatFormatting.DARK_GRAY));
+        }
+
+        if (isMilestone(quests.settings().milestoneList(), streak)) {
+            broadcastStreak(player, streak);
         }
         return null;
     }
@@ -117,6 +131,55 @@ public final class TurnIn {
             }
             remaining -= size;
         }
+    }
+
+    // ---- streak helpers ---------------------------------------------------
+
+    /** Highest diamonds on the ladder whose day is at or below the streak. */
+    public static int diamondsForStreak(List<Quests.StreakReward> rewards, int streak) {
+        int best = 0;
+        for (Quests.StreakReward reward : rewards) {
+            if (reward.day() <= streak && reward.diamonds() > best) {
+                best = reward.diamonds();
+            }
+        }
+        return best;
+    }
+
+    /** True when a streak should be announced to the server. */
+    public static boolean isMilestone(List<Integer> milestones, int streak) {
+        if (streak <= 0) {
+            return false;
+        }
+        if (milestones != null && milestones.contains(streak)) {
+            return true;
+        }
+        return streak % 30 == 0;
+    }
+
+    /** The largest day in the ladder, or 0 if the ladder is empty. */
+    public static int maxRewardDay(List<Quests.StreakReward> rewards) {
+        int max = 0;
+        for (Quests.StreakReward reward : rewards) {
+            if (reward.day() > max) {
+                max = reward.day();
+            }
+        }
+        return max;
+    }
+
+    private static void broadcastStreak(ServerPlayer player, int streak) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return;
+        }
+        String name = player.getName().getString();
+        String dayLabel = streak == 1 ? "day" : "days";
+        server.getPlayerList().broadcastSystemMessage(
+                Component.literal(name + " is on a " + streak + "-" + dayLabel + " streak.")
+                        .withStyle(ChatFormatting.GOLD),
+                false);
+        LOG.info("{} reached a {}-day daily quest streak", name, streak);
     }
 
     /**

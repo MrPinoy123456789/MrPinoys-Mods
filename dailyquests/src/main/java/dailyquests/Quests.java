@@ -42,15 +42,52 @@ public final class Quests {
 
     private record QuestFile(List<Quest> quests) {}
 
+    /** One rung on the streak reward ladder: the reward from this day onward. */
+    public record StreakReward(int day, int diamonds) {}
+
     /**
      * @param rolloverHourUtc hour of the UTC day a new quest appears, 0–23
      * @param streakDiamondCap most diamonds a streak can pay; the streak itself keeps
      *                         counting past this, it just stops paying more
      * @param announceOnJoin whether joining players are shown today's riddle
+     * @param streakRewards ladder of {@link StreakReward}; if absent, a flat ladder is
+     *                      synthesised from {@code streakDiamondCap} for migration
+     * @param milestones extra streak days that trigger a broadcast; every multiple of 30
+     *                   is also treated as a milestone
+     * @param streakGraceDays how long a streak survives without a turn-in. One means
+     *                        strictly consecutive days; seven means you keep the streak
+     *                        as long as you show up once a week
      */
-    public record Settings(int rolloverHourUtc, int streakDiamondCap, boolean announceOnJoin) {
+    public record Settings(int rolloverHourUtc, int streakDiamondCap, boolean announceOnJoin,
+                           List<StreakReward> streakRewards, List<Integer> milestones,
+                           int streakGraceDays) {
         public static Settings defaults() {
-            return new Settings(0, 3, true);
+            return new Settings(0, 3, true,
+                    List.of(new StreakReward(1, 3), new StreakReward(7, 5),
+                            new StreakReward(14, 8), new StreakReward(30, 12)),
+                    List.of(7, 14), 7);
+        }
+
+        /** Grace window in days, falling back to a week for files written before it existed. */
+        public int graceDays() {
+            return streakGraceDays > 0 ? streakGraceDays : 7;
+        }
+
+        /** The active reward ladder, falling back to a flat cap for old files. */
+        public List<StreakReward> rewards() {
+            if (streakRewards != null && !streakRewards.isEmpty()) {
+                return streakRewards;
+            }
+            List<StreakReward> flat = new ArrayList<>();
+            for (int i = 1; i <= streakDiamondCap; i++) {
+                flat.add(new StreakReward(i, i));
+            }
+            return flat;
+        }
+
+        /** The configured milestones, never null. */
+        public List<Integer> milestoneList() {
+            return milestones != null ? milestones : List.of();
         }
     }
 
@@ -100,26 +137,62 @@ public final class Quests {
         return quests.size();
     }
 
+    /**
+     * The starting pool. Asks are deliberately small — a daily is a reason to log in,
+     * not an evening's work — and the pool is long enough that a riddle does not come
+     * back around within a fortnight.
+     */
     private static List<Quest> sampleQuests() {
         List<Quest> list = new ArrayList<>();
         list.add(new Quest(
-                "I am gold that no furnace made, and I ripen in rows. Bring me thirty.",
-                "minecraft:wheat", 30, "Wheat"));
+                "I am gold that no furnace made, and I ripen in rows. Bring me sixteen.",
+                "minecraft:wheat", 16, "Wheat"));
         list.add(new Quest(
                 "I burn without wood and I am pulled from something already burning. "
-                        + "Bring me eight.",
-                "minecraft:blaze_rod", 8, "Blaze rods"));
+                        + "Bring me five.",
+                "minecraft:blaze_rod", 5, "Blaze rods"));
         list.add(new Quest(
-                "I am a bone the sea forgot. Guardians keep me. Bring me sixteen.",
-                "minecraft:prismarine_shard", 16, "Prismarine shards"));
+                "I am a bone the sea forgot. Guardians keep me. Bring me eight.",
+                "minecraft:prismarine_shard", 8, "Prismarine shards"));
         list.add(new Quest(
                 "I glow in the dark and I grow in the deep, but I am not a torch. "
-                        + "Bring me thirty-two.",
-                "minecraft:glow_berries", 32, "Glow berries"));
+                        + "Bring me twelve.",
+                "minecraft:glow_berries", 12, "Glow berries"));
         list.add(new Quest(
                 "I fall from the sky's own thief, and I carry you where you point. "
-                        + "Bring me twelve.",
-                "minecraft:ender_pearl", 12, "Ender pearls"));
+                        + "Bring me six.",
+                "minecraft:ender_pearl", 6, "Ender pearls"));
+        list.add(new Quest(
+                "I walk at night and clatter when I fall. What is left of me makes "
+                        + "gardens grow. Bring me twelve.",
+                "minecraft:bone", 12, "Bones"));
+        list.add(new Quest(
+                "I am green, I am rude, and I bounce when you cut me down. Bring me eight.",
+                "minecraft:slime_ball", 8, "Slime balls"));
+        list.add(new Quest(
+                "I am the last breath of something that crept up behind you. Bring me eight.",
+                "minecraft:gunpowder", 8, "Gunpowder"));
+        list.add(new Quest(
+                "I grow in geodes and I ring like glass when you take me. Bring me eight.",
+                "minecraft:amethyst_shard", 8, "Amethyst shards"));
+        list.add(new Quest(
+                "I go green with age above ground, but I come out of the rock the colour "
+                        + "of a sunset. Bring me twelve.",
+                "minecraft:copper_ingot", 12, "Copper ingots"));
+        list.add(new Quest(
+                "I sleep in the stone until iron wakes me, and then I will not stop "
+                        + "glowing. Bring me sixteen.",
+                "minecraft:redstone", 16, "Redstone dust"));
+        list.add(new Quest(
+                "I am stolen from a house of a thousand workers, and I smell of summer. "
+                        + "Bring me six.",
+                "minecraft:honeycomb", 6, "Honeycomb"));
+        list.add(new Quest(
+                "Eight legs made me, and I catch what walks into me. Bring me twelve.",
+                "minecraft:string", 12, "String"));
+        list.add(new Quest(
+                "I am the thing that circles you when you will not sleep. Bring me four.",
+                "minecraft:phantom_membrane", 4, "Phantom membranes"));
         return list;
     }
 }

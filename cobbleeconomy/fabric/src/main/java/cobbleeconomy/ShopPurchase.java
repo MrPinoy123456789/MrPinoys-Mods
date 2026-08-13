@@ -23,13 +23,22 @@ final class ShopPurchase {
 
     private ShopPurchase() {}
 
+    /**
+     * The item an entry hands over, wondrous listings included. Package-private so
+     * {@link PurchaseConfirm} can size a bulk buy against the same item this class
+     * would deliver, rather than reimplementing the wondrous fork and drifting from it.
+     */
+    static Optional<Item> itemOf(ShopEntry entry) {
+        return WondrousShop.isWondrousItemId(entry.itemId())
+                ? WondrousShop.baseItem(WondrousShop.idFrom(entry.itemId()))
+                : ItemBank.resolve(entry.itemId());
+    }
+
     static Shop.PurchaseResult attempt(EconomyService economy, TransactionLog log,
                                        ServerPlayer player, ShopEntry entry, boolean announce) {
         boolean wondrous = WondrousShop.isWondrousItemId(entry.itemId());
 
-        Optional<Item> maybeItem = wondrous
-                ? WondrousShop.baseItem(WondrousShop.idFrom(entry.itemId()))
-                : ItemBank.resolve(entry.itemId());
+        Optional<Item> maybeItem = itemOf(entry);
         if (maybeItem.isEmpty()) {
             // Startup already warned about this; say something useful rather than
             // charging the player for an item that cannot be created.

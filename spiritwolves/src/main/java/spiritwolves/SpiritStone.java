@@ -74,8 +74,10 @@ public final class SpiritStone {
         if (data == null || data.isEmpty()) {
             return null;
         }
-        CompoundTag root = data.copyTag();
-        return root.getCompoundOrEmpty(KEY);
+        // getCompoundOrEmpty would hand back an empty compound for any stack that
+        // merely has custom_data (e.g. wondrous items), making every one of them
+        // look like an unbound stone. Only a real spiritwolves compound counts.
+        return data.copyTag().getCompound(KEY).orElse(null);
     }
 
     /**

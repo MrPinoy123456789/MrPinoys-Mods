@@ -11,6 +11,7 @@ package chatdonkey.core;
  */
 public record Settings(
         boolean enabled,
+        Boolean requireOptIn,
         int checkIntervalSeconds,
         double chancePerCheck,
         int cooldownMinutesPerPlayer,
@@ -21,7 +22,8 @@ public record Settings(
         int gracePeriodMinutes,
         boolean donkeyCanKill,
         double donkeySpeed,
-        GiftSettings gifts) {
+        GiftSettings gifts,
+        double heraldChance) {
 
     /**
      * The master movement dial, set as the donkey's {@code MOVEMENT_SPEED}
@@ -56,13 +58,32 @@ public record Settings(
 
     /** The defaults written on first boot, straight from SPEC.md section 7. */
     public static Settings defaults() {
-        return new Settings(true, 120, 0.08, 25, 10, 2, 60, true, 10, true,
-                DEFAULT_SPEED, GiftSettings.defaults());
+        return new Settings(true, true, 120, 0.08, 25, 10, 2, 60, true, 10, true,
+                DEFAULT_SPEED, GiftSettings.defaults(), 0.15);
     }
 
     /** Never null, even if an operator deleted the whole block from the file. */
     public GiftSettings giftsOrDefault() {
         return gifts == null ? GiftSettings.defaults() : gifts;
+    }
+
+    /**
+     * Whether a player has to say yes before random events can pick them
+     * (SPEC.md section 7's opt-in gate) -- {@code /donkey optin}.
+     *
+     * <p>Boxed on purpose. A missing JSON boolean parses as {@code false}, which
+     * for every other flag here is harmless, but for this one would silently
+     * sign an entire server up for ambushes the moment they upgrade. Absent
+     * means "the operator has never expressed an opinion", and the answer to
+     * that is consent, not surprise. An operator who genuinely wants the old
+     * behaviour writes {@code "requireOptIn": false} and means it.
+     *
+     * <p>Operator-forced events ({@code /donkey trigger}) ignore this outright:
+     * an op aiming a donkey at someone has already made the decision, and the
+     * Twitch bridge (section 11) enters through that same door.
+     */
+    public boolean requiresOptIn() {
+        return requireOptIn == null || requireOptIn;
     }
 
     /**
@@ -75,6 +96,9 @@ public record Settings(
     public Settings sanitised() {
         return new Settings(
                 enabled,
+                // Normalised here so the round-tripped file states the answer
+                // an absent flag was already getting.
+                requiresOptIn(),
                 Math.max(1, checkIntervalSeconds),
                 Math.min(1.0, Math.max(0.0, chancePerCheck)),
                 Math.max(0, cooldownMinutesPerPlayer),
@@ -87,6 +111,7 @@ public record Settings(
                 // Zero would leave a donkey rooted to the spot; the upper bound
                 // is where pathing starts overshooting corners.
                 Math.min(1.0, Math.max(0.05, donkeySpeed)),
-                giftsOrDefault().sanitised());
+                giftsOrDefault().sanitised(),
+                Math.min(1.0, Math.max(0.0, heraldChance)));
     }
 }

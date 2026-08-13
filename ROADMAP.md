@@ -117,21 +117,21 @@ length.
 
 ### Phase 1 — highest leverage per unit of work (days, not weeks)
 
-**P1.1 — Compile, run, and play-verify `dailyquests`.**
+**P1.1 — Compile, run, and play-verify `dailyquests`.** ✅
 [dailyquests | code | streaks → O2-daily]
 What changes: build it, fix `TurnIn.lookup()` and whatever else breaks, run it
 on a live server for a day. It carries the entire daily loop and one of the
 four free first-session announcements. Nothing else in the daily loop matters
 until this runs.
 
-**P1.2 — Trivia pool 26 → 300+, Quiplash prompts 4 → 100+.**
+**P1.2 — Trivia pool 26 → 300+, Quiplash prompts 4 → 100+.** ✅
 [quizengine | content | cadence/FOMO → O3, O2-daily]
 What changes: `trivia.json` and `prompts.json` only. Hot-reloadable via
 `/quiz reload`, zero engineering. The audit is right that this is the cheapest
 large win in the suite; it is also a *precondition* for signposting quiz
 harder (see §1, third point).
 
-**P1.3 — First-join signpost for `/shop`.**
+**P1.3 — First-join signpost for `/shop`.** ✅
 [cobbleeconomy | code (small) | goal ladder → O1]
 What changes: on a player's *first* join (a flag in the existing account
 store), send 2–3 chat lines: what the currencies are, that `/shop` exists,
@@ -140,7 +140,7 @@ unlocks discovery of the five shop-gated systems. No coupling — cobbleeconomy
 describes only its own shop; the *listings* (already config) are what name
 the other systems.
 
-**P1.4 — Herald lines in chatdonkey's `lines.json` (static).**
+**P1.4 — Herald lines in chatdonkey's `lines.json` (static).** ✅
 [chatdonkey | config only | interruption/novelty → O1]
 What changes: add lines to existing pools that mention, in-character, things
 the donkey has "heard about": *"They sell ghost-wolf stones in the shop, you
@@ -151,20 +151,20 @@ writing flavor text is not a mod dependency. The donkey already targets
 active players and cannot be outrun; it is the best delivery vehicle in the
 suite and this costs an evening of writing.
 
-**P1.5 — Enrich the existing bounty announcement.**
+**P1.5 — Enrich the existing bounty announcement.** ✅
 [bounties | code (small) | rotation/FOMO → O3]
 What changes: the rotation broadcast (already built, §0.2) gains the bounty's
 description and reward, and a clickable component running `/bounty`. Chat-as-UI
 is already house style (audit §4.2.7).
 
-**P1.6 — Streak visibility + raise the cap.**
+**P1.6 — Streak visibility + raise the cap.** ✅
 [dailyquests | code (small) + config | loss aversion → O2-daily]
 What changes: broadcast streak milestones ("X is on a 7-day streak"), add
 `/daily top`, raise or ladder the 3-diamond cap (config). The audit is right
 that loss aversion needs an audience and a growing stake; both are cheap once
 P1.1 makes the mod real.
 
-**P1.7 — Fix stale docs.**
+**P1.7 — Fix stale docs.** ✅
 [repo | content | agent/maintainer velocity]
 `cobblebending/SPEC.md` status header (it *is* implemented);
 `disenchanter/SPEC.md` gets a one-line pointer to `wondrous` (keep §8's
@@ -450,7 +450,7 @@ premium currency exists.
 | **Debt forgiveness / early unlock** | Debt ladder (P3.2) with tier-unlock as data | Sell a tier skip. Deliberately last — monetizing debt needs care. |
 
 What deliberately does **not** get a surface: anything that sells power
-(verb tiers, focus tiers, payout multipliers). The suite's economy design
+(fang tiers, focus tiers, payout multipliers). The suite's economy design
 (structural anti-exploit, generosity principle) survives cosmetic/convenience
 monetization; it does not survive pay-for-power.
 
@@ -482,7 +482,7 @@ Assume limited time. Ordered by how confidently you should drop it:
    collection is absent, but bolting one on (badges? museum?) is a whole new
    system. The cosmetic catalogue (P3.4) plus buildoff monuments (P2.1) give
    partial collection pressure for free. Revisit in a future season.
-7. **DESCOPE: spiritwolves v4 balance polish.** Don't tune killstreak/verb
+7. **DESCOPE: spiritwolves v4 balance polish.** Don't tune killstreak/fang
    stacking numbers in the abstract — they're first guesses (audit §6.8) and
    tuning unplayed numbers is waste. Play-verify during Phase 1–2 live time,
    then tune from observations. Config edits, no dev time reserved.

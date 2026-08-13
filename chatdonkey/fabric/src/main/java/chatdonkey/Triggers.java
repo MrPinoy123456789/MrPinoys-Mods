@@ -53,9 +53,12 @@ public final class Triggers {
     /**
      * Updates activity and runs the trigger check for every online player.
      *
+     * @param optIns the consent roster, refreshed onto each player's state so
+     *               an opt-out lands on the next check rather than the next login
      * @param events the runner, asked to start an event on a hit
      */
-    public void tick(Iterable<ServerPlayer> players, Settings settings, Events events) {
+    public void tick(Iterable<ServerPlayer> players, Settings settings,
+                     OptIns optIns, Events events) {
         if (++tickCounter < POLL_INTERVAL_TICKS) {
             return;
         }
@@ -72,6 +75,7 @@ public final class Triggers {
 
             UUID id = player.getUUID();
             PlayerTriggerState state = state(player);
+            state.setOptedIn(optIns.contains(id));
 
             Vec3 position = player.position();
             Vec3 previous = lastPositions.get(id);

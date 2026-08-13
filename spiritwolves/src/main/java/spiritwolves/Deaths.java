@@ -50,7 +50,7 @@ public final class Deaths {
         // Dying ends the outing -- the streak dies with it.
         Streak.onReturn(wolf, record);
         RecallLock.forget(wolf.getUUID());
-        VerbProcs.forget(wolf.getUUID());
+        AbilityProcs.forget(wolf.getUUID());
 
         record.wolfTag = WolfCapture.capture(wolf, level);
         record.wolfName = WolfCapture.nameOf(wolf);
@@ -89,7 +89,7 @@ public final class Deaths {
         wolf.invulnerableTime = 20;
         Streak.forget(wolf.getUUID());
         RecallLock.forget(wolf.getUUID());
-        VerbProcs.forget(wolf.getUUID());
+        AbilityProcs.forget(wolf.getUUID());
         Senses.forget(wolf.getUUID());
         wolf.discard();
 

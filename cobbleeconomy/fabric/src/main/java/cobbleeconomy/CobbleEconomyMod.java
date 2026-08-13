@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.server.level.ServerPlayer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +82,7 @@ public final class CobbleEconomyMod implements ModInitializer {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
             new EconomyCommands(service, leaderboard, currencies, names, log, settings)
                     .register(dispatcher);
-            new ShopCommands(service, catalog, log).register(dispatcher);
+            new ShopCommands(service, catalog, log, settings).register(dispatcher);
             new AdminCommands(service, currencies, names, log, catalog, shopConfig)
                     .register(dispatcher);
         });
@@ -89,8 +90,10 @@ public final class CobbleEconomyMod implements ModInitializer {
         // Every join refreshes the name cache. This is what makes /pay work for
         // offline players: a UUID the server has seen is a UUID it can be paid at.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            names.see(handler.getPlayer().getUUID(), handler.getPlayer().getName().getString());
-            loginSnapshot.onJoin(handler.getPlayer(), server.getTickCount());
+            ServerPlayer player = handler.getPlayer();
+            boolean known = names.knows(player.getUUID());
+            names.see(player.getUUID(), player.getName().getString());
+            loginSnapshot.onJoin(player, known, server.getTickCount());
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server ->

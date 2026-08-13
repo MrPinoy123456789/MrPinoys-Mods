@@ -1,16 +1,14 @@
 package wondrous;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.CraftingMenu;
-import net.minecraft.world.inventory.GrindstoneMenu;
-import net.minecraft.world.inventory.LoomMenu;
 import net.minecraft.world.inventory.MenuConstructor;
-import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,6 +17,7 @@ import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.resources.Identifier;
@@ -31,7 +30,12 @@ import java.util.function.UnaryOperator;
  * The item catalogue, as data.
  *
  * <p>Written this way so that adding an item is a list entry rather than a class.
- * Six of the seven differ only in which vanilla menu they open.
+ * Several differ only in which vanilla menu they open.
+ *
+ * <p>A pocket station only earns its slot if carrying it saves a trip you would
+ * actually make. The grindstone, stonecutter and loom failed that test and were
+ * cut -- you visit those blocks rarely and never far from home, so the pocket
+ * versions were shop clutter competing with the items players want.
  *
  * <p>Names are noun phrases in Ellie's voice that say what the item is -- a name
  * that is only an in-joke leaves a player holding something they can't identify,
@@ -128,15 +132,6 @@ public final class Definitions {
                     (id, inv, player) ->
                             new AnvilMenu(id, inv, ContainerLevelAccess.NULL)),
 
-            new Def("pocket_grindstone",
-                    Items.GRINDSTONE,
-                    name("Take-Backsies Stone", ChatFormatting.GOLD),
-                    lore(voice("nvm i changed my mind"),
-                         plain("Strips enchantments, returns some experience.")),
-                    PLAIN,
-                    (id, inv, player) ->
-                            new GrindstoneMenu(id, inv, ContainerLevelAccess.NULL)),
-
             new Def(BoomerangBall.ID,
                     Items.SLIME_BALL,
                     name("Boomerang Pet Ball", ChatFormatting.GREEN),
@@ -166,23 +161,57 @@ public final class Definitions {
                     (id, inv, menuPlayer) ->
                             new SmelterMenu(id, inv)),
 
-            new Def("pocket_stonecutter",
-                    Items.STONECUTTER,
-                    name("Chop Chop Cutter", ChatFormatting.GOLD),
-                    lore(voice("chop chop perioood"),
-                         plain("Cuts stone without the setup.")),
-                    PLAIN,
-                    (id, inv, player) ->
-                            new StonecutterMenu(id, inv, ContainerLevelAccess.NULL)),
+            new Def("long_arm_gloves",
+                    Items.LEATHER,
+                    name("Long Arm Gloves", ChatFormatting.GOLD),
+                    lore(voice("reach further"),
+                         plain("Three extra blocks of reach while held.")),
+                    attributeItem("long_arm_gloves", Attributes.BLOCK_INTERACTION_RANGE,
+                            3.0, AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.MAINHAND),
+                    null),
 
-            new Def("pocket_loom",
-                    Items.LOOM,
-                    name("Cutie Loom", ChatFormatting.GOLD),
-                    lore(voice("im so sick of rainbow everything"),
-                         plain("Banner patterns on the move.")),
+            new Def("sticky_grip_boots",
+                    Items.LEATHER_BOOTS,
+                    name("Sticky Grip Boots", ChatFormatting.DARK_RED),
+                    lore(voice("stuck to the floor"),
+                         plain("Slower, but heavy hits barely move you.")),
+                    stack -> {
+                        stack.set(DataComponents.DYED_COLOR, new DyedItemColor(0x8B4513));
+                        stack = attributeItem("sticky_grip_boots_speed", Attributes.MOVEMENT_SPEED,
+                                -0.3, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.FEET).apply(stack);
+                        return attributeItem("sticky_grip_boots_knockback", Attributes.KNOCKBACK_RESISTANCE,
+                                0.6, AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.FEET).apply(stack);
+                    },
+                    null),
+
+            new Def("frog_boots",
+                    Items.LEATHER_BOOTS,
+                    name("Frog Boots", ChatFormatting.GREEN),
+                    lore(voice("boing"),
+                         plain("Jump higher.")),
+                    stack -> {
+                        stack.set(DataComponents.DYED_COLOR, new DyedItemColor(0x00FF00));
+                        return attributeItem("frog_boots", Attributes.JUMP_STRENGTH,
+                                0.4, AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.FEET).apply(stack);
+                    },
+                    null),
+
+            new Def(PeekBox.ID,
+                    Items.SHULKER_BOX,
+                    name("Peek Box", ChatFormatting.LIGHT_PURPLE),
+                    lore(voice("just checking what i packed"),
+                         plain("Opens right where you are."),
+                         plain("Never needs putting down.")),
                     PLAIN,
-                    (id, inv, player) ->
-                            new LoomMenu(id, inv, ContainerLevelAccess.NULL)),
+                    null),
+
+            new Def(VoidBin.ID,
+                    Items.COMPOSTER,
+                    name("Bye Forever Bin", ChatFormatting.DARK_GREEN),
+                    lore(voice("i dont want it. its gone. dont ask"),
+                         plain("Throw items in. Confirm to destroy.")),
+                    PLAIN,
+                    null),
 
             new Def("big_hole_pick",
                     Items.DIAMOND_PICKAXE,
@@ -194,6 +223,132 @@ public final class Definitions {
                     null,
                     new AreaBreak.AreaTool(1)),
 
+            new Def(ChuckIt.ID,
+                    Items.BLAZE_ROD,
+                    name("Chuck It Wand", ChatFormatting.GOLD),
+                    lore(voice("put yourself away"),
+                         plain("Right-click: everything with a home nearby goes home.")),
+                    PLAIN,
+                    null),
+
+            new Def(TidyUp.ID,
+                    Items.BRUSH,
+                    name("Tidy Up Stick", ChatFormatting.AQUA),
+                    lore(voice("make it neat"),
+                         plain("Sorts nearby chests without moving the contents.")),
+                    PLAIN,
+                    null),
+
+            new Def(BigLazyHoe.ID,
+                    Items.DIAMOND_HOE,
+                    name("Big Lazy Hoe", ChatFormatting.GREEN),
+                    lore(voice("grow faster"),
+                         plain("Right-click a crop to bonemeal the 3x3 around it.")),
+                    PLAIN,
+                    null),
+
+            new Def(Growth.GROWY_CAN_ID,
+                    Items.BUCKET,
+                    name("Growy Can", ChatFormatting.GREEN),
+                    lore(voice("drink up babes"),
+                         plain("One bone meal grows a 5x5x3 patch on right-click.")),
+                    PLAIN,
+                    null),
+
+            new Def(Growth.LAZY_SPRINKLER_ID,
+                    Items.HEART_OF_THE_SEA,
+                    name("Lazy Sprinkler", ChatFormatting.AQUA),
+                    lore(voice("i got it, go do something else"),
+                         plain("Grows one crop every 60 ticks while anywhere in your inventory.")),
+                    PLAIN,
+                    null),
+
+            new Def(Mortar.ID,
+                    Items.BOWL,
+                    name("Smashy Mortar", ChatFormatting.DARK_GRAY),
+                    lore(voice("ugh fine, ill break it smaller"),
+                         plain("Hold a crushable in your off-hand and right-click.")),
+                    PLAIN,
+                    null),
+
+            new Def(CraftStation.ID,
+                    Items.CRAFTING_TABLE,
+                    name("Left It Out Crafter", ChatFormatting.GOLD),
+                    lore(voice("leave it there"),
+                         plain("A crafting table that keeps its grid when you leave.")),
+                    PLAIN,
+                    null),
+
+            new Def(LinkWand.ID,
+                    Items.BREEZE_ROD,
+                    name("Put It There Wand", ChatFormatting.AQUA),
+                    lore(voice("toss"),
+                         plain("Right-click a machine, then a container to link. Right-click again to unlink.")),
+                    PLAIN,
+                    null),
+
+            new Def(CarryGlove.ID,
+                    Items.LEATHER,
+                    name("Piggyback Glove", ChatFormatting.YELLOW),
+                    lore(voice("come here you"),
+                         plain("Sneak-right-click a container to lift it. Right-click to put it back.")),
+                    // Leather stacks to 64 and custom_data is per-stack, so a stack
+                    // of gloves would share one stored container and place it once
+                    // per glove. One at a time.
+                    stack -> {
+                        stack.set(DataComponents.MAX_STACK_SIZE, 1);
+                        return stack;
+                    },
+                    null),
+
+            new Def(Restock.ID,
+                    Items.NAUTILUS_SHELL,
+                    name("Never Empty Charm", ChatFormatting.AQUA),
+                    lore(voice("i packed spares"),
+                         plain("Refills an empty main hand from matching inventory stacks.")),
+                    PLAIN,
+                    null),
+
+            new Def("owl_eye_goggles",
+                    Items.LEATHER_HELMET,
+                    name("Owl Eye Goggles", ChatFormatting.YELLOW),
+                    lore(voice("whos out there"),
+                         plain("Night vision while worn.")),
+                    PLAIN,
+                    null),
+
+            new Def("fishy_necklace",
+                    Items.TROPICAL_FISH,
+                    name("Fishy Necklace", ChatFormatting.AQUA),
+                    lore(voice("glub glub"),
+                         plain("Water breathing and dolphins grace while held.")),
+                    PLAIN,
+                    null),
+
+            new Def("toasty_scarf",
+                    Items.LEATHER_CHESTPLATE,
+                    name("Toasty Scarf", ChatFormatting.RED),
+                    lore(voice("toasty"),
+                         plain("Fire resistance while worn.")),
+                    PLAIN,
+                    null),
+
+            new Def("floaty_feet",
+                    Items.LEATHER_LEGGINGS,
+                    name("Floaty Feet", ChatFormatting.LIGHT_PURPLE),
+                    lore(voice("float on"),
+                         plain("Slow falling while worn.")),
+                    PLAIN,
+                    null),
+
+            new Def("zoomies_boots",
+                    Items.LEATHER_BOOTS,
+                    name("Zoomies Boots", ChatFormatting.WHITE),
+                    lore(voice("zoom zoom"),
+                         plain("Speed while sprinting.")),
+                    PLAIN,
+                    null),
+
             new Def("big_hole_shovel",
                     Items.DIAMOND_SHOVEL,
                     name("Big Hole Shovel", ChatFormatting.GOLD),
@@ -204,6 +359,24 @@ public final class Definitions {
                     null,
                     new AreaBreak.AreaTool(1))
     );
+
+    /** Sets one attribute modifier. The whole trick behind the Phase -1 batch. */
+    private static UnaryOperator<ItemStack> attributeItem(
+            String modifierName, Holder<Attribute> attribute,
+            double amount, AttributeModifier.Operation op, EquipmentSlotGroup slot) {
+        return stack -> {
+            ItemAttributeModifiers modifiers = stack.getOrDefault(
+                    DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+            modifiers = modifiers.withModifierAdded(
+                    attribute,
+                    new AttributeModifier(
+                            Identifier.fromNamespaceAndPath("wondrous", modifierName),
+                            amount, op),
+                    slot);
+            stack.set(DataComponents.ATTRIBUTE_MODIFIERS, modifiers);
+            return stack;
+        };
+    }
 
     /** Slows area tools so the 3x3 is a trade-off, not a strict upgrade. */
     private static UnaryOperator<ItemStack> areaTool() {
@@ -253,7 +426,11 @@ public final class Definitions {
     public static ItemStack createStack(Def def, int count) {
         ItemStack stack = new ItemStack(def.base(), count);
         stack.set(DataComponents.ITEM_NAME, def.name());
-        stack.set(DataComponents.LORE, new ItemLore(new ArrayList<>(def.lore())));
+        List<Component> lore = new ArrayList<>(def.lore());
+        if (RecipeGuard.isFuel(def.base())) {
+            lore.add(plain("dont put me in a furnace"));
+        }
+        stack.set(DataComponents.LORE, new ItemLore(lore));
         wondrous.api.WondrousTag.stamp(stack, def.id());
         return def.decorate().apply(stack);
     }

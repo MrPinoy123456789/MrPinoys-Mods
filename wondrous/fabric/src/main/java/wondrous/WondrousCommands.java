@@ -79,7 +79,37 @@ public final class WondrousCommands {
                         if (Gate.mayAdminister(source)) {
                             send(source, Component.literal("  /wondrous give <player> <id> [count]  Give items")
                                     .withStyle(ChatFormatting.WHITE));
+                            send(source, Component.literal("  /wondrous links [player]  List active machine links")
+                                    .withStyle(ChatFormatting.WHITE));
                         }
+                        return 1;
+                    });
+
+            var linksBranch = Commands.literal("links")
+                    .requires(Gate::mayAdminister)
+                    .executes(context -> {
+                        links(context.getSource(), null);
+                        return 1;
+                    })
+                    .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> {
+                                links(context.getSource(), EntityArgument.getPlayer(context, "player"));
+                                return 1;
+                            }));
+
+            var confirmVoidBranch = Commands.literal("void_confirm")
+                    .executes(context -> {
+                        ServerPlayer player = context.getSource().getPlayer();
+                        if (player == null) return 0;
+                        VoidBin.confirm(player);
+                        return 1;
+                    });
+
+            var cancelVoidBranch = Commands.literal("void_cancel")
+                    .executes(context -> {
+                        ServerPlayer player = context.getSource().getPlayer();
+                        if (player == null) return 0;
+                        VoidBin.cancel(player);
                         return 1;
                     });
 
@@ -90,7 +120,9 @@ public final class WondrousCommands {
                     })
                     .then(listBranch)
                     .then(helpBranch)
-                    .then(giveBranch);
+                    .then(giveBranch)
+                    .then(confirmVoidBranch)
+                    .then(cancelVoidBranch);
 
             dispatcher.register(root);
         });
@@ -121,6 +153,35 @@ public final class WondrousCommands {
         }
     }
 
+    private static void links(CommandSourceStack source, ServerPlayer target) {
+        WondrousState state = WondrousState.forServer(source.getServer());
+        java.util.UUID filter = target != null ? target.getUUID() : null;
+
+        send(source, Component.literal("Active Wondrous links")
+                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+
+        boolean found = false;
+        for (java.util.Map.Entry<WondrousState.PosKey, WondrousState.Link> e : state.allLinks().entrySet()) {
+            if (filter != null && !e.getValue().owner().equals(filter)) {
+                continue;
+            }
+            found = true;
+            WondrousState.PosKey key = e.getKey();
+            WondrousState.Link link = e.getValue();
+            String dim = key.dimension().toString();
+            String line = String.format("%s: [%d,%d,%d] -> [%d,%d,%d] (%s)",
+                    dim,
+                    key.pos().getX(), key.pos().getY(), key.pos().getZ(),
+                    link.dest().getX(), link.dest().getY(), link.dest().getZ(),
+                    link.owner());
+            send(source, Component.literal(line).withStyle(ChatFormatting.WHITE));
+        }
+
+        if (!found) {
+            send(source, Component.literal("No active links.").withStyle(ChatFormatting.GRAY));
+        }
+    }
+
     /**
      * CommandSourceStack has sendSuccess and sendFailure; sendSystemMessage lives on
      * CommandSource, which is a different type. false = do not echo to other ops.
@@ -143,9 +204,7 @@ public final class WondrousCommands {
 
         for (ServerPlayer target : targets) {
             giveOrDrop(target, item.get().createStack(count));
-            // The boots may have landed straight in the feet slot; re-evaluate
-            // rather than wait out the poll.
-            FlyingBoots.evaluate(target);
+            // Aura will pick up the boots at the next server tick.
             Chime.itemGiven(target);
         }
 

@@ -149,8 +149,11 @@ player stays logged in for another ten minutes. Roughly 48 auto rounds/day.
   players the event is not worth stopping for. *This is the cheapest large
   engagement win in the entire suite and it requires zero engineering.*
 - Admin commands are console-only (26.2 `PermissionSet` migration incomplete).
-- `Orchestrator.greet()` exists for late joiners but is **not wired to a join
-  event** — a player logging in mid-round is told nothing.
+- `Orchestrator.greet()` **is** wired to `ServerPlayConnectionEvents.JOIN` in
+  `QuizMod.java` (`ServerPlayConnectionEvents.JOIN.register(...
+  orchestrator.greet(handler.getPlayer()))`); a player joining during the
+  `SUBMITTING` phase is told the prompt. Joining between rounds still gets
+  nothing.
 - Skipped rounds pay nobody, including participation.
 - No cross-session persistence of a "season" — the leaderboard is flat forever.
 
@@ -174,9 +177,10 @@ into "I'll get four more skeletons first." Combines well with spiritwolves
 **Retention job.** Rotation/FOMO (moderate).
 
 **Weaknesses.**
-- **You must already know to type `/bounty`.** Nothing announces a rotation, so
-  the FOMO mechanic has no delivery surface. A chat announcement on rotation is
-  a handful of lines and would roughly double this mod's felt presence.
+- **You must already know to type `/bounty`.** A window-change broadcast
+  already fires (`BountyMod.java:61`), but it only says a new bounty is
+  available; it does not name the bounty, its reward, or offer a clickable
+  path. That polish (T3) is the remaining gap.
 - **No escalation.** Every bounty is the same shape at the same difficulty band.
   No chains, no weeklies, no "board boss."
 - No completion history, so there is nothing to be proud of and nothing to rank.
@@ -300,7 +304,7 @@ on top as a free second sink.
 | v1 | Stone-bound wolf, full-NBT capture, death-save, anvil repair |
 | v2 | Living journal (lore accumulates history), senses (growl on danger, mark prey), fetch, per-outing killstreak driving scale + attack |
 | v3 | **Inverted the binding** — wolf now bound to the *player*, stored in a server-side `PlayerWolfRegistry` (`.dat` per player). Stone becomes a replaceable remote. One wolf per player, free. Release is a real, destructive decision. |
-| v4 | **Soul-forged progression** — kills grant souls, souls grant levels, levels grant verb slots. Six equippable combat verbs (Emberfang, Venomfang, Ravenous, Bonechill, Witherbite, Blinkstrike) unlocked by *deeds* and tiered by *diamonds*. Plus Scavenger and an assist-window kill-attribution system. |
+| v4 | **Soul-forged progression** — kills grant souls, souls grant levels, levels grant slots. Two ability families with separate slot pools: six combat **Fangs** (Emberfang, Venomfang, Ravenous, Bonechill, Witherfang, Voidfang) unlocked by *deeds* and tiered by *diamonds*, and four utility **Tricks** (Fetch, Shine, Dig, Speak) trained by the deed each resembles. Dig and Speak are performed by showing the wolf an item. Plus an assist-window kill-attribution system. (Called "verbs", then "fangs", before the split — see `spiritwolves/SPEC.md` §18.2.) |
 
 **Engagement job.** Session presence (a companion at your side), and the suite's
 only genuinely long-term progression system.
@@ -318,10 +322,10 @@ design is unusually sophisticated about it:
   locks, precisely so the buff never punishes you for using the thing it buffs.
 
 **Weaknesses.**
-- **Diamond sinks here are excellent but gated behind depth** — verb attunement
+- **Diamond sinks here are excellent but gated behind depth** — fang attunement
   (4 and 16 diamonds) only matters to a player already invested.
 - v2/v3/v4 are marked built but **large parts are not play-verified**. Balance
-  (killstreak + verbs stacking) is explicitly untested.
+  (killstreak + fangs stacking) is explicitly untested.
 - One wolf per player caps the collection instinct entirely — deliberate, and
   arguably correct, but it means there is nothing to *collect*.
 
@@ -511,7 +515,7 @@ emergent design:
 
 | A | B | Interaction |
 |---|---|---|
-| **bounties** | **spiritwolves** | The wolf does the killing. Bounty progress and soul progression advance together. Verb families (spiders, blazes, skeletons) map directly onto bounty targets. |
+| **bounties** | **spiritwolves** | The wolf does the killing. Bounty progress and soul progression advance together. Fang families (spiders, blazes, skeletons) map directly onto bounty targets. |
 | **bounties** | **cobblebending** | Hurl is a combat tool; bounties are the reason to fight. Bounty diamonds pay for the cobble you burned. |
 | **spiritwolves** | **cobbleeconomy** | Anvil charges are the most durable diamond sink in the suite — they scale with how recklessly you play and never complete. |
 | **chatdonkey** | **wondrous** | Nonsense-enchanted gifts are junk *until* you own the pocket disenchanter, at which point they're free enchantment books. The joke becomes an economy. Neither mod knows the other exists. |
@@ -607,7 +611,7 @@ and the message they see is the point. `TxResult`/`TxStatus`, `AcceptResult`,
 **7. Chat-as-UI via `Component` click/hover events.** Clickable buttons run
 hidden subcommands. `ballot` parks every button target under one opaque
 `/ballot _ ...` node because Brigadier suggests whatever is runnable.
-`spiritwolves`' verb panel is a full talent-tree UI made of hover text.
+`spiritwolves`' ability panel is a full talent-tree UI, now a server-side chest GUI.
 **Every mutating subcommand ends by re-printing the panel — the panel *is* the
 UI.**
 
@@ -649,8 +653,13 @@ Concretely:
   indices have moved between versions; a mod that trusts `getContainerSize()`
   across two versions eventually inserts cobblestone into a helmet slot. Cost: a
   stack in your offhand isn't seen by `/bank all`. The other failure is a dupe.
-- **`ItemStack.is(Item)` no longer exists in 26.2** — comparison is
-  `stack.getItem() == Items.DIAMOND`.
+- ~~**`ItemStack.is(Item)` no longer exists in 26.2**~~ — **this is false.**
+  `chatdonkey/PROGRESS.md` asserts it and this audit repeated it. Verified
+  2026-08-11 by compiling `stack.is(item)` against
+  `minecraft-merged-deobf-26.2.jar`: it compiles cleanly (emitting
+  `ItemStack.is:(Ljava/lang/Object;)Z`), and `dailyquests/TurnIn.java` uses it
+  in shipped bytecode. `stack.getItem() == Items.DIAMOND` also works; both are
+  fine. Do not "fix" working `is(...)` call sites on the strength of that note.
 - **Chat input from outside is treated as hostile**: `§` and its code letter
   stripped *together*, control chars → spaces, whitespace collapsed, length
   capped at 120. Left in, a viewer could forge a second `<Duncan>` prefix.
@@ -751,7 +760,6 @@ it preserves armour, age, anger state, and attributes for free.
 |---|---|
 | `ResourceLocation` | `Identifier` |
 | `hasPermission(int)` | `Commands.hasPermission(PermissionCheck)`, levels as constants on `Commands` (`LEVEL_GAMEMASTERS` = old op 2) |
-| `ItemStack.is(Item)` | gone — use `stack.getItem() == Items.X` |
 | `EntityType.DONKEY` | `net.minecraft.world.entity.EntityTypes.DONKEY` |
 | `...animal.horse.Donkey` | `...animal.equine.Donkey` (whole package renamed) |
 | `Entity.getTags()` | `Entity.entityTags()` |
@@ -762,7 +770,7 @@ it preserves armour, age, anger state, and attributes for free.
 | `SoundEvents.*` uniform type | **two types**: note blocks are `Holder.Reference<SoundEvent>`, `DONKEY_AMBIENT` is a bare `SoundEvent` |
 
 **Server-side GUIs.** `sgui` for chest-like menus (`cobbleeconomy`'s shop,
-`spiritwolves`' verb panel). Vanilla `AbstractContainerMenu` subclasses over
+`spiritwolves`' ability panel). Vanilla `AbstractContainerMenu` subclasses over
 `MenuType.GRINDSTONE` for the Disenchanter and Smelter — the client renders a
 grindstone, the server applies entirely different rules, and `mayPickup` on the
 output slot does the real gatekeeping rather than a click handler.
@@ -863,12 +871,15 @@ Things a future agent will get wrong if nobody writes them down:
    smelter, boomerang ball missing).
 6. **`wondrous/README.md` still teaches the api-module integration pattern**,
    which `DESIGN.md` §3 says explicitly should not be copied.
-7. **`dailyquests` has never been compiled or run** per its own README, with
-   `TurnIn.lookup()` flagged as the likely first break. It is carrying the entire
-   daily loop.
+7. **`dailyquests`' README claims it "has been written but never compiled or
+   run."** ~~Taken at face value here.~~ **Stale** — verified 2026-08-11:
+   `dailyquests/build/classes/` and `dist/MrPinoys_dailyquests-0.1.0.jar` both
+   date from 2026-08-08, compiled from the current sources. It builds. What is
+   genuinely unverified is whether it has ever *run with players*, which is a
+   different and smaller problem. It still carries the entire daily loop.
 8. **Play-verification is thin across the newest work.** spiritwolves v2/v3/v4
    and most of chatdonkey past M1 are built and tested but not exercised on a
-   live server with players. Balance numbers (killstreak +2.0 at streak 15, verb
+   live server with players. Balance numbers (killstreak +2.0 at streak 15, fang
    tier stacking, hurl damage) are all first guesses.
 9. **quizengine content is the binding constraint** on the suite's best session
    hook, and it is a data problem, not a code problem.

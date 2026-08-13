@@ -157,7 +157,7 @@ public final class Summoning {
         // Ends the outing: records the high-water mark, drops the live streak.
         Streak.onReturn(wolf, record);
         RecallLock.forget(wolf.getUUID());
-        VerbProcs.forget(wolf.getUUID());
+        AbilityProcs.forget(wolf.getUUID());
 
         record.wolfTag = WolfCapture.capture(wolf, level);
         record.wolfName = WolfCapture.nameOf(wolf);

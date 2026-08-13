@@ -34,7 +34,7 @@ public final class BountyCommands {
                                         .executes(ctx -> accept(ctx.getSource(), config, state,
                                                 IntegerArgumentType.getInteger(ctx, "slot")))))
                         .then(Commands.literal("abandon")
-                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 3))
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, config.maxHeld()))
                                         .executes(ctx -> abandon(ctx.getSource(), state,
                                                 IntegerArgumentType.getInteger(ctx, "slot")))))
                         .then(Commands.literal("reload")
@@ -77,7 +77,7 @@ public final class BountyCommands {
         if (player != null) {
             PlayerBounties held = state.of(player.getUUID());
             source.sendSuccess(() -> Component.literal("Your bounties (" + held.heldCount() + "/"
-                            + PlayerBounties.MAX_HELD + ")")
+                            + config.maxHeld() + ")")
                     .withStyle(ChatFormatting.GREEN), false);
             if (held.held().isEmpty()) {
                 source.sendSuccess(() -> Component.literal("  None")
@@ -132,7 +132,7 @@ public final class BountyCommands {
         }
 
         PlayerBounties current = state.of(id);
-        AcceptResult result = current.accept(chosen, Instant.now().toEpochMilli());
+        AcceptResult result = current.accept(chosen, Instant.now().toEpochMilli(), config.maxHeld());
         if (!result.ok()) {
             source.sendFailure(Component.literal(result.message()).withStyle(ChatFormatting.RED));
             return 0;

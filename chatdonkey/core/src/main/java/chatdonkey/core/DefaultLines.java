@@ -122,6 +122,24 @@ public final class DefaultLines {
                 "Oh, is that for me? ...It isn't. I can tell. Hee-haw.",
                 "No no no. I'm the one doing things TO YOU. That's the arrangement!"));
 
+        // Herald: the donkey as signpost. These occasionally replace a
+        // behaviour's own 'during' line, so they stay in character while
+        // letting players know what else exists on the server.
+
+        pools.put("herald", List.of(
+                "They sell ghost-wolf stones in the shop, you know. Not that YOU could afford one.",
+                "There's a riddle every day. You look like someone who loses at riddles.",
+                "Somebody told me you can throw ROCKS with your MIND now. I said that's MY act.",
+                "There's a bounty board. Full of things that would eat you.",
+                "There's a shop, apparently. Everything a person could need, and apparently you too.",
+                "Daily riddles, if you like being wrong on a schedule.",
+                "I heard there's a place that buys cobblestone by the STACK. Wild.",
+                "Wolves that cheat death are in there somewhere. The shop, I mean. Not my coat.",
+                "Quizzes now. Because everyone LOVES being tested.",
+                "The board pays diamonds for dead things. Not all dead things. The hard ones.",
+                "You can throw rocks with your brain. That's the rumour. Disgusting talent.",
+                "Shop. Shopshopshop. That's all anyone says anymore."));
+
         pools.put("lecture.exit_bribed", List.of(
                 "Ohhh, a DIAMOND! Well! Why didn't you say so! Mwah!",
                 "For me?! You shouldn't have! You really shouldn't have, it's so shiny!",

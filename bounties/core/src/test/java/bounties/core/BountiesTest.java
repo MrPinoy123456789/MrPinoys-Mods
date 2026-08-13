@@ -18,6 +18,7 @@ public final class BountiesTest {
         boardChangesEveryHalfHour();
         boundariesAreOffsetByFifteenMinutes();
         acceptRespectsMaxThree();
+        acceptRespectsMaxFive();
         abandonFreesASlot();
         progressIncrementsAndCompletesOnce();
         twoPlayersAreIndependent();
@@ -94,6 +95,26 @@ public final class BountiesTest {
         AcceptResult r4 = r3.state().accept(board.slot2(), 0L);
         assertFalse("fourth accept rejected", r4.ok());
         assertTrue("message mentions limit", r4.message().contains("3"));
+    }
+
+    private static void acceptRespectsMaxFive() {
+        PlayerBounties player = new PlayerBounties();
+        BountyPool pool = samplePool();
+        Board board = BountyMath.boardAtWindow(pool, 1234L);
+
+        AcceptResult r1 = player.accept(board.slot1(), 0L, 5);
+        assertTrue("first of five ok", r1.ok());
+        AcceptResult r2 = r1.state().accept(board.slot2(), 0L, 5);
+        assertTrue("second of five ok", r2.ok());
+        AcceptResult r3 = r2.state().accept(board.slot1(), 0L, 5);
+        assertTrue("third of five ok", r3.ok());
+        AcceptResult r4 = r3.state().accept(board.slot2(), 0L, 5);
+        assertTrue("fourth of five ok", r4.ok());
+        AcceptResult r5 = r4.state().accept(board.slot1(), 0L, 5);
+        assertTrue("fifth of five ok", r5.ok());
+        AcceptResult r6 = r5.state().accept(board.slot2(), 0L, 5);
+        assertFalse("sixth rejected at cap", r6.ok());
+        assertTrue("message mentions cap 5", r6.message().contains("5"));
     }
 
     private static void abandonFreesASlot() {

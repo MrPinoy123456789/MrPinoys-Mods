@@ -81,6 +81,16 @@ public final class Senses {
 
     /** Plays the wolf's own growl -- its sound variant, not a generic sound event. */
     private static void growl(Wolf wolf) {
+        growl(wolf, GROWL_PITCH);
+    }
+
+    /**
+     * The same growl at an arbitrary pitch. {@link Tricks} borrows it for the
+     * sniff/bark of Dig and Speak: pitched up it reads as a chuff and a yip
+     * rather than a threat, and it keeps every noise the wolf makes coming from
+     * its own sound variant instead of a generic wolf sound.
+     */
+    static void growl(Wolf wolf, float pitch) {
         Holder<WolfSoundVariant> variant = wolf.get(DataComponents.WOLF_SOUND_VARIANT);
         if (variant == null) {
             return;
@@ -88,7 +98,7 @@ public final class Senses {
         WolfSoundVariant.WolfSoundSet sounds = wolf.isBaby()
                 ? variant.value().babySounds()
                 : variant.value().adultSounds();
-        wolf.playSound(sounds.growlSound().value(), GROWL_VOLUME, GROWL_PITCH);
+        wolf.playSound(sounds.growlSound().value(), GROWL_VOLUME, pitch);
     }
 
     /** Drops the cooldown entry for a wolf that is no longer out. */

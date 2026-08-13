@@ -23,6 +23,7 @@ public final class BountyConfig {
 
     private final Path dir;
     private BountyPool pool = BountyPool.empty();
+    private int maxHeld = 3;
 
     public BountyConfig(Path dir) {
         this.dir = dir;
@@ -33,13 +34,20 @@ public final class BountyConfig {
             Files.createDirectories(dir);
             pool = new BountyPool(readOrCreate("bounties.json", BountiesFile.class,
                     new BountiesFile(samplePool())).bounties());
+            SettingsFile settings = readOrCreate("settings.json", SettingsFile.class,
+                    new SettingsFile(3));
+            maxHeld = settings.maxHeld() > 0 ? settings.maxHeld() : 3;
         } catch (IOException | RuntimeException e) {
-            BountyMod.LOG.error("Failed to load bounty pool, keeping previous values", e);
+            BountyMod.LOG.error("Failed to load bounty config, keeping previous values", e);
         }
     }
 
     public BountyPool pool() {
         return pool;
+    }
+
+    public int maxHeld() {
+        return maxHeld;
     }
 
     private <T> T readOrCreate(String name, Class<T> type, T fallback) throws IOException {
@@ -58,6 +66,9 @@ public final class BountyConfig {
     }
 
     private record BountiesFile(List<BountyDefinition> bounties) {
+    }
+
+    private record SettingsFile(int maxHeld) {
     }
 
     private static List<BountyDefinition> samplePool() {

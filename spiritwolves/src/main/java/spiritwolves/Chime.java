@@ -58,13 +58,13 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 0.8f);
     }
 
-    /** A verb was unlocked or reached a new tier (SPEC.md section 18.2). */
-    public static void verbTierUp(ServerPlayer player) {
+    /** A fang was unlocked or reached a new tier (SPEC.md section 18.2). */
+    public static void abilityTierUp(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_BELL, 0.35f, 1.2f);
     }
 
-    /** Diamonds were spent to attune a verb tier. */
-    public static void verbAttuned(ServerPlayer player) {
+    /** Diamonds were spent to attune a fang tier. */
+    public static void abilityAttuned(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.3f, 0.7f);
     }
 

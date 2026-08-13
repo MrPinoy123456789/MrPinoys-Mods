@@ -60,6 +60,12 @@ public final class Tracker {
             lastDimension.remove(handler.player.getUUID());
         });
 
+        // Login: the chunk may have been saved while the wolf was out, then
+        // reloaded from disk on the next join. Reconcile record.summoned with
+        // the real world state before the player interacts with the stone.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                reconcile(handler.player));
+
         // Owner death: recall silently before the death resolves, rather than
         // leave an ownerless wolf fighting on at the death site.
         ServerPlayerEvents.ALLOW_DEATH.register((player, damageSource, amount) -> {
@@ -72,6 +78,12 @@ public final class Tracker {
         if (!(player.level() instanceof ServerLevel level)) {
             return;
         }
+
+        // Teleports, /home, and chunk loads can bring a stored wolf back into
+        // the world without the registry knowing. Sync before the rest of the
+        // poll decides what to do.
+        reconcile(player);
+
         WolfRecord record = PlayerWolfRegistry.get(player.getUUID());
         if (record == null) {
             lastDimension.remove(player.getUUID());
@@ -115,17 +127,55 @@ public final class Tracker {
             Senses.forget(record.wolfUuid);
             Streak.forget(record.wolfUuid);
             RecallLock.forget(record.wolfUuid);
-            VerbProcs.forget(record.wolfUuid);
+            AbilityProcs.forget(record.wolfUuid);
+            Tricks.forgetOwner(player.getUUID());
+            Training.forgetOwner(player.getUUID());
             return;
         }
 
         Senses.growlIfThreatened(wolf, tickCounter);
         Senses.outlineCurrentTarget(wolf);
-        VerbProcs.tickSummonedWolf(player, record, wolf);
-        Scavenger.tick(wolf, player, record);
+        AbilityProcs.tickSummonedWolf(player, record, wolf);
+        Fetch.tickSummonedWolf(wolf, player, record);
+        Training.noteAggro(player, wolf, level);
     }
 
-    /** Recalls the player's summoned wolf into the registry, silently -- no charge cost, no message. */
+    /** On login, make sure the registry reflects whether the wolf is actually in the world. */
+    private static void reconcile(ServerPlayer player) {
+        if (!(player.level() instanceof ServerLevel)) {
+            return;
+        }
+        WolfRecord record = PlayerWolfRegistry.get(player.getUUID());
+        if (record == null) {
+            return;
+        }
+
+        Wolf wolf = Summoning.findWolfAnywhere(player.level().getServer(), record.wolfUuid);
+
+        if (record.summoned && wolf == null) {
+            // Record thinks the wolf is out, but it is not loaded anywhere.
+            record.summoned = false;
+            PlayerWolfRegistry.markDirty(player.getUUID());
+            Senses.forget(record.wolfUuid);
+            Streak.forget(record.wolfUuid);
+            RecallLock.forget(record.wolfUuid);
+            AbilityProcs.forget(record.wolfUuid);
+            Tricks.forgetOwner(player.getUUID());
+            Training.forgetOwner(player.getUUID());
+        } else if (!record.summoned && wolf != null) {
+            // Record thinks the wolf is stored, but the chunk loaded one from disk.
+            // Adopt the live wolf so the stone can recall it instead of duplicating.
+            record.summoned = true;
+            record.wolfUuid = wolf.getUUID();
+            record.wolfTag = WolfCapture.capture(wolf, (ServerLevel) wolf.level());
+            record.wolfName = WolfCapture.nameOf(wolf);
+            record.collar = WolfCapture.collarOf(wolf);
+            PlayerWolfRegistry.markDirty(player.getUUID());
+        }
+
+        forEachBoundStone(player, stone -> SpiritStone.refreshLore(stone, record));
+    }
+
     private static void recallSilently(ServerPlayer player) {
         WolfRecord record = PlayerWolfRegistry.get(player.getUUID());
         if (record != null) {
@@ -154,7 +204,9 @@ public final class Tracker {
         ServerLevel level = (ServerLevel) wolf.level();
         Streak.onReturn(wolf, record);
         RecallLock.forget(wolf.getUUID());
-        VerbProcs.forget(wolf.getUUID());
+        AbilityProcs.forget(wolf.getUUID());
+        Tricks.forgetOwner(player.getUUID());
+        Training.forgetOwner(player.getUUID());
         record.wolfUuid = wolf.getUUID();
         record.wolfTag = WolfCapture.capture(wolf, level);
         record.wolfName = WolfCapture.nameOf(wolf);

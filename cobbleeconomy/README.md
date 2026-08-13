@@ -31,6 +31,7 @@ players — never by the mod.
 | `/pay <player> <amount> <currency>` | Send banked currency, online or offline |
 | `/shop` | What the server sells |
 | `/buy <item>` | Purchase, paid from your bank |
+| `/buy <item> confirm` | Skip the "are you sure?" on an expensive one |
 | `/baltop` | Top 3 in every currency |
 | `/baltop <currency>` | Full paginated board |
 | `/baltop me` | Your rank in each currency |
@@ -44,6 +45,7 @@ Currency names accept aliases: `cobble`, `cobblestone`, `stone`, `diamond`,
 /cobbleeconomy balance <player>
 /cobbleeconomy set|add|remove <player> <amount> <currency>
 
+/cobbleeconomy shop edit
 /cobbleeconomy shop list
 /cobbleeconomy shop reload
 /cobbleeconomy shop add <key> <item> <quantity> <price> <currency>
@@ -55,6 +57,31 @@ Currency names accept aliases: `cobble`, `cobblestone`, `stone`, `diamond`,
 
 `add` and `remove` are the same code path players use, so an admin can't push an
 account negative either. Every admin action is logged with the operator's name.
+
+### The shop editor
+
+`/cobbleeconomy shop edit` is `shop.json` as a chest menu — the whole catalog, with
+the item you are pricing in your hand.
+
+| | |
+|---|---|
+| **New listing** | Sells whatever you're holding. The stack size becomes the quantity |
+| **Click a listing** | Opens its editor |
+| **Shift-click a listing** | Puts it on sale / hides it |
+| **Item** | Click to repoint the listing at what you're holding |
+| **Key** | Anvil text field — what players type after `/buy` |
+| **Quantity** | Left/right ±1, shift ±16, middle-click to type |
+| **Price** | One button per currency. Left/right ±1, shift ±100, middle-click to type. Set one to 0 to drop it; set two to charge in both |
+| **Category** | Anvil text field |
+| **Delete** | Shift-click to confirm |
+
+Every change is written to `config/cobbleeconomy/shop.json` immediately — there is
+no save button and no unsaved state to lose. **Reload from disk** is for after you
+have hand-edited the file outside the game.
+
+It owns no rules of its own: each action builds a shop entry and calls the same save
+the chat commands above call, so the two cannot drift apart. The chat commands are
+all still there, and are what console has to use.
 
 ## Building
 
@@ -141,11 +168,29 @@ starts and the rest of the shop works with it absent.
     "loginDelayTicks": 40,
     "showRankOnBalance": true
   },
-  "logging": { "transactionFile": true }
+  "logging": { "transactionFile": true },
+  "shop": {
+    "confirmAt": { "cobblestone": 1000, "diamond": 1 }
+  }
 }
 ```
 
 `showOnLogin: false` keeps `/baltop` working but stops the join snapshot.
+
+`shop.confirmAt` is the "are you sure?" threshold, per currency. A purchase whose
+total cost in a currency reaches its number asks first — an extra screen in the shop
+GUI, a `[ Confirm purchase ]` button after `/buy`. The diamond default is `1`, so
+every diamond purchase confirms: diamonds are premium, there is no way to buy them
+back, and there is no such thing as a cheap one. Cobblestone is recoverable by
+mining, so only a large spend asks.
+
+A shift-click bulk buy is priced *before* anything is charged and confirms against
+the whole total, not one lot — otherwise a shift-click could spend a stack of
+diamonds having only ever confirmed the first.
+
+Set a currency to `0`, or leave it out, and it never asks. `"confirmAt": {}` turns
+the prompt off entirely. The block is replaced wholesale rather than merged over the
+defaults, so turning it off actually turns it off.
 
 **`names.json`** — UUID to last-seen username, so `/pay Steve` works while Steve is
 offline. **`transactions.log`** — append-only audit trail.

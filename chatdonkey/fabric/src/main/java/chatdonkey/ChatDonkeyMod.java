@@ -7,6 +7,8 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,7 @@ public final class ChatDonkeyMod implements ModInitializer {
     public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
 
     private static DonkeyConfig config;
+    private static OptIns optIns;
     private static Triggers triggers;
     private static Events events;
     private static Voice voice;
@@ -45,12 +48,16 @@ public final class ChatDonkeyMod implements ModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
 
         config = new DonkeyConfig(configDir);
+        optIns = new OptIns(configDir);
         triggers = new Triggers();
         voice = new Voice();
         events = new Events(config, triggers, voice);
         orphans = OrphanSweep.register(events);
 
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> config.reload());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            config.reload();
+            optIns.load();
+        });
 
         // Never leave an immortal donkey standing at shutdown.
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -62,7 +69,7 @@ public final class ChatDonkeyMod implements ModInitializer {
             events.tickAll();
             // After the events, so a line said this tick starts blipping this tick.
             voice.tick();
-            triggers.tick(server.getPlayerList().getPlayers(), config.settings(), events);
+            triggers.tick(server.getPlayerList().getPlayers(), config.settings(), optIns, events);
             // Last: donkeys that loaded this tick have had every chance to be
             // claimed by an event before being judged an orphan.
             orphans.tick(events);
@@ -115,6 +122,18 @@ public final class ChatDonkeyMod implements ModInitializer {
             }
         });
 
+        // An opt-in mod nobody knows about is a mod nobody uses. One grey line,
+        // only to players who are not on the list, and only while the server
+        // actually requires opting in.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            if (config.settings().requiresOptIn() && !optIns.contains(player.getUUID())) {
+                player.sendSystemMessage(Component.literal(
+                                "A donkey would like a word with you sometime. /donkey optin if you dare.")
+                        .withStyle(ChatFormatting.GRAY));
+            }
+        });
+
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.getPlayer();
             events.endFor(player.getUUID(), EndReason.ABORTED);
@@ -123,7 +142,7 @@ public final class ChatDonkeyMod implements ModInitializer {
 
         orphans = OrphanSweep.register(events);
         Interactions.register(events);
-        DonkeyCommands.register(config, triggers, events);
+        DonkeyCommands.register(config, triggers, optIns, events);
 
         LOG.info("Chat Donkey initialised (server-side only)");
     }

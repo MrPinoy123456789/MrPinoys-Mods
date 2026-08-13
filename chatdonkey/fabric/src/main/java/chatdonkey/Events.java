@@ -137,7 +137,7 @@ public final class Events {
         }
 
         ActiveEvent event = new ActiveEvent(player, donkey, behavior, lines, name, duration,
-                random, voice, () -> mayHoldScreen(player));
+                random, config.settings().heraldChance(), voice, () -> mayHoldScreen(player));
         active.put(player.getUUID(), event);
         triggers.state(player).markEventStarted();
 

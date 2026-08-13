@@ -12,15 +12,20 @@
 
 ## 1. The suite
 
+> Note: the Disenchanter shipped **inside `wondrous`** as `pocket_disenchanter`
+> and will never be a standalone mod (`ROADMAP.md` §6.2).
+
 | Mod | What it is | Primary role |
 |---|---|---|
 | **cobbleeconomy** | Two-currency economy, bank, shop, leaderboard | **The hub** |
 | **quizengine** | Trivia + Quiplash rounds | Faucet, session loop |
 | **bounties** | Rotating kill-quest board | Faucet, session loop |
 | **dailyquests** | Riddle of the day, streaks | Faucet, daily loop |
-| **wondrous** | 9 custom utility items | Sink target |
+| **wondrous** | 12 custom utility items (pocket disenchanter, smelter and boomerang ball included) | Sink target |
 | **ballot** | Voting, polls, build competitions | Weekly loop |
 | **spiritwolves** | Wolves bound to a Spirit Stone | Sink, attachment |
+| **chatdonkey** | RuneScape-style random-event donkey | Faucet, session interrupt |
+| **cobblebending** | Hold-and-release cobblestone-bending Focuses | Sink, session power fantasy |
 
 ---
 

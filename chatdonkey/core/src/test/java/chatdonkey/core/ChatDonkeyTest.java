@@ -28,8 +28,10 @@ public final class ChatDonkeyTest {
         cooldown();
         giftTiers();
         linePoolBehaviour();
+        heraldLines();
         lectureCadence();
         graceAndCap();
+        optIn();
         hitReactions();
         foodCritic();
         roadblock();
@@ -58,7 +60,7 @@ public final class ChatDonkeyTest {
         long t0 = 1_000_000L;
 
         // A player who just joined: the session gate holds even with a winning roll.
-        PlayerTriggerState fresh = new PlayerTriggerState(t0);
+        PlayerTriggerState fresh = signedUp(t0);
         fresh.markChecked(t0);
         check("session gate blocks a new joiner",
                 TriggerRules.decide(s, fresh, t0 + mins(3), 0, 0.0),
@@ -70,7 +72,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.NOT_TIME_YET);
 
         // Past the session gate, moving, winning roll -> fires.
-        PlayerTriggerState settled = new PlayerTriggerState(t0);
+        PlayerTriggerState settled = signedUp(t0);
         long now = t0 + mins(20);
         settled.markChecked(now - secs(200));
         settled.markMoved(now - secs(5));
@@ -90,7 +92,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.ROLL_FAILED);
 
         // AFK: moved longer ago than requireRecentActivitySeconds.
-        PlayerTriggerState afk = new PlayerTriggerState(t0);
+        PlayerTriggerState afk = signedUp(t0);
         afk.markChecked(now - secs(200));
         afk.markMoved(now - secs(90));
         check("an AFK player gets no audience-free comedy",
@@ -98,7 +100,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.INACTIVE);
 
         // Exactly at the activity boundary still counts as active.
-        PlayerTriggerState edge = new PlayerTriggerState(t0);
+        PlayerTriggerState edge = signedUp(t0);
         edge.markChecked(now - secs(200));
         edge.markMoved(now - secs(s.requireRecentActivitySeconds()));
         check("activity boundary is inclusive",
@@ -106,7 +108,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.TRIGGER);
 
         // Already mid-event -- one donkey per player.
-        PlayerTriggerState busy = new PlayerTriggerState(t0);
+        PlayerTriggerState busy = signedUp(t0);
         busy.markChecked(now - secs(200));
         busy.markMoved(now - secs(5));
         busy.markEventStarted();
@@ -115,7 +117,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.ALREADY_IN_EVENT);
 
         // Disabled short-circuits everything.
-        Settings off = new Settings(false, 120, 1.0, 0, 0, 2, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
+        Settings off = new Settings(false, true, 120, 1.0, 0, 0, 2, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
         check("disabled beats every other gate",
                 TriggerRules.decide(off, settled, now, 0, 0.0),
                 TriggerDecision.DISABLED);
@@ -132,7 +134,7 @@ public final class ChatDonkeyTest {
         long t0 = 1_000_000L;
         long now = t0 + mins(60);
 
-        PlayerTriggerState st = new PlayerTriggerState(t0);
+        PlayerTriggerState st = signedUp(t0);
         st.markChecked(now - secs(200));
         st.markMoved(now - secs(5));
         st.markEventStarted();
@@ -144,7 +146,7 @@ public final class ChatDonkeyTest {
 
         check("markEventEnded clears the in-event flag", st.inEvent(), false);
 
-        PlayerTriggerState done = new PlayerTriggerState(t0);
+        PlayerTriggerState done = signedUp(t0);
         done.markChecked(now - secs(200));
         done.markMoved(now - secs(5));
         done.markEventEnded(now - mins(26));
@@ -153,7 +155,7 @@ public final class ChatDonkeyTest {
                 TriggerDecision.TRIGGER);
 
         // Exactly at the boundary the cooldown is over.
-        PlayerTriggerState boundary = new PlayerTriggerState(t0);
+        PlayerTriggerState boundary = signedUp(t0);
         boundary.markChecked(now - secs(200));
         boundary.markMoved(now - secs(5));
         boundary.markEventEnded(now - mins(s.cooldownMinutesPerPlayer()));
@@ -163,7 +165,7 @@ public final class ChatDonkeyTest {
 
         // A player who has never had an event is not treated as cooling down
         // from epoch zero.
-        PlayerTriggerState never = new PlayerTriggerState(t0);
+        PlayerTriggerState never = signedUp(t0);
         never.markChecked(now - secs(200));
         never.markMoved(now - secs(5));
         check("never having had an event is not a cooldown",
@@ -172,7 +174,7 @@ public final class ChatDonkeyTest {
 
         // Aborting must clear the in-event flag while leaving an EXISTING
         // cooldown alone -- otherwise dying on purpose is a cooldown skip.
-        PlayerTriggerState cooling = new PlayerTriggerState(t0);
+        PlayerTriggerState cooling = signedUp(t0);
         cooling.markChecked(now - secs(200));
         cooling.markMoved(now - secs(5));
         cooling.markEventEnded(now - mins(5));
@@ -327,6 +329,52 @@ public final class ChatDonkeyTest {
                 emptied.withDefaults(defaults).pick("lecture.open", new Random(1)), "stock");
     }
 
+    private static void heraldLines() {
+        section("herald lines");
+
+        // withDefaults merges a missing 'herald' pool from defaults.
+        LinePools operator = new LinePools(Map.of(
+                "lecture.open", List.of("OPEN"),
+                "lecture.during", List.of("DURING")));
+        LinePools defaults = new LinePools(Map.of(
+                "herald", List.of("H1", "H2"),
+                "lecture.open", List.of("stock open"),
+                "lecture.during", List.of("stock during")));
+        LinePools merged = operator.withDefaults(defaults);
+        check("missing herald pool falls back to defaults", merged.has("herald"), true);
+
+        // heraldChance = 0 never emits.
+        LectureBehavior zero = new LectureBehavior();
+        FakeContext ctx0 = new FakeContext(merged, 30 * 20, new Random(1), 0.0);
+        ctx0.distance = 3.0;
+        zero.start(ctx0);
+        for (int t = 1; t <= ctx0.durationTicks(); t++) {
+            ctx0.tick = t;
+            zero.tick(ctx0);
+        }
+        check("zero herald chance never emits a herald",
+                !ctx0.said.contains("H1") && !ctx0.said.contains("H2"), true);
+
+        // heraldChance = 1.0 emits at most one, and never as the opener.
+        LectureBehavior full = new LectureBehavior();
+        FakeContext ctx1 = new FakeContext(merged, 30 * 20, new Random(1), 1.0);
+        ctx1.distance = 3.0;
+        full.start(ctx1);
+        for (int t = 1; t <= ctx1.durationTicks(); t++) {
+            ctx1.tick = t;
+            full.tick(ctx1);
+        }
+        int heralds = 0;
+        for (String line : ctx1.said) {
+            if ("H1".equals(line) || "H2".equals(line)) {
+                heralds++;
+            }
+        }
+        check("full herald chance emits at most one", heralds <= 1, true);
+        check("the opener is not a herald",
+                !"H1".equals(ctx1.said.get(0)) && !"H2".equals(ctx1.said.get(0)), true);
+    }
+
     // ----------------------------------------------------------------- lecture
 
     private static void lectureCadence() {
@@ -419,7 +467,7 @@ public final class ChatDonkeyTest {
         long t0 = 1_000_000L;
         long now = t0 + mins(60);
 
-        PlayerTriggerState st = new PlayerTriggerState(t0);
+        PlayerTriggerState st = signedUp(t0);
         st.markChecked(now - secs(200));
         st.markMoved(now - secs(5));
 
@@ -441,7 +489,7 @@ public final class ChatDonkeyTest {
         check("expired grace reports inactive", st.hasGraceAt(later), false);
 
         // Asking twice must never shorten it.
-        PlayerTriggerState twice = new PlayerTriggerState(t0);
+        PlayerTriggerState twice = signedUp(t0);
         twice.grantGraceUntil(now + mins(20));
         twice.grantGraceUntil(now + mins(2));
         check("re-granting grace never shortens it", twice.graceUntil(), now + mins(20));
@@ -451,7 +499,7 @@ public final class ChatDonkeyTest {
         check("grace can be revoked", twice.hasGraceAt(now), false);
 
         // Grace outranks the cooldown check: a player in grace is told why.
-        PlayerTriggerState both = new PlayerTriggerState(t0);
+        PlayerTriggerState both = signedUp(t0);
         both.markChecked(now - secs(200));
         both.markMoved(now - secs(5));
         both.markEventEnded(now - mins(1));
@@ -468,13 +516,81 @@ public final class ChatDonkeyTest {
                 TriggerRules.decide(s, st, later, 9, 0.0), TriggerDecision.SERVER_BUSY);
 
         // A cap of zero disables the mod as surely as `enabled: false`.
-        Settings capped = new Settings(true, 120, 1.0, 0, 0, 0, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
+        Settings capped = new Settings(true, true, 120, 1.0, 0, 0, 0, 60, true, 10, true, Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
         check("a cap of zero means no events at all",
                 TriggerRules.decide(capped, st, later, 0, 0.0), TriggerDecision.SERVER_BUSY);
 
         // The cap is checked before the roll, so a busy server does not burn luck.
         check("SERVER_BUSY still consumes the check",
                 TriggerDecision.SERVER_BUSY.consumedCheck(), true);
+    }
+
+    // ------------------------------------------------------------- opt-in gate
+
+    private static void optIn() {
+        section("opt-in gate");
+
+        Settings s = Settings.defaults();
+        long t0 = 1_000_000L;
+        long now = t0 + mins(60);
+
+        // A player who has never said yes, but is otherwise a perfect candidate.
+        PlayerTriggerState fresh = new PlayerTriggerState(t0);
+        fresh.markChecked(now - secs(200));
+        fresh.markMoved(now - secs(5));
+        check("an unsigned player is never picked",
+                TriggerRules.decide(s, fresh, now, 0, 0.0), TriggerDecision.NOT_OPTED_IN);
+
+        // ...and saying yes is the only thing that has to change.
+        fresh.setOptedIn(true);
+        check("opting in makes the same player eligible",
+                TriggerRules.decide(s, fresh, now, 0, 0.0), TriggerDecision.TRIGGER);
+
+        // Withdrawing is immediate: the roster is re-read onto the state every
+        // poll, so this is exactly what an /donkey optout looks like next tick.
+        fresh.setOptedIn(false);
+        check("opting out takes effect on the next check",
+                TriggerRules.decide(s, fresh, now, 0, 0.0), TriggerDecision.NOT_OPTED_IN);
+
+        // A non-participant must not burn their interval, or the first check
+        // after opting in would be up to checkIntervalSeconds away.
+        check("NOT_OPTED_IN does not consume the check",
+                TriggerDecision.NOT_OPTED_IN.consumedCheck(), false);
+        check("NOT_OPTED_IN does not fire", TriggerDecision.NOT_OPTED_IN.fires(), false);
+
+        // The gate sits above the interval, so it is reported even mid-interval
+        // -- "not opted in" is the useful answer, "not time yet" is not.
+        PlayerTriggerState justChecked = new PlayerTriggerState(t0);
+        justChecked.markChecked(now);
+        justChecked.markMoved(now);
+        check("the opt-in gate is reported ahead of the interval",
+                TriggerRules.decide(s, justChecked, now, 0, 0.0), TriggerDecision.NOT_OPTED_IN);
+
+        // Off wins over everything, including the opt-in gate.
+        Settings off = new Settings(false, true, 120, 1.0, 0, 0, 2, 60, true, 10, true,
+                Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
+        check("disabled outranks the opt-in gate",
+                TriggerRules.decide(off, fresh, now, 0, 0.0), TriggerDecision.DISABLED);
+
+        // The operator's escape hatch back to the old ambush-everyone default.
+        Settings open = new Settings(true, false, 120, 1.0, 0, 0, 2, 60, true, 10, true,
+                Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
+        check("requireOptIn: false means nobody has to sign up",
+                TriggerRules.decide(open, fresh, now, 0, 0.0), TriggerDecision.TRIGGER);
+
+        // The upgrade case: an existing settings.json has no such key at all.
+        // Absent must mean consent, not a server-wide surprise on restart.
+        Settings absent = new Settings(true, null, 120, 1.0, 0, 0, 2, 60, true, 10, true,
+                Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
+        check("a missing requireOptIn defaults to requiring it", absent.requiresOptIn(), true);
+        check("an absent flag still gates an unsigned player",
+                TriggerRules.decide(absent, fresh, now, 0, 0.0), TriggerDecision.NOT_OPTED_IN);
+        check("sanitising writes the absent flag out as true",
+                absent.sanitised().requireOptIn(), Boolean.TRUE);
+        check("sanitising leaves an explicit false alone",
+                open.sanitised().requireOptIn(), Boolean.FALSE);
+        check("the shipped default requires opting in",
+                Settings.defaults().requiresOptIn(), true);
     }
 
     // ----------------------------------------------------------- hit reactions
@@ -1609,7 +1725,7 @@ public final class ChatDonkeyTest {
         check("every failure was logged", log.size() >= 3, true);
 
         // Settings clamping: nonsense values are corrected, never fatal.
-        Settings silly = new Settings(true, -5, 4.0, -1, -1, -1, -1, true, -1, true, Settings.DEFAULT_SPEED, GiftSettings.defaults());
+        Settings silly = new Settings(true, true, -5, 4.0, -1, -1, -1, -1, true, -1, true, Settings.DEFAULT_SPEED, GiftSettings.defaults(), 0.0);
         Settings fixed = silly.sanitised();
         check("a negative interval clamps to at least 1", fixed.checkIntervalSeconds(), 1);
         check("a chance above 1 clamps to 1", fixed.chancePerCheck(), 1.0);
@@ -1631,6 +1747,7 @@ public final class ChatDonkeyTest {
         private final LinePools pools;
         private final int duration;
         private final Random random;
+        private final double heraldChance;
         int tick;
         double distance = 2.0;
         int steers;
@@ -1644,9 +1761,14 @@ public final class ChatDonkeyTest {
         final List<String> said = new ArrayList<>();
 
         FakeContext(LinePools pools, int duration, Random random) {
+            this(pools, duration, random, 0.15);
+        }
+
+        FakeContext(LinePools pools, int duration, Random random, double heraldChance) {
             this.pools = pools;
             this.duration = duration;
             this.random = random;
+            this.heraldChance = heraldChance;
         }
 
         @Override public int elapsedTicks() { return tick; }
@@ -1715,6 +1837,7 @@ public final class ChatDonkeyTest {
         @Override public void keepMouthOpen() { }
         @Override public LinePools lines() { return pools; }
         @Override public Random random() { return random; }
+        @Override public double heraldChance() { return heraldChance; }
 
         @Override
         public void steerTowardPlayer(double stopDistance, double speed) {
@@ -1757,6 +1880,17 @@ public final class ChatDonkeyTest {
                 burrs--;
             }
         }
+    }
+
+    /**
+     * A state for a player who has already run {@code /donkey optin}, which is
+     * the precondition for every other trigger rule. The opt-in gate itself is
+     * exercised in {@link #optIn()} with bare states.
+     */
+    private static PlayerTriggerState signedUp(long sessionStartedAt) {
+        PlayerTriggerState state = new PlayerTriggerState(sessionStartedAt);
+        state.setOptedIn(true);
+        return state;
     }
 
     private static long secs(long s) {

@@ -1,0 +1,99 @@
+package hearsay;
+
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.EntityHitResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Path;
+
+/**
+ * Entrypoint for Hearsay.
+ *
+ * <p>Server-side only; vanilla clients install nothing.
+ */
+public final class HearsayMod implements ModInitializer {
+
+    public static final String MOD_ID = "hearsay";
+    public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
+
+    private static HearsayConfig config;
+    private static Listeners listeners;
+    private static Bubbles bubbles;
+    private static Scenes scenes;
+    private static Speech speech;
+    private static Mute mute;
+    private static Reactions reactions;
+
+    @Override
+    public void onInitialize() {
+        String version = FabricLoader.getInstance()
+                .getModContainer(MOD_ID)
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+        LOG.info("Hearsay {} initialised (server-side only)", version);
+
+        Path configDir = FabricLoader.getInstance().getConfigDir();
+        config = new HearsayConfig(configDir);
+        listeners = new Listeners(config);
+        bubbles = new Bubbles();
+        scenes = new Scenes(config, bubbles);
+        mute = new Mute();
+        speech = new Speech(config, bubbles, scenes, mute);
+        reactions = new Reactions(config);
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            config.reload();
+            LOG.info("Hearsay config loaded");
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            listeners.tick(server);
+            scenes.tick(server, listeners);
+            speech.tick(server, listeners);
+            reactions.tick(server, listeners);
+        });
+
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, dealt, taken, blocked) -> {
+            if (entity instanceof ServerPlayer player) {
+                speech.hush(player.getUUID(), config.settings().suppressAfterDamageSeconds());
+            }
+        });
+
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof Villager villager) {
+                reactions.onVillagerDeath(villager);
+            }
+        });
+
+        UseEntityCallback.EVENT.register((Player player, net.minecraft.world.level.Level level,
+                                          net.minecraft.world.InteractionHand hand, Entity entity,
+                                          EntityHitResult hitResult) -> {
+            if (player instanceof ServerPlayer sp && entity instanceof Villager villager) {
+                reactions.onTrade(sp, villager);
+            }
+            return InteractionResult.PASS;
+        });
+
+        HearsayCommands.register(config, listeners, speech, scenes, mute);
+    }
+
+    public static HearsayConfig config() { return config; }
+    public static Listeners listeners() { return listeners; }
+    public static Bubbles bubbles() { return bubbles; }
+    public static Scenes scenes() { return scenes; }
+    public static Speech speech() { return speech; }
+    public static Mute mute() { return mute; }
+    public static Reactions reactions() { return reactions; }
+}

@@ -6,6 +6,7 @@ import chatdonkey.core.EndReason;
 import chatdonkey.core.Settings;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
@@ -26,6 +27,11 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>{@code grace} is likewise designed to become purchasable and overridable
  * under Twitch integration -- the bidding war between streamer and chat -- which
  * is why immunity lives in the trigger rules rather than behind a debug flag.
+ *
+ * <p>{@code optin} and {@code optout} are the two exceptions to the suite's
+ * op-gating convention: consent that only an operator can give is not consent.
+ * The permission check therefore sits on each admin branch rather than on the
+ * {@code /donkey} root.
  */
 public final class DonkeyCommands {
 
@@ -44,14 +50,36 @@ public final class DonkeyCommands {
                 SharedSuggestionProvider.suggest(Behaviors.ids(events.pool()), builder);
     }
 
+    /**
+     * An admin branch of the tree.
+     *
+     * <p>The gate is per-branch rather than on the root so {@code optin} and
+     * {@code optout} can hang off the same {@code /donkey} literal while staying
+     * available to the players whose consent they record.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> admin(String name) {
+        return Commands.literal(name)
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+    }
+
     private DonkeyCommands() {}
 
-    public static void register(DonkeyConfig config, Triggers triggers, Events events) {
+    public static void register(DonkeyConfig config, Triggers triggers,
+                                OptIns optIns, Events events) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
                 dispatcher.register(Commands.literal("donkey")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 
-                        .then(Commands.literal("trigger")
+                        // --- the player's own two verbs (SPEC.md section 7) ---
+
+                        .then(Commands.literal("optin")
+                                .executes(ctx -> optIn(ctx.getSource(),
+                                        ctx.getSource().getPlayerOrException(), config, optIns)))
+
+                        .then(Commands.literal("optout")
+                                .executes(ctx -> optOut(ctx.getSource(),
+                                        ctx.getSource().getPlayerOrException(), optIns, events)))
+
+                        .then(admin("trigger")
                                 .executes(ctx -> trigger(ctx.getSource(),
                                         ctx.getSource().getPlayerOrException(), null, NO_OVERRIDE, events))
                                 .then(Commands.argument("player", EntityArgument.player())
@@ -76,7 +104,7 @@ public final class DonkeyCommands {
 
                         // --- the bridge surface (SPEC.md sections 9 and 11) ---
 
-                        .then(Commands.literal("extend")
+                        .then(admin("extend")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .then(Commands.argument("seconds",
                                                         IntegerArgumentType.integer(1, 300))
@@ -85,7 +113,7 @@ public final class DonkeyCommands {
                                                         IntegerArgumentType.getInteger(ctx, "seconds"),
                                                         events)))))
 
-                        .then(Commands.literal("say")
+                        .then(admin("say")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .then(Commands.argument("line",
                                                         StringArgumentType.greedyString())
@@ -94,19 +122,19 @@ public final class DonkeyCommands {
                                                         StringArgumentType.getString(ctx, "line"),
                                                         events)))))
 
-                        .then(Commands.literal("ungrace")
+                        .then(admin("ungrace")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> ungrace(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "player"), triggers))))
 
-                        .then(Commands.literal("end")
+                        .then(admin("end")
                                 .executes(ctx -> end(ctx.getSource(),
                                         ctx.getSource().getPlayerOrException(), events))
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> end(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "player"), events))))
 
-                        .then(Commands.literal("grace")
+                        .then(admin("grace")
                                 .executes(ctx -> grace(ctx.getSource(),
                                         ctx.getSource().getPlayerOrException(), config, triggers, events))
                                 .then(Commands.argument("player", EntityArgument.player())
@@ -114,11 +142,68 @@ public final class DonkeyCommands {
                                                 EntityArgument.getPlayer(ctx, "player"),
                                                 config, triggers, events))))
 
-                        .then(Commands.literal("reload")
+                        .then(admin("reload")
                                 .executes(ctx -> reload(ctx.getSource(), config)))
 
-                        .then(Commands.literal("status")
-                                .executes(ctx -> status(ctx.getSource(), config, events)))));
+                        .then(admin("status")
+                                .executes(ctx -> status(ctx.getSource(), config, optIns, events)))));
+    }
+
+    /**
+     * Signs the player up for random events (SPEC.md section 7).
+     *
+     * <p>Self-only and ungated on purpose -- see the class comment. Nothing is
+     * granted here beyond eligibility: the interval, the session-age gate and
+     * the cooldown all still apply, so the first donkey is minutes away rather
+     * than immediate, which is exactly the ambush the mod is for.
+     */
+    private static int optIn(CommandSourceStack source, ServerPlayer player,
+                             DonkeyConfig config, OptIns optIns) {
+        if (!optIns.add(player.getUUID())) {
+            source.sendFailure(Component.literal("You are already on the donkeys' list."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal(
+                        "The donkeys have written your name down. Sorry.")
+                .withStyle(ChatFormatting.GOLD), false);
+        // Honesty about the second gate: a server that has turned the mod off
+        // should not leave a player waiting for a donkey that cannot come.
+        if (!config.settings().enabled()) {
+            source.sendSuccess(() -> Component.literal(
+                            "(Chat donkey is switched off on this server, so nothing will happen yet.)")
+                    .withStyle(ChatFormatting.GRAY), false);
+        }
+        return 1;
+    }
+
+    /**
+     * Takes the player back off the list, and sends away the donkey they
+     * already have.
+     *
+     * <p>Ends as {@link EndReason#ABORTED}: no gift, no cooldown. Withdrawing
+     * consent is not a way to farm a gift, and it is not something to be
+     * punished with a cooldown either.
+     */
+    private static int optOut(CommandSourceStack source, ServerPlayer player,
+                              OptIns optIns, Events events) {
+        boolean wasIn = optIns.remove(player.getUUID());
+        boolean hadDonkey = events.isActive(player.getUUID());
+
+        if (!wasIn && !hadDonkey) {
+            source.sendFailure(Component.literal("You were never on the donkeys' list."));
+            return 0;
+        }
+
+        // Leaving the list while a donkey is mid-sentence is not leaving.
+        if (hadDonkey) {
+            events.endFor(player.getUUID(), EndReason.ABORTED);
+        }
+
+        source.sendSuccess(() -> Component.literal(
+                        "The donkeys have crossed your name out. Run /donkey optin to reconsider.")
+                .withStyle(ChatFormatting.AQUA), false);
+        return 1;
     }
 
     private static int trigger(CommandSourceStack source, ServerPlayer target,
@@ -279,7 +364,8 @@ public final class DonkeyCommands {
         return 1;
     }
 
-    private static int status(CommandSourceStack source, DonkeyConfig config, Events events) {
+    private static int status(CommandSourceStack source, DonkeyConfig config,
+                              OptIns optIns, Events events) {
         source.sendSuccess(() -> Component.literal("Chat Donkey")
                 .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
         source.sendSuccess(() -> Component.literal("  " + events.activeCount() + " / "
@@ -289,6 +375,13 @@ public final class DonkeyCommands {
                 .withStyle(ChatFormatting.GRAY), false);
         source.sendSuccess(() -> Component.literal("  "
                         + (config.settings().enabled() ? "enabled" : "DISABLED"))
+                .withStyle(ChatFormatting.GRAY), false);
+        // "Nobody is ever bothered" is otherwise a very hard thing to diagnose:
+        // an empty roster looks identical to a broken trigger loop.
+        source.sendSuccess(() -> Component.literal("  "
+                        + (config.settings().requiresOptIn()
+                        ? optIns.size() + " players opted in"
+                        : "opt-in not required -- everyone is fair game"))
                 .withStyle(ChatFormatting.GRAY), false);
         return 1;
     }

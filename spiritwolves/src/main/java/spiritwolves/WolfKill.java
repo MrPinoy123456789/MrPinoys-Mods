@@ -21,7 +21,6 @@ public final class WolfKill {
             if (!(entity.level() instanceof ServerLevel level)) {
                 return;
             }
-            Assists.forget(entity.getUUID());
 
             if (damageSource.getEntity() instanceof Wolf wolf && wolf.isTame()) {
                 ServerPlayer owner = Tracker.findOwner(level, wolf.getUUID());
@@ -31,10 +30,12 @@ public final class WolfKill {
                         Streak.onKill(wolf, owner);
                         Fetch.recordKill(level, owner, entity.position());
                         Souls.onKill(wolf, owner, record, entity);
-                        Verbs.onKill(wolf, owner, record, entity);
-                        VerbProcs.onKill(wolf, owner, record, entity);
+                        Abilities.onKill(wolf, owner, record, entity);
+                        AbilityProcs.onKill(wolf, owner, record, entity);
                     }
                 }
+                // A direct kill may still carry a stale assist mark; clean it up.
+                Assists.forget(entity.getUUID());
                 return;
             }
 

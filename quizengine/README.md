@@ -62,7 +62,7 @@ low in `timings.json` while testing.
 
 ## Known loose ends
 
-- `Orchestrator.greet()` handles late joiners but is not wired to a join event.
+- `Orchestrator.greet()` handles late joiners and **is** wired to `ServerPlayConnectionEvents.JOIN` in `QuizMod.java`; a player joining during `SUBMITTING` sees the prompt.
 - Admin commands are console-only. 26.2 replaced integer permission levels with
   `PermissionSet`/`Permission`; restoring op access needs those constants.
 - SGUI is commented out in `fabric/build.gradle.kts`. Confirm a 26.2 build exists

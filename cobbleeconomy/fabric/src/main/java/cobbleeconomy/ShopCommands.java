@@ -9,13 +9,19 @@ import cobbleeconomy.core.EconomyService;
 import cobbleeconomy.core.Shop;
 import cobbleeconomy.core.ShopCatalog;
 import cobbleeconomy.core.ShopEntry;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
+import cobbleeconomy.core.Currency;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -39,11 +45,14 @@ public final class ShopCommands {
     private final EconomyService economy;
     private final ShopCatalog catalog;
     private final TransactionLog log;
+    private final EconomySettings settings;
 
-    public ShopCommands(EconomyService economy, ShopCatalog catalog, TransactionLog log) {
+    public ShopCommands(EconomyService economy, ShopCatalog catalog, TransactionLog log,
+                        EconomySettings settings) {
         this.economy = economy;
         this.catalog = catalog;
         this.log = log;
+        this.settings = settings;
     }
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -65,7 +74,13 @@ public final class ShopCommands {
         dispatcher.register(Commands.literal("buy")
                 .then(Commands.argument("item", StringArgumentType.word())
                         .suggests(itemSuggestions())
-                        .executes(this::buy)));
+                        .executes(ctx -> buy(ctx, false))
+                        // What the [ Confirm purchase ] button runs. A player who knows
+                        // it exists can type it and skip the prompt, which is fine --
+                        // typing the word "confirm" is not something anyone does by
+                        // accident, and that is the whole bar the prompt has to clear.
+                        .then(Commands.literal("confirm")
+                                .executes(ctx -> buy(ctx, true)))));
     }
 
     // ---- /shop --------------------------------------------------------------
@@ -80,7 +95,7 @@ public final class ShopCommands {
         }
 
         if (source.getEntity() instanceof ServerPlayer player) {
-            ShopMenu.openCategories(player, economy, catalog, log);
+            ShopMenu.openCategories(player, economy, catalog, log, settings);
             return 1;
         }
 
@@ -112,7 +127,8 @@ public final class ShopCommands {
 
     // ---- /buy ---------------------------------------------------------------
 
-    private int buy(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private int buy(CommandContext<CommandSourceStack> ctx, boolean confirmed)
+            throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         CommandSourceStack source = ctx.getSource();
         String key = StringArgumentType.getString(ctx, "item");
@@ -124,8 +140,52 @@ public final class ShopCommands {
             return 0;
         }
 
-        Shop.PurchaseResult result = ShopPurchase.attempt(economy, log, player, found.get(), true);
+        ShopEntry entry = found.get();
+        // Only ask about a purchase that would actually go through. Asking first and
+        // failing afterwards makes a player approve a spend that was never possible,
+        // and hides the real answer -- no money, or no room -- behind an extra click.
+        boolean possible = PurchaseConfirm.plannedLots(economy, player, entry, 1) >= 1;
+        if (!confirmed && possible && PurchaseConfirm.required(entry, 1, settings)) {
+            prompt(player, entry);
+            // Zero, not one: nothing was bought. A command block or a script chained
+            // off /buy must not read "asked the player" as "the goods were delivered".
+            return 0;
+        }
+
+        Shop.PurchaseResult result = ShopPurchase.attempt(economy, log, player, entry, true);
         return result.ok() ? 1 : 0;
+    }
+
+    /**
+     * The chat half of the confirmation, matching the sgui screen in {@link ShopMenu}.
+     *
+     * <p>A clickable button rather than a "type this again" instruction: the second
+     * attempt has to be a deliberate act, not a press of the up arrow.
+     */
+    private void prompt(ServerPlayer player, ShopEntry entry) {
+        player.sendSystemMessage(Messages.body("Buy ")
+                .append(Component.literal(entry.quantity() + " " + ShopDisplay.displayName(entry))
+                        .withStyle(ChatFormatting.WHITE))
+                .append(Messages.body(" for "))
+                .append(ShopDisplay.priceComponent(entry))
+                .append(Messages.body("?")));
+
+        for (Map.Entry<Currency, Long> line : entry.price().entrySet()) {
+            Currency currency = line.getKey();
+            long balance = economy.getBalance(player.getUUID(), currency);
+            player.sendSystemMessage(Messages.balanceLine(currency, balance)
+                    .append(Messages.body("  ->  "))
+                    .append(Messages.amount(currency, Math.max(0, balance - line.getValue()))));
+        }
+
+        MutableComponent button = Component.literal("[ Confirm purchase ]")
+                .withStyle(style -> style
+                        .withColor(ChatFormatting.GREEN)
+                        .withBold(true)
+                        .withClickEvent(new ClickEvent.RunCommand("/buy " + entry.key() + " confirm"))
+                        .withHoverEvent(new HoverEvent.ShowText(
+                                Component.literal("Spend " + entry.describePrice()))));
+        player.sendSystemMessage(button);
     }
 
     private SuggestionProvider<CommandSourceStack> itemSuggestions() {

@@ -9,6 +9,8 @@ public enum TriggerDecision {
 
     /** {@code enabled} is false in settings.json. */
     DISABLED,
+    /** The player has never run {@code /donkey optin}, and the server requires it. */
+    NOT_OPTED_IN,
     /** Less than {@code checkIntervalSeconds} since this player's last check. */
     NOT_TIME_YET,
     /** Already mid-event -- one donkey per player. */
@@ -34,6 +36,6 @@ public enum TriggerDecision {
 
     /** True when the check actually ran, i.e. the per-player interval should reset. */
     public boolean consumedCheck() {
-        return this != DISABLED && this != NOT_TIME_YET;
+        return this != DISABLED && this != NOT_OPTED_IN && this != NOT_TIME_YET;
     }
 }

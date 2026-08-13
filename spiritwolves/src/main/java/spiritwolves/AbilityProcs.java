@@ -1,0 +1,249 @@
+package spiritwolves;
+
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LightBlock;
+import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * The combat hooks for equipped fangs (SPEC.md sections 18.2 and 18.4): all
+ * passive procs on the wolf's own attacks/kills, no keybind. On-hit effects
+ * (Emberfang/Venomfang/Bonechill/Witherfang/Ravenous-hit) key off {@code
+ * ServerLivingEntityEvents.AFTER_DAMAGE}; Ravenous' on-kill heal is called
+ * from {@link WolfKill}; Voidfang is positional and polled from
+ * {@link Tracker}. Effects applied to the wolf or its target are transient
+ * combat state -- nothing here writes into {@code wolfTag}.
+ */
+final class AbilityProcs {
+
+    private static final int BLINK_COOLDOWN_TICKS = 100;
+    private static final int BLINK_COOLDOWN_TICKS_TIER2 = 50;
+    private static final double BLINK_RANGE = 8.0;
+    private static final double FIRE_AURA_RADIUS = 5.0;
+
+    /** Wolf UUID -> tick at which Voidfang is next available. */
+    private static final Map<UUID, Integer> blinkCooldown = new HashMap<>();
+
+    /** Wolf UUID -> position of the Shine ability's light block, if any. */
+    private static final Map<UUID, ShineLight> shineLights = new HashMap<>();
+
+    private record ShineLight(ServerLevel level, BlockPos pos) {}
+
+    private AbilityProcs() {}
+
+    static void register() {
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((victim, source, baseDamageTaken, newDamageTaken, blocked) -> {
+            if (newDamageTaken <= 0.0f || !(source.getEntity() instanceof Wolf wolf) || !wolf.isTame()) {
+                return;
+            }
+            if (!(wolf.level() instanceof ServerLevel level)) {
+                return;
+            }
+            ServerPlayer owner = Tracker.findOwner(level, wolf.getUUID());
+            if (owner == null) {
+                return;
+            }
+            WolfRecord record = PlayerWolfRegistry.get(owner.getUUID());
+            if (record == null || !record.summoned) {
+                return;
+            }
+
+            Assists.mark(wolf, owner, victim);
+            onHit(wolf, owner, record, victim, level);
+        });
+    }
+
+    private static void onHit(Wolf wolf, ServerPlayer owner, WolfRecord record, LivingEntity victim, ServerLevel level) {
+        int emberfang = tierOf(record, Abilities.EMBERFANG);
+        if (emberfang >= 1) {
+            victim.setRemainingFireTicks(Math.max(victim.getRemainingFireTicks(), emberfang == 1 ? 40 : emberfang == 2 ? 80 : 120));
+            if (emberfang >= 2 && owner.distanceTo(wolf) <= FIRE_AURA_RADIUS) {
+                owner.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 60, 0, true, false));
+            }
+        }
+
+        int venomfang = tierOf(record, Abilities.VENOMFANG);
+        if (venomfang >= 1) {
+            int seconds = venomfang == 1 ? 3 : venomfang == 2 ? 5 : 8;
+            int amplifier = venomfang >= 2 ? 1 : 0;
+            addEffect(victim, MobEffects.POISON, seconds * 20, amplifier);
+            if (venomfang >= 3) {
+                addEffect(victim, MobEffects.SLOWNESS, seconds * 20, 0);
+            }
+        }
+
+        int bonechill = tierOf(record, Abilities.BONECHILL);
+        if (bonechill >= 1) {
+            int seconds = bonechill == 1 ? 2 : 4;
+            int amplifier = bonechill >= 2 ? 1 : 0;
+            addEffect(victim, MobEffects.SLOWNESS, seconds * 20, amplifier);
+            if (bonechill >= 3) {
+                addEffect(victim, MobEffects.WEAKNESS, seconds * 20, 0);
+            }
+        }
+
+        int witherfang = tierOf(record, Abilities.WITHERFANG);
+        if (witherfang >= 1) {
+            int seconds = witherfang == 1 ? 2 : witherfang == 2 ? 4 : 6;
+            int amplifier = witherfang >= 3 ? 1 : 0;
+            addEffect(victim, MobEffects.WITHER, seconds * 20, amplifier);
+        }
+
+        int ravenous = tierOf(record, Abilities.RAVENOUS);
+        if (ravenous >= 2) {
+            healOrOverheal(wolf, ravenous, 1.0f);
+        }
+    }
+
+    /** Ravenous tier I: heal on kill. Called from {@link WolfKill}. */
+    static void onKill(Wolf wolf, ServerPlayer owner, WolfRecord record, Entity killed) {
+        int ravenous = tierOf(record, Abilities.RAVENOUS);
+        if (ravenous >= 1) {
+            healOrOverheal(wolf, ravenous, 2.0f);
+        }
+    }
+
+    private static void healOrOverheal(Wolf wolf, int ravenousTier, float amount) {
+        float before = wolf.getHealth();
+        wolf.heal(amount);
+        if (ravenousTier < 3) {
+            return;
+        }
+        float overheal = amount - (wolf.getHealth() - before);
+        if (overheal > 0.0f) {
+            wolf.setAbsorptionAmount(Math.min(4.0f, wolf.getAbsorptionAmount() + overheal));
+        }
+    }
+
+    /**
+     * Voidfang: polled from {@link Tracker} for every summoned wolf, since
+     * the trigger is positional rather than a hit/kill event.
+     */
+    static void tickSummonedWolf(ServerPlayer owner, WolfRecord record, Wolf wolf) {
+        int emberfang = tierOf(record, Abilities.EMBERFANG);
+        if (emberfang >= 3) {
+            // Tier 3 Emberfang makes the wolf immune to fire. Re-apply a long
+            // Fire Resistance effect in the periodic tick; it is cleared on recall
+            // by WolfCapture.restore(), so this only runs while the wolf is out.
+            wolf.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 600, 0, true, false));
+        }
+
+        int shine = tierOf(record, Abilities.SHINE);
+        if (shine >= 1) {
+            wolf.addEffect(new MobEffectInstance(MobEffects.GLOWING, 120, 0, true, false));
+            setShineLight(wolf);
+        }
+        if (shine >= 2) {
+            double nightVisionRadius = shine >= 3 ? 16.0 : 8.0;
+            if (owner.distanceTo(wolf) <= nightVisionRadius) {
+                owner.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 300, 0, true, false));
+            }
+        }
+
+        int blinkTier = tierOf(record, Abilities.VOIDFANG);
+        if (blinkTier <= 0) {
+            return;
+        }
+
+        LivingEntity target = wolf.getTarget();
+        if (target == null && blinkTier >= 3) {
+            target = nearestMonster(wolf);
+        }
+        if (target == null || wolf.distanceTo(target) <= BLINK_RANGE) {
+            return;
+        }
+
+        int now = wolf.level().getServer() == null ? 0 : wolf.level().getServer().getTickCount();
+        Integer readyAt = blinkCooldown.get(wolf.getUUID());
+        if (readyAt != null && now < readyAt) {
+            return;
+        }
+
+        double fromX = wolf.getX();
+        double fromY = wolf.getY();
+        double fromZ = wolf.getZ();
+        ServerLevel level = (ServerLevel) wolf.level();
+
+        level.sendParticles(ParticleTypes.PORTAL, fromX, fromY + 0.5, fromZ, 12, 0.25, 0.5, 0.25, 0.25);
+
+        wolf.snapTo(target.getX(), target.getY(), target.getZ(), wolf.getYRot(), wolf.getXRot());
+
+        wolf.playSound(SoundEvents.ENDERMAN_TELEPORT, 1.0f, 1.0f);
+        level.sendParticles(ParticleTypes.PORTAL, wolf.getX(), wolf.getY() + 0.5, wolf.getZ(), 12, 0.25, 0.5, 0.25, 0.25);
+
+        blinkCooldown.put(wolf.getUUID(), now + (blinkTier >= 2 ? BLINK_COOLDOWN_TICKS_TIER2 : BLINK_COOLDOWN_TICKS));
+    }
+
+    private static LivingEntity nearestMonster(Wolf wolf) {
+        Monster nearest = null;
+        double nearestDistSqr = Double.MAX_VALUE;
+        for (Monster candidate : wolf.level().getEntitiesOfClass(Monster.class,
+                wolf.getBoundingBox().inflate(16.0), Monster::isAlive)) {
+            double distSqr = candidate.distanceToSqr(wolf);
+            if (distSqr < nearestDistSqr) {
+                nearestDistSqr = distSqr;
+                nearest = candidate;
+            }
+        }
+        return nearest;
+    }
+
+    /** Clears any transient Voidfang cooldown and Shine light for a wolf that is no longer out. */
+    static void forget(UUID wolfUuid) {
+        blinkCooldown.remove(wolfUuid);
+        ShineLight light = shineLights.remove(wolfUuid);
+        if (light != null) {
+            removeLightBlock(light.level, light.pos);
+        }
+    }
+
+    private static void setShineLight(Wolf wolf) {
+        if (!(wolf.level() instanceof ServerLevel level)) {
+            return;
+        }
+        BlockPos pos = wolf.blockPosition();
+        ShineLight previous = shineLights.get(wolf.getUUID());
+        if (previous != null && previous.level == level && previous.pos.equals(pos)) {
+            return;
+        }
+        if (previous != null) {
+            removeLightBlock(previous.level, previous.pos);
+        }
+        shineLights.put(wolf.getUUID(), new ShineLight(level, pos));
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir() || state.is(Blocks.LIGHT)) {
+            level.setBlock(pos, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15), 3);
+        }
+    }
+
+    private static void removeLightBlock(ServerLevel level, BlockPos pos) {
+        if (level.isLoaded(pos) && level.getBlockState(pos).is(Blocks.LIGHT)) {
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+        }
+    }
+
+    private static int tierOf(WolfRecord record, Abilities.Ability ability) {
+        return Abilities.equippedTier(record, ability);
+    }
+
+    private static void addEffect(LivingEntity target, Holder<MobEffect> effect, int durationTicks, int amplifier) {
+        target.addEffect(new MobEffectInstance(effect, durationTicks, amplifier));
+    }
+}

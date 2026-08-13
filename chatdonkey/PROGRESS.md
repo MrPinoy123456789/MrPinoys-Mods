@@ -1,5 +1,96 @@
 # Chat Donkey — progress
 
+## The voice is the XP blip now
+
+`Voice` plays `EXPERIENCE_ORB_PICKUP` instead of `NOTE_BLOCK_BIT`, superseding
+the note-block reasoning further down this file. The chiptune bit was the
+closest *instrument*, but the orb pickup is the closest *voice*: shorter, less
+musical, and so familiar that a string of them reads as chatter rather than as
+someone playing a tune at you. Nothing in `Animalese` changed — the per-donkey
+base pitch, the letter wobble and the terminal intonation all ride on top of the
+new sample, so Duncan still sounds like Duncan.
+
+Worth knowing, and the exact trap §"`SoundEvents` fields have two different
+types" warned about: `EXPERIENCE_ORB_PICKUP` is a **bare `SoundEvent`**, not the
+`Holder.Reference` the note-block fields are, so it needs `Holder.direct(...)`
+for `ClientboundSoundPacket`. That wrap is hoisted to a constant rather than done
+per packet — a talking donkey sends one every tick, per listener.
+
+Volume is unchanged at `0.08`. The orb ding has more attack than the bit blip,
+so if it reads as too sharp in play that constant is the dial.
+
+---
+
+## Random events are opt-in
+
+**370 tests. Clean build.**
+
+Random events now only pick players who have run `/donkey optin`. Nothing about
+an event changed — the ambush, the interruption, the donkey getting you killed
+are all intact. What changed is who is standing in the blast radius: someone who
+said yes.
+
+### Where the gate lives
+
+`TriggerRules.decide` returns a new `NOT_OPTED_IN`, checked immediately after
+`enabled` and **before** the interval, and it does not consume the check. That
+ordering is the whole design:
+
+- Before the interval, so `/donkey status`-style diagnosis gets the useful
+  answer (`NOT_OPTED_IN`) instead of the useless one (`NOT_TIME_YET`).
+- Non-consuming, so a player who opts in is a candidate on the next poll rather
+  than serving out an interval they were never in the running for.
+
+`PlayerTriggerState.setOptedIn` is refreshed from the roster on every poll, so
+an opt-out lands on the next check rather than the next login, and the rules
+stay a pure function of one struct.
+
+### The roster is the one persistent thing
+
+`OptIns` → `config/chatdonkey/optin.json`, written the moment it changes (not on
+a flush timer — opt-ins are rare and consent is not something to lose in a
+crash), temp-file-plus-rename like `BountyState`. A corrupt file is quarantined
+and the roster starts empty rather than taking the server down: §2's "harmless
+failure direction" rule points the other way for consent, but "nobody gets a
+donkey" is still the safe end of it.
+
+This puts a dent in §2's **Persistence: None** row, which is now
+"the opt-in roster only" with the reasoning written down.
+
+### `requireOptIn` is a boxed `Boolean` on purpose
+
+A missing JSON boolean parses as `false`. For every other flag in `Settings`
+that is harmless; for this one it would sign an entire existing server up for
+ambushes the moment they upgraded. `null` means "the operator never expressed an
+opinion", and `requiresOptIn()` answers that with consent. `sanitised()`
+normalises it so the round-tripped file states the answer out loud. Tested.
+
+### Commands
+
+The permission gate moved off the `/donkey` root onto each admin branch (an
+`admin(name)` helper), because `optin` and `optout` hang off the same literal
+and consent only an operator can give is not consent.
+
+- `/donkey optin` — grants eligibility and nothing else. Interval, session age
+  and cooldown all still apply, so the first donkey is still minutes away and
+  still a surprise.
+- `/donkey optout` — leaves the roster *and* dismisses any donkey currently out,
+  as `ABORTED`: no gift (withdrawing consent is not a way to farm one), no
+  cooldown (and not a punishment either).
+- `/donkey status` reports the roster size, because an empty roster and a broken
+  trigger loop look identical from the outside.
+
+Op-forced events (`/donkey trigger`, and therefore the Twitch bridge) ignore the
+roster entirely.
+
+### Discoverability
+
+One grey line on join, only to players who are not on the list, and only while
+the server actually requires opting in. An opt-in mod nobody knows about is a
+mod nobody uses.
+
+---
+
 ## Play-feedback pass: merge, music, enchanted gifts, goofy face
 
 **353 tests. Clean build. 10 events, 53 line pools.**
@@ -611,8 +702,9 @@ the shared `dist/`. Server boots clean and generates 15 line pools.
 
 ### One new API surprise in 26.2
 
-**`ItemStack.is(Item)` no longer exists** — only `is(Predicate<Holder<Item>>)`.
-Item comparison is `stack.getItem() == Items.DIAMOND`. Everything else M2 needed
+**`ItemStack.is(Item)` still exists in 26.2** — verified by compiling `stack.is(item)`
+against `minecraft-merged-deobf-26.2.jar`. `stack.getItem() == Items.DIAMOND` also
+works. Everything else M2 needed
 (`ServerLivingEntityEvents.ALLOW_DAMAGE`, `UseEntityCallback`,
 `DataComponents.ITEM_NAME`/`LORE`, `ItemLore`, `Abilities.instabuild`) matched
 expectations.

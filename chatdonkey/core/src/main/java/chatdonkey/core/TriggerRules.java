@@ -23,6 +23,12 @@ public final class TriggerRules {
         if (!settings.enabled()) {
             return TriggerDecision.DISABLED;
         }
+        // Ahead of the interval check, and non-consuming, so a player who has
+        // just opted in is eligible on the very next poll instead of serving
+        // out an interval they were never a candidate for.
+        if (settings.requiresOptIn() && !state.optedIn()) {
+            return TriggerDecision.NOT_OPTED_IN;
+        }
         if (now - state.lastCheckedAt() < seconds(settings.checkIntervalSeconds())) {
             return TriggerDecision.NOT_TIME_YET;
         }

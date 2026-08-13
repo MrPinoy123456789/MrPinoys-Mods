@@ -78,6 +78,7 @@ public final class ActiveEvent implements EventContext {
     private final LinePools lines;
     private final String name;
     private final Random random;
+    private final double heraldChance;
     private final Voice voice;
     private final HitReactions hits = new HitReactions();
 
@@ -97,7 +98,7 @@ public final class ActiveEvent implements EventContext {
 
     public ActiveEvent(ServerPlayer player, Donkey donkey, DonkeyBehavior behavior,
                        LinePools lines, String name, int durationTicks, Random random,
-                       Voice voice, BooleanSupplier mayHoldScreen) {
+                       double heraldChance, Voice voice, BooleanSupplier mayHoldScreen) {
         this.player = player;
         this.donkey = donkey;
         this.behavior = behavior;
@@ -105,6 +106,7 @@ public final class ActiveEvent implements EventContext {
         this.name = name;
         this.durationTicks = durationTicks;
         this.random = random;
+        this.heraldChance = heraldChance;
         this.voice = voice;
         this.mayHoldScreen = mayHoldScreen;
         this.coat = new DonkeyCoat(donkey, player, random);
@@ -252,7 +254,7 @@ public final class ActiveEvent implements EventContext {
     @Override
     public void startMusic() {
         donkey.level().playSound(null, donkey.getX(), donkey.getY(), donkey.getZ(),
-                DISCS[random.nextInt(DISCS.length)], SoundSource.RECORDS, 1.0f, 1.0f);
+                DISCS[random.nextInt(DISCS.length)], SoundSource.RECORDS, 0.2f, 1.0f);
     }
 
     /**
@@ -272,7 +274,7 @@ public final class ActiveEvent implements EventContext {
         float pitch = Math.max(0.5f, Math.min(2.0f, base + wobble));
 
         donkey.level().playSound(null, donkey.getX(), donkey.getY(), donkey.getZ(),
-                SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), SoundSource.RECORDS, 0.8f, pitch);
+                SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), SoundSource.RECORDS, 0.15f, pitch);
     }
 
     @Override
@@ -285,7 +287,7 @@ public final class ActiveEvent implements EventContext {
     /** The satisfied crunch of a donkey being fed. */
     public void eat() {
         donkey.level().playSound(null, donkey.getX(), donkey.getY(), donkey.getZ(),
-                SoundEvents.DONKEY_EAT, SoundSource.NEUTRAL, 1.0f, 1.0f);
+                SoundEvents.DONKEY_EAT, SoundSource.NEUTRAL, 0.25f, 1.0f);
     }
 
     public boolean expired() {
@@ -476,10 +478,10 @@ public final class ActiveEvent implements EventContext {
 
     @Override
     public void bray() {
-        // Loud, from the entity, heard by everyone nearby. A performance, not a
-        // confirmation (SPEC.md section 8).
+        // From the entity, heard by everyone nearby. A performance, not a
+        // confirmation (SPEC.md section 8), but kept quiet so it does not dominate.
         donkey.level().playSound(null, donkey.getX(), donkey.getY(), donkey.getZ(),
-                SoundEvents.DONKEY_AMBIENT, SoundSource.NEUTRAL, 1.0f, 1.0f);
+                SoundEvents.DONKEY_AMBIENT, SoundSource.NEUTRAL, 0.25f, 1.0f);
     }
 
     @Override
@@ -490,6 +492,11 @@ public final class ActiveEvent implements EventContext {
     @Override
     public Random random() {
         return random;
+    }
+
+    @Override
+    public double heraldChance() {
+        return heraldChance;
     }
 
     /** The puff of particles the donkey leaves behind (SPEC.md section 6, cleanup). */

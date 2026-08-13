@@ -21,12 +21,12 @@ public final class Chime {
 
     /** The parting gift hit the player's inventory. */
     public static void gift(ServerPlayer player) {
-        play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.3f, 1.4f);
+        play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.1f, 1.4f);
     }
 
     /** A diamond changed hands and the donkey is leaving graciously. */
     public static void bribeAccepted(ServerPlayer player) {
-        play(player, SoundEvents.NOTE_BLOCK_BELL, 0.3f, 1.0f);
+        play(player, SoundEvents.NOTE_BLOCK_BELL, 0.1f, 1.0f);
     }
 
     private static void play(ServerPlayer player,

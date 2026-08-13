@@ -10,6 +10,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
@@ -72,10 +74,19 @@ public final class BoomerangBall {
         // Blocks ALL damage dealt by our in-flight balls -- vanilla's own
         // Snowball.onHitEntity deals 1 damage to blazes specifically; this
         // cancels that too, so "no damage" really means no damage to anything.
+        //
+        // Cancelling the hurt is also what breaks wolf aggro: a tamed wolf's
+        // OwnerHurtTargetGoal fires off owner.getLastHurtMob(), which LivingEntity
+        // only stamps from inside a damage application that actually lands. A
+        // 0-damage projectile never gets there (same reason snowballs, splash
+        // potions and flint-and-steel don't rally your wolves in vanilla), so we
+        // stamp it by hand here -- the goal only reads the field and its
+        // timestamp, it never asks how much damage was dealt.
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             Entity direct = source.getDirectEntity();
             for (Flight flight : inFlight) {
                 if (flight.projectile() == direct) {
+                    markAsOwnersTarget(flight, entity);
                     return false;
                 }
             }
@@ -96,6 +107,27 @@ public final class BoomerangBall {
                 Snowball::new, level, returnStack, player, 0.0F, THROW_POWER, 0.5F);
 
         inFlight.add(new Flight(player.getUUID(), ball, returnStack, ball.position(), ball.tickCount));
+    }
+
+    /**
+     * Registers {@code target} as the last mob the thrower hurt, so tamed wolves
+     * (and any other {@code OwnerHurtTargetGoal} holder) treat the boomerang as a
+     * real attack even though it dealt nothing. No damage is applied here.
+     */
+    private static void markAsOwnersTarget(Flight flight, LivingEntity target) {
+        if (!(target.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ServerPlayer owner = serverLevel.getServer().getPlayerList().getPlayer(flight.owner());
+        if (owner == null || owner == target) {
+            return;
+        }
+        // Don't sic the pack on the thrower's own pets -- a stray ball shouldn't
+        // start a dog fight.
+        if (target instanceof TamableAnimal tamed && tamed.isOwnedBy(owner)) {
+            return;
+        }
+        owner.setLastHurtMob(target);
     }
 
     private static void tick() {

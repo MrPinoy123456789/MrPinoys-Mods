@@ -22,6 +22,14 @@ public final class Chime {
                 0.3f, 1.2f, player.getRandom().nextLong()));
     }
 
+    /** The first-join welcome was shown. */
+    public static void welcome(ServerPlayer player) {
+        player.connection.send(new ClientboundSoundPacket(
+                SoundEvents.NOTE_BLOCK_CHIME, SoundSource.RECORDS,
+                player.getX(), player.getY(), player.getZ(),
+                0.3f, 1.0f, player.getRandom().nextLong()));
+    }
+
     /** Currency was received via {@code /pay}. */
     public static void paymentReceived(ServerPlayer player) {
         player.connection.send(new ClientboundSoundPacket(

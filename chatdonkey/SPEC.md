@@ -56,7 +56,8 @@ the bribe mechanic exists — the diamond paid to make it leave is destroyed.
 | May get the player killed | **Yes** | An interruption that can never cost anything is not an interruption (§1). The donkey still never attacks |
 | Ends with | **A gift, dropped at feet** | The insult needs a punchline. `giveOrDrop` pattern |
 | Early exit | **Right-click with a diamond** | The bribe. Diamond is consumed — a real sink |
-| Persistence | **None** | Cooldowns are in-memory; a restart resets them. Harmless failure direction |
+| Persistence | **The opt-in roster only** | Cooldowns and timers are in-memory; a restart resets them, and losing one costs one extra joke. Consent is the exception — `optin.json` (§7) |
+| Who gets picked | **Opted-in players only** | `/donkey optin`. Ambushing someone is funny; ambushing someone who never agreed to the mod is not (§7) |
 | Cross-mod | **None** | Fully standalone, per DESIGN.md §2 |
 | Mixins | **Zero target** | Movement is driven externally via navigation, §5 |
 | Client requirement | **None.** `"environment": "server"` | Non-negotiable, suite rule |
@@ -85,6 +86,16 @@ records the hooks it will use, so nothing here paints over them.
 6. The player's cooldown starts. Default: no event for 20+ minutes.
 
 There is no step where the player can lose anything involuntarily.
+
+### Deferred: bubble rendering
+
+Chat Donkey's donkey speeches are specced to match `wayfarers/SPEC.md` §5.3:
+`say` routes to a floating bubble, `narrate` to chat. The implementation will
+reuse `wayfarers`'s `Bubbles` (a `Display$TextDisplay` built from `TagValueInput`
+plus `Entity#load`) rather than duplicating the NBT construction. Until that
+system is play-tested and confirmed legible on vanilla clients, v1 Chat Donkey
+falls back to per-player chat and actionbar. The script step vocabulary already
+matches, so the swap is a renderer change, not a content change.
 
 ---
 
@@ -301,6 +312,7 @@ All in `config/chatdonkey/settings.json`:
 ```json
 {
   "enabled": true,
+  "requireOptIn": true,
   "checkIntervalSeconds": 120,
   "chancePerCheck": 0.08,
   "cooldownMinutesPerPlayer": 25,
@@ -313,6 +325,17 @@ All in `config/chatdonkey/settings.json`:
 }
 ```
 
+- **Opt-in gate.** Random events only pick players who have run
+  `/donkey optin`. The roster lives in `config/chatdonkey/optin.json` and is
+  the one piece of this mod's state that survives a restart — every other
+  timer here is deliberately in-memory because its worst failure is one extra
+  joke (§2), and forgetting consent fails in the other direction. `requireOptIn`
+  can be set to `false` for the old everyone-is-fair-game behaviour; an *absent*
+  key reads as `true`, so upgrading a server never signs its players up by
+  accident. Operator-forced events (`/donkey trigger`, and therefore the Twitch
+  bridge, §11) ignore the roster: an op aiming a donkey has already decided.
+  Checked before the interval and non-consuming, so a player who opts in is a
+  candidate on the very next poll.
 - **Activity gate.** A player qualifies only if they moved a meaningful
   distance in the last `requireRecentActivitySeconds`. AFK players get no
   events — an audience is required for comedy.
@@ -378,7 +401,9 @@ performances loud.
 
 Suite convention — admin gated with
 `Commands.hasPermission(Commands.LEVEL_GAMEMASTERS)` (verified pattern,
-cobbleeconomy README).
+cobbleeconomy README). The gate sits on each admin branch rather than on the
+`/donkey` root, because `optin`/`optout` hang off the same literal and consent
+only an operator can give is not consent.
 
 | Command | Who | What |
 |---|---|---|
@@ -389,7 +414,9 @@ cobbleeconomy README).
 | `/donkey grace [player]` | op (configurable) | Immunity for `gracePeriodMinutes` |
 | `/donkey ungrace <player>` | op | Revoke immunity — chat outbidding the streamer (§7's designed bidding war) |
 | `/donkey reload` | op | Re-read all three config files |
-| `/donkey status` | op | What is running right now |
+| `/donkey status` | op | What is running right now, and how many players are opted in |
+| `/donkey optin` | anyone | Agree to be picked by random events |
+| `/donkey optout` | anyone | Stop being picked, and dismiss the current donkey — no gift, no cooldown |
 
 **On `/donkey say`.** The line ultimately originates in Twitch chat, so it is
 untrusted no matter how well the bridge moderates. It is sanitised on arrival:
@@ -397,8 +424,10 @@ section signs stripped so nobody can inject colour codes or forge a fake
 `<Duncan>` prefix, length capped, blank lines refused. A bridge that forgets to
 moderate produces a rude donkey, not a compromised chat window.
 
-No player-facing commands in v1. The player's verbs are physical: wait, bribe,
-feed. A `/donkey sorry` command was considered and cut — right-clicking with a
+The player's verbs during an event are still physical: wait, bribe, feed.
+`optin`/`optout` are the only typed ones, and they are about whether the event
+may happen at all, not about escaping one in progress. A `/donkey sorry` command
+was considered and cut — right-clicking with a
 diamond is funnier than typing, and it keeps the interaction on-camera.
 
 ---

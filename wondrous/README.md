@@ -13,11 +13,26 @@ Fourth mod in the set, and the first meant to be consumed by the others.
 | `pocket_workbench` | Pocket Crafter | Crafting table | 3×3 crafting |
 | `pocket_enderchest` | Messy Chest | Ender chest | Your ender chest |
 | `pocket_anvil` | Fixing Sweetie | Anvil | Anvil — **never breaks** |
-| `pocket_grindstone` | Take-Backsies Stone | Grindstone | Grindstone |
-| `pocket_stonecutter` | Chop Chop Cutter | Stonecutter | Stonecutter |
-| `pocket_loom` | Cutie Loom | Loom | Loom |
+| `pocket_disenchanter` | Soul Grinder | Grindstone | Destroys enchanted gear; returns its enchantments as a book |
+| `pocket_smelter` | Melty Pocket | Blast furnace | Melts iron or gold gear into nuggets, scaled by remaining durability |
+| `boomerang_ball` | Boomerang Pet Ball | Slime ball | Throw to recall a pet, then it returns to you |
 | `big_hole_pick` | Big Hole Pick | Diamond pickaxe | Breaks a 3×3, sneak for one block |
 | `big_hole_shovel` | Big Hole Shovel | Diamond shovel | Digs a 3×3, sneak for one block |
+| `chuck_it_wand` | Chuck It Wand | Blaze rod | Sends nearby loose items to their home container |
+| `tidy_up_stick` | Tidy Up Stick | Brush | Sorts nearby chests without moving contents |
+| `big_lazy_hoe` | Big Lazy Hoe | Diamond hoe | Bonemeals the 3×3 around a crop |
+| `growy_can` | Growy Can | Bucket | One bone meal grows a 5×5×3 patch |
+| `lazy_sprinkler` | Lazy Sprinkler | Heart of the sea | Grows one random crop every 60 ticks while in inventory |
+| `smashy_mortar` | Smashy Mortar | Bowl | Crushes the item in your off-hand |
+| `restock_ring` | Never Empty Charm | Nautilus shell | Refills an empty main hand from matching inventory stacks |
+| `owl_eye_goggles` | Owl Eye Goggles | Leather helmet | Night vision while worn |
+| `fishy_necklace` | Fishy Necklace | Tropical fish | Water breathing and dolphin's grace while held |
+| `toasty_scarf` | Toasty Scarf | Leather chestplate | Fire resistance while worn |
+| `floaty_feet` | Floaty Feet | Leather leggings | Slow falling while worn |
+| `zoomies_boots` | Zoomies Boots | Leather boots | Speed while sprinting |
+| `crafting_station` | Left It Out Crafter | Crafting table | Persistent 3×3 crafting grid |
+| `link_wand` | Put It There Wand | Breeze rod | Link a machine to a nearby container |
+| `carry_glove` | Piggyback Glove | Leather | Sneak-right-click a container to lift and place it |
 
 **The `id` column is the API contract.** Quest JSON and `/wondrous give` reference
 it. Display names can change freely; ids can't.
@@ -26,8 +41,15 @@ The anvil not breaking isn't a bug — with no anvil block in the world there's
 nothing to degrade. No pocket enchanting table on purpose either: bookshelf power
 needs a real position, so a pocket one would cap at level 1 and just look broken.
 
+**A pocket station has to save a trip you'd actually make.** The grindstone,
+stonecutter and loom didn't — you use those blocks rarely and always near base — so
+they were cut rather than kept for the sake of a full set. Smithing and cartography
+tables were considered and rejected for the same reason. The Soul Grinder stays: it
+does something no block does.
+
 The area tools use `isCorrectToolForDrops` to filter what they break — mine stone
 with the pick, get a 3×3 of stone; dirt and gravel in the plane stay put. They now
+/wondrous links [player]                  op level 2+, list machine links
 carry a negative `BLOCK_BREAK_SPEED` attribute modifier, so the 3×3 is a trade-off
 rather than a strict upgrade over a normal pickaxe/shovel.
 
@@ -75,7 +97,10 @@ WondrousItems.get()
     .ifPresentOrElse(
         item -> WondrousGive.giveOrDrop(player, item.createStack()),
         ()   -> LOG.warn("Wondrous Items not installed"));
-```
+
+> **The api-module pattern above is frozen and should not be copied.** New
+> items are sold through `cobbleeconomy`'s `shop.json` `components` block
+> (`DESIGN.md` §3). No compile-time coupling to `wondrous` is needed.
 
 See `MILESTONE-3.md` for the full wiring, including the dailyquests integration
 shape.

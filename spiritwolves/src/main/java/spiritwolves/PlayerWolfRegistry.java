@@ -21,7 +21,7 @@ import java.util.stream.Stream;
  * Server-side per-player storage for the wolf a player is bound to (SPEC.md
  * section 16.1). The wolf belongs to the player, not the stone -- this is the
  * single source of truth for wolf NBT, journal, streak high-water mark, and
- * (v4) souls/verbs. Stones are thin remotes; see {@link SpiritStone}.
+ * (v4) souls/fangs. Stones are thin remotes; see {@link SpiritStone}.
  */
 final class PlayerWolfRegistry {
 

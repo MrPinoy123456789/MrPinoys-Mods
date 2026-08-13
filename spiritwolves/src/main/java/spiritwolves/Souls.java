@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * Souls and levels (SPEC.md section 18.1). Every kill by a summoned spirit
  * wolf feeds it souls; total souls (never stored, always summed from kills)
- * determine the wolf's level, which gates verb slots and attunable tiers.
+ * determine the wolf's level, which gates fang slots and attunable tiers.
  * Registered as a {@link WolfKill} listener.
  */
 public final class Souls {
@@ -28,10 +28,10 @@ public final class Souls {
     private static final String[] LEVEL_UP_GRANT = {
             null,
             null,
-            "verb tier II attunable",
-            "a second verb slot opens",
-            "verb tier III attunable",
-            "a third verb slot opens",
+            "tier II attunable",
+            "a second fang breaks through",
+            "tier III attunable, and a third trick slot",
+            "a third fang breaks through",
     };
 
     private static final String[] LEVEL_UP_JOURNAL = {
@@ -87,15 +87,25 @@ public final class Souls {
         return level;
     }
 
-    /** Verb slots granted at this level (SPEC.md section 18.1). */
-    static int slotsFor(int level) {
+    /** Fang slots granted at this level (SPEC.md section 18.1). */
+    static int fangSlotsFor(int level) {
         if (level >= 5) {
             return 3;
         }
         return level >= 3 ? 2 : 1;
     }
 
-    /** Highest verb tier attunable at this level. */
+    /**
+     * Trick slots granted at this level. Tricks have their own pool, deliberately
+     * more generous than fangs: utility is what the wolf is <em>for</em>, and
+     * making a player drop Shine to carry Dig punishes them for exploring the
+     * gentler half of the mod. Combat power stays the scarce thing.
+     */
+    static int trickSlotsFor(int level) {
+        return level >= 4 ? 3 : 2;
+    }
+
+    /** Highest ability tier attunable at this level. */
     static int maxAttunableTierFor(int level) {
         if (level >= 4) {
             return 3;

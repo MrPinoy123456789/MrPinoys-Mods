@@ -3,7 +3,10 @@ package cobbleeconomy;
 import cobbleeconomy.core.Currency;
 import cobbleeconomy.core.CurrencyRegistry;
 import cobbleeconomy.core.LeaderboardService;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -32,10 +35,10 @@ public final class LoginSnapshot {
     private final NameCache names;
     private final EconomySettings settings;
 
-    /** Players waiting for their snapshot, with the tick it is due on. */
+    /** Players waiting for their login message, with the tick it is due on. */
     private final List<Pending> pending = new ArrayList<>();
 
-    private record Pending(UUID player, long dueTick) {}
+    private record Pending(UUID player, long dueTick, boolean isWelcome) {}
 
     public LoginSnapshot(LeaderboardService leaderboard, CurrencyRegistry currencies,
                          NameCache names, EconomySettings settings) {
@@ -46,9 +49,14 @@ public final class LoginSnapshot {
     }
 
     /** Queue a joining player. Once per login, never repeated. */
-    public void onJoin(ServerPlayer player, long currentTick) {
-        if (!settings.leaderboardsEnabled || !settings.showOnLogin) return;
-        pending.add(new Pending(player.getUUID(), currentTick + settings.loginDelayTicks));
+    public void onJoin(ServerPlayer player, boolean known, long currentTick) {
+        if (settings.welcome.enabled && !known) {
+            pending.add(new Pending(player.getUUID(),
+                    currentTick + settings.welcome.delayTicks, true));
+        } else if (settings.leaderboardsEnabled && settings.showOnLogin) {
+            pending.add(new Pending(player.getUUID(),
+                    currentTick + settings.loginDelayTicks, false));
+        }
     }
 
     /** Called each server tick. Cheap: usually an empty list. */
@@ -59,12 +67,38 @@ public final class LoginSnapshot {
             if (currentTick < entry.dueTick()) return false;
             ServerPlayer player = server.getPlayerList().getPlayer(entry.player());
             // Null means they left during the delay. Drop it silently.
-            if (player != null) send(player);
+            if (player != null) {
+                if (entry.isWelcome()) {
+                    sendWelcome(player);
+                } else {
+                    sendSnapshot(player);
+                }
+            }
             return true;
         });
     }
 
-    private void send(ServerPlayer player) {
+    private void sendWelcome(ServerPlayer player) {
+        player.sendSystemMessage(Messages.rule());
+        player.sendSystemMessage(Messages.title("Welcome"));
+        for (String line : settings.welcome.lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                player.sendSystemMessage(Component.literal(line)
+                        .withStyle(Messages.GOOD)
+                        .withStyle(style -> style
+                                .withClickEvent(new ClickEvent.RunCommand("/shop"))
+                                .withHoverEvent(new HoverEvent.ShowText(
+                                        Component.literal("Click to open the shop")))));
+            } else {
+                player.sendSystemMessage(Messages.body(line));
+            }
+        }
+        player.sendSystemMessage(Messages.rule());
+        Chime.welcome(player);
+    }
+
+    private void sendSnapshot(ServerPlayer player) {
         int limit = Math.max(1, settings.loginTopCount);
         List<Component> lines = new ArrayList<>();
 

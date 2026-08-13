@@ -622,7 +622,7 @@ Server-side storage keyed by player UUID. One record per player:
   "journal": [ /* same schema as §15.5: list of {k, t} */ ],
   "souls": 0,
   "familyKills": { /* "blaze": 12, "spider": 40, ... — §18 */ },
-  "verbs": { /* verbId → { tier, attunedTier, fillKills, equipped } — §18 */ }
+  "fangs": { /* fangId → { tier, attunedTier, fillKills, equipped } — §18 */ }
 }
 ```
 
@@ -749,7 +749,7 @@ pattern, no typing the command twice:
    request expired. Run /spiritwolves release again."*). On confirm:
    - If the wolf is currently summoned, discard the entity.
    - `PlayerWolfRegistry.remove(player)` — record and file deleted. Souls,
-     verbs, journal: gone. This is what makes release a real decision.
+     fangs, journal: gone. This is what makes release a real decision.
    - Every bound stone in the player's inventory reverts to unbound
      (`bound: false`, lore refreshed). Stones are not consumed — they were
      bought, they stay useful.
@@ -893,7 +893,7 @@ All server-side-safe, zero combat impact, leverage existing hooks.
   *"Watched its owner defeat the Ender Dragon."* (hook dragon death event).
   Cheap to add — the journal schema already exists.
 
-### Phase 2 — utility verbs (the wolf does things)
+### Phase 2 — utility fangs (the wolf does things)
 
 - **Guard post.** Sneak-click a block with the stone: wolf stays and guards
   that spot, attacking hostiles in a radius, until recalled. Needs a
@@ -964,12 +964,12 @@ All server-side-safe, zero combat impact, leverage existing hooks.
 - **Crafting recipes.** Stones are sold via `cobbleeconomy`, not crafted.
 - **Stone tier ladder.** Progression lives on the wolf (§18), not the item.
   The stone stays a flat remote/charge-holder.
-- **Screen-based talent UI.** §18's verbs are managed through chat click
+- **Screen-based talent UI.** §18's fangs are managed through chat click
   events, not a container screen — vanilla clients, no GUI code.
 
 ---
 
-## 18. Soul-forged progression — permanent growth and equippable combat verbs
+## 18. Soul-forged progression — permanent growth and equippable combat fangs
 
 > **Status:** designed 2026-08-09, not yet implemented. Supersedes the
 > "no permanent progression" rule in §15/§15.4 — the wolf is a combat pet, and
@@ -986,7 +986,7 @@ wolf digest what it has absorbed into the next tier of power.
 Every kill by the wolf grants **souls** (kill attribution already exists —
 `WolfKill` from §15.7). Total souls determine **wolf level**. Levels exist
 only as slot/tier gates — there is no stat-per-level; raw power comes from
-verbs and the §15.7 killstreak.
+fangs and the §15.7 killstreak.
 
 **Soul values** — one static table in `Souls.java`, keyed by `EntityType`,
 with a category fallback so unlisted mobs still resolve:
@@ -1010,18 +1010,18 @@ players. Baby variants count the same as adults (not worth the check).
 
 | Level | Souls (cumulative) | Grants |
 |---|---|---|
-| 1 | 0 | 1 verb slot |
-| 2 | 50 | verb tier II attunable |
-| 3 | 150 | 2nd verb slot |
-| 4 | 400 | verb tier III attunable |
-| 5 | 1000 | 3rd verb slot |
+| 1 | 0 | 1 fang slot |
+| 2 | 50 | fang tier II attunable |
+| 3 | 150 | 2nd fang slot |
+| 4 | 400 | fang tier III attunable |
+| 5 | 1000 | 3rd fang slot |
 
 Level is always **derived from souls**, never stored — one less field to
 desync. `Souls.levelFor(long souls)` is the single authority.
 
 **Level-up UX.** When a kill crosses a threshold:
 
-- Chat: *"<name> has grown. Level 3 — a second verb slot opens."* (gold)
+- Chat: *"<name> has grown. Level 3 — a second fang breaks through."* (gold)
 - `Chime` tier-up sound (reuse the §15.7 tier-up cue at a lower pitch, or a
   dedicated one).
 - Journal line: level 2 → *"Tasted its first fifty souls."*, level 3 →
@@ -1030,22 +1030,44 @@ desync. `Souls.levelFor(long souls)` is the single authority.
 - All state persists in the §16 `PlayerWolfRegistry` record. Nothing on the
   stone.
 
-### 18.2 Verbs — unlocked by deed, tiered by diamonds
+### 18.2 Fangs — unlocked by deed, tiered by diamonds
 
-Each verb is themed to a mob family. Killing that family accumulates a
+> **Renamed and split — done, no migration work outstanding.** This system was
+> called **verbs** in early drafts, then **fangs**, and is now **two categories
+> under one model**: **Fangs** (combat) and **Tricks** (utility). Implemented in
+> `Abilities.java` (`Ability`, `Ability.Category`) with `AbilityCommands`,
+> `AbilityProcs`, `AbilityGui`; commands `/spiritwolves fangs` and
+> `/spiritwolves tricks` both open the one panel; save key `abilities`.
+> Renamed along the way: **Witherbite → Witherfang**, **Blinkstrike → Voidfang**
+> ("strike" implied an activated ability, which this section forbids),
+> **Scavenger → Fetch**, **Light → Shine**. **Predator** was deleted as a
+> duplicate of Ravenous. Saves from any earlier naming are migrated on read in
+> `WolfRecord.fromTag`. The word "verb" should not appear anywhere in
+> `spiritwolves`; `chatdonkey`, `hearsay`, and `wayfarers` use it for their own
+> unrelated dialogue systems — do not rename those.
+
+**The two categories.** A fang is what the wolf does in a fight; a trick is what
+it does for you. They share one progression model — free tier I at an unlock
+goal, diamonds to attune the next tier, more of the same deed to fill it — but
+**they draw on separate slot pools**, so carrying a nose never costs you a bite.
+Fang slots follow §18.1 (1/2/3 at levels 1/3/5); trick slots are 2, rising to 3
+at level 4. Utility is deliberately the cheaper pool: making a player drop Shine
+to try Dig punishes them for exploring the gentler half of the mod.
+
+Each fang is themed to a mob family. Killing that family accumulates a
 per-family kill count; hitting the threshold **unlocks tier I free**. Each
 subsequent tier requires **diamonds to attune** (opens the tier as a goal)
 and then **more kills of that family to fill it**. Money buys the unlock,
 deeds buy the power.
 
-| Verb | Soul source | Tier I (unlock: ~20 kills) | Tier II | Tier III |
+| Fang | Soul source | Tier I (unlock: ~20 kills) | Tier II | Tier III |
 |---|---|---|---|---|
 | **Emberfang** | blazes, magma cubes | bite ignites 2s | 4s + small fire resist aura for owner nearby | 6s, wolf immune to fire |
 | **Venomfang** | spiders, cave spiders | bite poisons 3s | 5s, Poison II | 8s, also Slowness |
 | **Ravenous** | zombies, drowned, husks | wolf heals 1♥ per kill | heals on hit (0.5♥) | overheal to absorption, cap 2♥ |
 | **Bonechill** | skeletons, strays | bite slows 2s | 4s, Slowness II | also Weakness on target |
-| **Witherbite** | wither skeletons | bite withers 2s | 4s | 6s, Wither II |
-| **Blinkstrike** | endermen | wolf teleports to its target when >8 blocks away | cooldown halved | owner's marked prey (§15.2) is a valid blink target |
+| **Witherfang** | wither skeletons | bite withers 2s | 4s | 6s, Wither II |
+| **Voidfang** | endermen | wolf teleports to its target when >8 blocks away | cooldown halved | owner's marked prey (§15.2) is a valid blink target |
 
 - Attunement costs: tier II = 4 diamonds, tier III = 16. Constants, tune later.
 - Fill requirements after attunement: tier II = 50 family kills, III = 150.
@@ -1053,43 +1075,86 @@ deeds buy the power.
   confirmed; ignition needs **verify in jar** (`setRemainingFireTicks` /
   `igniteForSeconds` — check the 26.2 name); `LivingEntity.heal(float)` and
   teleport via `snapTo` are already used or verified elsewhere in the suite.
-- All verbs are **passive procs on the wolf's own attacks or kills** — no
+- All fangs are **passive procs on the wolf's own attacks or kills** — no
   activation keybind exists on a vanilla client, so nothing requires one.
-  Blinkstrike's trigger is positional; Ravenous triggers on kill/hit.
+  Voidfang's trigger is positional; Ravenous triggers on kill/hit.
+- **Predator was removed — do not re-add it.** It healed the wolf for killing an
+  edible animal, but Ravenous already heals on *every* kill including animals
+  and fires on the same event, so Predator was a strict subset that double-dipped
+  when both were equipped. Any `predator` entry in an old save is discarded on
+  load by `WolfRecord.fromTag` (an orphan record would otherwise eat a slot).
 
-**Verb state machine.** Each verb, per wolf, is in exactly one state. The
-per-verb record in the registry is `{ tier, attunedTier, fillKills, equipped }`:
+#### The tricks
+
+| Trick | Trained by | Tier I | Tier II | Tier III |
+|---|---|---|---|---|
+| **Fetch** | items the wolf brings you (100) | also gathers loose unowned items within 5 blocks | 8 blocks | 12 blocks |
+| **Shine** | lights you place near the wolf (50) | wolf glows, visible through walls | Night Vision for the owner within 8 blocks | 16 blocks |
+| **Dig** | ore you mine near the wolf (50) | show it an ore/ingot: exposed matching ore within 12 blocks is revealed | 18 blocks | 24 blocks |
+| **Speak** | mobs that turn on you (20) | show it a mob drop: matching mobs within 24 blocks glow | 32 blocks | 48 blocks |
+
+**Tricks are trained, not fed.** Fangs eat a mob family; tricks have no family,
+so each is trained by the deed it resembles, and **only while the wolf is out and
+within 24 blocks** — the wolf has to be present for the lesson. See
+`Training.java`. Fetch's tally lives in `Fetch.java`, where retrievals are
+already counted; the kill-site sweep stays free and always-on, and the trick
+extends it to loose items in the world.
+
+**Dig and Speak are performed, not proc'd.** Both are used by **sneak +
+right-click on your own summoned wolf while holding the item**, which is never
+consumed. The rule underneath them: *Dig finds things by their material, Speak
+finds things by their scent.* Two constraints that are load-bearing:
+
+- **Sneak, not a plain right-click.** Plain right-click on a tamed wolf is
+  vanilla feeding, and rotten flesh — a Speak reagent — is wolf food.
+  Intercepting the plain click would silently break healing your wolf. Sneak +
+  empty hand is already mark-prey (§15.2), so sneak + item slots in beside it.
+- **Dig only reveals *exposed* ore** — a block with at least one face open to
+  air or another see-through block (`Tricks.isExposed`). A wolf that sniffs out
+  a seam you could walk to is a bloodhound; a wolf that sees through forty
+  blocks of stone is an X-ray cheat. Do not relax this check.
+
+Revealed **mobs** get vanilla Glowing, a true outline. Revealed **ore** gets
+`ParticleTypes.GLOW` pulsing on its exposed face instead: outlining a *block*
+server-side means spawning and syncing a display entity per ore, which is a lot
+of moving parts for a cosmetic — and marking the reachable face says something
+truer about what Dig selected for. Reveals last 10s, are capped at 32 blocks
+nearest-first, and a use costs a 2s cooldown (`Tricks.USE_COOLDOWN_TICKS`)
+because a tier III Dig scans a 49-block cube.
+
+**Ability state machine.** Each fang, per wolf, is in exactly one state. The
+per-fang record in the registry is `{ tier, attunedTier, fillKills, equipped }`:
 
 | State | Condition | Meaning |
 |---|---|---|
-| `HIDDEN` | family kills = 0 | Not shown in the UI at all — discovery is part of the game. |
-| `SCENTED` | 0 < family kills < 20 | Shown as a mystery row with progress: *"???  — something stirs (7/20)"*. Name revealed only on unlock. |
-| `UNLOCKED` | family kills ≥ 20 | `tier = 1`. Usable. |
-| `ATTUNED` | diamonds paid for tier n+1 | `attunedTier = n+1`, `fillKills` counts family kills since attunement. |
+| `HIDDEN` | progress = 0 | Not shown in the UI at all — discovery is part of the game. |
+| `SCENTED` | 0 < progress < unlock goal | Shown as a mystery row with progress: *"???  — something stirs (7/20)"*. Name revealed only on unlock. |
+| `UNLOCKED` | progress ≥ unlock goal | `tier = 1`. Usable. |
+| `ATTUNED` | diamonds paid for tier n+1 | `attunedTier = n+1`, `fillKills` counts progress since attunement. |
 | `FILLED` | `fillKills` ≥ requirement | `tier = attunedTier`, `fillKills` reset, state back to `UNLOCKED` at the new tier. |
 
 Rules the state machine enforces:
 
-- Family kills always count, whether or not the verb is equipped, whether or
-  not any tier is attuned. Nothing is ever wasted; only *fill* progress
+- Progress always counts — family kills for a fang, the trained deed for a
+  trick — whether or not it is equipped, whether or Nothing is ever wasted; only *fill* progress
   requires prior attunement.
-- Attunement requires: verb `UNLOCKED`, wolf level gate met (§18.1), tier
+- Attunement requires: fang `UNLOCKED`, wolf level gate met (§18.1), tier
   sequential (can't attune III before II is filled), diamonds in inventory.
 - Attunement is not refundable. Release (§16.5) deletes everything anyway.
 - Tier fills announce themselves: chat *"Emberfang burns hotter. Tier II."*
   (gold) + chime + journal line (*"Mastered the fire of fifty blazes."* — one
-  line per verb per tier, keyed so re-renders don't duplicate).
+  line per fang per tier, keyed so re-renders don't duplicate).
 - Unlock announces itself the same way: *"<name> has absorbed enough burning
   souls. Emberfang unlocked."* + journal *"Learned Emberfang from the
   Nether's flames."*
 
 ### 18.3 Slots, equipping, and the chat UI
 
-A wolf knows every verb it has unlocked, but only **equipped** verbs are
-active. Slots come from level (§18.1): 1 → 2 → 3. Swapping is free but only
-allowed while the wolf is **in the stone** — you set the loadout, then
-summon. Prevents mid-fight verb-juggling and keeps proc hooks static per
-outing.
+A wolf knows every ability it has unlocked, but only **equipped** ones are
+active. **Fangs and tricks have separate pools**: fang slots come from level
+(§18.1) at 1 → 2 → 3, trick slots are 2 rising to 3 at level 4. Swapping is free
+but only allowed while the wolf is **in the stone** — you set the loadout, then
+summon. Prevents mid-fight juggling and keeps proc hooks static per outing.
 
 **Command tree** (all under the existing `/spiritwolves` root; player-level
 permission except `admin`):
@@ -1097,11 +1162,12 @@ permission except `admin`):
 ```
 /spiritwolves
   info                      — wolf summary (name, level, souls, streak best,
-                              charges on held stone, equipped verbs)
-  verbs                     — the verb panel (below)
-  verbs equip <verbId>      — hidden; driven by click events
-  verbs unequip <verbId>    — hidden; driven by click events
-  verbs attune <verbId>     — hidden; driven by click events
+                              charges on held stone, one line per category)
+  fangs | tricks            — the ability panel (below); both open the same
+                              screen, so whichever word you reach for works
+  <either> equip <id>       — hidden; driven by click events
+  <either> unequip <id>     — hidden; driven by click events
+  <either> attune <id>      — hidden; driven by click events
   release                   — §16.5
   release confirm           — hidden; §16.5
   admin stone <player>      — give unbound stone (LEVEL_GAMEMASTERS)
@@ -1109,66 +1175,68 @@ permission except `admin`):
   admin souls <player> <n>  — grant souls, for testing (LEVEL_GAMEMASTERS)
 ```
 
-**The verb panel** — `/spiritwolves verbs` output, built from `Component`s
-with hover and click events exactly like `DailyCommands` does. Layout:
+**The ability panel** — `/spiritwolves fangs` or `/spiritwolves tricks` opens a
+server-side chest GUI (`AbilityGui`, sgui `GENERIC_9x6`), not the chat layout
+this spec originally described. Two rows, one per category, so the pool tradeoff
+is visible where it is made:
 
 ```
-─── Ghost — Level 3 · 207 souls · 2 slots ───          (gold, bold name)
-◆ Emberfang II   [unequip]   ▸ III: attune 16◆         (aqua; equipped verbs get ◆)
-     34/150 blaze kills toward Tier III                 (gray, only if attuned)
-◇ Venomfang I    [equip]     ▸ II: attune 4◆           (white; unequipped)
-◇ Bonechill I    [equip]     ▸ II: needs Level 2       (white; gate not met — no click)
-? ???            something stirs — 7/20                 (dark_gray; SCENTED row)
-Slots 2/2 — unequip a verb to swap.                    (gray footer, only when full)
+row 0        [4] Ghost — Level 3 · 207 souls · Fangs 2/2  Tricks 2/2
+row 1  [9] FANGS   [11..16] ◆ Emberfang II  ◇ Venomfang I  ◇ Bonechill I  ? ???
+row 3  [27] TRICKS [29..32] ◆ Fetch I  ◆ Shine I  ◇ Dig I  ? ???
+row 5                                                            [53] Close
 ```
 
 Rendering rules:
 
-- `[equip]` green, click runs `/spiritwolves verbs equip <id>`; hover shows
-  the verb's current-tier effect text.
-- `[unequip]` yellow, click runs the unequip command.
-- `attune n◆` aqua when affordable + gates met (click runs attune), gray with
-  a hover explaining the blocker otherwise (*"Requires Level 4"* / *"Requires
-  16 diamonds — you have 9"* / *"Fill Tier II first"*).
-- Hover on the verb name shows all three tier descriptions, with the current
-  tier highlighted and locked tiers gray — that is the whole "talent tree"
-  and it costs zero UI code beyond `HoverEvent`.
-- `HIDDEN` verbs render nothing. `SCENTED` rows show progress but not the
-  name or family — *"something stirs"* is deliberately vague; players work
-  out that killing more of whatever they were just killing reveals it.
-- If the wolf is summoned, `[equip]`/`[unequip]` render gray with hover
-  *"Recall your wolf to change its verbs."*
+- **Left-click** equips or sets aside; **right-click** attunes the next tier.
+  Every click re-validates server-side in `Abilities` and reopens the panel, so
+  a stale screen can never grant anything.
+- Equipped entries are aqua, bold, enchant-glowing, prefixed ◆; unequipped are
+  white with ◇.
+- Lore per entry: current tier effect, category + progress count, fill progress
+  when `ATTUNED`, and either the attune offer (aqua, with the diamond cost) or
+  the blocker (dark gray — *"Requires Level 4"*, *"Requires 16 diamonds — you
+  have 9"*, *"Fill Tier II first"*).
+- `HIDDEN` entries render as a barrier reading `???` / *"Something stirs..."*
+  with the progress count in near-black. `SCENTED` entries show the real icon
+  and name grayed with progress — the trail is visible once it has started.
+- The category label items (bone for Fangs, lead for Tricks) carry that pool's
+  *n/m carried* count, red when full.
+- While the wolf is summoned, equip attempts are rejected with *"Recall your
+  wolf to change its fangs/tricks."*
 
-**Attunement flow.** Click `attune` → re-validate everything server-side
-(never trust the rendered state — the panel may be minutes old): verb
-unlocked, level gate, sequential tier, diamond count via the same 36-slot
-inventory iteration `Tracker` uses. Remove diamonds with the standard
-shrink-in-place loop, `markDirty`, confirm: *"The diamonds crumble. Emberfang
-reaches for Tier II — feed it blazes."* (aqua) + chime. Then re-print the
-panel so the player sees the new state immediately. Every mutating
-subcommand ends by re-printing the panel — the panel *is* the UI, keep it
+**Attunement flow.** Right-click an entry → re-validate everything server-side
+(never trust the rendered state — the panel may be minutes old): ability
+unlocked, level gate, sequential tier, diamond count via the same whole-inventory
+iteration `Tracker` uses. Remove diamonds with the standard shrink-in-place loop,
+`markDirty`, confirm, chime, reopen. The confirmation splits by category, since
+"feed it ores mined nearby" is nonsense: a fang says *"The diamonds crumble.
+Emberfang reaches for Tier II — feed it blazes."*, a trick says *"... — keep
+working at it: ores mined nearby."* (`AbilityCommands.attuneMessage`). Every
+mutating action ends by reopening the panel — the panel *is* the UI, keep it
 current.
 
 ### 18.4 How the pieces interact
 
-- **Killstreak (§15.7) stacks on top.** The streak is per-outing spice; verbs
-  are the permanent build. A maxed streak on a verb-equipped wolf is the
+- **Killstreak (§15.7) stacks on top.** The streak is per-outing spice; fangs
+  are the permanent build. A maxed streak on a fang-equipped wolf is the
   ceiling case to balance-test.
 - **Kill attribution is shared.** `WolfKill` already dispatches to `Streak`
   and `Fetch`; `Souls` becomes the third consumer. One hook, three listeners.
-- **Death-saves don't touch progression.** Souls and verbs never reset —
+- **Death-saves don't touch progression.** Souls and fangs never reset —
   losing charges is the stone's problem, not the wolf's.
 - **Release (§16) destroys progression.** Releasing the wolf deletes the
-  registry record, souls and verbs included. This is what makes release a real
+  registry record, souls and fangs included. This is what makes release a real
   decision and old wolves genuinely precious.
 - **Scale (§15.3/§15.7).** Killstreak keeps driving the in-outing swell. If a
   permanent baseline is wanted later, level could add a small resting scale
   (+0.02/level, inside the ±0.15 budget) — optional, decide at build time.
-- **Proc implementation.** Verb procs hook `ServerLivingEntityEvents`
+- **Proc implementation.** Fang procs hook `ServerLivingEntityEvents`
   damage/death events filtering on `damageSource.getEntity()` being the
   tracked wolf — same attribution pattern as `WolfKill`. **Verify** that the
   Fabric `ALLOW_DAMAGE` or `AFTER_DAMAGE` event exists in the pinned Fabric
-  API version for on-hit (not just on-kill) procs; if not, on-hit verbs
+  API version for on-hit (not just on-kill) procs; if not, on-hit fangs
   (Bonechill, Ravenous II) may need the damage event from a newer Fabric API
   or a redesign to on-kill triggers.
 
@@ -1177,34 +1245,34 @@ current.
 | Case | Behaviour |
 |---|---|
 | Kill by wild (unbound) wolf | Ignored — same `isTame()` pre-filter `Fetch` uses. |
-| Kill while verb fill not attuned | Family kill count still increments (it always does); fill progress doesn't. |
+| Kill while fang fill not attuned | Family kill count still increments (it always does); fill progress doesn't. |
 | Souls overflow | `long`. A player would need 9 quintillion kills. Not a case. |
 | Attune click with panel stale (already attuned / diamonds spent) | Server-side re-validation catches it; message explains; panel re-printed. |
-| Equip click while wolf summoned | Reject: *"Recall your wolf to change its verbs."* |
-| Equip beyond slot count | Reject: *"No free verb slots. Unequip one first."* |
-| Verb equipped, then level requirements change in a later balance patch | Equipped verbs are never force-unequipped; gates apply at attune/equip time only. |
-| True death / release | Registry record deleted (§16) — souls, verbs, everything. No partial refunds. |
+| Equip click while wolf summoned | Reject: *"Recall your wolf to change its fangs."* |
+| Equip beyond slot count | Reject: *"No free fang slots. Unequip one first."* |
+| Fang equipped, then level requirements change in a later balance patch | Equipped fangs are never force-unequipped; gates apply at attune/equip time only. |
+| True death / release | Registry record deleted (§16) — souls, fangs, everything. No partial refunds. |
 | Two family-listed mobs killed by one sweep (e.g. TNT assist) | Only kills attributed to the wolf via `damageSource.getEntity()` count — same rule as streak/fetch, no new logic. |
-| Mob family lists | Constants in `Verbs.java` as `Set<EntityType<?>>`. Strays count for Bonechill, husks/drowned for Ravenous — the tables in §18.2 are authoritative. |
+| Mob family lists | Constants in `Abilities.java` as `Set<EntityType<?>>`. Strays count for Bonechill, husks/drowned for Ravenous — the tables in §18.2 are authoritative. |
 
 ### 18.6 Message strings — canonical
 
 | Event | Message | Style |
 |---|---|---|
-| Verb unlocked | *"<name> has absorbed enough <flavor> souls. <Verb> unlocked."* | gold |
-| Tier attuned | *"The diamonds crumble. <Verb> reaches for Tier <n> — feed it <family>."* | aqua |
-| Tier filled | *"<Verb> <flavor-verb>. Tier <n>."* (e.g. *"Emberfang burns hotter. Tier II."*) | gold |
+| Fang unlocked | *"<name> has absorbed enough <flavor> souls. <Fang> unlocked."* | gold |
+| Tier attuned | *"The diamonds crumble. <Fang> reaches for Tier <n> — feed it <family>."* | aqua |
+| Tier filled | *"<Fang> <flavor-fang>. Tier <n>."* (e.g. *"Emberfang burns hotter. Tier II."*) | gold |
 | Level up | *"<name> has grown. Level <n> — <what it grants>."* | gold |
-| Equip | *"<Verb> equipped."* | green |
-| Unequip | *"<Verb> set aside."* | gray |
-| Equip, no slots | *"No free verb slots. Unequip one first."* | red |
-| Equip/unequip while summoned | *"Recall your wolf to change its verbs."* | red |
+| Equip | *"<Fang> equipped."* | green |
+| Unequip | *"<Fang> set aside."* | gray |
+| Equip, no slots | *"No free fang slots. Unequip one first."* | red |
+| Equip/unequip while summoned | *"Recall your wolf to change its fangs."* | red |
 | Attune, not enough diamonds | *"Requires <n> diamonds — you have <m>."* | red |
 | Attune, level gate | *"Requires Level <n>."* | red |
 | Attune, previous tier unfilled | *"Fill Tier <n> first."* | red |
 
-Per-verb flavor words (unlock line + fill line) live next to the verb
-definitions in `Verbs.java` so adding a verb is one table row, not a hunt
+Per-fang flavor words (unlock line + fill line) live next to the fang
+definitions in `Abilities.java` so adding an ability is one table row, not a hunt
 through message code.
 
 ### 18.7 Module layout (new code)
@@ -1212,19 +1280,22 @@ through message code.
 | File | Owns |
 |---|---|
 | `Souls.java` | Soul values table, level thresholds, `levelFor`, level-up detection + UX. Registered as a `WolfKill` listener. |
-| `Verbs.java` | Verb definitions (id, family set, tier effects, costs, flavor strings), state machine transitions, unlock/fill detection. Also a `WolfKill` listener. |
-| `VerbProcs.java` | The combat hooks: on-hit/on-kill effect application for equipped verbs. Reads equipped state from the registry once per summon, caches per wolf UUID, invalidates on recall. |
-| `VerbCommands.java` | The `/spiritwolves verbs` panel and its hidden subcommands. Kept out of `SpiritCommands` — the panel rendering is big enough to own a file. |
+| `Abilities.java` | Ability definitions for both categories (id, category, family set or training deed, tier effects, costs, flavor strings), state machine transitions, unlock/fill detection, per-pool slot validation. Also a `WolfKill` listener. |
+| `Tricks.java` | Dig and Speak: the sneak+item interaction, the exposed-ore scan, the mob scan, reveal upkeep, and the wolf's sniff/bark. |
+| `Training.java` | How tricks are trained: ore mined nearby (Dig), lights placed nearby (Shine), mobs that turn on you (Speak). Fetch is counted in `Fetch.java`. |
+| `AbilityProcs.java` | The combat hooks: on-hit/on-kill effect application for equipped fangs. Reads equipped state from the registry once per summon, caches per wolf UUID, invalidates on recall. |
+| `AbilityCommands.java` | The `/spiritwolves fangs` and `/spiritwolves tricks` literals and their hidden subcommands. Kept out of `SpiritCommands`. |
+| `AbilityGui.java` | The two-row chest panel itself (sgui). |
 
 ### 18.8 Build order
 
 1. §16 registry first — everything here persists in it.
 2. `Souls.java` (kill values, level thresholds, level-up UX) + registry
    fields.
-3. `Verbs.java` (definitions, state machine, unlock/fill detection).
-4. `VerbCommands.java` — the panel, equip/unequip/attune.
-5. `VerbProcs.java`, one verb at a time — Emberfang first (simplest:
-   on-kill/on-hit ignite), Blinkstrike last (positional logic).
+3. `Abilities.java` (definitions, state machine, unlock/fill detection).
+4. `AbilityCommands.java` + `AbilityGui.java` — the panel, equip/unequip/attune.
+5. `AbilityProcs.java`, one fang at a time — Emberfang first (simplest:
+   on-kill/on-hit ignite), Voidfang last (positional logic).
 6. Balance pass with killstreak stacking.
 
 ### 18.9 v4 definition of done
@@ -1232,22 +1303,22 @@ through message code.
 - [x] `./gradlew build` clean; jar in `dist/`
 - [x] Souls accrue per the §18.1 table; level derived, never stored
 - [x] Level-ups announce + journal + chime at exact thresholds
-- [x] Verb states progress HIDDEN → SCENTED → UNLOCKED → ATTUNED → FILLED
+- [x] Fang states progress HIDDEN → SCENTED → UNLOCKED → ATTUNED → FILLED
       with family kills counting at all times
 - [x] Attune validates level gate, sequential tier, diamond count
       server-side; removes diamonds correctly from 36-slot inventory
 - [x] Panel renders all states per §18.3 including hover text, stale-click
       safety, and re-print after every mutation
 - [x] Equip/unequip only while wolf is in the stone; slot limits enforced
-- [x] All six verbs proc correctly at all three tiers; effects match §18.2
-      (Blinkstrike III uses a nearest-monster fallback rather than reading
+- [x] All six fangs proc correctly at all three tiers; effects match §18.2
+      (Voidfang III uses a nearest-monster fallback rather than reading
       Senses' marked-prey target, since that reference isn't persisted --
-      documented simplification, not a gap in the other five verbs)
-- [x] Procs use transient state only — nothing verb-related leaks into
+      documented simplification, not a gap in the other five fangs)
+- [x] Procs use transient state only — nothing fang-related leaks into
       `wolfTag` via capture (fire ticks, effects on the wolf itself are
       acceptable NBT noise; attribute modifiers must stay transient like
       §15.7's)
-- [ ] Killstreak + verbs stack without conflict (both apply, ceiling case
+- [ ] Killstreak + fangs stack without conflict (both apply, ceiling case
       play-tested) -- implemented (independent systems, no shared state) but
       not yet play-tested in a running server
 - [ ] All §18.6 message strings as written

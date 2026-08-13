@@ -1,6 +1,8 @@
 package bounties;
 
 import bounties.core.AcceptedBounty;
+import bounties.core.Board;
+import bounties.core.BountyDefinition;
 import bounties.core.BountyMath;
 import bounties.core.Completed;
 import bounties.core.PlayerBounties;
@@ -12,7 +14,9 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import org.slf4j.Logger;
@@ -35,6 +39,7 @@ public final class BountyMod implements ModInitializer {
     private static BountyState state;
 
     private long lastWindow = Long.MIN_VALUE;
+    private Board lastBoard;
 
     @Override
     public void onInitialize() {
@@ -57,13 +62,25 @@ public final class BountyMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             long now = System.currentTimeMillis();
             long window = BountyMath.windowIndex(now);
+            Board board = BountyMath.boardAt(config.pool(), now);
             if (lastWindow != Long.MIN_VALUE && window != lastWindow) {
-                server.getPlayerList().broadcastSystemMessage(
-                        Component.literal("A new bounty is available on the bounty board!")
-                                .withStyle(ChatFormatting.GOLD),
-                        false);
+                BountyDefinition changed = null;
+                if (lastBoard != null) {
+                    if (board.slot1() != lastBoard.slot1()) {
+                        changed = board.slot1();
+                    } else if (board.slot2() != lastBoard.slot2()) {
+                        changed = board.slot2();
+                    }
+                }
+                if (changed == null) {
+                    changed = board.slot1() != null ? board.slot1() : board.slot2();
+                }
+                if (changed != null) {
+                    server.getPlayerList().broadcastSystemMessage(announce(changed), false);
+                }
             }
             lastWindow = window;
+            lastBoard = board;
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
@@ -114,6 +131,22 @@ public final class BountyMod implements ModInitializer {
         BountyCommands.register(config, state);
 
         LOG.info("Bounties initialised (server-side only)");
+    }
+
+    private static Component announce(BountyDefinition def) {
+        return Component.literal("A new bounty has rotated onto the board: ")
+                .withStyle(ChatFormatting.GOLD)
+                .append(Component.literal(def.displayDescription())
+                        .withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" (" + def.rewardDiamonds() + " diamond"
+                                + (def.rewardDiamonds() == 1 ? "" : "s") + ")  ")
+                        .withStyle(ChatFormatting.AQUA))
+                .append(Component.literal("[ View board ]")
+                        .withStyle(style -> style
+                                .withColor(ChatFormatting.GREEN)
+                                .withClickEvent(new ClickEvent.RunCommand("/bounty"))
+                                .withHoverEvent(new HoverEvent.ShowText(
+                                        Component.literal("Click to open the bounty board")))));
     }
 
     public static BountyConfig config() {

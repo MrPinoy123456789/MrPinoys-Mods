@@ -31,8 +31,23 @@ public final class WondrousMod implements ModInitializer {
         registry = new ItemRegistry();
         WondrousItems.Holder.set(registry);
 
+        Aura.register();
+        WondrousState.register();
+        new CraftStation(registry).register();
+        new LinkWand().register();
+        new CarryGlove().register();
         FlyingBoots.register();
         Stations.register(registry);
+        PeekBox.register(registry);
+        VoidBin.register(registry);
+        RecipeGuard.register();
+        ChuckIt.register(registry);
+        TidyUp.register(registry);
+        BigLazyHoe.register(registry);
+        Growth.register(registry);
+        Mortar.register(registry);
+        Restock.register();
+        AuraEffects.register();
         AreaBreak.register(registry);
         BoomerangBall.register();
         WondrousCommands.register(registry);

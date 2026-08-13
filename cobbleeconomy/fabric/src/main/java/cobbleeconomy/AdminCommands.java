@@ -76,6 +76,7 @@ public final class AdminCommands {
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy set <player> <amount> <currency>", "Set a balance"), false);
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy add <player> <amount> <currency>", "Add to a balance"), false);
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy remove <player> <amount> <currency>", "Remove from a balance"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy shop edit", "Edit the shop in a menu"), false);
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy shop list", "List all shop entries"), false);
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy shop reload", "Reload shop.json"), false);
                     source.sendSuccess(() -> Messages.helpLine("/cobbleeconomy shop add <key> <item> <qty> <price> <currency>", "Add a shop entry"), false);
@@ -98,6 +99,7 @@ public final class AdminCommands {
                         .then(playerArg().then(amountArg().then(currencyArg()
                                 .executes(ctx -> apply(ctx, Op.REMOVE))))))
                 .then(Commands.literal("shop")
+                        .then(Commands.literal("edit").executes(this::shopEdit))
                         .then(Commands.literal("list").executes(this::shopList))
                         .then(Commands.literal("reload").executes(this::shopReload))
                         .then(Commands.literal("remove")
@@ -241,6 +243,22 @@ public final class AdminCommands {
     }
 
     // ---- /cobbleeconomy shop ------------------------------------------------
+
+    /**
+     * The whole of {@code shop.json} as a menu. Needs a player, because it is a screen --
+     * console keeps the chat commands below, which do the same things through the same
+     * catalog and the same {@link ShopConfig#save}.
+     */
+    private int shopEdit(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            source.sendFailure(Messages.bad("The shop editor is a screen -- run it as a player."));
+            source.sendFailure(Messages.body("From console, use /cobbleeconomy shop list."));
+            return 0;
+        }
+        ShopAdminMenu.open(player, catalog, shopConfig, currencies, log);
+        return 1;
+    }
 
     private int shopList(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();

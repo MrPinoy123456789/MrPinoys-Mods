@@ -1,0 +1,13 @@
+{
+  "rolloverHourUtc": 0,
+  "streakDiamondCap": 3,
+  "announceOnJoin": true,
+  "streakRewards": [
+    {"day": 1, "diamonds": 3},
+    {"day": 7, "diamonds": 5},
+    {"day": 14, "diamonds": 8},
+    {"day": 30, "diamonds": 12}
+  ],
+  "milestones": [7, 14],
+  "streakGraceDays": 7
+}

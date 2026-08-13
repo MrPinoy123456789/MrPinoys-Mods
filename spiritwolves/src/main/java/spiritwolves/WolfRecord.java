@@ -11,8 +11,8 @@ import java.util.UUID;
 
 /**
  * The full state of one player's spirit wolf -- everything that used to live
- * on the stone, plus the v4 soul/verb progression. Mutable by design: this is
- * mutated constantly by binding, summoning, combat, and the verb commands.
+ * on the stone, plus the v4 soul/ability progression. Mutable by design: this is
+ * mutated constantly by binding, summoning, combat, and the ability commands.
  * See SPEC.md section 16.1 for the schema this mirrors.
  */
 final class WolfRecord {
@@ -29,7 +29,7 @@ final class WolfRecord {
     final List<JournalEntry> journal = new ArrayList<>();
     long souls;
     final Map<String, Integer> familyKills = new HashMap<>();
-    final Map<String, VerbRecord> verbs = new HashMap<>();
+    final Map<String, AbilityRecord> abilities = new HashMap<>();
 
     static final class JournalEntry {
         String k;
@@ -41,7 +41,7 @@ final class WolfRecord {
         }
     }
 
-    static final class VerbRecord {
+    static final class AbilityRecord {
         int tier;
         int attunedTier;
         int fillKills;
@@ -76,8 +76,8 @@ final class WolfRecord {
         return out;
     }
 
-    VerbRecord verb(String id) {
-        return verbs.computeIfAbsent(id, k -> new VerbRecord());
+    AbilityRecord ability(String id) {
+        return abilities.computeIfAbsent(id, k -> new AbilityRecord());
     }
 
     CompoundTag toTag() {
@@ -112,17 +112,17 @@ final class WolfRecord {
         }
         tag.put("familyKills", familyKillsTag);
 
-        CompoundTag verbsTag = new CompoundTag();
-        for (Map.Entry<String, VerbRecord> entry : verbs.entrySet()) {
-            CompoundTag verbTag = new CompoundTag();
-            VerbRecord verb = entry.getValue();
-            verbTag.putInt("tier", verb.tier);
-            verbTag.putInt("attunedTier", verb.attunedTier);
-            verbTag.putInt("fillKills", verb.fillKills);
-            verbTag.putBoolean("equipped", verb.equipped);
-            verbsTag.put(entry.getKey(), verbTag);
+        CompoundTag abilitiesTag = new CompoundTag();
+        for (Map.Entry<String, AbilityRecord> entry : abilities.entrySet()) {
+            CompoundTag abilityTag = new CompoundTag();
+            AbilityRecord ability = entry.getValue();
+            abilityTag.putInt("tier", ability.tier);
+            abilityTag.putInt("attunedTier", ability.attunedTier);
+            abilityTag.putInt("fillKills", ability.fillKills);
+            abilityTag.putBoolean("equipped", ability.equipped);
+            abilitiesTag.put(entry.getKey(), abilityTag);
         }
-        tag.put("verbs", verbsTag);
+        tag.put("abilities", abilitiesTag);
 
         return tag;
     }
@@ -146,26 +146,93 @@ final class WolfRecord {
             String k = entryTag.getStringOr("k", "");
             String t = entryTag.getStringOr("t", "");
             if (!k.isBlank()) {
-                rec.journal.add(new JournalEntry(k, t));
+                rec.journal.add(new JournalEntry(migrateKey(k), migrateText(t)));
             }
         }
 
         CompoundTag familyKillsTag = tag.getCompoundOrEmpty("familyKills");
         for (String key : familyKillsTag.keySet()) {
-            rec.familyKills.put(key, familyKillsTag.getIntOr(key, 0));
+            rec.familyKills.put(migrateId(key), familyKillsTag.getIntOr(key, 0));
         }
 
-        CompoundTag verbsTag = tag.getCompoundOrEmpty("verbs");
-        for (String key : verbsTag.keySet()) {
-            CompoundTag verbTag = verbsTag.getCompoundOrEmpty(key);
-            VerbRecord verb = new VerbRecord();
-            verb.tier = verbTag.getIntOr("tier", 0);
-            verb.attunedTier = verbTag.getIntOr("attunedTier", 0);
-            verb.fillKills = verbTag.getIntOr("fillKills", 0);
-            verb.equipped = verbTag.getBooleanOr("equipped", false);
-            rec.verbs.put(key, verb);
+        // "abilities" is the current key; "fangs" and before that "verbs" are the
+        // older ones. Read whichever is present so a wolf saved before either
+        // rename keeps its tiers, attunements, and fill progress.
+        CompoundTag abilitiesTag = firstPresent(tag, "abilities", "fangs", "verbs");
+        for (String key : abilitiesTag.keySet()) {
+            String id = migrateId(key);
+            // Drop abilities that no longer exist (e.g. the removed "predator").
+            // An orphan record is invisible in the GUI but would still count
+            // against the equipped-slot limit in Abilities.canEquip.
+            if (Abilities.byId(id) == null) {
+                continue;
+            }
+            CompoundTag abilityTag = abilitiesTag.getCompoundOrEmpty(key);
+            AbilityRecord ability = new AbilityRecord();
+            ability.tier = abilityTag.getIntOr("tier", 0);
+            ability.attunedTier = abilityTag.getIntOr("attunedTier", 0);
+            ability.fillKills = abilityTag.getIntOr("fillKills", 0);
+            ability.equipped = abilityTag.getBooleanOr("equipped", false);
+            rec.abilities.put(id, ability);
         }
 
         return rec;
+    }
+
+    // ---- save migration ------------------------------------------------------
+    // The §18 progression system has been renamed twice: "verbs" -> "fangs" ->
+    // "abilities" (now split into the Fang and Trick categories). Individual
+    // abilities were renamed with it, and "predator" was deleted. Everything
+    // below rewrites old saves on load; new saves only ever contain current
+    // names, so this is pure read-side compatibility. Delete it once no world
+    // predating the renames is still in play.
+
+    private static CompoundTag firstPresent(CompoundTag tag, String... keys) {
+        for (String key : keys) {
+            CompoundTag found = tag.getCompoundOrEmpty(key);
+            if (!found.isEmpty()) {
+                return found;
+            }
+        }
+        return new CompoundTag();
+    }
+
+    private static String migrateId(String id) {
+        return switch (id) {
+            case "witherbite" -> "witherfang";
+            case "blinkstrike" -> "voidfang";
+            case "scavenger" -> "fetch";
+            case "light" -> "shine";
+            default -> id;
+        };
+    }
+
+    /**
+     * Journal keys are {@code <id>_unlock} / {@code <id>_tier<n>}. They used to
+     * carry a {@code verb_} and later a {@code fang_} prefix; strip either, and
+     * migrate the id that follows it.
+     */
+    private static String migrateKey(String key) {
+        String rest;
+        if (key.startsWith("verb_")) {
+            rest = key.substring("verb_".length());
+        } else if (key.startsWith("fang_")) {
+            rest = key.substring("fang_".length());
+        } else {
+            return key;
+        }
+        int underscore = rest.indexOf('_');
+        if (underscore < 0) {
+            return migrateId(rest);
+        }
+        return migrateId(rest.substring(0, underscore)) + rest.substring(underscore);
+    }
+
+    /** Journal text bakes in the display name at the moment it was earned. */
+    private static String migrateText(String text) {
+        return text.replace("Witherbite", "Witherfang")
+                .replace("Blinkstrike", "Voidfang")
+                .replace("Scavenger", "Fetch")
+                .replace("Learned Light", "Learned Shine");
     }
 }

@@ -13,7 +13,7 @@ import java.util.List;
  */
 public final class PlayerBounties {
 
-    public static final int MAX_HELD = 3;
+    public static final int DEFAULT_MAX_HELD = 3;
 
     private final List<AcceptedBounty> held;
 
@@ -33,14 +33,18 @@ public final class PlayerBounties {
         return held.size();
     }
 
-    public boolean isFull() {
-        return held.size() >= MAX_HELD;
+    public boolean isFull(int maxHeld) {
+        return held.size() >= maxHeld;
     }
 
     public AcceptResult accept(BountyDefinition definition, long acceptedAt) {
-        if (isFull()) {
+        return accept(definition, acceptedAt, DEFAULT_MAX_HELD);
+    }
+
+    public AcceptResult accept(BountyDefinition definition, long acceptedAt, int maxHeld) {
+        if (isFull(maxHeld)) {
             return new AcceptResult(false, this,
-                    "You already hold " + MAX_HELD + " bounties. Abandon one first.");
+                    "You already hold " + maxHeld + " bounties. Abandon one first.");
         }
         List<AcceptedBounty> next = new ArrayList<>(held);
         next.add(new AcceptedBounty(definition, 0, acceptedAt));

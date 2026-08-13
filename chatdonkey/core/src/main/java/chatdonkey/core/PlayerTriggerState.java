@@ -20,6 +20,7 @@ public final class PlayerTriggerState {
     private long graceUntil = NEVER;
     private long lastDamagedAt = NEVER;
     private boolean inEvent;
+    private boolean optedIn;
 
     public PlayerTriggerState(long sessionStartedAt) {
         this.sessionStartedAt = sessionStartedAt;
@@ -72,6 +73,22 @@ public final class PlayerTriggerState {
 
     public boolean tookDamageWithin(long now, int seconds) {
         return lastDamagedAt != NEVER && now - lastDamagedAt < seconds * 1000L;
+    }
+
+    public boolean optedIn() {
+        return optedIn;
+    }
+
+    /**
+     * Whether this player has signed up for random events (SPEC.md section 7).
+     *
+     * <p>Unlike everything else on this class, the answer is not owned here --
+     * it is a persisted roster the fabric side refreshes onto the state each
+     * poll, so an opt-out takes effect on the next check rather than on the
+     * next login, and the rules stay a pure function of one struct.
+     */
+    public void setOptedIn(boolean optedIn) {
+        this.optedIn = optedIn;
     }
 
     public long graceUntil() {

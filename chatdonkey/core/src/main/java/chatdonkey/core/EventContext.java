@@ -122,6 +122,9 @@ public interface EventContext {
     /** The configured line pools, including any per-event override. */
     LinePools lines();
 
-    /** The event's RNG. Seeded in tests, plain {@code Random} in play. */
+    /** The event's RNG. Seeded in tests, plain {@link Random} in play. */
     Random random();
+
+    /** Chance that a 'during' line is pulled from the shared herald pool. */
+    double heraldChance();
 }

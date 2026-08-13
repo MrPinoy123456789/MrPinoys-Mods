@@ -1,0 +1,5 @@
+{
+  "rolloverHourUtc": 0,
+  "streakDiamondCap": 3,
+  "announceOnJoin": true
+}

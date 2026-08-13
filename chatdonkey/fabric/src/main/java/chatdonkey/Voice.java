@@ -1,8 +1,10 @@
 package chatdonkey;
 
 import chatdonkey.core.Animalese;
+import net.minecraft.core.Holder;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
@@ -18,16 +20,32 @@ import java.util.UUID;
  * "say" as it takes to read -- which is the entire trick behind Animal
  * Crossing's dialogue.
  *
- * <p>{@code NOTE_BLOCK_BIT} is the square-wave chiptune voice and is by far the
- * closest vanilla sound to animalese. Each blip goes down each listener's own
- * connection at their own position, per the suite's per-player sound rule
- * (DESIGN.md section 4.8), so the volume is the same for everyone who was sent
- * the line rather than fading out for whoever stood furthest away.
+ * <p>{@code EXPERIENCE_ORB_PICKUP} is the blip. It is a short, bright, already
+ * slightly vocal "bup" that everyone who plays Minecraft has heard ten thousand
+ * times, which is exactly why it works here: a voice made of it is instantly
+ * legible as chatter rather than as a tune. It also takes pitch cleanly across
+ * the whole 0.5-2.0 band, so {@link Animalese}'s per-donkey base pitch still
+ * tells Duncan apart from Persimmon.
+ *
+ * <p>Each blip goes down each listener's own connection at their own position,
+ * per the suite's per-player sound rule (DESIGN.md section 4.8), so the volume
+ * is the same for everyone who was sent the line rather than fading out for
+ * whoever stood furthest away.
  */
 public final class Voice {
 
+    /**
+     * The blip itself.
+     *
+     * <p>Held once rather than wrapped per packet: unlike the note-block events,
+     * {@code EXPERIENCE_ORB_PICKUP} is a bare {@code SoundEvent} rather than a
+     * registry holder, and a talkative donkey sends one of these every tick.
+     */
+    private static final Holder<SoundEvent> BLIP =
+            Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP);
+
     /** Quiet enough to talk over, loud enough to be the point. */
-    private static final float VOLUME = 0.25f;
+    private static final float VOLUME = 0.08f;
 
     private final List<Utterance> speaking = new ArrayList<>();
 
@@ -106,7 +124,7 @@ public final class Voice {
                     continue;
                 }
                 listener.connection.send(new ClientboundSoundPacket(
-                        SoundEvents.NOTE_BLOCK_BIT, SoundSource.RECORDS,
+                        BLIP, SoundSource.RECORDS,
                         listener.getX(), listener.getY(), listener.getZ(),
                         VOLUME, pitch, listener.getRandom().nextLong()));
             }

@@ -74,6 +74,11 @@ public final class NameCache {
         return Optional.ofNullable(byName.get(name.toLowerCase(Locale.ROOT)));
     }
 
+    /** True if this server has already seen the UUID. */
+    public boolean knows(UUID id) {
+        return byId.containsKey(id);
+    }
+
     /** Last-seen name for a UUID, falling back to the UUID itself for display. */
     public String nameOf(UUID id) {
         String name = byId.get(id);

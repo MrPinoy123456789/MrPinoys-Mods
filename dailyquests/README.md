@@ -35,7 +35,7 @@ Generated at `config/dailyquests/` on first boot.
 how many, and the answer text shown only *after* a successful turn-in.
 
     { "riddle": "I am gold that no furnace made...", "item": "minecraft:wheat",
-      "count": 30, "answer": "Wheat" }
+      "count": 16, "answer": "Wheat" }
 
 Extra keys in older `quests.json` files are ignored by Gson, so old configs load
 without migration.
@@ -43,7 +43,11 @@ without migration.
 `settings.json`
 
     rolloverHourUtc     hour of the UTC day a new riddle appears (0-23)
-    streakDiamondCap    most diamonds a streak pays; the streak keeps counting past it
+    streakRewards       ladder of {day, diamonds}; the highest rung at or below your
+                        streak is what it pays
+    streakDiamondCap    legacy flat cap, used only when streakRewards is absent
+    streakGraceDays     how long a streak survives without a turn-in (default 7)
+    milestones          streak days that broadcast to the server
     announceOnJoin      show the riddle to players as they log in
 
 `state.json` — per-player streaks. Keyed by UUID, written atomically. The only
@@ -55,14 +59,17 @@ Today's quest is derived from the date rather than chosen at random, so a restar
 mid-day cannot change the riddle. Completion is a date comparison rather than a
 stored flag, so there is nothing to reset at rollover.
 
-Streak pays one diamond per consecutive day, capped at three. A gap of more than a
-day resets it to one.
+A streak counts turn-ins, not consecutive days. It survives a gap of up to
+`streakGraceDays` — a week by default — so missing a night does not cost a month of
+history, but going away entirely still does. The ladder pays 3 diamonds from day one,
+rising to 12 at day thirty.
 
 The riddle is the whole puzzle — there is no answer to type, because turning in the
 right item *is* the answer. A player who already knows the item just solved it faster.
 
 ## Untested
 
-This has been written but never compiled or run. The registry lookup in
-`TurnIn.lookup()` is the most likely thing to need a fix, since that method has
-been renamed between versions before; it is isolated for exactly that reason.
+This builds clean as of 2026-08-08, but it has **never been verified with
+players on a live server** — which is T7. The registry lookup in `TurnIn.lookup()`
+is the most likely thing to need a fix if it breaks; it is isolated for exactly
+that reason.

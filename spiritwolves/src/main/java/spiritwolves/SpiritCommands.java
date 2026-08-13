@@ -17,8 +17,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@code /spiritwolves} -- info, release, verb management (delegated to
- * {@link VerbCommands}), and admin helpers. SPEC.md sections 16.5, 16.8, 18.3.
+ * {@code /spiritwolves} -- info, release, fang management (delegated to
+ * {@link AbilityCommands}), and admin helpers. SPEC.md sections 16.5, 16.8, 18.3.
  */
 public final class SpiritCommands {
 
@@ -36,7 +36,8 @@ public final class SpiritCommands {
                         .then(Commands.literal("info")
                                 .executes(ctx -> info(ctx.getSource().getPlayerOrException())))
 
-                        .then(VerbCommands.build())
+                        .then(AbilityCommands.buildFangs())
+                        .then(AbilityCommands.buildTricks())
 
                         .then(Commands.literal("release")
                                 .executes(ctx -> releasePrompt(ctx.getSource().getPlayerOrException()))
@@ -117,19 +118,8 @@ public final class SpiritCommands {
             }
         }
 
-        StringBuilder equipped = new StringBuilder();
-        for (Verbs.Verb verb : Verbs.ALL) {
-            WolfRecord.VerbRecord verbRecord = record.verbs.get(verb.id());
-            if (verbRecord != null && verbRecord.equipped) {
-                if (equipped.length() > 0) {
-                    equipped.append(", ");
-                }
-                equipped.append(verb.displayName()).append(' ').append(Verbs.roman(verbRecord.tier));
-            }
-        }
-        player.sendSystemMessage(Component.literal(
-                        "Verbs: " + (equipped.length() == 0 ? "none equipped" : equipped))
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        reportEquipped(player, record, Abilities.Category.FANG, Abilities.FANGS);
+        reportEquipped(player, record, Abilities.Category.TRICK, Abilities.TRICKS);
 
         // The journal can outgrow the lore's six-line cap -- info prints all of it.
         for (String entry : record.journalLines()) {
@@ -137,6 +127,26 @@ public final class SpiritCommands {
                     .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC));
         }
         return 1;
+    }
+
+    /** One line per category: what the wolf is carrying, and out of how many slots. */
+    private static void reportEquipped(ServerPlayer player, WolfRecord record,
+                                       Abilities.Category category, java.util.List<Abilities.Ability> pool) {
+        StringBuilder equipped = new StringBuilder();
+        for (Abilities.Ability ability : pool) {
+            WolfRecord.AbilityRecord ar = record.abilities.get(ability.id());
+            if (ar != null && ar.equipped) {
+                if (equipped.length() > 0) {
+                    equipped.append(", ");
+                }
+                equipped.append(ability.displayName()).append(' ').append(Abilities.roman(ar.tier));
+            }
+        }
+        int slots = Abilities.slotsFor(record, category);
+        player.sendSystemMessage(Component.literal(category.plural + " ("
+                        + Abilities.equippedCount(record, category) + "/" + slots + "): "
+                        + (equipped.length() == 0 ? "none carried" : equipped))
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
     }
 
     /** The streak of the wolf this player has out, or 0 if it isn't out. */
@@ -204,7 +214,7 @@ public final class SpiritCommands {
             if (wolf != null) {
                 UUID wolfUuid = wolf.getUUID();
                 Streak.forget(wolfUuid);
-                VerbProcs.forget(wolfUuid);
+                AbilityProcs.forget(wolfUuid);
                 RecallLock.forget(wolfUuid);
                 Senses.forget(wolfUuid);
                 wolf.discard();
@@ -241,7 +251,7 @@ public final class SpiritCommands {
             if (wolf != null) {
                 UUID wolfUuid = wolf.getUUID();
                 Streak.forget(wolfUuid);
-                VerbProcs.forget(wolfUuid);
+                AbilityProcs.forget(wolfUuid);
                 RecallLock.forget(wolfUuid);
                 Senses.forget(wolfUuid);
                 wolf.discard();

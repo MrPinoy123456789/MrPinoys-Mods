@@ -41,7 +41,10 @@ Expect `353 tests, 0 failed`.
 
 ## Commands
 
-All operator-gated.
+Two player commands, everything else operator-gated.
+
+    /donkey optin                               agree to be bothered by donkeys
+    /donkey optout                              stop being bothered, and dismiss any donkey you have
 
     /donkey trigger [player] [event] [seconds]   force an event now, ignoring cooldowns
     /donkey end [player]                        end an event, no gift, no cooldown
@@ -176,10 +179,28 @@ edit are kept exactly as written.
 
 `/donkey reload` re-reads all three without a restart.
 
+`optin.json` — the roster of players who have run `/donkey optin`, written the
+moment it changes. It is the one file here that must survive a restart:
+forgetting a cooldown costs one extra joke, forgetting consent is a different
+kind of mistake. Delete it to clear the roster; nobody is on it to begin with.
+
+## Opting in
+
+Random events only pick players who have run `/donkey optin`. Everyone else is
+invisible to the trigger loop, and is told once per login that the command
+exists. `/donkey optout` takes them back off the list and sends away the donkey
+they already have, with no gift and no cooldown.
+
+Operator-forced events (`/donkey trigger`, and so the Twitch bridge) ignore the
+roster entirely — an op aiming a donkey at someone has already made that call.
+
+Set `"requireOptIn": false` in `settings.json` for the old behaviour, where
+every player on the server is fair game.
+
 ## How an event works
 
-A per-player timer rolls every `checkIntervalSeconds` while the player has moved
-recently — AFK players get nothing, because an audience is required for comedy.
+A per-player timer rolls every `checkIntervalSeconds` for opted-in players who
+have moved recently — AFK players get nothing, because an audience is required for comedy.
 On a hit, a donkey spawns 4–8 blocks away on a real surface (never in lava, water,
 or a wall; ten candidates are tried, and the event is skipped silently if none
 works), brays, and starts talking.
@@ -210,8 +231,8 @@ a speed potion — and the donkey stops walking and simply turns up beside you
 again, silently. The Lecture's own teleport is separate: much closer, much louder.
 
 Lines go to the target and anyone within 16 blocks, and each is *spoken* in
-Animal Crossing style animalese — a burst of pitched blips, one per syllable, at
-a pitch seeded from the donkey's name, so Duncan always sounds like Duncan and
+Animal Crossing style animalese — a burst of pitched experience-orb blips, one
+per syllable, at a pitch seeded from the donkey's name, so Duncan always sounds like Duncan and
 questions audibly rise at the end. Then it hands over its gift, says something
 rude, and vanishes in a puff of smoke. The player's cooldown starts.
 
