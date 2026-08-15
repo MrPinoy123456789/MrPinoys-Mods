@@ -68,6 +68,8 @@ public final class Scenes {
                 busySpeakers.remove(a.speaker0.villager().getUUID());
                 busySpeakers.remove(a.speaker1.villager().getUUID());
                 busyListeners.remove(e.getKey());
+                bubbles.clear(a.speaker0.villager().getUUID());
+                bubbles.clear(a.speaker1.villager().getUUID());
                 continue;
             }
 

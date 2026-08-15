@@ -79,13 +79,13 @@ public final class HearsayConfig {
 
     private static Settings defaultSettings() {
         return new Settings(
-                45,
+                90,
                 16,
-                120,
+                240,
                 600,
                 2,
-                0.1,
-                0.05,
+                0.04,
+                0.02,
                 8,
                 DEFAULT_CHANNELS);
     }
@@ -112,13 +112,13 @@ public final class HearsayConfig {
     private static Settings parseSettings(String text) {
         JsonObject obj = JsonParser.parseString(text).getAsJsonObject();
         return new Settings(
-                getInt(obj, "quietSeconds", 45),
+                getInt(obj, "quietSeconds", 90),
                 getInt(obj, "hearingRange", 16),
-                getInt(obj, "speakerCooldownSeconds", 120),
+                getInt(obj, "speakerCooldownSeconds", 240),
                 getInt(obj, "greetingCooldownSeconds", 600),
                 getInt(obj, "maxSimultaneousScenes", 2),
-                getDouble(obj, "sceneChance", 0.1),
-                getDouble(obj, "ambientChance", 0.05),
+                getDouble(obj, "sceneChance", 0.04),
+                getDouble(obj, "ambientChance", 0.02),
                 getInt(obj, "suppressAfterDamageSeconds", 8),
                 parseChannel(obj.getAsJsonObject("channel")));
     }

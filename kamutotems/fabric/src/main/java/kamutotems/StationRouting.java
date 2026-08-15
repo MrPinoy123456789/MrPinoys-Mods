@@ -18,8 +18,11 @@ import java.util.List;
  */
 public final class StationRouting {
 
-    /** The bottom-right-ish slot used for back navigation across every panel. */
+    /** The bottom-right-ish slot used for back navigation on a 9x6 panel. */
     public static final int BACK_SLOT = 49;
+
+    /** The same corner on a 9x3 panel — slot 49 does not exist in 27 slots. */
+    public static final int BACK_SLOT_SMALL = 26;
 
     private StationRouting() {}
 

@@ -49,7 +49,7 @@ public final class Station {
     }
 
     public static void openHub(ServerPlayer player) {
-        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false);
+        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x4, player, false);
         gui.setTitle(Component.literal("Kamu Station").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
 
         Runnable backToHub = () -> openHub(player);
@@ -135,7 +135,7 @@ public final class Station {
                 .setLore(lore)
                 .build());
 
-        gui.setSlot(StationRouting.BACK_SLOT, StationRouting.backButton(back));
+        gui.setSlot(StationRouting.BACK_SLOT_SMALL, StationRouting.backButton(back));
         gui.open();
     }
 
@@ -229,7 +229,7 @@ public final class Station {
                     .build());
         }
 
-        gui.setSlot(StationRouting.BACK_SLOT, StationRouting.backButton(back));
+        gui.setSlot(StationRouting.BACK_SLOT_SMALL, StationRouting.backButton(back));
         gui.open();
     }
 }

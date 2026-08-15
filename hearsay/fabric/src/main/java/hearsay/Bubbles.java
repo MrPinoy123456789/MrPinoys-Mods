@@ -1,8 +1,15 @@
 package hearsay;
 
+import com.mojang.serialization.DynamicOps;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
@@ -31,6 +38,19 @@ public final class Bubbles {
     private static final int DWELL_PER_CHAR = 4;
     private static final int MAX_SPEECH_LENGTH = 60;
     private static final String BILLBOARD_CENTER = "center";
+    /** Bubble text colour; swap to {@link ChatFormatting#YELLOW} to taste. */
+    private static final ChatFormatting TEXT_COLOR = ChatFormatting.WHITE;
+    /**
+     * Must stay false. MC-277982: a TextDisplay with {@code see_through=true}
+     * renders through a layer that mishandles lighting, so the glyphs are dragged
+     * toward black whatever the component's colour says — which is exactly the
+     * "bubbles are black" bug. The trade is that bubbles no longer show through
+     * blocks, which for speech above a villager is no loss.
+     */
+    private static final boolean SEE_THROUGH = false;
+    /** Marks bubbles so leftover/orphaned ones can be found and killed with
+     *  {@code /kill @e[type=minecraft:text_display,tag=hearsay_bubble]}. */
+    public static final String TAG = "hearsay_bubble";
 
     private final Map<UUID, Bubble> speech = new HashMap<>();
     private int tick;
@@ -79,16 +99,18 @@ public final class Bubbles {
 
         CompoundTag tag = new CompoundTag();
         tag.putString("id", "minecraft:text_display");
-        CompoundTag textComponent = new CompoundTag();
-        textComponent.putString("text", text);
-        textComponent.putString("color", "white");
-        tag.put("text", textComponent);
+        tag.put("text", encodeText(level, text));
         tag.putString("billboard", BILLBOARD_CENTER);
         tag.putFloat("view_range", viewRange);
-        tag.putBoolean("see_through", true);
+        tag.putBoolean("see_through", SEE_THROUGH);
         tag.putBoolean("shadow", true);
         tag.putBoolean("default_background", true);
         tag.putString("alignment", "center");
+        tag.putByte("text_opacity", (byte) 255);
+
+        ListTag tags = new ListTag();
+        tags.add(StringTag.valueOf(TAG));
+        tag.put("Tags", tags);
 
         CompoundTag bright = new CompoundTag();
         bright.putInt("block", 15);
@@ -101,9 +123,13 @@ public final class Bubbles {
         pos.add(DoubleTag.valueOf(speaker.getZ()));
         tag.put("Pos", pos);
 
-        ProblemReporter reporter = ProblemReporter.DISCARDING;
-        ValueInput in = TagValueInput.create(reporter, level.registryAccess(), tag);
-        display.load(in);
+        // Report load problems rather than discarding them; silently swallowing
+        // these is what let the colour bug hide for so long.
+        try (ProblemReporter.ScopedCollector reporter =
+                     new ProblemReporter.ScopedCollector(display.problemPath(), HearsayMod.LOG)) {
+            ValueInput in = TagValueInput.create(reporter, level.registryAccess(), tag);
+            display.load(in);
+        }
         level.addFreshEntity(display);
         if (!display.isPassenger()) {
             display.startRiding(speaker, true, false);
@@ -111,6 +137,22 @@ public final class Bubbles {
         Bubble bubble = new Bubble(display, -1);
         bubble.speaker = speaker;
         return bubble;
+    }
+
+    /**
+     * Build the {@code text} tag with the same codec {@code TextDisplay} reads it
+     * back with, so the encoded shape is correct by construction.
+     *
+     * <p>Since 1.21.5 this field is an NBT object, not a JSON string — writing a
+     * string here renders the raw JSON verbatim above the speaker. Encoding a real
+     * {@link Component} keeps us on whatever shape the codec expects.
+     */
+    private static Tag encodeText(ServerLevel level, String text) {
+        Component message = Component.literal(text).withStyle(TEXT_COLOR);
+        DynamicOps<Tag> ops = level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        return ComponentSerialization.CODEC.encodeStart(ops, message)
+                .resultOrPartial(err -> HearsayMod.LOG.warn("Hearsay could not encode bubble text: {}", err))
+                .orElseGet(() -> StringTag.valueOf(text));
     }
 
     private static List<String> splitLine(String line, int max) {
@@ -138,10 +180,13 @@ public final class Bubbles {
 
     private void sweep() {
         speech.values().removeIf(b -> {
-            if (b.display == null || b.display.isRemoved()
+            // A bubble rides its speaker, so a dead speaker leaves the display
+            // dismounted and stranded — the "dialogue that survives the villager".
+            boolean speakerGone = b.speaker == null || b.speaker.isRemoved() || !b.speaker.isAlive();
+            if (b.display == null || b.display.isRemoved() || speakerGone
                     || (b.expiry > 0 && tick >= b.expiry)) {
                 b.discard();
-                if (!b.queue.isEmpty() && b.speaker != null
+                if (!speakerGone && !b.queue.isEmpty()
                         && b.speaker.level() instanceof ServerLevel level) {
                     String next = b.queue.pollFirst();
                     Bubble replacement = create(level, b.speaker, next, SPEECH_VIEW_RANGE);

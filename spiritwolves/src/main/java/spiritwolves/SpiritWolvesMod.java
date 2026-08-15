@@ -17,6 +17,10 @@ public final class SpiritWolvesMod implements ModInitializer {
     @Override
     public void onInitialize() {
         Tracker.register();
+        // After Tracker: its SERVER_STARTED handler loads the registry the
+        // sweep consults, and Fabric fires lifecycle callbacks in registration
+        // order.
+        WolfSweep.register();
         Binding.register();
         Summoning.register();
         Deaths.register();

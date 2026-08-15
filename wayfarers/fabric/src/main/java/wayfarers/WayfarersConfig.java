@@ -58,7 +58,9 @@ public final class WayfarersConfig {
                       "currency": "diamond",
                       "stock": 5,
                       "components": {
-                        "minecraft:item_name": "Spirit Stone"
+                        "minecraft:custom_data": { "spiritwolves": { "bound": false } },
+                        "minecraft:item_name": "Spirit Stone",
+                        "minecraft:lore": ["Use on a tamed wolf to bind its soul."]
                       }
                     }
                   ],

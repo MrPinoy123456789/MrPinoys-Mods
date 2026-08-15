@@ -95,6 +95,23 @@ final class PlayerWolfRegistry {
         return records.get(player);
     }
 
+    /**
+     * The player whose record claims this wolf UUID, or null if no record does.
+     *
+     * <p>Unlike {@link Tracker#findOwner} this does not require the owner to be
+     * online, and does not care whether the record thinks the wolf is currently
+     * summoned -- {@link WolfSweep} needs to recognise a wolf precisely in the
+     * case where the record says it is stored.
+     */
+    static UUID ownerOf(UUID wolfUuid) {
+        for (Map.Entry<UUID, WolfRecord> entry : records.entrySet()) {
+            if (wolfUuid.equals(entry.getValue().wolfUuid)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
     static void put(UUID player, WolfRecord record) {
         records.put(player, record);
         markDirty(player);

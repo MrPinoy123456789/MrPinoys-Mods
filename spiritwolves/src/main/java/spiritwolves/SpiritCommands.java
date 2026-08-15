@@ -234,12 +234,24 @@ public final class SpiritCommands {
 
     private static int adminStone(java.util.Collection<ServerPlayer> targets, int count) {
         for (ServerPlayer target : targets) {
-            ItemStack stack = SpiritStone.createUnbound(count);
-            if (!target.getInventory().add(stack)) {
-                target.drop(stack, false);
+            WolfRecord record = PlayerWolfRegistry.get(target.getUUID());
+            for (int i = 0; i < count; i++) {
+                ItemStack stack = SpiritStone.createUnbound(1);
+                if (record != null) {
+                    // Bound stones cap at stack size 1, so hand out `count` separate
+                    // stacks rather than one stack of `count` -- same as any bound stone.
+                    SpiritStone.bind(stack, record.wolfName, record.collar);
+                    SpiritStone.refreshLore(stack, record);
+                }
+                if (!target.getInventory().add(stack)) {
+                    target.drop(stack, false);
+                }
             }
-            target.sendSystemMessage(Component.literal("You received " + count + " unbound Spirit Stone(s).")
-                    .withStyle(ChatFormatting.AQUA));
+            String name = record != null && record.wolfName != null ? record.wolfName : "your wolf";
+            String message = record != null
+                    ? "You received " + count + " Spirit Stone(s) bound to " + name + "."
+                    : "You received " + count + " unbound Spirit Stone(s).";
+            target.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.AQUA));
         }
         return targets.size();
     }

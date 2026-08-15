@@ -4,6 +4,8 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,6 +33,9 @@ import java.util.function.Consumer;
 public final class Tracker {
 
     private static final int POLL_INTERVAL_TICKS = 30;
+
+    /** Beyond this, the owner teleported rather than walked. See {@link #poll}. */
+    private static final double LEASH_RANGE_SQR = 96.0 * 96.0;
 
     private static int tickCounter;
 
@@ -133,6 +138,25 @@ public final class Tracker {
             return;
         }
 
+        // The leash. A wolf this far from its owner did not walk there -- the
+        // owner teleported. Left alone the wolf's chunk unloads, the poll below
+        // stops finding it, the record decides it is gone, and the next
+        // right-click summons a second copy from the stored NBT. Recalling here,
+        // while the wolf is still loaded, is the cheap way to never reach that
+        // state; WolfSweep is the backstop for when it happens anyway.
+        //
+        // 96 blocks is well inside any sane view distance (so the wolf is still
+        // loaded when we look) and well outside the longest range any feature
+        // uses -- Fetch's 32 is the current maximum.
+        if (wolf.distanceToSqr(player) > LEASH_RANGE_SQR) {
+            recallSilently(player, record, wolf);
+            player.sendSystemMessage(Component.literal(
+                            (record.wolfName != null ? record.wolfName : "Your wolf")
+                                    + " could not follow, and returns to the stone.")
+                    .withStyle(ChatFormatting.GRAY));
+            return;
+        }
+
         Senses.growlIfThreatened(wolf, tickCounter);
         Senses.outlineCurrentTarget(wolf);
         AbilityProcs.tickSummonedWolf(player, record, wolf);
@@ -162,16 +186,13 @@ public final class Tracker {
             AbilityProcs.forget(record.wolfUuid);
             Tricks.forgetOwner(player.getUUID());
             Training.forgetOwner(player.getUUID());
-        } else if (!record.summoned && wolf != null) {
-            // Record thinks the wolf is stored, but the chunk loaded one from disk.
-            // Adopt the live wolf so the stone can recall it instead of duplicating.
-            record.summoned = true;
-            record.wolfUuid = wolf.getUUID();
-            record.wolfTag = WolfCapture.capture(wolf, (ServerLevel) wolf.level());
-            record.wolfName = WolfCapture.nameOf(wolf);
-            record.collar = WolfCapture.collarOf(wolf);
-            PlayerWolfRegistry.markDirty(player.getUUID());
         }
+        // The mirror case -- record stored, but a wolf is loaded from disk -- used
+        // to adopt the live wolf. It must not. Since WolfSweep stores the wolf
+        // back into the record on chunk unload, the record is now always at least
+        // as fresh as anything left in a chunk, so adopting could only overwrite
+        // current state with an older snapshot. A wolf in that position is a
+        // leftover copy and WolfSweep discards it on the tick it loads.
 
         forEachBoundStone(player, stone -> SpiritStone.refreshLore(stone, record));
     }
@@ -201,20 +222,37 @@ public final class Tracker {
     }
 
     private static void recallSilently(ServerPlayer player, WolfRecord record, Wolf wolf) {
-        ServerLevel level = (ServerLevel) wolf.level();
+        storeWolf(player.getUUID(), record, wolf, (ServerLevel) wolf.level(), true);
+    }
+
+    /**
+     * Captures a live wolf back into its owner's record and clears every
+     * per-outing cache -- the shared half of every recall path.
+     *
+     * <p>{@code discard} is false for exactly one caller: {@link WolfSweep}'s
+     * {@code ENTITY_UNLOAD} handler, which runs while the entity is already
+     * being removed. Discarding there would re-enter removal on an entity the
+     * section manager has already committed to unloading.
+     *
+     * <p>The level is passed rather than read off the wolf because the unload
+     * path cannot assume {@code wolf.level()} is still meaningful.
+     */
+    static void storeWolf(UUID ownerUuid, WolfRecord record, Wolf wolf, ServerLevel level, boolean discard) {
         Streak.onReturn(wolf, record);
         RecallLock.forget(wolf.getUUID());
         AbilityProcs.forget(wolf.getUUID());
-        Tricks.forgetOwner(player.getUUID());
-        Training.forgetOwner(player.getUUID());
+        Senses.forget(wolf.getUUID());
+        Tricks.forgetOwner(ownerUuid);
+        Training.forgetOwner(ownerUuid);
         record.wolfUuid = wolf.getUUID();
         record.wolfTag = WolfCapture.capture(wolf, level);
         record.wolfName = WolfCapture.nameOf(wolf);
         record.collar = WolfCapture.collarOf(wolf);
         record.summoned = false;
-        PlayerWolfRegistry.markDirty(player.getUUID());
-        Senses.forget(wolf.getUUID());
-        wolf.discard();
+        PlayerWolfRegistry.markDirty(ownerUuid);
+        if (discard) {
+            wolf.discard();
+        }
     }
 
     /** Finds the online player whose registry record has this wolf UUID summoned, if any. */
