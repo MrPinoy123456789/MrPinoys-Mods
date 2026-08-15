@@ -1,0 +1,19 @@
+# Gradle / build artifacts
+.gradle/
+build/
+*/build/
+
+# Fabric run directories
+run/
+run-data/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS / editor droppings
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

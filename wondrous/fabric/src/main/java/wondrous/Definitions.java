@@ -120,7 +120,8 @@ public final class Definitions {
                          plain("A workbench that never needs setting down.")),
                     PLAIN,
                     (id, inv, player) ->
-                            new CraftingMenu(id, inv, ContainerLevelAccess.NULL)),
+                            new CraftingMenu(id, inv,
+                                    ContainerLevelAccess.create(player.level(), player.blockPosition()))),
 
             new Def("pocket_anvil",
                     Items.ANVIL,
@@ -130,7 +131,8 @@ public final class Definitions {
                          plain("Never breaks.")),
                     PLAIN,
                     (id, inv, player) ->
-                            new AnvilMenu(id, inv, ContainerLevelAccess.NULL)),
+                            new AnvilMenu(id, inv,
+                                    ContainerLevelAccess.create(player.level(), player.blockPosition()))),
 
             new Def(BoomerangBall.ID,
                     Items.SLIME_BALL,

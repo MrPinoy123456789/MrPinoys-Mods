@@ -1,0 +1,163 @@
+{
+  "quests": [
+    {
+      "id": "wayfarer_lost_cargo",
+      "title": "Wayfarer's Lost Cargo",
+      "sourceLabel": "A wayfarer asked this of you.",
+      "segments": [
+        {
+          "kind": "kill",
+          "displayText": "Put down 6 husks",
+          "matcher": {
+            "eventId": "entity_killed",
+            "requiredCount": 6,
+            "predicate": { "entity": "minecraft:husk" }
+          }
+        },
+        {
+          "kind": "turn_in",
+          "displayText": "Hand over 8 wheat",
+          "matcher": {
+            "eventId": "item_turned_in",
+            "requiredCount": 8,
+            "predicate": { "item": "minecraft:wheat" }
+          }
+        },
+        {
+          "kind": "scan",
+          "displayText": "Scan 3 oak logs",
+          "matcher": {
+            "eventId": "block_scanned",
+            "requiredCount": 3,
+            "predicate": { "block": "minecraft:oak_log" }
+          }
+        }
+      ],
+      "rewards": [
+        { "kind": "diamond", "amount": 3, "note": "3 diamonds for your trouble" },
+        { "kind": "sigil", "amount": 2, "note": "A sealed sigil for a Second Trial" }
+      ],
+      "expiryDays": 7,
+      "repeatable": false
+    },
+    {
+      "id": "masons_errand",
+      "title": "Mason's Errand",
+      "sourceLabel": "The mason needs a few things cleared away.",
+      "segments": [
+        {
+          "kind": "kill",
+          "displayText": "Put down 4 creepers",
+          "matcher": {
+            "eventId": "entity_killed",
+            "requiredCount": 4,
+            "predicate": { "entity": "minecraft:creeper" }
+          }
+        },
+        {
+          "kind": "scan",
+          "displayText": "Scan 2 stone blocks",
+          "matcher": {
+            "eventId": "block_scanned",
+            "requiredCount": 2,
+            "predicate": { "block": "minecraft:stone" }
+          }
+        },
+        {
+          "kind": "turn_in",
+          "displayText": "Hand over 16 cobblestone",
+          "matcher": {
+            "eventId": "item_turned_in",
+            "requiredCount": 16,
+            "predicate": { "item": "minecraft:cobblestone" }
+          }
+        }
+      ],
+      "rewards": [
+        { "kind": "diamond", "amount": 2 },
+        { "kind": "sigil", "amount": 1, "note": "A sigil for a First Trial" }
+      ],
+      "expiryDays": 5,
+      "repeatable": true
+    },
+    {
+      "id": "hunters_call",
+      "title": "Hunter's Call",
+      "sourceLabel": "Thin the dead so travellers stay safe.",
+      "segments": [
+        {
+          "kind": "kill",
+          "displayText": "Put down 5 skeletons",
+          "matcher": {
+            "eventId": "entity_killed",
+            "requiredCount": 5,
+            "predicate": { "entity": "minecraft:skeleton" }
+          }
+        },
+        {
+          "kind": "scan",
+          "displayText": "Scan 3 iron ore",
+          "matcher": {
+            "eventId": "block_scanned",
+            "requiredCount": 3,
+            "predicate": { "block": "minecraft:iron_ore" }
+          }
+        },
+        {
+          "kind": "turn_in",
+          "displayText": "Hand over 4 iron ingots",
+          "matcher": {
+            "eventId": "item_turned_in",
+            "requiredCount": 4,
+            "predicate": { "item": "minecraft:iron_ingot" }
+          }
+        }
+      ],
+      "rewards": [
+        { "kind": "diamond", "amount": 4, "note": "4 diamonds" }
+      ],
+      "expiryDays": 7,
+      "repeatable": false
+    },
+    {
+      "id": "cartographers_request",
+      "title": "Cartographer's Request",
+      "sourceLabel": "A scholar wants samples from the deep.",
+      "segments": [
+        {
+          "kind": "scan",
+          "displayText": "Scan 2 diamond ore",
+          "matcher": {
+            "eventId": "block_scanned",
+            "requiredCount": 2,
+            "predicate": { "block": "minecraft:diamond_ore" }
+          }
+        },
+        {
+          "kind": "kill",
+          "displayText": "Put down 3 zombies",
+          "matcher": {
+            "eventId": "entity_killed",
+            "requiredCount": 3,
+            "predicate": { "entity": "minecraft:zombie" }
+          }
+        },
+        {
+          "kind": "turn_in",
+          "displayText": "Hand over 1 coal",
+          "matcher": {
+            "eventId": "item_turned_in",
+            "requiredCount": 1,
+            "predicate": { "item": "minecraft:coal" }
+          }
+        }
+      ],
+      "rewards": [
+        { "kind": "sigil", "amount": 3, "note": "A sealed sigil for a Third Trial" },
+        { "kind": "item", "itemId": "minecraft:emerald", "amount": 4, "note": "4 emeralds" }
+      ],
+      "expiryDays": 10,
+      "repeatable": true
+    }
+  ]
+}

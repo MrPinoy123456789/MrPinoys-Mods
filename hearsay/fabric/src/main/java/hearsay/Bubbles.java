@@ -27,8 +27,8 @@ import java.util.UUID;
 public final class Bubbles {
 
     private static final float SPEECH_VIEW_RANGE = 0.5f;
-    private static final int BASE_DWELL_TICKS = 40;
-    private static final int DWELL_PER_CHAR = 2;
+    private static final int BASE_DWELL_TICKS = 80;
+    private static final int DWELL_PER_CHAR = 4;
     private static final int MAX_SPEECH_LENGTH = 60;
     private static final String BILLBOARD_CENTER = "center";
 
@@ -79,7 +79,10 @@ public final class Bubbles {
 
         CompoundTag tag = new CompoundTag();
         tag.putString("id", "minecraft:text_display");
-        tag.putString("text", "{\"text\":\"" + escapeJson(text) + "\"}");
+        CompoundTag textComponent = new CompoundTag();
+        textComponent.putString("text", text);
+        textComponent.putString("color", "white");
+        tag.put("text", textComponent);
         tag.putString("billboard", BILLBOARD_CENTER);
         tag.putFloat("view_range", viewRange);
         tag.putBoolean("see_through", true);
@@ -150,10 +153,6 @@ public final class Bubbles {
             }
             return false;
         });
-    }
-
-    private static String escapeJson(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static final class Bubble {

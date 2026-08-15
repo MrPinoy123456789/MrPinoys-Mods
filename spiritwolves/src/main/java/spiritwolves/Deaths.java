@@ -14,7 +14,9 @@ import net.minecraft.world.item.ItemStack;
  * Intercepts lethal damage to a bound spirit wolf: cancels death, heals to
  * full, serializes back into the registry, and burns one charge from a bound
  * stone in the owner's inventory. If every bound stone is out of charges, the
- * wolf <em>truly</em> dies -- SPEC.md section 16.7.
+ * save is skipped and the wolf actually dies -- but the registry record and
+ * bound stones survive, so the player can resummon once a stone is recharged
+ * at an anvil (see {@link Summoning}).
  */
 public final class Deaths {
 
@@ -40,8 +42,8 @@ public final class Deaths {
 
         ItemStack chargedStone = findChargedStone(owner);
         if (chargedStone == null) {
-            trueDeath(owner, record, wolf);
-            return false;
+            outOfCharges(owner, record, wolf);
+            return true;
         }
 
         wolf.setHealth(wolf.getMaxHealth());
@@ -81,22 +83,27 @@ public final class Deaths {
         return false;
     }
 
-    /** The wolf truly dies: registry record deleted, every bound stone reverts to unbound. */
-    private static void trueDeath(ServerPlayer owner, WolfRecord record, Wolf wolf) {
+    /**
+     * No bound stone has a charge left, so the save is skipped and the wolf
+     * actually dies (vanilla death proceeds -- caller returns {@code true}).
+     * The registry record and bound stones are left alone: {@link Summoning}
+     * already refuses to resummon a dormant record until a stone is
+     * recharged at an anvil, so that's the only gate needed here.
+     */
+    private static void outOfCharges(ServerPlayer owner, WolfRecord record, Wolf wolf) {
         String name = record.wolfName != null ? record.wolfName : "Your wolf";
 
-        wolf.setHealth(wolf.getMaxHealth());
-        wolf.invulnerableTime = 20;
         Streak.forget(wolf.getUUID());
         RecallLock.forget(wolf.getUUID());
         AbilityProcs.forget(wolf.getUUID());
         Senses.forget(wolf.getUUID());
-        wolf.discard();
 
-        PlayerWolfRegistry.remove(owner.getUUID());
-        Tracker.forEachBoundStone(owner, SpiritStone::revertToUnbound);
+        record.summoned = false;
+        PlayerWolfRegistry.markDirty(owner.getUUID());
 
-        owner.sendSystemMessage(Component.literal(name + " is gone.").withStyle(ChatFormatting.DARK_RED));
+        owner.sendSystemMessage(Component.literal(
+                        name + " has fallen. Repair the stone at an anvil to bring it back.")
+                .withStyle(ChatFormatting.DARK_RED));
     }
 
     /** The first bound stone in the player's inventory with a charge left, if any. */

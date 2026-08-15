@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "tpasserver",
+  "version": "${version}",
+  "name": "TP As Server",
+  "description": "Players' /tp and /teleport run with the server's own permissions, so anyone can use them without being opped.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "tpasserver.TpAsServerMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "tpasserver.mixins.json"
+  ]
+}

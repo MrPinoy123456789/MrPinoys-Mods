@@ -1,0 +1,21 @@
+# Gradle / Fabric Loom build artifacts
+.gradle/
+build/
+out/
+
+# Fabric dev-run directory: world saves, logs, config from launching the mod
+run/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS / editor droppings
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Stray backups from in-place edits (bit this project once already)
+*.bak

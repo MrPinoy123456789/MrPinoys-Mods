@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "tpasserver.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CommandsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
