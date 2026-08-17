@@ -2,8 +2,8 @@
   "parent": "minecraft:story/root",
   "display": {
     "icon": { "id": "minecraft:bone" },
-    "title": { "translate": "advancement.spiritwolves.tame_wolf.title" },
-    "description": { "translate": "advancement.spiritwolves.tame_wolf.description" },
+    "title": { "text": "Spirit Wolves: A Loyal Friend" },
+    "description": { "text": "Tame a wolf -- a Spirit Stone can bind its soul to you permanently" },
     "frame": "task",
     "show_toast": true,
     "announce_to_chat": true,

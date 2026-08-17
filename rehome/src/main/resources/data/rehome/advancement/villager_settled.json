@@ -2,8 +2,8 @@
   "parent": "rehome:greet_villager",
   "display": {
     "icon": { "id": "minecraft:red_bed" },
-    "title": { "translate": "advancement.rehome.villager_settled.title" },
-    "description": { "translate": "advancement.rehome.villager_settled.description" },
+    "title": { "text": "Rehome: A New Neighbor" },
+    "description": { "text": "Lead a villager home and watch it settle in" },
     "frame": "goal",
     "show_toast": true,
     "announce_to_chat": true,

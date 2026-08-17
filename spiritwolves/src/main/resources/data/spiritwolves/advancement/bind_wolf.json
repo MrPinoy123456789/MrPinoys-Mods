@@ -2,8 +2,8 @@
   "parent": "spiritwolves:tame_wolf",
   "display": {
     "icon": { "id": "minecraft:bone" },
-    "title": { "translate": "advancement.spiritwolves.bind_wolf.title" },
-    "description": { "translate": "advancement.spiritwolves.bind_wolf.description" },
+    "title": { "text": "Spirit Wolves: A Soul Bound" },
+    "description": { "text": "Bind a tamed wolf's soul to yourself with a Spirit Stone" },
     "frame": "goal",
     "show_toast": true,
     "announce_to_chat": true,

@@ -91,6 +91,10 @@ public final class CobbleEconomyMod implements ModInitializer {
         ShopkeeperInteraction.register(service, catalog, log, settings);
         ShopkeeperAnchor.register();
 
+        // Dialog buttons arrive as bare packets with none of the wiring the sgui menus
+        // are handed at construction, so the shop's screens get their services once here.
+        ShopDialogs.init(service, catalog, shopConfig, currencies, log, settings);
+
         // Every join refreshes the name cache. This is what makes /pay work for
         // offline players: a UUID the server has seen is a UUID it can be paid at.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

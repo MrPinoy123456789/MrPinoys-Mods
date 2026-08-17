@@ -6,7 +6,6 @@ import cobbleeconomy.core.ShopCatalog;
 import cobbleeconomy.core.ShopEntry;
 import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -144,7 +143,8 @@ final class ShopAdminMenu {
             lore.add(Component.literal("Disabled").withStyle(ChatFormatting.DARK_GRAY));
         }
         lore.add(Component.empty());
-        lore.add(dim("Click to edit"));
+        lore.add(dim("Click to edit every field at once"));
+        lore.add(dim("Right-click for item and price nudges"));
         lore.add(dim("Shift-click to " + (entry.enabled() ? "disable" : "enable")));
 
         GuiElementBuilder b = new GuiElementBuilder(ShopMenu.iconFor(entry, player.registryAccess()))
@@ -157,8 +157,14 @@ final class ShopAdminMenu {
                 save(withEnabled(entry, !entry.enabled()),
                         entry.key() + " is now " + (entry.enabled() ? "disabled" : "enabled"));
                 openList(page);
-            } else {
+            } else if (t.isRight) {
+                // The sgui editor keeps the two things a dialog cannot do: take the item
+                // out of your hand, and nudge a price without typing a number.
                 openEntry(entry.key(), page);
+            } else {
+                // Every field as one form, rather than a screen per field.
+                g.close();
+                ShopDialogs.openEditor(player, entry.key());
             }
         });
         return b.build();
@@ -270,20 +276,15 @@ final class ShopAdminMenu {
                 })
                 .build());
 
+        // Was shift-to-confirm, which is a gesture that has to be learned and cannot say
+        // what it is about to destroy. A real confirmation names the listing.
         gui.setSlot(26, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("Delete this listing").withStyle(ChatFormatting.RED))
                 .setLore(List.of(dim("Removes it from shop.json"),
-                        dim("Shift-click to confirm")))
+                        dim("Asks before it does")))
                 .setCallback((i, t, a, g) -> {
-                    if (!t.shift) {
-                        bad("Shift-click to confirm.");
-                        return;
-                    }
-                    catalog.remove(entry.key());
-                    config.save(catalog);
-                    log.admin(player.getName().getString() + " deleted shop entry " + entry.key());
-                    good("Deleted " + entry.key() + ".");
-                    openList(page);
+                    g.close();
+                    ShopDialogs.confirmDelete(player, entry.key());
                 })
                 .build());
 
@@ -474,28 +475,18 @@ final class ShopAdminMenu {
     // ---- text and number entry ----------------------------------------------
 
     /**
-     * The anvil screen as a text field, the same trick {@code ballot} uses. The value is
-     * taken on the accept click rather than on close, so backing out cancels cleanly
-     * instead of committing whatever was half-typed.
+     * A real text field.
+     *
+     * <p>Was an anvil rename screen -- the same trick {@code ballot} used, and the same
+     * one its own comment conceded was a workaround. An anvil caps a field at what fits
+     * in a rename box and puts the cursor somewhere a player does not expect it. The
+     * vanilla dialog system has an actual text input, so this is one now.
+     *
+     * <p>Backing out still cancels cleanly: escape closes the dialog and nothing is
+     * submitted, which is what the accept-click-not-close rule bought before.
      */
     private void askText(String prompt, String initial, Consumer<String> onDone) {
-        AnvilInputGui input = new AnvilInputGui(player, false);
-        input.setTitle(Component.literal(prompt));
-        input.setDefaultInputValue(initial == null || initial.isBlank() ? " " : initial);
-        input.setSlot(2, new GuiElementBuilder(Items.WRITABLE_BOOK)
-                .setName(Component.literal("Accept").withStyle(ChatFormatting.GREEN))
-                .setLore(List.of(dim("Type above, then click here")))
-                .setCallback((i, t, a, g) -> {
-                    String typed = input.getInput();
-                    g.close();
-                    if (typed == null || typed.isBlank()) {
-                        bad("Nothing typed.");
-                        return;
-                    }
-                    onDone.accept(typed.trim());
-                })
-                .build());
-        input.open();
+        ShopDialogs.askText(player, prompt, initial, onDone);
     }
 
     /** The same field, for the numbers. Anything unparseable is rejected, not guessed. */

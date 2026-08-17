@@ -12,6 +12,8 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * {@code /shopnpc spawn}: summon a shopkeeper villager.
@@ -26,11 +28,16 @@ public final class ShopkeeperCommands {
     public ShopkeeperCommands() {
     }
 
+    /** How far {@code /shopnpc remove} will look for one, in blocks. */
+    private static final double REMOVE_RADIUS = 16.0;
+
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("shopnpc")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("spawn")
-                        .executes(this::spawn)));
+                        .executes(this::spawn))
+                .then(Commands.literal("remove")
+                        .executes(this::remove)));
     }
 
     private int spawn(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -71,6 +78,11 @@ public final class ShopkeeperCommands {
         // Disable AI so it stays put instead of wandering off
         villager.setNoAi(true);
 
+        // Belt and braces with ShopkeeperInteraction's damage refusal: this flag alone
+        // lets a creative-mode player through, and that alone would not stop a mob
+        // suffocating it, so both exist.
+        villager.setInvulnerable(true);
+
         // Set a custom name
         villager.setCustomName(Component.literal("Shopkeeper"));
         villager.setCustomNameVisible(true);
@@ -81,6 +93,47 @@ public final class ShopkeeperCommands {
         // Send feedback to the player
         source.sendSuccess(() -> Component.literal("Shopkeeper spawned."), true);
 
+        return 1;
+    }
+
+    /**
+     * The only way to remove one.
+     *
+     * <p>A shopkeeper refuses all damage (see {@link ShopkeeperInteraction}), so it
+     * cannot be punched out, burned, blown up or {@code /kill}ed. This discards the
+     * entity outright instead, which sidesteps the damage path entirely.
+     *
+     * <p>Nearest to the caller and one at a time, deliberately: an admin standing in a
+     * hub with four shopkeepers in sight should remove the one they are looking at, and
+     * a mistake should cost one villager rather than the whole row.
+     */
+    private int remove(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerLevel level = source.getLevel();
+        Vec3 origin = source.getPosition();
+
+        AABB box = AABB.ofSize(origin, REMOVE_RADIUS * 2, REMOVE_RADIUS * 2, REMOVE_RADIUS * 2);
+        Villager nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (Villager villager : level.getEntitiesOfClass(Villager.class, box,
+                v -> v.entityTags().contains(SHOPKEEPER_TAG))) {
+            double distance = villager.distanceToSqr(origin);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = villager;
+            }
+        }
+
+        if (nearest == null) {
+            source.sendFailure(Component.literal(
+                    "No shopkeeper within " + (int) REMOVE_RADIUS + " blocks."));
+            return 0;
+        }
+
+        String name = nearest.getCustomName() != null
+                ? nearest.getCustomName().getString() : "Shopkeeper";
+        nearest.discard();
+        source.sendSuccess(() -> Component.literal("Removed " + name + "."), true);
         return 1;
     }
 }

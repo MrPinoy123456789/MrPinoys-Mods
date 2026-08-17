@@ -2,8 +2,8 @@
   "parent": "minecraft:story/root",
   "display": {
     "icon": { "id": "minecraft:totem_of_undying" },
-    "title": { "translate": "advancement.kamutotems.receive_totem.title" },
-    "description": { "translate": "advancement.kamutotems.receive_totem.description" },
+    "title": { "text": "Kamu Totems: A Totem of Your Own" },
+    "description": { "text": "Receive your Kamu Totem -- right-click it with a loose Kamu to bind one in" },
     "frame": "task",
     "show_toast": true,
     "announce_to_chat": true,

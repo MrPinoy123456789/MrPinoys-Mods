@@ -2,8 +2,8 @@
   "parent": "kamutotems:receive_totem",
   "display": {
     "icon": { "id": "minecraft:totem_of_undying" },
-    "title": { "translate": "advancement.kamutotems.bind_kamu.title" },
-    "description": { "translate": "advancement.kamutotems.bind_kamu.description" },
+    "title": { "text": "Kamu Totems: First Kamu" },
+    "description": { "text": "Bind a loose Kamu into your totem" },
     "frame": "goal",
     "show_toast": true,
     "announce_to_chat": true,

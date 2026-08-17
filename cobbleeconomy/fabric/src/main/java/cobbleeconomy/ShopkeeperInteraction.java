@@ -1,5 +1,6 @@
 package cobbleeconomy;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.world.InteractionHand;
@@ -72,5 +73,26 @@ public final class ShopkeeperInteraction {
             ShopMenu.openCategories(serverPlayer, economy, catalog, log, settings);
             return InteractionResult.SUCCESS;
         });
+
+        registerProtection();
+    }
+
+    /**
+     * Nothing kills a shopkeeper.
+     *
+     * <p>{@code setInvulnerable(true)} alone is not enough: vanilla lets a creative-mode
+     * player through it, and so does anything tagged {@code bypasses_invulnerability} --
+     * the void, {@code /kill}, a few others. A shopkeeper is scenery an admin placed on
+     * purpose, and losing one to a stray creative-mode swing or a lava flow is a silent
+     * hole in the shop nobody notices until a player complains they cannot buy anything.
+     *
+     * <p>So every damage source is refused outright. Removing one is
+     * {@code /shopnpc remove}, which discards the entity rather than damaging it and is
+     * therefore unaffected by this.
+     */
+    private static void registerProtection() {
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+                !(entity instanceof Villager villager)
+                        || !villager.entityTags().contains(SHOPKEEPER_TAG));
     }
 }

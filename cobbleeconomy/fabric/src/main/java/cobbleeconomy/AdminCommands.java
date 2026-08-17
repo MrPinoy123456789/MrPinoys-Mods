@@ -14,6 +14,7 @@ import cobbleeconomy.core.ShopCatalog;
 import cobbleeconomy.core.ShopEntry;
 import cobbleeconomy.core.TxResult;
 import cobbleeconomy.core.Wallet;
+import cobbleeconomy.dialog.DialogTest;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -98,6 +99,9 @@ public final class AdminCommands {
                 .then(Commands.literal("remove")
                         .then(playerArg().then(amountArg().then(currencyArg()
                                 .executes(ctx -> apply(ctx, Op.REMOVE))))))
+                // Diagnostic only -- see DIALOGS_SPEC.md Part 3 and dialog/DialogTest.
+                // Remove once the real dialogs it is de-risking are built.
+                .then(Commands.literal("dialogtest").executes(this::dialogTest))
                 .then(Commands.literal("shop")
                         .then(Commands.literal("edit").executes(this::shopEdit))
                         .then(Commands.literal("list").executes(this::shopList))
@@ -239,6 +243,22 @@ public final class AdminCommands {
                     + currency.displayName() + " balance."));
             online.sendSystemMessage(Messages.balanceLine(currency, finalBalance));
         }
+        return 1;
+    }
+
+    // ---- /cobbleeconomy dialogtest -------------------------------------------
+
+    /**
+     * Opens {@link DialogTest}: one of every unconfirmed input control, wired to print
+     * whatever the client actually submits. See {@code DIALOGS_SPEC.md} Part 3.
+     */
+    private int dialogTest(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            source.sendFailure(Messages.bad("The dialog test needs a screen -- run it as a player."));
+            return 0;
+        }
+        DialogTest.open(player);
         return 1;
     }
 

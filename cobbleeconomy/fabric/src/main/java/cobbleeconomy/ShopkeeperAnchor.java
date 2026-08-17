@@ -38,6 +38,9 @@ public final class ShopkeeperAnchor {
                     if (!(entity instanceof Villager villager)) {
                         continue;
                     }
+                    if (villager.entityTags().contains(ShopkeeperInteraction.SHOPKEEPER_TAG)) {
+                        normalise(villager);
+                    }
                     for (String tag : villager.entityTags()) {
                         if (tag.startsWith(HOME_TAG_PREFIX)) {
                             applyHome(villager, tag);
@@ -47,6 +50,20 @@ public final class ShopkeeperAnchor {
                 }
             }
         });
+    }
+
+    /**
+     * Brings a shopkeeper up to current spec.
+     *
+     * <p>Every one of these is set at spawn too. It is repeated here so a shopkeeper
+     * placed by an older build of the mod -- before it stood still, before it was
+     * invulnerable -- becomes indistinguishable from a fresh one without the admin
+     * having to find and replace it. Setting a flag that already holds costs nothing.
+     */
+    private static void normalise(Villager villager) {
+        villager.setNoAi(true);
+        villager.setInvulnerable(true);
+        villager.setPersistenceRequired();
     }
 
     private static void applyHome(Villager villager, String tag) {

@@ -2,8 +2,8 @@
   "parent": "cobbleeconomy:open_shop",
   "display": {
     "icon": { "id": "minecraft:emerald" },
-    "title": { "translate": "advancement.cobbleeconomy.first_purchase.title" },
-    "description": { "translate": "advancement.cobbleeconomy.first_purchase.description" },
+    "title": { "text": "Cobble Economy: First Trade" },
+    "description": { "text": "Buy something from the shop" },
     "frame": "goal",
     "show_toast": true,
     "announce_to_chat": true,

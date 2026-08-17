@@ -31,6 +31,14 @@ listed here, run `javap` against that jar rather than guessing or searching.
 > are folded into this reference below, marked **[confirmed in build]**. The
 > `CustomAll` payload shape in "Receiving the submission" is now verified rather than
 > assumed.
+>
+> **Cobble Economy has since adopted dialogs too** — see
+> [cobbleeconomy/DIALOGS.md](cobbleeconomy/DIALOGS.md) and its own
+> [spec](cobbleeconomy/DIALOGS_SPEC.md). All four input controls have now been exercised
+> against a real client; the table under "Receiving the submission" records what each
+> one actually submits, marked **[confirmed in play, cobbleeconomy]**. **One of those
+> findings contradicts what this reference used to claim about `BooleanInput`** — if you
+> are implementing Ballot's settings dialog (A2.2), read that correction first.
 
 ### Three ways 26.2 differs from the 1.21.6 docs you will find online
 
@@ -101,7 +109,10 @@ record TextInput(int width, Component label, boolean labelVisible,
 record TextInput.MultilineOptions(Optional<Integer> maxLines, Optional<Integer> height)
 
 record BooleanInput(Component label, boolean initial, String onTrue, String onFalse)
-    // onTrue/onFalse are the literal strings submitted. Use "true"/"false".
+    // [confirmed in play, cobbleeconomy] onTrue/onFalse are NOT what gets submitted --
+    // that was this reference's own guess, and it was wrong. The submitted value is a
+    // raw ByteTag, 1b or 0b, regardless of what onTrue/onFalse are set to. Read it with
+    // CompoundTag#getBooleanOr, not getStringOr.
 
 record SingleOptionInput(int width, List<SingleOptionInput.Entry> entries,
                          Component label, boolean labelVisible)
@@ -234,10 +245,20 @@ via `ValueGetter.asTag()`. So the payload is one flat compound, and **input keys
 context keys on a collision** — name your context keys so they cannot clash with your
 input keys.
 
-Text inputs arrive as `StringTag`. Boolean and number-range encodings are still
-**unconfirmed at runtime** — Ballot is the first user of both. QuizEngine's
-`DialogRouter` logs the whole received tag at debug on every action; item 3 of its test
-checklist captures the real shapes.
+Text inputs arrive as `StringTag`. **[confirmed in play, cobbleeconomy]** All four input
+kinds have now been exercised with a real client, via `cobbleeconomy`'s throwaway
+`/cobbleeconomy dialogtest` diagnostic dialog:
+
+| Input | Submitted tag | Notes |
+|---|---|---|
+| `TextInput` | `StringTag` | matches the earlier text-only confirmation |
+| `SingleOptionInput` | `StringTag` | the chosen `Entry.id()`, not its display component |
+| `NumberRangeInput` | `FloatTag` | always a float, even for whole numbers -- round/parse accordingly |
+| `BooleanInput` | `ByteTag` (`1b`/`0b`) | **not** `onTrue`/`onFalse` -- see the correction above |
+
+Read these with `getStringOr` / `getFloatOr` / `getBooleanOr` as appropriate. Ballot's
+settings dialog (three `BooleanInput`s, one `SingleOptionInput`) can now be built against
+confirmed shapes rather than a guess.
 
 So: parse defensively. Missing key, wrong tag type and unparseable number must all
 produce a friendly chat message, never an exception into the netty thread. Log the whole

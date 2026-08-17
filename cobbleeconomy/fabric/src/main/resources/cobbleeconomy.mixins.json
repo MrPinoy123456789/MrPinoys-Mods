@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "cobbleeconomy.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CustomClickMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

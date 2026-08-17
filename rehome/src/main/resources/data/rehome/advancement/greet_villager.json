@@ -2,8 +2,8 @@
   "parent": "minecraft:story/root",
   "display": {
     "icon": { "id": "minecraft:emerald" },
-    "title": { "translate": "advancement.rehome.greet_villager.title" },
-    "description": { "translate": "advancement.rehome.greet_villager.description" },
+    "title": { "text": "Rehome: A Familiar Face" },
+    "description": { "text": "Talk to a villager -- maybe a gift will convince them to come home with you" },
     "frame": "task",
     "show_toast": true,
     "announce_to_chat": true,

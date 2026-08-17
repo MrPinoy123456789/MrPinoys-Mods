@@ -97,9 +97,10 @@ final class ShopMenu {
 
     // ---- category page ----------------------------------------------------------
 
-    private static void openCategory(ServerPlayer player, EconomyService economy, ShopCatalog catalog,
-                                     TransactionLog log, EconomySettings settings,
-                                     String category, int page) {
+    /** Package-private so {@link ShopDialogs} can land the player back here after a confirm. */
+    static void openCategory(ServerPlayer player, EconomyService economy, ShopCatalog catalog,
+                             TransactionLog log, EconomySettings settings,
+                             String category, int page) {
         List<ShopEntry> entries = catalog.inCategory(category);
         int pageCount = Math.max(1, (entries.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int clampedPage = Math.max(0, Math.min(page, pageCount - 1));
@@ -199,8 +200,7 @@ final class ShopMenu {
             // asking a player to approve a failure.
             int lots = bulk ? PurchaseConfirm.plannedLots(economy, player, entry, BULK_CAP) : 1;
             if (lots > 0 && PurchaseConfirm.required(entry, lots, settings)) {
-                openConfirm(player, economy, catalog, log, settings, category, page, entry,
-                        lots, bulk);
+                ShopDialogs.confirmPurchase(player, entry, lots, bulk, category, page);
                 return;
             }
             if (bulk) {
@@ -213,80 +213,11 @@ final class ShopMenu {
         return b.build();
     }
 
-    // ---- confirmation -----------------------------------------------------------
-
-    /**
-     * The screen between a click and an expensive mistake.
-     *
-     * <p>Deliberately its own window rather than a shift-to-confirm on the same item:
-     * shift-click is already the bulk-buy gesture here, and overloading it would mean
-     * the confirmation for a big purchase was the same motion that made it big.
-     *
-     * <p>Confirm and cancel are four slots apart with the goods between them, so the two
-     * buttons cannot be hit by the same twitch, and cancel is the one that lands where a
-     * player's cursor already was.
-     */
-    private static void openConfirm(ServerPlayer player, EconomyService economy, ShopCatalog catalog,
-                                    TransactionLog log, EconomySettings settings, String category,
-                                    int page, ShopEntry entry, int lots, boolean bulk) {
-        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false);
-        gui.setTitle(Component.literal("Are you sure?").withStyle(ChatFormatting.RED));
-
-        long items = lots * (long) entry.quantity();
-        Map<Currency, Long> total = PurchaseConfirm.total(entry, lots);
-
-        List<Component> lore = new java.util.ArrayList<>();
-        lore.add(Component.empty().append(dim("Costs ")).append(totalPrice(entry, lots)));
-        lore.add(Component.empty());
-        for (Map.Entry<Currency, Long> line : total.entrySet()) {
-            Currency currency = line.getKey();
-            long balance = economy.getBalance(player.getUUID(), currency);
-            lore.add(Messages.balanceLine(currency, balance));
-            lore.add(Messages.body("  Left after: ")
-                    .append(Messages.amount(currency, Math.max(0, balance - line.getValue()))));
-        }
-
-        gui.setSlot(13, new GuiElementBuilder(iconFor(entry, player.registryAccess()))
-                .setCount(Math.max(1, (int) Math.min(items, 64)))
-                .setName(Component.literal(items + " x " + ShopDisplay.displayName(entry))
-                        .withStyle(ChatFormatting.WHITE))
-                .setLore(lore)
-                .build());
-
-        // 26.x collapsed every coloured variant into one ColorCollection, so the item
-        // is picked by colour rather than named LIME_CONCRETE. Tutorials for 1.21 and
-        // earlier still use the old constant, which no longer exists.
-        gui.setSlot(11, new GuiElementBuilder(Items.CONCRETE.lime())
-                .setName(Component.literal("Yes, buy it").withStyle(ChatFormatting.GREEN))
-                .setLore(List.of(Component.empty().append(dim("Spend "))
-                        .append(totalPrice(entry, lots))))
-                .setCallback((i, t, a, g) -> {
-                    if (bulk) {
-                        bulkBuy(economy, log, player, entry);
-                    } else {
-                        ShopPurchase.attempt(economy, log, player, entry, true);
-                    }
-                    // A fresh screen, not a redraw: opening this one closed the page
-                    // underneath it, and landing back where the click came from is what
-                    // makes the prompt feel like a step rather than an interruption.
-                    openCategory(player, economy, catalog, log, settings, category, page);
-                })
-                .build());
-
-        gui.setSlot(15, new GuiElementBuilder(Items.BARRIER)
-                .setName(Component.literal("No, go back").withStyle(ChatFormatting.RED))
-                .setLore(List.of(dim("Nothing is spent")))
-                .setCallback((i, t, a, g) ->
-                        openCategory(player, economy, catalog, log, settings, category, page))
-                .build());
-
-        gui.open();
-    }
-
     // ---- purchases --------------------------------------------------------------
 
-    private static void bulkBuy(EconomyService economy, TransactionLog log, ServerPlayer player,
-                                ShopEntry entry) {
+    /** Package-private so a confirmed bulk buy from {@link ShopDialogs} takes this same path. */
+    static void bulkBuy(EconomyService economy, TransactionLog log, ServerPlayer player,
+                        ShopEntry entry) {
         int bought = 0;
         Shop.PurchaseResult last = null;
         for (int i = 0; i < BULK_CAP; i++) {
