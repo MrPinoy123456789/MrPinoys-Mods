@@ -9,6 +9,23 @@ import java.util.Map;
  * The shipped content as plain Java data. This is the single source of truth;
  * the fabric config's JSON defaults are rendered from this data in M2 so the
  * operator file is never hand-duplicated.
+ *
+ * <p><strong>Some pools here have no trigger yet and that is deliberate — do not
+ * prune them as dead content.</strong> They are written and kept for reuse, in
+ * this mod or in {@code wayfarers}:
+ *
+ * <ul>
+ *   <li>{@code little_man} and {@code truth_miner} — character voices rather than
+ *       moments, so {@code LinePools.pickFor} can never reach them under the
+ *       {@code <profession>.<moment>} convention. They want a named/special-speaker
+ *       concept that does not exist yet.</li>
+ *   <li>Most {@code reaction.*} pools — only {@code reaction.villager_death} is
+ *       wired. The rest are the unimplemented rows of PLAN.md's M4 trigger table
+ *       (creeper, iron golem, raid end, player slept, night outside, and the
+ *       proximity/narration sets).</li>
+ * </ul>
+ *
+ * <p>Reachable meanwhile via {@code /hearsay say <player> <pool>}.
  */
 public final class DefaultLines {
     private DefaultLines() {}

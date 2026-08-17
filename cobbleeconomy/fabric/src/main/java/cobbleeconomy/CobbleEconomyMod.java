@@ -85,7 +85,11 @@ public final class CobbleEconomyMod implements ModInitializer {
             new ShopCommands(service, catalog, log, settings).register(dispatcher);
             new AdminCommands(service, currencies, names, log, catalog, shopConfig)
                     .register(dispatcher);
+            new ShopkeeperCommands().register(dispatcher);
         });
+
+        ShopkeeperInteraction.register(service, catalog, log, settings);
+        ShopkeeperAnchor.register();
 
         // Every join refreshes the name cache. This is what makes /pay work for
         // offline players: a UUID the server has seen is a UUID it can be paid at.

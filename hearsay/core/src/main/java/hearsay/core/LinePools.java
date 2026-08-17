@@ -80,13 +80,45 @@ public final class LinePools {
         return professionId + "." + moment;
     }
 
+    /** Share of lines drawn from a profession's own pool when both pools exist. */
+    public static final double DEFAULT_PROFESSION_CHANCE = 0.5;
+
     /**
-     * A line for one moment of one profession, falling back to the shared pool of
-     * the same name.
+     * A line for one moment of one profession, blended with the shared pool of the
+     * same name at {@link #DEFAULT_PROFESSION_CHANCE}.
      */
     public String pickFor(String professionId, String moment, Random random) {
-        String line = pick(key(professionId, moment), random);
-        return line.isEmpty() ? pick(moment, random) : line;
+        return pickFor(professionId, moment, random, DEFAULT_PROFESSION_CHANCE);
+    }
+
+    /**
+     * A line for one moment of one profession.
+     *
+     * <p>When the profession has its own pool <em>and</em> a shared pool of the same
+     * name exists, {@code professionChance} decides which is drawn from, so a farmer
+     * keeps the generic village chatter in rotation instead of only ever speaking
+     * farmer lines. With only one of the two present that pool is used outright, so
+     * a profession without special lines is never mute.
+     *
+     * <p>Each pool keeps its own shuffle bag, so blending does not disturb the
+     * without-replacement guarantee within either one.
+     *
+     * @param professionChance 0.0 = always shared, 1.0 = always the profession's own
+     */
+    public String pickFor(String professionId, String moment, Random random, double professionChance) {
+        String specific = key(professionId, moment);
+        boolean hasSpecific = has(specific);
+        boolean hasShared = has(moment);
+
+        if (hasSpecific && hasShared) {
+            return random.nextDouble() < professionChance
+                    ? pick(specific, random)
+                    : pick(moment, random);
+        }
+        if (hasSpecific) {
+            return pick(specific, random);
+        }
+        return pick(moment, random);
     }
 
     /**

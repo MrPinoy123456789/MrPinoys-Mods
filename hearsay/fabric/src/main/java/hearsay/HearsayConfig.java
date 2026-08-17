@@ -87,6 +87,7 @@ public final class HearsayConfig {
                 0.04,
                 0.02,
                 8,
+                LinePools.DEFAULT_PROFESSION_CHANCE,
                 DEFAULT_CHANNELS);
     }
 
@@ -107,6 +108,8 @@ public final class HearsayConfig {
             double sceneChance,
             double ambientChance,
             int suppressAfterDamageSeconds,
+            /** Share of a specialist's lines drawn from their own pool vs the shared one. */
+            double professionLineChance,
             Map<String, String> channel) {}
 
     private static Settings parseSettings(String text) {
@@ -120,6 +123,7 @@ public final class HearsayConfig {
                 getDouble(obj, "sceneChance", 0.04),
                 getDouble(obj, "ambientChance", 0.02),
                 getInt(obj, "suppressAfterDamageSeconds", 8),
+                getDouble(obj, "professionLineChance", LinePools.DEFAULT_PROFESSION_CHANCE),
                 parseChannel(obj.getAsJsonObject("channel")));
     }
 
@@ -133,6 +137,7 @@ public final class HearsayConfig {
         obj.addProperty("sceneChance", s.sceneChance());
         obj.addProperty("ambientChance", s.ambientChance());
         obj.addProperty("suppressAfterDamageSeconds", s.suppressAfterDamageSeconds());
+        obj.addProperty("professionLineChance", s.professionLineChance());
         JsonObject ch = new JsonObject();
         for (Map.Entry<String, String> e : s.channel().entrySet()) {
             ch.addProperty(e.getKey(), e.getValue());

@@ -1,0 +1,15 @@
+{
+  "parent": "spiritwolves:tame_wolf",
+  "display": {
+    "icon": { "id": "minecraft:bone" },
+    "title": { "translate": "advancement.spiritwolves.bind_wolf.title" },
+    "description": { "translate": "advancement.spiritwolves.bind_wolf.description" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}

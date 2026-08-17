@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.nbt.CompoundTag;
@@ -169,6 +170,7 @@ public final class TotemHost {
         Kamuy kamuy = KamuyStore.getOrCreate(player);
         if (Totem.find(player) == null) {
             Totem.giveOrDrop(player, Totem.create(kamuy, Totem.maxCharges()));
+            grantOnboarding(player, "receive_totem");
         } else {
             Totem.updatePlayerTotem(player, kamuy, Totem.chargesRemaining(Totem.find(player)));
         }
@@ -194,12 +196,22 @@ public final class TotemHost {
             serverPlayer.sendSystemMessage(Component.literal(
                             "Bound. Open your totem to place it.")
                     .withStyle(ChatFormatting.AQUA));
+            grantOnboarding(serverPlayer, "bind_kamu");
             return InteractionResult.CONSUME;
         }
 
         // The totem itself no longer opens a panel from the hand. All carving,
         // fusion, naming and the rest live at the Kamu Station (fletching table).
         return InteractionResult.PASS;
+    }
+
+    /** First time only -- {@code award} is a no-op once the criterion is already met. */
+    private static void grantOnboarding(ServerPlayer player, String advancementPath) {
+        AdvancementHolder advancement = player.level().getServer().getAdvancements()
+                .get(Identifier.fromNamespaceAndPath("kamutotems", advancementPath));
+        if (advancement != null) {
+            player.getAdvancements().award(advancement, "code_triggered");
+        }
     }
 
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand,

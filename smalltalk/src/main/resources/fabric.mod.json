@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "smalltalk",
+  "version": "${version}",
+  "name": "Small Talk",
+  "description": "Villagers have names, personalities, something to say about today -- and things they'd like you to do.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "smalltalk.SmallTalkMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

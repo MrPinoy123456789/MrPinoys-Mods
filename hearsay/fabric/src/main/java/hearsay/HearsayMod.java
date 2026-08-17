@@ -48,10 +48,10 @@ public final class HearsayMod implements ModInitializer {
         config = new HearsayConfig(configDir);
         listeners = new Listeners(config);
         bubbles = new Bubbles();
-        scenes = new Scenes(config, bubbles);
         mute = new Mute();
+        scenes = new Scenes(config, bubbles, mute);
         speech = new Speech(config, bubbles, scenes, mute);
-        reactions = new Reactions(config);
+        reactions = new Reactions(config, speech);
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             config.reload();

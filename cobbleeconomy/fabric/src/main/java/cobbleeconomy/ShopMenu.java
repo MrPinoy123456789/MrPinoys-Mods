@@ -9,8 +9,10 @@ import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.ChatFormatting;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
@@ -50,6 +52,7 @@ final class ShopMenu {
 
     static void openCategories(ServerPlayer player, EconomyService economy, ShopCatalog catalog,
                                TransactionLog log, EconomySettings settings) {
+        grantOnboarding(player);
         List<String> categories = catalog.categories();
         int rows = rowsFor(categories.size() + 1); // +1 for the wallet slot
         SimpleGui gui = new SimpleGui(menuType(rows), player, false);
@@ -64,6 +67,15 @@ final class ShopMenu {
         }
         gui.setSlot(slots - 1, walletElement(economy, catalog, player));
         gui.open();
+    }
+
+    /** First time only -- {@code award} is a no-op once the criterion is already met. */
+    private static void grantOnboarding(ServerPlayer player) {
+        AdvancementHolder advancement = player.level().getServer().getAdvancements()
+                .get(Identifier.fromNamespaceAndPath("cobbleeconomy", "open_shop"));
+        if (advancement != null) {
+            player.getAdvancements().award(advancement, "code_triggered");
+        }
     }
 
     private static GuiElement categoryElement(EconomyService economy, ShopCatalog catalog,

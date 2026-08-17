@@ -1,0 +1,15 @@
+{
+  "parent": "kamutotems:receive_totem",
+  "display": {
+    "icon": { "id": "minecraft:totem_of_undying" },
+    "title": { "translate": "advancement.kamutotems.bind_kamu.title" },
+    "description": { "translate": "advancement.kamutotems.bind_kamu.description" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}

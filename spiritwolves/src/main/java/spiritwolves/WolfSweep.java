@@ -3,6 +3,7 @@ package spiritwolves;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 
@@ -103,7 +104,14 @@ public final class WolfSweep {
         // discard = false: the entity is mid-removal already. The copy this
         // leaves in the chunk on disk is what the ENTITY_LOAD net is for.
         Tracker.storeWolf(owner, record, wolf, level, false);
-        SpiritWolvesMod.LOG.debug("Stored {}'s wolf back into the stone -- its chunk unloaded", owner);
+
+        // From the player's side this is the leash, just reached by unload
+        // rather than by the poll -- so it reads the same in chat. Null owner
+        // means they logged out, and DISCONNECT already recalled silently.
+        ServerPlayer online = level.getServer().getPlayerList().getPlayer(owner);
+        if (online != null) {
+            Tracker.announceReturn(online, record);
+        }
     }
 
     private static void judgePending() {

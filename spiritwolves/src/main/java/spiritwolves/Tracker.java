@@ -150,10 +150,7 @@ public final class Tracker {
         // uses -- Fetch's 32 is the current maximum.
         if (wolf.distanceToSqr(player) > LEASH_RANGE_SQR) {
             recallSilently(player, record, wolf);
-            player.sendSystemMessage(Component.literal(
-                            (record.wolfName != null ? record.wolfName : "Your wolf")
-                                    + " could not follow, and returns to the stone.")
-                    .withStyle(ChatFormatting.GRAY));
+            announceReturn(player, record);
             return;
         }
 
@@ -195,6 +192,22 @@ public final class Tracker {
         // leftover copy and WolfSweep discards it on the tick it loads.
 
         forEachBoundStone(player, stone -> SpiritStone.refreshLore(stone, record));
+    }
+
+    /**
+     * Tells the owner their wolf was put away because it could not follow --
+     * the leash in {@link #poll} and {@link WolfSweep}'s chunk-unload handler
+     * are the same event from the player's side, so they say the same thing.
+     *
+     * <p>The other silent recalls (logout, death, dimension change) stay silent:
+     * the player is not in a position to read chat at that moment anyway.
+     */
+    static void announceReturn(ServerPlayer player, WolfRecord record) {
+        player.sendSystemMessage(Component.literal(
+                        (record.wolfName != null ? record.wolfName : "Your wolf")
+                                + " could not follow, and returns to the stone.")
+                .withStyle(ChatFormatting.GRAY));
+        Chime.recalled(player);
     }
 
     private static void recallSilently(ServerPlayer player) {

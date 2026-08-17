@@ -5,6 +5,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dialog.Dialog;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Item;
@@ -17,6 +18,8 @@ import quizengine.Phase;
 import quizengine.Round;
 import quizengine.RoundResult;
 import quizengine.RoundType;
+import quizengine.mc.dialog.DialogKit;
+import quizengine.mc.dialog.QuizDialogs;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -391,8 +394,9 @@ public final class Orchestrator {
             message.append(Component.literal("\n"))
                     .append(clickable(option.index(), option.text(), "answer"));
         }
-        message.append(Component.literal("\nClick an option to lock it in.")
-                .withStyle(ChatFormatting.GRAY));
+        message.append(Component.literal("\nClick an option to lock it in, or ")
+                        .withStyle(ChatFormatting.GRAY))
+                .append(opens("[ Open the question ]", QuizDialogs.answer(round)));
         broadcast(server, message);
     }
 
@@ -402,9 +406,11 @@ public final class Orchestrator {
                 .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         broadcast(server, Component.literal(round.prompt())
                 .withStyle(ChatFormatting.WHITE));
-        // Nothing to click yet — the options are whatever people write.
-        broadcast(server, Component.literal("Write your answer with ")
-                .withStyle(ChatFormatting.GRAY)
+        // The dialog leads, because typing the answer into chat is how it gets spoiled:
+        // one forgotten "/quiz submit" broadcasts it to the whole server.
+        broadcast(server, Component.literal("  ")
+                .append(opens("[ Write your answer ]", QuizDialogs.write(round)))
+                .append(Component.literal("  or type ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal("/quiz submit <your answer>")
                         .withStyle(ChatFormatting.YELLOW)));
     }
@@ -421,6 +427,13 @@ public final class Orchestrator {
                 .withStyle(ChatFormatting.GOLD));
         for (int index : submitted) {
             broadcast(server, clickable(index, round.optionText(index), "vote"));
+        }
+        // Only once voting is actually open. This same list is also shown in the pause
+        // between submissions closing and the ballot opening, where there is nothing
+        // yet to click.
+        if (round.phase() == Phase.VOTING) {
+            broadcast(server, Component.literal("  ")
+                    .append(opens("[ Open the ballot ]", QuizDialogs.ballot(round))));
         }
     }
 
@@ -474,6 +487,18 @@ public final class Orchestrator {
                                 .withClickEvent(new ClickEvent.RunCommand(command))));
     }
 
+    /**
+     * A chat button that opens a dialog. The dialog travels inside the component, so
+     * there is no command behind it and no packet to send — and the surrounding
+     * broadcast is unchanged, which is the point. Nobody's screen is seized; a player
+     * who would rather type still can.
+     */
+    private static Component opens(String label, Dialog dialog) {
+        return Component.literal(label).withStyle(style -> style
+                .withColor(ChatFormatting.YELLOW)
+                .withClickEvent(DialogKit.open(dialog)));
+    }
+
     private void broadcast(MinecraftServer server, Component message) {
         server.getPlayerList().broadcastSystemMessage(message, false);
     }
@@ -490,9 +515,14 @@ public final class Orchestrator {
                 for (Option option : round.options()) {
                     player.sendSystemMessage(clickable(option.index(), option.text(), "answer"));
                 }
+                player.sendSystemMessage(Component.literal("  ")
+                        .append(opens("[ Open the question ]", QuizDialogs.answer(round))));
             } else {
-                player.sendSystemMessage(Component.literal("/quiz submit <your answer>")
-                        .withStyle(ChatFormatting.YELLOW));
+                player.sendSystemMessage(Component.literal("  ")
+                        .append(opens("[ Write your answer ]", QuizDialogs.write(round)))
+                        .append(Component.literal("  or type ").withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal("/quiz submit <your answer>")
+                                .withStyle(ChatFormatting.YELLOW)));
             }
         }
     }

@@ -216,7 +216,7 @@ public final class Tricks {
         if (!ar.equipped) {
             owner.sendSystemMessage(Component.literal(
                             wolfName(record) + " knows " + trick.displayName
-                                    + ", but is not carrying it. Recall to change tricks.")
+                                    + ", but is not carrying it.")
                     .withStyle(ChatFormatting.GRAY));
             return InteractionResult.SUCCESS;
         }

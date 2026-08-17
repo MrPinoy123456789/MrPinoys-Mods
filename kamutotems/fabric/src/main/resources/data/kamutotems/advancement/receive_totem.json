@@ -1,0 +1,15 @@
+{
+  "parent": "minecraft:story/root",
+  "display": {
+    "icon": { "id": "minecraft:totem_of_undying" },
+    "title": { "translate": "advancement.kamutotems.receive_totem.title" },
+    "description": { "translate": "advancement.kamutotems.receive_totem.description" },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}

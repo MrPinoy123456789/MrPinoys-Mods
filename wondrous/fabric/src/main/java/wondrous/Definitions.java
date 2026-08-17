@@ -6,7 +6,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.MenuConstructor;
 import net.minecraft.server.level.ServerPlayer;
@@ -119,9 +118,10 @@ public final class Definitions {
                     lore(voice("whos on the crafts"),
                          plain("A workbench that never needs setting down.")),
                     PLAIN,
-                    (id, inv, player) ->
-                            new CraftingMenu(id, inv,
-                                    ContainerLevelAccess.create(player.level(), player.blockPosition()))),
+                    // No ContainerLevelAccess: the vanilla menu's stillValid checks for
+                    // an actual crafting table block at that position, which doesn't
+                    // exist here and would close the menu the instant it opens.
+                    (id, inv, player) -> new CraftingMenu(id, inv)),
 
             new Def("pocket_anvil",
                     Items.ANVIL,
@@ -130,9 +130,10 @@ public final class Definitions {
                          plain("Repairs and renames."),
                          plain("Never breaks.")),
                     PLAIN,
-                    (id, inv, player) ->
-                            new AnvilMenu(id, inv,
-                                    ContainerLevelAccess.create(player.level(), player.blockPosition()))),
+                    // No ContainerLevelAccess: the vanilla menu's stillValid checks for
+                    // an actual anvil block at that position, which doesn't exist here
+                    // and would close the menu the instant it opens.
+                    (id, inv, player) -> new AnvilMenu(id, inv)),
 
             new Def(BoomerangBall.ID,
                     Items.SLIME_BALL,

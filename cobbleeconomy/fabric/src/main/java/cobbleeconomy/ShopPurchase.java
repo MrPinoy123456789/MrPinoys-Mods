@@ -4,6 +4,8 @@ import cobbleeconomy.core.Currency;
 import cobbleeconomy.core.EconomyService;
 import cobbleeconomy.core.Shop;
 import cobbleeconomy.core.ShopEntry;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 
@@ -76,12 +78,22 @@ final class ShopPurchase {
         if (result.ok()) {
             log.tx(player.getName().getString() + " purchased " + entry.quantity()
                     + " " + entry.key() + " for " + entry.describePrice());
+            grantOnboarding(player);
         }
 
         if (announce) {
             announce(economy, player, entry, result);
         }
         return result;
+    }
+
+    /** First purchase only -- {@code award} is a no-op once the criterion is already met. */
+    private static void grantOnboarding(ServerPlayer player) {
+        AdvancementHolder advancement = player.level().getServer().getAdvancements()
+                .get(Identifier.fromNamespaceAndPath("cobbleeconomy", "first_purchase"));
+        if (advancement != null) {
+            player.getAdvancements().award(advancement, "code_triggered");
+        }
     }
 
     private static void announce(EconomyService economy, ServerPlayer player, ShopEntry entry,

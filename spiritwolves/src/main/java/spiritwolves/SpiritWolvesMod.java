@@ -33,6 +33,7 @@ public final class SpiritWolvesMod implements ModInitializer {
         Tricks.register();
         Training.register();
         SpiritCommands.register();
+        TameWatcher.register();
 
         LOG.info("Spirit Wolves initialised (server-side only)");
     }

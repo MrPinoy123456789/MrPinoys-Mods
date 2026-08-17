@@ -129,14 +129,58 @@ public final class Speech {
         deliver(player, new Pick(candidate, pool));
     }
 
-    private void deliver(ServerPlayer player, Pick pick) {
-        String line = config.pools().pickFor(pick.candidate().professionId(), pick.pool(), random);
-        if (line.isBlank()) return;
+    /**
+     * Offer an event-driven line to one listener, subject to the same budget as
+     * ambient chatter: mute, an active scene, the damage and raid hushes, and the
+     * per-listener rate limit all apply (PLAN.md M4 — "reactions are not exempt").
+     *
+     * <p>The rate limit is charged last, so a reaction whose pool is empty or whose
+     * speaker is unusable does not burn the listener's budget.
+     *
+     * @return true if a line was actually delivered
+     */
+    public boolean offer(ServerPlayer player, Listeners.Candidate candidate, String pool) {
+        UUID listenerId = player.getUUID();
+        if (player.isRemoved() || !player.isAlive()) return false;
+        if (mute.isMuted(listenerId)) return false;
+        if (scenes.isBusyListener(listenerId)) return false;
 
-        String channel = config.settings().channel().getOrDefault(pick.pool(), "actionbar");
+        Integer hush = damagedUntil.get(listenerId);
+        if (hush != null && tick < hush) return false;
+
+        Villager v = candidate.villager();
+        if (v.isSleeping()) return false;
+        if (v.level() instanceof ServerLevel level && level.isRaided(v.blockPosition())) return false;
+
+        String line = config.pools().pickFor(candidate.professionId(), pool, random,
+                config.settings().professionLineChance());
+        if (line.isBlank()) return false;
+
+        // A bubble hangs off the speaker's body, so it needs a living speaker. A chat
+        // or actionbar line only needs the profession the line came from — which is
+        // what lets the village react to a villager's own death.
+        String channel = channelFor(pool);
+        if ("bubble".equals(channel) && (v.isRemoved() || !v.isAlive())) return false;
+
+        RateLimit budget = perListener.computeIfAbsent(listenerId,
+                u -> new RateLimit(config.settings().quietSeconds() * 20));
+        if (!budget.allow(tick)) return false;
+
+        send(player, v, line, channel);
+        return true;
+    }
+
+    private void deliver(ServerPlayer player, Pick pick) {
+        String line = config.pools().pickFor(pick.candidate().professionId(), pick.pool(), random,
+                config.settings().professionLineChance());
+        if (line.isBlank()) return;
+        send(player, pick.candidate().villager(), line, channelFor(pick.pool()));
+    }
+
+    private void send(ServerPlayer player, Villager speaker, String line, String channel) {
         if ("bubble".equals(channel)) {
-            if (pick.candidate().villager().level() instanceof ServerLevel level) {
-                bubbles.say(level, pick.candidate().villager(), line);
+            if (speaker.level() instanceof ServerLevel level) {
+                bubbles.say(level, speaker, line);
             }
         } else if ("chat".equals(channel)) {
             player.sendSystemMessage(Component.literal(line)
@@ -144,6 +188,23 @@ public final class Speech {
         } else {
             player.sendSystemMessage(Component.literal(line), true);
         }
+    }
+
+    /**
+     * The channel for a pool: an exact match first, then the family before the dot,
+     * so every {@code reaction.*} pool inherits the single {@code reaction} setting
+     * instead of silently falling through to a hardcoded default.
+     */
+    private String channelFor(String pool) {
+        Map<String, String> channels = config.settings().channel();
+        String exact = channels.get(pool);
+        if (exact != null) return exact;
+        int dot = pool.indexOf('.');
+        if (dot > 0) {
+            String family = channels.get(pool.substring(0, dot));
+            if (family != null) return family;
+        }
+        return "actionbar";
     }
 
     private record Pick(Listeners.Candidate candidate, String pool) {}

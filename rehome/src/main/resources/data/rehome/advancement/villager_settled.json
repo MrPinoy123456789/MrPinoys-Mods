@@ -1,0 +1,15 @@
+{
+  "parent": "rehome:greet_villager",
+  "display": {
+    "icon": { "id": "minecraft:red_bed" },
+    "title": { "translate": "advancement.rehome.villager_settled.title" },
+    "description": { "translate": "advancement.rehome.villager_settled.description" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}

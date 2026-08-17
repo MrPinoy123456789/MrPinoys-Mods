@@ -12,6 +12,9 @@
       "quizengine.mc.QuizMod"
     ]
   },
+  "mixins": [
+    "quizengine.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.3",
     "minecraft": "~26.2",

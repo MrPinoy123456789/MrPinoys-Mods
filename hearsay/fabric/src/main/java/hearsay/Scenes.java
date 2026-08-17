@@ -28,15 +28,17 @@ public final class Scenes {
 
     private final HearsayConfig config;
     private final Bubbles bubbles;
+    private final Mute mute;
     private final Random random = new Random();
     private final Map<UUID, Active> active = new HashMap<>();
     private final Set<UUID> busyListeners = new HashSet<>();
     private final Set<UUID> busySpeakers = new HashSet<>();
     private int tick;
 
-    public Scenes(HearsayConfig config, Bubbles bubbles) {
+    public Scenes(HearsayConfig config, Bubbles bubbles, Mute mute) {
         this.config = config;
         this.bubbles = bubbles;
+        this.mute = mute;
     }
 
     public boolean isBusyListener(UUID listener) {
@@ -97,6 +99,8 @@ public final class Scenes {
         for (Map.Entry<UUID, List<Listeners.Candidate>> e : listeners.byPlayer().entrySet()) {
             UUID listenerId = e.getKey();
             if (busyListeners.contains(listenerId)) continue;
+            // Muted players hear nothing ambient, and a scene is ambient chatter.
+            if (mute.isMuted(listenerId)) continue;
             if (random.nextDouble() >= config.settings().sceneChance()) continue;
 
             List<Listeners.Candidate> available = new ArrayList<>();

@@ -416,10 +416,16 @@ public final class Abilities {
         return Souls.levelFor(record.souls);
     }
 
+    /**
+     * Swapping is live -- a summoned wolf is no obstacle. Every consumer reads
+     * {@link #equippedTier} at the moment it procs rather than caching a
+     * loadout at summon time, so a fang swapped mid-fight takes effect on the
+     * next tick or the next hit with no further wiring.
+     *
+     * <p>SPEC.md section 18.3 used to require the wolf be in the stone, to stop
+     * mid-fight juggling. That gate is deliberately gone.
+     */
     static String canEquip(WolfRecord record, Ability ability) {
-        if (record.summoned) {
-            return "Recall your wolf to change its " + ability.category.plural.toLowerCase() + ".";
-        }
         WolfRecord.AbilityRecord ar = record.abilities.get(ability.id);
         if (ar == null || ar.tier <= 0) {
             return "Not yet unlocked.";
@@ -434,10 +440,8 @@ public final class Abilities {
         return null;
     }
 
+    /** @see #canEquip for why being summoned is not a rejection */
     static String canUnequip(WolfRecord record, Ability ability) {
-        if (record.summoned) {
-            return "Recall your wolf to change its " + ability.category.plural.toLowerCase() + ".";
-        }
         WolfRecord.AbilityRecord ar = record.abilities.get(ability.id);
         if (ar == null || !ar.equipped) {
             return "Not equipped.";

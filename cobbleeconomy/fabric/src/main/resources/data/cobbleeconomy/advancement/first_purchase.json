@@ -1,0 +1,15 @@
+{
+  "parent": "cobbleeconomy:open_shop",
+  "display": {
+    "icon": { "id": "minecraft:emerald" },
+    "title": { "translate": "advancement.cobbleeconomy.first_purchase.title" },
+    "description": { "translate": "advancement.cobbleeconomy.first_purchase.description" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}

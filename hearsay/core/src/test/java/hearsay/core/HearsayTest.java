@@ -65,10 +65,33 @@ public final class HearsayTest {
         raw.put("ambient", ambient);
         LinePools pools = new LinePools(raw);
 
-        check("pick specific profession pool",
-                pools.pickFor("minecraft:farmer", "ambient", new Random(1)), "The wheat looks good.");
+        check("profession pool wins at chance 1.0",
+                pools.pickFor("minecraft:farmer", "ambient", new Random(1), 1.0),
+                "The wheat looks good.");
+        check("shared pool wins at chance 0.0",
+                ambient.contains(pools.pickFor("minecraft:farmer", "ambient", new Random(1), 0.0)),
+                true);
         String fallback = pools.pickFor("minecraft:librarian", "ambient", new Random(1));
         check("fallback to bare moment", ambient.contains(fallback), true);
+
+        // A profession with no shared counterpart still speaks: only-one-pool wins
+        // outright rather than rolling the blend and coming back empty.
+        LinePools onlySpecific = new LinePools(Map.of(
+                "minecraft:farmer.ambient", List.of("The wheat looks good.")));
+        check("profession pool used when no shared pool",
+                onlySpecific.pickFor("minecraft:farmer", "ambient", new Random(1), 0.0),
+                "The wheat looks good.");
+
+        // Blending draws from both pools over many rolls, and never yields "".
+        Set<String> blended = new HashSet<>();
+        Random blendRandom = new Random(7);
+        for (int i = 0; i < 200; i++) {
+            String line = pools.pickFor("minecraft:farmer", "ambient", blendRandom);
+            check("blend never yields empty", line.isEmpty(), false);
+            blended.add(line);
+        }
+        check("blend draws profession lines", blended.contains("The wheat looks good."), true);
+        check("blend draws shared lines", blended.stream().anyMatch(ambient::contains), true);
 
         check("key format", LinePools.key("minecraft:farmer", "ambient"), "minecraft:farmer.ambient");
 

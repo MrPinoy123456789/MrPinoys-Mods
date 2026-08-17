@@ -2,8 +2,10 @@ package spiritwolves;
 
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -94,11 +96,21 @@ public final class Binding {
         serverPlayer.sendSystemMessage(Component.literal(
                         (wolfName != null ? wolfName : "The wolf") + "'s soul is bound to you. The stone hums.")
                 .withStyle(ChatFormatting.AQUA));
+        grantOnboarding(serverPlayer);
 
         return InteractionResult.SUCCESS;
     }
 
     private static void fail(ServerPlayer player, String message) {
         player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.RED));
+    }
+
+    /** First bind only -- {@code award} is a no-op once the criterion is already met. */
+    private static void grantOnboarding(ServerPlayer player) {
+        AdvancementHolder advancement = player.level().getServer().getAdvancements()
+                .get(Identifier.fromNamespaceAndPath("spiritwolves", "bind_wolf"));
+        if (advancement != null) {
+            player.getAdvancements().award(advancement, "code_triggered");
+        }
     }
 }

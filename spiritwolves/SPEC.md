@@ -1153,8 +1153,15 @@ Rules the state machine enforces:
 A wolf knows every ability it has unlocked, but only **equipped** ones are
 active. **Fangs and tricks have separate pools**: fang slots come from level
 (§18.1) at 1 → 2 → 3, trick slots are 2 rising to 3 at level 4. Swapping is free
-but only allowed while the wolf is **in the stone** — you set the loadout, then
-summon. Prevents mid-fight juggling and keeps proc hooks static per outing.
+and allowed **at any time, including mid-fight with the wolf summoned**.
+
+This reverses the original rule, which required the wolf be in the stone. That
+rule gave two reasons and neither survived: "keeps proc hooks static per outing"
+was never true of the implementation — every consumer reads
+`Abilities.equippedTier(record, …)` at the moment it procs, so nothing is cached
+at summon time and a swap simply takes effect on the next tick or next hit — and
+"prevents mid-fight juggling" was judged not worth the recall/summon round trip
+it cost every loadout change. The slot cap alone carries the loadout choice now.
 
 **Command tree** (all under the existing `/spiritwolves` root; player-level
 permission except `admin`):
@@ -1248,7 +1255,7 @@ current.
 | Kill while fang fill not attuned | Family kill count still increments (it always does); fill progress doesn't. |
 | Souls overflow | `long`. A player would need 9 quintillion kills. Not a case. |
 | Attune click with panel stale (already attuned / diamonds spent) | Server-side re-validation catches it; message explains; panel re-printed. |
-| Equip click while wolf summoned | Reject: *"Recall your wolf to change its fangs."* |
+| Equip click while wolf summoned | Allowed — takes effect on the next proc (§18.3). |
 | Equip beyond slot count | Reject: *"No free fang slots. Unequip one first."* |
 | Fang equipped, then level requirements change in a later balance patch | Equipped fangs are never force-unequipped; gates apply at attune/equip time only. |
 | True death / release | Registry record deleted (§16) — souls, fangs, everything. No partial refunds. |
@@ -1266,7 +1273,7 @@ current.
 | Equip | *"<Fang> equipped."* | green |
 | Unequip | *"<Fang> set aside."* | gray |
 | Equip, no slots | *"No free fang slots. Unequip one first."* | red |
-| Equip/unequip while summoned | *"Recall your wolf to change its fangs."* | red |
+| Trick used while unlocked but not equipped | *"&lt;name&gt; knows &lt;Trick&gt;, but is not carrying it."* | gray |
 | Attune, not enough diamonds | *"Requires <n> diamonds — you have <m>."* | red |
 | Attune, level gate | *"Requires Level <n>."* | red |
 | Attune, previous tier unfilled | *"Fill Tier <n> first."* | red |
@@ -1309,7 +1316,8 @@ through message code.
       server-side; removes diamonds correctly from 36-slot inventory
 - [x] Panel renders all states per §18.3 including hover text, stale-click
       safety, and re-print after every mutation
-- [x] Equip/unequip only while wolf is in the stone; slot limits enforced
+- [x] Equip/unequip allowed at any time including while summoned (§18.3);
+      slot limits enforced
 - [x] All six fangs proc correctly at all three tiers; effects match §18.2
       (Voidfang III uses a nearest-monster fallback rather than reading
       Senses' marked-prey target, since that reference isn't persisted --
