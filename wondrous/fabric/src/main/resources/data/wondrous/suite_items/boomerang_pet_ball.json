@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:slime_ball",
+  "name": "Boomerang Pet Ball",
+  "tags": ["trinket", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Boomerang Pet Ball", "color": "green"},
+    "minecraft:custom_data": {
+      "wondrous": "boomerang_pet_ball"
+    }
+  }
+}

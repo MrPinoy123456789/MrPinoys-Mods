@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:story/root",
+  "parent": "rehome:root",
   "display": {
     "icon": { "id": "minecraft:emerald" },
     "title": { "text": "Rehome: A Familiar Face" },

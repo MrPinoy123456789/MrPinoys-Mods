@@ -54,18 +54,24 @@ final class ShopMenu {
                                TransactionLog log, EconomySettings settings) {
         grantOnboarding(player);
         List<String> categories = catalog.categories();
-        int rows = rowsFor(categories.size() + 1); // +1 for the wallet slot
+        int rows = rowsFor(categories.size() + 2); // +2: the wallet slot and Close
         SimpleGui gui = new SimpleGui(menuType(rows), player, false);
         gui.setTitle(Component.literal("Server Shop").withStyle(ChatFormatting.GOLD));
 
         int slots = rows * 9;
-        int shown = Math.min(categories.size(), slots - 1);
+        int shown = Math.min(categories.size(), slots - 2);
         for (int i = 0; i < shown; i++) {
             String category = categories.get(i);
             List<ShopEntry> entries = catalog.inCategory(category);
             gui.setSlot(i, categoryElement(economy, catalog, log, settings, player, category, entries));
         }
-        gui.setSlot(slots - 1, walletElement(economy, catalog, player));
+        gui.setSlot(slots - 2, walletElement(economy, catalog, player));
+        // This is the root of /shop, so there is nothing to go back to -- but a player
+        // should never have to reach for Esc to leave a menu the mod opened for them.
+        gui.setSlot(slots - 1, new GuiElementBuilder(Items.BARRIER)
+                .setName(Component.literal("Close").withStyle(ChatFormatting.RED))
+                .setCallback((i, t, a, g) -> g.close())
+                .build());
         gui.open();
     }
 
@@ -280,6 +286,12 @@ final class ShopMenu {
             String id = WondrousShop.idFrom(entry.itemId());
             return WondrousShop.iconStack(id)
                     .or(() -> WondrousShop.baseItem(id).map(ItemStack::new))
+                    .orElse(new ItemStack(Items.BARRIER));
+        }
+        if (SuiteItems.isSuiteItemId(entry.itemId())) {
+            String id = SuiteItems.idFrom(entry.itemId());
+            return SuiteItems.iconStack(id, registries)
+                    .or(() -> SuiteItems.baseItem(id).map(ItemStack::new))
                     .orElse(new ItemStack(Items.BARRIER));
         }
         return ItemBank.resolve(entry.itemId())

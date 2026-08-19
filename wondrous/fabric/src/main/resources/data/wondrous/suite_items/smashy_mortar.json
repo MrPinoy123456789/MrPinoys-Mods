@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:bowl",
+  "name": "Smashy Mortar",
+  "tags": ["tool", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Smashy Mortar", "color": "dark_gray"},
+    "minecraft:custom_data": {
+      "wondrous": "smashy_mortar"
+    }
+  }
+}

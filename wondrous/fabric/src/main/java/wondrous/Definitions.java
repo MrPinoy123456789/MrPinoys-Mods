@@ -258,11 +258,12 @@ public final class Definitions {
                     PLAIN,
                     null),
 
-            new Def(Growth.LAZY_SPRINKLER_ID,
-                    Items.HEART_OF_THE_SEA,
+            new Def(LazySprinkler.ID,
+                    Items.COPPER_GRATE.weathering().oxidized(),
                     name("Lazy Sprinkler", ChatFormatting.AQUA),
                     lore(voice("i got it, go do something else"),
-                         plain("Grows one crop every 60 ticks while anywhere in your inventory.")),
+                         plain("Right-click to feed it bone meal."),
+                         plain("Fertilizes 3 random blocks in an 11x11 around itself, same level, every 3 seconds.")),
                     PLAIN,
                     null),
 

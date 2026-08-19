@@ -66,10 +66,11 @@ wrong.
 
 - `giveOrDrop` is duplicated in four mods. Deliberate. Four copies of eight lines
   is cheaper than a shared library that every mod must version against.
-- No cross-mod features. A bounty cannot grant a wondrous item directly. This is
-  a *feature* of the design, not a limitation to be worked around: if a reward
-  needs to be something other than currency, that is a signal it belongs inside
-  the mod that owns it.
+- No cross-mod features *in code*. A bounty cannot call into `wondrous` to grant
+  an item. This is a *feature* of the design, not a limitation to be worked
+  around: if a reward needs to be something other than currency, that is a signal
+  it belongs inside the mod that owns it — or that it should be **published as
+  data** any mod can read without knowing who wrote it. See `SUITE_ITEMS.md`.
 - Currency is physical items, so payouts round-trip through the inventory rather
   than crediting a balance. Accepted cost of not depending on `cobbleeconomy`.
 
@@ -77,6 +78,13 @@ wrong.
 
 > **A mod may pay in diamonds or cobblestone, and may charge in diamonds or
 > cobblestone. It may not know the name of any other mod.**
+
+"Know the name of" means **in code**. A mod may publish data that names only
+itself, and another mod may read whatever data happens to be present without
+naming anybody. That is not a coupling in the sense this rule forbids: there is
+no compile dependency, no load order, and nothing to break when either mod is
+removed. Two contracts in the suite work this way and neither weakens the rule —
+suite items (`SUITE_ITEMS.md` §2) and the facts contract (`ROADMAP.md` §3).
 
 ---
 
@@ -118,9 +126,20 @@ The config file describes the item completely, so `cobbleeconomy` sells it witho
 knowing `spiritwolves` exists, and `spiritwolves` stays perfectly standalone. The
 contract between them is a string in a JSON file.
 
-**This is now the preferred pattern.** Any future mod that sells a
-component-marked item uses `components`. The `wondrous` integration stays as-is
-because it works and rewriting it buys nothing — but it should not be copied.
+**This is now the preferred pattern**, and it has since been generalised. The
+`components` block answers "how does the shop sell an item it has never heard
+of," but it answers it *once per consumer*: the same JSON gets pasted into
+`shop.json`, then into a Wayfarers listing, then into whatever comes next, and
+the mod that invented the item has no say in any of them. `SUITE_ITEMS.md` gives
+the definition a **name and an owner** — the defining mod ships it as read-only
+JSON in its own jar, and every consumer resolves it by id or by tag. Same
+contract, same component format, one authoritative copy.
+
+That also gives the `wondrous` exception a closing path for the first time
+(`SUITE_ITEMS.md` §10.1): publish the wondrous items as suite items and
+`WondrousShop.java`, the api dependency, and the `publishToMavenLocal` step all
+delete themselves. It is not urgent — the integration works — but it is no longer
+permanent, and it should still never be copied.
 
 ---
 
@@ -133,7 +152,11 @@ Everything a mod #8 must do to belong to this suite:
 2. **Charge in plain diamonds or cobblestone items** if it charges at all.
 3. **Never depend on another mod** at compile time. No `depends`, no api module,
    no shared classes.
-4. **Sell through `shop.json` `components`**, never through an integration file.
+4. **Publish custom items as suite items** (`SUITE_ITEMS.md`) — a vanilla item
+   plus a component patch, shipped as read-only JSON in your own jar, so any mod
+   can sell or grant it. Never through an api module or an integration file. A
+   hand-written `components` block in the consumer's config stays valid and is
+   the right answer for a one-off.
 5. **Own its own config** under `config/<mod_id>/`, generated on first boot via
    `readOrCreate` — write defaults if missing, log it, never overwrite a file that
    failed to parse.
@@ -306,7 +329,13 @@ Options, cheapest first:
 
 1. **The shop as the catalogue.** Already the de-facto answer for Spirit Stones —
    a player browsing `/shop` sees the name and lore and learns the feature exists.
-   Cheap, already built, but only covers things that are for sale.
+   Cheap, already built, but only covers things that are for sale, and only the
+   things an owner remembered to list. Suite items (`SUITE_ITEMS.md`) close the
+   second half of that gap: every mod publishes its items, and the shop's admin
+   browser stocks them by tag in one click, so installing a mod is enough to put
+   its items in front of players. A Wayfarers encounter gifting items by tag
+   (planned — `wayfarers/SPEC.md`) is the same mechanism with legs: it walks the
+   catalogue up to the player rather than waiting to be browsed.
 2. **A guide book (SGUI).** A browsable in-game manual with items, patterns, and
    explanations. This is the real answer: it solves discoverability for all six
    mods at once, and it can stay decoupled by being *its own mod* that reads a

@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:leather_boots",
+  "name": "Zoomies Boots",
+  "tags": ["trinket", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Zoomies Boots", "color": "white"},
+    "minecraft:custom_data": {
+      "wondrous": "zoomies_boots"
+    }
+  }
+}

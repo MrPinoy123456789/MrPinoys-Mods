@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/entrance_hall",
+  "footprint": [1, 1],
+  "roles": ["entrance"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1
+}

@@ -34,6 +34,7 @@ public final class WondrousMod implements ModInitializer {
         Aura.register();
         WondrousState.register();
         new CraftStation(registry).register();
+        new LazySprinkler(registry).register();
         new LinkWand().register();
         new CarryGlove().register();
         FlyingBoots.register();

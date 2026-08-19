@@ -22,10 +22,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import wondrous.api.WondrousTag;
 
 /**
@@ -101,9 +103,28 @@ public final class CarryGlove {
         BlockState state = level.getBlockState(pos);
         CompoundTag tag = be.saveWithFullMetadata(level.registryAccess());
         String blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+
+        // Half of a double chest only ever comes away as a whole single chest.
+        // The other half has to be told it is alone as well, or it keeps a
+        // left/right model with nothing beside it.
+        BlockPos twin = null;
+        if (state.hasProperty(ChestBlock.TYPE) && state.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
+            twin = ChestBlock.getConnectedBlockPos(pos, state);
+            state = state.setValue(ChestBlock.TYPE, ChestType.SINGLE);
+        }
         CompoundTag stateTag = NbtUtils.writeBlockState(state);
 
+        // The contents live in the tag now. Leaving them in the container would
+        // make breaking the block spill a second copy of everything.
+        ((Container) be).clearContent();
+
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+        if (twin != null) {
+            BlockState twinState = level.getBlockState(twin);
+            if (twinState.hasProperty(ChestBlock.TYPE)) {
+                level.setBlock(twin, twinState.setValue(ChestBlock.TYPE, ChestType.SINGLE), 3);
+            }
+        }
         WondrousState.forLevel(level).removeLinksAt(level, pos);
 
         CustomData.update(DataComponents.CUSTOM_DATA, held, t -> {

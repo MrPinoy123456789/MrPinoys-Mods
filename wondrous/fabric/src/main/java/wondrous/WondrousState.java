@@ -38,6 +38,7 @@ public final class WondrousState extends SavedData {
     private static final int SWEEP_INTERVAL = 1200; // once per minute
 
     private final Map<PosKey, List<ItemStack>> craftingStations = new HashMap<>();
+    private final Map<PosKey, List<ItemStack>> sprinklers = new HashMap<>();
     private final Map<PosKey, Link> links = new HashMap<>();
 
     public WondrousState() {}
@@ -65,6 +66,13 @@ public final class WondrousState extends SavedData {
             ItemStack.OPTIONAL_CODEC.listOf().fieldOf("grid").forGetter(StationEntry::grid)
     ).apply(instance, StationEntry::new));
 
+    // Sprinklers reuse the station entry shape -- both are just "a position with a
+    // saved item list" -- so the same record and codec serve both.
+    private static final Codec<StationEntry> SPRINKLER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            POS_KEY_CODEC.fieldOf("at").forGetter(StationEntry::key),
+            ItemStack.OPTIONAL_CODEC.listOf().fieldOf("grid").forGetter(StationEntry::grid)
+    ).apply(instance, StationEntry::new));
+
     private static final Codec<LinkEntry> LINK_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             POS_KEY_CODEC.fieldOf("at").forGetter(LinkEntry::key),
             LINK_CODEC.fieldOf("link").forGetter(LinkEntry::link)
@@ -74,15 +82,21 @@ public final class WondrousState extends SavedData {
             STATION_ENTRY_CODEC.listOf().fieldOf("crafting_stations")
                     .forGetter(s -> s.craftingStations.entrySet().stream()
                             .map(e -> new StationEntry(e.getKey(), e.getValue())).toList()),
+            SPRINKLER_ENTRY_CODEC.listOf().optionalFieldOf("sprinklers", List.of())
+                    .forGetter(s -> s.sprinklers.entrySet().stream()
+                            .map(e -> new StationEntry(e.getKey(), e.getValue())).toList()),
             LINK_ENTRY_CODEC.listOf().fieldOf("links")
                     .forGetter(s -> s.links.entrySet().stream()
                             .map(e -> new LinkEntry(e.getKey(), e.getValue())).toList())
     ).apply(instance, WondrousState::fromEntries));
 
-    private static WondrousState fromEntries(List<StationEntry> stations, List<LinkEntry> links) {
+    private static WondrousState fromEntries(List<StationEntry> stations, List<StationEntry> sprinklers, List<LinkEntry> links) {
         WondrousState state = new WondrousState();
         for (StationEntry e : stations) {
             state.craftingStations.put(e.key(), new ArrayList<>(e.grid()));
+        }
+        for (StationEntry e : sprinklers) {
+            state.sprinklers.put(e.key(), new ArrayList<>(e.grid()));
         }
         for (LinkEntry e : links) {
             state.links.put(e.key(), e.link());
@@ -143,6 +157,33 @@ public final class WondrousState extends SavedData {
         if (craftingStations.remove(new PosKey(level.dimension(), pos)) != null) {
             setDirty();
         }
+    }
+
+    /**
+     * Whether a sprinkler is registered here. Same emptiness caveat as
+     * {@link #hasStation}: a registered sprinkler with no bone meal in it is normal.
+     */
+    public boolean hasSprinkler(ServerLevel level, BlockPos pos) {
+        return sprinklers.containsKey(new PosKey(level.dimension(), pos));
+    }
+
+    public List<ItemStack> getSprinkler(ServerLevel level, BlockPos pos) {
+        return sprinklers.getOrDefault(new PosKey(level.dimension(), pos), Collections.emptyList());
+    }
+
+    public void setSprinkler(ServerLevel level, BlockPos pos, List<ItemStack> items) {
+        sprinklers.put(new PosKey(level.dimension(), pos), new ArrayList<>(items));
+        setDirty();
+    }
+
+    public void removeSprinkler(ServerLevel level, BlockPos pos) {
+        if (sprinklers.remove(new PosKey(level.dimension(), pos)) != null) {
+            setDirty();
+        }
+    }
+
+    public Map<PosKey, List<ItemStack>> allSprinklers() {
+        return Collections.unmodifiableMap(sprinklers);
     }
 
     public Link getLink(ServerLevel level, BlockPos pos) {
@@ -208,6 +249,24 @@ public final class WondrousState extends SavedData {
             }
             if (level.getBlockState(e.getKey().pos()).getBlock() != Blocks.CRAFTING_TABLE) {
                 sit.remove();
+                changed = true;
+            }
+        }
+
+        Iterator<Map.Entry<PosKey, List<ItemStack>>> spit = sprinklers.entrySet().iterator();
+        while (spit.hasNext()) {
+            Map.Entry<PosKey, List<ItemStack>> e = spit.next();
+            ServerLevel level = server.getLevel(e.getKey().dimension());
+            if (level == null) {
+                spit.remove();
+                changed = true;
+                continue;
+            }
+            if (!level.hasChunkAt(e.getKey().pos())) {
+                continue;
+            }
+            if (level.getBlockState(e.getKey().pos()).getBlock() != Blocks.COPPER_GRATE.weathering().oxidized()) {
+                spit.remove();
                 changed = true;
             }
         }

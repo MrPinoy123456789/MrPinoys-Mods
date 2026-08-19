@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:nautilus_shell",
+  "name": "Never Empty Charm",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Never Empty Charm", "color": "aqua"},
+    "minecraft:custom_data": {
+      "wondrous": "restock_ring"
+    }
+  }
+}

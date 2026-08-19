@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:bucket",
+  "name": "Growy Can",
+  "tags": ["tool", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Growy Can", "color": "green"},
+    "minecraft:custom_data": {
+      "wondrous": "growy_can"
+    }
+  }
+}

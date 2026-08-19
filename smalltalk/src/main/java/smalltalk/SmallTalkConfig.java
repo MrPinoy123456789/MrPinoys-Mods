@@ -33,6 +33,8 @@ public final class SmallTalkConfig {
     private static boolean sneakSkipsDialogue = true;
     private static boolean requestsEnabled = false;
     private static int maxActiveTasks = 3;
+    /** SPEC.md section 12.3: per-resident daily-cadence gate; mirrors {@code giftCooldownTicks}. */
+    private static int requestCooldownTicks = 24000;
     /** category name -> item ids that count as belonging to it (SPEC.md section 2's quirks). */
     private static Map<String, List<String>> itemCategories = defaultCategories();
 
@@ -74,6 +76,7 @@ public final class SmallTalkConfig {
     public static boolean sneakSkipsDialogue() { return sneakSkipsDialogue; }
     public static boolean requestsEnabled() { return requestsEnabled; }
     public static int maxActiveTasks() { return maxActiveTasks; }
+    public static int requestCooldownTicks() { return requestCooldownTicks; }
     public static Map<String, List<String>> itemCategories() { return itemCategories; }
 
     private static void applyDefaults() {
@@ -85,6 +88,7 @@ public final class SmallTalkConfig {
         sneakSkipsDialogue = true;
         requestsEnabled = false;
         maxActiveTasks = 3;
+        requestCooldownTicks = 24000;
         itemCategories = defaultCategories();
     }
 
@@ -97,6 +101,7 @@ public final class SmallTalkConfig {
         sneakSkipsDialogue = getBool(root, "sneakSkipsDialogue", true);
         requestsEnabled = getBool(root, "requestsEnabled", false);
         maxActiveTasks = getInt(root, "maxActiveTasks", 3);
+        requestCooldownTicks = getInt(root, "requestCooldownTicks", 24000);
 
         Map<String, List<String>> parsedCategories = new LinkedHashMap<>();
         if (root.has("itemCategories") && root.get("itemCategories").isJsonObject()) {
@@ -146,6 +151,7 @@ public final class SmallTalkConfig {
         root.addProperty("sneakSkipsDialogue", true);
         root.addProperty("requestsEnabled", false);
         root.addProperty("maxActiveTasks", 3);
+        root.addProperty("requestCooldownTicks", 24000);
 
         JsonObject categories = new JsonObject();
         for (Map.Entry<String, List<String>> entry : defaultCategories().entrySet()) {

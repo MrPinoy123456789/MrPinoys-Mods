@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:diamond_hoe",
+  "name": "Big Lazy Hoe",
+  "tags": ["tool", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Big Lazy Hoe", "color": "green"},
+    "minecraft:custom_data": {
+      "wondrous": "big_lazy_hoe"
+    }
+  }
+}

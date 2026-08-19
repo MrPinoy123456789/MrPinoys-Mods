@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
+import smalltalk.identity.Birthday;
 import smalltalk.identity.Identity;
 import smalltalk.identity.IdentityDeriver;
 import smalltalk.social.Feedback;
@@ -46,7 +47,7 @@ public final class GiftHandler {
             return false;
         }
 
-        Identity identity = IdentityDeriver.derive(villager.getUUID());
+        Identity identity = IdentityDeriver.derive(villager);
         GiftReaction reaction = GiftCategories.reactionFor(identity, stack);
         if (reaction == null) {
             // Not a configured gift item -- only possible if itemCategories changed
@@ -54,9 +55,14 @@ public final class GiftHandler {
             return false;
         }
 
+        int delta = reaction.familiarityDelta();
+        if (Birthday.isToday(villager.getUUID(), level)) {
+            delta *= 2;
+        }
+
         stack.shrink(1);
-        FamiliarityAttachment.recordGift(villager, player.getUUID(), tick,
-                reaction.familiarityDelta(), "gave_gift:" + itemId);
+        FamiliarityAttachment.recordGift(villager, player.getUUID(), tick, delta,
+                "gave_gift:" + itemId);
         Feedback.giftReaction(villager, level, reaction);
         return true;
     }

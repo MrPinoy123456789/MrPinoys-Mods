@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:ender_chest",
+  "name": "Messy Chest",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Messy Chest", "color": "aqua"},
+    "minecraft:custom_data": {
+      "wondrous": "pocket_enderchest"
+    }
+  }
+}

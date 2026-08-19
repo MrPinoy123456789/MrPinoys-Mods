@@ -1,0 +1,17 @@
+{
+  "item": "minecraft:echo_shard",
+  "name": "Spirit Stone",
+  "tags": ["trinket", "tier2", "bindable"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Spirit Stone", "color": "aqua"},
+    "minecraft:lore": [
+      {"text": "Use on a tamed wolf to bind its soul.", "color": "gray", "italic": true}
+    ],
+    "minecraft:custom_data": {
+      "spiritwolves": {
+        "bound": false
+      }
+    }
+  }
+}

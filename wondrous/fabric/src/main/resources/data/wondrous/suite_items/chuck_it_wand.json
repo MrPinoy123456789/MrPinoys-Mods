@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:blaze_rod",
+  "name": "Chuck It Wand",
+  "tags": ["tool", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Chuck It Wand", "color": "gold"},
+    "minecraft:custom_data": {
+      "wondrous": "chuck_it_wand"
+    }
+  }
+}

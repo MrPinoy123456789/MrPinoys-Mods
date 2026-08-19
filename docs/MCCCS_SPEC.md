@@ -1,4 +1,4 @@
-# Minecraft Combinatorial Components System
+# Minecraft/ NOITA Combinatorial Components System
 ## Core Engine & Application Specification
 
 **Status:** Design Specification  

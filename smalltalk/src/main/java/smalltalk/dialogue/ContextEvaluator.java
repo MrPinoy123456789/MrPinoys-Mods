@@ -1,5 +1,7 @@
 package smalltalk.dialogue;
 
+import smalltalk.identity.Birthday;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -20,10 +22,13 @@ public final class ContextEvaluator {
     private static final long NIGHT_END = 23000L;
 
     private static final List<DialogueContext> CONTEXTS = List.of(
+            new DialogueContext("birthday", 110, s -> Birthday.isToday(s.villager().getUUID(), s.level())),
             new DialogueContext("player_on_fire", 100, s -> s.playerOnFire()),
             new DialogueContext("first_meeting", 90, Situation::firstMeeting),
             new DialogueContext("thunder", 50, s -> s.level().isThundering()),
             new DialogueContext("rain", 40, s -> s.level().isRaining() && !s.level().isThundering()),
+            new DialogueContext("mentions_other_player_gift", 40, s -> isSharedContext(s, "mentions_other_player_gift")),
+            new DialogueContext("mentions_other_player_absence", 40, s -> isSharedContext(s, "mentions_other_player_absence")),
             new DialogueContext("night", 20, ContextEvaluator::isNight),
             new DialogueContext("generic", 0, s -> true)
     );
@@ -45,5 +50,11 @@ public final class ContextEvaluator {
     private static boolean isNight(Situation situation) {
         long timeOfDay = situation.level().getOverworldClockTime() % TICKS_PER_DAY;
         return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+    }
+
+    private static boolean isSharedContext(Situation situation, String contextId) {
+        return situation.sharedKnowledge()
+                .filter(m -> contextId.equals(m.contextId()))
+                .isPresent();
     }
 }

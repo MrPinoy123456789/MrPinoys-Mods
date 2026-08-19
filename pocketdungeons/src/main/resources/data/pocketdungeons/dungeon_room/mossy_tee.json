@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/mossy_tee",
+  "footprint": [1, 1],
+  "roles": ["encounter", "corridor"],
+  "weight": 2,
+  "minDepth": 2,
+  "maxPerDungeon": 1
+}

@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:anvil",
+  "name": "Fixing Sweetie",
+  "tags": ["tool", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Fixing Sweetie", "color": "gold"},
+    "minecraft:custom_data": {
+      "wondrous": "pocket_anvil"
+    }
+  }
+}

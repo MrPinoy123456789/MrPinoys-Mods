@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/loot_vault",
+  "footprint": [1, 1],
+  "roles": ["loot"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": -1
+}

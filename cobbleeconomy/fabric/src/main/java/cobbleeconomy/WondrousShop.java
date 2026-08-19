@@ -39,12 +39,32 @@ final class WondrousShop {
         return itemId.substring(PREFIX.length());
     }
 
-    /** Is the wondrous mod installed. */
+    /**
+     * Whether the wondrous mod is present, asked of the loader rather than of the api.
+     *
+     * <p><b>This check must not touch a {@code wondrous.api} class.</b> The api is a
+     * {@code compileOnly} dependency and is not bundled, so when the mod is absent those
+     * classes are absent too, and the first reference to one throws
+     * {@link NoClassDefFoundError}. That is an {@link Error}, not an {@link Exception},
+     * so {@link ShopConfig#load}'s {@code catch (Exception)} does not stop it -- it
+     * propagates out of shop load and kills server startup, which is the precise
+     * opposite of that method's stated intent that a bad shop file must never stop the
+     * server from starting.
+     *
+     * <p>{@code isModLoaded} answers the same question using only loader classes, and
+     * short-circuits every path below it. It is checked again in {@link #lookup} so that
+     * no method here can be entered unguarded.
+     */
     static boolean available() {
-        return WondrousItems.get().isPresent();
+        return LOADED && WondrousItems.get().isPresent();
     }
 
+    /** Resolved once. Asking the loader is cheap, but not free, and this never changes. */
+    private static final boolean LOADED =
+            net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("wondrous");
+
     private static Optional<WondrousItem> lookup(String id) {
+        if (!LOADED) return Optional.empty();
         return WondrousItems.get().flatMap(w -> w.byId(id));
     }
 

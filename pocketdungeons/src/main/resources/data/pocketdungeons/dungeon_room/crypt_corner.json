@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/crypt_corner",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 2
+}

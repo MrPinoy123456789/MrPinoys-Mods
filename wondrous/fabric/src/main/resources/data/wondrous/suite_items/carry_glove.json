@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:leather",
+  "name": "Piggyback Glove",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Piggyback Glove", "color": "yellow"},
+    "minecraft:custom_data": {
+      "wondrous": "carry_glove"
+    }
+  }
+}

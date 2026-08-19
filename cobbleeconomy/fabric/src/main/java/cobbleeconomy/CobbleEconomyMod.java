@@ -12,7 +12,10 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.packs.PackType;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +75,9 @@ public final class CobbleEconomyMod implements ModInitializer {
         // dependency, so its onInitialize() (which populates WondrousItems.Holder)
         // is not guaranteed to have run yet. Loading here would silently drop every
         // wondrous: shop entry whenever wondrous initialises after this mod.
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
+                Identifier.fromNamespaceAndPath(MOD_ID, "suite_items"),
+                SuiteItems.Loader::new);
         ShopCatalog catalog = new ShopCatalog();
 
         loginSnapshot = new LoginSnapshot(leaderboard, currencies, names, settings);

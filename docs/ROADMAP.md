@@ -325,6 +325,27 @@ appended to §2:
 The asymmetry (write-own, never-read-others) is what keeps this §2-safe: no
 mod's behavior can ever depend on another mod's presence.
 
+**Status: §2 has been amended, and more generally than proposed here.** Rather
+than a facts-specific clause, `DESIGN.md` §2 now states that "know the name of"
+means *in code*, and that a mod may publish self-naming data which others read
+without naming anybody. That covers this contract and suite items
+(`SUITE_ITEMS.md`) under one rule, so no facts-specific amendment is needed.
+
+**Relationship to suite items.** The two are siblings with the same asymmetry
+and a deliberate difference in *where* the published data lives:
+
+| | **Facts** | **Suite items** |
+|---|---|---|
+| Publishes | Live status, expires | Item definitions, permanent |
+| Written | At runtime, by the mod | Never — shipped in the jar |
+| Lives in | `config/facts/<modid>.json` | `data/<modid>/suite_items/` |
+| Read by | One herald (chatdonkey) | Any consumer, via datapack merge |
+
+Facts *must* be runtime writes because the content is live — a poll's deadline
+is not knowable at build time. Suite items must *not* be, because the content is
+static and a runtime write would put two mods in contention over one file. Do
+not unify them; the difference is the whole design in each case.
+
 **Which mods publish, initially:** ballot (poll/buildoff open + deadline),
 quizengine (next round ETA), dailyquests (riddle unanswered), bounties
 (current board summary). Each is ≤20 lines against state the mod already has.

@@ -31,9 +31,13 @@ final class ShopPurchase {
      * would deliver, rather than reimplementing the wondrous fork and drifting from it.
      */
     static Optional<Item> itemOf(ShopEntry entry) {
-        return WondrousShop.isWondrousItemId(entry.itemId())
-                ? WondrousShop.baseItem(WondrousShop.idFrom(entry.itemId()))
-                : ItemBank.resolve(entry.itemId());
+        if (WondrousShop.isWondrousItemId(entry.itemId())) {
+            return WondrousShop.baseItem(WondrousShop.idFrom(entry.itemId()));
+        }
+        if (SuiteItems.isSuiteItemId(entry.itemId())) {
+            return SuiteItems.baseItem(SuiteItems.idFrom(entry.itemId()));
+        }
+        return ItemBank.resolve(entry.itemId());
     }
 
     static Shop.PurchaseResult attempt(EconomyService economy, TransactionLog log,
@@ -60,6 +64,12 @@ final class ShopPurchase {
                         // A fully tagged stack, not the plain item ItemBank.give would
                         // create -- the tag is the entire trick that makes it wondrous.
                         return WondrousShop.deliver(player, WondrousShop.idFrom(itemId), quantity);
+                    }
+                    if (SuiteItems.isSuiteItemId(itemId)) {
+                        // The suite loader already validated the definition and its
+                        // components; delivery builds the same stamped stack the GUI icon
+                        // shows.
+                        return SuiteItems.deliver(player, SuiteItems.idFrom(itemId), quantity, player.registryAccess());
                     }
                     // Components, if the listing has any -- a Spirit Stone is an echo
                     // shard plus custom_data, and the plain item does nothing.

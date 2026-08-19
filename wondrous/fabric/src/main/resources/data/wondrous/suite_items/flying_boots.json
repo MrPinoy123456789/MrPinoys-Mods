@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:leather_boots",
+  "name": "Up Up And Bye Boots",
+  "tags": ["trinket", "tier4", "one_per_player"],
+  "rarity": "legendary",
+  "components": {
+    "minecraft:item_name": {"text": "Up Up And Bye Boots", "color": "light_purple"},
+    "minecraft:custom_data": {
+      "wondrous": "flying_boots"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:shulker_box",
+  "name": "Peek Box",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Peek Box", "color": "light_purple"},
+    "minecraft:custom_data": {
+      "wondrous": "peek_box"
+    }
+  }
+}

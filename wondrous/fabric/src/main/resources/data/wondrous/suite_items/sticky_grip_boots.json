@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:leather_boots",
+  "name": "Sticky Grip Boots",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Sticky Grip Boots", "color": "dark_red"},
+    "minecraft:custom_data": {
+      "wondrous": "sticky_grip_boots"
+    }
+  }
+}

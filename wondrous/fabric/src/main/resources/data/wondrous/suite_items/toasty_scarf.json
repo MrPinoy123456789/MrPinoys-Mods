@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:leather_chestplate",
+  "name": "Toasty Scarf",
+  "tags": ["trinket", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Toasty Scarf", "color": "red"},
+    "minecraft:custom_data": {
+      "wondrous": "toasty_scarf"
+    }
+  }
+}

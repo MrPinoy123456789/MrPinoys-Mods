@@ -3,6 +3,9 @@ package smalltalk.dialogue;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.npc.villager.Villager;
 import smalltalk.social.FamiliarityTier;
+import smalltalk.social.SharedKnowledge;
+
+import java.util.Optional;
 
 /**
  * The snapshot of world/player/relationship state a {@link DialogueContext}
@@ -10,5 +13,6 @@ import smalltalk.social.FamiliarityTier;
  * is no tick loop building this repeatedly (SPEC.md section 0).
  */
 public record Situation(Villager villager, ServerLevel level, boolean playerOnFire,
-                         boolean firstMeeting, FamiliarityTier tier) {
+                         boolean firstMeeting, FamiliarityTier tier,
+                         Optional<SharedKnowledge.Mention> sharedKnowledge) {
 }

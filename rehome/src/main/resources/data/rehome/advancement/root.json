@@ -1,0 +1,15 @@
+{
+  "display": {
+    "icon": { "id": "minecraft:red_bed" },
+    "title": { "text": "Rehome" },
+    "description": { "text": "Win a villager over with a gift and lead them home to stay" },
+    "background": "minecraft:gui/advancements/backgrounds/adventure",
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "tick": { "trigger": "minecraft:tick" }
+  }
+}

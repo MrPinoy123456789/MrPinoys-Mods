@@ -9,6 +9,7 @@ import smalltalk.dialogue.DialogueLinesConfig;
 import smalltalk.dialogue.HintLinesConfig;
 import smalltalk.interaction.DialogHold;
 import smalltalk.interaction.InteractionHandler;
+import smalltalk.task.RequestOfferer;
 
 /**
  * Entrypoint. Server-side only -- residents have names, personalities, and
@@ -26,6 +27,7 @@ public final class SmallTalkMod implements ModInitializer {
         HintLinesConfig.load(FabricLoader.getInstance().getConfigDir());
 
         InteractionHandler.register();
+        RequestOfferer.register();
         SmallTalkCommands.register();
         ServerTickEvents.END_SERVER_TICK.register(server -> DialogHold.serverTick());
 

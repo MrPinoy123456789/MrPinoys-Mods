@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/spawner_den",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 3,
+  "minDepth": 2,
+  "maxPerDungeon": 1
+}

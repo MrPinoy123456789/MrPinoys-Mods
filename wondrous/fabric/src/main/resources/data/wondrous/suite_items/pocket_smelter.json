@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:blast_furnace",
+  "name": "Melty Pocket",
+  "tags": ["tool", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Melty Pocket", "color": "red"},
+    "minecraft:custom_data": {
+      "wondrous": "pocket_smelter"
+    }
+  }
+}

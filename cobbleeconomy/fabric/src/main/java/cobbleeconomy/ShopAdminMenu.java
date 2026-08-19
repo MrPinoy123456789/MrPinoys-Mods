@@ -18,6 +18,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +58,13 @@ final class ShopAdminMenu {
     private final CurrencyRegistry currencies;
     private final TransactionLog log;
 
+    /**
+     * The category the listing is filtered to, or null for everything. Held per open
+     * rather than remembered across opens: a filter you cannot see the origin of is a
+     * shop that looks like it has lost half its listings.
+     */
+    private String filter;
+
     private ShopAdminMenu(ServerPlayer player, ShopCatalog catalog, ShopConfig config,
                           CurrencyRegistry currencies, TransactionLog log) {
         this.player = player;
@@ -68,19 +76,26 @@ final class ShopAdminMenu {
 
     static void open(ServerPlayer player, ShopCatalog catalog, ShopConfig config,
                      CurrencyRegistry currencies, TransactionLog log) {
-        new ShopAdminMenu(player, catalog, config, currencies, log).openList(0);
+        open(player, catalog, config, currencies, log, 0);
+    }
+
+    /** Reopen at a given page, so a screen that left the editor can return to it. */
+    static void open(ServerPlayer player, ShopCatalog catalog, ShopConfig config,
+                     CurrencyRegistry currencies, TransactionLog log, int page) {
+        new ShopAdminMenu(player, catalog, config, currencies, log).openList(page);
     }
 
     // ---- the listing --------------------------------------------------------
 
     private void openList(int page) {
-        List<ShopEntry> entries = catalog.all();
+        List<ShopEntry> entries = filtered();
         int pageCount = Math.max(1, (entries.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int current = Math.max(0, Math.min(page, pageCount - 1));
         int from = current * PAGE_SIZE;
 
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, player, false);
-        gui.setTitle(Component.literal("Shop Editor").withStyle(ChatFormatting.GOLD));
+        gui.setTitle(Component.literal(filter == null ? "Shop Editor" : "Shop Editor -- " + filter)
+                .withStyle(ChatFormatting.GOLD));
 
         for (int slot = 0; slot < PAGE_SIZE; slot++) {
             int index = from + slot;
@@ -97,10 +112,23 @@ final class ShopAdminMenu {
                     () -> openList(current - 1)));
         }
 
+        gui.setSlot(46, button(Items.BOOK, filter == null ? "Category: All" : "Category: " + filter,
+                ChatFormatting.AQUA,
+                filter == null
+                        ? List.of(dim("Showing every listing"),
+                                  dim("Click to show just one category"))
+                        : List.of(dim(entries.size() + (entries.size() == 1 ? " listing" : " listings")),
+                                  dim("Click to change or clear")),
+                this::openCategoryPicker));
+
         gui.setSlot(47, button(Items.EMERALD, "New listing", ChatFormatting.GREEN,
                 List.of(dim("Sells whatever you are holding"),
                         dim("The stack size becomes the quantity")),
                 () -> addFromHand(current)));
+
+        gui.setSlot(48, button(Items.BOOKSHELF, "Suite items", ChatFormatting.AQUA,
+                List.of(dim("Browse items from suite mods")),
+                () -> SuiteItemBrowser.open(player, catalog, config, currencies, log, current)));
 
         gui.setSlot(49, new GuiElementBuilder(Items.PAPER)
                 .setName(Component.literal("shop.json").withStyle(ChatFormatting.YELLOW))
@@ -162,12 +190,79 @@ final class ShopAdminMenu {
                 // out of your hand, and nudge a price without typing a number.
                 openEntry(entry.key(), page);
             } else {
-                // Every field as one form, rather than a screen per field.
-                g.close();
+                // Every field as one form, rather than a screen per field. Deliberately
+                // NOT g.close()'d: ShopDialogs.openEditor's own "Close" button carries
+                // no server callback (see its javadoc), so closing the list first would
+                // leave the admin stranded on dismissal, same as the delete-confirm bug
+                // this was found alongside. Layering the dialog over the still-open list
+                // means an uninterceptable dismissal reveals the list instead of nothing.
                 ShopDialogs.openEditor(player, entry.key());
             }
         });
         return b.build();
+    }
+
+    /**
+     * Every category present in the file, including those whose only listings are
+     * disabled or malformed.
+     *
+     * <p>Deliberately not {@code catalog.categories()}: that one is built from
+     * {@code available()}, so a category containing nothing but a broken listing would
+     * not appear -- and a broken listing an admin cannot navigate to is one they cannot
+     * fix. The player-facing menu wants the buyable view; this one wants the true one.
+     */
+    private List<String> adminCategories() {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        for (ShopEntry entry : catalog.all()) out.add(entry.category());
+        return List.copyOf(out);
+    }
+
+    /** The listings the current filter shows, in file order. */
+    private List<ShopEntry> filtered() {
+        if (filter == null) return catalog.all();
+        List<ShopEntry> out = new ArrayList<>();
+        for (ShopEntry entry : catalog.all()) {
+            if (filter.equals(entry.category())) out.add(entry);
+        }
+        return out;
+    }
+
+    private void openCategoryPicker() {
+        List<String> categories = adminCategories();
+
+        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, player, false);
+        gui.setTitle(Component.literal("Filter by Category").withStyle(ChatFormatting.GOLD));
+
+        gui.setSlot(0, button(Items.CHEST, "All categories",
+                filter == null ? ChatFormatting.GREEN : ChatFormatting.WHITE,
+                List.of(dim(catalog.size() + (catalog.size() == 1 ? " listing" : " listings"))),
+                () -> { filter = null; openList(0); }));
+
+        for (int i = 0; i < categories.size() && i + 1 < PAGE_SIZE; i++) {
+            String category = categories.get(i);
+            int count = 0;
+            ShopEntry first = null;
+            for (ShopEntry entry : catalog.all()) {
+                if (category.equals(entry.category())) {
+                    count++;
+                    if (first == null) first = entry;
+                }
+            }
+            ItemStack icon = first == null ? new ItemStack(Items.PAPER)
+                    : ShopMenu.iconFor(first, player.registryAccess());
+            int shown = count;
+            gui.setSlot(i + 1, new GuiElementBuilder(icon)
+                    .setName(Component.literal(category).withStyle(
+                            category.equals(filter) ? ChatFormatting.GREEN : ChatFormatting.WHITE))
+                    .setLore(List.of(dim(shown + (shown == 1 ? " listing" : " listings"))))
+                    .setCallback((i2, t, a, g) -> { filter = category; openList(0); })
+                    .build());
+        }
+
+        gui.setSlot(51, button(Items.ARROW, "Back", ChatFormatting.WHITE, List.of(),
+                () -> openList(0)));
+        gui.setSlot(53, button(Items.BARRIER, "Close", ChatFormatting.RED, List.of(), gui::close));
+        gui.open();
     }
 
     // ---- one listing --------------------------------------------------------
@@ -278,15 +373,22 @@ final class ShopAdminMenu {
 
         // Was shift-to-confirm, which is a gesture that has to be learned and cannot say
         // what it is about to destroy. A real confirmation names the listing.
-        gui.setSlot(26, new GuiElementBuilder(Items.BARRIER)
+        // Slot 24, not the bottom-right corner. Every other screen in this mod puts
+        // Close in the last slot as a red barrier, and Delete is also a red barrier --
+        // leaving it in the corner means an admin who has learned "bottom-right closes"
+        // gets a delete prompt instead. The confirm dialog catches it, but a control
+        // that relies on its confirmation to be safe is in the wrong place.
+        gui.setSlot(24, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("Delete this listing").withStyle(ChatFormatting.RED))
                 .setLore(List.of(dim("Removes it from shop.json"),
                         dim("Asks before it does")))
                 .setCallback((i, t, a, g) -> {
                     g.close();
-                    ShopDialogs.confirmDelete(player, entry.key());
+                    ShopDialogs.confirmDelete(player, entry.key(), page);
                 })
                 .build());
+
+        gui.setSlot(26, button(Items.BARRIER, "Close", ChatFormatting.RED, List.of(), gui::close));
 
         gui.open();
     }
@@ -504,8 +606,20 @@ final class ShopAdminMenu {
 
     /** A key not already taken, so adding two of the same item does not overwrite one. */
     private String freeKey(String itemId) {
-        String base = itemId.contains(":")
-                ? itemId.substring(itemId.indexOf(':') + 1) : itemId;
+        String base;
+        if (SuiteItems.isSuiteItemId(itemId)) {
+            // "suite:wondrous:big_hole_pick" -- strip to the path alone, the same
+            // preference SuiteItemBrowser's own freeKey gives a fresh add. Left as
+            // "wondrous:big_hole_pick" this key would carry a colon, and /buy takes a
+            // Brigadier `word` argument that does not accept one -- the listing would
+            // be visible in the editor and impossible to actually buy.
+            String suiteId = SuiteItems.idFrom(itemId);
+            int colon = suiteId.indexOf(':');
+            base = colon >= 0 ? suiteId.substring(colon + 1) : suiteId;
+        } else {
+            base = itemId.contains(":")
+                    ? itemId.substring(itemId.indexOf(':') + 1) : itemId;
+        }
         if (catalog.find(base).isEmpty()) return base;
         for (int n = 2; n < 1_000; n++) {
             String candidate = base + "_" + n;
@@ -514,8 +628,22 @@ final class ShopAdminMenu {
         return base + "_" + System.currentTimeMillis();
     }
 
+    /**
+     * The identity a new or repointed listing should sell, from a held stack.
+     *
+     * <p>Checked in order: a suite item first ({@link SuiteItems#identify}), then the
+     * plain registry id. Without the suite check, holding a Big Hole Pick and clicking
+     * "New listing" produced {@code minecraft:diamond_pickaxe} with no marker at all --
+     * a plain pickaxe, not the tool. Wondrous items resolve through the suite path too,
+     * now that wondrous publishes the same items as suite definitions
+     * (SUITE_ITEMS.md §10.1): the marker on the stack is identical either way, and
+     * pointing a new listing at {@code suite_item} rather than the older
+     * {@code wondrous:} prefix is the direction that migration is heading.
+     */
     private static String idOf(ItemStack stack) {
-        return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        return SuiteItems.identify(stack)
+                .map(id -> SuiteItems.PREFIX + id)
+                .orElseGet(() -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
     }
 
     private GuiElement button(Item item, String label, ChatFormatting colour,

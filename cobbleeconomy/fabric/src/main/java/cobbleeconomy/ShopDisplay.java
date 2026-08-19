@@ -28,6 +28,11 @@ final class ShopDisplay {
                     .map(Component::getString)
                     .orElseGet(() -> prettyName(WondrousShop.idFrom(entry.itemId())));
         }
+        if (SuiteItems.isSuiteItemId(entry.itemId())) {
+            return SuiteItems.displayName(SuiteItems.idFrom(entry.itemId()))
+                    .map(Component::getString)
+                    .orElseGet(() -> prettyName(SuiteItems.idFrom(entry.itemId())));
+        }
         // A component-marked listing names itself. Without this, a Spirit Stone would
         // list in /shop as "Echo Shard", which is the base item and not what is sold.
         return ItemComponents.itemName(entry.components())

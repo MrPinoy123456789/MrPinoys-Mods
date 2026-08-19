@@ -1,8 +1,9 @@
-# Small Talk — Design Spec v0.5
+# Small Talk — Design Spec v0.6
 
 > **Status:** core release implemented, 2026-08-16 (identity, dialogue
-> engine, familiarity, gift/talk verbs, empty task registry). Requests
-> (§12) and everything after them in the build order (§16) are not.
+> engine, familiarity, gift/talk verbs, empty task registry). Everything
+> from §12 onward in the build order (§19) is design + implementation plan,
+> not yet code, unless a section says otherwise.
 >
 > Server-side-only Fabric mod. **Minimum Minecraft 26.2** (matches the rest of
 > the suite's `gradle.properties`; earlier drafts said "1.21.6," which was the
@@ -13,9 +14,53 @@
 *Villagers have names, personalities, something to say about today — and
 things they'd like you to do.*
 
+**Product goals (v0.6 adds two to the original three):**
+
+1. **Attachment** — villagers feel like people you know, not vending machines.
+2. **Daily return** — a reason to log in *today specifically*.
+3. **Engagement depth** — something to progress over weeks, without a grind.
+4. **Social proof** *(new)* — attachment reads stronger multiplayer, when a
+   villager can reference another player by name.
+5. **Low ceiling, high floor** *(new)* — the loop must be satisfying in five
+   minutes and must never demand more. The moment Small Talk feels like a
+   chore, the whole premise (§7's "the register changing is the reward")
+   collapses.
+
 ---
 
-## 0. What changed from v0.1 → v0.2 → v0.3 → v0.4 → v0.5
+## 0. What changed from v0.1 → v0.2 → v0.3 → v0.4 → v0.5 → v0.6
+
+### v0.5 → v0.6: from "shipped core" to "the daily loop"
+
+v0.5 was a complete, correct dialogue-and-gifting mod with no reason for a
+player to return on a *particular* day. v0.6 doesn't change anything already
+shipped — it plans the smallest addition that creates a daily reason to
+visit, plus three cheap, high-attachment-per-line additions identified by
+product review:
+
+- **§12 Requests, narrowed.** Of the six task types in the old build order,
+  only **Fetch** ships next, gated behind a **daily cadence** so it's a
+  reason to return *tomorrow*, not a queue to drain tonight. Delivery,
+  Quarry, Décor, Visit, and Games are demoted from "build order" to
+  "backlog, revisit after Fetch has playtest data" (§19).
+- **§13 Birthdays** (new). A second UUID-hash-derived, zero-storage date,
+  reusing exactly the trick §2 already uses for names — one special line and
+  a doubled gift reaction, once a year, per villager.
+- **§14 Shared-knowledge lines** (new). Villagers occasionally reference a
+  *different* player in their memory log (§8) in dialogue. Uses data this
+  mod already stores; no new storage.
+- **§15 Cross-mod and world correctness, promoted to core.** The Rehome
+  `HOME`-check gap (§1) and zombie-cure identity loss (old §18.1) were both
+  "open questions" in v0.5. Both are attachment-destroying if left alone, so
+  v0.6 promotes them to planned work with concrete implementation steps
+  rather than leaving them as footnotes.
+- **Documentation-reality correction:** §4.1's datapack schema
+  (`data/<ns>/small_talk/dialogue/...`) was never actually built that way —
+  the shipped `dialogue/DialogueLinesConfig.java` reads
+  `config/smalltalk/lines.json` instead, a flat personality → context → line
+  pool file with the same readOrCreate contract as `SmallTalkConfig`. §4.1
+  below now describes what exists; the original datapack-per-context vision
+  is noted as a possible future migration, not current behavior.
 
 v0.1 was a dialogue mod. v0.2 kept that as the shippable core but provisioned
 for **Requests** (§12), the system where residents ask you for things. v0.3
@@ -201,7 +246,22 @@ Where Neighborly failed: ~250 context-free lines, exhausted in one evening.
 **Two hundred contextual lines feel deeper than two thousand random ones**,
 because the player reads them as noticing rather than cycling.
 
-### 4.1 Schema
+### 4.1 Schema (as shipped, not as originally drafted)
+
+**Reality check (v0.6):** the datapack-per-context schema below was the
+original design; what actually shipped is
+`dialogue/DialogueLinesConfig.java` reading a single flat file,
+`config/smalltalk/lines.json`, structured as
+`{ personality: { context: [lines...] } }`, with the same
+readOrCreate contract as `SmallTalkConfig`. `ContextEvaluator` still decides
+*which* context IDs pass; `DialogueLinesConfig` just supplies the lines for
+whichever ID wins. This is simpler to ship and edit by hand, at the cost of
+per-context metadata (weight, conditions, `offers`) living in code
+(`ContextEvaluator.java`) rather than in the same file as the lines.
+
+The original per-file schema is kept below as a **possible future
+migration** if community line packs become a priority — it is not current
+behavior:
 
 ```
 data/<ns>/small_talk/dialogue/<personality>/<context>.json
@@ -220,10 +280,10 @@ data/<ns>/small_talk/dialogue/<personality>/<context>.json
 }
 ```
 
-**`offers` is reserved now and unused until §12.** It will name a request
-template. Reserving it means community line packs written against v0.2/v0.3
-stay valid when requests land — datapack schemas are public API the moment
-anyone writes against them.
+`offers` (reserved in that hypothetical schema) has no equivalent yet in the
+shipped config format. §12's request-offer trigger below does not depend on
+it — it's decided in code, same as everything else in the current line
+config.
 
 Lines are lang keys; translation and community packs are free.
 
@@ -472,17 +532,21 @@ comment on your redecorating, or have a doorstep for you to knock on.
 
 ---
 
-## 12. Requests — provisioned, not built
+## 12. Requests — Fetch only, daily cadence, next up
 
-The Animal Crossing loop this mod is ultimately for. **Not in the first
-release.** Everything below is design intent plus the seams that must exist
-beforehand.
+The Animal Crossing loop this mod is ultimately for, and the piece that
+actually creates a **daily-return** reason (the goal §0/header calls out).
+v0.6 deliberately narrows this from "six task types, roughly in build order"
+to **one task type, shipped completely, with a cadence gate** — the smallest
+change that makes "come back tomorrow" true. Delivery/Quarry/Décor/Visit/
+Games move to §19's backlog until Fetch has real playtest data.
 
-### 12.1 The task registry
+### 12.1 The task registry (shipped, empty)
 
-A world-level `PersistentState`. This is the one place Small Talk keeps state
-that isn't attached to a villager, because a delivery belongs to neither the
-sender nor the recipient.
+Already in the tree — `task/Task.java`, `task/TaskRegistry.java`,
+`task/TaskState.java`. A world-level `PersistentState`. This is the one
+place Small Talk keeps state that isn't attached to a villager, because a
+delivery belongs to neither the sender nor the recipient.
 
 ```
 Task {
@@ -511,60 +575,85 @@ A resident with an `OFFERED` task shows it on right-click as a `multi_action`
 dialog — in place of the ambient-context greeting body, never alongside it —
 with what they want, why, and three buttons: **Accept**, **Not now**, and
 **Trade** (so a pending request never blocks the trade fast path a bare
-right-click used to guarantee). Buttons route through `custom_click_action`,
-which needs no permissions and no client mod.
+right-click used to guarantee). Buttons route through this mod's own
+command tree, same pattern as §6.1's Gift/Trade buttons.
 
 The payload is untrusted — re-verify on receipt that the task exists, is
 `OFFERED`, belongs to this player, and hasn't expired. Same discipline as
-Rehome v0.2's nonces.
+§6.2's gift-confirm re-verify.
 
-There is no ambient hint anymore (v0.2 had chatter hint at a pending offer
-via the reserved `offers` field before you talked to them) — since nothing
-fires until you sneak-right-click, the `offers` field's job shrinks to
-telling the talk-verb handler which template to render *when the dialog
-already opened for an unrelated reason*. Whether a resident needs some
-other out-of-dialog signal that they have something to ask (a particle? a
-head-turn?) is open — see §18.5.
+**Pending-request tell (resolves old open question §18.5).** A resident with
+an `OFFERED` task gets a small ambient signal so the daily loop isn't
+invisible: a short-lived particle effect (villager happy-villager-style, at
+low frequency) while the request is outstanding. No new entity, no
+`TextDisplay` — a particle packet sent when nearby players tick into range,
+piggybacking on vanilla's existing villager-visible-to-client check. This is
+the one place v0.6 adds anything resembling passive signaling, and it's
+scoped tightly: presence-only, no text, no sound, never fires for a resident
+with no offer.
 
-### 12.3 Task types, roughly in build order
+### 12.3 Daily cadence gate (new in v0.6 — the actual retention mechanic)
 
-**Fetch** — "bring me a cooked salmon." Simplest possible: an item predicate
-and a count. No new systems beyond the registry. Build this one first; it
-validates the whole loop.
+Each resident can issue **at most one Fetch offer per in-game day**
+(`requestCooldownTicks`, default one day, mirrors `giftCooldownTicks`'s
+existing pattern in `FamiliarityAttachment`). A resident only *rolls* for a
+new offer if:
 
-**Delivery** — "take this to Petra." Uses the acquaintance graph (§9) for the
-recipient. Hands you a marked item; delivering is a gift-verb interaction
-with the named recipient. The first type that genuinely needs the
-world-level registry.
+- they have no active (`OFFERED`/`ACCEPTED`) task with this player,
+- the player is under `maxActiveTasks` (3) globally,
+- the per-resident cooldown has elapsed,
+- `requestsEnabled` is true.
 
-**Quarry** — "I want to see a pufferfish." Fetch with a species predicate;
-leans on fishing and bees, which is as close to AC's bug-catching as vanilla
-gets.
+The roll happens lazily, on the same trigger as everything else in this
+mod — talking to them (§6.1) — never on a tick. If they roll a request,
+that's what shows on the *next* talk; if not, it's the ordinary
+ambient-context greeting. This means the cadence is felt as "did they get
+something to ask today?" rather than a visible countdown, which is
+deliberately unguessable/unfarmable — same anti-grind stance as §12.6.
 
-**Décor** — "would you put a lantern by my door?" Uses home awareness (§11).
-Completion is a block-presence check in their room. The most
-Minecraft-native of the lot, because the reward for doing it is that their
-house looks nicer forever.
+### 12.4 Fetch — the only task type in this build
 
-**Visit** — "come see my place," or a resident turning up at yours. Needs
-`Errand` (§10). The hardest and the best; leave it last.
+"Bring me a cooked salmon." An item predicate and a count, nothing else.
+No acquaintance graph, no home awareness, no `Errand`. This is the entire
+task-type surface for v0.6.
 
-**Games** — High/Low, hot-and-cold treasure hunts. Pure dialog interactions,
-no world state. Cheap once dialogs exist, and good filler between the
-heavier types.
+**Implementation plan:**
 
-### 12.4 Personality bias
+1. `task/TaskType.java` — enum, single member `FETCH` (others added only
+   when actually built, per Task.java's existing javadoc rationale for why
+   `type` is a string, not an enum, today).
+2. `task/FetchTaskLogic.java` — builds a `Task` with `type=FETCH` and a
+   payload of `{item: Identifier, count: int}`; validates a player's
+   inventory against that payload on a completion check.
+3. `task/RequestOfferer.java` — implements §12.3's roll: called from
+   `TalkHandler` before the ambient-context greeting is computed; owns the
+   per-resident cooldown read/write via `TaskRegistry`.
+4. `task/RequestDialogs.java` — builds the `multi_action` Accept/Not now/
+   Trade dialog (§12.2) and the completion dialog (hand in the items,
+   confirm, receive reward). Same picker→confirm→re-verify discipline as
+   `GiftHandler` (§6.2) — completion re-checks the player still has the
+   items at confirm time, not just at dialog-open time.
+5. Wire `SmallTalkCommands` with `/smalltalk request-accept`,
+   `/smalltalk request-decline`, `/smalltalk request-complete`.
+6. Config: `requestsEnabled` flips from `false` to `true` only once this
+   is playtested; `requestCooldownTicks` new key (§17).
 
-Gruff residents ask for practical things and thank you badly. Chipper ones
-ask constantly and celebrate. Bashful ones rarely ask and apologise when
-they do. Smug ones ask for luxuries. Dreamy ones ask for something strange.
-Brisk ones set the tightest deadlines.
+**Reward on completion:** familiarity (see §12.6) plus a modest item drawn
+from a profession-keyed pool — no new loot table system needed for a single
+task type; a static per-profession list in `FetchTaskLogic` is enough.
 
-This is nearly free — it's a weighting table over task types plus the
-existing personality line files — and it's most of what makes requests feel
-authored rather than generated.
+### 12.5 Personality bias — deferred with the rest of the task-type variety
 
-### 12.5 Reward policy
+§0's old draft had personality bias over *which task type* a resident
+prefers. With only Fetch shipping, that axis of variety doesn't exist yet.
+What's cheap and worth keeping for v0.6: personality still colors the
+*offer/accept/decline lines* (Gruff terse, Chipper effusive, Bashful
+apologetic) by reusing the existing personality → line-pool mechanism
+(§4.1) with new context IDs (`fetch_offer`, `fetch_thanks`) — no new system,
+just new entries in `lines.json` per personality. Task-type-level bias
+returns once a second task type (§19 backlog) exists to weight against.
+
+### 12.6 Reward policy
 
 **Familiarity is the primary reward.** Items are secondary, modest, and drawn
 from profession-keyed loot tables. Explicitly:
@@ -578,7 +667,126 @@ economy mod and the whole design premise collapses.
 
 ---
 
-## 13. Performance
+## 13. Birthdays — derived, zero-storage (new in v0.6)
+
+Reuses §2's exact trick: hash the villager's UUID into a day-of-year, once,
+forever, nothing written to disk. On that day: one special greeting line
+(new context ID `birthday`, always outranks other contexts per §4.3's
+specificity bias) and gift reactions doubled (loved +16, neutral +2,
+disliked −4 for that day only). No new UI, no reminder system, no player
+calendar — the player either notices ("oh, happy birthday!") or doesn't,
+same as any other context.
+
+**Why this is worth building:** highest attachment-per-line-of-code ratio
+of anything in this spec. It's the single Animal Crossing feature players
+reliably remember, and it costs one derivation function plus one context.
+
+**Implementation plan:**
+
+1. `identity/Birthday.java` — `dayOfYear(UUID)`, same hash-derivation
+   pattern as `IdentityDeriver`, capped to `[1, 365]` (leap day never
+   assigned, sidesteps the once-every-four-years edge case entirely).
+2. `ContextEvaluator` gets a `birthday` context: true when
+   `Birthday.dayOfYear(villager.getUuid()) == currentDayOfYear(world)`.
+3. `GiftHandler` reads the same check to double the §6.2 reaction table for
+   that villager on that day only — no new state, just a multiplier at
+   reaction-computation time.
+4. `lines.json` gets a `birthday` entry per personality.
+
+**Non-goals:** no player-visible "upcoming birthdays" list (that's the
+journal-item question from old §18.3, still open, still not needed for
+this); no server-wide announcement; no special item reward beyond the
+existing gift-reaction table.
+
+---
+
+## 14. Shared-knowledge lines — new in v0.6
+
+Villagers occasionally mention a *different* player by name, drawn from
+their own memory log (§8) — "Jay brought me a cake yesterday," "I haven't
+seen Alex in weeks." Directly serves the new **social proof** goal (§0
+header): on a shared server, hearing a villager talk about someone else's
+relationship with them is what makes the village feel like a real, shared
+place rather than N independent single-player save states.
+
+**Uses data already stored — no new persistence.** §8's memory log already
+records tagged events per villager-per-player; this just reads across the
+per-player map that `FamiliarityAttachment` already keys on, instead of
+only reading the current player's row.
+
+**Implementation plan:**
+
+1. `social/SharedKnowledge.java` — given a villager and the *current*
+   player, picks a candidate memory belonging to a *different* tracked
+   player (from `FamiliarityAttachment.allOf`), subject to a floor
+   familiarity with that other player (don't surface a stranger's name) and
+   a recency window (don't reference something from months ago).
+2. New context IDs, e.g. `mentions_other_player_gift`,
+   `mentions_other_player_absence`, fed into the same weighted-specificity
+   selection as every other context (§4.3) — competes on equal footing, not
+   guaranteed to win.
+3. Lines need a name-substitution placeholder (the other player's name),
+   same mechanism `DialogueLinesConfig`/line-selection already needs for
+   the *current* player's name (§7's "uses your name" at Acquaintance+).
+4. **Privacy consideration:** only surfaces player *names*, never gift
+   contents or exact numbers — "Jay was here recently," not "Jay gave me 4
+   emeralds." Keep it flavor, not a leaderboard.
+
+**Non-goals:** no cross-player notifications, no "X and Y are both friends
+with Petra" social graph UI — this is a dialogue-flavor feature, not a new
+system.
+
+---
+
+## 15. Cross-mod and world correctness — promoted to core (v0.6)
+
+Two items were "open questions" in v0.5 (old §18.1, §18.4) that are
+directly attachment-*destroying* if left alone, not merely nice-to-haves.
+v0.6 promotes both to planned work.
+
+### 15.1 Rehome's `HOME` check (was §18.4)
+
+§1 already flags this: Rehome's `GiftHandler` gates on `follower == null`,
+not on `MemoryModuleType.HOME`, so a resident who's never been gifted-to can
+still be intercepted by Rehome's befriend flow instead of reaching Small
+Talk's gift verb. This is a **different mod's file** to patch
+(`Rehome`'s `GiftHandler.java`, not this repo) — Small Talk's own action
+item is to add an explicit `home == null` guard check as a defensive
+assertion in its own `GiftHandler`/`InteractionHandler` so the two mods'
+behavior is verifiably disjoint from Small Talk's side even if Rehome is
+never patched, plus a regression test (§18) asserting a fresh resident's
+gift never reaches Rehome's command path in an integration environment
+with both mods loaded.
+
+### 15.2 Zombie-cure identity persistence (was §18.1)
+
+A villager's UUID changes on zombie conversion and curing, so `Identity`
+(derived from UUID, §2) and `FamiliarityAttachment` (keyed on the villager
+entity) are both lost across a cure — a Dear Friend reverts to a total
+stranger. Promoted to core because this is a direct, silent attachment
+regression a player will notice and dislike.
+
+**Implementation plan:**
+
+1. `mixin/VillagerConversionMixin.java` — hooks the vanilla zombie-villager
+   conversion completion point (the method that constructs the new
+   `Villager` from the `ZombieVillager`); copies the `FAMILIARITY`
+   attachment (§7) from old entity to new via
+   `FamiliarityAttachment`'s existing map-based storage, and forces the new
+   entity's derived `Identity` name to stay pinned by tagging it with a
+   persisted "identity override" NBT key that `IdentityDeriver` checks
+   before re-hashing — since the UUID changed, the *hash* would otherwise
+   produce a different name/personality/quirks, breaking continuity even
+   with familiarity carried over.
+2. Requires wiring: `smalltalk.mixins.json` (new resource) +
+   `"mixins"` entry in `fabric.mod.json` (neither exists yet — see §18's
+   file hierarchy for where these land).
+3. Test: name-tag a villager, raise familiarity to Friend, zombify and cure
+   it, confirm both the name and the familiarity score survive.
+
+---
+
+## 16. Performance
 
 v0.2 had a whole section here about forty villagers running condition checks
 every tick. That failure mode doesn't exist anymore — nothing evaluates
@@ -595,7 +803,9 @@ What's left:
 
 ---
 
-## 14. Config
+## 17. Config
+
+**Shipped today** (`SmallTalkConfig.java`, `config/smalltalk.json`):
 
 ```json
 {
@@ -624,76 +834,162 @@ the wrong mod's fix (§0). v0.5 reverted both: `itemCategories` is back,
 default category list too, since gifting no longer reacts to hand items at
 all (§6.2) — there's nothing left for it to accidentally consume.
 
+**New keys for v0.6, to add alongside the above when §12/§13 are built:**
+
+```json
+{
+  "requestCooldownTicks": 24000,
+  "birthdaysEnabled": true,
+  "sharedKnowledgeEnabled": true
+}
+```
+
+`requestsEnabled` (already present, currently `false`) is the master switch
+for all of §12; `requestCooldownTicks` only matters once it's `true`.
+`birthdaysEnabled` and `sharedKnowledgeEnabled` default on since both are
+low-risk, pure-flavor additions with no economy implications — server owners
+who dislike the flavor can flip them off individually rather than needing
+`requestsEnabled`'s more cautious default-off treatment.
+
 ---
 
-## 15. Package layout
+## 18. Package layout and file hierarchy
+
+**Shipped** (verified against the current tree):
 
 ```
-com.yourname.smalltalk
-├── SmallTalk.java
-├── config/SmallTalkConfig.java
+smalltalk/
+├── SmallTalkMod.java
+├── SmallTalkConfig.java
+├── SmallTalkCommands.java
 ├── identity/
 │   ├── Identity.java
-│   ├── IdentityDeriver.java      // frozen hash — treat as API
+│   ├── IdentityDeriver.java       // frozen hash -- treat as API
+│   ├── ItemCategory.java
 │   └── Personality.java
 ├── dialogue/
-│   ├── DialogueRegistry.java     // datapack reload listener
-│   ├── DialogueEntry.java        // includes reserved `offers`
 │   ├── ContextEvaluator.java
+│   ├── DialogueContext.java
+│   ├── DialogueLinesConfig.java   // config/smalltalk/lines.json -- see §4.1
+│   ├── HintLinesConfig.java
+│   ├── HintSelector.java
 │   ├── LineSelector.java
-│   └── DialogScreens.java        // builds notice/multi_action Dialog payloads
+│   └── Situation.java
 ├── social/
 │   ├── FamiliarityAttachment.java
-│   ├── MemoryLog.java
+│   ├── FamiliarityEntry.java
+│   ├── FamiliarityTier.java
+│   ├── Feedback.java
+│   ├── GiftCategories.java
+│   ├── GiftReaction.java
+│   └── MemoryEntry.java
+├── interaction/
+│   ├── DialogHold.java
+│   ├── DialogScreens.java
 │   ├── GiftHandler.java
-│   ├── TalkHandler.java
-│   └── AcquaintanceGraph.java    // derived, on demand
-├── errand/Errand.java            // interface only, for now
-└── task/
-    ├── Task.java
-    ├── TaskRegistry.java         // PersistentState, empty at launch
-    └── TaskDialogs.java          // stub
+│   ├── InteractionHandler.java
+│   └── TalkHandler.java
+├── task/
+│   ├── Task.java
+│   ├── TaskRegistry.java          // PersistentState, empty at launch
+│   └── TaskState.java
+└── errand/
+    └── Errand.java                // interface only, for now
 ```
 
-`display/` (v0.2's `SpeechBubble.java` + `DisplaySweeper.java`) and
-`ambient/ChatterTicker.java` are gone — there is no passive delivery path to
-back, so there's nothing for them to do.
+**New for v0.6 — where subsequent work belongs.** These are the files this
+revision expects to be created; each one's stub should cite the SPEC
+section it implements, same convention as the existing `Task.java`/
+`Errand.java` javadoc:
+
+```
+smalltalk/
+├── identity/
+│   └── Birthday.java              // §13 -- dayOfYear(UUID) derivation
+├── social/
+│   └── SharedKnowledge.java       // §14 -- cross-player memory surfacing
+├── task/
+│   ├── TaskType.java              // §12.4 -- enum, FETCH only for now
+│   ├── FetchTaskLogic.java        // §12.4 -- build/validate/complete Fetch
+│   ├── RequestOfferer.java        // §12.3 -- daily cadence roll
+│   └── RequestDialogs.java        // §12.2/§12.4 -- offer/accept/decline/complete dialogs
+└── mixin/
+    └── VillagerConversionMixin.java  // §15.2 -- zombie-cure identity/familiarity carry-over
+```
+
+**Resources — new infrastructure required for the mixin (§15.2):**
+
+```
+src/main/resources/
+├── fabric.mod.json         // needs a new "mixins": ["smalltalk.mixins.json"] entry
+└── smalltalk.mixins.json   // new -- standard Fabric mixin config, references mixin/VillagerConversionMixin
+```
+
+Nothing else in the resource tree changes — dialogue lines stay in
+`config/smalltalk/lines.json` (§4.1), not a `data/` datapack, until/unless
+that migration is separately decided.
+
+**Do not create** (already-rejected surfaces, per §0/§15's history — a
+future agent re-adding these would be reintroducing removed complexity):
+`display/`, `ambient/ChatterTicker.java`, any per-tick villager scan, any
+hand-item-triggered interaction path.
 
 ---
 
-## 16. Build order
+## 19. Roadmap / build order
 
-**Core release**
+**Core release — shipped, do not re-build:**
 
-1. Identity derivation + `/smalltalk whois` debug command. Instant proof the
-   trick works.
-2. Vanilla Dialog plumbing for the talk verb: right-click a resident →
-   `multi_action` dialog with a placeholder greeting and a working **Trade**
-   button; sneak+right-click still opens vanilla trade directly. Proves the
-   delivery mechanism and the trade fast path before any content exists.
-3. Context engine with three contexts — weather, time, greeting — feeding
-   that dialog's line. About a day's work, and the moment the villager stops
-   being a placeholder.
-4. Datapack registry and conditions. Move those three into data, add twenty
-   more.
+1. Identity derivation + `/smalltalk whois`.
+2. Vanilla Dialog plumbing for the talk verb (menu + Trade button, sneak
+   fast path).
+3. Context engine (weather/time/greeting, then expanded).
+4. `config/smalltalk/lines.json` line pool per personality/context.
 5. Gift verb, familiarity, tiers.
 6. Memories and return gifts.
-7. Empty `TaskRegistry` and the `Errand` interface. Ship them unused.
+7. Empty `TaskRegistry` and the `Errand` interface, shipped unused.
 
-**Then**
+**Next — the v0.6 daily-loop plan, in dependency order:**
 
-8. Fetch requests end to end, behind `requestsEnabled`.
-9. Home awareness → décor requests.
-10. Acquaintance graph → deliveries.
-11. Games.
-12. `Errand` → visits.
+8. **§15.2 Zombie-cure identity persistence.** Build first, ahead of new
+   player-facing features: it's a correctness fix for existing systems
+   (identity, familiarity), and every feature added after it should not
+   have to account for a known data-loss bug in what it's built on.
+9. **§13 Birthdays.** Cheapest new feature, no dependencies on anything
+   else in this list, immediately testable.
+10. **§14 Shared-knowledge lines.** No dependencies; uses existing memory
+    log storage.
+11. **§12 Fetch requests, with the daily cadence gate and pending-request
+    tell**, behind `requestsEnabled`. The one feature in this list with
+    real design risk — needs its own playtest before wider release, same
+    as old §16 flagged for the whole requests subsystem ("treat it as its
+    own project with its own playtest").
+12. **§15.1 Rehome `HOME` guard.** Defensive check on Small Talk's side;
+    coordinate timing with whoever owns the Rehome repo for the upstream
+    fix.
 
-Steps 1–3 are the mod's soul. Step 8 is the second mod hiding inside this
-one — treat it as its own project with its own playtest.
+**Backlog — revisit only after step 11 has real playtest data:**
+
+- Delivery (needs the acquaintance graph, §9).
+- Décor (needs home awareness, §11).
+- Quarry.
+- Visit (needs `Errand`, §10).
+- Games.
+- Personality bias over task *type* (§12.5) — meaningless until a second
+  task type exists.
+- Datapack migration for dialogue lines (§4.1's original schema).
+- Request journal item (old §18.3).
+- Biome/profession-weighted name pools (old §18.2) — worth deciding before
+  any of the above ships, since name pools are frozen/additive-only once
+  live (§2).
+
+Core steps 1–3 are the mod's soul. Step 11 (Fetch requests) is the second
+mod hiding inside this one — treat it as its own project with its own
+playtest, same caution the old build order flagged.
 
 ---
 
-## 17. Test checklist
+## 20. Test checklist
 
 - Bare right-click on a villager **with no home** opens trades, unchanged.
 - Bare right-click on a **resident** opens the dialogue menu, not trade
@@ -737,32 +1033,52 @@ one — treat it as its own project with its own playtest.
 - A datapack written against the v0.2/v0.3 schema still loads after requests
   ship.
 
+**New for v0.6:**
+
+- Zombify and cure a Dear Friend → name, personality, quirks, and
+  familiarity score all survive the UUID change (§15.2).
+- On a villager's derived birthday, talk to them → the greeting is the
+  `birthday` context, outranking weather/time; gift reactions are doubled
+  that day only, back to normal the next (§13).
+- A villager mentions a different tracked player's name only when that
+  player has sufficient familiarity with them and a recent-enough memory —
+  never a stranger's name, never stale data (§14).
+- A resident with an `OFFERED` Fetch task shows the pending-request
+  particle tell before being talked to, and it disappears once the task
+  leaves `OFFERED` (§12.2).
+- Talking to a resident twice in the same in-game day never rolls two Fetch
+  offers — the cadence gate (§12.3) is per day, not per talk.
+- Completing a Fetch task re-verifies the player still has the items at
+  confirm time, same as the gift-confirm discipline (§12.4).
+- Alongside Rehome, with the §15.1 guard added: a resident's gift attempt
+  never reaches Rehome's command path, verified with both mods loaded.
+
 ---
 
-## 18. Open questions
+## 21. Open questions
 
-1. **Do zombie villagers remember you after curing?** UUID changes on
-   conversion, so identity and familiarity are lost. Preserving it needs a
-   small mixin. Lovely detail, definite scope creep.
-2. **Name pools and culture.** A flat English-ish pool will feel odd fast.
+Resolved in v0.6 (kept here for history, not because they're still open):
+
+- ~~**Do zombie villagers remember you after curing?**~~ Promoted to core
+  work, §15.2.
+- ~~**Out-of-dialog signal for a pending request.**~~ Resolved: a particle
+  tell, scoped tightly (§12.2).
+- ~~**Gift reaction timing.**~~ Resolved by v0.4's rewrite (§0, §6.2):
+  particles-and-sound only, no dialog involved.
+
+Still open:
+
+1. **Name pools and culture.** A flat English-ish pool will feel odd fast.
    Biome- or profession-weighted pools are better — decide the structure
-   before release, because frozen data can't be reshuffled.
-3. **Do requests need a journal?** Three active tasks across three villagers
-   in two villages is already more than anyone will remember. A
-   written-book journal is the obvious answer and needs no client code, but
-   it's an item, and this mod currently registers nothing.
-4. **Rehome's home check.** §1/§6 flag that Rehome's `GiftHandler` doesn't
-   actually gate on `MemoryModuleType.HOME`. Needs a decision: patch Rehome,
-   or accept the accidental-disjointness and document it as load-bearing.
-5. **Out-of-dialog signal for a pending request.** With ambient hinting
-   gone (§12.2), does a resident with an `OFFERED` task need *any* passive
-   tell (particle, head-turn, name color) so a player knows to go talk to
-   them, or is "you'll find out when you talk to them" acceptable given the
-   mod's whole premise is now "nothing happens until you initiate"?
-6. ~~**Gift reaction timing.**~~ Resolved by v0.4's rewrite (§0, §6.2):
-   taming is particles-and-sound only, styled on vanilla wolf taming, no
-   dialog involved either way. There's no reaction *line* left to time.
-7. **Trading is no longer zero-clicks for residents.** v0.2's explicit design
+   before any of §19's backlog ships, because frozen data (§2) can't be
+   reshuffled after the fact.
+2. **Do requests need a journal?** Deferred along with the rest of the
+   multi-task-type backlog (§19) — with only Fetch and a 3-task cap, this
+   isn't load-bearing yet, but revisit once Delivery/Décor add task variety.
+3. **Rehome's home check.** §15.1 gives Small Talk a defensive-side fix;
+   whether to also patch Rehome's `GiftHandler` directly is a decision for
+   whoever owns that repo, not resolvable from this spec alone.
+4. **Trading is no longer zero-clicks for residents.** v0.2's explicit design
    principle was "trading is never obstructed." v0.3's plain-right-click-opens-menu
    change (§0.1, §6) breaks that for residents specifically — a player who
    just wants to trade now goes through a dialogue screen unless they
@@ -775,3 +1091,8 @@ one — treat it as its own project with its own playtest.
    right-click stays trade and *sneak*-right-click opens the menu instead —
    the opposite of what's specified here — trading it against how often
    players will actually want the menu versus trade.
+5. **Fetch cadence tuning (new).** Is once-per-resident-per-day the right
+   grain, or should it be world-wide-per-player (so three residents can't
+   all offer on the same day and blow through `maxActiveTasks`)? §12.3
+   specifies per-resident; needs playtest data before v0.6's numbers are
+   treated as final.

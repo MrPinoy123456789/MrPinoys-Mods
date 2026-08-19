@@ -190,6 +190,14 @@ public final class ShopDialogs {
      * that spans 1 to 50,000 has a pixel worth hundreds of cobblestone, which is worse
      * than typing. Sliders are the right control for a bounded setting, not for money.
      */
+    /**
+     * The field editor's exit button carries no server callback (see the
+     * {@code MultiActionDialog} built below), so dismissing it never reaches
+     * {@link #handle}. Callers must not rely on a Close event ever arriving --
+     * whatever screen is open behind the dialog when it is shown is what the admin
+     * ends up looking at, which is why {@link ShopAdminMenu} no longer closes the
+     * list before calling this.
+     */
     static void openEditor(ServerPlayer player, String key) {
         Optional<ShopEntry> found = catalog.find(key);
         if (found.isEmpty()) {
@@ -383,19 +391,28 @@ public final class ShopDialogs {
     // ---- deleting -----------------------------------------------------------------
 
     /** Reached from the sgui editor's delete button, which used to be a shift-click. */
-    static void confirmDelete(ServerPlayer player, String key) {
+    static void confirmDelete(ServerPlayer player, String key, int page) {
         CompoundTag context = new CompoundTag();
         context.putString(CTX_TARGET, key);
+        context.putInt(CTX_PAGE, page);
         askDelete(player, context);
     }
 
     private static void askDelete(ServerPlayer player, CompoundTag tag) {
         Optional<ShopEntry> found = catalog.find(tag.getStringOr(CTX_TARGET, ""));
-        if (found.isEmpty()) return;
+        int page = tag.getIntOr(CTX_PAGE, 0);
+        if (found.isEmpty()) {
+            // The listing is already gone -- most likely a second click on a request
+            // that already succeeded. Nothing to confirm, but the admin still needs
+            // somewhere to land rather than a dialog about a key that no longer exists.
+            ShopAdminMenu.open(player, catalog, config, currencies, log, page);
+            return;
+        }
         ShopEntry entry = found.get();
 
         CompoundTag context = new CompoundTag();
         context.putString(CTX_TARGET, entry.key());
+        context.putInt(CTX_PAGE, page);
 
         Dialog dialog = new ConfirmationDialog(
                 DialogKit.common("Delete " + entry.key() + "?",
@@ -415,13 +432,18 @@ public final class ShopDialogs {
 
     private static void handleDelete(ServerPlayer player, CompoundTag tag) {
         String key = tag.getStringOr(CTX_TARGET, "");
+        int page = tag.getIntOr(CTX_PAGE, 0);
         if (!catalog.remove(key)) {
             player.sendSystemMessage(Messages.bad("No listing called '" + key + "'."));
-            return;
+        } else {
+            config.save(catalog);
+            log.admin(player.getName().getString() + " deleted shop entry " + key + " (dialog editor)");
+            player.sendSystemMessage(Messages.good("Deleted " + key + "."));
         }
-        config.save(catalog);
-        log.admin(player.getName().getString() + " deleted shop entry " + key + " (dialog editor)");
-        player.sendSystemMessage(Messages.good("Deleted " + key + "."));
+        // Either way the admin needs to land somewhere -- the entry this dialog was
+        // about is gone or never existed, so the per-listing screen has nothing left
+        // to show. Back to the list, at the page they opened the delete confirm from.
+        ShopAdminMenu.open(player, catalog, config, currencies, log, page);
     }
 
     // ---- routing -------------------------------------------------------------------

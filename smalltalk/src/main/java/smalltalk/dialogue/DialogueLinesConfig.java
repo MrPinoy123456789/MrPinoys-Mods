@@ -112,6 +112,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("Isn't the thunder just thrilling? Like the sky's applauding!"),
                 "rain", List.of("Rain! Perfect weather for staying in and chatting, don't you think?"),
                 "night", List.of("Still up? I love a good starry night, honestly."),
+                "birthday", List.of("It's my birthday! Do stay and celebrate with me!"),
+                "mentions_other_player_gift", List.of("{other} brought me the most wonderful gift earlier!"),
+                "mentions_other_player_absence", List.of("I haven't seen {other} around lately -- I do hope they're okay."),
                 "generic", List.of("Lovely to see you! What's new?")));
         out.put(Personality.GRUFF, Map.of(
                 "player_on_fire", List.of("You're burning. Might want to see to that."),
@@ -119,6 +122,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("Storm's loud tonight."),
                 "rain", List.of("Rain again. Figures."),
                 "night", List.of("Bit late to be wandering, isn't it."),
+                "birthday", List.of("It's my birthday. Not that I expect a fuss."),
+                "mentions_other_player_gift", List.of("{other} gave me something. Wasn't half bad."),
+                "mentions_other_player_absence", List.of("{other}'s been gone too long. Starting to notice."),
                 "generic", List.of("Yeah. What do you want.")));
         out.put(Personality.DREAMY, Map.of(
                 "player_on_fire", List.of("You're glowing... oh, that's actual fire. You should probably deal with that."),
@@ -126,6 +132,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("The thunder sounds like something enormous, turning over in its sleep."),
                 "rain", List.of("I like how the rain makes everything sound far away."),
                 "night", List.of("The stars are doing that thing again where they look like they're listening."),
+                "birthday", List.of("Today feels special... oh, because it is. Another year, another dream."),
+                "mentions_other_player_gift", List.of("{other} gave me a little present. I wonder what it means."),
+                "mentions_other_player_absence", List.of("The village feels quieter without {other} passing through."),
                 "generic", List.of("Mm? Oh -- hello. I was somewhere else for a moment.")));
         out.put(Personality.BRISK, Map.of(
                 "player_on_fire", List.of("You are on fire. Water, now, then we can talk."),
@@ -133,6 +142,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("Storm. Best make this quick."),
                 "rain", List.of("Rain's picking up. Say what you came to say."),
                 "night", List.of("Late. Keep it brief."),
+                "birthday", List.of("Today's my birthday. Don't draw this out."),
+                "mentions_other_player_gift", List.of("{other} already dropped off a gift. Efficient."),
+                "mentions_other_player_absence", List.of("{other}'s been gone. Noted."),
                 "generic", List.of("Yes? Make it quick, I've things to do.")));
         out.put(Personality.BASHFUL, Map.of(
                 "player_on_fire", List.of("Oh! Oh no, you're -- you're on fire, um, you should--"),
@@ -140,6 +152,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("The thunder's a bit much, isn't it. I don't -- I don't love it."),
                 "rain", List.of("Rain. Um. I like it, actually. Quietly."),
                 "night", List.of("It's late. I should probably... yes. Goodnight, I suppose."),
+                "birthday", List.of("Oh... today is my birthday. I didn't think anyone would notice."),
+                "mentions_other_player_gift", List.of("{other} gave me something... that was kind of them."),
+                "mentions_other_player_absence", List.of("I miss {other}. Just... just a little."),
                 "generic", List.of("Oh -- um, hello.")));
         out.put(Personality.SMUG, Map.of(
                 "player_on_fire", List.of("You're on fire. I'd offer to help, but this is rather entertaining."),
@@ -147,6 +162,9 @@ public final class DialogueLinesConfig {
                 "thunder", List.of("Even the sky's making an entrance. Amateur."),
                 "rain", List.of("Rain ruins everyone's hair but mine, somehow."),
                 "night", List.of("Out at night? Bold. I approve."),
+                "birthday", List.of("It is, in fact, my birthday. Gifts are welcome, obviously."),
+                "mentions_other_player_gift", List.of("{other} presented me with a gift. Naturally."),
+                "mentions_other_player_absence", List.of("{other} has been absent. The village's loss, clearly."),
                 "generic", List.of("Well, look who it is.")));
         return out;
     }

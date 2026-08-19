@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:composter",
+  "name": "Bye Forever Bin",
+  "tags": ["trinket", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Bye Forever Bin", "color": "dark_green"},
+    "minecraft:custom_data": {
+      "wondrous": "void_bin"
+    }
+  }
+}

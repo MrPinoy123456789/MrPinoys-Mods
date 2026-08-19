@@ -107,11 +107,18 @@ public final class Station {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.PASS;
         }
-        if (level.getBlockState(hitResult.getBlockPos()).is(Blocks.FLETCHING_TABLE)) {
-            openHub(serverPlayer);
-            return InteractionResult.SUCCESS_SERVER;
+        if (!level.getBlockState(hitResult.getBlockPos()).is(Blocks.FLETCHING_TABLE)) {
+            return InteractionResult.PASS;
         }
-        return InteractionResult.PASS;
+        // Vanilla lets a sneaking player with something in hand act on the item
+        // instead of the block, so blocks can be placed against a fletching
+        // table. Sneaking with both hands empty still opens the hub.
+        if (player.isShiftKeyDown()
+                && !(player.getMainHandItem().isEmpty() && player.getOffhandItem().isEmpty())) {
+            return InteractionResult.PASS;
+        }
+        openHub(serverPlayer);
+        return InteractionResult.SUCCESS_SERVER;
     }
 
     /** Journal as a read-only panel with a back button. */

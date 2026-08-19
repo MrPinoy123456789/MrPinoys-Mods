@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:tropical_fish",
+  "name": "Fishy Necklace",
+  "tags": ["trinket", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Fishy Necklace", "color": "aqua"},
+    "minecraft:custom_data": {
+      "wondrous": "fishy_necklace"
+    }
+  }
+}

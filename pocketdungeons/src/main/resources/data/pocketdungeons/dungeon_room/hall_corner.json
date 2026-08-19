@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/hall_corner",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1
+}

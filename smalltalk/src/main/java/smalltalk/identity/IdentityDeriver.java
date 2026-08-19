@@ -1,8 +1,10 @@
 package smalltalk.identity;
 
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,6 +22,8 @@ public final class IdentityDeriver {
 
     /** Bumping this is a breaking change -- every resident gets renamed. */
     public static final int IDENTITY_VERSION = 1;
+
+    private static final String IDENTITY_OVERRIDE_TAG_PREFIX = "smalltalk:identity_override:";
 
     private static final List<String> NAMES = List.of(
             "Aldric", "Bettina", "Corwin", "Dagny", "Elowen", "Fenwick", "Greta", "Halvard",
@@ -47,12 +51,42 @@ public final class IdentityDeriver {
         return new Identity(name, personality, liked, disliked);
     }
 
+    /**
+     * Derive an identity for a live villager, honoring a persisted override if
+     * the entity's UUID has changed (SPEC.md section 15.2, zombie cure).
+     */
+    public static Identity derive(Villager villager) {
+        return derive(identitySource(villager).orElse(villager.getUUID()));
+    }
+
     /** Name tags win (SPEC.md section 2); the derived name is only a default. */
     public static String displayName(Villager villager) {
         if (villager.hasCustomName() && villager.getCustomName() != null) {
             return villager.getCustomName().getString();
         }
-        return derive(villager.getUUID()).derivedName();
+        return derive(villager).derivedName();
+    }
+
+    /**
+     * Pin the original identity UUID on the new entity so that a UUID change
+     * (zombie cure) does not re-roll name/personality/quirks.
+     */
+    public static void pinIdentity(Entity entity, UUID sourceUuid) {
+        entity.addTag(IDENTITY_OVERRIDE_TAG_PREFIX + sourceUuid);
+    }
+
+    /** The UUID this entity's identity should be derived from, if overridden. */
+    public static Optional<UUID> identitySource(Entity entity) {
+        for (String tag : entity.entityTags()) {
+            if (tag.startsWith(IDENTITY_OVERRIDE_TAG_PREFIX)) {
+                try {
+                    return Optional.of(UUID.fromString(tag.substring(IDENTITY_OVERRIDE_TAG_PREFIX.length())));
+                } catch (IllegalArgumentException e) {
+                    // malformed tag; ignore and keep looking
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private static int index(long seed, int bound) {
@@ -60,7 +94,7 @@ public final class IdentityDeriver {
     }
 
     /** splitmix64's finalizer. Good avalanche, deterministic, frozen. */
-    private static long mix(long z) {
+    static long mix(long z) {
         z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
         z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
         return z ^ (z >>> 31);

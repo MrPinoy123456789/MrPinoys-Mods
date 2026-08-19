@@ -321,6 +321,12 @@ public final class AdminCommands {
                 source.sendFailure(Messages.bad("No such wondrous item: " + itemId));
                 return 0;
             }
+        } else if (SuiteItems.isSuiteItemId(itemId)) {
+            String suiteId = SuiteItems.idFrom(itemId);
+            if (SuiteItems.baseItem(suiteId).isEmpty()) {
+                source.sendFailure(Messages.bad("No such suite item: " + itemId));
+                return 0;
+            }
         } else if (ItemBank.resolve(itemId).isEmpty()) {
             source.sendFailure(Messages.bad("No such item: " + itemId));
             return 0;

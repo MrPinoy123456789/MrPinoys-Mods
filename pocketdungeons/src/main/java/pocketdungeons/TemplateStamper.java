@@ -1,0 +1,139 @@
+package pocketdungeons;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.levelgen.structure.templatesystem.JigsawReplacementProcessor;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Places one room template into one cell, at any rotation.
+ *
+ * <p>{@link #stamp(ServerLevel, BlockPos)} still builds the M0 four-room line
+ * unchanged -- that is the {@link StaticLayout} fallback path. {@link LayoutStamper}
+ * uses {@link #place} for procedural layouts.
+ *
+ * <h2>Rotation</h2>
+ *
+ * <p>{@code StructurePlaceSettings.setRotation} rotates around a pivot, and for
+ * an <strong>even-sized</strong> template no integer pivot maps a 16x16 footprint
+ * back onto itself. Vanilla's transform with pivot {@code (0,0,0)} gives
+ * {@code CW90: (x,z) -> (-z, x)}, {@code CW180: (x,z) -> (-x,-z)},
+ * {@code CCW90: (x,z) -> (z,-x)}, all of which leave the box partly negative.
+ *
+ * <p>So the pivot stays at {@link BlockPos#ZERO} and the <em>placement position</em>
+ * is shifted instead:
+ *
+ * <pre>
+ *   NONE                 (0,   0, 0  )   (x, z)     -> (x,      z     )
+ *   CLOCKWISE_90         (C-1, 0, 0  )   (x, z)     -> (15 - z, x     )
+ *   CLOCKWISE_180        (C-1, 0, C-1)   (x, z)     -> (15 - x, 15 - z)
+ *   COUNTERCLOCKWISE_90  (0,   0, C-1)   (x, z)     -> (z,      15 - x)
+ * </pre>
+ *
+ * <p>Each is a bijection of {@code [0,15]^2} onto itself, so the placed volume is
+ * still exactly the {@code 16 x 7 x 16} box anchored at the cell origin -- which
+ * is why {@link JigsawFallback} needs no change and the per-cell bounds stay
+ * simple.
+ *
+ * <p>{@code DoorMask.rotateClockwise(mask, q)} counts quarter-turns clockwise, so
+ * {@code q} indexes {@link #ROTATIONS} directly. If a doorway lands one block
+ * outside its cell the offset table is wrong; if it lands on the wrong wall this
+ * mapping is reversed. Those two failures look identical in-world, which is what
+ * {@code /dungeon admin stamptest} exists to separate.
+ */
+final class TemplateStamper {
+
+    private static final int CELL = RoomGeometry.CELL;
+    static final Vec3i TEMPLATE_SIZE = new Vec3i(CELL, RoomGeometry.CEILING_Y + 1, CELL);
+    private static final int STAMP_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS;
+
+    /** Indexed by quarter-turns clockwise, matching {@link DoorMask#rotateClockwise}. */
+    static final Rotation[] ROTATIONS = {
+            Rotation.NONE,
+            Rotation.CLOCKWISE_90,
+            Rotation.CLOCKWISE_180,
+            Rotation.COUNTERCLOCKWISE_90
+    };
+
+    /** Placement offset from the cell origin, per quarter-turn. See the class note. */
+    private static final Vec3i[] ROTATION_OFFSETS = {
+            new Vec3i(0, 0, 0),
+            new Vec3i(CELL - 1, 0, 0),
+            new Vec3i(CELL - 1, 0, CELL - 1),
+            new Vec3i(0, 0, CELL - 1)
+    };
+
+    private static final Identifier ENTRANCE_HALL = id("rooms/entrance_hall");
+    private static final Identifier ENCOUNTER_ZOMBIE = id("rooms/encounter_zombie");
+    private static final Identifier LOOT_VAULT = id("rooms/loot_vault");
+    private static final Identifier EXIT_HALL = id("rooms/exit_hall");
+
+    private TemplateStamper() {}
+
+    /** The M0 four-room line, unrotated. The {@link StaticLayout} fallback. */
+    static void stamp(ServerLevel level, BlockPos instanceOrigin) {
+        StructureTemplateManager manager = level.getStructureManager();
+        place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 0, 0), ENTRANCE_HALL, 0, 0L);
+        place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 1, 0), ENCOUNTER_ZOMBIE, 0, 0L);
+        place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 2, 0), LOOT_VAULT, 0, 0L);
+        place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 3, 0), EXIT_HALL, 0, 0L);
+    }
+
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, path);
+    }
+
+    /**
+     * Places one template into the cell whose floor corner is {@code cellOrigin},
+     * rotated by {@code quarterTurns}.
+     *
+     * @return the world positions of that room's {@code pocketdungeons:spawn}
+     *         jigsaws, already transformed for the rotation. They are read from
+     *         the template rather than scanned out of the world because
+     *         {@link JigsawFallback} is about to erase them.
+     */
+    static List<BlockPos> place(ServerLevel level, StructureTemplateManager manager,
+                                BlockPos cellOrigin, Identifier templateId,
+                                int quarterTurns, long seed) {
+        StructureTemplate template = manager.get(templateId)
+                .orElseThrow(() -> new IllegalStateException("Missing structure template " + templateId));
+
+        int q = ((quarterTurns % 4) + 4) % 4;
+        Rotation rotation = ROTATIONS[q];
+        BlockPos placementPos = cellOrigin.offset(ROTATION_OFFSETS[q]);
+
+        StructurePlaceSettings settings = new StructurePlaceSettings();
+        settings.setRotation(rotation);
+        settings.setRotationPivot(BlockPos.ZERO);
+        settings.setIgnoreEntities(false);
+        settings.addProcessor(JigsawReplacementProcessor.INSTANCE);
+
+        template.placeInWorld(level, placementPos, placementPos, settings,
+                RandomSource.create(seed), STAMP_FLAGS);
+
+        List<BlockPos> spawns = spawnPoints(template, placementPos, rotation);
+        JigsawFallback.replaceRemaining(level, cellOrigin, TEMPLATE_SIZE);
+        return spawns;
+    }
+
+    private static List<BlockPos> spawnPoints(StructureTemplate template, BlockPos placementPos,
+                                              Rotation rotation) {
+        List<BlockPos> out = new ArrayList<>();
+        for (StructureTemplate.JigsawBlockInfo info : template.getJigsaws(placementPos, rotation)) {
+            if (LayoutStamper.SPAWN_NAME.equals(info.name())) {
+                out.add(info.info().pos());
+            }
+        }
+        return out;
+    }
+}

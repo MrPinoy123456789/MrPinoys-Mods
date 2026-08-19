@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/encounter_zombie",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": -1
+}

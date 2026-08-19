@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "smalltalk.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "server": [
+    "VillagerConversionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

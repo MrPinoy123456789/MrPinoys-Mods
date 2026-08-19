@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:brush",
+  "name": "Tidy Up Stick",
+  "tags": ["tool", "tier2", "one_per_player"],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {"text": "Tidy Up Stick", "color": "aqua"},
+    "minecraft:custom_data": {
+      "wondrous": "tidy_up_stick"
+    }
+  }
+}

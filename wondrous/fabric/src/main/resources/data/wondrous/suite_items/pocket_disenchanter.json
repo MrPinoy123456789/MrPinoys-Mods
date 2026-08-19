@@ -1,0 +1,12 @@
+{
+  "item": "minecraft:grindstone",
+  "name": "Soul Grinder",
+  "tags": ["tool", "tier3", "one_per_player"],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {"text": "Soul Grinder", "color": "dark_purple"},
+    "minecraft:custom_data": {
+      "wondrous": "pocket_disenchanter"
+    }
+  }
+}

@@ -17,6 +17,10 @@ import smalltalk.identity.IdentityDeriver;
 import smalltalk.interaction.DialogHold;
 import smalltalk.interaction.DialogScreens;
 import smalltalk.interaction.GiftHandler;
+import smalltalk.task.FetchTaskLogic;
+import smalltalk.task.Task;
+import smalltalk.task.TaskRegistry;
+import smalltalk.task.TaskState;
 
 import java.util.UUID;
 
@@ -59,7 +63,25 @@ public final class SmallTalkCommands {
                                         .then(Commands.argument("item", StringArgumentType.greedyString())
                                                 .executes(ctx -> giftConfirm(ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "villager"),
-                                                        StringArgumentType.getString(ctx, "item"))))))));
+                                                        StringArgumentType.getString(ctx, "item"))))))
+                        .then(Commands.literal("request-accept")
+                                .then(Commands.argument("villager", StringArgumentType.word())
+                                        .then(Commands.argument("taskId", StringArgumentType.word())
+                                                .executes(ctx -> requestAccept(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "villager"),
+                                                        StringArgumentType.getString(ctx, "taskId"))))))
+                        .then(Commands.literal("request-decline")
+                                .then(Commands.argument("villager", StringArgumentType.word())
+                                        .then(Commands.argument("taskId", StringArgumentType.word())
+                                                .executes(ctx -> requestDecline(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "villager"),
+                                                        StringArgumentType.getString(ctx, "taskId"))))))
+                        .then(Commands.literal("request-complete")
+                                .then(Commands.argument("villager", StringArgumentType.word())
+                                        .then(Commands.argument("taskId", StringArgumentType.word())
+                                                .executes(ctx -> requestComplete(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "villager"),
+                                                        StringArgumentType.getString(ctx, "taskId"))))))));
     }
 
     private static int whois(CommandSourceStack source, Entity target) {
@@ -123,6 +145,113 @@ public final class SmallTalkCommands {
         boolean result = GiftHandler.confirmGift(villager, level, player, itemId);
         DialogHold.release(villager);
         return result ? 1 : 0;
+    }
+
+    /** SPEC.md section 12.2's Accept button: OFFERED -&gt; ACCEPTED, re-verified from scratch. */
+    private static int requestAccept(CommandSourceStack source, String villagerUuid, String taskIdStr) {
+        Villager villager = nearbyVillager(source, villagerUuid);
+        ServerPlayer player = source.getPlayer();
+        if (villager == null || player == null || !(player.level() instanceof ServerLevel level)) {
+            return 0;
+        }
+        UUID taskId = parseUuid(taskIdStr);
+        TaskRegistry registry = TaskRegistry.of(level);
+        Task task = taskId == null ? null : registry.find(taskId).orElse(null);
+        long tick = level.getGameTime();
+
+        if (!isValidRequest(task, villager, player, tick, TaskState.OFFERED)) {
+            DialogHold.release(villager);
+            player.sendSystemMessage(Component.literal("That offer isn't there anymore.")
+                    .withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+
+        registry.update(withState(task, TaskState.ACCEPTED));
+        DialogHold.release(villager);
+        player.sendSystemMessage(Component.literal(
+                        IdentityDeriver.displayName(villager) + " will be glad when you bring that by.")
+                .withStyle(ChatFormatting.GRAY));
+        return 1;
+    }
+
+    /** SPEC.md section 12.2's "Not now" button: OFFERED -&gt; ABANDONED, re-verified from scratch. */
+    private static int requestDecline(CommandSourceStack source, String villagerUuid, String taskIdStr) {
+        Villager villager = nearbyVillager(source, villagerUuid);
+        ServerPlayer player = source.getPlayer();
+        if (villager == null || player == null || !(player.level() instanceof ServerLevel level)) {
+            return 0;
+        }
+        UUID taskId = parseUuid(taskIdStr);
+        TaskRegistry registry = TaskRegistry.of(level);
+        Task task = taskId == null ? null : registry.find(taskId).orElse(null);
+        long tick = level.getGameTime();
+
+        if (!isValidRequest(task, villager, player, tick, TaskState.OFFERED)) {
+            DialogHold.release(villager);
+            return 0;
+        }
+
+        registry.update(withState(task, TaskState.ABANDONED));
+        DialogHold.release(villager);
+        return 1;
+    }
+
+    /**
+     * SPEC.md sections 12.2/12.4's completion confirm: re-verifies the task
+     * (untrusted payload) and, separately, the player's inventory at confirm
+     * time -- not just when the completion dialog opened (same discipline as
+     * {@code gift-confirm}, SPEC.md section 6.2).
+     */
+    private static int requestComplete(CommandSourceStack source, String villagerUuid, String taskIdStr) {
+        Villager villager = nearbyVillager(source, villagerUuid);
+        ServerPlayer player = source.getPlayer();
+        if (villager == null || player == null || !(player.level() instanceof ServerLevel level)) {
+            return 0;
+        }
+        UUID taskId = parseUuid(taskIdStr);
+        TaskRegistry registry = TaskRegistry.of(level);
+        Task task = taskId == null ? null : registry.find(taskId).orElse(null);
+        long tick = level.getGameTime();
+
+        if (!isValidRequest(task, villager, player, tick, TaskState.ACCEPTED)) {
+            DialogHold.release(villager);
+            player.sendSystemMessage(Component.literal("That request isn't there anymore.")
+                    .withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+        if (!FetchTaskLogic.hasItems(player, task)) {
+            DialogHold.release(villager);
+            player.sendSystemMessage(Component.literal("You don't have those to hand in anymore.")
+                    .withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+
+        FetchTaskLogic.applyReward(villager, level, player, task, tick);
+        registry.update(withState(task, TaskState.COMPLETE));
+        DialogHold.release(villager);
+        return 1;
+    }
+
+    /** The payload is untrusted at every step (SPEC.md section 12.2) -- exists, expected state, this player, not expired. */
+    private static boolean isValidRequest(Task task, Villager villager, ServerPlayer player, long tick, TaskState expected) {
+        return task != null
+                && task.state() == expected
+                && task.issuer().equals(villager.getUUID())
+                && task.assignee().equals(player.getUUID())
+                && tick <= task.expiresTick();
+    }
+
+    private static Task withState(Task task, TaskState state) {
+        return new Task(task.taskId(), task.issuer(), task.assignee(), task.type(), task.payload(),
+                task.issuedTick(), task.expiresTick(), state);
+    }
+
+    private static UUID parseUuid(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** Resolves and re-verifies the villager a dialog button named -- the payload is untrusted (SPEC.md section 12.2's discipline). */

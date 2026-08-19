@@ -1,0 +1,8 @@
+{
+  "template": "pocketdungeons:rooms/exit_hall",
+  "footprint": [1, 1],
+  "roles": ["exit"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1
+}

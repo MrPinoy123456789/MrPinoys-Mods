@@ -54,6 +54,14 @@ public final class ShopConfig {
     private final Path file;
     private final CurrencyRegistry currencies;
 
+    /**
+     * Entries from the last load that could not be read, keyed by their shop key, held
+     * as the raw JSON that was on disk. Rewritten untouched by {@link #save}, so a
+     * listing whose mod is absent survives an admin edit instead of being silently
+     * deleted from the file.
+     */
+    private volatile Map<String, JsonElement> preserved = Map.of();
+
     public ShopConfig(Path directory, CurrencyRegistry currencies) {
         this.file = directory.resolve("shop.json");
         this.currencies = currencies;
@@ -79,15 +87,20 @@ public final class ShopConfig {
             if (shop == null) return catalog;
 
             int rejected = 0;
+            Map<String, JsonElement> unreadable = new LinkedHashMap<>();
             for (Map.Entry<String, JsonElement> e : shop.entrySet()) {
                 ShopEntry entry = readEntry(e.getKey(), e.getValue(), registries);
                 if (entry == null || !entry.isValid()) {
                     rejected++;
+                    unreadable.put(e.getKey(), e.getValue());
                     CobbleEconomyMod.LOG.warn("Shop entry '{}' is malformed and was skipped", e.getKey());
                     continue;
                 }
                 catalog.put(entry);
             }
+            // Held so save() can write them back untouched. See the field's comment: a
+            // rejected entry is not in the catalog, and save() writes only the catalog.
+            this.preserved = Map.copyOf(unreadable);
             CobbleEconomyMod.LOG.info("Loaded {} shop entries ({} rejected)",
                     catalog.size(), rejected);
         } catch (Exception e) {
@@ -103,7 +116,25 @@ public final class ShopConfig {
                                 HolderLookup.Provider registries) {
         try {
             JsonObject object = element.getAsJsonObject();
-            String itemId = object.get("item").getAsString();
+            String itemId;
+            if (object.has("item") && object.has("suite_item")) {
+                CobbleEconomyMod.LOG.warn("Shop entry '{}' has both 'item' and 'suite_item'; pick one", key);
+                return null;
+            }
+            if (object.has("suite_item")) {
+                String suiteId = object.get("suite_item").getAsString();
+                itemId = SuiteItems.PREFIX + suiteId;
+                if (SuiteItems.baseItem(suiteId).isEmpty()) {
+                    CobbleEconomyMod.LOG.warn(
+                            "Shop entry '{}' names suite item '{}', but it could not be resolved", key, itemId);
+                    return null;
+                }
+            } else if (object.has("item")) {
+                itemId = object.get("item").getAsString();
+            } else {
+                CobbleEconomyMod.LOG.warn("Shop entry '{}' has neither 'item' nor 'suite_item'", key);
+                return null;
+            }
             int quantity = object.get("quantity").getAsInt();
             String category = object.has("category")
                     ? object.get("category").getAsString() : "Goods";
@@ -168,12 +199,28 @@ public final class ShopConfig {
         }
     }
 
-    /** Persist the current catalog, so admin edits survive a restart. */
+    /**
+     * Persist the current catalog, so admin edits survive a restart.
+     *
+     * <p><b>Entries that failed to load are written back verbatim.</b> save() writes the
+     * catalog, and a rejected entry is not in the catalog -- so without {@link #preserved}
+     * the first admin edit after a failed load deletes every rejected listing from the
+     * file. That is not hypothetical: it is the load-order bug DESIGN.md §3 records, where
+     * the shop loaded before wondrous initialised, dropped every {@code wondrous:} entry,
+     * and rewrote shop.json without them. A suite listing whose mod is temporarily absent
+     * has exactly the same exposure, and SUITE_ITEMS.md §8.1 promises the opposite: hidden
+     * and logged, never deleted, because uninstalling a mod for an evening must not
+     * destroy an hour of price tuning.
+     */
     public synchronized void save(ShopCatalog catalog) {
         JsonObject shop = new JsonObject();
         for (ShopEntry entry : catalog.all()) {
             JsonObject object = new JsonObject();
-            object.addProperty("item", entry.itemId());
+            if (SuiteItems.isSuiteItemId(entry.itemId())) {
+                object.addProperty("suite_item", SuiteItems.idFrom(entry.itemId()));
+            } else {
+                object.addProperty("item", entry.itemId());
+            }
             object.addProperty("quantity", entry.quantity());
 
             if (entry.price().size() == 1) {
@@ -196,6 +243,12 @@ public final class ShopConfig {
                 object.add("components", JsonParser.parseString(entry.components()));
             }
             shop.add(entry.key(), object);
+        }
+
+        // Verbatim, and only for keys the catalog does not now define -- if an admin has
+        // since created a listing under the same key, theirs is the live one and wins.
+        for (Map.Entry<String, JsonElement> held : preserved.entrySet()) {
+            if (!shop.has(held.getKey())) shop.add(held.getKey(), held.getValue());
         }
 
         JsonObject root = new JsonObject();
