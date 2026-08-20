@@ -1,0 +1,214 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond"
+        }
+      ]
+    },
+    {
+      "rolls": { "min": 2, "max": 3 },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_ingot",
+          "weight": 10,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 8, "max": 16 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gold_ingot",
+          "weight": 8,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 5, "max": 10 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cobblestone",
+          "weight": 6,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 16, "max": 32 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:coal",
+          "weight": 6,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 8, "max": 20 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:emerald",
+          "weight": 5,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 3, "max": 7 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:lapis_lazuli",
+          "weight": 4,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 6, "max": 12 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:experience_bottle",
+          "weight": 4,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 4, "max": 9 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond",
+          "weight": 2
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        { "condition": "minecraft:random_chance", "chance": 0.5 }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bread",
+          "weight": 3,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 3, "max": 5 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cooked_beef",
+          "weight": 3,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 2, "max": 4 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:arrow",
+          "weight": 2,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 8, "max": 16 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_apple",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond",
+          "weight": 6,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 3, "max": 6 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:emerald",
+          "weight": 6,
+          "functions": [
+            { "function": "minecraft:set_count", "count": { "min": 8, "max": 16 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond_block",
+          "weight": 2
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_scrap",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:enchanted_book",
+          "weight": 4,
+          "functions": [
+            { "function": "minecraft:enchant_with_levels", "levels": { "min": 30, "max": 40 } }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:enchanted_golden_apple",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        { "condition": "minecraft:random_chance", "chance": 0.45 }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "weight": 3,
+          "functions": [
+            { "function": "minecraft:set_custom_data", "tag": "{kamutotems:{boss_stone:2}}" },
+            {
+              "function": "minecraft:set_name",
+              "name": { "text": "Boss Stone II", "italic": false, "color": "light_purple" },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [ { "text": "Grip it and a trial finds you.", "italic": true, "color": "gray" } ]
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "weight": 1,
+          "functions": [
+            { "function": "minecraft:set_custom_data", "tag": "{kamutotems:{boss_stone:3}}" },
+            {
+              "function": "minecraft:set_name",
+              "name": { "text": "Boss Stone III", "italic": false, "color": "light_purple" },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [ { "text": "Grip it and a trial finds you.", "italic": true, "color": "gray" } ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:chests/bonus"
+        }
+      ]
+    }
+  ]
+}

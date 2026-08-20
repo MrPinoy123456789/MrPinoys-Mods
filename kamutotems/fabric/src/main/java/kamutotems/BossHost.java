@@ -12,19 +12,35 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.Direction;
+import net.minecraft.core.dispenser.BlockSource;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.dispenser.DispenseItemBehavior;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +81,81 @@ public final class BossHost {
         // ServerEntityEvents.ENTITY_LOAD is in the lifecycle package, not entity.event.
         ServerEntityEvents.ENTITY_LOAD.register(BossHost::onEntityLoad);
         ServerPlayConnectionEvents.DISCONNECT.register(BossHost::onDisconnect);
-        UseItemCallback.EVENT.register(Sigil::onUseItem);
+        UseItemCallback.EVENT.register((player, level, hand) -> {
+            ItemStack stack = player.getItemInHand(hand);
+            if (Sigil.isRandomSigil(stack)) {
+                return Sigil.onUseRandom(player, level, hand);
+            }
+            return Sigil.onUseItem(player, level, hand);
+        });
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            ItemStack stack = player.getItemInHand(hand);
+            if (Sigil.isRandomSigil(stack)) {
+                return Sigil.onUseRandomBlock(player, level, hand, hitResult);
+            }
+            if (!Sigil.isSigil(stack)) {
+                return InteractionResult.PASS;
+            }
+            if (level.isClientSide()) {
+                return InteractionResult.SUCCESS;
+            }
+            // For sigils, let usable blocks (chests, crafting tables, dispensers, etc.)
+            // open their menus. Dispensers/crafting tables use useWithoutItem, so try
+            // that when useItemOn passes. Only fall back to the ritual when the block
+            // doesn't handle the interaction at all.
+            BlockPos pos = hitResult.getBlockPos();
+            var state = level.getBlockState(pos);
+            InteractionResult blockResult = state.useItemOn(stack, level, player, hand, hitResult);
+            if (!blockResult.consumesAction()) {
+                blockResult = state.useWithoutItem(level, player, hitResult);
+            }
+            if (blockResult.consumesAction()) {
+                return blockResult;
+            }
+            return Sigil.onUseItem(player, level, hand, hitResult);
+        });
+        registerDispenserBehaviors();
+    }
+
+    private static void registerDispenserBehaviors() {
+        if (CATALOG == null) {
+            return;
+        }
+        for (Item item : BuiltInRegistries.ITEM) {
+            if (item instanceof SpawnEggItem) {
+                final DispenseItemBehavior original;
+                DispenseItemBehavior found = DispenserBlock.DISPENSER_REGISTRY.get(item);
+                if (found == null) {
+                    original = DispenseItemBehavior.NOOP;
+                } else {
+                    original = found;
+                }
+                DispenserBlock.registerBehavior(item, (source, stack) -> {
+                    if (!Sigil.isRolled(stack)) {
+                        return original.dispense(source, stack);
+                    }
+                    ServerLevel level = source.level();
+                    Direction dir = source.state().getValue(DispenserBlock.FACING);
+                    BlockPos target = source.pos().relative(dir, 1);
+                    Vec3 pos = Vec3.atCenterOf(target);
+                    float yRot = dir.toYRot();
+                    int tier = Sigil.tier(stack);
+                    BossRoll roll = Sigil.rollFrom(stack, CATALOG);
+                    if (roll == null) {
+                        return original.dispense(source, stack);
+                    }
+                    EntityType<?> type = Sigil.typeOf(stack);
+                    Boss boss = Boss.spawn(level, pos, yRot, null, tier, roll, true,
+                            Sigil.counter(stack), Sigil.seed(stack), type, CATALOG);
+                    if (boss == null) {
+                        return original.dispense(source, stack);
+                    }
+                    track(boss);
+                    stack.shrink(1);
+                    return stack.isEmpty() ? ItemStack.EMPTY : stack;
+                });
+            }
+        }
     }
 
     public static void registerCommands(CommandDispatcher<CommandSourceStack> d) {
@@ -153,6 +243,20 @@ public final class BossHost {
         // ServerLevel.getRandom().nextLong() verified in 26.2.
         long dropSeed = ((ServerLevel) entity.level()).getRandom().nextLong();
         BossDrops.drop(boss, (ServerLevel) entity.level(), killer, CATALOG, dropSeed);
+        dropCustomLoot(boss, entity, source);
+    }
+
+    private static void dropCustomLoot(Boss boss, LivingEntity entity, DamageSource source) {
+        String key = KamuTotemsConfig.s("boss", "tier_" + boss.tier() + "_loot_table", "");
+        if (key.isEmpty()) {
+            return;
+        }
+        try {
+            ResourceKey<LootTable> lootTable = ResourceKey.create(Registries.LOOT_TABLE, Identifier.parse(key));
+            entity.dropFromLootTable((ServerLevel) entity.level(), source, true, lootTable);
+        } catch (Exception e) {
+            LOG.warn("Failed to apply boss loot table {}", key, e);
+        }
     }
 
     private static void onEntityLoad(Entity entity, ServerLevel level) {
@@ -228,8 +332,12 @@ public final class BossHost {
                 return 0;
             }
             // BossRoll.forDate is core; covered by the core suite.
+            long seed = 31L * today.hashCode() + WORLD_SEED;
             BossRoll roll = BossRoll.forDate(today, WORLD_SEED, CATALOG);
-            Boss boss = Boss.spawn(player, 1, roll, false, 0, 0, CATALOG);
+            EntityType<?> type = Sigil.resolveEntityType(seed);
+            Boss boss = Boss.spawn(player.level(),
+                    player.position().add(player.getLookAngle().scale(2.0)),
+                    player.getYRot(), player, 1, roll, false, 0, seed, type, CATALOG);
             if (boss == null) {
                 source.sendFailure(Component.literal("The daily boss could not be called.").withStyle(ChatFormatting.RED));
                 return 0;
@@ -250,13 +358,22 @@ public final class BossHost {
         }
 
         ItemStack stack = player.getInventory().getItem(sigilSlot);
+        if (stack.getItem() == Items.ECHO_SHARD) {
+            stack = Sigil.migrate(stack, CATALOG);
+            player.getInventory().setItem(sigilSlot, stack);
+        }
+
         BossRoll roll = Sigil.rollFrom(stack, CATALOG);
         if (roll == null) {
             source.sendFailure(Component.literal("That sigil is unreadable; it will be re-rolled.").withStyle(ChatFormatting.RED));
             return 0;
         }
 
-        Boss boss = Boss.spawn(player, tier, roll, true, Sigil.counter(stack), Sigil.seed(stack), CATALOG);
+        EntityType<?> type = Sigil.typeOf(stack);
+        Boss boss = Boss.spawn(player.level(),
+                player.position().add(player.getLookAngle().scale(2.0)),
+                player.getYRot(), player, tier, roll, true,
+                Sigil.counter(stack), Sigil.seed(stack), type, CATALOG);
         if (boss == null) {
             source.sendFailure(Component.literal("The sigil failed to call a boss.").withStyle(ChatFormatting.RED));
             return 0;

@@ -14,6 +14,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -44,6 +48,11 @@ final class DungeonCommands {
                     .then(Commands.literal("exit")
                             .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
 
+                    .then(Commands.literal("party")
+                            .then(Commands.argument("target", EntityArgument.player())
+                                    .executes(ctx -> party(ctx.getSource().getPlayerOrException(),
+                                            EntityArgument.getPlayer(ctx, "target")))))
+
                     .then(Commands.literal("invite")
                             .then(Commands.argument("target", EntityArgument.player())
                                     .executes(ctx -> invite(ctx.getSource().getPlayerOrException(),
@@ -71,6 +80,11 @@ final class DungeonCommands {
 
                             .then(Commands.literal("stamptest")
                                     .executes(ctx -> stampTest(ctx.getSource())))
+
+                            .then(Commands.literal("cellreport")
+                                    .then(Commands.argument("slot", IntegerArgumentType.integer(0))
+                                            .executes(ctx -> cellReport(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "slot")))))
 
                             .then(Commands.literal("purge")
                                     .then(Commands.argument("slot", IntegerArgumentType.integer(0))
@@ -117,6 +131,11 @@ final class DungeonCommands {
 
     private static int exit(ServerPlayer player) {
         Instances.exit(player);
+        return 1;
+    }
+
+    private static int party(ServerPlayer leader, ServerPlayer target) {
+        Instances.party(leader, target);
         return 1;
     }
 
@@ -296,6 +315,58 @@ final class DungeonCommands {
         source.sendSuccess(() -> Component.literal(
                 "Stamped at " + base.toShortString() + "; purge by hand when done."), false);
         return 1;
+    }
+
+    /**
+     * Dev-only U3 verification aid: one line per cell of a built instance,
+     * reporting its chest(s) (loot table + seed) and live mob count. Without a
+     * client attached there is no other way to confirm role dispatch
+     * (corridor: no chest, no mobs; loot: chest, no mobs) or per-cell mob
+     * counts against {@link DifficultyProfile}, since a room template's chest
+     * position is not otherwise readable from the console.
+     */
+    private static int cellReport(CommandSourceStack source, int slot) {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            source.sendFailure(Component.literal("cellreport is a development-only command."));
+            return 0;
+        }
+        ServerLevel level = source.getServer().getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            source.sendFailure(Component.literal("The dungeon dimension is not loaded."));
+            return 0;
+        }
+        InstanceLayout layout = Instances.adminLayout(slot);
+        if (layout == null) {
+            source.sendFailure(Component.literal("Slot " + slot + " is not allocated."));
+            return 0;
+        }
+
+        List<String> lines = new ArrayList<>();
+        for (BlockPos cellOrigin : layout.geometry().cellOrigins()) {
+            List<BlockPos> chests = RoomContent.containers(level, cellOrigin);
+            AABB cellBounds = new AABB(
+                    cellOrigin.getX(), cellOrigin.getY(), cellOrigin.getZ(),
+                    cellOrigin.getX() + RoomGeometry.CELL, cellOrigin.getY() + RoomGeometry.CEILING_Y + 1,
+                    cellOrigin.getZ() + RoomGeometry.CELL);
+            List<Mob> mobs = level.getEntitiesOfClass(Mob.class, cellBounds);
+
+            StringBuilder sb = new StringBuilder("cell " + cellOrigin.toShortString() + ": "
+                    + chests.size() + " chest(s), " + mobs.size() + " mob(s)");
+            for (BlockPos chestPos : chests) {
+                BlockEntity entity = level.getBlockEntity(chestPos);
+                if (entity instanceof RandomizableContainer container) {
+                    sb.append(" [").append(chestPos.toShortString())
+                            .append(" -> ").append(container.getLootTable())
+                            .append(" seed=").append(container.getLootTableSeed()).append("]");
+                }
+            }
+            lines.add(sb.toString());
+        }
+
+        for (String line : lines) {
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        return lines.size();
     }
 
     private static int purge(CommandSourceStack source, int slot) {

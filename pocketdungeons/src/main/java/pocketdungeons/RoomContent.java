@@ -1,12 +1,23 @@
 package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,29 +34,47 @@ import java.util.Map;
  *
  * <table>
  *   <caption>Role dispatch</caption>
- *   <tr><td>{@code encounter}</td><td>spawn mobs at the spawn points, remove the chest</td></tr>
+ *   <tr><td>{@code encounter}</td><td>remove the chest, spawn mobs at the spawn points</td></tr>
  *   <tr><td>{@code loot}</td><td>keep and retarget the chest, spawn nothing</td></tr>
  *   <tr><td>{@code corridor}</td><td>remove the chest, spawn nothing</td></tr>
  *   <tr><td>{@code entrance}, {@code exit}</td><td>nothing; their templates carry neither</td></tr>
  * </table>
- *
- * <p>Mob spawning is M6a. This milestone ships the chest half, which is what the
- * stamper needs to produce a correct room, and takes the spawn-point list so the
- * call site does not have to change when the other half lands.
  */
 final class RoomContent {
 
-    private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS;
+    /**
+     * {@code UPDATE_SUPPRESS_DROPS} alone only suppresses a removed block's
+     * own item drop; a container's *contents* are dropped separately by
+     * {@code BlockEntity.preRemoveSideEffects}, gated by
+     * {@code UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS}. Without that second flag,
+     * breaking a chest that still has a pending (never-opened) loot table
+     * lazily unpacks it right there -- any container access does, see
+     * {@code RandomizableContainerBlockEntity.getItem} -- and scatters the
+     * result on the ground as the chest disappears. This is what made
+     * {@code encounter}/{@code corridor} cells (which remove their
+     * placeholder chest) show loose items where the chest used to be.
+     */
+    private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+            | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+
+    /** Jitter radius, in blocks, applied when an encounter needs more mobs than it has spawn jigsaws. */
+    private static final int SPAWN_JITTER = 1;
 
     private RoomContent() {}
 
-    static void apply(ServerLevel level, BlockPos cellOrigin, String role, List<BlockPos> spawns) {
+    static void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+                      DifficultyProfile profile, List<BlockPos> spawns, long seed) {
+        applySpawnerDenSwitch(level, cellOrigin);
         if (role == null) {
             return;
         }
         switch (role) {
-            case "loot" -> { /* the chest stays; M6a retargets it to the run's tier */ }
-            case "encounter", "corridor" -> removeChests(level, cellOrigin);
+            case "encounter" -> {
+                removeChests(level, cellOrigin);
+                spawnMobs(level, cellOrigin, depth, profile, spawns, seed);
+            }
+            case "loot" -> retargetChests(level, cellOrigin, profile, seed);
+            case "corridor" -> removeChests(level, cellOrigin);
             default -> { /* entrance and exit carry no chest and no spawn points */ }
         }
     }
@@ -81,6 +110,139 @@ final class RoomContent {
             // entities, which then outlive the room they came from.
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
         }
+    }
+
+    /**
+     * Retargets a {@code loot} cell's chest to the run's tier table.
+     *
+     * <p>The seed is set explicitly rather than left to vanilla's own
+     * assignment: PLAN.md's M1 notes record that a placed chest gets a
+     * non-zero {@code LootTableSeed} on its own even when nothing calls
+     * {@code setLootTableSeed}, and tier 2/3 do have real randomness, so
+     * deriving the seed from the run seed is what keeps a seed reproducible
+     * for debugging.
+     */
+    private static void retargetChests(ServerLevel level, BlockPos cellOrigin,
+                                       DifficultyProfile profile, long seed) {
+        ResourceKey<LootTable> table = ResourceKey.create(Registries.LOOT_TABLE,
+                id("chests/tier_" + profile.lootTier()));
+        for (BlockPos pos : containers(level, cellOrigin)) {
+            BlockEntity entity = level.getBlockEntity(pos);
+            if (entity instanceof RandomizableContainer container) {
+                container.setLootTable(table);
+                container.setLootTableSeed(seed ^ pos.asLong());
+            }
+        }
+    }
+
+    /**
+     * Spawns {@code profile.mobCount(depth)} mobs at {@code spawns}, rolled
+     * from {@code profile.mobRoster(profile.effectiveTier(depth))}. Order is
+     * shuffled and, once the spawn points run out, cycled with a small jitter
+     * so extra mobs do not stack on the same block.
+     */
+    private static void spawnMobs(ServerLevel level, BlockPos cellOrigin, int depth,
+                                  DifficultyProfile profile, List<BlockPos> spawns, long seed) {
+        if (spawns.isEmpty()) {
+            return;
+        }
+        RandomSource random = RandomSource.create(seed ^ cellOrigin.asLong());
+        List<BlockPos> shuffled = new ArrayList<>(spawns);
+        shuffle(shuffled, random);
+
+        int count = profile.mobCount(depth);
+        List<DifficultyProfile.WeightedEntry> roster = profile.mobRoster(profile.effectiveTier(depth));
+        for (int i = 0; i < count; i++) {
+            BlockPos base = shuffled.get(i % shuffled.size());
+            BlockPos pos = i < shuffled.size() ? base : jitterOrFallBack(level, base, random);
+            spawnOne(level, pos, roster, random);
+        }
+    }
+
+    /**
+     * Once the spawn jigsaws run out, cycles back through them with a small
+     * jitter so extra mobs do not stack on exactly the same block. A room's
+     * few authored spawn points are frequently close to a wall, so a jittered
+     * offset can land on a solid block -- falling back to the exact, always-air
+     * jigsaw position rather than skipping the mob entirely is what keeps
+     * {@code mobCount} an actual guarantee instead of a ceiling that quietly
+     * undercounts on small templates.
+     */
+    private static BlockPos jitterOrFallBack(ServerLevel level, BlockPos base, RandomSource random) {
+        for (int attempt = 0; attempt < 4; attempt++) {
+            int jx = random.nextInt(2 * SPAWN_JITTER + 1) - SPAWN_JITTER;
+            int jz = random.nextInt(2 * SPAWN_JITTER + 1) - SPAWN_JITTER;
+            BlockPos candidate = base.offset(jx, 0, jz);
+            if (level.getBlockState(candidate).isAir()) {
+                return candidate;
+            }
+        }
+        return base;
+    }
+
+    private static void spawnOne(ServerLevel level, BlockPos pos,
+                                 List<DifficultyProfile.WeightedEntry> roster, RandomSource random) {
+        String entityId = roll(roster, random);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(entityId));
+        Entity entity = type.spawn(level, pos, EntitySpawnReason.TRIGGERED);
+        if (entity == null) {
+            return;
+        }
+        if (entity instanceof Mob mob) {
+            // Without this the mob despawns out from under a player who
+            // backtracks through an already-cleared room.
+            mob.setPersistenceRequired();
+        }
+    }
+
+    private static String roll(List<DifficultyProfile.WeightedEntry> roster, RandomSource random) {
+        int total = 0;
+        for (DifficultyProfile.WeightedEntry entry : roster) {
+            total += entry.weight();
+        }
+        int pick = random.nextInt(total);
+        for (DifficultyProfile.WeightedEntry entry : roster) {
+            pick -= entry.weight();
+            if (pick < 0) {
+                return entry.entityId();
+            }
+        }
+        return roster.get(roster.size() - 1).entityId();
+    }
+
+    private static void shuffle(List<BlockPos> list, RandomSource random) {
+        for (int i = list.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            BlockPos tmp = list.get(i);
+            list.set(i, list.get(j));
+            list.set(j, tmp);
+        }
+    }
+
+    /**
+     * Spawner dens need no other code: the spawner is authored into the
+     * template and runs itself. If {@code spawnerDensEnabled} is false this is
+     * the kill switch -- swap it for plain stone rather than re-authoring the
+     * template or editing the manifest.
+     */
+    private static void applySpawnerDenSwitch(ServerLevel level, BlockPos cellOrigin) {
+        if (PocketDungeonsConfig.spawnerDensEnabled()) {
+            return;
+        }
+        LevelChunk chunk = level.getChunkAt(cellOrigin);
+        for (Map.Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (!inCell(pos, cellOrigin)) {
+                continue;
+            }
+            if (entry.getValue() instanceof SpawnerBlockEntity) {
+                level.setBlock(pos, Blocks.MOSSY_COBBLESTONE.defaultBlockState(), FLAGS);
+            }
+        }
+    }
+
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, path);
     }
 
     private static boolean inCell(BlockPos pos, BlockPos cellOrigin) {

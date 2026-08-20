@@ -760,7 +760,7 @@ With the default budget a 12-room layout clears in three ticks.
    `/dungeon` still works, lands in the four-room static layout, and says so.
 ---
 
-## U3 — tiered loot and scaled mobs
+## U3 — tiered loot and scaled mobs ✅ *shipped*
 
 **Goal:** a run pays out in proportion to how long and how dangerous it was, and
 the danger scales with the run rather than being four fixed mobs.
@@ -1026,6 +1026,105 @@ groups. **Do not** re-stamp.
 6. `/dungeon admin purge` still clears every spawned mob — the entity sweep
    already covers this, but the mob count is now up to 8 per cell rather than 1,
    so re-run it and confirm zero entities and zero drops remain.
+
+### Shipped: what was built, verified, and where it deviates
+
+**Verified against the real 26.2 jar via `javap` before writing any loot JSON**
+(the plan flagged this as the risky part): `SetCustomDataFunction` takes a raw
+`CompoundTag` (SNBT string in JSON, as written), `SetNameFunction` has a
+`target` field of type `SetNameFunction.Target` (`CUSTOM_NAME`/`ITEM_NAME`),
+`SetLoreFunction` has a `mode` field of type `ListOperation`, `SetItemCountFunction`
+takes a `NumberProvider` (plain `{"min":x,"max":y}` JSON), `EnchantWithLevelsFunction`
+takes `levels` + optional `options` (omitted here, matching "treasure allowed").
+`EntityType.spawn(ServerLevel, BlockPos, EntitySpawnReason)` and
+`Mob.setPersistenceRequired()` both exist with the signatures the plan assumed;
+`EntitySpawnReason.TRIGGERED` was picked for scripted dungeon spawns (not
+`SPAWNER`, `NATURAL`, or `COMMAND`). All confirmed correct — nothing needed a
+retry after the fact.
+
+**Live-verified against a headless dev server**, not just `javap`-checked:
+
+| Check | Result |
+|---|---|
+| `DifficultyProfileTest` | pure-JDK, wired into `tasks.test`, passes (tier boundaries, `mobCount` clamp at both ends, `effectiveTier` cap, non-empty positive-weight rosters, `mobRoster` throws outside 1–3) |
+| `loot insert` into a scratch chest, x1 (tier 1) / x20 (tier 2) / x20 (tier 3) | tier 1: guaranteed diamond present. Tier 2: Boss Stone I rolled with correct `custom_data`/`custom_name`/`lore`. Tier 3: **both** Boss Stone II and Boss Stone III rolled, plus `diamond_block`, `netherite_scrap`, `enchanted_golden_apple`, `enchanted_book`, and bonus.json's items (via the `minecraft:loot_table` reference) — confirming the nested-table reference resolves correctly |
+| `admin build` (seed 0, path 7 → tier 2) + `admin cellreport` (new dev-only command, see below) | every `loot` cell's chest carries `ResourceKey[... / pocketdungeons:chests/tier_2]` and a large non-zero seed; every `corridor` cell has 0 chests and 0 mobs; every `encounter` cell had **exactly 4 mobs** — matching `mobCount(7,1) = 2 + 7/3 + 0 = 4` exactly, constant across cells as designed |
+| `admin purge` | slot released cleanly (`adminLayout` returns null immediately after); the existing entity sweep in `finishClear` is unchanged by U3 and already covers up to 8 mobs/cell |
+| server log, whole run | zero exceptions, zero unexpected warnings (one pre-existing stale-config warning about `clearBlocksPerTick` from an old `run/` config file, unrelated to this milestone) |
+
+**A real bug was found and fixed by the live check, not the code review:** the
+first pass at `RoomContent.spawnMobs` jittered overflow mobs (once a room's
+authored spawn points ran out) by ±1 block and *skipped* the mob if the
+jittered position wasn't air. Small rooms with few spawn jigsaws near a wall
+(e.g. `encounter_zombie`'s 2 authored points against a `mobCount` of 4) missed
+this often enough that a live `cellreport` showed encounter cells with 2–3
+mobs instead of 4 — a silent, systematic undercount of the tuned difficulty
+curve. Fixed by falling back to the exact, always-air jigsaw position when
+jitter misses (`RoomContent.jitterOrFallBack`), re-verified live: every
+encounter cell in the next build reported exactly 4. **Lesson consistent with
+U2's finding:** a live check on a state-machine-adjacent piece of logic (here,
+"what happens when demand exceeds supply of spawn points") caught something a
+diff review or the pure-logic test could not, because `DifficultyProfileTest`
+only exercises `DifficultyProfile` in isolation and has no notion of a room's
+authored spawn-point count.
+
+**Added beyond the plan's text, both judged in-scope by Stage 5's own
+wording:** `/dungeon party <player>` (`Instances.party`) pre-registers a
+companion before entry so the difficulty curve is computed from the real party
+size at stamp time, exactly as Stage 5 describes; `invite`/`join` are
+unchanged and still only work from inside an instance. `/dungeon admin
+cellreport <slot>` (dev-only, alongside `stamptest`/`gentemplates`) is a new
+introspection command: without a client attached there was no other way to
+confirm per-cell chest/mob role dispatch or read a chest's loot-table
+NBT back out, so this is what Stage 6 items 3–5 above actually ran against.
+
+**A second real bug, found by the user in an actual client after this section
+was first written, not by any of the above:** `encounter`/`corridor` cells
+showed loose item entities on the floor where their (removed) placeholder
+chest used to be -- the chest itself was gone, but its would-be loot was
+lying around. Root cause, confirmed with `javap` bytecode inspection of
+`LevelChunk.setBlockState` and `BlockEntity.preRemoveSideEffects`:
+`Block.UPDATE_SUPPRESS_DROPS` (32) only suppresses a removed block's *own*
+item drop (e.g. the "chest" item you'd get from breaking one by hand); a
+container's *contents* are dropped separately by
+`BlockEntity.preRemoveSideEffects` calling `Containers.dropContents`, gated
+by a different flag entirely, `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS` (256),
+which neither `RoomContent.FLAGS` nor `RoomBuilder.STAMP_FLAGS` ever
+included. Worse, `Containers.dropContents` iterates the container via
+`getItem()`, and `RandomizableContainerBlockEntity.getItem()` **lazily
+unpacks its pending loot table on first access** -- so breaking a
+never-opened placeholder chest (every `encounter`/`corridor` chest, by
+construction, since nobody ever gets the chance to open one) generated its
+loot right there and scattered it as the chest vanished. `RoomBuilder.set`
+(used by the whole-instance teardown clear in `Instances.PendingClear`) had
+the identical bug, silently wasting a loot-table roll into short-lived item
+entities on every purge -- harmless in the end state since the entity sweep
+in `finishClear` discards them anyway, but fixed for the same reason. Both
+now OR in `Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`. Re-verified live: an
+`execute store result` item-entity census across a freshly built instance's
+full footprint (which necessarily includes several encounter/corridor cells)
+returned zero matches. **Lesson:** `UPDATE_SUPPRESS_DROPS`'s name is a false
+friend for anything that carries an inventory -- it does not mean "nothing
+drops," it means "the block itself doesn't drop." This is exactly the kind
+of thing that survives a headless-server smoke test (no chest ever gets
+*opened* by console commands, so the lazy-unpack path never fires there) and
+only shows up once a real player actually walks through an encounter room --
+worth remembering for U4/U5 verification too.
+
+**Deviation, deliberately scoped down:** `DifficultyProfile.chestRolls()`
+exists and is unit-tested (`partySize - 1`), and `bonus.json` is wired into
+`tier_2`/`tier_3` via a `minecraft:loot_table` reference exactly as the plan's
+Stage 3 describes -- but `chestRolls()`'s int value is **not** wired into
+`RoomContent` to dynamically scale how many times `bonus.json` rolls per
+party size. Datapack loot tables can't read live party size, and the only way
+to make the roll count dynamic would be to stop lazily retargeting the chest
+(`setLootTable` + `setLootTableSeed`, which Stage 2 requires for the
+reproducible-seed contract) and instead pre-generate the chest's contents at
+stamp time. That trade-off wasn't in the plan's text and Stage 6's
+verification checklist never exercises `chestRolls()` at all, so it was left
+as pure logic for a future milestone (most likely U5's payout, which already
+pays per-member individually) to consume instead of building undocumented
+machinery for it now.
 
 ---
 

@@ -46,6 +46,13 @@ tasks.register<JavaExec>("planSelectorTest") {
     mainClass = "pocketdungeons.PlanSelectorTest"
 }
 
+tasks.register<JavaExec>("difficultyProfileTest") {
+    group = "verification"
+    description = "Runs the pure-Java DifficultyProfile regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.DifficultyProfileTest"
+}
+
 tasks.register<JavaExec>("layoutGraphTest") {
     group = "verification"
     description = "Runs LayoutGraphGenerator's own shape/role/span verification sweep"
@@ -56,6 +63,7 @@ tasks.register<JavaExec>("layoutGraphTest") {
 tasks.test {
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
+    dependsOn("difficultyProfileTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false

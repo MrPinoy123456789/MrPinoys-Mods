@@ -36,11 +36,18 @@ final class RoomBuilder {
 
     /**
      * No neighbour updates while stamping -- section 8.3's update suppression --
-     * and no drops. Without SUPPRESS_DROPS, clearing a room's chest scatters its
-     * contents as item entities, which then outlive the teardown and greet the
+     * and no drops. {@code UPDATE_SUPPRESS_DROPS} alone only suppresses a
+     * removed block's own item drop (e.g. the "chest" item); a container's
+     * *contents* are dropped by {@code BlockEntity.preRemoveSideEffects},
+     * which is gated by the separate {@code UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS}
+     * flag. Without it, clearing a room's still-unopened loot chest lazily
+     * unpacks its loot table right there (container access always does --
+     * see {@code RandomizableContainerBlockEntity.getItem}) and scatters the
+     * result as item entities, which then outlive the teardown and greet the
      * next player to be handed that slot.
      */
-    private static final int STAMP_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS;
+    private static final int STAMP_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+            | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
     private static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
     private static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();

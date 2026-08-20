@@ -2,6 +2,8 @@ package kamutotems;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.Reader;
@@ -9,6 +11,8 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Config for the whole mod, one file at {@code config/kamutotems/config.json},
@@ -112,6 +116,25 @@ public final class KamuTotemsConfig {
         }
     }
 
+    public static List<String> list(String section, String key, List<String> fallback) {
+        try {
+            JsonObject s = section(section);
+            if (s.has(key) && s.get(key).isJsonArray()) {
+                JsonArray arr = s.getAsJsonArray(key);
+                List<String> out = new ArrayList<>(arr.size());
+                for (JsonElement e : arr) {
+                    if (e != null && e.isJsonPrimitive()) {
+                        out.add(e.getAsString());
+                    }
+                }
+                return out;
+            }
+        } catch (RuntimeException e) {
+            // fall through
+        }
+        return fallback;
+    }
+
     private static JsonObject defaults() {
         JsonObject r = new JsonObject();
 
@@ -136,7 +159,11 @@ public final class KamuTotemsConfig {
 
         // --- boss (SPEC.md section 7) --------------------------------------
         JsonObject boss = new JsonObject();
-        boss.addProperty("mob", "minecraft:zombie");
+        JsonArray mobPool = new JsonArray();
+        mobPool.add("minecraft:zombie");
+        mobPool.add("minecraft:skeleton");
+        mobPool.add("minecraft:spider");
+        boss.add("mob_pool", mobPool);
         boss.addProperty("kamu_item", "minecraft:amethyst_shard");
         boss.addProperty("no_summon_radius", 24);
         // health = health_base * health_growth^tier  -> 80 / 160 / 320 / 640
@@ -146,6 +173,10 @@ public final class KamuTotemsConfig {
         // with a flat floor in Boss.java so a low-base mob is still dangerous.
         boss.addProperty("damage_base", 1.0);
         boss.addProperty("damage_step", 0.8);
+        boss.addProperty("tier_1_loot_table", "kamutotems:entities/boss_tier_1");
+        boss.addProperty("tier_2_loot_table", "kamutotems:entities/boss_tier_2");
+        boss.addProperty("tier_3_loot_table", "kamutotems:entities/boss_tier_3");
+        boss.addProperty("tier_4_loot_table", "kamutotems:entities/boss_tier_4");
         r.add("boss", boss);
 
         // --- quest (SPEC.md section 8) -------------------------------------

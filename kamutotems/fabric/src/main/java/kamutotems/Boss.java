@@ -4,8 +4,6 @@ import kamutotems.core.AuraSpec;
 import kamutotems.core.BossRoll;
 import kamutotems.core.Kamu;
 import kamutotems.core.KamuCatalog;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.BossEvent;
 import net.minecraft.resources.Identifier;
@@ -102,26 +100,22 @@ public final class Boss {
     /**
      * Spawns a boss at a short distance in front of the player.
      */
-    public static Boss spawn(ServerPlayer player, int tier, BossRoll roll,
+    public static Boss spawn(ServerLevel level, Vec3 pos, float yRot,
+                             ServerPlayer player, int tier, BossRoll roll,
                              boolean fromSigil, int purchaseCounter, long seed,
-                             KamuCatalog catalog) {
-        ServerLevel level = player.level();
-        String mobId = KamuTotemsConfig.section("boss").has("mob")
-                ? KamuTotemsConfig.section("boss").get("mob").getAsString()
-                : "minecraft:zombie";
-
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.parse(mobId))
-                .orElse(EntityTypes.ZOMBIE);
+                             EntityType<?> type, KamuCatalog catalog) {
+        if (type == null) {
+            type = EntityTypes.ZOMBIE;
+        }
 
         Entity entity = type.create(level, EntitySpawnReason.COMMAND);
         if (entity == null) {
             return null;
         }
 
-        Vec3 pos = player.position().add(player.getLookAngle().scale(2.0));
         entity.setPos(pos.x, pos.y, pos.z);
         // snapTo verified present on Entity in 26.2.
-        entity.snapTo(pos.x, pos.y, pos.z, player.getYRot(), 0.0f);
+        entity.snapTo(pos.x, pos.y, pos.z, yRot, 0.0f);
 
         // Difficulty. The first pass was far too soft -- tier IV was a 60 HP
         // zombie with double damage, for 28 diamonds. These are geometric, so a
@@ -176,7 +170,9 @@ public final class Boss {
             }
 
             if (entity instanceof Mob mob) {
-                mob.setTarget(player);
+                if (player != null) {
+                    mob.setTarget(player);
+                }
                 mob.setPersistenceRequired();
             }
         }
@@ -189,12 +185,15 @@ public final class Boss {
         AuraSpec aura = BossAura.forBoss(tier, carried, seed, catalog);
         Component barName = BossNames.build(tier, type, aura, carried);
         // 26.2 ServerBossEvent takes a UUID first. Verified against the merged jar.
+        UUID owner = player != null ? player.getUUID() : java.util.UUID.randomUUID();
         ServerBossEvent bar = new ServerBossEvent(
-                java.util.UUID.randomUUID(),
+                owner,
                 barName,
                 BossEvent.BossBarColor.PURPLE,
                 BossEvent.BossBarOverlay.PROGRESS);
-        bar.addPlayer(player);
+        if (player != null) {
+            bar.addPlayer(player);
+        }
         bar.setProgress(1.0f);
 
         if (entity instanceof LivingEntity living) {
@@ -203,7 +202,7 @@ public final class Boss {
         }
 
         level.addFreshEntity(entity);
-        return new Boss(player.getUUID(), tier, roll, carried, aura, entity, bar,
+        return new Boss(owner, tier, roll, carried, aura, entity, bar,
                 fromSigil, purchaseCounter, seed);
     }
 

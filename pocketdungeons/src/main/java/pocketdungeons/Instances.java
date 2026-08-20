@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +53,15 @@ final class Instances {
 
     /** Invitee -> outstanding invitation. */
     private static final Map<UUID, Invite> invites = new HashMap<>();
+
+    /**
+     * Companions pre-registered via {@code /dungeon party}, keyed by the
+     * leader who will open the dungeon. Consumed (and cleared) the moment that
+     * leader runs {@code /dungeon} -- see U3 Stage 5: {@code invite}/{@code join}
+     * only work from inside an instance, so this is what lets a party's size be
+     * known <em>before</em> stamping, without re-stamping on a later join.
+     */
+    private static final Map<UUID, Set<UUID>> pendingParty = new HashMap<>();
 
     /** Return points for players who left the world while inside, keyed by UUID. */
     private static final Map<UUID, ReturnPoint> pendingReturns = new HashMap<>();
@@ -118,6 +128,7 @@ final class Instances {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.getPlayer();
             invites.remove(player.getUUID());
+            pendingParty.remove(player.getUUID());
             InstanceRecord record = byMember.get(player.getUUID());
             if (record == null) {
                 return;
@@ -204,6 +215,9 @@ final class Instances {
             return;
         }
 
+        List<ServerPlayer> companions = resolveParty(server, player);
+        int partySize = 1 + companions.size();
+
         long seed = level.getRandom().nextLong();
         int slot = allocateSlot();
         BlockPos origin = originForSlot(slot);
@@ -211,7 +225,7 @@ final class Instances {
         // On failure buildLayout has already queued a clear for whatever partial
         // geometry it wrote and the slot's release happens when that clear
         // finishes -- it is deliberately not freed here. See buildLayout's note.
-        InstanceLayout layout = buildLayout(server, level, slot, origin, seed);
+        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, partySize);
         if (layout == null) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. You have not been moved.")
@@ -222,6 +236,9 @@ final class Instances {
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout);
         bySlot.put(slot, record);
         admit(server, record, player);
+        for (ServerPlayer companion : companions) {
+            admit(server, record, companion);
+        }
 
         player.sendSystemMessage(Component.literal("You step into the dungeon.")
                 .withStyle(ChatFormatting.GOLD));
@@ -238,13 +255,58 @@ final class Instances {
                             + "the planner needs looking at.")
                     .withStyle(ChatFormatting.YELLOW));
         }
-        player.sendSystemMessage(Component.literal(
-                "Bring someone along with /dungeon invite <player>.")
-                .withStyle(ChatFormatting.GRAY));
+        if (companions.isEmpty()) {
+            player.sendSystemMessage(Component.literal(
+                    "Bring someone along with /dungeon invite <player> once you're in, "
+                            + "or /dungeon party <player> before you go in to scale the "
+                            + "dungeon for your whole group.")
+                    .withStyle(ChatFormatting.GRAY));
+        } else {
+            StringBuilder names = new StringBuilder();
+            for (ServerPlayer companion : companions) {
+                if (names.length() > 0) {
+                    names.append(", ");
+                }
+                names.append(companion.getName().getString());
+                companion.sendSystemMessage(Component.literal(
+                        "You step into " + player.getName().getString() + "'s dungeon.")
+                        .withStyle(ChatFormatting.GOLD));
+            }
+            player.sendSystemMessage(Component.literal(
+                    names + " came in with you. The dungeon is scaled for your party.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
 
-        PocketDungeonsMod.LOG.info("Opened dungeon slot {} for {} ({} rooms, tier {}, seed {})",
+        PocketDungeonsMod.LOG.info("Opened dungeon slot {} for {} ({} rooms, tier {}, party {}, seed {})",
                 slot, player.getName().getString(), layout.roomCount(),
-                layout.lootTier(), layout.seed());
+                layout.lootTier(), partySize, layout.seed());
+    }
+
+    /**
+     * Consumes and resolves this leader's pre-registered {@code /dungeon party}
+     * companions into online, still-eligible players. Registration is
+     * one-shot: whether or not the build below succeeds, the reservation is
+     * spent.
+     */
+    private static List<ServerPlayer> resolveParty(MinecraftServer server, ServerPlayer leader) {
+        Set<UUID> pending = pendingParty.remove(leader.getUUID());
+        if (pending == null || pending.isEmpty()) {
+            return List.of();
+        }
+        List<ServerPlayer> companions = new ArrayList<>();
+        int cap = PocketDungeonsConfig.maxPartyMembers() - 1;
+        for (UUID id : pending) {
+            if (companions.size() >= cap) {
+                break;
+            }
+            ServerPlayer companion = server.getPlayerList().getPlayer(id);
+            if (companion == null || companion.getUUID().equals(leader.getUUID())
+                    || hasInstance(companion)) {
+                continue;
+            }
+            companions.add(companion);
+        }
+        return companions;
     }
 
     /**
@@ -274,10 +336,12 @@ final class Instances {
      * on failure any more -- that happens when the queued clear completes, the
      * same as every other teardown path.
      *
+     * @param partySize the opening player's party size, threaded to
+     *                  {@link LayoutStamper#stamp} for the difficulty curve
      * @return the layout, or null if stamping itself failed
      */
     private static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
-                                              int slot, BlockPos origin, long seed) {
+                                              int slot, BlockPos origin, long seed, int partySize) {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
@@ -288,7 +352,7 @@ final class Instances {
             PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
-                return LayoutStamper.stamp(level, origin, plan);
+                return LayoutStamper.stamp(level, origin, plan, partySize);
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan at {} failed; clearing whatever was written",
                         origin.toShortString(), e);
@@ -330,6 +394,55 @@ final class Instances {
     }
 
     // ---- parties ------------------------------------------------------------
+
+    /**
+     * Pre-registers a companion for the <em>next</em> dungeon this leader
+     * opens (U3 Stage 5). {@code invite}/{@code join} only work once the
+     * leader is already inside, which is too late for the difficulty curve --
+     * it is computed once, at stamp time, from the party size known then.
+     */
+    static void party(ServerPlayer leader, ServerPlayer target) {
+        if (hasInstance(leader)) {
+            leader.sendSystemMessage(Component.literal(
+                    "You are already in a dungeon. Use /dungeon invite instead.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (target.getUUID().equals(leader.getUUID())) {
+            leader.sendSystemMessage(Component.literal("You are already coming.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (hasInstance(target)) {
+            leader.sendSystemMessage(Component.literal(
+                    target.getName().getString() + " is already in a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        Set<UUID> companions = pendingParty.computeIfAbsent(leader.getUUID(), k -> new LinkedHashSet<>());
+        if (companions.contains(target.getUUID())) {
+            leader.sendSystemMessage(Component.literal(
+                    target.getName().getString() + " is already pre-registered.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (1 + companions.size() >= PocketDungeonsConfig.maxPartyMembers()) {
+            leader.sendSystemMessage(Component.literal(
+                    "Your party is full (" + PocketDungeonsConfig.maxPartyMembers() + " players).")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        companions.add(target.getUUID());
+        leader.sendSystemMessage(Component.literal(
+                target.getName().getString() + " will come with you when you open a dungeon.")
+                .withStyle(ChatFormatting.GOLD));
+        target.sendSystemMessage(Component.literal(
+                leader.getName().getString() + " pre-registered you for their next dungeon. "
+                        + "You'll be brought in automatically when they run /dungeon.")
+                .withStyle(ChatFormatting.GOLD));
+    }
 
     static void invite(ServerPlayer inviter, ServerPlayer target) {
         InstanceRecord record = byMember.get(inviter.getUUID());
@@ -855,7 +968,7 @@ final class Instances {
         BlockPos origin = originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong());
+                seed != null ? seed : level.getRandom().nextLong(), 1);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.

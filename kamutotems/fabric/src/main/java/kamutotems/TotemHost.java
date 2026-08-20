@@ -1,7 +1,10 @@
 package kamutotems;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -24,6 +27,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.BlockHitResult;
@@ -43,9 +47,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 import kamutotems.core.Construct;
+import kamutotems.KamuData;
+import kamutotems.core.BossRoll;
 import kamutotems.core.HostType;
 import kamutotems.core.Kamuy;
 import kamutotems.core.KamuyName;
@@ -115,7 +122,48 @@ public final class TotemHost {
                         .executes(ctx -> {
                             KamuForge.open(ctx.getSource().getPlayerOrException());
                             return 1;
-                        })));
+                        }))
+                .then(Commands.literal("egg")
+                        .then(Commands.literal("imbue")
+                                .then(Commands.argument("tier", IntegerArgumentType.integer(1, 4))
+                                        .executes(TotemHost::imbue)))
+                        .then(Commands.literal("random")
+                                .then(Commands.argument("tier", IntegerArgumentType.integer(1, 4))
+                                        .executes(TotemHost::randomSigil)))));
+    }
+
+    private static int imbue(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        int tier = IntegerArgumentType.getInteger(ctx, "tier");
+        ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (held.isEmpty() || !(held.getItem() instanceof SpawnEggItem)) {
+            player.sendSystemMessage(Component.literal("Hold a spawn egg in your main hand to imbue it.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        BossRoll roll = BossRoll.forSeed(ThreadLocalRandom.current().nextLong(), tier, KamuData.catalog());
+        if (roll == null) {
+            player.sendSystemMessage(Component.literal("No affixes are available for that trial.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        Sigil.roll(held, player, roll, ThreadLocalRandom.current().nextLong(), 0, KamuData.catalog());
+        player.setItemInHand(InteractionHand.MAIN_HAND, held);
+        player.sendSystemMessage(Component.literal("The egg trembles with a Trial " + Sigil.roman(tier) + " affix.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
+        return 1;
+    }
+
+    private static int randomSigil(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        int tier = IntegerArgumentType.getInteger(ctx, "tier");
+        ItemStack egg = Sigil.makeRandomSigil(tier);
+        if (!player.getInventory().add(egg)) {
+            player.drop(egg, false);
+        }
+        player.sendSystemMessage(Component.literal("A Trial " + Sigil.roman(tier) + " Mystery Sigil Egg appears in your pack.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
+        return 1;
     }
 
     private static int openPanel(ServerPlayer player) {

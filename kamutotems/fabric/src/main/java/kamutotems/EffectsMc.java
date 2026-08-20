@@ -67,6 +67,9 @@ public final class EffectsMc {
                 if (living != null) {
                     living.igniteForSeconds((float) num(p, "seconds",
                             KamuTotemsConfig.d("combat", "fire_seconds", 4.0)));
+                    level.playSound(null, living.getX(), living.getY(), living.getZ(),
+                            SoundEvents.GENERIC_BURN, living.getSoundSource(),
+                            0.5f, 1.0f);
                 }
             }
             case "ice" -> {
@@ -74,6 +77,9 @@ public final class EffectsMc {
                     living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS,
                             (int) num(p, "ticks", KamuTotemsConfig.i("combat", "ice_ticks", 120)),
                             (int) num(p, "amplifier", 0), true, false));
+                    level.playSound(null, living.getX(), living.getY(), living.getZ(),
+                            SoundEvents.PLAYER_HURT_FREEZE, living.getSoundSource(),
+                            0.5f, 1.0f);
                 }
             }
             case "poison" -> {
@@ -81,6 +87,9 @@ public final class EffectsMc {
                     living.addEffect(new MobEffectInstance(MobEffects.POISON,
                             (int) num(p, "ticks", KamuTotemsConfig.i("combat", "poison_ticks", 200)),
                             (int) num(p, "amplifier", 0), true, false));
+                    level.playSound(null, living.getX(), living.getY(), living.getZ(),
+                            SoundEvents.SPLASH_POTION_BREAK, living.getSoundSource(),
+                            0.4f, 1.4f);
                 }
             }
             case "wither" -> {
@@ -88,6 +97,9 @@ public final class EffectsMc {
                     living.addEffect(new MobEffectInstance(MobEffects.WITHER,
                             (int) num(p, "ticks", KamuTotemsConfig.i("combat", "wither_ticks", 160)),
                             (int) num(p, "amplifier", 0), true, false));
+                    level.playSound(null, living.getX(), living.getY(), living.getZ(),
+                            SoundEvents.SOUL_ESCAPE, living.getSoundSource(),
+                            0.6f, 0.8f);
                 }
             }
             case "lightning" -> {
@@ -95,9 +107,11 @@ public final class EffectsMc {
                     hurt(living, source, power);
                     jolt(living, source, num(p, "jolt",
                             KamuTotemsConfig.d("combat", "lightning_jolt", 0.8)));
+                    // Impact crack instead of the long rumbling thunder --
+                    // a hit proc needs a snap, not several seconds of boom.
                     level.playSound(null, living.getX(), living.getY(), living.getZ(),
-                            SoundEvents.LIGHTNING_BOLT_THUNDER, living.getSoundSource(),
-                            0.6f, 1.0f);
+                            SoundEvents.LIGHTNING_BOLT_IMPACT, living.getSoundSource(),
+                            0.5f, 1.15f);
                 }
             }
 

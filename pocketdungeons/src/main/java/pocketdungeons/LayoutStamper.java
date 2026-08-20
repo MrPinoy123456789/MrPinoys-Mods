@@ -31,11 +31,16 @@ final class LayoutStamper {
      * carry. Throws if any template is missing, which {@code Instances} treats as
      * a stamp failure and aborts on -- releasing the slot and the force-load
      * tickets rather than leaving a half-built dungeon allocated.
+     *
+     * @param partySize the opening player's party size, known at stamp time
+     *                  (U3 Stage 5) -- a mid-run joiner does not trigger a
+     *                  re-stamp, so this is fixed for the run's lifetime
      */
-    static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan) {
+    static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan, int partySize) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
+        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), partySize);
 
         for (PlanCell cell : stampOrder(plan)) {
             DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
@@ -52,7 +57,8 @@ final class LayoutStamper {
                     level, manager, cellOrigin, Identifier.parse(entry.meta.template),
                     placed.rotation(), plan.seed() ^ cellOrigin.asLong());
 
-            RoomContent.apply(level, cellOrigin, plan.roles().get(cell), spawns);
+            int depth = plan.depths().getOrDefault(cell, 0);
+            RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns, plan.seed());
         }
 
         PlanCell entranceCell = plan.entrance();
@@ -66,7 +72,7 @@ final class LayoutStamper {
                 plan.seed(),
                 plan.criticalPath().size(),
                 plan.cells().size(),
-                lootTier(plan.criticalPath().size()),
+                profile.lootTier(),
                 true);
     }
 
@@ -99,13 +105,5 @@ final class LayoutStamper {
         }
         PocketDungeonsMod.LOG.warn("Entrance cell {} has no outgoing door; facing east", entrance);
         return DoorMask.Direction.EAST;
-    }
-
-    /** Path length to loot tier: 5 or shorter is tier 1, 6-7 tier 2, 8 or more tier 3. */
-    static int lootTier(int pathLength) {
-        if (pathLength <= 5) {
-            return 1;
-        }
-        return pathLength <= 7 ? 2 : 3;
     }
 }

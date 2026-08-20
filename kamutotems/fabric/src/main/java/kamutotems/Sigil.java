@@ -18,19 +18,28 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * A sigil is an item the shop sells. It starts unrolled, is rolled by a server
@@ -127,7 +136,12 @@ public final class Sigil {
                     counters.put(player.getUUID(), next);
                     long seed = hash(player.getUUID(), next, worldSeed);
                     BossRoll roll = BossRoll.forSeed(seed, t, catalog);
-                    roll(stack, player, roll, seed, next, catalog);
+                    ItemStack rolled = new ItemStack(resolveEgg(seed), 1);
+                    roll(rolled, player, roll, seed, next, catalog);
+                    player.getInventory().setItem(i, rolled);
+                    changed = true;
+                } else if (isRolled(stack) && stack.getItem() == Items.ECHO_SHARD) {
+                    player.getInventory().setItem(i, migrate(stack, catalog));
                     changed = true;
                 }
             }
@@ -152,6 +166,10 @@ public final class Sigil {
         });
 
         List<Component> lore = new ArrayList<>();
+        EntityType<?> type = typeOf(stack);
+        if (type != null) {
+            lore.add(type.getDescription().copy().withStyle(ChatFormatting.WHITE));
+        }
         for (String id : roll.kamuIds()) {
             Kamu kamu = cat.get(id);
             if (kamu != null) {
@@ -169,10 +187,137 @@ public final class Sigil {
         stack.set(DataComponents.MAX_STACK_SIZE, 1);
     }
 
+    /**
+     * Pick a spawn-egg item from the configured mob_pool using the roll seed.
+     * Falls back to a zombie egg if the selected entry has no egg.
+     */
+    private static Item resolveEgg(long seed) {
+        List<String> pool = KamuTotemsConfig.list("boss", "mob_pool", List.of("minecraft:zombie"));
+        String id = pool.get(new Random(seed).nextInt(pool.size()));
+        Identifier eggId = Identifier.parse(id + "_spawn_egg");
+        return BuiltInRegistries.ITEM.getOptional(eggId)
+                .filter(item -> item instanceof SpawnEggItem)
+                .orElse(Items.ZOMBIE_SPAWN_EGG);
+    }
+
+    /**
+     * Pick a random spawn-egg item from the configured mob_pool.
+     */
+    private static Item resolveEgg() {
+        return resolveEgg(ThreadLocalRandom.current().nextLong());
+    }
+
+    /**
+     * Resolve the EntityType to use for a fresh (no-item) summon from the pool.
+     */
+    public static EntityType<?> resolveEntityType(long seed) {
+        List<String> pool = KamuTotemsConfig.list("boss", "mob_pool", List.of("minecraft:zombie"));
+        String id = pool.get(new Random(seed).nextInt(pool.size()));
+        return BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.parse(id))
+                .orElse(EntityTypes.ZOMBIE);
+    }
+
+    /**
+     * Read the EntityType bound to an actual spawn-egg stack.
+     */
+    public static EntityType<?> typeOf(ItemStack stack) {
+        if (!(stack.getItem() instanceof SpawnEggItem)) {
+            return null;
+        }
+        // SpawnEggItem.getType(ItemStack) verified against the merged jar for 26.2.
+        return SpawnEggItem.getType(stack);
+    }
+
+    /**
+     * Convert an in-the-wild ECHO_SHARD sigil to a real spawn-egg base,
+     * preserving the roll it already carries.
+     */
+    public static ItemStack migrate(ItemStack old, KamuCatalog cat) {
+        int t = tier(old);
+        long s = seed(old);
+        int c = counter(old);
+        BossRoll roll = BossRoll.forSeed(s, t, cat);
+        if (roll == null) {
+            return old;
+        }
+        ItemStack fresh = new ItemStack(resolveEgg(s), 1);
+        roll(fresh, null, roll, s, c, cat);
+        Component name = old.get(DataComponents.ITEM_NAME);
+        if (name != null) {
+            fresh.set(DataComponents.ITEM_NAME, name);
+        }
+        return fresh;
+    }
+
     public static ItemStack makeRolledSigil(int tier, BossRoll roll, long seed, int counter, KamuCatalog cat) {
-        ItemStack stack = new ItemStack(Items.ECHO_SHARD, 1);
+        ItemStack stack = new ItemStack(resolveEgg(), 1);
         roll(stack, null, roll, seed, counter, cat);
         return stack;
+    }
+
+    public static boolean isRandomSigil(ItemStack stack) {
+        return randomTier(stack) > 0;
+    }
+
+    public static int randomTier(ItemStack stack) {
+        CompoundTag tag = tag(stack);
+        if (tag == null) {
+            return 0;
+        }
+        CompoundTag inner = tag.getCompoundOrEmpty(KEY);
+        return inner.getIntOr("random_sigil", 0);
+    }
+
+    /**
+     * A sealed "mystery egg" that reveals its bound mob only when right-clicked.
+     * Useful for shops: the player knows the trial tier but not which mob they
+     * will get until they open it.
+     */
+    public static ItemStack makeRandomSigil(int tier) {
+        ItemStack stack = new ItemStack(Items.EGG, 1);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            CompoundTag inner = new CompoundTag();
+            inner.putInt("random_sigil", tier);
+            tag.put(KEY, inner);
+        });
+        stack.set(DataComponents.ITEM_NAME,
+                Component.literal("Mystery Sigil Egg — Trial " + roman(tier))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("Right-click to reveal a bound Trial " + roman(tier) + " sigil.")
+                        .withStyle(ChatFormatting.GRAY))));
+        stack.set(DataComponents.MAX_STACK_SIZE, 1);
+        return stack;
+    }
+
+    public static InteractionResult onUseRandom(Player player, Level level, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (!(player instanceof ServerPlayer sp) || !(level instanceof ServerLevel sl)) {
+            return isRandomSigil(stack) ? InteractionResult.SUCCESS : InteractionResult.PASS;
+        }
+        int tier = randomTier(stack);
+        if (tier <= 0) {
+            return InteractionResult.PASS;
+        }
+        BossRoll roll = BossRoll.forSeed(ThreadLocalRandom.current().nextLong(), tier, catalog);
+        if (roll == null) {
+            sp.sendSystemMessage(Component.literal("No affixes are available for that trial.")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.FAIL;
+        }
+        ItemStack sigil = makeRolledSigil(tier, roll, ThreadLocalRandom.current().nextLong(), 0, catalog);
+        stack.shrink(1);
+        player.setItemInHand(hand, stack.isEmpty() ? ItemStack.EMPTY : stack);
+        if (!sp.getInventory().add(sigil)) {
+            sp.drop(sigil, false);
+        }
+        sp.sendSystemMessage(Component.literal("The egg cracks open, revealing a Trial " + roman(tier) + " sigil.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
+        return InteractionResult.SUCCESS;
+    }
+
+    public static InteractionResult onUseRandomBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
+        return onUseRandom(player, level, hand);
     }
 
     /**
@@ -190,7 +335,7 @@ public final class Sigil {
         if (roll == null) {
             return ItemStack.EMPTY;
         }
-        ItemStack stack = new ItemStack(Items.ECHO_SHARD, 1);
+        ItemStack stack = new ItemStack(resolveEgg(), 1);
         roll(stack, null, roll, BossHost.worldSeed(), 0, catalog);
         stack.set(DataComponents.ITEM_NAME,
                 Component.literal("Sigil of the First Trial")
@@ -199,11 +344,20 @@ public final class Sigil {
     }
 
     public static InteractionResult onUseItem(Player player, Level level, InteractionHand hand) {
-        if (!(player instanceof ServerPlayer sp) || !(level instanceof ServerLevel sl)) {
-            return InteractionResult.PASS;
-        }
+        return onUseItem(player, level, hand, null);
+    }
+
+    public static InteractionResult onUseItem(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
         ItemStack stack = player.getItemInHand(hand);
-        if (!isRolled(stack)) {
+        if (!(player instanceof ServerPlayer sp) || !(level instanceof ServerLevel sl)) {
+            return isSigil(stack) ? InteractionResult.SUCCESS : InteractionResult.PASS;
+        }
+        if (isRolled(stack) && stack.getItem() == Items.ECHO_SHARD) {
+            stack = migrate(stack, catalog);
+            player.setItemInHand(hand, stack);
+        }
+
+        if (!(stack.getItem() instanceof SpawnEggItem) || !isRolled(stack)) {
             if (isSigil(stack)) {
                 sp.sendSystemMessage(Component.literal("This sigil is still sealed.")
                         .withStyle(ChatFormatting.RED));
@@ -239,7 +393,15 @@ public final class Sigil {
         Chime.play(sp, SoundEvents.NOTE_BLOCK_BASS,
                 0.25f, 0.8f);
 
-        Boss boss = Boss.spawn(sp, tier, roll, true, counter(stack), seed(stack), catalog);
+        EntityType<?> type = typeOf(stack);
+        Vec3 pos;
+        if (hit != null) {
+            BlockPos spawnPos = hit.getBlockPos().relative(hit.getDirection());
+            pos = Vec3.atBottomCenterOf(spawnPos);
+        } else {
+            pos = sp.position().add(sp.getLookAngle().scale(2.0));
+        }
+        Boss boss = Boss.spawn(sl, pos, sp.getYRot(), sp, tier, roll, true, counter(stack), seed(stack), type, catalog);
         if (boss == null) {
             sp.sendSystemMessage(Component.literal("The sigil failed to call a boss.")
                     .withStyle(ChatFormatting.RED));
@@ -274,7 +436,7 @@ public final class Sigil {
         return data.copyTag();
     }
 
-    private static String roman(int tier) {
+    static String roman(int tier) {
         return switch (tier) {
             case 1 -> "I";
             case 2 -> "II";
