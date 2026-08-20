@@ -25,6 +25,7 @@ public final class HearsayCommands {
 
     private HearsayCommands() {}
 
+    /** Registers operator controls for config reloads, diagnostics, and forced dialogue. */
     public static void register(HearsayConfig config, Listeners listeners,
                                 Speech speech, Scenes scenes, Mute mute) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->

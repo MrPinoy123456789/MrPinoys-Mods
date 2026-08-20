@@ -66,13 +66,17 @@ public final class LinePools {
         if (lines.isEmpty()) {
             return "";
         }
-        ArrayDeque<String> bag = bags.computeIfAbsent(key, k -> new ArrayDeque<>(lines));
+        ArrayDeque<String> bag = bags.computeIfAbsent(key, k -> shuffled(lines, random));
         if (bag.isEmpty()) {
-            List<String> fresh = new ArrayList<>(lines);
-            Collections.shuffle(fresh, random);
-            bag.addAll(fresh);
+            bag.addAll(shuffled(lines, random));
         }
         return bag.isEmpty() ? "" : bag.pollFirst();
+    }
+
+    private static ArrayDeque<String> shuffled(List<String> lines, Random random) {
+        List<String> fresh = new ArrayList<>(lines);
+        Collections.shuffle(fresh, random);
+        return new ArrayDeque<>(fresh);
     }
 
     /** The pool key for one moment of one profession, e.g. {@code minecraft:farmer.ambient}. */

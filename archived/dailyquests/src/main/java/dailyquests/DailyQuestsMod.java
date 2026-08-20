@@ -47,6 +47,7 @@ public final class DailyQuestsMod implements ModInitializer {
             state.shutdown();
         });
 
+        // Refresh the display name and optionally show the current riddle on player join.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             state.seen(handler.player.getUUID(), handler.player.getName().getString());
             if (quests.settings().announceOnJoin()) {

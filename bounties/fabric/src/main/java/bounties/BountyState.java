@@ -60,13 +60,14 @@ public final class BountyState {
         dirty.set(true);
     }
 
+    /** Loads persisted player bounties, recovering a leftover temp file when possible. */
     public synchronized void load() {
         if (!Files.exists(file)) {
             // Recover from a leftover temp file if the server died mid-write.
             if (Files.exists(temp)) {
                 BountyMod.LOG.warn("state.json is missing but a temp file exists -- recovering from it");
                 try {
-                    Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE);
+                    moveReplacing(temp, file);
                 } catch (IOException e) {
                     BountyMod.LOG.error("Recovery failed", e);
                     return;
@@ -99,6 +100,7 @@ public final class BountyState {
         }
     }
 
+    /** Immediately writes pending changes, if any. */
     public void flushNow() {
         flushIfDirty();
     }
@@ -127,15 +129,19 @@ public final class BountyState {
                 GSON.toJson(out, w);
                 w.flush();
             }
-            try {
-                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            moveReplacing(temp, file);
         } catch (IOException e) {
             dirty.set(true);
             BountyMod.LOG.error("Failed to write state.json", e);
+        }
+    }
+
+    private static void moveReplacing(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 }

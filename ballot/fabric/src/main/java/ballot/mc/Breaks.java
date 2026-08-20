@@ -22,6 +22,7 @@ public final class Breaks {
 
     private Breaks() {}
 
+    /** Registers cleanup after a player breaks a block bound to the current poll. */
     public static void register(PollStore store) {
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (!(player instanceof ServerPlayer serverPlayer)) {

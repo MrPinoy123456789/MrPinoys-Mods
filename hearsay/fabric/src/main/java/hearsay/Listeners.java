@@ -37,6 +37,7 @@ public final class Listeners {
         return Collections.unmodifiableMap(byPlayer);
     }
 
+    /** Rebuilds the per-player snapshot of villagers currently within hearing range. */
     public void tick(MinecraftServer server) {
         Map<UUID, List<Candidate>> next = new LinkedHashMap<>();
         for (ServerLevel level : server.getAllLevels()) {
@@ -55,6 +56,7 @@ public final class Listeners {
         this.byPlayer = next;
     }
 
+    /** Returns the stable registry id used to select profession-specific line pools. */
     public static String professionId(Villager v) {
         VillagerData data = v.getVillagerData();
         Holder<VillagerProfession> profession = data.profession();

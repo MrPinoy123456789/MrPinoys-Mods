@@ -57,6 +57,7 @@ public final class Bubbles {
 
     public Bubbles() {}
 
+    /** Advances bubble dwell timers and replaces expired segments or removes orphans. */
     public void tick() {
         tick++;
         sweep();
@@ -179,7 +180,9 @@ public final class Bubbles {
     }
 
     private void sweep() {
-        speech.values().removeIf(b -> {
+        Map<UUID, Bubble> replacements = new HashMap<>();
+        speech.entrySet().removeIf(entry -> {
+            Bubble b = entry.getValue();
             // A bubble rides its speaker, so a dead speaker leaves the display
             // dismounted and stranded — the "dialogue that survives the villager".
             boolean speakerGone = b.speaker == null || b.speaker.isRemoved() || !b.speaker.isAlive();
@@ -192,12 +195,13 @@ public final class Bubbles {
                     Bubble replacement = create(level, b.speaker, next, SPEECH_VIEW_RANGE);
                     replacement.expiry = tick + BASE_DWELL_TICKS + next.length() * DWELL_PER_CHAR;
                     replacement.queue = b.queue;
-                    speech.put(b.speaker.getUUID(), replacement);
+                    replacements.put(entry.getKey(), replacement);
                 }
                 return true;
             }
             return false;
         });
+        speech.putAll(replacements);
     }
 
     private static final class Bubble {

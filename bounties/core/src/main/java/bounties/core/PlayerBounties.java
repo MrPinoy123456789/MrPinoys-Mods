@@ -41,6 +41,7 @@ public final class PlayerBounties {
         return accept(definition, acceptedAt, DEFAULT_MAX_HELD);
     }
 
+    /** Returns a new state with the bounty appended unless the holding limit is reached. */
     public AcceptResult accept(BountyDefinition definition, long acceptedAt, int maxHeld) {
         if (isFull(maxHeld)) {
             return new AcceptResult(false, this,
@@ -52,6 +53,7 @@ public final class PlayerBounties {
                 "Accepted bounty: " + definition.displayDescription());
     }
 
+    /** Removes the one-based held slot and returns the resulting immutable state. */
     public AbandonResult abandon(int oneBasedIndex) {
         int index = oneBasedIndex - 1;
         if (index < 0 || index >= held.size()) {
@@ -64,6 +66,7 @@ public final class PlayerBounties {
                 "Abandoned bounty: " + removed.displayDescription());
     }
 
+    /** Advances every held bounty matching the killed mob and removes completions. */
     public ProgressResult progress(String mobId) {
         if (held.isEmpty()) {
             return new ProgressResult(this, List.of());

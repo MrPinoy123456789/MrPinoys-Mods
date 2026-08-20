@@ -150,6 +150,7 @@ public final class QuestHost {
         dailyChainReady = true;
     }
 
+    /** Converts a player-caused entity death into daily kill-quest progress. */
     private static void onKill(LivingEntity entity, DamageSource source) {
         if (!dailyChainReady || !(source.getEntity() instanceof ServerPlayer player)) {
             return;
@@ -159,6 +160,7 @@ public final class QuestHost {
                 Map.of("eventId", "entity_killed", "entity", entityId));
     }
 
+    /** Refreshes the player's leaderboard identity and optionally announces today's chain. */
     private static void onJoin(net.minecraft.server.network.ServerGamePacketListenerImpl handler,
                                net.fabricmc.fabric.api.networking.v1.PacketSender sender,
                                MinecraftServer server) {

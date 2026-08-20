@@ -39,15 +39,17 @@ public final class Speech {
         this.mute = mute;
     }
 
+    /** Suppresses ambient and event-driven lines after the player takes damage. */
     public void hush(UUID player, int seconds) {
         damagedUntil.put(player, tick + seconds * 20);
     }
 
+    /** Applies dialogue budgets and chooses at most one ambient speaker per listener. */
     public void tick(MinecraftServer server, Listeners listeners) {
         tick++;
         bubbles.tick();
 
-        Map<UUID, Pick> picks = new HashMap<>();
+        Map<UUID, Delivery> picks = new HashMap<>();
 
         for (Map.Entry<UUID, List<Listeners.Candidate>> e : listeners.byPlayer().entrySet()) {
             UUID listenerId = e.getKey();
@@ -60,10 +62,9 @@ public final class Speech {
             // A running two-hander holds the floor.
             if (scenes.isBusyListener(listenerId)) continue;
 
-            // Per-listener budget first.
             RateLimit listenerBudget = perListener.computeIfAbsent(listenerId,
                     u -> new RateLimit(config.settings().quietSeconds() * 20));
-            if (!listenerBudget.allow(tick)) continue;
+            if (!listenerBudget.ready(tick)) continue;
 
             // Damage hush.
             Integer hush = damagedUntil.get(listenerId);
@@ -86,14 +87,22 @@ public final class Speech {
             // Sleeping villagers do not speak.
             if (v.isSleeping()) continue;
 
-            picks.put(listenerId, chosen);
+            String line = config.pools().pickFor(chosen.candidate().professionId(), chosen.pool(), random,
+                    config.settings().professionLineChance());
+            if (line.isBlank()) continue;
+            String channel = channelFor(chosen.pool());
+            if ("bubble".equals(channel) && (v.isRemoved() || !v.isAlive())) continue;
+
+            listenerBudget.allow(tick);
+            picks.put(listenerId, new Delivery(v, line, channel));
         }
 
-        for (Map.Entry<UUID, Pick> e : picks.entrySet()) {
+        for (Map.Entry<UUID, Delivery> e : picks.entrySet()) {
             UUID listenerId = e.getKey();
             ServerPlayer player = server.getPlayerList().getPlayer(listenerId);
             if (player == null || player.isRemoved() || !player.isAlive()) continue;
-            deliver(player, e.getValue());
+            Delivery delivery = e.getValue();
+            send(player, delivery.speaker(), delivery.line(), delivery.channel());
         }
     }
 
@@ -125,6 +134,7 @@ public final class Speech {
         return new Pick(c, "ambient");
     }
 
+    /** Delivers an operator-requested pool line without ambient rate-limit checks. */
     public void forceSay(ServerPlayer player, Listeners.Candidate candidate, String pool) {
         deliver(player, new Pick(candidate, pool));
     }
@@ -208,4 +218,6 @@ public final class Speech {
     }
 
     private record Pick(Listeners.Candidate candidate, String pool) {}
+
+    private record Delivery(Villager speaker, String line, String channel) {}
 }

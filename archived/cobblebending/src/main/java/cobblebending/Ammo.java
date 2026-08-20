@@ -31,6 +31,11 @@ public final class Ammo {
         return total;
     }
 
+    /**
+     * Removes the requested cobblestone in inventory priority order.
+     *
+     * @return whether the full amount was available and consumed
+     */
     public static boolean consume(ServerPlayer player, int amount) {
         if (count(player) < amount) {
             return false;
@@ -55,6 +60,7 @@ public final class Ammo {
         return false;
     }
 
+    /** Tells the player how much cobblestone the attempted ability requires and lacks. */
     public static void notifyShortfall(ServerPlayer player, int need) {
         int have = count(player);
         player.sendOverlayMessage(
@@ -63,6 +69,11 @@ public final class Ammo {
         );
     }
 
+    /**
+     * Checks an ability cost and reports any shortfall to the player.
+     *
+     * @return whether the player currently has enough cobblestone
+     */
     public static boolean canPay(ServerPlayer player, int amount) {
         if (count(player) < amount) {
             notifyShortfall(player, amount);
@@ -71,6 +82,7 @@ public final class Ammo {
         return true;
     }
 
+    /** Returns cobblestone to inventory, dropping it when no slot can accept it. */
     public static void give(ServerPlayer player, int amount) {
         ItemStack stack = new ItemStack(Items.COBBLESTONE, amount);
         if (!player.getInventory().add(stack)) {

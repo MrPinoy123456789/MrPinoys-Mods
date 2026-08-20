@@ -174,6 +174,7 @@ public final class DailyState {
 
     // ---- persistence ------------------------------------------------------
 
+    /** Loads all valid player entries, skipping malformed UUID keys. */
     public void load() {
         if (!Files.exists(file)) {
             return;
@@ -202,6 +203,7 @@ public final class DailyState {
         }
     }
 
+    /** Writes a snapshot immediately, regardless of the dirty flag. */
     public void flushNow() {
         dirty.set(false);
         write();

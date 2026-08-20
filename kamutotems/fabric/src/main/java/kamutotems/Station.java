@@ -102,6 +102,7 @@ public final class Station {
                 .build();
     }
 
+    /** Opens the station hub for an eligible server-side fletching-table interaction. */
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand,
                                                  BlockHitResult hitResult) {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {

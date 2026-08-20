@@ -214,6 +214,7 @@ public final class TotemHost {
         return 1;
     }
 
+    /** Restores or issues the joining player's bound totem and refreshes its presentation. */
     private static void onJoin(ServerPlayer player) {
         Kamuy kamuy = KamuyStore.getOrCreate(player);
         if (Totem.find(player) == null) {
@@ -224,6 +225,7 @@ public final class TotemHost {
         }
     }
 
+    /** Routes server-side right-clicks in air to kamu binding or the totem panel. */
     private static InteractionResult onUseItem(Player player, Level level, InteractionHand hand) {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.PASS;
@@ -262,6 +264,7 @@ public final class TotemHost {
         }
     }
 
+    /** Routes totem block interactions through the once-per-position daily scan handler. */
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand,
                                                 BlockHitResult hitResult) {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
@@ -474,7 +477,14 @@ public final class TotemHost {
                     if (id.isBlank()) {
                         slots.add(null);
                     } else {
-                        slots.add(new Slot(id, Math.max(1, Math.min(3, entry.getIntOr("tier", 1)))));
+                        int tier = entry.getIntOr("tier", 1);
+                        if (tier < 1 || tier > Slot.MAX_TIER) {
+                            int repaired = Math.max(1, Math.min(Slot.MAX_TIER, tier));
+                            TotemHost.warn("Repairing invalid persisted tier " + tier
+                                    + " for kamu " + id + " to " + repaired);
+                            tier = repaired;
+                        }
+                        slots.add(new Slot(id, tier));
                     }
                 } else {
                     slots.add(null);

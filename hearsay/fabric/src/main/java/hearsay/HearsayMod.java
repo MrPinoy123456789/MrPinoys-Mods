@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -65,23 +66,31 @@ public final class HearsayMod implements ModInitializer {
             reactions.tick(server, listeners);
         });
 
+        // Any damage to a player starts the configured combat hush immediately, so
+        // ambient chatter cannot obscure a fight even when the hit was fully blocked.
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, dealt, taken, blocked) -> {
             if (entity instanceof ServerPlayer player) {
                 speech.hush(player.getUUID(), config.settings().suppressAfterDamageSeconds());
             }
         });
 
+        // The post-death hook still provides the villager's position and profession,
+        // allowing nearby survivors to react even though the speaker itself is gone.
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (entity instanceof Villager villager) {
                 reactions.onVillagerDeath(villager);
             }
         });
 
+        // Fabric exposes no completed-trade callback here. This reports opening or
+        // otherwise using a villager, not a successful trade, and ignores the duplicate
+        // off-hand callback without reaching into vanilla trade internals.
         UseEntityCallback.EVENT.register((Player player, net.minecraft.world.level.Level level,
-                                          net.minecraft.world.InteractionHand hand, Entity entity,
+                                          InteractionHand hand, Entity entity,
                                           EntityHitResult hitResult) -> {
-            if (player instanceof ServerPlayer sp && entity instanceof Villager villager) {
-                reactions.onTrade(sp, villager);
+            if (hand == InteractionHand.MAIN_HAND && player instanceof ServerPlayer
+                    && entity instanceof Villager villager) {
+                reactions.onVillagerInteraction(villager);
             }
             return InteractionResult.PASS;
         });

@@ -46,6 +46,8 @@ public final class HearsayTest {
         section("rate limit");
 
         RateLimit r = new RateLimit(10);
+        check("readiness does not consume first use", r.ready(0), true);
+        check("readiness remains true until allowed", r.ready(0), true);
         check("first call allowed", r.allow(0), true);
         check("same tick refused", r.allow(0), false);
         check("before cooldown refused", r.allow(5), false);
@@ -104,6 +106,9 @@ public final class HearsayTest {
         check("blank and null lines dropped", cleaned.pool("hit").size(), 1);
 
         List<String> bagLines = List.of("a", "b", "c");
+        LinePools initialBag = new LinePools(Map.of("bag", bagLines));
+        check("initial shuffle bag uses seeded order", initialBag.pick("bag", new Random(1)), "b");
+
         LinePools bag = new LinePools(Map.of("bag", bagLines));
         Set<String> drawn = new HashSet<>();
         for (int i = 0; i < 3; i++) {

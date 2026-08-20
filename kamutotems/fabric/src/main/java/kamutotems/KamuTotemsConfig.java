@@ -39,6 +39,7 @@ public final class KamuTotemsConfig {
 
     private KamuTotemsConfig() {}
 
+    /** Loads the operator configuration, creating defaults only when the file is absent. */
     public static void load(Path configDir) {
         file = configDir.resolve("config.json");
         try {

@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Immutable, insertion-ordered registry of authored assigned-quest definitions. */
 public final class QuestCatalog {
     private final Map<String, QuestDefinition> byId;
 

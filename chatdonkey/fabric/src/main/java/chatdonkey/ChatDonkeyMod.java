@@ -140,7 +140,6 @@ public final class ChatDonkeyMod implements ModInitializer {
             triggers.forget(player.getUUID());
         });
 
-        orphans = OrphanSweep.register(events);
         Interactions.register(events);
         DonkeyCommands.register(config, triggers, optIns, events);
 

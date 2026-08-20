@@ -46,6 +46,7 @@ public final class QuestScroll {
         return inner.getStringOr(SCROLL_KEY, null);
     }
 
+    /** Handles the Fabric item-use callback, consuming the scroll only after a successful grant. */
     public static InteractionResult onUseItem(Player player, Level level, InteractionHand hand) {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.PASS;

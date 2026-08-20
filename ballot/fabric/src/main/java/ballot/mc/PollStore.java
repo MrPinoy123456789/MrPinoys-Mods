@@ -73,6 +73,7 @@ public final class PollStore {
 
     // ---- loading ----------------------------------------------------------
 
+    /** Replaces the in-memory registry with every readable poll JSON file on disk. */
     public void loadAll() {
         polls.clear();
         try {
@@ -93,6 +94,10 @@ public final class PollStore {
     private void loadOne(Path file) {
         String name = file.getFileName().toString();
         String key = name.substring(0, name.length() - ".json".length());
+        if (!isValidKey(key)) {
+            log.accept("Skipping poll with invalid poll key: " + name);
+            return;
+        }
         try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             Poll poll = GSON.fromJson(r, Poll.class);
             if (poll == null) {
@@ -163,17 +168,17 @@ public final class PollStore {
     }
 
     public boolean delete(String key) {
-        Poll removed = polls.remove(key);
-        if (removed == null) {
+        if (!polls.containsKey(key)) {
             return false;
         }
         try {
             Files.deleteIfExists(pollsDir.resolve(key + ".json"));
-            return true;
         } catch (IOException e) {
             log.accept("Could not delete " + key + ": " + e.getMessage());
             return false;
         }
+        polls.remove(key);
+        return true;
     }
 
     /**
@@ -188,12 +193,24 @@ public final class PollStore {
         if (poll == null || poll.state() != PollState.CLOSED) {
             return false;
         }
-        poll.moveTo(PollState.ARCHIVED, now);
+        // Build the archived representation without mutating the live object. If either
+        // disk operation fails, memory and the active file must continue to agree that
+        // this is a closed poll which can be retried.
+        Poll archived = GSON.fromJson(GSON.toJsonTree(poll), Poll.class);
+        archived.afterLoad(key);
+        archived.moveTo(PollState.ARCHIVED, now);
 
         Archive archive = readArchive();
-        archive.polls.add(GSON.toJsonTree(poll).getAsJsonObject());
-        archive.polls.get(archive.polls.size() - 1).addProperty("key", key);
-        writeAtomically(archiveFile, archive);
+        boolean alreadyArchived = archive.polls.stream()
+                .anyMatch(entry -> entry.has("key") && entry.get("key").isJsonPrimitive()
+                        && key.equals(entry.get("key").getAsString()));
+        if (!alreadyArchived) {
+            archive.polls.add(GSON.toJsonTree(archived).getAsJsonObject());
+            archive.polls.get(archive.polls.size() - 1).addProperty("key", key);
+            if (!writeAtomically(archiveFile, archive)) {
+                return false;
+            }
+        }
 
         return delete(key);
     }
@@ -219,7 +236,7 @@ public final class PollStore {
     }
 
     /** Temp file, then rename. A crash mid-write leaves the previous file intact. */
-    private void writeAtomically(Path file, Object value) {
+    private boolean writeAtomically(Path file, Object value) {
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
             Files.createDirectories(file.getParent());
@@ -232,8 +249,10 @@ public final class PollStore {
             } catch (java.nio.file.AtomicMoveNotSupportedException e) {
                 Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
             }
+            return true;
         } catch (IOException e) {
             log.accept("Failed to write " + file.getFileName() + ": " + e.getMessage());
+            return false;
         }
     }
 }

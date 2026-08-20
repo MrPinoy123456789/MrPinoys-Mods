@@ -194,6 +194,7 @@ public final class BossHost {
 
     // ---- lifecycle --------------------------------------------------------
 
+    /** Initializes deterministic boss state and restores persisted claim counters at server start. */
     private static void onServerStarted(MinecraftServer server) {
         // Seed comes from ServerLevel.getSeed(); getWorldData().worldGenOptions() does not exist in 26.2.
         WORLD_SEED = server.overworld().getSeed();
@@ -207,11 +208,13 @@ public final class BossHost {
         LOG.info("Boss host ready — today is {}", todayKey());
     }
 
+    /** Removes boss bars and persists claim state during orderly shutdown. */
     private static void onShutdown(MinecraftServer server) {
         despawnAndRefundAll(server);
         save();
     }
 
+    /** Updates active boss bars, sigil rolls, and stale tracking once per server tick. */
     private static void onTick(MinecraftServer server) {
         boolean rolled = Sigil.sweep(server, SIGIL_COUNTERS);
         if (rolled) {
@@ -231,6 +234,7 @@ public final class BossHost {
         }
     }
 
+    /** Pays the carried-kamu drop and releases tracking when a registered boss dies. */
     private static void onDeath(LivingEntity entity, DamageSource source) {
         Boss boss = BY_ENTITY.remove(entity.getUUID());
         if (boss == null) {
@@ -259,6 +263,7 @@ public final class BossHost {
         }
     }
 
+    /** Returns an orphaned tagged boss to vanilla mob behavior after it loads. */
     private static void onEntityLoad(Entity entity, ServerLevel level) {
         // A boss not in our map is an orphan from a crash; leave it a vanilla mob.
         // Entity.entityTags() verified in 26.2 (renamed from getTags()).
@@ -267,6 +272,7 @@ public final class BossHost {
         }
     }
 
+    /** Despawns and refunds the departing player's active boss encounter. */
     private static void onDisconnect(net.minecraft.server.network.ServerGamePacketListenerImpl handler, MinecraftServer server) {
         ServerPlayer player = handler.getPlayer();
         if (player != null) {

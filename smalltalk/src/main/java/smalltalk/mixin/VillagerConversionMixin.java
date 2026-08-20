@@ -36,6 +36,10 @@ import java.util.UUID;
 @Mixin(Mob.class)
 public abstract class VillagerConversionMixin {
 
+    // Inject after Mob.convertTo(...) returns so the replacement entity is fully
+    // constructed and available from CallbackInfoReturnable. This is the exact
+    // conversion boundary where villager/zombie-villager identity and familiarity
+    // can be copied before callers continue with the new entity.
     @Inject(
             method = "convertTo(Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/entity/ConversionParams;Lnet/minecraft/world/entity/EntitySpawnReason;Lnet/minecraft/world/entity/ConversionParams$AfterConversion;)Lnet/minecraft/world/entity/Mob;",
             at = @At("RETURN")

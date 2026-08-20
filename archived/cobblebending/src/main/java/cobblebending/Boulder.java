@@ -83,6 +83,7 @@ public final class Boulder {
         }
     }
 
+    /** Creates a display-backed projectile using the player's current eye position and aim. */
     public static void spawn(ServerPlayer player, float speed, float gravity, float scale, float damage,
                              int cooldown, int slownessDuration, boolean heavy) {
         Vec3 eye = player.getEyePosition();
@@ -92,6 +93,7 @@ public final class Boulder {
         ACTIVE.add(b);
     }
 
+    /** Advances every active projectile and removes those that hit or expire. */
     public static void tickAll() {
         ACTIVE.removeIf(b -> b.tick());
     }

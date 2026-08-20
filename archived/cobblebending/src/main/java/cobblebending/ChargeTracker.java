@@ -21,6 +21,7 @@ public final class ChargeTracker {
 
     private ChargeTracker() {}
 
+    /** Registers the end-of-tick handler that detects focus charging and release. */
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(ChargeTracker::tick);
     }

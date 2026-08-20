@@ -13,6 +13,7 @@ public final class Rewards {
 
     private Rewards() {}
 
+    /** Gives a payout in legal stack sizes, dropping any stacks that do not fit. */
     public static void giveDiamonds(ServerPlayer player, int count) {
         give(player, Items.DIAMOND, count);
     }

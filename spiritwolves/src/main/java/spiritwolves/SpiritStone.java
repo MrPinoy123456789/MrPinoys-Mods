@@ -3,6 +3,7 @@ package spiritwolves;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -96,7 +97,7 @@ public final class SpiritStone {
         stack.set(DataComponents.DAMAGE, 0);
         stack.set(DataComponents.MAX_STACK_SIZE, 1);
         stack.set(DataComponents.REPAIRABLE,
-                new Repairable(HolderSet.direct(Items.DIAMOND.builtInRegistryHolder())));
+                new Repairable(HolderSet.direct(BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND))));
 
         applyName(stack, wolfName);
         refreshLore(stack, wolfName, collar, null);

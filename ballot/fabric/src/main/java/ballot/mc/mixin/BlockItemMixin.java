@@ -1,7 +1,8 @@
 package ballot.mc.mixin;
 
-import ballot.mc.BallotItems;
 import ballot.mc.Placement;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -9,9 +10,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Catches block placement, which Fabric API has no event for.
@@ -21,58 +19,39 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * the position from the click, which meant guessing at faces, sneaking and replaceable
  * blocks. This asks the game instead.
  *
- * <p><strong>Two injections, not one.</strong> The poll key has to be read at HEAD,
- * because by the time {@code place} returns the stack has been consumed — and a player
- * given exactly one lectern is holding an empty hand at that point. Whether the
- * placement actually succeeded is only knowable at RETURN. So: read the key going in,
- * act on it coming out.
+ * <p><strong>One wrapping injection.</strong> The poll key has to be read before the
+ * original call because a successful placement may consume the last held item. Whether
+ * placement succeeded is only knowable afterward. MixinExtras' {@link WrapMethod} keeps
+ * both observations in one stack frame, so an exception from vanilla cannot strand
+ * thread-local state for a later placement.
  */
 @Mixin(BlockItem.class)
 public class BlockItemMixin {
 
-    /**
-     * Per-thread rather than a field: mixin instances are the target object, and the
-     * server places blocks from one thread at a time, so this is the simplest thing
-     * that cannot leak state between two placements.
-     */
-    private static final ThreadLocal<String> BALLOT$PENDING_KEY = new ThreadLocal<>();
-    private static final ThreadLocal<String> BALLOT$PENDING_KIND = new ThreadLocal<>();
-
-    // Even at HEAD, a method that returns a value wants CallbackInfoReturnable — the
-    // callback type follows the target's signature, not the injection point.
-    @Inject(method = "place", at = @At("HEAD"))
-    private void ballot$beforePlace(BlockPlaceContext context,
-                                    CallbackInfoReturnable<InteractionResult> info) {
+    // Wrap vanilla BlockItem.place(BlockPlaceContext): capture item metadata before the
+    // original call can shrink the stack, then hand off only a successful server-side
+    // placement. Local variables disappear normally even when the original call throws.
+    @WrapMethod(method = "place")
+    private InteractionResult ballot$aroundPlace(BlockPlaceContext context,
+                                                   Operation<InteractionResult> original) {
         String kind = Placement.kindOf(context.getItemInHand());
-        BALLOT$PENDING_KIND.set(kind);
-        BALLOT$PENDING_KEY.set(kind == null
-                ? null : Placement.pollKeyOf(context.getItemInHand(), kind));
-    }
+        String pollKey = kind == null
+                ? null : Placement.pollKeyOf(context.getItemInHand(), kind);
+        InteractionResult result = original.call(context);
 
-    @Inject(method = "place", at = @At("RETURN"))
-    private void ballot$afterPlace(BlockPlaceContext context,
-                                   CallbackInfoReturnable<InteractionResult> info) {
-        String pollKey = BALLOT$PENDING_KEY.get();
-        String kind = BALLOT$PENDING_KIND.get();
-        BALLOT$PENDING_KEY.remove();
-        BALLOT$PENDING_KIND.remove();
-
-        if (pollKey == null) {
-            return;
-        }
-        InteractionResult result = info.getReturnValue();
-        if (result == null || !result.consumesAction()) {
-            return;   // nothing was placed
+        if (pollKey == null || result == null || !result.consumesAction()) {
+            return result;
         }
         Player player = context.getPlayer();
         Level level = context.getLevel();
         if (player == null || level.isClientSide()) {
-            return;
+            return result;
         }
         BlockPos pos = context.getClickedPos();
 
         // Keep the mixin thin: it observes and hands off. Anything more here is harder
         // to debug and more likely to break on a version bump.
         Placement.onPlaced(player, level, pos, kind, pollKey);
+        return result;
     }
 }

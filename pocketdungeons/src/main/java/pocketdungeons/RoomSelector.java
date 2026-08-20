@@ -30,11 +30,6 @@ final class RoomSelector {
     private static final int MIN_ROOMS = 1;
     private static final int MAX_ROOMS = 50;
 
-    /** Layouts wider or deeper than this are rejected, costing one retry. This is
-     *  what bounds force-load tickets and teardown volume; it mirrors the
-     *  {@code maxGridSpan} config default. */
-    private static final int MAX_GRID_SPAN = 12;
-
     private RoomSelector() {}
 
     /**
@@ -100,7 +95,10 @@ final class RoomSelector {
     /**
      * Validates a resolved plan. Returns an empty list when the plan is acceptable.
      */
-    static List<String> validate(DungeonPlan plan) {
+    static List<String> validate(DungeonPlan plan, int maxGridSpan) {
+        if (maxGridSpan < 1) {
+            throw new IllegalArgumentException("maxGridSpan must be positive");
+        }
         List<String> problems = new ArrayList<>();
         int count = plan.cells().size();
         if (count < MIN_ROOMS) {
@@ -129,9 +127,9 @@ final class RoomSelector {
         }
         int spanX = maxX - minX + 1;
         int spanZ = maxZ - minZ + 1;
-        if (spanX > MAX_GRID_SPAN || spanZ > MAX_GRID_SPAN) {
+        if (spanX > maxGridSpan || spanZ > maxGridSpan) {
             problems.add("grid span " + spanX + "x" + spanZ
-                    + " exceeds the maximum of " + MAX_GRID_SPAN);
+                    + " exceeds the maximum of " + maxGridSpan);
         }
         return problems;
     }

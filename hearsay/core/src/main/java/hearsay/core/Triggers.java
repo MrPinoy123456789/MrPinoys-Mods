@@ -19,6 +19,7 @@ public final class Triggers {
         return prevTimeOfDay < nowTimeOfDay && prevTimeOfDay < 12000 && nowTimeOfDay >= 12000;
     }
 
+    /** True only on the dry-to-wet edge, not on every tick while weather continues. */
     public static boolean weatherStarted(boolean wasRaining, boolean isRaining) {
         return isRaining && !wasRaining;
     }

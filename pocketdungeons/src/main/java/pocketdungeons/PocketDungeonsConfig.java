@@ -63,6 +63,7 @@ public final class PocketDungeonsConfig {
 
     private PocketDungeonsConfig() {}
 
+    /** Loads and validates every registry setting, preserving an unreadable file for manual repair. */
     public static void load(Path configDir) {
         Path file = configDir.resolve("pocketdungeons.json");
         try {

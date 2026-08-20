@@ -87,6 +87,7 @@ final class PlayerWolfRegistry {
         }
     }
 
+    /** Whether the player currently has a persisted spirit-wolf record. */
     static boolean has(UUID player) {
         return records.containsKey(player);
     }
@@ -112,6 +113,7 @@ final class PlayerWolfRegistry {
         return null;
     }
 
+    /** Replaces the player's authoritative record and schedules it for persistence. */
     static void put(UUID player, WolfRecord record) {
         records.put(player, record);
         markDirty(player);

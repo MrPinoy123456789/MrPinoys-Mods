@@ -26,6 +26,7 @@ public final class Wall {
 
     private Wall() {}
 
+    /** Raycasts an anchor, conforms a temporary wall to terrain, and charges for blocks placed. */
     public static void fire(ServerPlayer player, int chargeTicks) {
         BendConfig.Wall w = CobbleBendingMod.config().data().wall();
 
@@ -141,6 +142,7 @@ public final class Wall {
         Chime.wallRaised(player);
     }
 
+    /** Recalls the player's active wall and returns its configured partial refund. */
     public static void recall(ServerPlayer player) {
         int refund = BentBlocks.recallWall(player);
         if (refund > 0) {

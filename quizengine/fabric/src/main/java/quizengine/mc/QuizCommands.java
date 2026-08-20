@@ -21,6 +21,7 @@ public final class QuizCommands {
 
     private QuizCommands() {}
 
+    /** Registers the player input, leaderboard, content reload, and operator round-control commands. */
     public static void register(Orchestrator orchestrator, Leaderboard leaderboard,
                                 Content content) {
 

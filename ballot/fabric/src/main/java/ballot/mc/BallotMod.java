@@ -46,6 +46,7 @@ public final class BallotMod implements ModInitializer {
         deadlines = new Deadlines(store);
         ServerTickEvents.END_SERVER_TICK.register(deadlines::tick);
 
+        // Nudge only joining players who still have an open vote to cast.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 nudge(handler.player));
 

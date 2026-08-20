@@ -29,6 +29,7 @@ public final class Interactions {
 
     private Interactions() {}
 
+    /** Registers the entity-use handler that owns every interaction with a live event donkey. */
     public static void register(Events events) {
         UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) ->
                 onUse(events, player, hand, entity));

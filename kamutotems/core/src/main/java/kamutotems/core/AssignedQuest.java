@@ -4,12 +4,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 
+/** A quest definition assigned to one player, including its grant date and current progress. */
 public record AssignedQuest(
         String definitionId,
         String grantedDateKey,
         QuestProgress progress,
         QuestState state) {
 
+    /** Returns whether the definition's expiry window has elapsed since this quest was granted. */
     public boolean isExpired(String todayKey, QuestDefinition def) {
         if (def == null || def.expiryDays() <= 0) {
             return false;
@@ -27,6 +29,7 @@ public record AssignedQuest(
         }
     }
 
+    /** Returns a copy with one segment advanced, capped at that segment's required count. */
     public AssignedQuest advance(int segmentIndex, int by, QuestDefinition def) {
         if (def == null || def.segments() == null) {
             return this;
@@ -39,6 +42,7 @@ public record AssignedQuest(
         return new AssignedQuest(definitionId, grantedDateKey, next, state);
     }
 
+    /** Returns whether every segment in the supplied definition is complete. */
     public boolean complete(QuestDefinition def) {
         if (def == null || def.segments() == null) {
             return false;

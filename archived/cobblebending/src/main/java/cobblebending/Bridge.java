@@ -21,6 +21,7 @@ public final class Bridge {
 
     private Bridge() {}
 
+    /** Resolves charge into bridge length, places the line, and charges only for placed blocks. */
     public static void fire(ServerPlayer player, int chargeTicks) {
         BendConfig.Bridge bridge = CobbleBendingMod.config().data().bridge();
         BendConfig.Wall wall = CobbleBendingMod.config().data().wall();

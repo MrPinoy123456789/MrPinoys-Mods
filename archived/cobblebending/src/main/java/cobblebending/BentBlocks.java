@@ -34,6 +34,7 @@ public final class BentBlocks {
         server = s;
     }
 
+    /** Expires tracked blocks and refreshes bridge lifetimes while players stand on them. */
     public static void tick() {
         if (server == null) {
             return;
@@ -72,6 +73,11 @@ public final class BentBlocks {
         WALLS.entrySet().removeIf(e -> e.getValue().blocks.isEmpty());
     }
 
+    /**
+     * Places and tracks one temporary bridge block without replacing another bent block.
+     *
+     * @return one when placed, or zero when the position was already tracked
+     */
     public static int placeBridge(ServerPlayer player, BlockPos pos, BlockState prior, int lifetime) {
         ResourceKey<Level> dim = player.level().dimension();
         if (ALL.putIfAbsent(pos, new BentBlock(pos, prior, player.getUUID(), dim, tickCounter, tickCounter + lifetime, true, 0, null)) != null) {
@@ -82,6 +88,11 @@ public final class BentBlocks {
         return 1;
     }
 
+    /**
+     * Replaces the player's previous wall and tracks every valid block in the new group.
+     *
+     * @return the number of blocks placed and therefore the cobblestone cost
+     */
     public static int placeWall(ServerPlayer player, List<BlockStateSnapshot> placements, int lifetime) {
         UUID owner = player.getUUID();
         ServerLevel level = player.level();
@@ -110,6 +121,11 @@ public final class BentBlocks {
         return cost;
     }
 
+    /**
+     * Restores all surviving blocks in the player's active wall.
+     *
+     * @return the configured partial cobblestone refund
+     */
     public static int recallWall(ServerPlayer player) {
         WallGroup group = WALLS.remove(player.getUUID());
         if (group == null) {
@@ -130,6 +146,7 @@ public final class BentBlocks {
         return g != null && !g.blocks.isEmpty();
     }
 
+    /** Restores every tracked block in every loaded dimension and clears all groups. */
     public static void clearAll() {
         if (server == null) {
             return;
@@ -144,6 +161,7 @@ public final class BentBlocks {
         WALLS.clear();
     }
 
+    /** Restores temporary world changes before the server stops. */
     public static void onShutdown() {
         clearAll();
     }

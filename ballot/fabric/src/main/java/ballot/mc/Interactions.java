@@ -35,6 +35,7 @@ public final class Interactions {
 
     private Interactions() {}
 
+    /** Registers participant and organiser handling for right-clicks on bound blocks. */
     public static void register(PollStore store) {
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             // Fires once per hand; without this every interaction happens twice.

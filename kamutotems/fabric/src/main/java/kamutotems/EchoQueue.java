@@ -4,7 +4,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
@@ -64,6 +63,7 @@ public final class EchoQueue {
                 List.copyOf(effects)));
     }
 
+    /** Pays out due echo deliveries after resolving their source and target UUIDs. */
     private static void tick(MinecraftServer server) {
         // ⚠ UNVERIFIED: MinecraftServer.getTickCount() in 26.2
         int now = server.getTickCount();
@@ -75,37 +75,25 @@ public final class EchoQueue {
             }
             it.remove();
 
-            LivingEntity source = resolveLiving(server, p.sourceUuid);
-            if (source == null) {
-                // Caster is gone entirely; drop the payout.
+            ServerLevel originLevel = server.getLevel(p.dimension);
+            if (originLevel == null) {
                 continue;
             }
-            if (!(source.level() instanceof ServerLevel sourceLevel)) {
+            LivingEntity source = resolveLiving(originLevel, p.sourceUuid);
+            if (source == null) {
+                // The caster logged out, died, or left the originating dimension.
                 continue;
             }
 
-            Entity target = p.targetUuid != null ? sourceLevel.getEntity(p.targetUuid) : null;
-            EffectsMc.apply(p.effects, sourceLevel, source, target);
+            Entity target = p.targetUuid != null ? originLevel.getEntity(p.targetUuid) : null;
+            EffectsMc.apply(p.effects, originLevel, source, target);
         }
     }
 
-    /**
-     * Find a living entity by UUID across all loaded levels. Players are
-     * resolved from the player list so logouts are caught.
-     */
-    private static LivingEntity resolveLiving(MinecraftServer server, UUID id) {
-        ServerPlayer player = server.getPlayerList().getPlayer(id);
-        if (player != null) {
-            return player;
-        }
-        // ⚠ UNVERIFIED: MinecraftServer.getAllLevels() in 26.2
-        for (ServerLevel level : server.getAllLevels()) {
-            Entity e = level.getEntity(id);
-            if (e instanceof LivingEntity l && l.isAlive()) {
-                return l;
-            }
-        }
-        return null;
+    /** Finds a living source in the dimension where the echo was queued. */
+    private static LivingEntity resolveLiving(ServerLevel level, UUID id) {
+        Entity entity = level.getEntity(id);
+        return entity instanceof LivingEntity living && living.isAlive() ? living : null;
     }
 
     private record Pending(UUID sourceUuid, UUID targetUuid,

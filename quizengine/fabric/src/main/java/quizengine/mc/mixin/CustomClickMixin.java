@@ -29,6 +29,10 @@ public class CustomClickMixin {
     // the reference already.
     @Shadow @Final protected MinecraftServer server;
 
+    // Inject at the head of vanilla's ServerCommonPacketListenerImpl#handleCustomClickAction,
+    // before it forwards the custom-click packet to MinecraftServer's player-agnostic handler.
+    // Quiz Engine must intercept its own namespace here while the game listener still identifies
+    // the clicking player; unrelated namespaces return without cancellation and follow vanilla.
     @Inject(method = "handleCustomClickAction", at = @At("HEAD"), cancellable = true)
     private void quizengine$onCustomClick(ServerboundCustomClickActionPacket packet,
                                           CallbackInfo ci) {

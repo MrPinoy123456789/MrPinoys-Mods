@@ -9,6 +9,7 @@ import kamutotems.core.Category;
 import kamutotems.core.HostType;
 import kamutotems.core.Kamu;
 import kamutotems.core.KamuCatalog;
+import kamutotems.core.Polarity;
 import kamutotems.core.Rarity;
 import kamutotems.core.ReactionEngine;
 import kamutotems.core.ReactionRule;
@@ -78,17 +79,9 @@ public final class KamuData {
                 return KamuCatalog.defaults();
             }
             try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                JsonObject root = GSON.fromJson(r, JsonObject.class);
-                JsonArray arr = root.getAsJsonArray("kamu");
-                List<Kamu> out = new ArrayList<>();
-                for (JsonElement el : arr) {
-                    out.add(readKamu(el.getAsJsonObject()));
-                }
-                if (out.isEmpty()) {
-                    throw new IllegalStateException("components.json defines no kamu");
-                }
-                KamuTotemsMod.LOG.info("Loaded {} kamu from components.json", out.size());
-                return new KamuCatalog(out);
+                KamuCatalog loaded = readCatalog(r);
+                KamuTotemsMod.LOG.info("Loaded {} kamu from components.json", loaded.all().size());
+                return loaded;
             }
         } catch (Exception e) {
             // Chosen failure: refuse to boot. An empty catalog looks fine until
@@ -99,6 +92,21 @@ public final class KamuData {
                     + "totems on the next write. Fix the file, or delete it to regenerate "
                     + "defaults.", e);
         }
+    }
+
+    static KamuCatalog readCatalog(Reader reader) {
+        JsonObject root = GSON.fromJson(reader, JsonObject.class);
+        if (root == null || !root.has("kamu") || !root.get("kamu").isJsonArray()) {
+            throw new IllegalStateException("components.json has no kamu array");
+        }
+        List<Kamu> out = new ArrayList<>();
+        for (JsonElement el : root.getAsJsonArray("kamu")) {
+            out.add(readKamu(el.getAsJsonObject()));
+        }
+        if (out.isEmpty()) {
+            throw new IllegalStateException("components.json defines no kamu");
+        }
+        return new KamuCatalog(out);
     }
 
     private static Kamu readKamu(JsonObject o) {
@@ -120,6 +128,9 @@ public final class KamuData {
                 hosts.add(HostType.valueOf(e.getAsString()));
             }
         }
+        Polarity polarity = o.has("polarity")
+                ? Polarity.valueOf(o.get("polarity").getAsString())
+                : Polarity.NONE;
         return new Kamu(
                 o.get("id").getAsString(),
                 o.get("displayName").getAsString(),
@@ -127,12 +138,19 @@ public final class KamuData {
                 Rarity.valueOf(o.get("rarity").getAsString()),
                 o.get("complexity").getAsInt(),
                 o.get("effectId").getAsString(),
-                params, tags, hosts);
+                params, tags, hosts, polarity);
     }
 
     private static void writeCatalogDefaults(Path file) throws Exception {
+        Files.createDirectories(file.getParent());
+        try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+            writeCatalog(w, KamuCatalog.defaults());
+        }
+    }
+
+    static void writeCatalog(Writer writer, KamuCatalog catalog) {
         JsonArray arr = new JsonArray();
-        for (Kamu k : KamuCatalog.defaults().all()) {
+        for (Kamu k : catalog.all()) {
             JsonObject o = new JsonObject();
             o.addProperty("id", k.id());
             o.addProperty("displayName", k.displayName());
@@ -140,6 +158,7 @@ public final class KamuData {
             o.addProperty("rarity", k.rarity().name());
             o.addProperty("complexity", k.complexity());
             o.addProperty("effectId", k.effectId());
+            o.addProperty("polarity", k.polarity().name());
             JsonObject params = new JsonObject();
             k.parameters().forEach(params::addProperty);
             o.add("parameters", params);
@@ -153,10 +172,7 @@ public final class KamuData {
         }
         JsonObject root = new JsonObject();
         root.add("kamu", arr);
-        Files.createDirectories(file.getParent());
-        try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            GSON.toJson(root, w);
-        }
+        GSON.toJson(root, writer);
     }
 
     // ---- reactions: fails OPEN --------------------------------------------

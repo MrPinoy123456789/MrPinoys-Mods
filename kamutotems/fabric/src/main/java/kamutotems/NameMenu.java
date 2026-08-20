@@ -72,7 +72,7 @@ public final class NameMenu {
                 ? kamuy.bornDateKey()
                 : LocalDate.now(ZoneOffset.UTC).toString();
         Kamuy next = new Kamuy(sanitised, kamuy.construct(), born,
-                kamuy.kamuDrunk(), kamuy.saves(), kamuy.bossesSlain());
+                kamuy.kamuDrunk(), kamuy.saves(), kamuy.bossesSlain(), kamuy.pool());
         TotemHost.KamuyStore.put(player.getUUID(), next);
 
         ItemStack totem = Totem.find(player);

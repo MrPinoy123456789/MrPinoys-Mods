@@ -8,12 +8,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import wondrous.api.WondrousTag;
@@ -21,6 +23,7 @@ import wondrous.api.WondrousTag;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A crafting table that remembers its 3x3 grid. Placed from a tagged
@@ -32,7 +35,8 @@ public final class CraftStation {
     public static final int COST = 32;
 
     /** A right-click that may or may not turn into a placed station. */
-    private record Placement(ResourceKey<Level> dimension, BlockPos pos) {}
+    private record Placement(ResourceKey<Level> dimension, BlockPos pos, UUID playerId,
+                             InteractionHand hand, ItemStack stack, int count, boolean creative) {}
 
     private final ItemRegistry registry;
     private final List<Placement> pending = new ArrayList<>();
@@ -64,9 +68,11 @@ public final class CraftStation {
             // Placing: vanilla has not run yet and may refuse, so only note the
             // target and confirm next tick that a table actually appeared.
             if (WondrousTag.is(held, ID)) {
-                BlockPos target = pos.relative(hitResult.getDirection());
-                if (!level.getBlockState(target).is(Blocks.CRAFTING_TABLE)) {
-                    pending.add(new Placement(serverLevel.dimension(), target));
+                BlockPlaceContext context = new BlockPlaceContext(serverPlayer, hand, held, hitResult);
+                BlockPos target = context.getClickedPos();
+                if (context.canPlace() && !level.getBlockState(target).is(Blocks.CRAFTING_TABLE)) {
+                    pending.add(new Placement(serverLevel.dimension(), target, serverPlayer.getUUID(), hand,
+                            held.copy(), held.getCount(), serverPlayer.isCreative()));
                 }
             }
 
@@ -84,6 +90,10 @@ public final class CraftStation {
                     continue;
                 }
                 if (!level.getBlockState(placement.pos()).is(Blocks.CRAFTING_TABLE)) {
+                    continue;
+                }
+                ServerPlayer player = server.getPlayerList().getPlayer(placement.playerId());
+                if (player == null || !placementVerified(player, placement)) {
                     continue;
                 }
                 if (!state.hasStation(level, placement.pos())) {
@@ -134,6 +144,17 @@ public final class CraftStation {
 
     static List<ItemStack> emptyGrid() {
         return Collections.nCopies(9, ItemStack.EMPTY);
+    }
+
+    private static boolean placementVerified(ServerPlayer player, Placement placement) {
+        ItemStack current = player.getItemInHand(placement.hand());
+        if (placement.creative()) {
+            return current.getCount() == placement.count()
+                    && ItemStack.isSameItemSameComponents(current, placement.stack());
+        }
+        int expected = placement.count() - 1;
+        return expected == 0 ? current.isEmpty() : current.getCount() == expected
+                && ItemStack.isSameItemSameComponents(current, placement.stack());
     }
 
     private MenuProvider createMenu(ServerLevel level, BlockPos pos) {

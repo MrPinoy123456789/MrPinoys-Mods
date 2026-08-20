@@ -30,6 +30,11 @@ public class CustomClickMixin {
     // reference already.
     @Shadow @Final protected MinecraftServer server;
 
+    // Inject at the head of vanilla ServerCommonPacketListenerImpl#handleCustomClickAction,
+    // before MinecraftServer#handleCustomClickAction logs and discards the packet's player
+    // context. Cobble Economy must intercept only its own dialog namespace here so it can
+    // retain the clicking ServerPlayer, cancel vanilla's otherwise terminal handling, and
+    // route the action onto the main server thread; every foreign custom click falls through.
     @Inject(method = "handleCustomClickAction", at = @At("HEAD"), cancellable = true)
     private void cobbleeconomy$onCustomClick(ServerboundCustomClickActionPacket packet,
                                              CallbackInfo ci) {

@@ -25,10 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * The only thing in this mod that survives a restart.
  *
- * <p>Mutation happens on the server main thread, so there are no races. Disk writes
- * are debounced onto a single background thread and written atomically — serialize
- * to a temp file, then rename over the original — so a crash mid-write leaves the
- * previous leaderboard intact rather than a truncated file.
+ * <p>Mutation happens on the server main thread. The background writer takes a
+ * synchronized immutable snapshot before serializing, then writes it atomically —
+ * to a temp file, then renames over the original — so it never iterates live
+ * server-thread state and a crash mid-write leaves the previous file intact.
  *
  * <p>Keyed by UUID, never by name. A rename must not reset someone's score.
  */
@@ -43,6 +43,7 @@ public final class Leaderboard {
     private final Path file;
     private final Map<UUID, Entry> entries = new LinkedHashMap<>();
     private final AtomicBoolean dirty = new AtomicBoolean(false);
+    private final Object writeLock = new Object();
     private final ScheduledExecutorService writer =
             Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "quizengine-leaderboard");
@@ -58,18 +59,20 @@ public final class Leaderboard {
 
     // ---- reads ------------------------------------------------------------
 
-    public int size() {
+    public synchronized int size() {
         return entries.size();
     }
 
-    public int pointsOf(UUID player) {
+    public synchronized int pointsOf(UUID player) {
         Entry e = entries.get(player);
         return e == null ? 0 : e.points();
     }
 
     /** Highest first. */
-    public List<Map.Entry<UUID, Entry>> top(int limit) {
-        List<Map.Entry<UUID, Entry>> all = new ArrayList<>(entries.entrySet());
+    public synchronized List<Map.Entry<UUID, Entry>> top(int limit) {
+        List<Map.Entry<UUID, Entry>> all = entries.entrySet().stream()
+                .map(entry -> Map.entry(entry.getKey(), entry.getValue()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         all.sort(Comparator.comparingInt((Map.Entry<UUID, Entry> e) -> e.getValue().points())
                 .reversed());
         return all.subList(0, Math.min(limit, all.size()));
@@ -77,7 +80,7 @@ public final class Leaderboard {
 
     // ---- writes (main thread only) ----------------------------------------
 
-    public void award(UUID player, String name, int points, boolean won) {
+    public synchronized void award(UUID player, String name, int points, boolean won) {
         Entry current = entries.getOrDefault(player, new Entry(name, 0, 0));
         entries.put(player, new Entry(
                 name != null ? name : current.name(),
@@ -87,7 +90,7 @@ public final class Leaderboard {
     }
 
     /** Refresh the display name on join, without touching the score. */
-    public void seen(UUID player, String name) {
+    public synchronized void seen(UUID player, String name) {
         Entry current = entries.get(player);
         if (current != null && !current.name().equals(name)) {
             entries.put(player, new Entry(name, current.points(), current.wins()));
@@ -97,7 +100,7 @@ public final class Leaderboard {
 
     // ---- persistence ------------------------------------------------------
 
-    public void load() {
+    public synchronized void load() {
         if (!Files.exists(file)) {
             return;
         }
@@ -120,38 +123,44 @@ public final class Leaderboard {
     }
 
     private void flushIfDirty() {
-        if (dirty.compareAndSet(true, false)) {
-            write(snapshot());
+        if (dirty.compareAndSet(true, false) && !write(snapshot())) {
+            dirty.set(true);
         }
     }
 
     /** Synchronous write, for server shutdown. */
     public void flushNow() {
         dirty.set(false);
-        write(snapshot());
+        if (!write(snapshot())) {
+            dirty.set(true);
+        }
     }
 
-    private Map<String, Entry> snapshot() {
+    synchronized Map<String, Entry> snapshot() {
         Map<String, Entry> out = new LinkedHashMap<>();
         entries.forEach((id, entry) -> out.put(id.toString(), entry));
         return out;
     }
 
-    private void write(Map<String, Entry> data) {
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        try {
-            Files.createDirectories(file.getParent());
-            try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                GSON.toJson(data, w);
-            }
+    private boolean write(Map<String, Entry> data) {
+        synchronized (writeLock) {
+            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
             try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                Files.createDirectories(file.getParent());
+                try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+                    GSON.toJson(data, w);
+                }
+                try {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return true;
+            } catch (IOException e) {
+                QuizMod.LOG.error("Failed to write leaderboard", e);
+                return false;
             }
-        } catch (IOException e) {
-            QuizMod.LOG.error("Failed to write leaderboard", e);
         }
     }
 

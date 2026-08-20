@@ -28,11 +28,8 @@ public final class Content {
 
     private final Path dir;
 
-    private List<QuestionEntry> trivia = List.of();
-    private List<PromptEntry> prompts = List.of();
-    private ScoringConfig scoring = ScoringConfig.defaults();
-    private Timings timings = Timings.defaults();
-    private Rewards rewards = Rewards.defaults();
+    private volatile Snapshot snapshot = new Snapshot(
+            List.of(), List.of(), ScoringConfig.defaults(), Timings.defaults(), Rewards.defaults());
 
     public Content(Path dir) {
         this.dir = dir;
@@ -49,6 +46,13 @@ public final class Content {
     private record TriviaFile(List<QuestionEntry> questions) {}
 
     private record PromptFile(List<PromptEntry> prompts) {}
+
+    private record Snapshot(
+            List<QuestionEntry> trivia,
+            List<PromptEntry> prompts,
+            ScoringConfig scoring,
+            Timings timings,
+            Rewards rewards) {}
 
     /**
      * Phase durations, in seconds. The engine has no concept of time; these belong
@@ -97,18 +101,22 @@ public final class Content {
 
     // ---- loading ----------------------------------------------------------
 
+    /** Reloads all hot-editable content registries and creates defaults for missing files. */
     public void reload() {
         try {
             Files.createDirectories(dir);
-            trivia = readOrCreate("trivia.json", TriviaFile.class,
-                    new TriviaFile(sampleQuestions())).questions();
-            prompts = readOrCreate("prompts.json", PromptFile.class,
-                    new PromptFile(samplePrompts())).prompts();
-            scoring = readOrCreate("scoring.json", ScoringConfig.class,
+            TriviaFile triviaFile = readOrCreate("trivia.json", TriviaFile.class,
+                    new TriviaFile(sampleQuestions()));
+            PromptFile promptFile = readOrCreate("prompts.json", PromptFile.class,
+                    new PromptFile(samplePrompts()));
+            ScoringConfig nextScoring = readOrCreate("scoring.json", ScoringConfig.class,
                     ScoringConfig.defaults());
-            timings = readOrCreate("timings.json", Timings.class, Timings.defaults());
-            rewards = readOrCreate("rewards.json", Rewards.class, Rewards.defaults());
-        } catch (IOException e) {
+            Timings nextTimings = readOrCreate("timings.json", Timings.class, Timings.defaults());
+            Rewards nextRewards = readOrCreate("rewards.json", Rewards.class, Rewards.defaults());
+
+            Snapshot next = validate(triviaFile, promptFile, nextScoring, nextTimings, nextRewards);
+            snapshot = next;
+        } catch (IOException | RuntimeException e) {
             QuizMod.LOG.error("Failed to load content, keeping previous values", e);
         }
     }
@@ -124,27 +132,71 @@ public final class Content {
         }
         try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             T parsed = GSON.fromJson(r, type);
-            return parsed != null ? parsed : fallback;
+            if (parsed == null) {
+                throw new IllegalArgumentException(name + " is empty");
+            }
+            return parsed;
         }
+    }
+
+    private static Snapshot validate(TriviaFile triviaFile, PromptFile promptFile,
+                                     ScoringConfig scoring, Timings timings, Rewards rewards) {
+        if (triviaFile == null || triviaFile.questions() == null) {
+            throw new IllegalArgumentException("trivia.json must contain a questions array");
+        }
+        for (QuestionEntry question : triviaFile.questions()) {
+            if (question == null || question.prompt() == null || question.prompt().isBlank()
+                    || question.options() == null || question.options().size() < 2
+                    || question.options().stream().anyMatch(option -> option == null || option.isBlank())
+                    || question.correct() < 0 || question.correct() >= question.options().size()) {
+                throw new IllegalArgumentException("trivia.json contains an invalid question");
+            }
+        }
+        if (promptFile == null || promptFile.prompts() == null
+                || promptFile.prompts().stream().anyMatch(prompt -> prompt == null
+                        || prompt.prompt() == null || prompt.prompt().isBlank())) {
+            throw new IllegalArgumentException("prompts.json contains an invalid prompt");
+        }
+        if (scoring == null || scoring.participation() < 0 || scoring.triviaCorrect() < 0
+                || scoring.writerBase() < 0 || scoring.perVote() < 0 || scoring.voterBase() < 0
+                || scoring.voterPool() < 0 || scoring.quorumOptions() < 1) {
+            throw new IllegalArgumentException("scoring.json contains an invalid value");
+        }
+        if (timings == null || timings.triviaSeconds() < 1
+                || timings.quiplashSubmitSeconds() < 1 || timings.quiplashClosedSeconds() < 1
+                || timings.quiplashVoteSeconds() < 1 || timings.autoStartSeconds() < 0
+                || timings.afkThresholdSeconds() < 0) {
+            throw new IllegalArgumentException("timings.json contains an invalid value");
+        }
+        if (rewards == null || rewards.participationDiamonds() < 0
+                || rewards.correctDiamonds() < 0 || rewards.winnerDiamondBlocks() < 0
+                || rewards.triviaCorrectDiamonds() < 0) {
+            throw new IllegalArgumentException("rewards.json contains an invalid value");
+        }
+        return new Snapshot(
+                List.copyOf(triviaFile.questions()), List.copyOf(promptFile.prompts()),
+                scoring, timings, rewards);
     }
 
     // ---- round construction ----------------------------------------------
 
     public Round randomTrivia() {
-        if (trivia.isEmpty()) {
+        Snapshot current = snapshot;
+        if (current.trivia().isEmpty()) {
             return null;
         }
-        QuestionEntry q = trivia.get(RANDOM.nextInt(trivia.size()));
+        QuestionEntry q = current.trivia().get(RANDOM.nextInt(current.trivia().size()));
         return Round.trivia(newRoundId(RoundType.TRIVIA), q.prompt(),
-                Option.of(q.options().toArray(new String[0])), q.correct(), scoring);
+                Option.of(q.options().toArray(new String[0])), q.correct(), current.scoring());
     }
 
     public Round randomQuiplash() {
-        if (prompts.isEmpty()) {
+        Snapshot current = snapshot;
+        if (current.prompts().isEmpty()) {
             return null;
         }
-        PromptEntry p = prompts.get(RANDOM.nextInt(prompts.size()));
-        return Round.quiplash(newRoundId(RoundType.QUIPLASH), p.prompt(), scoring);
+        PromptEntry p = current.prompts().get(RANDOM.nextInt(current.prompts().size()));
+        return Round.quiplash(newRoundId(RoundType.QUIPLASH), p.prompt(), current.scoring());
     }
 
     private static String newRoundId(RoundType type) {
@@ -152,23 +204,23 @@ public final class Content {
     }
 
     public ScoringConfig scoring() {
-        return scoring;
+        return snapshot.scoring();
     }
 
     public Timings timings() {
-        return timings;
+        return snapshot.timings();
     }
 
     public Rewards rewards() {
-        return rewards;
+        return snapshot.rewards();
     }
 
     public int triviaCount() {
-        return trivia.size();
+        return snapshot.trivia().size();
     }
 
     public int promptCount() {
-        return prompts.size();
+        return snapshot.prompts().size();
     }
 
     // ---- seed content -----------------------------------------------------

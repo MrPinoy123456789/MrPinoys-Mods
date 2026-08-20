@@ -45,6 +45,21 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
+tasks.test {
+    failOnNoDiscoveredTests = false
+}
+
+tasks.register<JavaExec>("persistenceRegressionTest") {
+    group = "verification"
+    description = "Runs content and leaderboard snapshot regression coverage."
+    mainClass = "quizengine.mc.PersistenceRegressionTest"
+    classpath = sourceSets["test"].runtimeClasspath
+}
+
+tasks.named("check") {
+    dependsOn("persistenceRegressionTest")
+}
+
 tasks.processResources {
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {

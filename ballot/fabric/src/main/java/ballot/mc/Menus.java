@@ -138,7 +138,10 @@ public final class Menus {
                         player.sendSystemMessage(Screens.bad("Shift-click to confirm."));
                         return;
                     }
-                    store.delete(poll.key());
+                    if (!store.delete(poll.key())) {
+                        player.sendSystemMessage(Screens.bad("Couldn't delete that vote."));
+                        return;
+                    }
                     g.close();
                     player.sendSystemMessage(Screens.dim("Deleted."));
                 })

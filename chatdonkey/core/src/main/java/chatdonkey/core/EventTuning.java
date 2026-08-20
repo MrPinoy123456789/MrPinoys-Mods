@@ -44,6 +44,7 @@ public record EventTuning(int weight, int minSeconds, int maxSeconds,
                 dupes ? demand.multiplier() : null);
     }
 
+    /** Reattaches the map-key behavior id after an {@code events.json} entry is parsed. */
     public EventDefinition toDefinition(String behaviorId) {
         return new EventDefinition(behaviorId, weight, minSeconds, maxSeconds,
                 new Demand(wants, wantsPremium, duplicates,

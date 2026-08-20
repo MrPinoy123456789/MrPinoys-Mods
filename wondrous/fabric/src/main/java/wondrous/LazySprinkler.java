@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
@@ -16,6 +17,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.BonemealableBlock;
@@ -27,6 +29,7 @@ import wondrous.api.WondrousTag;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * An oxidized copper grate that remembers its position and a hopper's worth of
@@ -46,7 +49,8 @@ public final class LazySprinkler {
     private static final Block GRATE = Blocks.COPPER_GRATE.weathering().oxidized();
 
     /** A right-click that may or may not turn into a placed sprinkler. */
-    private record Placement(ResourceKey<Level> dimension, BlockPos pos) {}
+    private record Placement(ResourceKey<Level> dimension, BlockPos pos, UUID playerId,
+                             InteractionHand hand, ItemStack stack, int count, boolean creative) {}
 
     private final ItemRegistry registry;
     private final List<Placement> pending = new ArrayList<>();
@@ -79,9 +83,11 @@ public final class LazySprinkler {
             }
 
             if (WondrousTag.is(held, ID)) {
-                BlockPos target = pos.relative(hitResult.getDirection());
-                if (!level.getBlockState(target).is(GRATE)) {
-                    pending.add(new Placement(serverLevel.dimension(), target));
+                BlockPlaceContext context = new BlockPlaceContext(serverPlayer, hand, held, hitResult);
+                BlockPos target = context.getClickedPos();
+                if (context.canPlace() && !level.getBlockState(target).is(GRATE)) {
+                    pending.add(new Placement(serverLevel.dimension(), target, serverPlayer.getUUID(), hand,
+                            held.copy(), held.getCount(), serverPlayer.isCreative()));
                 }
             }
 
@@ -147,11 +153,26 @@ public final class LazySprinkler {
             if (!level.getBlockState(placement.pos()).is(GRATE)) {
                 continue;
             }
+            ServerPlayer player = server.getPlayerList().getPlayer(placement.playerId());
+            if (player == null || !placementVerified(player, placement)) {
+                continue;
+            }
             if (!state.hasSprinkler(level, placement.pos())) {
                 state.setSprinkler(level, placement.pos(), emptyAmmo());
             }
         }
         pending.clear();
+    }
+
+    private static boolean placementVerified(ServerPlayer player, Placement placement) {
+        ItemStack current = player.getItemInHand(placement.hand());
+        if (placement.creative()) {
+            return current.getCount() == placement.count()
+                    && ItemStack.isSameItemSameComponents(current, placement.stack());
+        }
+        int expected = placement.count() - 1;
+        return expected == 0 ? current.isEmpty() : current.getCount() == expected
+                && ItemStack.isSameItemSameComponents(current, placement.stack());
     }
 
     private void pulse(MinecraftServer server) {

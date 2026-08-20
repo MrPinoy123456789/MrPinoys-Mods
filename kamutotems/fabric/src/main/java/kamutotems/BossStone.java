@@ -49,6 +49,7 @@ public final class BossStone {
         return inner.getIntOr(STONE_KEY, 0);
     }
 
+    /** Handles the Fabric item-use callback, exchanging a valid stone for a rolled sigil. */
     public static InteractionResult onUseItem(Player player, Level level, InteractionHand hand) {
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)
                 || !(level instanceof ServerLevel serverLevel)) {

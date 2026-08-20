@@ -19,6 +19,7 @@ public final class DailyCommands {
 
     private DailyCommands() {}
 
+    /** Registers player commands for viewing, submitting, and ranking daily quests. */
     public static void register(Quests quests, DailyState state, TurnIn turnIn) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
                 dispatcher.register(Commands.literal("daily")

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/** Stateless operations for granting, matching, and expiring assigned quests. */
 public final class AssignedQuests {
 
     public static final int DEFAULT_MAX_ACTIVE = 3;
@@ -13,6 +14,7 @@ public final class AssignedQuests {
 
     private AssignedQuests() {}
 
+    /** Attempts to create an active quest while enforcing duplicate and capacity rules. */
     public static GrantResult grant(List<AssignedQuest> held, QuestDefinition def,
                                      String todayKey, int maxActive) {
         if (def == null) {

@@ -29,6 +29,7 @@ public final class CobbleBendingMod implements ModInitializer {
         ChargeTracker.register();
         BendCommands.register();
 
+        // Advance temporary block decay and display-backed projectiles once per server tick.
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             BentBlocks.setServer(server);
             BentBlocks.tick();
@@ -38,6 +39,7 @@ public final class CobbleBendingMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTING.register(BentBlocks::setServer);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> BentBlocks.onShutdown());
 
+        // Turn focus block-use into the same continuous-use state tracked for air-use.
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (level.isClientSide() || !(level instanceof Level) || hand == null) {
                 return InteractionResult.PASS;

@@ -60,6 +60,7 @@ public final class DonkeyConfig {
         return events;
     }
 
+    /** Reloads all operator files, retaining defaults in memory for missing or invalid data. */
     public void reload() {
         ReadOrCreate.Result<Settings> loadedSettings = ReadOrCreate.load(
                 dir.resolve("settings.json"),

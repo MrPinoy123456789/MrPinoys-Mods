@@ -31,6 +31,7 @@ import java.util.Map;
  */
 public final class HearsayConfig {
 
+    /** Default delivery channel for each dialogue moment or pool family. */
     private static final Map<String, String> DEFAULT_CHANNELS = Map.of(
             "ambient", "actionbar",
             "greeting", "actionbar",
@@ -56,6 +57,7 @@ public final class HearsayConfig {
         this.dir = configDir.resolve(HearsayMod.MOD_ID);
     }
 
+    /** Reloads settings, dialogue pools, and scenes without overwriting malformed files. */
     public void reload() {
         Path settingsFile = dir.resolve("settings.json");
         ReadOrCreate.Result<Settings> s = ReadOrCreate.load(

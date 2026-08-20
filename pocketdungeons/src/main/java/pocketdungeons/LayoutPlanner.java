@@ -39,6 +39,7 @@ final class LayoutPlanner {
 
     /** How many consecutive seeds to try before giving up. */
     static final int DEFAULT_ATTEMPT_BUDGET = 16;
+    static final int DEFAULT_MAX_GRID_SPAN = 12;
 
     private LayoutPlanner() {}
 
@@ -56,7 +57,8 @@ final class LayoutPlanner {
     static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
                         int minPath, int maxPath) {
         return plan(seed, manifest, attemptBudget, minPath, maxPath,
-                DEFAULT_BRANCH_PROBABILITY, DEFAULT_LOOP_PROBABILITY);
+                DEFAULT_BRANCH_PROBABILITY, DEFAULT_LOOP_PROBABILITY,
+                DEFAULT_MAX_GRID_SPAN);
     }
 
     /**
@@ -66,7 +68,8 @@ final class LayoutPlanner {
      */
     static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
                         int minPath, int maxPath,
-                        double branchProbability, double loopProbability) {
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -97,7 +100,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            List<String> planProblems = RoomSelector.validate(result.plan());
+            List<String> planProblems = RoomSelector.validate(result.plan(), maxGridSpan);
             if (!planProblems.isEmpty()) {
                 lastReason = "plan failed validation: " + String.join("; ", planProblems);
                 continue;

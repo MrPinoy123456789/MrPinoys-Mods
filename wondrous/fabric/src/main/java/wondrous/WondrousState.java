@@ -125,6 +125,7 @@ public final class WondrousState extends SavedData {
         return forServer(level.getServer());
     }
 
+    /** Registers the periodic cleanup of stale station, sprinkler, and link records. */
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (server.getTickCount() % SWEEP_INTERVAL != 0) {

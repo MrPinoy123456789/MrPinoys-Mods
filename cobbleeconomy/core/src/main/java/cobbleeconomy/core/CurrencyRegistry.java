@@ -38,6 +38,12 @@ public final class CurrencyRegistry {
         return registry;
     }
 
+    /**
+     * Adds a currency and all of its aliases, rejecting ids or aliases that would make
+     * command resolution ambiguous.
+     *
+     * @throws IllegalArgumentException if the id or any alias is already owned
+     */
     public void register(Currency currency) {
         if (byId.containsKey(currency.id())) {
             throw new IllegalArgumentException("Duplicate currency id: " + currency.id());

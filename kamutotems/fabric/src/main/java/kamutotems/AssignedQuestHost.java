@@ -134,6 +134,7 @@ public final class AssignedQuestHost {
         return result;
     }
 
+    /** Advances the killer's first matching assigned kill quest after a living-entity death. */
     private static void onKill(LivingEntity entity, DamageSource source) {
         if (!(source.getEntity() instanceof ServerPlayer player)) {
             return;

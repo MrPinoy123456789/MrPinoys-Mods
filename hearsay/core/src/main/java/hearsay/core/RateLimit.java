@@ -22,11 +22,15 @@ public final class RateLimit {
      *         restarts; false if it is still cooling down
      */
     public boolean allow(int currentTick) {
-        if (used && currentTick - lastTick < cooldownTicks) {
+        if (!ready(currentTick)) {
             return false;
         }
         lastTick = currentTick;
         used = true;
         return true;
+    }
+
+    public boolean ready(int currentTick) {
+        return !used || currentTick - lastTick >= cooldownTicks;
     }
 }

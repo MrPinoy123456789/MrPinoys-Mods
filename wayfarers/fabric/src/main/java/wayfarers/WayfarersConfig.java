@@ -152,6 +152,7 @@ public final class WayfarersConfig {
         this.dir = configDir.resolve(WayfarersMod.MOD_ID);
     }
 
+    /** Reloads encounters, settings, and dialogue pools using the suite's non-destructive file policy. */
     public void reload() {
         Path encountersFile = dir.resolve("encounters.json");
         ReadOrCreate.Result<EncounterPool> e = ReadOrCreate.load(

@@ -141,7 +141,7 @@ public final class Payment {
             ItemStack s = inv.getItem(i);
             if (s.isEmpty()) {
                 empty++;
-            } else if (s.getItem() == product.getItem() && s.getCount() < max) {
+            } else if (ItemStack.isSameItemSameComponents(s, product) && s.getCount() < max) {
                 partial.add(s.getCount());
             }
         }

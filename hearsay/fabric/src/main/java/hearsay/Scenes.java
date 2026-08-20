@@ -57,6 +57,7 @@ public final class Scenes {
         return Collections.unmodifiableSet(busySpeakers);
     }
 
+    /** Advances active scripts, releases finished claims, and rolls for new matching pairs. */
     public void tick(MinecraftServer server, Listeners listeners) {
         tick++;
 
@@ -124,6 +125,11 @@ public final class Scenes {
         }
     }
 
+    /**
+     * Starts any matching scene immediately for an operator command.
+     *
+     * @return false when the listener is busy or no eligible pair matches
+     */
     public boolean forceStart(UUID listenerId, List<Listeners.Candidate> candidates) {
         if (busyListeners.contains(listenerId)) return false;
 

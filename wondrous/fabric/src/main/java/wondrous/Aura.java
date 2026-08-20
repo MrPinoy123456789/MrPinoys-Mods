@@ -47,6 +47,7 @@ public final class Aura {
         void apply(ServerPlayer player, Carried carried);
     }
 
+    /** Registers the shared polling loop that evaluates all aura passes for online players. */
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (server.getTickCount() % POLL_INTERVAL != 0) {
@@ -61,6 +62,7 @@ public final class Aura {
         });
     }
 
+    /** Adds a passive effect evaluator to the shared aura poll. */
     public static void add(Pass pass) {
         passes.add(pass);
     }

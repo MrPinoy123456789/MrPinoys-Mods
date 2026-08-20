@@ -88,7 +88,9 @@ public final class RequestOfferer {
         }
 
         boolean hasOfferedTask = TaskRegistry.of(level).tasks().stream()
-                .anyMatch(t -> t.issuer().equals(villager.getUUID()) && t.state() == TaskState.OFFERED);
+                .anyMatch(t -> t.issuer().equals(villager.getUUID())
+                        && t.assignee().equals(player.getUUID())
+                        && t.state() == TaskState.OFFERED);
         if (!hasOfferedTask) {
             return;
         }

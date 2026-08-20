@@ -33,6 +33,11 @@ public final class TurnIn {
         this.state = state;
     }
 
+    /**
+     * Validates and consumes today's requested items, then records and rewards completion.
+     *
+     * @return an error message when rejected, or {@code null} after a successful turn-in
+     */
     public Component attempt(ServerPlayer player) {
         String today = DailyState.dayKey(quests.settings().rolloverHourUtc());
         Quests.Quest quest = quests.forDay(today);

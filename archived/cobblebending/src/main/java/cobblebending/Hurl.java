@@ -10,6 +10,7 @@ public final class Hurl {
 
     private Hurl() {}
 
+    /** Selects the charge tier, consumes its cost, applies cooldown, and launches it. */
     public static void fire(ServerPlayer player, int chargeTicks) {
         BendConfig.Data config = CobbleBendingMod.config().data();
         BendConfig.Hurl h = config.hurl();

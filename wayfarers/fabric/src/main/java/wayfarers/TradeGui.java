@@ -31,12 +31,18 @@ public final class TradeGui {
 
     /** Opens the trade screen for the encounter this player is facing. */
     public static void open(ServerPlayer player, Encounters.Active active) {
-        int rows = Math.max(1, Math.min(6, (int) Math.ceil((active.sells.size() + 1) / 9.0)));
+        int rows = rowsFor(active.sells.size(), active.buys.size());
         SimpleGui gui = new SimpleGui(menuType(rows), player, false);
-        gui.setTitle(Component.literal(active.def.body().name() + " — " + active.def.id())
+        gui.setTitle(Component.literal(active.def.body().name() + " - " + active.def.id())
                 .withStyle(ChatFormatting.GOLD));
         draw(gui, player, active);
         gui.open();
+    }
+
+    static int rowsFor(int sellCount, int buyCount) {
+        int separator = sellCount > 0 && buyCount > 0 ? 1 : 0;
+        int renderedSlots = sellCount + separator + buyCount + 1;
+        return Math.max(1, Math.min(6, (renderedSlots + 8) / 9));
     }
 
     private static void draw(SimpleGui gui, ServerPlayer player, Encounters.Active active) {
@@ -47,7 +53,7 @@ public final class TradeGui {
         for (int i = 0; i < sells.size() && slot < slots - 1; i++, slot++) {
             gui.setSlot(slot, listingElement(gui, player, active, i, sells.get(i), false));
         }
-        if (!buys.isEmpty() && slot < slots - 1) {
+        if (!sells.isEmpty() && !buys.isEmpty() && slot < slots - 1) {
             slot++; // blank separator
         }
         for (int i = 0; i < buys.size() && slot < slots - 1; i++, slot++) {

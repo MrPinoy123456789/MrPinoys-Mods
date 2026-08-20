@@ -100,6 +100,10 @@ public final class EconomySettings {
                 "  [ Open the shop ]");
     }
 
+    /**
+     * Loads the operator settings, creates defaults on first boot, and adds newly
+     * introduced configuration blocks without replacing existing choices.
+     */
     public static EconomySettings load(Path directory) {
         Path file = directory.resolve("settings.json");
         EconomySettings settings = new EconomySettings();

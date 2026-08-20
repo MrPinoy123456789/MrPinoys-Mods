@@ -47,6 +47,21 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
+tasks.test {
+    failOnNoDiscoveredTests = false
+}
+
+tasks.register<JavaExec>("kamuDataRegressionTest") {
+    group = "verification"
+    description = "Runs component catalog persistence regression coverage."
+    mainClass = "kamutotems.KamuDataRegressionTest"
+    classpath = sourceSets["test"].runtimeClasspath
+}
+
+tasks.named("check") {
+    dependsOn("kamuDataRegressionTest")
+}
+
 tasks.processResources {
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {

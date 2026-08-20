@@ -98,7 +98,7 @@ public final class DefaultLines {
                 "Why? Because I said so.",
                 "What? No, I don't know what's over there.",
                 "I simply wouldn't go."));
-        p.put("traded", List.of("A pleasure doing business.", "Come again.", "Fair trade."));
+        p.put("traded", List.of("Looking for something?", "Take your time.", "Here's what I have."));
         p.put("morning", List.of("Dawn again.", "Up with the sun."));
         p.put("night", List.of("Evening.", "Time to close up."));
         p.put("weather", List.of("Rain.", "It's coming down.", "I left my laundry out."));

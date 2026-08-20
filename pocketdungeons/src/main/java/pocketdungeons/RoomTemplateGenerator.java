@@ -115,6 +115,7 @@ final class RoomTemplateGenerator {
 
     private RoomTemplateGenerator() {}
 
+    /** Registers the server-tick drain for deferred development-time template captures. */
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             for (Iterator<Task> it = queue.iterator(); it.hasNext(); ) {

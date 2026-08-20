@@ -33,16 +33,21 @@ public final class TransactionLog {
     private final BlockingQueue<String> queue = new ArrayBlockingQueue<>(4096);
     private final Path file;
     private final boolean toFile;
+    private final Thread writerThread;
+    private final Object acceptanceLock = new Object();
     private volatile boolean running = true;
 
     public TransactionLog(Path directory, boolean toFile) {
         this.file = directory.resolve("transactions.log");
         this.toFile = toFile;
-        if (!toFile) return;
+        if (!toFile) {
+            writerThread = null;
+            return;
+        }
 
-        Thread t = new Thread(this::drain, "cobbleeconomy-txlog");
-        t.setDaemon(true);
-        t.start();
+        writerThread = new Thread(this::drain, "cobbleeconomy-txlog");
+        writerThread.setDaemon(true);
+        writerThread.start();
     }
 
     /** A normal player-initiated movement. */
@@ -58,32 +63,55 @@ public final class TransactionLog {
     private void write(String line) {
         CobbleEconomyMod.LOG.info(line);
         if (!toFile) return;
-        // offer(), not put(): dropping a line beats blocking the server thread.
-        if (!queue.offer(ZonedDateTime.now().format(STAMP) + " " + line)) {
-            CobbleEconomyMod.LOG.warn("Transaction log queue full -- dropped a line");
-        }
-    }
-
-    private void drain() {
-        while (running || !queue.isEmpty()) {
-            try {
-                String line = queue.poll(1, TimeUnit.SECONDS);
-                if (line == null) continue;
-                try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
-                    out.write(line);
-                    out.write(System.lineSeparator());
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        synchronized (acceptanceLock) {
+            if (!running) {
+                CobbleEconomyMod.LOG.warn("Transaction log is closed -- did not queue a line");
                 return;
-            } catch (IOException e) {
-                CobbleEconomyMod.LOG.error("Could not append to transactions.log", e);
+            }
+            // offer(), not put(): dropping a line beats blocking the server thread.
+            if (!queue.offer(ZonedDateTime.now().format(STAMP) + " " + line)) {
+                CobbleEconomyMod.LOG.warn("Transaction log queue full -- dropped a line");
             }
         }
     }
 
+    private void drain() {
+        try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+            while (running || !queue.isEmpty()) {
+                try {
+                    String line = queue.poll(1, TimeUnit.SECONDS);
+                    if (line == null) continue;
+                    out.write(line);
+                    out.write(System.lineSeparator());
+                    out.flush();
+                } catch (InterruptedException e) {
+                    if (running) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            CobbleEconomyMod.LOG.error("Could not append to transactions.log", e);
+        }
+    }
+
     public void close() {
-        running = false;
+        if (!toFile) return;
+        synchronized (acceptanceLock) {
+            if (!running) return;
+            running = false;
+        }
+        writerThread.interrupt();
+        try {
+            writerThread.join(TimeUnit.SECONDS.toMillis(5));
+            if (writerThread.isAlive()) {
+                CobbleEconomyMod.LOG.warn("Timed out waiting for transaction log to flush");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CobbleEconomyMod.LOG.warn("Interrupted while waiting for transaction log to flush");
+        }
     }
 }

@@ -40,6 +40,7 @@ public final class SmallTalkConfig {
 
     private SmallTalkConfig() {}
 
+    /** Loads the operator configuration, preserving an existing file that fails to parse. */
     public static void load(Path configDir) {
         Path file = configDir.resolve("smalltalk.json");
         try {

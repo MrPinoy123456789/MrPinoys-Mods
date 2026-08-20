@@ -3,6 +3,7 @@ package kamutotems.core;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Per-segment counters for a dated quest chain. */
 public record QuestProgress(String dateKey, List<Integer> counts) {
 
     public QuestProgress advance(int segmentIndex, int by, QuestChain chain) {

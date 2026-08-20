@@ -3,7 +3,6 @@ package hearsay;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.npc.villager.Villager;
 import hearsay.core.Triggers;
 
@@ -14,17 +13,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * One-off reactions to world events, trades, time and weather.
+ * One-off reactions to world events, villager interactions, time and weather.
  *
  * <p>Time and weather use the pure {@link Triggers} helpers from core.
- * Trades are detected via the best available entity-interaction event.
+ * Villager use is detected via the entity-interaction event; it does not imply
+ * that a trade was completed.
  */
 public final class Reactions {
 
     private final HearsayConfig config;
     private final Speech speech;
     private final Map<ServerLevel, Snapshot> prev = new HashMap<>();
-    private final Map<UUID, Integer> tradedCooldown = new HashMap<>();
+    private final Map<UUID, Integer> interactionCooldown = new HashMap<>();
     private int tick;
 
     public Reactions(HearsayConfig config, Speech speech) {
@@ -32,6 +32,7 @@ public final class Reactions {
         this.speech = speech;
     }
 
+    /** Detects dawn, dusk, rain, and thunder edges and offers their configured lines. */
     public void tick(MinecraftServer server, Listeners listeners) {
         tick++;
         for (ServerLevel level : server.getAllLevels()) {
@@ -57,16 +58,18 @@ public final class Reactions {
         }
     }
 
+    /** Offers the villager-death reaction to every nearby listener. */
     public void onVillagerDeath(Villager villager) {
         broadcast(villager, "reaction.villager_death");
     }
 
-    public void onTrade(ServerPlayer player, Villager villager) {
-        Integer until = tradedCooldown.get(villager.getUUID());
+    /** Handles opening or otherwise using a villager, not completion of a trade. */
+    public void onVillagerInteraction(Villager villager) {
+        Integer until = interactionCooldown.get(villager.getUUID());
         if (until != null && tick < until) return;
-        tradedCooldown.put(villager.getUUID(), tick + 20);
-        // The pool is "traded", not "reaction.traded" — asking for the latter
-        // resolved to nothing, so completed trades were silent.
+        interactionCooldown.put(villager.getUUID(), tick + 20);
+        // Keep the existing pool key for configuration compatibility even though the
+        // available Fabric callback reports interaction rather than trade completion.
         broadcast(villager, "traded");
     }
 

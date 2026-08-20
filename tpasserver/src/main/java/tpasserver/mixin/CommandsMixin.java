@@ -27,6 +27,10 @@ public class CommandsMixin {
 
     private static final Pattern TP_COMMAND = Pattern.compile("^(tp|teleport)(\\s|$)");
 
+    // Inject at the head of Commands.performCommand, before Brigadier executes
+    // the parsed command with the caller's permissions. Matching player-issued
+    // teleport commands are cancelled and re-dispatched with the server permission
+    // set; every other command continues through the untouched vanilla path.
     @Inject(method = "performCommand", at = @At("HEAD"), cancellable = true)
     private void tpasserver$runAsServer(ParseResults<CommandSourceStack> parseResults, String commandString, CallbackInfo ci) {
         CommandSourceStack source = parseResults.getContext().getSource();

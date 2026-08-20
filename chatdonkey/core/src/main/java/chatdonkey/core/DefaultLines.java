@@ -24,6 +24,11 @@ public final class DefaultLines {
 
     private DefaultLines() {}
 
+    /**
+     * Builds the complete default pool registry in stable file order.
+     *
+     * @return a fresh mutable map whose line lists are immutable
+     */
     public static Map<String, List<String>> pools() {
         Map<String, List<String>> pools = new LinkedHashMap<>();
 

@@ -18,6 +18,7 @@ public class PlanSelectorTest {
         testStraightResolves();
         testBranchFailsLegibly();
         testBudgetValidation();
+        testConfiguredGridSpan();
         System.out.println("PlanSelectorTest passed");
     }
 
@@ -42,7 +43,7 @@ public class PlanSelectorTest {
             throw new AssertionError("unexpected exit placement: " + exit);
         }
 
-        List<String> problems = RoomSelector.validate(plan);
+        List<String> problems = RoomSelector.validate(plan, 12);
         if (!problems.isEmpty()) {
             throw new AssertionError("validation failed: " + problems);
         }
@@ -85,12 +86,23 @@ public class PlanSelectorTest {
         if (opt.isEmpty()) {
             throw new AssertionError("expected 60-cell straight shape to resolve");
         }
-        List<String> problems = RoomSelector.validate(opt.get());
+        List<String> problems = RoomSelector.validate(opt.get(), 12);
         if (problems.isEmpty()) {
             throw new AssertionError("expected budget validation to fail for 60 rooms");
         }
         if (!problems.get(0).contains("above maximum")) {
             throw new AssertionError("expected max-room failure, got " + problems);
+        }
+    }
+
+    private static void testConfiguredGridSpan() {
+        DungeonPlan plan = RoomSelector.resolve(straightShape(4), makeManifest()).orElseThrow();
+        if (!RoomSelector.validate(plan, 3).stream()
+                .anyMatch(problem -> problem.contains("exceeds the maximum of 3"))) {
+            throw new AssertionError("expected configured span 3 to reject a four-cell plan");
+        }
+        if (!RoomSelector.validate(plan, 4).isEmpty()) {
+            throw new AssertionError("expected configured span 4 to accept a four-cell plan");
         }
     }
 

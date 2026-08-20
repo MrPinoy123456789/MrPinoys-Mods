@@ -47,6 +47,7 @@ public final class DamageFunnel {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(DamageFunnel::allowDamage);
     }
 
+    /** Observes player-caused damage without cancelling it and dispatches the attacker's construct. */
     private static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
         if (entity == null || entity.level().isClientSide()) {
             return true;

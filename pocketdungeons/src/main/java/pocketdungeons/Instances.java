@@ -97,6 +97,7 @@ final class Instances {
         }
     }
 
+    /** Registers instance ticking, death rescue, connection recovery, and lifecycle cleanup handlers. */
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             // Ahead of onTick's own interval gate: a queued clear has to keep
@@ -345,7 +346,8 @@ final class Instances {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
-                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability());
+                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                PocketDungeonsConfig.maxGridSpan());
 
         DungeonPlan plan = outcome.plan();
         if (plan != null) {

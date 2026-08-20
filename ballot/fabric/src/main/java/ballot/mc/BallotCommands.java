@@ -42,6 +42,7 @@ public final class BallotCommands {
 
     private BallotCommands() {}
 
+    /** Registers the public ballot commands and the hidden targets used by chat buttons. */
     public static void register(PollStore store) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
                 dispatcher.register(Commands.literal("ballot")
@@ -118,7 +119,9 @@ public final class BallotCommands {
                         .append(Screens.button("[ Close it now ]", "/ballot _ close")));
                 return 0;
             }
-            store.archive(poll.key(), now);
+            if (!store.archive(poll.key(), now)) {
+                return fail(ctx, "Couldn't archive the finished vote; no new vote was created.");
+            }
             player.sendSystemMessage(Screens.dim("Archived \"" + poll.title() + "\"."));
         }
 

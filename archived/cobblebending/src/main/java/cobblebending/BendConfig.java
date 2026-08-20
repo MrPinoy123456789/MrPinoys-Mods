@@ -27,6 +27,7 @@ public final class BendConfig {
         this.file = DIR.resolve(FILE);
     }
 
+    /** Reloads the JSON configuration, creating the default file on first use. */
     public void reload() {
         try {
             Files.createDirectories(DIR);
@@ -68,8 +69,10 @@ public final class BendConfig {
         );
     }
 
+    /** Root configuration registry for ability-specific and global settings. */
     public record Data(Hurl hurl, Wall wall, Bridge bridge, Global global) {}
 
+    /** Charge thresholds, costs, projectile physics, damage, and cooldowns for hurling. */
     public record Hurl(
             int lightThreshold, int heavyThreshold,
             int lightCobble, float lightDamage, float lightSpeed, float lightGravity, float lightScale, int lightCooldown,
@@ -78,6 +81,7 @@ public final class BendConfig {
             int heavySlownessDuration
     ) {}
 
+    /** Placement dimensions, costs, lifetimes, safety limits, and refunds for bent blocks. */
     public record Wall(
             int lightThreshold, int heavyThreshold,
             int lightWidth, int lightHeight, int lightCobble, int lightCooldown, int lightLifetime,
@@ -88,6 +92,7 @@ public final class BendConfig {
             int trackedCap, int noBendSpawnRadius, int pvpDamage
     ) {}
 
+    /** Pitch threshold, decay timing, and per-block cost for temporary bridges. */
     public record Bridge(
             float pitchThreshold,
             int decayTicks,
@@ -95,6 +100,7 @@ public final class BendConfig {
             int cobblePerBlock
     ) {}
 
+    /** Server-wide combat and overwrite policy switches. */
     public record Global(
             boolean pvpDamage,
             boolean preventBuildOverwrite

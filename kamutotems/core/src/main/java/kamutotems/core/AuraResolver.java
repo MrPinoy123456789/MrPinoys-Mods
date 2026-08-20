@@ -1,7 +1,9 @@
 package kamutotems.core;
 
+/** Validates an aura binding and derives the polarity and strength applied at runtime. */
 public final class AuraResolver {
 
+    /** Resolves a stored aura specification against the current kamu catalog. */
     public static AuraOutcome resolve(AuraSpec spec, KamuCatalog catalog) {
         if (spec == null || !spec.isPresent()) {
             return refuse("No aura is bound.");

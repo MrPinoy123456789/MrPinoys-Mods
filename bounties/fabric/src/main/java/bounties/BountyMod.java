@@ -59,6 +59,7 @@ public final class BountyMod implements ModInitializer {
             state.shutdown();
         });
 
+        // Detect wall-clock board rotations at tick end and announce only the changed slot.
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             long now = System.currentTimeMillis();
             long window = BountyMath.windowIndex(now);
@@ -83,6 +84,8 @@ public final class BountyMod implements ModInitializer {
             lastBoard = board;
         });
 
+        // DamageSource#getEntity is the causing entity in 26.2 (the projectile, when
+        // present, is getDirectEntity), so this credits both melee and owned projectiles.
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (!(damageSource.getEntity() instanceof ServerPlayer player)) {
                 return;

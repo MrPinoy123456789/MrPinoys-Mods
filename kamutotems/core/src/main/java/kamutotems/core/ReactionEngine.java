@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/** Deterministically applies the highest-priority matching reaction until a terminal rule or depth cap. */
 public final class ReactionEngine {
 
     private final List<ReactionRule> rules;
@@ -14,6 +15,7 @@ public final class ReactionEngine {
         this.depthCap = depthCap;
     }
 
+    /** Creates the built-in reaction registry and its default recursion cap. */
     public static ReactionEngine defaults() {
         return new ReactionEngine(List.of(
                 new ReactionRule("thermal_shock", "fire", "ice", Set.of(), "thermal_shock", 10, true),
@@ -39,6 +41,7 @@ public final class ReactionEngine {
         return depthCap;
     }
 
+    /** Resolves reactions in deterministic priority order without mutating the input list. */
     public ReactionOutcome react(List<Effect> ordered, Context context) {
         if (ordered == null) {
             return new ReactionOutcome(List.of(), List.of(), false);
@@ -50,19 +53,20 @@ public final class ReactionEngine {
 
         Set<String> tags = mergedTags(context);
 
-        for (int applied = 0; applied < depthCap; applied++) {
+        int applied = 0;
+        while (true) {
             Match best = findBest(current, tags);
             if (best == null) {
                 break;
             }
-
-            if (applied >= depthCap - 1) {
+            if (applied >= depthCap) {
                 truncated = true;
                 break;
             }
 
             apply(current, best, context);
             fired.add(best.rule.id());
+            applied++;
 
             if (best.rule.terminal()) {
                 break;

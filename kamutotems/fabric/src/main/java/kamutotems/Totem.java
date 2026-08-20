@@ -84,7 +84,8 @@ public final class Totem {
         if (root == null) {
             return 1;
         }
-        return root.getCompoundOrEmpty(KEY).getIntOr("tier", 1);
+        int tier = root.getCompoundOrEmpty(KEY).getIntOr("tier", 1);
+        return persistedTier(tier, kamuId(stack));
     }
 
     public static ItemStack create(Kamuy kamuy, int charges) {
@@ -236,7 +237,7 @@ public final class Totem {
                 if (id.isBlank()) {
                     out.add(null);
                 } else {
-                    out.add(new Slot(id, Math.max(1, Math.min(3, entry.getIntOr("tier", 1)))));
+                    out.add(new Slot(id, persistedTier(entry.getIntOr("tier", 1), id)));
                 }
             } else {
                 out.add(null);
@@ -246,6 +247,16 @@ public final class Totem {
             out.add(null);
         }
         return out;
+    }
+
+    private static int persistedTier(int tier, String kamuId) {
+        if (tier >= 1 && tier <= Slot.MAX_TIER) {
+            return tier;
+        }
+        int repaired = Math.max(1, Math.min(Slot.MAX_TIER, tier));
+        KamuTotemsMod.LOG.warn("Repairing invalid persisted tier {} for kamu {} to {}",
+                tier, kamuId, repaired);
+        return repaired;
     }
 
     public static void writeSlots(ItemStack stack, List<Slot> slots) {

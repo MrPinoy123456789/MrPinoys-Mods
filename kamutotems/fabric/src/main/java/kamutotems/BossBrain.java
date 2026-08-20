@@ -44,6 +44,7 @@ public final class BossBrain {
         ServerTickEvents.END_SERVER_TICK.register(BossBrain::onServerTick);
     }
 
+    /** Advances cast wind-ups and cooldowns for every live tracked boss. */
     private static void onServerTick(MinecraftServer server) {
         for (Boss boss : BossHost.activeBosses()) {
             Entity entity = boss.entity();

@@ -70,6 +70,7 @@ public final class Encounters {
         return null;
     }
 
+    /** Selects and starts an eligible weighted encounter for the player. */
     public boolean start(ServerPlayer player) {
         if (active.containsKey(player.getUUID())) {
             return false;
@@ -83,6 +84,7 @@ public final class Encounters {
         return start(player, chosen);
     }
 
+    /** Starts a named encounter, subject to active and one-time encounter guards. */
     public boolean start(ServerPlayer player, String encounterId) {
         if (active.containsKey(player.getUUID())) {
             return false;

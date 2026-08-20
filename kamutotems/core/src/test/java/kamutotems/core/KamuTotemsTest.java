@@ -137,8 +137,10 @@ public final class KamuTotemsTest {
         check("withName sets name", named.name(), "Spark");
         check("withName sets born when null", named.bornDateKey() != null);
 
-        Kamuy renamed = named.withName("Ember");
-        check("rename keeps born", renamed.bornDateKey(), named.bornDateKey());
+        Kamuy pooled = named.addToPool(new Slot("fire", 2));
+        Kamuy renamed = pooled.withName("Ember");
+        check("rename keeps born", renamed.bornDateKey(), pooled.bornDateKey());
+        check("rename keeps bound pool", renamed.pool(), pooled.pool());
 
         List<String> journal = named.withConstruct(c).journal();
         check("journal has lines", !journal.isEmpty());
@@ -155,10 +157,15 @@ public final class KamuTotemsTest {
     private static void matcherAndResolverTests() {
         section("matcher and resolver");
         EventMatcher m = new EventMatcher("entity_killed", Map.of("entity", "minecraft:zombie"), 3);
-        check("matcher succeeds", m.matches(Map.of("entity", "minecraft:zombie")));
-        check("matcher fails wrong entity", !m.matches(Map.of("entity", "minecraft:skeleton")));
-        check("matcher fails missing", !m.matches(Map.of("item", "minecraft:wheat")));
-        check("matcher respects eventId", !m.matches(Map.of("eventId", "item_turned_in", "entity", "minecraft:zombie")));
+        check("matcher succeeds", m.matches(Map.of(
+                "eventId", "entity_killed", "entity", "minecraft:zombie")));
+        check("matcher fails wrong entity", !m.matches(Map.of(
+                "eventId", "entity_killed", "entity", "minecraft:skeleton")));
+        check("matcher fails missing predicate", !m.matches(Map.of("eventId", "entity_killed")));
+        check("matcher fails missing required eventId",
+                !m.matches(Map.of("entity", "minecraft:zombie")));
+        check("matcher respects eventId", !m.matches(Map.of(
+                "eventId", "item_turned_in", "entity", "minecraft:zombie")));
 
         KamuCatalog catalog = KamuCatalog.defaults();
         Resolver r = new Resolver(catalog, ReactionEngine.defaults());
@@ -223,6 +230,11 @@ public final class KamuTotemsTest {
         check("tier 2 scaling valid", scaledRes.valid());
         double scaledPower = scaledRes.effects().get(0).parameters().get("power");
         check("tier 2 scaled parameter", Math.abs(scaledPower - 16.0) < 0.001);
+
+        Construct tierZero = new Construct(HostType.TOTEM, mods(new Slot("fire", 0)));
+        check("tier zero is rejected", !scaled.resolve(tierZero, context(), 1L).valid());
+        Construct tierFour = new Construct(HostType.TOTEM, mods(new Slot("fire", 4)));
+        check("tier above max is rejected", !scaled.resolve(tierFour, context(), 1L).valid());
     }
 
     private static void reactionEngineTests() {
@@ -253,7 +265,8 @@ public final class KamuTotemsTest {
         ReactionEngine looper = new ReactionEngine(List.of(loop), 4);
         Context tagged = new Context("p:1", "t", Set.of("z"), Set.of(), List.of(), 0L);
         ReactionOutcome looped = looper.react(List.of(new Effect("x", null, Map.of())), tagged);
-        check("depth cap truncates", looped.truncated());
+        check("depth cap permits exactly four applications", looped.firedRuleIds().size(), 4);
+        check("depth cap truncates when a fifth match remains", looped.truncated());
 
         ReactionOutcome none = engine.react(List.of(new Effect("blink", null, Map.of())), context());
         check("no reaction for unpaired effect", none.firedRuleIds().isEmpty());

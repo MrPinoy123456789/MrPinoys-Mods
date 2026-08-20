@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/** A deterministic set of kamu carried by a boss of the given tier. */
 public record BossRoll(int tier, List<String> kamuIds) {
 
+    /** Selects distinct boss-eligible kamu reproducibly from the supplied seed. */
     public static BossRoll forSeed(long seed, int tier, KamuCatalog catalog) {
         if (catalog == null) {
             return new BossRoll(tier, List.of());

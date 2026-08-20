@@ -25,6 +25,7 @@ public final class BountyCommands {
 
     private BountyCommands() {}
 
+    /** Registers board display, acceptance, abandonment, help, and reload commands. */
     public static void register(BountyConfig config, BountyState state) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
                 dispatcher.register(Commands.literal("bounty")

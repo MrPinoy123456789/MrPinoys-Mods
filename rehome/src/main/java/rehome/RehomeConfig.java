@@ -32,6 +32,7 @@ public final class RehomeConfig {
 
     private RehomeConfig() {}
 
+    /** Loads {@code rehome.json}, creating it only when it does not yet exist. */
     public static void load(Path configDir) {
         Path file = configDir.resolve("rehome.json");
         try {

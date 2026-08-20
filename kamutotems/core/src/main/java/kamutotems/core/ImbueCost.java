@@ -1,5 +1,6 @@
 package kamutotems.core;
 
+/** Looks up tier-indexed imbue and removal costs from caller-supplied tables. */
 public final class ImbueCost {
 
     public static int imbue(int tier, int[] table) {

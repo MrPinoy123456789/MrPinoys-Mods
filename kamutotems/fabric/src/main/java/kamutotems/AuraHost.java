@@ -131,6 +131,7 @@ public final class AuraHost {
         }
     }
 
+    /** Advances aura timers and meters for every online player and tracked boss. */
     private static void tick(MinecraftServer server) {
         int now = server.getTickCount();
 
@@ -239,6 +240,7 @@ public final class AuraHost {
         }
     }
 
+    /** Applies a ready Rebuke aura to the attacker after its bearer takes damage. */
     private static void onHurt(LivingEntity victim, DamageSource source,
                                float baseDamageTaken, float newDamageTaken,
                                boolean blocked) {

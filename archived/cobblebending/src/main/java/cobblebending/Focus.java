@@ -31,6 +31,7 @@ public final class Focus {
 
     private Focus() {}
 
+    /** Builds a stamped, non-stackable hurl focus with its long-use animation. */
     public static ItemStack hurl() {
         ItemStack stack = new ItemStack(Items.FIREWORK_STAR, 1);
         stack.set(DataComponents.ITEM_NAME, Component.literal("Hurl Focus").withStyle(ChatFormatting.GRAY));
@@ -47,6 +48,7 @@ public final class Focus {
         return stack;
     }
 
+    /** Builds a stamped, non-stackable wall focus with its long-use animation. */
     public static ItemStack wall() {
         ItemStack stack = new ItemStack(Items.HEART_OF_THE_SEA, 1);
         stack.set(DataComponents.ITEM_NAME, Component.literal("Wall Focus").withStyle(ChatFormatting.AQUA));
@@ -80,6 +82,7 @@ public final class Focus {
         return WALL.equals(kind(stack));
     }
 
+    /** Restores use components on older or hand-edited focus stacks when necessary. */
     public static void ensureConsumable(ItemStack stack) {
         if (is(stack) && !stack.has(DataComponents.CONSUMABLE)) {
             String k = kind(stack);

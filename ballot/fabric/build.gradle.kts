@@ -49,6 +49,23 @@ tasks.processResources {
     }
 }
 
+// Persistence tests are plain Java so they can exercise real filesystem failures
+// without starting a Minecraft server.
+tasks.test {
+    enabled = false
+}
+
+tasks.register<JavaExec>("persistenceTest") {
+    group = "verification"
+    description = "Runs poll persistence regression tests."
+    mainClass = "ballot.mc.PollStoreTest"
+    classpath = sourceSets["test"].runtimeClasspath
+}
+
+tasks.named("check") {
+    dependsOn("persistenceTest")
+}
+
 val distDir = rootProject.projectDir.parentFile.resolve("dist")
 
 tasks.register<Copy>("dist") {

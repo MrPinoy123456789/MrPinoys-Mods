@@ -26,6 +26,10 @@ public final class Deaths {
         ServerLivingEntityEvents.ALLOW_DEATH.register(Deaths::allowDeath);
     }
 
+    /**
+     * Fabric death gate that returns {@code false} only when a charged stone has
+     * successfully captured the otherwise-lethal wolf.
+     */
     private static boolean allowDeath(LivingEntity entity, DamageSource damageSource, float amount) {
         if (!(entity instanceof Wolf wolf) || !(entity.level() instanceof ServerLevel level)) {
             return true;

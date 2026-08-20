@@ -8,15 +8,10 @@ import net.minecraft.nbt.CompoundTag;
 import java.util.UUID;
 
 /**
- * SPEC.md section 12.1's task shape. Nothing in the mod constructs one of
- * these yet -- no request type is built -- but the registry that will hold
- * them ships now (SPEC.md section 16 step 7), so the first request type is a
- * feature, not an architecture change.
- *
- * <p>{@code type} is a plain string rather than an enum because SPEC.md
- * section 12.3's concrete types (fetch, delivery, quarry, decor, visit,
- * games) don't exist yet; an enum with no members to build against would
- * just be premature.
+ * SPEC.md section 12.1's persisted task shape. Fetch requests currently use
+ * this record from offer through completion; the string {@code type} keeps
+ * the registry forward-compatible with the additional request types planned
+ * in SPEC.md section 12.3.
  */
 public record Task(UUID taskId, UUID issuer, UUID assignee, String type, CompoundTag payload,
                     long issuedTick, long expiresTick, TaskState state) {

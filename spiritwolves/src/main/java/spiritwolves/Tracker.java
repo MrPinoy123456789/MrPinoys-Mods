@@ -1,6 +1,6 @@
 package spiritwolves;
 
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -61,20 +61,22 @@ public final class Tracker {
         // Logout: recall any wolf the player has out. Prevents an orphaned wolf
         // with no online owner to decrement charges on death.
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            recallSilently(handler.player);
-            lastDimension.remove(handler.player.getUUID());
+            recallSilently(handler.getPlayer());
+            lastDimension.remove(handler.getPlayer().getUUID());
         });
 
         // Login: the chunk may have been saved while the wolf was out, then
         // reloaded from disk on the next join. Reconcile record.summoned with
         // the real world state before the player interacts with the stone.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                reconcile(handler.player));
+                reconcile(handler.getPlayer()));
 
         // Owner death: recall silently before the death resolves, rather than
         // leave an ownerless wolf fighting on at the death site.
-        ServerPlayerEvents.ALLOW_DEATH.register((player, damageSource, amount) -> {
-            recallSilently(player);
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, amount) -> {
+            if (entity instanceof ServerPlayer player) {
+                recallSilently(player);
+            }
             return true;
         });
     }

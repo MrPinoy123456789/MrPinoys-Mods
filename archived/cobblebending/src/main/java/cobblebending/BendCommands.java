@@ -18,6 +18,7 @@ public final class BendCommands {
 
     private BendCommands() {}
 
+    /** Registers the operator-only give, reload, and cleanup command branches. */
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
                 dispatcher.register(Commands.literal("cobblebending")

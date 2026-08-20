@@ -27,6 +27,7 @@ public final class DialogRouter {
 
     private DialogRouter() {}
 
+    /** Validates and dispatches one namespaced custom-click payload from the packet mixin. */
     public static void handle(ServerPlayer player, Identifier id, Optional<Tag> payload) {
         Orchestrator orchestrator = QuizMod.orchestrator();
         if (orchestrator == null) {

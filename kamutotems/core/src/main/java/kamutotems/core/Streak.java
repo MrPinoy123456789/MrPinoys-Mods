@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Pure date-based transitions and reward calculations for daily quest streaks. */
 public final class Streak {
 
     public static StreakState onComplete(StreakState prev, String todayKey) {

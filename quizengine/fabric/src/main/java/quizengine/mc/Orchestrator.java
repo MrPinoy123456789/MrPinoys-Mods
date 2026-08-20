@@ -69,6 +69,7 @@ public final class Orchestrator {
 
     // ---- the tick loop ----------------------------------------------------
 
+    /** Samples activity, drains queued audio, and advances or auto-starts rounds at their deadlines. */
     public void tick(MinecraftServer server) {
         Jingles.tick(server);
         int now = server.getTickCount();

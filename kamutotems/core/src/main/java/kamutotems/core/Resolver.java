@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Validates a construct, scales its modifiers by tier, and runs the resulting effects through reactions. */
 public final class Resolver {
 
     private static final double[] TIER_MULT = { 1.0, 1.6, 2.5 };
@@ -17,6 +18,7 @@ public final class Resolver {
         this.reactions = reactions;
     }
 
+    /** Resolves a construct into ordered delivery effects or the first player-facing validation fault. */
     public ResolutionResult resolve(Construct construct, Context context, long seed) {
         List<String> faults = new ArrayList<>();
 
@@ -43,6 +45,10 @@ public final class Resolver {
         for (int i = 0; i < all.size(); i++) {
             Slot s = all.get(i);
             if (s == null) {
+                continue;
+            }
+            if (s.tier() < 1 || s.tier() > Slot.MAX_TIER) {
+                faults.add("One of these spirits has an invalid tier.");
                 continue;
             }
             Kamu k = catalog.get(s.kamuId());

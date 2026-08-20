@@ -40,6 +40,7 @@ final class DungeonCommands {
 
     private DungeonCommands() {}
 
+    /** Registers player-facing dungeon commands and the operator diagnostics subtree. */
     static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
             dispatcher.register(Commands.literal("dungeon")
@@ -502,7 +503,7 @@ final class DungeonCommands {
         RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest);
         if (result.plan() != null) {
             DungeonPlan plan = result.plan();
-            List<String> problems = RoomSelector.validate(plan);
+            List<String> problems = RoomSelector.validate(plan, PocketDungeonsConfig.maxGridSpan());
             if (!problems.isEmpty()) {
                 source.sendFailure(Component.literal(
                         "Plan resolved for seed " + seed + " but failed validation: "
@@ -547,7 +548,8 @@ final class DungeonCommands {
             LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                     i, manifest, PocketDungeonsConfig.planAttemptBudget(),
                     PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
-                    PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability());
+                    PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                    PocketDungeonsConfig.maxGridSpan());
             totalAttempts += outcome.attemptsUsed();
             if (outcome.succeeded()) {
                 succeeded++;

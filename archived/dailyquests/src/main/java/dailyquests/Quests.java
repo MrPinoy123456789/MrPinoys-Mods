@@ -91,6 +91,7 @@ public final class Quests {
         }
     }
 
+    /** Reloads the quest pool and settings, creating defaults when files are absent. */
     public void reload() {
         try {
             Files.createDirectories(dir);

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/** Immutable, insertion-ordered registry of all known kamu definitions. */
 public final class KamuCatalog {
     private final Map<String, Kamu> byId;
 

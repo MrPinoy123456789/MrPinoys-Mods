@@ -121,6 +121,7 @@ public final class WondrousCommands {
                     .then(listBranch)
                     .then(helpBranch)
                     .then(giveBranch)
+                    .then(linksBranch)
                     .then(confirmVoidBranch)
                     .then(cancelVoidBranch);
 

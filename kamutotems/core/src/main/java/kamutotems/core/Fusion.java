@@ -1,7 +1,9 @@
 package kamutotems.core;
 
+/** Pure fusion rules for combining two matching kamu slots into the next tier. */
 public final class Fusion {
 
+    /** Attempts to fuse two same-id, same-tier slots without mutating either input. */
     public static FusionResult fuse(Slot a, Slot b) {
         if (a == null || b == null) {
             return new FusionResult(false, null, "Two spirits are required to fuse.");

@@ -115,8 +115,7 @@ public final class ItemBank {
 
         for (int i = 0; i < plan.length; i++) {
             if (plan[i] <= 0) continue;
-            int slot = slots.get(i);
-            ItemStack stack = inv.getItem(slot);
+            ItemStack stack = inv.getItem(slots.get(i));
 
             // Re-check the slot rather than trusting the snapshot. Commands run on the
             // server thread so nothing should have moved, but this is the one place
@@ -126,6 +125,12 @@ public final class ItemBank {
                         player.getName().getString());
                 return false;
             }
+        }
+
+        for (int i = 0; i < plan.length; i++) {
+            if (plan[i] <= 0) continue;
+            int slot = slots.get(i);
+            ItemStack stack = inv.getItem(slot);
             stack.shrink(plan[i]);
             if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
         }

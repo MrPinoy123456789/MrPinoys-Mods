@@ -29,6 +29,7 @@ public final class BountyConfig {
         this.dir = dir;
     }
 
+    /** Reloads the bounty registry and holding limit, creating defaults when absent. */
     public void reload() {
         try {
             Files.createDirectories(dir);

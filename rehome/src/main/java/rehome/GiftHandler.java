@@ -31,10 +31,15 @@ public final class GiftHandler {
 
     private GiftHandler() {}
 
+    /** Registers the server-side villager interaction callback. */
     public static void register() {
         UseEntityCallback.EVENT.register(GiftHandler::onUseEntity);
     }
 
+    /**
+     * Intercepts eligible gift and owner-emerald interactions, while passing all
+     * unrelated clicks through to vanilla or later Fabric listeners.
+     */
     private static InteractionResult onUseEntity(Player player, net.minecraft.world.level.Level level,
                                                   InteractionHand hand, Entity target, EntityHitResult hitResult) {
         if (!(player instanceof ServerPlayer serverPlayer) || !(level instanceof ServerLevel serverLevel)) {

@@ -13,10 +13,10 @@ import org.slf4j.LoggerFactory;
  * Entrypoint. Server-side only -- {@code /dungeon} builds a private instance in
  * a void dimension, {@code /dungeon exit} tears it down and sends you home.
  *
- * <p>Milestone 0 (this build) is a fixed four-room dungeon stamped from code:
- * skeleton, zombie, chest, exit. It exists to prove the dimension, allocation,
- * build, teleport, and teardown loop end to end. The procedural planner from
- * the spec replaces {@link StaticLayout} later; nothing else has to change.
+ * <p>The live build plans a seeded room graph from the configured path, branch,
+ * loop, retry, and span limits, resolves it against the room manifest, and stamps
+ * the result into an allocated slot. {@link StaticLayout} remains the fallback
+ * when procedural planning cannot produce a valid build.
  */
 public final class PocketDungeonsMod implements ModInitializer {
 
