@@ -38,10 +38,11 @@ document, not the sixth step of this one, and it is untouched.
 | **U3** — tiered loot & scaled mobs | ✅ shipped, verified, **hardened twice** | `DifficultyProfile`, mob spawning, chest retargeting, loot tables, boss stones, `/dungeon party` |
 | **U4** — lodestone ritual | ✅ shipped | `RitualListener`, `ConfiguredItem`, `Instances.enter` returns boolean. Config paths verified live; **every right-click path is client-only and unverified** |
 | **U5** — dungeon log & payout | ✅ shipped | `DungeonLog` (`SavedData`), `Payout`, `PayoutMath` + test, `ExitReason`, `/dungeon log`. Streaks and persistence verified live; **every in-dungeon payout path is client-only and unverified** |
-| **U6** — trial-chambers rework | ⬜ not started | separate update, depends on U1/U2, touches U4 and U5 at one point each |
+| **U6** — trial-chambers rework | ✅ shipped | trial spawners, vaults, the key loop, ominous runs. Data + block config verified live; **every fight, key and vault interaction is client-only and unverified** |
+| **U7** — keystones (Mythic+ meta) | ✅ shipped | `Keystone`, `Keystones`, `KeystoneMath` + test, `RunTimer`, three choice vaults, depletion at all four exit sites. Tiers/ominous/vault-config verified live; **the whole player loop is client-only and unverified** |
 
-**All five milestones of this update are code-complete.** What remains before
-calling it shippable is a real client walkthrough — see below.
+**All seven milestones are code-complete.** What remains before calling any of it
+shippable is a real client walkthrough — see below.
 
 ## Git state
 
@@ -50,13 +51,66 @@ the two hardening passes). The prior handoff note claiming nothing was
 committed was stale by the time it was read; check `git log` rather than
 trusting a handoff on this.
 
-U4 and U5 are **not** committed — `git status --short` shows five new files
+U4, U5, U6 and U7 are **not** committed — `git status --short` shows five new files
 (`RitualListener`, `ConfiguredItem`, `DungeonLog`, `Payout`, `PayoutMath`), one
 new test (`PayoutMathTest`), and edits to `Instances`, `DungeonCommands`,
 `PocketDungeonsMod`, `build.gradle.kts`, plus the three docs. Commits happen
 only on explicit request per this project's working agreement — ask first.
 
-## What just happened before this handoff
+## What just happened before this handoff — U6 and U7
+
+Both were built in one session, in the order the task set: **every new config
+field first** (18 of them, U6's and U7's together, so three features would not
+churn `apply`/`defaultsJson` in sequence), **then the ominous spike**, then U6,
+then U7.
+
+**The spike passed, and it was worth running first.** `TrialSpawnerBlock`'s
+server ticker reads `BlockStateProperties.OMINOUS` off the blockstate every tick
+and hands it straight to `TrialSpawner.tickServer`, which assigns it to
+`isOminous` unconditionally — no player, no effect, no structure involved. Held
+in-world for ten seconds of ticking with nobody in any dimension. So the mod
+stamps ominous itself and never depends on vanilla noticing a Trial Omen, which
+is what the whole ominous half rests on.
+
+**Three deviations worth knowing before touching this code again** (the full
+list is in each milestone's `Shipped:` section):
+
+1. **Spawners and vaults are placed at stamp time, not authored into the
+   `.nbt`s.** The room library was **not** regenerated — its 14 files, 53/53
+   coverage and 200/200 plan success are byte-identical to what U1 shipped. The
+   rotation-safety §3 demanded is still satisfied because both anchors come from
+   rotation-transformed sources (a `pocketdungeons:spawn` jigsaw, an authored
+   chest's placed position), never from an offset off `cellOrigin`.
+2. **One key kind per run.** The plan wanted `loot <= encounter` to hold *per
+   key kind*. It cannot, cheaply: `ominousAt` is a function of depth, so a plain
+   run contains both plain and ominous cells and therefore two key types with no
+   guarantee either balances. The key became a run-level property instead (with
+   one new data file per tier, `ominous_plain_key.json`), which makes the global
+   count sufficient exactly as written. **Found in-world on the first headless
+   pass, not in review.**
+3. **Reaching the exit pad no longer ejects you.** It completes the run — pay,
+   log, hand over the token — and the *second* pad contact leaves. Forced by U7
+   putting three vaults in the exit room; before this the token would have
+   arrived in the overworld with the vaults left behind. This is the one shipped,
+   client-tested behaviour U7 changes, and `/dungeon admin build` runs (no
+   keystone) keep the old single-contact behaviour.
+
+**Two ordering bugs were found by tracing rather than testing**, both in the same
+place and both now fixed: a player who completed the run and then typed
+`/dungeon exit` to walk out of the exit room was charged `depletionOnExit`, and
+one killed by a leftover mob in that room was charged `depletionOnDeath` — after
+finishing. `Instances.returnKeystone` now upgrades any non-`SERVER` outcome to
+the completion outcome once that member is in `record.completed`.
+
+**Also worth not re-discovering:** a misspelt trial-spawner config id does **not**
+throw. The codec drops the field and the block silently keeps
+`FullConfig.DEFAULT`. That is why `admin cellreport` reads the ids back out of
+the block entity rather than trusting the write. And `VaultServerData.
+getRewardedPlayers()` is package-private, so the vault-claim check goes through
+`saveWithoutMetadata` + `UUIDUtil.CODEC_LINKED_SET` on `server_data.
+rewarded_players` instead.
+
+## What happened in the session before that
 
 U4 and U5 were both built in one session.
 
@@ -165,17 +219,32 @@ chasing a phantom save failure here; don't repeat it.
 
 ## What to do next
 
-Two candidates, in rough priority order:
+**A real client walkthrough is now the only thing left, and it is overdue.**
+`CLIENT_TEST_CHECKLIST.md` sections 15–43 are written and unrun — that is all of
+U4, most of U5, and effectively all of U6 and U7's player-facing behaviour. Every
+user-reported bug on this mod so far came from exactly the paths a console
+session cannot reach, and U6/U7 added a great many of them (right-clicking a
+lodestone, holding an item, standing near a spawner, opening a vault).
 
-1. **A real client walkthrough of U4 and U5.** `CLIENT_TEST_CHECKLIST.md`
-   sections 15–25 are written and unrun. Given that every user-reported bug on
-   this mod so far came from exactly the paths a console session cannot reach,
-   this is the highest-value next step and the thing standing between "code
-   complete" and "shippable".
-2. **U6, the trial-chambers rework** (`UPDATE_PLAN.md`, search for `## U6`). A
-   second update sharing the document. It supersedes most of U3's difficulty
-   machinery and touches U4 (an ominous-bottle ritual branch) and U5 (an ominous
-   payout multiplier) at one point each.
+Suggested order, highest risk first:
+
+1. **Section 40.4 — disconnect mid-run, restart the server, log back in.** The
+   pending keystone is the only new persistent state in either milestone, and its
+   failure mode is a silently lost keystone rather than a visible error.
+2. **Section 37 — three offers, one token.** The claim that vanilla seals the
+   other two vaults is load-bearing and rests on `isSameItemSameComponents`. The
+   components were verified to survive being written into the vault config; that
+   they actually *match* the token in a player's hand has only been reasoned
+   about.
+3. **Section 31 — Trial Omen must not leave the dungeon**, by all three exits.
+   It is the one effect this mod can export into the real world.
+4. **Section 26's warning — no creepers, ever.** A creeper in a sealed cell is a
+   hole into the void, which is M0's one hard safety contract.
+
+After that: nothing in `UPDATE_PLAN.md` is unimplemented. The open ideas it
+records as *decisions* rather than gaps are vanilla chamber pieces as whole
+arenas (a second instance model, not a room source), affixes beyond ominous and
+fragile, and maces/heavy cores from `tier_3_ominous`.
 
 Also outstanding from a previous session: a fix to `kamutotems`'s
 `KamuForge.java` (deferring the Fusion panel's hub reopen to the next

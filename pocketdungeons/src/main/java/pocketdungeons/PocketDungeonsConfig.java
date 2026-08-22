@@ -61,6 +61,28 @@ public final class PocketDungeonsConfig {
     private static int streakBonusCapPercent = 100;
     private static String payoutCommand = "";
 
+    // ---- trials (U6) --------------------------------------------------------
+    private static boolean trialsEnabled = true;
+    private static String vaultKeyItem = "minecraft:trial_key";
+    private static String ominousVaultKeyItem = "minecraft:ominous_trial_key";
+    private static boolean ominousRequiresBottle = true;
+    private static int ominousPayoutPercent = 150;
+    private static int trialSpawnerCooldownTicks = 36000;
+
+    // ---- keystones (U7) -----------------------------------------------------
+    private static String keystoneItem = "minecraft:trial_key";
+    private static String keystoneTokenItem = "minecraft:trial_key";
+    private static int keystoneMaxLevel = 25;
+    private static int depletionOnDeath = 2;
+    private static int depletionOnExit = 1;
+    private static int depletionOnDisconnect = 3;
+    private static int overtimeDepletion = 0;
+    private static boolean timerEnabled = true;
+    private static int timerBaseSeconds = 180;
+    private static int timerPerRoomSeconds = 60;
+    private static int payoutPerLevelPercent = 5;
+    private static int ominousFromLevel = 10;
+
     private PocketDungeonsConfig() {}
 
     /** Loads and validates every registry setting, preserving an unreadable file for manual repair. */
@@ -192,6 +214,78 @@ public final class PocketDungeonsConfig {
         return payoutCommand;
     }
 
+    public static boolean trialsEnabled() {
+        return trialsEnabled;
+    }
+
+    public static String vaultKeyItem() {
+        return vaultKeyItem;
+    }
+
+    public static String ominousVaultKeyItem() {
+        return ominousVaultKeyItem;
+    }
+
+    public static boolean ominousRequiresBottle() {
+        return ominousRequiresBottle;
+    }
+
+    public static int ominousPayoutPercent() {
+        return ominousPayoutPercent;
+    }
+
+    public static int trialSpawnerCooldownTicks() {
+        return trialSpawnerCooldownTicks;
+    }
+
+    public static String keystoneItem() {
+        return keystoneItem;
+    }
+
+    public static String keystoneTokenItem() {
+        return keystoneTokenItem;
+    }
+
+    public static int keystoneMaxLevel() {
+        return keystoneMaxLevel;
+    }
+
+    public static int depletionOnDeath() {
+        return depletionOnDeath;
+    }
+
+    public static int depletionOnExit() {
+        return depletionOnExit;
+    }
+
+    public static int depletionOnDisconnect() {
+        return depletionOnDisconnect;
+    }
+
+    public static int overtimeDepletion() {
+        return overtimeDepletion;
+    }
+
+    public static boolean timerEnabled() {
+        return timerEnabled;
+    }
+
+    public static int timerBaseSeconds() {
+        return timerBaseSeconds;
+    }
+
+    public static int timerPerRoomSeconds() {
+        return timerPerRoomSeconds;
+    }
+
+    public static int payoutPerLevelPercent() {
+        return payoutPerLevelPercent;
+    }
+
+    public static int ominousFromLevel() {
+        return ominousFromLevel;
+    }
+
     private static void applyDefaults() {
         slotPitch = 2048;
         slotsPerRow = 64;
@@ -222,6 +316,26 @@ public final class PocketDungeonsConfig {
         streakBonusPercent = 10;
         streakBonusCapPercent = 100;
         payoutCommand = "";
+
+        trialsEnabled = true;
+        vaultKeyItem = "minecraft:trial_key";
+        ominousVaultKeyItem = "minecraft:ominous_trial_key";
+        ominousRequiresBottle = true;
+        ominousPayoutPercent = 150;
+        trialSpawnerCooldownTicks = 36000;
+
+        keystoneItem = "minecraft:trial_key";
+        keystoneTokenItem = "minecraft:trial_key";
+        keystoneMaxLevel = 25;
+        depletionOnDeath = 2;
+        depletionOnExit = 1;
+        depletionOnDisconnect = 3;
+        overtimeDepletion = 0;
+        timerEnabled = true;
+        timerBaseSeconds = 180;
+        timerPerRoomSeconds = 60;
+        payoutPerLevelPercent = 5;
+        ominousFromLevel = 10;
     }
 
     private static void apply(JsonObject root) {
@@ -267,6 +381,31 @@ public final class PocketDungeonsConfig {
         streakBonusCapPercent = readInt(root, "streakBonusCapPercent", 100,
                 v -> v >= 0, "must be >= 0");
         payoutCommand = readString(root, "payoutCommand", "", true);
+
+        trialsEnabled = readBoolean(root, "trialsEnabled", true);
+        vaultKeyItem = readString(root, "vaultKeyItem", "minecraft:trial_key", false);
+        ominousVaultKeyItem = readString(root, "ominousVaultKeyItem",
+                "minecraft:ominous_trial_key", false);
+        ominousRequiresBottle = readBoolean(root, "ominousRequiresBottle", true);
+        ominousPayoutPercent = readInt(root, "ominousPayoutPercent", 150,
+                v -> v >= 100, "must be >= 100");
+        trialSpawnerCooldownTicks = readInt(root, "trialSpawnerCooldownTicks", 36000,
+                v -> v >= 0, "must be >= 0");
+
+        keystoneItem = readString(root, "keystoneItem", "minecraft:trial_key", false);
+        keystoneTokenItem = readString(root, "keystoneTokenItem", "minecraft:trial_key", false);
+        keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 25, v -> v >= 1, "must be >= 1");
+        depletionOnDeath = readInt(root, "depletionOnDeath", 2, v -> v >= 0, "must be >= 0");
+        depletionOnExit = readInt(root, "depletionOnExit", 1, v -> v >= 0, "must be >= 0");
+        depletionOnDisconnect = readInt(root, "depletionOnDisconnect", 3,
+                v -> v >= 0, "must be >= 0");
+        overtimeDepletion = readInt(root, "overtimeDepletion", 0, v -> v >= 0, "must be >= 0");
+        timerEnabled = readBoolean(root, "timerEnabled", true);
+        timerBaseSeconds = readInt(root, "timerBaseSeconds", 180, v -> v >= 0, "must be >= 0");
+        timerPerRoomSeconds = readInt(root, "timerPerRoomSeconds", 60, v -> v >= 0, "must be >= 0");
+        payoutPerLevelPercent = readInt(root, "payoutPerLevelPercent", 5,
+                v -> v >= 0, "must be >= 0");
+        ominousFromLevel = readInt(root, "ominousFromLevel", 10, v -> v >= 1, "must be >= 1");
     }
 
     private static int readInt(JsonObject root, String key, int defaultValue,
@@ -389,6 +528,26 @@ public final class PocketDungeonsConfig {
         root.addProperty("streakBonusPercent", 10);
         root.addProperty("streakBonusCapPercent", 100);
         root.addProperty("payoutCommand", "");
+
+        root.addProperty("trialsEnabled", true);
+        root.addProperty("vaultKeyItem", "minecraft:trial_key");
+        root.addProperty("ominousVaultKeyItem", "minecraft:ominous_trial_key");
+        root.addProperty("ominousRequiresBottle", true);
+        root.addProperty("ominousPayoutPercent", 150);
+        root.addProperty("trialSpawnerCooldownTicks", 36000);
+
+        root.addProperty("keystoneItem", "minecraft:trial_key");
+        root.addProperty("keystoneTokenItem", "minecraft:trial_key");
+        root.addProperty("keystoneMaxLevel", 25);
+        root.addProperty("depletionOnDeath", 2);
+        root.addProperty("depletionOnExit", 1);
+        root.addProperty("depletionOnDisconnect", 3);
+        root.addProperty("overtimeDepletion", 0);
+        root.addProperty("timerEnabled", true);
+        root.addProperty("timerBaseSeconds", 180);
+        root.addProperty("timerPerRoomSeconds", 60);
+        root.addProperty("payoutPerLevelPercent", 5);
+        root.addProperty("ominousFromLevel", 10);
         return root;
     }
 }

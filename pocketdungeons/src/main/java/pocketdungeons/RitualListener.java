@@ -12,9 +12,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
@@ -23,29 +22,37 @@ import net.minecraft.world.phys.BlockHitResult;
  * The lodestone ritual: right-click a lodestone holding the key item and the
  * dungeon opens, with no command typed.
  *
- * <p>{@code /dungeon} stays available and free. This is a flavour entry point
- * and a soft item sink, not a gate -- making it the only way in would turn a
- * faucet into a locked door, which is the opposite of what the dungeon is for.
+ * <h2>U7 inverts the key rule</h2>
+ *
+ * <p>U4's rule was "consume only a stack with <em>no</em> {@code custom_data} at
+ * all", which was right when the key was a plain echo shard and the danger was
+ * eating somebody's kamutotems sigil. It is now the exact opposite: consume
+ * <strong>only</strong> a stack carrying {@code pocketdungeons.keystone}, and
+ * {@code PASS} on everything else -- sigils included, for exactly U4's reasoning,
+ * and now for free, because the test is positive rather than a list of things to
+ * avoid. Lodestone plus keystone is the font.
+ *
+ * <p>An ominous bottle in the other hand -- or a keystone carrying the ominous
+ * affix -- starts an ominous run instead (U6 Stage 5).
+ *
+ * <p>{@code /dungeon} still works and still costs the same keystone. This is a
+ * flavour entry point, not a gate: it is the <em>lodestone</em> that is optional,
+ * never the key.
  */
 final class RitualListener {
-
-    private static final ConfiguredItem KEY = new ConfiguredItem("ritualKeyItem",
-            PocketDungeonsConfig::ritualKeyItem,
-            "the lodestone ritual is disabled until it is fixed. /dungeon still works.");
 
     private RitualListener() {}
 
     static void register() {
         UseBlockCallback.EVENT.register(RitualListener::onUseBlock);
 
-        // Resolve the configured key once at startup rather than only on the
-        // first click. A typo in ritualKeyItem is an operator's mistake to hear
-        // about at boot, not something a player discovers by right-clicking a
-        // lodestone and having nothing happen.
+        // Resolve every configured item once at startup rather than on the first
+        // click. A typo is an operator's mistake to hear about at boot, not
+        // something a player discovers by right-clicking a lodestone and having
+        // nothing happen.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            if (PocketDungeonsConfig.ritualEnabled()) {
-                KEY.get();
-            }
+            Keystone.warmUp();
+            TrialContent.warmUp();
         });
     }
 
@@ -84,48 +91,55 @@ final class RitualListener {
             return InteractionResult.PASS;
         }
 
-        Item key = KEY.get();
-        if (key == null) {
-            return InteractionResult.PASS;
-        }
+        // The positive test that replaced U4's "no custom_data at all". A
+        // kamutotems sigil is not a keystone, so it PASSes here and the event
+        // chain continues to kamutotems' own use handler untouched -- the exact
+        // outcome U4 wanted, reached by a rule that cannot be wrong about a tagged
+        // item nobody has written yet.
         ItemStack held = player.getItemInHand(hand);
-        if (!held.is(key) || held.getCount() < PocketDungeonsConfig.ritualKeyCount()) {
+        if (!Keystone.isKeystone(held)) {
             return InteractionResult.PASS;
         }
-        // The rule, not a kamutotems special case: the ritual only ever consumes
-        // a stack carrying no custom_data at all. kamutotems sigils and this mod's
-        // own boss stones are both echo shards with a custom_data tag, and the
-        // default key item is an echo shard -- so without this, opening a dungeon
-        // would destroy someone's sigil. PASS rather than FAIL so the event chain
-        // continues and kamutotems' own use handler still gets its turn.
-        if (!isPlainKey(held)) {
-            return InteractionResult.PASS;
-        }
+
+        // An ominous bottle in the off hand buys the stakes. The bottle is checked
+        // rather than consumed here; consumeOminousBottle runs only after entry
+        // succeeded, on the same rule the keystone follows.
+        boolean bottle = hasOminousBottle(serverPlayer);
 
         // Ahead of entry, so the player who is about to be teleported away is
         // still here to hear it.
         level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
 
-        // Consume only on success. enter() has failure paths -- missing dimension,
-        // a stamp that could not be placed -- that leave the player exactly where
-        // they stood, and eating a real item on those is a real loss.
-        if (!Instances.enter(serverPlayer)) {
+        // Consume only on success. enterWithKeystone() has failure paths --
+        // missing dimension, a stamp that could not be placed -- that leave the
+        // player exactly where they stood, and eating a keystone somebody spent
+        // several runs earning on one of those is a real loss.
+        if (!Instances.enterWithKeystone(serverPlayer, bottle)) {
             return InteractionResult.PASS;
         }
-        held.shrink(PocketDungeonsConfig.ritualKeyCount());
+        if (bottle) {
+            consumeOminousBottle(serverPlayer);
+        }
         serverPlayer.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
         return InteractionResult.SUCCESS_SERVER;
     }
 
     /**
-     * A key is a stack with no {@code custom_data} whatsoever. Narrowing this to
-     * "no kamutotems compound" would be the same amount of code and would be
-     * wrong about every tagged item nobody has written yet.
+     * Whether this player is offering an ominous bottle.
+     *
+     * <p>Off hand only, so the main hand stays free for the keystone and neither
+     * choice has to be made by juggling. {@code ominousRequiresBottle: false} lets
+     * an operator make the stakes free, in which case
+     * {@code /dungeon ominous} is the route and this stays the paid one.
      */
-    private static boolean isPlainKey(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        return data == null || data.isEmpty();
+    private static boolean hasOminousBottle(ServerPlayer player) {
+        ItemStack offhand = player.getItemInHand(InteractionHand.OFF_HAND);
+        return offhand.is(Items.OMINOUS_BOTTLE) && offhand.get(DataComponents.CUSTOM_DATA) == null;
+    }
+
+    private static void consumeOminousBottle(ServerPlayer player) {
+        player.getItemInHand(InteractionHand.OFF_HAND).shrink(1);
     }
 }

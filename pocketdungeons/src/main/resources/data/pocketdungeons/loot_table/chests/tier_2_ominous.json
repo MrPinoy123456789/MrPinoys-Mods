@@ -244,6 +244,177 @@
           ]
         }
       ]
+    },
+    {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:diamond",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 2,
+                "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:emerald",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 4,
+                "max": 9
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_block",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:book",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "min": 20,
+                "max": 30
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_apple",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.55
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_custom_data",
+              "tag": "{kamutotems:{boss_stone:1}}"
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Boss Stone I",
+                "italic": false,
+                "color": "light_purple"
+              },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Grip it and a trial finds you.",
+                  "italic": true,
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_custom_data",
+              "tag": "{kamutotems:{boss_stone:2}}"
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Boss Stone II",
+                "italic": false,
+                "color": "light_purple"
+              },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Grip it and a trial finds you.",
+                  "italic": true,
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "minecraft:set_custom_data",
+              "tag": "{kamutotems:{boss_stone:3}}"
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Boss Stone III",
+                "italic": false,
+                "color": "light_purple"
+              },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Grip it and a trial finds you.",
+                  "italic": true,
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "random_sequence": "pocketdungeons:chests/tier_2_ominous"
 }

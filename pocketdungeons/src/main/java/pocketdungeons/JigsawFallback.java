@@ -5,7 +5,6 @@ import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -20,12 +19,20 @@ import net.minecraft.world.level.block.state.BlockState;
  * {@link net.minecraft.world.level.levelgen.structure.templatesystem.JigsawReplacementProcessor}
  * ran during placement.
  *
- * <p>The filter is by <em>namespace</em>, not by the {@code pocketdungeons:door}
- * name alone. Rooms also carry {@code pocketdungeons:spawn} jigsaws marking mob
- * spawn points, which the stamper reads out of the template and which must then
- * erase themselves exactly like doors do -- a name-only filter would leave them
- * standing in the finished dungeon. A jigsaw belonging to another mod is left
- * alone; it is not this pass's business.
+ * <p><strong>The filter is the bounds, not the name.</strong> It started as
+ * {@code pocketdungeons:door} only, widened to the {@code pocketdungeons}
+ * namespace when spawn jigsaws arrived (U1), and is now "any jigsaw block left
+ * standing inside a cell this mod just stamped". U6 borrows from vanilla's own
+ * trial-chamber vocabulary, and anything borrowed carries {@code minecraft:}-named
+ * jigsaws of its own ({@code minecraft:spawner}, {@code minecraft:reward_connector},
+ * {@code minecraft:ominous_vault}) which a namespace filter would leave behind --
+ * breaking M1's standing regression that a built instance contains
+ * <strong>zero</strong> {@code minecraft:jigsaw} blocks anywhere.
+ *
+ * <p>The bounds are the safety argument. This only ever runs over a
+ * {@code 16 x 7 x 16} cell the stamper wrote this tick, inside
+ * {@code pocketdungeons:void} -- there is no player-built jigsaw in there to
+ * destroy, and nothing outside those bounds is touched.
  */
 final class JigsawFallback {
 
@@ -41,10 +48,6 @@ final class JigsawFallback {
             }
             BlockEntity be = level.getBlockEntity(pos);
             if (!(be instanceof JigsawBlockEntity jigsaw)) {
-                continue;
-            }
-            Identifier name = jigsaw.getName();
-            if (name == null || !PocketDungeonsMod.MOD_ID.equals(name.getNamespace())) {
                 continue;
             }
             String finalState = jigsaw.getFinalState();

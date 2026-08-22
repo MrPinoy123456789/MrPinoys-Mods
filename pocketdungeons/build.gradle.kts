@@ -67,11 +67,19 @@ tasks.register<JavaExec>("payoutMathTest") {
     mainClass = "pocketdungeons.PayoutMathTest"
 }
 
+tasks.register<JavaExec>("keystoneMathTest") {
+    group = "verification"
+    description = "Runs the pure-Java keystone level, depletion and timer regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.KeystoneMathTest"
+}
+
 tasks.test {
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
     dependsOn("payoutMathTest")
+    dependsOn("keystoneMathTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false

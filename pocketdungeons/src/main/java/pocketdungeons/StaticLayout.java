@@ -47,6 +47,15 @@ final class StaticLayout {
      * firing at all means the planner or the room library needs looking at.
      */
     static InstanceLayout layout(BlockPos origin) {
+        return layout(origin, 0, false);
+    }
+
+    /**
+     * The fallback, carrying the run's keystone level and ominous flag so a player
+     * whose dungeon collapsed into the M0 four-room line is still paid and still
+     * handed their keystone back on the terms they paid for.
+     */
+    static InstanceLayout layout(BlockPos origin, int keystoneLevel, boolean ominous) {
         List<PlanCell> cells = new ArrayList<>(CELL_COUNT);
         for (int i = 0; i < CELL_COUNT; i++) {
             cells.add(new PlanCell(i, 0));
@@ -61,8 +70,11 @@ final class StaticLayout {
                 0L,
                 CELL_COUNT,
                 CELL_COUNT,
-                1,
-                false);
+                keystoneLevel > 0 ? KeystoneMath.lootTier(keystoneLevel) : 1,
+                false,
+                ominous,
+                keystoneLevel,
+                RoomBuilder.cellOrigin(origin, CELL_COUNT - 1, 0));
     }
 
     /** Where the player lands: centre of the first room, facing east down the run. */

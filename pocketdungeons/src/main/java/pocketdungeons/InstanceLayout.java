@@ -20,9 +20,18 @@ import net.minecraft.world.phys.AABB;
  *                     {@link Instances} for why the trigger is "standing on a
  *                     lodestone", which is template-agnostic and survives rotation
  * @param pathLength   critical-path length, the difficulty and tier input
- * @param lootTier     1..3, derived from {@code pathLength}
+ * @param lootTier     1..3, from the keystone level if there is one and from
+ *                     {@code pathLength} otherwise
  * @param procedural   false for the {@link StaticLayout} fallback, which is worth
  *                     being able to tell apart when a player reports a run
+ * @param ominous      the whole run is ominous: every cell was stamped that way,
+ *                     the payout is multiplied, and the member holds Trial Omen
+ *                     until they leave
+ * @param keystoneLevel the level of the keystone spent to open this run, or
+ *                     {@code 0} for a run nobody paid a keystone for
+ *                     ({@code /dungeon admin build})
+ * @param terminal     the terminal cell's floor corner, where U7's three choice
+ *                     vaults go
  */
 record InstanceLayout(
         BlockPos origin,
@@ -35,7 +44,10 @@ record InstanceLayout(
         int pathLength,
         int roomCount,
         int lootTier,
-        boolean procedural) {
+        boolean procedural,
+        boolean ominous,
+        int keystoneLevel,
+        BlockPos terminal) {
 
     /**
      * Yaw that faces from the entrance cell into the dungeon.
@@ -63,6 +75,6 @@ record InstanceLayout(
      */
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
-                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false);
+                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false, false, 0, origin);
     }
 }

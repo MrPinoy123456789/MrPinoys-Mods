@@ -18,6 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -49,6 +50,12 @@ final class DungeonCommands {
 
                     .then(Commands.literal("exit")
                             .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
+
+                    .then(Commands.literal("ominous")
+                            .executes(ctx -> enterOminous(ctx.getSource().getPlayerOrException())))
+
+                    .then(Commands.literal("key")
+                            .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException())))
 
                     .then(Commands.literal("party")
                             .then(Commands.argument("target", EntityArgument.player())
@@ -84,10 +91,26 @@ final class DungeonCommands {
                                     .executes(ctx -> list(ctx.getSource())))
 
                             .then(Commands.literal("build")
-                                    .executes(ctx -> build(ctx.getSource(), null))
+                                    .executes(ctx -> build(ctx.getSource(), null, 0, false))
                                     .then(Commands.argument("seed", LongArgumentType.longArg())
                                             .executes(ctx -> build(ctx.getSource(),
-                                                    LongArgumentType.getLong(ctx, "seed")))))
+                                                    LongArgumentType.getLong(ctx, "seed"), 0, false))
+                                            .then(Commands.argument("keystoneLevel",
+                                                            IntegerArgumentType.integer(0, 1000))
+                                                    .executes(ctx -> build(ctx.getSource(),
+                                                            LongArgumentType.getLong(ctx, "seed"),
+                                                            IntegerArgumentType.getInteger(
+                                                                    ctx, "keystoneLevel"), false))
+                                                    .then(Commands.argument("ominous",
+                                                                    com.mojang.brigadier.arguments
+                                                                            .BoolArgumentType.bool())
+                                                            .executes(ctx -> build(ctx.getSource(),
+                                                                    LongArgumentType.getLong(ctx, "seed"),
+                                                                    IntegerArgumentType.getInteger(
+                                                                            ctx, "keystoneLevel"),
+                                                                    com.mojang.brigadier.arguments
+                                                                            .BoolArgumentType.getBool(
+                                                                            ctx, "ominous")))))))
 
                             .then(Commands.literal("gentemplates")
                                     .executes(ctx -> generateTemplates(ctx.getSource())))
@@ -151,12 +174,80 @@ final class DungeonCommands {
     }
 
     private static int enter(ServerPlayer player) {
+        return enter(player, false);
+    }
+
+    /**
+     * {@code /dungeon ominous}: the stakes without a lodestone.
+     *
+     * <p>{@code ominousRequiresBottle} decides whether that costs anything. It
+     * defaults to true, so by default this command is a convenience for a player
+     * who has the bottle and not the block, not a free upgrade.
+     */
+    private static int enterOminous(ServerPlayer player) {
+        if (PocketDungeonsConfig.ominousRequiresBottle()
+                && !player.getInventory().contains(
+                        stack -> stack.is(net.minecraft.world.item.Items.OMINOUS_BOTTLE))) {
+            player.sendSystemMessage(Component.literal(
+                    "An ominous run wants an ominous bottle. Bring one, or ask an operator to "
+                            + "turn ominousRequiresBottle off.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        return enter(player, true);
+    }
+
+    private static int enter(ServerPlayer player, boolean ominous) {
         if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             player.sendSystemMessage(Component.literal("You are already inside a dungeon.")
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        Instances.enter(player);
+        if (!Instances.enterWithKeystone(player, ominous)) {
+            return 0;
+        }
+        if (ominous && PocketDungeonsConfig.ominousRequiresBottle()) {
+            consumeOneOminousBottle(player);
+        }
+        return 1;
+    }
+
+    private static void consumeOneOminousBottle(ServerPlayer player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (inventory.getItem(i).is(net.minecraft.world.item.Items.OMINOUS_BOTTLE)) {
+                inventory.getItem(i).shrink(1);
+                return;
+            }
+        }
+    }
+
+    /**
+     * {@code /dungeon key}: the first keystone, free and unlimited, but only for a
+     * player holding none and with none pending.
+     *
+     * <p>That cannot dead-end a player and cannot be farmed -- a level 1 key is
+     * worth less than the walk it takes to spend it -- which is the whole reason
+     * it does not need a cooldown, a cost, or a permission node.
+     */
+    private static int mintKey(ServerPlayer player) {
+        if (Keystone.findHeld(player) != null) {
+            player.sendSystemMessage(Component.literal(
+                    "You already have a keystone. Spend it before asking for another.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        DungeonLog log = DungeonLog.forServer(player.level().getServer());
+        if (log.get(player.getUUID()).pendingKeystoneLevel() > 0) {
+            player.sendSystemMessage(Component.literal(
+                    "A keystone is already on its way back to you. Rejoin to collect it.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        Payout.deliver(player, Keystone.mint(1));
+        player.sendSystemMessage(Component.literal(
+                "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
+                .withStyle(ChatFormatting.AQUA));
         return 1;
     }
 
@@ -183,7 +274,8 @@ final class DungeonCommands {
         source.sendSuccess(() -> Component.literal(
                 name + ": " + entry.runsCompleted() + " run(s) completed, streak "
                         + entry.streak() + " (+" + bonus + "% payout), longest dungeon cleared "
-                        + entry.bestPathLength() + " rooms deep, last on "
+                        + entry.bestPathLength() + " rooms deep, best keystone ["
+                        + entry.bestKeystoneLevel() + "], last on "
                         + entry.lastCompletedDateKey())
                 .withStyle(ChatFormatting.GOLD), false);
         return entry.runsCompleted();
@@ -283,9 +375,10 @@ final class DungeonCommands {
      * high-tier chest, and re-enter the same seed until their inventory filled up,
      * which is exactly the unbounded-per-unit-time shape DESIGN.md rules out.
      */
-    private static int build(CommandSourceStack source, Long seed) {
+    private static int build(CommandSourceStack source, Long seed, int keystoneLevel,
+                             boolean ominous) {
         MinecraftServer server = source.getServer();
-        int slot = Instances.adminBuild(server, seed);
+        int slot = Instances.adminBuild(server, seed, keystoneLevel, ominous);
         if (slot < 0) {
             source.sendFailure(Component.literal(
                     "Could not build: the dungeon dimension is missing or stamping failed."));
@@ -299,6 +392,8 @@ final class DungeonCommands {
                         + ", exit pad " + layout.exitPad().toShortString()
                         + ", " + layout.roomCount() + " rooms, path " + layout.pathLength()
                         + ", tier " + layout.lootTier()
+                        + ", keystone " + layout.keystoneLevel()
+                        + (layout.ominous() ? ", OMINOUS" : "")
                         + (layout.procedural() ? ", seed " + layout.seed()
                                 : " -- STATIC FALLBACK, the planner failed")), false);
         // Printed so a headless check can aim a /fill sweep at the exact volume
@@ -449,6 +544,11 @@ final class DungeonCommands {
                             .append(" seed=").append(container.getLootTableSeed()).append("]");
                 }
             }
+            // U6: the two things a headless session cannot otherwise see. A
+            // misspelt trial-spawner config id does not throw -- the codec drops
+            // the field and the block quietly keeps FullConfig.DEFAULT -- so the
+            // ids are read back out of the block entity rather than trusted.
+            appendTrialBlocks(sb, level, cellOrigin);
             lines.add(sb.toString());
         }
 
@@ -456,6 +556,62 @@ final class DungeonCommands {
             source.sendSuccess(() -> Component.literal(line), false);
         }
         return lines.size();
+    }
+
+    /**
+     * Appends every trial spawner and vault in the cell, with the configuration
+     * that was actually written rather than the configuration that was intended.
+     *
+     * <p>Reads through the block entity's own saved NBT: {@code TrialSpawner}'s
+     * config field is private with no getter for the ids, and
+     * {@code VaultConfig} is reachable but printing it uniformly with the spawner
+     * keeps one code path. This is the assertion U6 Stage 2 asks {@code stamptest}
+     * for -- a block entity that survives rotation but loses its NBT is invisible
+     * to every geometry check.
+     */
+    private static void appendTrialBlocks(StringBuilder sb, ServerLevel level, BlockPos cellOrigin) {
+        for (BlockPos pos : BlockPos.betweenClosed(cellOrigin,
+                cellOrigin.offset(RoomGeometry.CELL - 1, RoomGeometry.CEILING_Y,
+                        RoomGeometry.CELL - 1))) {
+            BlockState state = level.getBlockState(pos);
+            boolean spawner = state.is(net.minecraft.world.level.block.Blocks.TRIAL_SPAWNER);
+            boolean vault = state.is(net.minecraft.world.level.block.Blocks.VAULT);
+            if (!spawner && !vault) {
+                continue;
+            }
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be == null) {
+                sb.append(" [").append(pos.toShortString())
+                        .append(" -> ").append(spawner ? "trial_spawner" : "vault")
+                        .append(" NO BLOCK ENTITY]");
+                continue;
+            }
+            net.minecraft.nbt.CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
+            sb.append(" [").append(pos.toShortString()).append(" -> ");
+            if (spawner) {
+                sb.append("trial_spawner ominous=")
+                        .append(state.getValue(net.minecraft.world.level.block
+                                .TrialSpawnerBlock.OMINOUS))
+                        .append(" normal=").append(tag.getStringOr("normal_config", "<DEFAULT>"))
+                        .append(" ominous_cfg=").append(tag.getStringOr("ominous_config", "<DEFAULT>"));
+            } else {
+                net.minecraft.nbt.CompoundTag config = tag.getCompoundOrEmpty("config");
+                sb.append("vault ominous=")
+                        .append(state.getValue(net.minecraft.world.level.block.VaultBlock.OMINOUS))
+                        .append(" loot=").append(config.getStringOr("loot_table", "<DEFAULT>"))
+                        .append(" key=").append(config.getCompoundOrEmpty("key_item")
+                                .getStringOr("id", "<DEFAULT>"))
+                        // The components matter as much as the item: vanilla
+                        // matches a vault key with isSameItemSameComponents, so a
+                        // token whose custom_data did not survive being written
+                        // into the config would look identical here without them
+                        // and open nothing in-world.
+                        .append(" keytag=").append(config.getCompoundOrEmpty("key_item")
+                                .getCompoundOrEmpty("components")
+                                .getCompoundOrEmpty("minecraft:custom_data"));
+            }
+            sb.append("]");
+        }
     }
 
     private static int purge(CommandSourceStack source, int slot) {

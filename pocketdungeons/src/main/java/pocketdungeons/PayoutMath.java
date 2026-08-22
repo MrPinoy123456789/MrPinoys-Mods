@@ -70,7 +70,29 @@ final class PayoutMath {
         return (int) Math.max(0, Math.min(Integer.MAX_VALUE, scaled));
     }
 
-    /** The multiplier {@link #count} is applying, as a percentage, for display. */
+    /**
+     * The same count, scaled by the two multipliers U6 and U7 add on top.
+     *
+     * <p>Order is fixed and worth stating: the streak bonus first (it is the
+     * daily-return lever), then the keystone level, then the ominous run. Each is
+     * applied to the running total rather than summed into one percentage, so a
+     * long streak on a high key on an ominous run compounds -- which is the point,
+     * since all three cost something a machine cannot pay.
+     */
+    static int count(int baseCount, int perTier, int lootTier,
+                     int streak, int bonusPercent, int capPercent,
+                     int keystoneLevel, int perLevelPercent,
+                     boolean ominousRun, int ominousPercent) {
+        long value = count(baseCount, perTier, lootTier, streak, bonusPercent, capPercent);
+        value = value * (100L + (long) Math.max(0, perLevelPercent)
+                * Math.max(0, keystoneLevel)) / 100L;
+        if (ominousRun) {
+            value = value * Math.max(100L, ominousPercent) / 100L;
+        }
+        return (int) Math.max(0, Math.min(Integer.MAX_VALUE, value));
+    }
+
+    /** The multiplier {@link #count(int, int, int, int, int, int)} is applying, as a percentage. */
     static int streakBonusPercent(int streak, int bonusPercent, int capPercent) {
         return (int) Math.min((long) capPercent, (long) bonusPercent * Math.max(0, streak - 1));
     }

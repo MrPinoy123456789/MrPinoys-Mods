@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:ominous_trial_key"
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:spawners/ominous_trial_key"
+}

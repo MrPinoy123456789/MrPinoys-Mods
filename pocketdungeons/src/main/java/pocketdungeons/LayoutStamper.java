@@ -32,15 +32,28 @@ final class LayoutStamper {
      * a stamp failure and aborts on -- releasing the slot and the force-load
      * tickets rather than leaving a half-built dungeon allocated.
      *
-     * @param partySize the opening player's party size, known at stamp time
-     *                  (U3 Stage 5) -- a mid-run joiner does not trigger a
-     *                  re-stamp, so this is fixed for the run's lifetime
+     * @param partySize     the opening player's party size, known at stamp time
+     *                      (U3 Stage 5) -- a mid-run joiner does not trigger a
+     *                      re-stamp, so this is fixed for the run's lifetime
+     * @param keystoneLevel the level of the keystone spent to open the run, or
+     *                      {@code 0} for a run nobody paid for. It drives the loot
+     *                      tier (U7) and, at or above {@code ominousFromLevel},
+     *                      makes the whole run ominous
+     * @param ominousRun    the player asked for an ominous run, with a bottle or
+     *                      with an ominous-affix keystone
      */
-    static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan, int partySize) {
+    static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                                int partySize, int keystoneLevel, boolean ominousRun) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
-        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), partySize);
+        DifficultyProfile profile = DifficultyProfile.of(
+                plan.criticalPath().size(), partySize, keystoneLevel);
+
+        // A high enough keystone makes the whole run ominous whether or not the
+        // player asked for it -- U7 Stage 6's third route into the same state.
+        boolean ominous = ominousRun
+                || (keystoneLevel > 0 && keystoneLevel >= PocketDungeonsConfig.ominousFromLevel());
 
         for (PlanCell cell : stampOrder(plan)) {
             DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
@@ -58,7 +71,8 @@ final class LayoutStamper {
                     placed.rotation(), plan.seed() ^ cellOrigin.asLong());
 
             int depth = plan.depths().getOrDefault(cell, 0);
-            RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns, plan.seed());
+            RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns,
+                    plan.seed(), ominous);
         }
 
         PlanCell entranceCell = plan.entrance();
@@ -73,7 +87,10 @@ final class LayoutStamper {
                 plan.criticalPath().size(),
                 plan.cells().size(),
                 profile.lootTier(),
-                true);
+                true,
+                ominous,
+                keystoneLevel,
+                geometry.cellOrigin(plan.terminal()));
     }
 
     /** Critical path first, then everything else in the geometry's stable order. */

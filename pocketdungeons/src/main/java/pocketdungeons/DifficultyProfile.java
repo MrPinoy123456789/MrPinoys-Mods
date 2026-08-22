@@ -11,22 +11,43 @@ import java.util.List;
  * 5): a mid-run joiner does not trigger a re-stamp, they simply walk into a
  * dungeon scaled for whoever was there when it was built.
  */
-record DifficultyProfile(int pathLength, int partySize, int baseMobs, int maxMobsPerRoom) {
+record DifficultyProfile(int pathLength, int partySize, int keystoneLevel,
+                        int baseMobs, int maxMobsPerRoom) {
 
-    static DifficultyProfile of(int pathLength, int partySize) {
-        return new DifficultyProfile(pathLength, partySize,
+    static DifficultyProfile of(int pathLength, int partySize, int keystoneLevel) {
+        return new DifficultyProfile(pathLength, partySize, keystoneLevel,
                 PocketDungeonsConfig.baseMobsPerEncounter(), PocketDungeonsConfig.maxMobsPerRoom());
     }
 
-    /** Path length to loot tier: 5 or shorter is tier 1, 6-7 tier 2, 8 or more tier 3. */
+    /**
+     * Loot tier.
+     *
+     * <p>U7 re-keys this from path length to keystone level ({@link KeystoneMath#lootTier}):
+     * the planner decides how <em>big</em> a dungeon is, the keystone decides how
+     * <em>hard</em> it is, and a tuning complaint maps to one of the two without
+     * ambiguity. A run opened without a keystone -- {@code /dungeon admin build},
+     * or a server with keystones effectively unused -- keeps U3's path-length
+     * curve, so nothing is left without a tier.
+     */
     int lootTier() {
+        if (keystoneLevel > 0) {
+            return KeystoneMath.lootTier(keystoneLevel);
+        }
         if (pathLength <= 5) {
             return 1;
         }
         return pathLength <= 7 ? 2 : 3;
     }
 
-    /** The far end of a dungeon bites harder than the first room. */
+    /**
+     * The far end of a dungeon bites harder than the first room.
+     *
+     * <p><strong>U3 path only.</strong> With trials on, depth escalation is
+     * {@code TrialContent.ominousAt} stamping the deep third ominous instead, and
+     * nothing calls this. It survives because U3's spawn path is the
+     * {@code trialsEnabled: false} rollback and deleting it would cost the only
+     * way back.
+     */
     int effectiveTier(int depth) {
         int bump = depth >= (pathLength * 2) / 3 ? 1 : 0;
         return Math.min(3, lootTier() + bump);
@@ -36,6 +57,12 @@ record DifficultyProfile(int pathLength, int partySize, int baseMobs, int maxMob
      * Mobs for one encounter cell. Depth does not enter the count -- it enters
      * {@link #effectiveTier(int)} instead, keeping "too many" and "too nasty"
      * each mapped to one config field.
+     *
+     * <p><strong>U3 path only</strong>, same as {@link #effectiveTier(int)}. With
+     * trials on the count is the trial spawner's {@code total_mobs} plus its
+     * {@code total_mobs_added_per_player}, and vanilla counts the players itself.
+     * The {@code partySize} term below is therefore <em>not</em> double-counting:
+     * the two paths are mutually exclusive and only one of them is ever live.
      */
     int mobCount(int depth) {
         int count = baseMobs + pathLength / 3 + (partySize - 1);
@@ -49,15 +76,6 @@ record DifficultyProfile(int pathLength, int partySize, int baseMobs, int maxMob
             case 3 -> TIER_3;
             default -> throw new IllegalArgumentException("no mob roster for tier " + tier);
         };
-    }
-
-    /**
-     * Extra bonus-pool rolls a party's loot chest gets over a solo player's.
-     * Chest loot is shared and first-come; the per-player generosity lever is
-     * U5's completion payout, which pays every member individually.
-     */
-    int chestRolls() {
-        return partySize - 1;
     }
 
     record WeightedEntry(String entityId, int weight) {}

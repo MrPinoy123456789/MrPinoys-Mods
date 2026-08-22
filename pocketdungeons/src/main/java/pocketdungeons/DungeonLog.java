@@ -30,14 +30,23 @@ import java.util.UUID;
 final class DungeonLog extends SavedData {
 
     /**
-     * @param lastCompletedDateKey an ISO date, or empty for "never completed".
-     *                             Empty rather than null so the codec needs no
-     *                             optional-string special case, and blank is
-     *                             treated as absent everywhere it is read.
+     * @param lastCompletedDateKey  an ISO date, or empty for "never completed".
+     *                              Empty rather than null so the codec needs no
+     *                              optional-string special case, and blank is
+     *                              treated as absent everywhere it is read.
+     * @param pendingKeystoneLevel  a keystone that came back while this player was
+     *                              offline, {@code 0} for none. The only piece of
+     *                              server state U7 adds: a player who disconnects
+     *                              mid-run is not there to be handed anything, and
+     *                              a keystone that evaporates because of that is
+     *                              the one outcome the depletion table refuses.
+     *                              This store is already a {@code SavedData} keyed
+     *                              by UUID, so it survives a restart for free.
      */
-    record Entry(int runsCompleted, int bestPathLength, int streak, String lastCompletedDateKey) {}
+    record Entry(int runsCompleted, int bestPathLength, int streak, String lastCompletedDateKey,
+                 int bestKeystoneLevel, int pendingKeystoneLevel) {}
 
-    static final Entry NONE = new Entry(0, 0, 0, "");
+    static final Entry NONE = new Entry(0, 0, 0, "", 0, 0);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -53,7 +62,11 @@ final class DungeonLog extends SavedData {
             Codec.INT.fieldOf("runs").forGetter(Entry::runsCompleted),
             Codec.INT.fieldOf("best_path").forGetter(Entry::bestPathLength),
             Codec.INT.fieldOf("streak").forGetter(Entry::streak),
-            Codec.STRING.optionalFieldOf("last_completed", "").forGetter(Entry::lastCompletedDateKey)
+            Codec.STRING.optionalFieldOf("last_completed", "").forGetter(Entry::lastCompletedDateKey),
+            // Both added by U7 and both optional, so a dungeon_log.dat written
+            // before this milestone loads unchanged rather than being discarded.
+            Codec.INT.optionalFieldOf("best_keystone", 0).forGetter(Entry::bestKeystoneLevel),
+            Codec.INT.optionalFieldOf("pending_keystone", 0).forGetter(Entry::pendingKeystoneLevel)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -103,6 +116,51 @@ final class DungeonLog extends SavedData {
         return recordCompletion(player, pathLength, LocalDate.now().toString());
     }
 
+    /** Records one completed run at a keystone level, for the {@code /dungeon log} best-level line. */
+    Entry recordCompletion(UUID player, int pathLength, int keystoneLevel) {
+        Entry entry = recordCompletion(player, pathLength, LocalDate.now().toString());
+        if (keystoneLevel > entry.bestKeystoneLevel()) {
+            entry = withBestKeystone(player, entry, keystoneLevel);
+        }
+        return entry;
+    }
+
+    private Entry withBestKeystone(UUID player, Entry entry, int keystoneLevel) {
+        Entry next = new Entry(entry.runsCompleted(), entry.bestPathLength(), entry.streak(),
+                entry.lastCompletedDateKey(), keystoneLevel, entry.pendingKeystoneLevel());
+        entries.put(player, next);
+        setDirty();
+        return next;
+    }
+
+    /**
+     * Parks a keystone for a player who was not online to receive it.
+     *
+     * <p>Takes the higher of the two if one is already parked. Losing a level to
+     * a second disconnect is a fair cost; losing a whole key because two failures
+     * happened to overlap is not.
+     */
+    void setPendingKeystone(UUID player, int level) {
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.streak(), previous.lastCompletedDateKey(), previous.bestKeystoneLevel(),
+                Math.max(previous.pendingKeystoneLevel(), Math.max(0, level))));
+        setDirty();
+    }
+
+    /** Reads and clears the parked keystone. Returns {@code 0} if there was none. */
+    int takePendingKeystone(UUID player) {
+        Entry previous = get(player);
+        int level = previous.pendingKeystoneLevel();
+        if (level <= 0) {
+            return 0;
+        }
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.streak(), previous.lastCompletedDateKey(), previous.bestKeystoneLevel(), 0));
+        setDirty();
+        return level;
+    }
+
     /**
      * Same, with the date supplied rather than read from the clock.
      *
@@ -117,7 +175,9 @@ final class DungeonLog extends SavedData {
                 previous.runsCompleted() + 1,
                 Math.max(previous.bestPathLength(), pathLength),
                 PayoutMath.nextStreak(previous.lastCompletedDateKey(), today, previous.streak()),
-                today);
+                today,
+                previous.bestKeystoneLevel(),
+                previous.pendingKeystoneLevel());
         entries.put(player, next);
         setDirty();
         return next;

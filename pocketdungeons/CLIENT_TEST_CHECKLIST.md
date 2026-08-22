@@ -264,6 +264,198 @@ actually standing in a dungeon and is unverified.
 2. **Expected:** the substituted command runs from the console's own permission
    level, and the item payout still happens alongside it.
 
+
+---
+
+# U6 — trials, vaults and the ominous run
+
+**Everything below is unverified.** A headless console cannot right-click a
+block, hold an item, or stand near a trial spawner long enough for it to
+activate, so none of this milestone's player-facing half has been exercised.
+Read the `Shipped:` notes in `UPDATE_PLAN.md` for what *was* checked.
+
+> **Note the entry change.** `/dungeon` and the lodestone ritual both now spend a
+> **keystone** (U7). Run `/dungeon key` once for a free level 1 one before
+> starting any of these.
+
+### 26. A trial spawner is a fight, not four zombies appearing at once
+
+1. Enter, walk to an `encounter` room. **Expected:** one `minecraft:trial_spawner`
+   on the floor, glowing, with a spinning mob inside it — not a scattering of
+   mobs already standing around the room.
+2. Stand near it. **Expected:** it detects you, activates, and spawns in waves
+   rather than all at once.
+3. Kill everything it spawns. **Expected:** it ejects an item — a
+   `minecraft:trial_key` most of the time, consumables otherwise — and goes to
+   cooldown.
+4. **Watch for:** any creeper. There must never be one. The rosters are authored
+   by hand precisely to keep them out of a sealed cell, and one appearing means a
+   roster file has been copied from vanilla's.
+
+### 27. The key loop: loot is no longer free
+
+1. Find a `loot` room. **Expected:** a `minecraft:vault`, not a chest.
+2. Walk up to it **without** a key. **Expected:** it reads as locked and inert —
+   no reward, and legibly a locked thing rather than a broken one.
+3. Come back with the key from step 26. **Expected:** it opens, ejects the tier
+   table's loot onto the floor, and cannot be opened by you a second time.
+4. **Pick the loot up.** Anything left on the floor is destroyed when the dungeon
+   closes. The entry message says so; check that it does.
+
+### 28. A party opens the same vault, each once
+
+1. Two players, one vault, one key each.
+2. **Expected:** both get a full reward. Nobody races anybody to a chest.
+3. Either player tries again with a second key. **Expected:** nothing — already
+   claimed for them, still claimable by anyone who has not.
+
+### 29. The deep third bites harder
+
+1. Run a dungeon with a path length of 6 or more (`/dungeon admin build <seed>`
+   then walk it, or just run several).
+2. **Expected:** the spawners and vaults in the last third of the run are visibly
+   **ominous** — different texture, different particles — while the early ones
+   are not.
+3. **Expected:** the ominous vault still takes the same key kind as the plain
+   ones. One run mints one kind of key; if you are ever holding a key that opens
+   nothing, that is a real bug and worth reporting with the seed.
+
+### 30. An ominous run, bought with a bottle
+
+1. Hold a keystone in your main hand and a `minecraft:ominous_bottle` in your
+   **off** hand, right-click a lodestone.
+2. **Expected:** the bottle is consumed, you get **Trial Omen**, and *every*
+   spawner and vault is ominous from the entrance room onward.
+3. **Expected:** the completion payout is 1.5x, and the completion line says the
+   run was ominous.
+4. **Expected:** an ominous vault drops a **Boss Stone**. They no longer appear in
+   plain chests at all — that is the whole reason to run ominous.
+5. `/dungeon ominous` should do the same thing without a lodestone, and should
+   refuse if you have no bottle (unless `ominousRequiresBottle` is false).
+
+### 31. Trial Omen must not leave the dungeon — check all three exits
+
+1. Finish an ominous run on the pad. **Expected:** no Trial Omen in the overworld.
+2. Start another, leave with `/dungeon exit`. **Expected:** no Trial Omen.
+3. Start another, get killed inside. **Expected:** ejected, inventory intact, and
+   **no Trial Omen**.
+
+   This is the one U6 effect that can escape into the real world. Check all three.
+
+### 32. Death during a spawner fight
+
+1. Die to a trial spawner's mobs.
+2. **Expected:** ejected with your inventory, no death screen, no payout — and the
+   mobs do **not** follow you out.
+
+### 33. The kill switch
+
+1. Set `trialsEnabled: false`, restart, run a dungeon.
+2. **Expected:** chests and hand-spawned mobs, exactly like before this update.
+   No vault, no trial spawner anywhere.
+
+---
+
+# U7 — keystones
+
+### 34. The first keystone
+
+1. `/dungeon key` with nothing in hand. **Expected:** `Keystone [1]`, named and
+   with lore.
+2. Run it again while holding it. **Expected:** refused, with a reason.
+3. Run `/dungeon` holding nothing. **Expected:** it tells you to run
+   `/dungeon key`, and does not open anything.
+
+### 35. Lodestone plus keystone — and *only* a keystone
+
+1. Right-click a lodestone holding the keystone. **Expected:** consumed, run
+   starts.
+2. Right-click holding a **kamutotems sigil or boss stone**
+   (`/give @s echo_shard[custom_data={kamutotems:{boss_stone:1}}]`).
+   **Expected:** nothing consumed, no dungeon, and with kamutotems installed the
+   stone still behaves normally. This is U4's check 2, and it must still pass now
+   that the key rule has inverted.
+3. Right-click holding a **plain, untagged** `minecraft:trial_key`.
+   **Expected:** nothing happens. An ordinary trial key is not a keystone.
+
+### 36. The clock
+
+1. Enter with a keystone. **Expected:** a boss bar, titled
+   `Keystone [N] — m:ss — x/y rooms`, counting down.
+2. **Expected:** it goes green → yellow at half → red at a fifth.
+3. Let it run out. **Expected:** it reads `OVER TIME`, turns dark red, and **the
+   run does not end.** You keep playing.
+4. Leave. **Expected:** the bar disappears.
+
+### 37. Three offers, one token — the core of the milestone
+
+1. Reach the exit pad **in time**. **Expected:** you are paid, you get a
+   `Completion Token [N]`, and you are **not** ejected. The message tells you to
+   pick a vault.
+2. **Expected:** three vaults stand in the exit room, each *displaying* the
+   keystone it would give: `[N+1]`, an ominous `[N+2]`, a fragile `[N+3]`.
+3. Open one. **Expected:** you receive that keystone.
+4. **Try the other two.** **Expected:** they will not open — the token is gone.
+   This is vanilla enforcing the choice, not the mod, so it is worth confirming
+   by hand.
+5. Stand on the lodestone again. **Expected:** now you leave, and you are not
+   paid a second time.
+
+### 38. Walking out without choosing
+
+1. Complete in time, then leave without opening any vault.
+2. **Expected:** your keystone comes back at `[N+1]` anyway. The mod always hands
+   one back; there is no way to end a run holding nothing.
+
+### 39. Over time
+
+1. Complete after the clock has expired.
+2. **Expected:** no token, no offer, and the keystone comes back **unchanged** at
+   `[N]` (at the default `overtimeDepletion: 0`).
+
+### 40. Every row of the depletion table
+
+Start each of these at a known level — level 8 is the easiest to read.
+
+1. **Die inside.** **Expected:** `[6]` (`depletionOnDeath: 2`), inventory intact,
+   no payout.
+2. **`/dungeon exit` mid-run.** **Expected:** `[7]` (`depletionOnExit: 1`), no
+   payout.
+3. **Disconnect mid-run, then log back in.** **Expected:** `[5]`
+   (`depletionOnDisconnect: 3`) handed to you on arrival, with a message.
+4. **Same again, but restart the server before logging back in.**
+   **Expected:** still `[5]`. This is the milestone's only persistent state and
+   the only failure mode that loses a keystone outright — worth doing first.
+5. **`/dungeon admin purge` while you are inside.** **Expected:** `[8]`,
+   **unchanged**. Never punish a player for the server.
+6. **Fragile at level 8, then die.** **Expected:** `[4]`, not `[6]` — fragile
+   doubles. And the returned keystone is **plain**, not fragile.
+7. **Fail at level 1 by every route above.** **Expected:** still `[1]` every time.
+   Never `[0]`, never gone.
+
+### 41. Completing and then failing must not be punished
+
+1. Reach the pad in time, get your token, then **type `/dungeon exit`** instead of
+   stepping on the pad again.
+2. **Expected:** the keystone still comes back on the *completion* terms — no
+   `depletionOnExit`.
+3. Same again, but get killed by a leftover mob in the exit room after completing.
+   **Expected:** same, no `depletionOnDeath`.
+
+### 42. A party on one keystone
+
+1. Two players, one keystone, `/dungeon party <player>` then `/dungeon`.
+2. **Expected:** one boss bar shown to both, both get their own token, both make
+   their own independent choice from their own three vaults' worth of offers.
+3. One member disconnects. **Expected:** the other's timer is unaffected, and the
+   disconnecting member gets their depleted keystone on next login.
+
+### 43. A full inventory when the keystone comes back
+
+1. Fill your inventory completely, then complete a run.
+2. **Expected:** the keystone (and the payout) drop **at your return point in the
+   overworld**, not in the void dimension. Nothing is destroyed.
+
 ---
 
 ## Test Log

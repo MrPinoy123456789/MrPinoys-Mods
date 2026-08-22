@@ -40,7 +40,11 @@ final class Payout {
                 layout.lootTier(),
                 streak,
                 PocketDungeonsConfig.streakBonusPercent(),
-                PocketDungeonsConfig.streakBonusCapPercent());
+                PocketDungeonsConfig.streakBonusCapPercent(),
+                layout.keystoneLevel(),
+                PocketDungeonsConfig.payoutPerLevelPercent(),
+                layout.ominous(),
+                PocketDungeonsConfig.ominousPayoutPercent());
 
         int granted = 0;
         Item item = ITEM.get();
@@ -72,6 +76,29 @@ final class Payout {
      * <p>The stack split above is for a {@code payoutItem} that does not stack to
      * 64; the default emerald payout is well inside one stack.
      */
+    /**
+     * Hands one already-built stack over, on the same give-what-fits,
+     * drop-the-rest contract as a payout.
+     *
+     * <p>Public to the package because U7's keystone return needs exactly this and
+     * <strong>must not</strong> reach for {@code Inventory.add} itself -- see the
+     * note on {@link #giveOrDrop}. A keystone is a single item, so the hole only
+     * bites on a completely full inventory, which is precisely the state a player
+     * is in when they have just finished a run.
+     */
+    static void deliver(ServerPlayer player, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
+            int leftover = stack.getCount();
+            player.drop(stack, false);
+            PocketDungeonsMod.LOG.info("{} could not hold their reward; {} x{} dropped at their feet",
+                    player.getName().getString(), stack.getItem(), leftover);
+        }
+    }
+
     private static void giveOrDrop(ServerPlayer player, Item item, int count) {
         int remaining = count;
         int max = Math.max(1, new ItemStack(item).getMaxStackSize());
@@ -120,13 +147,17 @@ final class Payout {
      * mechanic, so they go in front of a player who never types
      * {@code /dungeon log}.
      */
-    static void announce(ServerPlayer player, DungeonLog.Entry entry, int granted) {
+    static void announce(ServerPlayer player, DungeonLog.Entry entry, int granted,
+                         boolean ominous) {
         StringBuilder text = new StringBuilder("You escape with the loot. Run #")
                 .append(entry.runsCompleted())
                 .append(" - streak ").append(entry.streak());
         if (granted > 0) {
             text.append(" - ").append(granted).append(' ')
                     .append(itemName(granted));
+        }
+        if (ominous) {
+            text.append(" (ominous)");
         }
         player.sendSystemMessage(Component.literal(text.toString())
                 .withStyle(ChatFormatting.GOLD));

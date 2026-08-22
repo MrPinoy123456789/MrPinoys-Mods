@@ -39,6 +39,18 @@ import java.util.Map;
  *   <tr><td>{@code corridor}</td><td>remove the chest, spawn nothing</td></tr>
  *   <tr><td>{@code entrance}, {@code exit}</td><td>nothing; their templates carry neither</td></tr>
  * </table>
+ *
+ * <h2>U6: role dispatch stays, the content moves</h2>
+ *
+ * <p>With {@code trialsEnabled} the {@code encounter} and {@code loot} branches
+ * hand off to {@link TrialContent} -- a trial spawner instead of a handful of
+ * mobs spawned all at once, a vault instead of a free chest. Role dispatch and
+ * the chest-removal machinery stay here, because they are what decides <em>which</em>
+ * of those a cell gets, and that question is unchanged.
+ *
+ * <p>The U3 path below is not dead code: it is the {@code trialsEnabled: false}
+ * rollback, and it is the only one. Keeping it costs about sixty lines and buys
+ * the ability to run the two side by side while tuning.
  */
 final class RoomContent {
 
@@ -63,11 +75,18 @@ final class RoomContent {
     private RoomContent() {}
 
     static void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
-                      DifficultyProfile profile, List<BlockPos> spawns, long seed) {
-        applySpawnerDenSwitch(level, cellOrigin);
+                      DifficultyProfile profile, List<BlockPos> spawns, long seed,
+                      boolean ominousRun) {
         if (role == null) {
+            applySpawnerDenSwitch(level, cellOrigin);
             return;
         }
+        if (TrialContent.enabled()) {
+            applyTrials(level, cellOrigin, role, depth, profile, spawns, seed, ominousRun);
+            return;
+        }
+
+        applySpawnerDenSwitch(level, cellOrigin);
         switch (role) {
             case "encounter" -> {
                 removeChests(level, cellOrigin);
@@ -75,6 +94,31 @@ final class RoomContent {
             }
             case "loot" -> retargetChests(level, cellOrigin, profile, seed);
             case "corridor" -> removeChests(level, cellOrigin);
+            default -> { /* entrance and exit carry no chest and no spawn points */ }
+        }
+    }
+
+    /**
+     * The U6 branch. {@code corridor} still loses its placeholder chest -- a
+     * corridor that pays is not a corridor -- and {@code entrance}/{@code exit}
+     * still carry nothing, so only the two roles that hold content change hands.
+     */
+    private static void applyTrials(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+                                    DifficultyProfile profile, List<BlockPos> spawns, long seed,
+                                    boolean ominousRun) {
+        boolean ominous = TrialContent.ominousAt(depth, profile.pathLength(), ominousRun);
+        switch (role) {
+            case "encounter" -> {
+                removeChests(level, cellOrigin);
+                TrialContent.applyEncounter(level, cellOrigin, spawns, profile.lootTier(),
+                        ominous, ominousRun);
+            }
+            case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
+                    ominous, ominousRun, seed);
+            case "corridor" -> {
+                removeChests(level, cellOrigin);
+                applySpawnerDenSwitch(level, cellOrigin);
+            }
             default -> { /* entrance and exit carry no chest and no spawn points */ }
         }
     }

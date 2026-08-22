@@ -207,6 +207,19 @@ public final class LayoutGraphGenerator {
             }
         }
 
+        // U6's key budget. Every loot cell is a vault and every vault wants a key
+        // only an encounter cell's spawner ejects, so a shape with more vaults
+        // than spawners hands a player a lock with no key. balanceKeyBudget makes
+        // this true by construction; the check is here so a regression in that
+        // pass fails loudly in the pure-JDK sweep instead of surfacing weeks later
+        // as "one vault in my dungeon never opens".
+        int loot = countRole(roles, ROLE_LOOT);
+        int encounter = countRole(roles, ROLE_ENCOUNTER);
+        if (loot > encounter) {
+            problems.add("shape has " + loot + " loot cell(s) but only " + encounter
+                    + " encounter cell(s); every vault needs a key");
+        }
+
         return problems;
     }
 
@@ -369,7 +382,91 @@ public final class LayoutGraphGenerator {
         }
 
         guaranteeOnPath(roles, criticalPath);
+        balanceKeyBudget(roles, criticalPath);
         return roles;
+    }
+
+    /**
+     * Makes sure the run mints at least as many keys as it has vaults to spend
+     * them on: {@code loot <= encounter} (U6 Stage 4).
+     *
+     * <p>Under U6 a loot room is a vault, and a vault wants a trial key that only
+     * an encounter room's spawner ejects. A layout with more loot cells than
+     * encounter cells hands a player a vault they cannot open, which reads as a
+     * bug rather than as a choice. Spur tips are forced to {@code loot} by the
+     * pass above, so a branchy shape can easily produce five loot cells and two
+     * encounters.
+     *
+     * <p>The plan called for {@code validate} to reject such a shape and let the
+     * caller retry with a new seed. This rebalances instead: promoting a corridor
+     * (or, failing that, demoting the loot cell furthest from the entrance)
+     * <strong>always</strong> succeeds, is deterministic, and costs no retries --
+     * whereas rejection would spend the whole plan budget on shapes that are one
+     * role-flip away from being fine, and would quietly reintroduce M3's
+     * failed-plan rate on exactly the branchy layouts U1 was built to support.
+     * {@code validate}'s check stays as the regression guard that this pass ran.
+     */
+    private static void balanceKeyBudget(Map<PlanCell, String> roles, List<PlanCell> criticalPath) {
+        List<PlanCell> ordered = new ArrayList<>(roles.keySet());
+        ordered.sort((a, b) -> a.x() != b.x()
+                ? Integer.compare(a.x(), b.x())
+                : Integer.compare(a.z(), b.z()));
+
+        // Each iteration either raises the encounter count or lowers the loot
+        // count by one, so this terminates in at most cells() steps.
+        while (countRole(roles, ROLE_LOOT) > countRole(roles, ROLE_ENCOUNTER)) {
+            // 1. Promote a corridor. This adds a fight rather than removing a
+            //    reward, which is the generous direction and the one DESIGN.md's
+            //    "err on the side of paying out" argues for.
+            PlanCell target = firstWithRole(ordered, roles, ROLE_CORRIDOR, criticalPath, false);
+            // 2. Otherwise convert an off-path loot cell, so the guaranteed
+            //    on-path loot survives as long as possible.
+            if (target == null) {
+                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, true);
+            }
+            // 3. Last resort: an on-path loot cell. Reached when the weighted draw
+            //    happened to fill a whole critical path with loot -- rare, but real
+            //    (seed 78 of the 5,000-seed sweep did exactly that with four loot
+            //    cells and one encounter). Losing a vault is a smaller wrong than
+            //    shipping a vault nobody can open.
+            if (target == null) {
+                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, false);
+            }
+            if (target == null) {
+                return;
+            }
+            roles.put(target, ROLE_ENCOUNTER);
+        }
+    }
+
+    private static int countRole(Map<PlanCell, String> roles, String role) {
+        int count = 0;
+        for (String assigned : roles.values()) {
+            if (role.equals(assigned)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * The first cell carrying {@code role}, in the deterministic grid order.
+     *
+     * @param offPathOnly restrict to cells that are not on the critical path
+     */
+    private static PlanCell firstWithRole(List<PlanCell> ordered, Map<PlanCell, String> roles,
+                                          String role, List<PlanCell> criticalPath,
+                                          boolean offPathOnly) {
+        for (PlanCell cell : ordered) {
+            if (!role.equals(roles.get(cell))) {
+                continue;
+            }
+            if (offPathOnly && criticalPath.contains(cell)) {
+                continue;
+            }
+            return cell;
+        }
+        return null;
     }
 
     /**
