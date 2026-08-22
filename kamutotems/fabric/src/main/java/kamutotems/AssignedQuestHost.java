@@ -357,7 +357,8 @@ public final class AssignedQuestHost {
 
                 // Advance failed despite having the items: refund so nothing is lost.
                 ItemStack refund = new ItemStack(item, needed);
-                if (!player.getInventory().add(refund)) {
+                player.getInventory().add(refund);
+                if (!refund.isEmpty()) {
                     player.drop(refund, false);
                 }
             }
@@ -477,7 +478,8 @@ public final class AssignedQuestHost {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        if (!player.getInventory().add(stack)) {
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
             player.drop(stack, false);
             LOG.info("Quest reward for {} would not fit; dropped at feet",
                     player.getName().getString());

@@ -349,7 +349,8 @@ public final class Totem {
     }
 
     public static void giveOrDrop(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) {
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
             player.drop(stack, false);
         }
     }

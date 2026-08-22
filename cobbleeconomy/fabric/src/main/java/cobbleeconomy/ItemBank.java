@@ -196,8 +196,9 @@ public final class ItemBank {
     }
 
     private static long insertOrDrop(ServerPlayer player, ItemStack stack) {
-        if (player.getInventory().add(stack)) return 0;
-        // add() may have placed part of it; the stack is mutated to what is left.
+        // add() may place only part of the stack and still return true; it mutates
+        // the stack down to the remainder, so the remainder is what to check.
+        player.getInventory().add(stack);
         int leftover = stack.getCount();
         if (leftover > 0) player.drop(stack, false);
         return leftover;

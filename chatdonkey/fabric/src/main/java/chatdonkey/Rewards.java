@@ -125,7 +125,8 @@ public final class Rewards {
 
     /** Adds a stack to the inventory, dropping it at the player's feet if it will not fit. */
     static void giveStack(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) {
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
             player.drop(stack, false);
         }
     }
@@ -135,7 +136,8 @@ public final class Rewards {
         while (remaining > 0) {
             int size = Math.min(remaining, item.getDefaultMaxStackSize());
             ItemStack stack = new ItemStack(item, size);
-            if (!player.getInventory().add(stack)) {
+            player.getInventory().add(stack);
+            if (!stack.isEmpty()) {
                 player.drop(stack, false);
             }
             remaining -= size;

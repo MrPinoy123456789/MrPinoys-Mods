@@ -340,7 +340,8 @@ public final class Orchestrator {
         while (remaining > 0) {
             int size = Math.min(remaining, item.getDefaultMaxStackSize());
             ItemStack stack = new ItemStack(item, size);
-            if (!player.getInventory().add(stack)) {
+            player.getInventory().add(stack);
+            if (!stack.isEmpty()) {
                 player.drop(stack, false);
             }
             remaining -= size;

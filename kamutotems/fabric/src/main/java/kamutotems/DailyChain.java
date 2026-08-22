@@ -212,7 +212,8 @@ public final class DailyChain {
         int perSegment = KamuTotemsConfig.i("quest", "reward_per_segment", 1);
         if (perSegment > 0) {
             ItemStack coin = new ItemStack(Items.DIAMOND, perSegment);
-            if (!player.getInventory().add(coin)) {
+            player.getInventory().add(coin);
+            if (!coin.isEmpty()) {
                 player.drop(coin, false);
             }
         }
@@ -242,7 +243,8 @@ public final class DailyChain {
                 entry.totalDone() + 1));
 
         ItemStack reward = new ItemStack(Items.DIAMOND, diamonds);
-        if (!player.getInventory().add(reward)) {
+        player.getInventory().add(reward);
+        if (!reward.isEmpty()) {
             player.drop(reward, false);
             LOG.info("Quest reward for {} would not fit; dropped at feet", player.getName().getString());
         }

@@ -22,7 +22,8 @@ public final class WondrousGive {
      * telling them either way. Never fails quietly.
      */
     public static void giveOrDrop(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) {
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
             player.drop(stack, false);
             player.sendSystemMessage(Component.literal(
                             "Your inventory was full -- dropped at your feet.")

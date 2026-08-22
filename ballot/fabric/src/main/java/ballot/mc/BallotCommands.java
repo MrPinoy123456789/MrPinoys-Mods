@@ -408,7 +408,8 @@ public final class BallotCommands {
     }
 
     static void give(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) {
+        player.getInventory().add(stack);
+        if (!stack.isEmpty()) {
             player.drop(stack, false);
         }
     }

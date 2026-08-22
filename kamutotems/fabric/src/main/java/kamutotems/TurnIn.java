@@ -59,7 +59,8 @@ public final class TurnIn {
 
             // If advance failed, refund the items so nothing is lost.
             ItemStack refund = new ItemStack(item, needed);
-            if (!player.getInventory().add(refund)) {
+            player.getInventory().add(refund);
+            if (!refund.isEmpty()) {
                 player.drop(refund, false);
             }
             return Component.literal("The hand-in could not be counted.").withStyle(ChatFormatting.RED);
