@@ -3,6 +3,7 @@ package kamutotems;
 import kamutotems.core.Fusion;
 import kamutotems.core.FusionResult;
 import kamutotems.core.Slot;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,7 +17,9 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.ResultContainer;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -47,6 +50,38 @@ public final class KamuForge extends AbstractContainerMenu {
 
     private static final int GRID_SIZE = 9;
     private static final Map<UUID, Runnable> PENDING_BACK = new HashMap<>();
+
+    /**
+     * Reopens deferred one tick past {@link #removed}, not run from inside it.
+     *
+     * <p>{@code removed} fires mid-handshake in vanilla's own container-close
+     * packet handling -- {@code player.containerMenu} hasn't been reset back to
+     * the inventory menu yet. Calling {@code back.run()} (which reopens the hub)
+     * synchronously from here opens a new menu while the old one is still being
+     * torn down, and the client and server end up with mismatched container
+     * state: the hub visibly reopens, but its buttons silently no-op every click
+     * until the player closes the whole thing and reopens fresh. Queuing the
+     * reopen for the next {@code END_SERVER_TICK} lets vanilla finish closing
+     * this menu first.
+     */
+    private static final List<UUID> pendingReopen = new ArrayList<>();
+    private static final Map<UUID, Runnable> reopenActions = new HashMap<>();
+
+    public static void register() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (pendingReopen.isEmpty()) {
+                return;
+            }
+            List<UUID> due = new ArrayList<>(pendingReopen);
+            pendingReopen.clear();
+            for (UUID player : due) {
+                Runnable back = reopenActions.remove(player);
+                if (back != null) {
+                    back.run();
+                }
+            }
+        });
+    }
 
     private final SimpleContainer grid = new SimpleContainer(GRID_SIZE) {
         @Override
@@ -190,7 +225,11 @@ public final class KamuForge extends AbstractContainerMenu {
         clearContainer(p, grid);
         Runnable back = PENDING_BACK.remove(player.getUUID());
         if (back != null) {
-            back.run();
+            UUID id = player.getUUID();
+            reopenActions.put(id, back);
+            if (!pendingReopen.contains(id)) {
+                pendingReopen.add(id);
+            }
         }
     }
 

@@ -75,13 +75,6 @@ public final class DonkeySpawn {
             if (movement != null) {
                 movement.setBaseValue(speed);
             }
-            // Permanent gormless chewing face. `setEating` is the only public
-            // route to a mouth animation on a horse: the actual FLAG_OPEN_MOUTH
-            // is private and its setter (`setFlag`) is protected, so a genuinely
-            // hanging-open jaw would need an access widener for a purely
-            // cosmetic win. This gets most of the way there for free.
-            donkey.setEating(true);
-
             donkey.addTag(TAG);
             donkey.setCustomName(Component.literal(name));
             donkey.setCustomNameVisible(true);

@@ -961,6 +961,16 @@ tiers 2 and 3 via `minecraft:loot_table` so party scaling is one edit, not three
 the shape it expects. With kamutotems absent it is a named echo shard and nothing
 in either mod notices.
 
+**Scope note, confirmed by reading `kamutotems.BossStone`/`BOSS_EGG_SPEC.md`
+directly:** pocketdungeons' job ends at dropping this item. Right-clicking it
+in kamutotems exchanges it for a rolled sigil (a spawn-egg item per the boss
+egg spec), which the player then uses or dispenses *elsewhere* to actually
+summon the boss mob. **No kamu boss ever spawns inside the dungeon itself,
+by design** -- the flavor text ("Grip it and a trial finds you") describes a
+portable trigger, not an in-room encounter. If a future milestone wants an
+actual boss fight inside a dungeon room, that is new scope, not a gap in
+U3's implementation of the existing plan.
+
 **Verify these three function shapes against the real 26.2 build before shipping**
 — `set_custom_data`'s `tag` argument has been both an SNBT string and an object
 across versions, and `set_name`/`set_lore` gained their `target`/`mode` fields
@@ -1110,6 +1120,47 @@ of thing that survives a headless-server smoke test (no chest ever gets
 *opened* by console commands, so the lazy-unpack path never fires there) and
 only shows up once a real player actually walks through an encounter room --
 worth remembering for U4/U5 verification too.
+
+**Two more real bugs, found by the user actually playing a build, not by any
+verification pass above:**
+
+1. **Enchanted books came out with zero enchantments, every time.** Root
+   cause, confirmed with `javap` bytecode inspection of
+   `EnchantmentHelper.selectEnchantment`: it reads the stack's
+   `DataComponents.ENCHANTABLE` component and returns an empty candidate list
+   immediately if it's null. `minecraft:enchanted_book` does not carry that
+   component -- only `minecraft:book` does, since a plain book is what you'd
+   put in an enchanting table. The vanilla pattern (and what
+   `EnchantmentHelper.enchantItem` itself is written for) is to loot-roll a
+   **`minecraft:book`** and let `enchant_with_levels` convert it to an
+   enchanted book with real stored enchantments as part of its own logic --
+   there's a literal `stack.is(Items.BOOK) -> new ItemStack(ENCHANTED_BOOK)`
+   branch for exactly this. `tier_2.json`/`tier_3.json` used
+   `minecraft:enchanted_book` directly, skipping that conversion entirely.
+   Fixed by changing both entries' `name` to `minecraft:book`; re-verified
+   live, 10/10 fresh rolls now carry real `stored_enchantments`. **This is
+   exactly the kind of function-shape mistake the plan's own Stage 3 flagged
+   as needing verification** -- the `javap` pass on `EnchantWithLevelsFunction`
+   confirmed its top-level shape was right, but didn't catch that the
+   *input item* was wrong, since that's a runtime data-flow question, not a
+   codec-shape one. A single actual roll inspected for its enchantment
+   component (not just its presence in the chest) would have caught this
+   during U3's own verification pass -- noted for next time.
+2. **Chests felt roughly 4x too generous.** Real cause, once single (not
+   stress-test) rolls were compared side by side: `bonus.json`'s pool was
+   wired into `tier_2`/`tier_3` as an **unconditional** extra pool -- it fires
+   on every single chest, solo or party, not just for a real party. This was
+   already a documented, deliberate scope cut (`chestRolls()` exists as
+   tested pure logic but was never wired to gate it), and it turned out to
+   be a bigger generosity add than intended: on top of `tier_2`/`tier_3`'s
+   own four pools, every chest got a guaranteed extra 1-2 rolls from a pool
+   whose items (diamond, emerald, iron, gold, experience bottles) already
+   overlap the base pools, compounding rather than adding variety. Fixed by
+   removing the `bonus.json` reference from both tables' pool lists --
+   `bonus.json` itself is untouched and still a reasonable file for a future
+   properly party-gated bonus (still U5-adjacent territory, same as before).
+   Re-verified live: single-roll tier_2/tier_3 chests now land at 3-5
+   distinct stacks, matching Stage 4's original narrative much more closely.
 
 **Deviation, deliberately scoped down:** `DifficultyProfile.chestRolls()`
 exists and is unit-tested (`partySize - 1`), and `bonus.json` is wired into

@@ -144,7 +144,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:enchanted_book",
+          "name": "minecraft:book",
           "weight": 4,
           "functions": [
             { "function": "minecraft:enchant_with_levels", "levels": { "min": 30, "max": 40 } }
@@ -198,15 +198,6 @@
               "lore": [ { "text": "Grip it and a trial finds you.", "italic": true, "color": "gray" } ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:loot_table",
-          "value": "pocketdungeons:chests/bonus"
         }
       ]
     }

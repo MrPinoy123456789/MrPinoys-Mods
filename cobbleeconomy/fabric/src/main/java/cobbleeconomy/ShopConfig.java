@@ -117,11 +117,12 @@ public final class ShopConfig {
         try {
             JsonObject object = element.getAsJsonObject();
             String itemId;
-            if (object.has("item") && object.has("suite_item")) {
+            boolean isSuiteItem = object.has("suite_item");
+            if (object.has("item") && isSuiteItem) {
                 CobbleEconomyMod.LOG.warn("Shop entry '{}' has both 'item' and 'suite_item'; pick one", key);
                 return null;
             }
-            if (object.has("suite_item")) {
+            if (isSuiteItem) {
                 String suiteId = object.get("suite_item").getAsString();
                 itemId = SuiteItems.PREFIX + suiteId;
                 if (SuiteItems.baseItem(suiteId).isEmpty()) {
@@ -167,17 +168,24 @@ public final class ShopConfig {
             // The item is checked here rather than at purchase time, so a typo shows
             // up as one startup warning instead of a confused player whose money
             // vanished into an item that does not exist.
-            if (WondrousShop.isWondrousItemId(itemId)) {
-                String wondrousId = WondrousShop.idFrom(itemId);
-                if (!WondrousShop.available() || WondrousShop.baseItem(wondrousId).isEmpty()) {
-                    CobbleEconomyMod.LOG.warn(
-                            "Shop entry '{}' names wondrous item '{}', but it could not be "
-                                    + "resolved (mod absent or unknown id)", key, itemId);
+            //
+            // A suite item was already validated via SuiteItems.baseItem() above --
+            // itemId here is the internal "suite:<namespace>:<path>" marker, not a
+            // registry id or a "wondrous:" id, so it must not be re-checked against
+            // either lookup below.
+            if (!isSuiteItem) {
+                if (WondrousShop.isWondrousItemId(itemId)) {
+                    String wondrousId = WondrousShop.idFrom(itemId);
+                    if (!WondrousShop.available() || WondrousShop.baseItem(wondrousId).isEmpty()) {
+                        CobbleEconomyMod.LOG.warn(
+                                "Shop entry '{}' names wondrous item '{}', but it could not be "
+                                        + "resolved (mod absent or unknown id)", key, itemId);
+                        return null;
+                    }
+                } else if (ItemBank.resolve(itemId).isEmpty()) {
+                    CobbleEconomyMod.LOG.warn("Shop entry '{}' names unknown item '{}'", key, itemId);
                     return null;
                 }
-            } else if (ItemBank.resolve(itemId).isEmpty()) {
-                CobbleEconomyMod.LOG.warn("Shop entry '{}' names unknown item '{}'", key, itemId);
-                return null;
             }
 
             // Optional. Checked here for the same reason the item id is: a listing that

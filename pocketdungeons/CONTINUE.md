@@ -107,6 +107,60 @@ something the pure-logic unit test structurally couldn't, because
 count. Keep budgeting live verification for anything where two independently-
 correct pieces interact, not just for state machines.
 
+**Two more real bugs, found by the user actually playing a build after the
+above:**
+
+1. **Enchanted books rolled with zero enchantments, every time.** Root cause
+   (confirmed via `javap` on `EnchantmentHelper.selectEnchantment`): it reads
+   the stack's `ENCHANTABLE` data component and returns nothing if that's
+   null. `minecraft:enchanted_book` doesn't carry it -- only
+   `minecraft:book` does. `enchant_with_levels` is written to take a plain
+   book in and convert it to an enchanted book itself; the loot tables were
+   rolling `enchanted_book` directly, skipping that conversion. Fixed by
+   changing both tier tables' entry to `minecraft:book`. Verified live:
+   10/10 fresh rolls now carry real enchantments.
+2. **Chests felt ~4x too generous.** `bonus.json` was wired into
+   `tier_2`/`tier_3` unconditionally (fires on every chest, not just a real
+   party) -- a known, documented scope cut that turned out more generous
+   than intended, since its items overlap the base pools and compound rather
+   than add variety. Fixed by removing the reference from both tables;
+   `bonus.json` itself is untouched for a future properly party-gated
+   version. Verified live: single-roll chests now land at 3-5 stacks,
+   matching the plan's own Stage 4 narrative.
+
+Full writeups for both are in `UPDATE_PLAN.md`'s U3 section. **Lesson:** the
+U3 verification pass inspected loot table *presence* and *shape* (did the
+right item type show up, does the function's JSON parse) but never checked
+an actual roll's *enchantment component* or compared a single roll's
+quantity against the plan's own narrative -- both would have caught these
+before the user did. Check the actual generated data, not just that
+generation didn't crash.
+
+**A related question the user asked, answered by reading `kamutotems`
+directly rather than guessing:** pocketdungeons does not and should not spawn
+kamu boss mobs inside a dungeon room. `kamutotems.BossStone` /
+`BOSS_EGG_SPEC.md` confirm the boss-stone item pocketdungeons drops is a
+*portable trigger* -- right-clicking it mints a rolled sigil (a spawn-egg
+item) the player then uses or dispenses elsewhere to summon the boss. No
+in-room boss encounter is in scope for any shipped or planned milestone here;
+if that's wanted later it's new scope, not a U3 gap.
+
+**A fourth bug, in `kamutotems` not `pocketdungeons`, found and fixed while
+answering the user's question above:** the Kamu Station's Fusion panel
+(`KamuForge.java`) reopened the hub *synchronously* from inside its own
+`removed()` close-handler -- which runs mid-handshake in vanilla's
+container-close packet processing, before `player.containerMenu` is reset.
+Reopening a new menu from there leaves the client and server with mismatched
+container state: the hub visibly reopens but every button silently no-ops
+until the player closes everything and reopens fresh. Fixed by deferring the
+reopen to the next `END_SERVER_TICK`, same pattern this suite already uses
+elsewhere for identical handshake-timing hazards. Compiles and
+`kamutotems`'s own tests pass, but **this one could not be live-verified** --
+it needs an actual client clicking through the menu, which this environment
+doesn't have. If picking pocketdungeons back up, this fix is sitting
+uncommitted in the sibling `kamutotems` working tree and is worth asking the
+user whether it actually resolved the symptom.
+
 ## Operational notes for whoever picks this up
 
 - **Dev server testing harness.** There's no Minecraft client available in

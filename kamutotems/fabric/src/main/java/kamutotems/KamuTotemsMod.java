@@ -75,6 +75,7 @@ public final class KamuTotemsMod implements ModInitializer {
         // outward API other mods depend on -- which is exactly the kind of
         // action-at-a-distance this suite's decoupling exists to prevent.
         Station.register();
+        KamuForge.register();
         AssignedQuestHost.register();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, environment) -> {

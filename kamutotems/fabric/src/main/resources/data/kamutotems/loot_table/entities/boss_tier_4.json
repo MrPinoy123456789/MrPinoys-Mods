@@ -22,12 +22,8 @@
           "name": "minecraft:enchanted_book",
           "functions": [
             {
-              "function": "set_components",
-              "components": {
-                "minecraft:stored_enchantments": {
-                  "levels": { "minecraft:mending": 1 }
-                }
-              }
+              "function": "enchant_randomly",
+              "enchantments": ["minecraft:mending"]
             }
           ]
         }
