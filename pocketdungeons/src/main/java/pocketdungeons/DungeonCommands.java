@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -59,6 +60,18 @@ final class DungeonCommands {
                                     .executes(ctx -> invite(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "target")))))
 
+                    .then(Commands.literal("log")
+                            .executes(ctx -> log(ctx.getSource(),
+                                    ctx.getSource().getPlayerOrException().getUUID(),
+                                    ctx.getSource().getPlayerOrException().getName().getString()))
+                            .then(Commands.argument("target", EntityArgument.player())
+                                    .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                    .executes(ctx -> {
+                                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                        return log(ctx.getSource(), target.getUUID(),
+                                                target.getName().getString());
+                                    })))
+
                     .then(Commands.literal("join")
                             .then(Commands.argument("leader", EntityArgument.player())
                                     .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
@@ -81,6 +94,23 @@ final class DungeonCommands {
 
                             .then(Commands.literal("stamptest")
                                     .executes(ctx -> stampTest(ctx.getSource())))
+
+                            .then(Commands.literal("log")
+                                    .then(Commands.literal("record")
+                                            .then(Commands.argument("name", StringArgumentType.word())
+                                                    .then(Commands.argument("pathLength",
+                                                                    IntegerArgumentType.integer(1))
+                                                            .then(Commands.argument("date",
+                                                                            StringArgumentType.word())
+                                                                    .executes(ctx -> logRecord(
+                                                                            ctx.getSource(),
+                                                                            StringArgumentType.getString(ctx, "name"),
+                                                                            IntegerArgumentType.getInteger(ctx, "pathLength"),
+                                                                            StringArgumentType.getString(ctx, "date")))))))
+                                    .then(Commands.literal("show")
+                                            .then(Commands.argument("name", StringArgumentType.word())
+                                                    .executes(ctx -> logShow(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "name"))))))
 
                             .then(Commands.literal("cellreport")
                                     .then(Commands.argument("slot", IntegerArgumentType.integer(0))
@@ -131,8 +161,66 @@ final class DungeonCommands {
     }
 
     private static int exit(ServerPlayer player) {
-        Instances.exit(player);
+        // A command exit is a retreat, not a completion -- it does not pay.
+        Instances.exit(player, Instances.ExitReason.COMMAND);
         return 1;
+    }
+
+    /**
+     * {@code /dungeon log}. Reads the persistent history, not the live instance,
+     * so it answers the same before and after a run and survives a restart.
+     */
+    private static int log(CommandSourceStack source, java.util.UUID player, String name) {
+        DungeonLog.Entry entry = DungeonLog.forServer(source.getServer()).get(player);
+        if (entry.runsCompleted() == 0) {
+            source.sendSuccess(() -> Component.literal(
+                    name + " has not finished a dungeon yet.").withStyle(ChatFormatting.GRAY), false);
+            return 0;
+        }
+        int bonus = PayoutMath.streakBonusPercent(entry.streak(),
+                PocketDungeonsConfig.streakBonusPercent(),
+                PocketDungeonsConfig.streakBonusCapPercent());
+        source.sendSuccess(() -> Component.literal(
+                name + ": " + entry.runsCompleted() + " run(s) completed, streak "
+                        + entry.streak() + " (+" + bonus + "% payout), longest dungeon cleared "
+                        + entry.bestPathLength() + " rooms deep, last on "
+                        + entry.lastCompletedDateKey())
+                .withStyle(ChatFormatting.GOLD), false);
+        return entry.runsCompleted();
+    }
+
+    /**
+     * Development-only: record a completion for a synthetic player on a chosen
+     * date. The streak rule's real test spans days, and this is what lets a whole
+     * history -- including the gap and the restart cases -- be walked from a
+     * console in one sitting. It never pays anything; it only writes history.
+     */
+    private static int logRecord(CommandSourceStack source, String name, int pathLength, String date) {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            source.sendFailure(Component.literal("admin log record is a development-only command."));
+            return 0;
+        }
+        DungeonLog.Entry entry = DungeonLog.forServer(source.getServer())
+                .recordCompletion(syntheticId(name), pathLength, date);
+        source.sendSuccess(() -> Component.literal(
+                name + " -> runs " + entry.runsCompleted() + ", streak " + entry.streak()
+                        + ", best " + entry.bestPathLength()
+                        + ", last " + entry.lastCompletedDateKey()), false);
+        return entry.streak();
+    }
+
+    private static int logShow(CommandSourceStack source, String name) {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            source.sendFailure(Component.literal("admin log show is a development-only command."));
+            return 0;
+        }
+        return log(source, syntheticId(name), name);
+    }
+
+    /** A stable UUID per test name, so a restart looks up the same entry. */
+    private static java.util.UUID syntheticId(String name) {
+        return java.util.UUID.nameUUIDFromBytes(("pocketdungeons-test:" + name)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static int party(ServerPlayer leader, ServerPlayer target) {

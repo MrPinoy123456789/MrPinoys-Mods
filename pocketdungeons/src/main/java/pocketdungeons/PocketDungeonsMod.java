@@ -32,6 +32,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         PocketDungeonsConfig.load(FabricLoader.getInstance().getConfigDir());
         DungeonCommands.register();
         Instances.register();
+        RitualListener.register();
         RoomTemplateGenerator.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");

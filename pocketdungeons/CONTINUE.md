@@ -26,195 +26,159 @@ in both.
 Milestones are **U1–U5**, numbered as this update's own dependency-ordered
 sequence (not PLAN.md's M-numbers — an earlier draft borrowed those and it was
 actively misleading about execution order; see `UPDATE_PLAN.md`'s opening
-section if you want the full reasoning).
+section if you want the full reasoning). **`UPDATE_PLAN.md` also carries a
+U6** — a trial-chambers rework that supersedes most of U3's difficulty
+machinery — appended after U1–U3 shipped. It is a second update sharing the
+document, not the sixth step of this one, and it is untouched.
 
 | | Status | |
 |---|---|---|
 | **U1** — room library | ✅ shipped, verified | 14 templates, 0 rejected, 53/53 coverage, 200/200 plan success |
 | **U2** — plan stamping + `Instances` glue | ✅ shipped, verified, **hardened** | procedural `/dungeon`, rotation-correct, tick-spread teardown |
-| **U3** — tiered loot & scaled mobs | ✅ shipped, verified | `DifficultyProfile`, mob spawning, chest retargeting, loot tables, boss stones, `/dungeon party` |
-| **U4** — lodestone ritual | ⬜ **not started — do this next** | fully independent, no dependency on U3 |
-| **U5** — dungeon log & payout | ⬜ not started | depends only on U2 (already shipped), not U3 |
+| **U3** — tiered loot & scaled mobs | ✅ shipped, verified, **hardened twice** | `DifficultyProfile`, mob spawning, chest retargeting, loot tables, boss stones, `/dungeon party` |
+| **U4** — lodestone ritual | ✅ shipped | `RitualListener`, `ConfiguredItem`, `Instances.enter` returns boolean. Config paths verified live; **every right-click path is client-only and unverified** |
+| **U5** — dungeon log & payout | ✅ shipped | `DungeonLog` (`SavedData`), `Payout`, `PayoutMath` + test, `ExitReason`, `/dungeon log`. Streaks and persistence verified live; **every in-dungeon payout path is client-only and unverified** |
+| **U6** — trial-chambers rework | ⬜ not started | separate update, depends on U1/U2, touches U4 and U5 at one point each |
 
-**First shippable build = U1 + U2 + U3 — all shipped.** U4 and U5 are the
-remaining work; either can go next (U4 has no dependency on anything in this
-update, U5 depends only on the already-shipped U2).
+**All five milestones of this update are code-complete.** What remains before
+calling it shippable is a real client walkthrough — see below.
 
-## Important: nothing is committed to git yet
+## Git state
 
-Every change across U1, U2, and U3 is still in the working tree (`git status
---short` will show a large number of modified/added files under
-`pocketdungeons/`, all uncommitted). Do not assume any of this survived a
-reset. If you want a checkpoint, ask the user before committing — commits
-happen only on explicit request per this project's working agreement.
+U1–U3 **are** committed (`ae45f9a`, `d4b2ed0`, `2b20017` — the last two being
+the two hardening passes). The prior handoff note claiming nothing was
+committed was stale by the time it was read; check `git log` rather than
+trusting a handoff on this.
+
+U4 and U5 are **not** committed — `git status --short` shows five new files
+(`RitualListener`, `ConfiguredItem`, `DungeonLog`, `Payout`, `PayoutMath`), one
+new test (`PayoutMathTest`), and edits to `Instances`, `DungeonCommands`,
+`PocketDungeonsMod`, `build.gradle.kts`, plus the three docs. Commits happen
+only on explicit request per this project's working agreement — ask first.
 
 ## What just happened before this handoff
 
-U3 (tiered loot and scaled mobs) was implemented and verified end to end:
+U4 and U5 were both built in one session.
 
-1. `DifficultyProfile.java` — new pure-logic file (no Minecraft imports),
-   tier/mob-count/roster curves, unit-tested in `DifficultyProfileTest`
-   (wired into `tasks.test`).
-2. `RoomContent.java` extended: `encounter` cells now spawn
-   `DifficultyProfile.mobCount(depth)` mobs rolled from the tier roster,
-   `loot` cells retarget their chest to `chests/tier_N` with an explicit
-   seed, and the `spawnerDensEnabled` kill switch swaps authored spawners for
-   mossy cobblestone.
-3. `chests/tier_1.json` (rewritten), `tier_2.json`, `tier_3.json`,
-   `bonus.json` — the full item pools from the plan, including boss-stone
-   entries for the `kamutotems` cross-mod hook.
-4. `LayoutStamper`/`Instances` thread a `partySize` through to stamp time;
-   `/dungeon party <player>` (new) pre-registers a companion **before**
-   entry so the difficulty curve reflects the real party size, per the
-   plan's Stage 5.
-5. `/dungeon admin cellreport <slot>` (new, dev-only) — per-cell chest/mob
-   introspection, since there's no client to check role dispatch by hand.
+**U4 (lodestone ritual)** — new `RitualListener.java`, plus a new
+`ConfiguredItem.java` shared with U5 for parse-cache-log-once item-id
+resolution. `Instances.enter` now returns `boolean` so the key is consumed only
+after entry actually succeeds. The strict "no `custom_data` at all" key rule
+shipped (not the narrow kamutotems-only version), a sneak guard was added that
+the plan does not mention, and the ritual sound plays *before* entry so the
+player being teleported away can actually hear it.
 
-**A real bug was found and fixed by live verification, not code review:**
-`RoomContent`'s mob-overflow jitter could land on a wall and silently skip a
-mob, systematically undercounting encounter cells (observed 2–3 mobs instead
-of the intended 4). Fixed with a fallback to the guaranteed-open spawn jigsaw
-position when jitter misses.
+**U5 (dungeon log & payout)** — new `DungeonLog.java` (`SavedData`, list-keyed,
+modelled on `wondrous/WondrousState`), `Payout.java`, and `PayoutMath.java`
+(pure logic, no Minecraft imports, with `PayoutMathTest` wired into
+`tasks.test`). `Instances.exit` now takes an `ExitReason`; only `EXIT_PAD` pays,
+guarded once per member per instance by `InstanceRecord.paid`. `/dungeon log`
+and `/dungeon log <player>` added, plus two dev-only commands
+(`/dungeon admin log record|show`) that exist specifically so the streak rule
+can be tested without waiting several real days.
 
-**A second, more visible bug was then reported by the user from an actual
-client session:** `encounter`/`corridor` rooms showed loose items on the
-floor where the chest should have been removed entirely. Root cause (found
-via `javap` bytecode inspection, not guessing): `Block.UPDATE_SUPPRESS_DROPS`
-only suppresses a removed block's *own* item drop, not a container's
-*contents* -- that's a separate flag, `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`,
-which neither `RoomContent` nor `RoomBuilder` (used by teardown) ever
-included. Worse, a container's contents are dropped by iterating `getItem()`,
-which lazily unpacks a still-pending loot table on first access -- so
-breaking a never-opened placeholder chest generated its loot right there and
-scattered it as the chest vanished. Fixed in both places; re-verified live
-with a zero-item-entities census across a freshly built instance. Full
-writeup, plus the loot-table/boss-stone verification results and one
-deliberately-scoped-down deviation (`chestRolls()` is unit-tested pure logic
-but not yet wired into a dynamic per-party chest bonus), are in
-`UPDATE_PLAN.md` under the U3 section.
+**A real bug was found by reading bytecode, before it ever shipped:**
+`Inventory.add(ItemStack)` returns "did I move **any** of this" and mutates the
+passed stack down to the remainder — so the suite's usual
+`if (!player.getInventory().add(stack))` idiom **silently destroys** whatever
+did not fit. A payout into a nearly-full inventory is exactly when that
+happens. Shipped code tests `stack.isEmpty()` afterwards instead. **The same
+idiom appears in at least eight other files across this suite** (`bounties/
+Rewards`, `chatdonkey/Rewards`, `cobbleeconomy/ItemBank`,
+`kamutotems/AssignedQuestHost`, `ballot/BallotCommands`, and more) with the
+same hole — worth raising with the user as its own piece of work.
 
-**Lesson worth carrying forward:** a headless console smoke test cannot catch
-this class of bug -- nothing ever *opens* a chest via console commands, so
-the lazy-unpack-on-access path this bug depends on never fires there. Some
-things genuinely need a real client. Keep an eye out for other
-container/inventory-adjacent code for the same reason before assuming a
-headless pass alone clears it.
+**A documentation discrepancy, resolved in favour of the formula:** U5 Stage 3's
+prose says a tier-3 run on a 10-day streak pays 28; its own formula
+(`streakBonusPercent * (streak - 1)`) makes that 26, with 28 arriving on day
+eleven when the 100% cap is reached. The formula shipped and both numbers are
+asserted in `PayoutMathTest` so it cannot drift again silently.
 
-**Lesson carried forward from U2, reconfirmed here:** a live check on
-"what happens when demand exceeds supply" (spawn points vs. mob count) caught
-something the pure-logic unit test structurally couldn't, because
-`DifficultyProfile` has no notion of a room template's authored spawn-point
-count. Keep budgeting live verification for anything where two independently-
-correct pieces interact, not just for state machines.
+**One thing that looked like a bug and was not:** `dungeon_log.dat` does not
+appear under `run/world/data/`. In 26.2 a `ServerLevel`'s `SavedDataStorage`
+writes to `run/world/dimensions/<ns>/<path>/data/`, so the overworld's store is
+at `run/world/dimensions/minecraft/overworld/data/pocketdungeons/dungeon_log.dat`.
+`world/data/` holds the vanilla server-level stores only. Ten minutes went into
+chasing a phantom save failure here; don't repeat it.
 
-**Two more real bugs, found by the user actually playing a build after the
-above:**
+## Carried-forward lessons (all still current)
 
-1. **Enchanted books rolled with zero enchantments, every time.** Root cause
-   (confirmed via `javap` on `EnchantmentHelper.selectEnchantment`): it reads
-   the stack's `ENCHANTABLE` data component and returns nothing if that's
-   null. `minecraft:enchanted_book` doesn't carry it -- only
-   `minecraft:book` does. `enchant_with_levels` is written to take a plain
-   book in and convert it to an enchanted book itself; the loot tables were
-   rolling `enchanted_book` directly, skipping that conversion. Fixed by
-   changing both tier tables' entry to `minecraft:book`. Verified live:
-   10/10 fresh rolls now carry real enchantments.
-2. **Chests felt ~4x too generous.** `bonus.json` was wired into
-   `tier_2`/`tier_3` unconditionally (fires on every chest, not just a real
-   party) -- a known, documented scope cut that turned out more generous
-   than intended, since its items overlap the base pools and compound rather
-   than add variety. Fixed by removing the reference from both tables;
-   `bonus.json` itself is untouched for a future properly party-gated
-   version. Verified live: single-roll chests now land at 3-5 stacks,
-   matching the plan's own Stage 4 narrative.
-
-Full writeups for both are in `UPDATE_PLAN.md`'s U3 section. **Lesson:** the
-U3 verification pass inspected loot table *presence* and *shape* (did the
-right item type show up, does the function's JSON parse) but never checked
-an actual roll's *enchantment component* or compared a single roll's
-quantity against the plan's own narrative -- both would have caught these
-before the user did. Check the actual generated data, not just that
-generation didn't crash.
-
-**A related question the user asked, answered by reading `kamutotems`
-directly rather than guessing:** pocketdungeons does not and should not spawn
-kamu boss mobs inside a dungeon room. `kamutotems.BossStone` /
-`BOSS_EGG_SPEC.md` confirm the boss-stone item pocketdungeons drops is a
-*portable trigger* -- right-clicking it mints a rolled sigil (a spawn-egg
-item) the player then uses or dispenses elsewhere to summon the boss. No
-in-room boss encounter is in scope for any shipped or planned milestone here;
-if that's wanted later it's new scope, not a U3 gap.
-
-**A fourth bug, in `kamutotems` not `pocketdungeons`, found and fixed while
-answering the user's question above:** the Kamu Station's Fusion panel
-(`KamuForge.java`) reopened the hub *synchronously* from inside its own
-`removed()` close-handler -- which runs mid-handshake in vanilla's
-container-close packet processing, before `player.containerMenu` is reset.
-Reopening a new menu from there leaves the client and server with mismatched
-container state: the hub visibly reopens but every button silently no-ops
-until the player closes everything and reopens fresh. Fixed by deferring the
-reopen to the next `END_SERVER_TICK`, same pattern this suite already uses
-elsewhere for identical handshake-timing hazards. Compiles and
-`kamutotems`'s own tests pass, but **this one could not be live-verified** --
-it needs an actual client clicking through the menu, which this environment
-doesn't have. If picking pocketdungeons back up, this fix is sitting
-uncommitted in the sibling `kamutotems` working tree and is worth asking the
-user whether it actually resolved the symptom.
+- **Verify Minecraft API shapes against the real jar with `javap`, and check
+  what a method *does*, not just that it exists.** U3's enchanted-book bug
+  needed `EnchantmentHelper.selectEnchantment`'s bytecode; U5's `Inventory.add`
+  bug needed the same treatment; U4's "is it safe to shrink a stack after a
+  cross-dimension teleport" question was answered by confirming
+  `ServerPlayer.teleport` is `aload_0 … areturn` throughout and never recreates
+  the player.
+- **Headless testing has a hard blind spot.** Nothing in a console session ever
+  right-clicks a block, opens a chest, or clicks a GUI button. That is what hid
+  U3's container-drop bug and a kamutotems GUI bug, and it is why *all* of U4's
+  and most of U5's checks are in `CLIENT_TEST_CHECKLIST.md` rather than marked
+  verified.
+- **Check the generated data, not just that generation ran.** U3's two
+  user-reported bugs both survived a pass that confirmed the loot tables parsed
+  and the right item type appeared, but never inspected an enchantment component
+  or compared a roll's size to the plan's own narrative.
+- **Trace cross-cutting interactions by hand, not by diff.** U2's teardown/
+  slot-reuse pass, U3's mob-spawn undercount, and U5's payout ordering (eject
+  first, pay second, so a dropped reward lands in the overworld and not inside a
+  dungeon teardown is already clearing) were each found or confirmed that way.
 
 ## Operational notes for whoever picks this up
 
-- **Dev server testing harness.** There's no Minecraft client available in
-  this environment. Verification happens by driving `./gradlew.bat runServer
-  --offline` headlessly from a Python driver script that pipes timed console
-  commands into its stdin and reads stdout for markers (`Done (` for boot,
-  etc.) rather than fixed sleeps. Two gotchas hit this session, worth not
-  re-discovering:
-  - The background shell's `python` is native Windows Python, not Git Bash's
-    — POSIX-style paths like `/a/tmp/...` do **not** resolve from inside the
-    script. Use Windows paths (`r"A:\tmp\..."`) for anything the Python
-    process itself opens, and pass an absolute Windows path to `gradlew.bat`
-    (`cmd /c "A:\...\gradlew.bat" runServer --offline`) — `cmd /c gradlew.bat`
-    alone did not find it even with `cwd` set correctly.
-  - Any block/entity console command targeting a scratch position (e.g. a
-    throwaway chest for `/loot insert` + `/data get block` checks) needs
+- **Dev server testing harness.** There's no Minecraft client available in this
+  environment. Verification happens by driving `./gradlew.bat runServer
+  --offline` headlessly from a Python driver that pipes timed console commands
+  into its stdin and reads stdout for markers (`Done (` for boot). A working
+  driver is written fresh each session; the shape that works is: launch
+  `["cmd","/c", r"A:\MrPinoys Mods\pocketdungeons\gradlew.bat", "runServer",
+  "--offline"]` with `cwd` set to the mod root, a reader thread pumping stdout
+  into a queue, wait for `Done (`, then write commands to stdin with a short
+  drain after each, then `stop`. Two gotchas, worth not re-discovering:
+  - The background shell's `python` is native Windows Python, not Git Bash's —
+    POSIX-style paths like `/a/tmp/...` do **not** resolve from inside the
+    script. Use Windows paths for anything the Python process itself opens, and
+    an absolute Windows path for `gradlew.bat` (`cmd /c gradlew.bat` alone does
+    not find it even with `cwd` set correctly).
+  - Any block/entity console command targeting a scratch position needs
     `/execute in pocketdungeons:void run forceload add <x1> <z1> <x2> <z2>`
-    first, or every command silently no-ops with "That position is not
-    loaded" — easy to miss since it doesn't error.
+    first, or every command silently no-ops with "That position is not loaded".
   - `/loot insert <pos> loot <table>` (not `/loot give`) is the move for
-    inspecting a loot table from the console with no player attached — it
-    fills a real block container you can then `/data get block` directly.
+    inspecting a loot table from the console with no player attached.
   - `run/eula.txt` needs `eula=true` (already present, but `rm -rf run/world`
-    between clean-slate tests can occasionally take `run/` state with it —
-    check `run/eula.txt` exists before assuming a server boot failure is a
-    real bug).
+    between clean-slate tests can occasionally take `run/` state with it).
 - **The Minecraft jar for `javap` introspection** is at
   `/c/Users/Kriss/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged-deobf/26.2/minecraft-merged-deobf-26.2.jar`.
-  Use it to verify any Minecraft API shape before writing code against it —
-  this project has a strong "verify against the real jar, don't guess"
-  discipline. U3 used it to confirm `SetCustomDataFunction`, `SetNameFunction`,
-  `SetLoreFunction`, `SetItemCountFunction`, `EnchantWithLevelsFunction`,
-  `EntityType.spawn`, and `Mob.setPersistenceRequired` all match the shapes
-  the plan assumed — all correct on the first try this time, but don't skip
-  the check on that account.
+  `javap -c -p -cp "$JAR" <class>` for bytecode; plain `javap` for signatures.
+  Note that `ItemStack.is(Item)` no longer appears in `javap ItemStack` — it is
+  inherited from `TypedInstance.is(T)`.
 - **`clearBlocksPerTick` has a hard floor of 1024** in
-  `PocketDungeonsConfig.apply` — a config value below that silently falls back
-  to the default 8192. The `run/config/pocketdungeons.json` left over from a
-  prior session currently has an invalid `clearBlocksPerTick: 20` in it,
-  which logs a (harmless, expected) error at boot every time; leave it or fix
-  it, it doesn't affect anything since the default kicks in.
-- **Manifest loads on `SERVER_STARTED` now** — don't assume you need to run
-  `/dungeon admin manifest reload` by hand before testing on a fresh server.
+  `PocketDungeonsConfig.apply`. The stale `run/config/pocketdungeons.json` that
+  used to carry an invalid `20` has been fixed to `8192`; the boot-time error it
+  logged is gone.
+- **Manifest loads on `SERVER_STARTED`** — no need to run
+  `/dungeon admin manifest reload` by hand on a fresh server.
+- **Dev-only commands available for headless work:**
+  `/dungeon admin build [seed]`, `admin cellreport <slot>`, `admin stamptest`,
+  `admin coverage`, `admin plansurvey <n>`, `admin log record <name>
+  <pathLength> <date>`, `admin log show <name>`.
 
 ## What to do next
 
-U4 (lodestone ritual) and U5 (dungeon log & payout) are both unstarted and
-neither depends on the other. Read `UPDATE_PLAN.md`'s sections for both
-(U4 starts around line 1103, U5 after it — search for the headings, don't
-trust line numbers to stay accurate) and either is a reasonable next pick;
-U4 is fully independent of everything in this update, U5 depends only on the
-already-shipped U2. Whichever is picked, keep the established discipline:
-verify Minecraft API shapes against the 26.2 jar via `javap` before trusting
-them, and do a live headless-server pass (not just a diff review) on
-anything where two independently-correct pieces of this milestone interact —
-that is exactly the kind of bug U2's teardown/slot-reuse pass and U3's mob-
-spawn undercount were both caught by.
+Two candidates, in rough priority order:
+
+1. **A real client walkthrough of U4 and U5.** `CLIENT_TEST_CHECKLIST.md`
+   sections 15–25 are written and unrun. Given that every user-reported bug on
+   this mod so far came from exactly the paths a console session cannot reach,
+   this is the highest-value next step and the thing standing between "code
+   complete" and "shippable".
+2. **U6, the trial-chambers rework** (`UPDATE_PLAN.md`, search for `## U6`). A
+   second update sharing the document. It supersedes most of U3's difficulty
+   machinery and touches U4 (an ominous-bottle ritual branch) and U5 (an ominous
+   payout multiplier) at one point each.
+
+Also outstanding from a previous session: a fix to `kamutotems`'s
+`KamuForge.java` (deferring the Fusion panel's hub reopen to the next
+`END_SERVER_TICK`) is sitting uncommitted in the sibling working tree and could
+never be live-verified here. Worth asking the user whether it actually resolved
+the symptom.

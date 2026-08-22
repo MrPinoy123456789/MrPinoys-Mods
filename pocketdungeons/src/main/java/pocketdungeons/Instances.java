@@ -193,16 +193,24 @@ final class Instances {
         return byMember.containsKey(player.getUUID());
     }
 
-    static void enter(ServerPlayer player) {
+    /**
+     * Opens a dungeon for this player and their pre-registered party.
+     *
+     * <p>Returns whether the player actually went in. Every failure path here
+     * leaves them standing exactly where they were, and {@link RitualListener}
+     * pays a real item for entry -- so "did this work" has to be answerable by
+     * the caller rather than inferred from a message the player was sent.
+     */
+    static boolean enter(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
-            return;
+            return false;
         }
         if (hasInstance(player)) {
             player.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon exit first.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -213,7 +221,7 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             PocketDungeonsMod.LOG.error("Dimension {} is missing",
                     PocketDungeonsMod.DUNGEON_LEVEL.identifier());
-            return;
+            return false;
         }
 
         List<ServerPlayer> companions = resolveParty(server, player);
@@ -231,7 +239,7 @@ final class Instances {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. You have not been moved.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout);
@@ -281,6 +289,7 @@ final class Instances {
         PocketDungeonsMod.LOG.info("Opened dungeon slot {} for {} ({} rooms, tier {}, party {}, seed {})",
                 slot, player.getName().getString(), layout.roomCount(),
                 layout.lootTier(), partySize, layout.seed());
+        return true;
     }
 
     /**
@@ -534,7 +543,20 @@ final class Instances {
 
     // ---- exit ---------------------------------------------------------------
 
-    static void exit(ServerPlayer player) {
+    /**
+     * Why a member is leaving. Only {@link #EXIT_PAD} pays: walking out on the
+     * far pad is a completed run, {@code /dungeon exit} from room three is a
+     * retreat.
+     *
+     * <p>Deliberately only the two reasons that actually reach {@link #exit}.
+     * A death rescue, a purge and a disconnect each leave through
+     * {@code rescue}, {@code purge} and {@code dropMember} instead -- none of
+     * which route through here, and none of which pay. Giving them constants
+     * would be documenting a dispatch that does not exist.
+     */
+    enum ExitReason { EXIT_PAD, COMMAND }
+
+    static void exit(ServerPlayer player, ExitReason reason) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
@@ -546,13 +568,45 @@ final class Instances {
             return;
         }
 
+        // Teleport first, pay second. Payout.grant drops what will not fit at the
+        // player's feet, and feet still on the exit pad are inside a dungeon this
+        // very call is about to tear down.
         eject(server, record, player);
-        player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
-                .withStyle(ChatFormatting.GOLD));
-        announce(server, record, player.getName().getString() + " leaves the dungeon.",
+
+        boolean paid = reason == ExitReason.EXIT_PAD && pay(server, record, player);
+        if (!paid) {
+            player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+        announce(server, record, player.getName().getString()
+                        + (paid ? " walks out of the dungeon." : " leaves the dungeon."),
                 player.getUUID());
 
         closeIfEmpty(server, record, "last member left");
+    }
+
+    /**
+     * Records the completion and pays for it, once per member per instance.
+     *
+     * <p>The guard is {@link InstanceRecord#paid}, which dies with the instance:
+     * a member who is paid, gets pulled back in by a friend and steps on the pad
+     * again is not paid twice, and earning another payout means walking a fresh
+     * dungeon. That is a rate limit set by a human rather than by a timer.
+     *
+     * @return whether this call actually paid
+     */
+    private static boolean pay(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+        if (!record.paid.add(player.getUUID())) {
+            return false;
+        }
+        DungeonLog.Entry entry = DungeonLog.forServer(server)
+                .recordCompletion(player.getUUID(), record.layout.pathLength());
+        int granted = Payout.grant(player, record.layout, entry.streak());
+        Payout.announce(player, entry, granted);
+        PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, streak {}, tier {}, paid {})",
+                player.getName().getString(), record.slot, entry.runsCompleted(),
+                entry.streak(), record.layout.lootTier(), granted);
+        return true;
     }
 
     /**
@@ -689,7 +743,7 @@ final class Instances {
                     continue;
                 }
                 if (isOnExitPad(player, record)) {
-                    exit(player);
+                    exit(player, ExitReason.EXIT_PAD);
                 }
             }
         }

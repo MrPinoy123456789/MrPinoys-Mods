@@ -60,10 +60,18 @@ tasks.register<JavaExec>("layoutGraphTest") {
     mainClass = "pocketdungeons.LayoutGraphGenerator"
 }
 
+tasks.register<JavaExec>("payoutMathTest") {
+    group = "verification"
+    description = "Runs the pure-Java streak and payout arithmetic regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.PayoutMathTest"
+}
+
 tasks.test {
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
+    dependsOn("payoutMathTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false

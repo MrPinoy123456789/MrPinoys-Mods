@@ -35,6 +35,20 @@ so it does not need to wait for difficulty tuning to land.
 **First shippable build = U1 + U2 + U3.** U4 and U5 are the fast follow, and
 their relative order between themselves is arbitrary.
 
+**U6 was appended after U1–U3 shipped** and is not part of that dependency
+graph. It reworks the encounter and loot loop onto vanilla's trial chambers —
+trial spawners, vaults, trial keys and the ominous state — and in doing so
+supersedes most of U3's difficulty machinery. It depends on U1 and U2 only, and
+touches U4 and U5 at one point each. Read it as a second update sharing this
+document, not as the sixth step of the first one.
+
+**U7 is the meta on top of U6** — a Mythic+ keystone that carries a level, is
+spent to start a run, upgrades against a clock and depletes on failure. It adds
+no dungeon content: U1's library, U2's planner and U6's trials are all unchanged
+by it, and the only new server state is a pending keystone for a player who was
+offline when theirs came back. `U6 → U7` is the second half of that second
+update, and U7 is the last thing this document plans.
+
 ---
 
 ## Cross-cutting decisions, made once here
@@ -1179,7 +1193,7 @@ machinery for it now.
 
 ---
 
-## U4 — the lodestone ritual
+## U4 — the lodestone ritual ✅ *shipped*
 
 **Goal:** the mod becomes discoverable in-world instead of living behind a chat
 command.
@@ -1289,9 +1303,67 @@ into a locked door, which is the opposite of this update's purpose.
 6. Temporarily break the dimension so `enter` fails, and confirm the key is
    **not** consumed.
 
+### Shipped: what was built, verified, and where it deviates
+
+**Verified against the real 26.2 jar via `javap` before writing code:**
+`InteractionResult` is an interface with `SUCCESS`, `SUCCESS_SERVER`, `CONSUME`,
+`FAIL`, `PASS` — server-side success is `SUCCESS_SERVER`, which is what the rest
+of the suite already returns from `UseBlockCallback`. `CustomData` has both
+`isEmpty()` and `copyTag()`, so the strict "no custom_data at all" test costs one
+call and no tag copy. `ItemStack.is(Item)` is now inherited from
+`TypedInstance.is(T)` rather than declared on `ItemStack` — it still compiles, but
+grepping `javap ItemStack` for it finds nothing, which is worth knowing before
+concluding it was removed. `Level.playSound(null, BlockPos, SoundEvent,
+SoundSource, float, float)` is the suite's existing null-first-arg shape and
+broadcasts to everyone tracking the position.
+
+**The one shape that mattered most, checked by reading bytecode rather than
+signatures:** `ServerPlayer.teleport(TeleportTransition)` is `aload_0 … areturn`
+throughout — the same `ServerPlayer` instance survives a cross-dimension teleport
+(`removePlayerImmediately` + `unsetRemoved` + `addDuringTeleport`, no
+recreation). That is what makes "call `Instances.enter`, then `shrink` the stack
+we already had a reference to" correct rather than a stale-object bug. Had the
+player been recreated, the key would have been taken from a dead inventory.
+
+**Deviations from the plan, all deliberate:**
+
+- **`isPlainKey` ships the strict version**, as Stage 2 itself recommended: any
+  `custom_data` at all disqualifies a stack, not just a `kamutotems` compound.
+- **`Instances.enter` now returns `boolean`.** Stage 1 offered this or a
+  `hasInstance` re-check; the boolean is what shipped, and it is a four-line
+  change (signature, four early `return false`, one trailing `return true`).
+- **A sneak guard was added** that the plan does not mention. Right-clicking
+  while sneaking passes, matching `kamutotems.Station`: sneaking is how vanilla
+  says "act on what I am holding, not on this block", and it is the escape hatch
+  for an operator who points `ritualKeyItem` at something placeable.
+- **The sound plays before entry, not after.** The plan implies after; after is
+  wrong, because by then the player has been teleported to another dimension and
+  is the one person who cannot hear it. Only the *key consumption* has to wait for
+  success.
+- **`ritualKeyItem` is resolved once at `SERVER_STARTED` as well as lazily**, so a
+  typo is an error line at boot rather than something a player discovers by
+  right-clicking a lodestone and having nothing happen.
+- **Item-id resolution was extracted into `ConfiguredItem`** (new file), shared by
+  `ritualKeyItem` and U5's `payoutItem`. Both need identical parse-cache-log-once
+  behaviour and the same `DefaultedRegistry.getValue`-answers-with-air caveat.
+
+**Verified live on a headless dev server:**
+
+| Check | Result |
+|---|---|
+| `ritualKeyItem: "minecraft:not_a_real_item"` | logs `ritualKeyItem 'minecraft:not_a_real_item' is not a known item; the lodestone ritual is disabled until it is fixed. /dungeon still works.` at startup, before `Done (`; server boots normally and `/dungeon` is unaffected |
+| `ritualKeyItem: "minecraft:echo_shard"` (default) | resolves silently; zero ritual-related log lines across a full boot |
+| boss stone identity, re-checked | `chests/tier_2.json` mints boss stones as `minecraft:echo_shard` + `set_custom_data {kamutotems:{boss_stone:N}}` — so the shipped `isPlainKey` refuses exactly the item the plan was worried about |
+
+**What could not be verified here, and why.** Every remaining Stage 4 check is a
+right-click, and nothing in a console session ever right-clicks a block. Items
+1–6 of Stage 4 are therefore in `CLIENT_TEST_CHECKLIST.md`, not verified. This is
+the same blind spot that hid U3's container-drop bug; it is named rather than
+papered over.
+
 ---
 
-## U5 — the dungeon log and completion payout
+## U5 — the dungeon log and completion payout ✅ *shipped*
 
 **Goal:** a reason to come back tomorrow, and the economy hook that makes Pocket
 Dungeons a faucet rather than a diversion.
@@ -1417,6 +1489,701 @@ makes them visible to a player who never types the command.
    overworld**, not in the void dimension.
 8. Restart the server; `/dungeon log` still reports the same numbers.
 9. Two party members both step on the pad: both paid, each once.
+
+### Shipped: what was built, verified, and where it deviates
+
+**Verified against the real 26.2 jar via `javap`:** `SavedDataType` is a record
+of `(Identifier, Supplier<T>, Codec<T>, DataFixTypes)`, `SavedDataStorage`
+exposes `computeIfAbsent(SavedDataType<T>)`, and `SavedData` has
+`setDirty()`/`isDirty()` — the `WondrousState` shape transfers unchanged.
+`Commands.performPrefixedCommand(CommandSourceStack, String)` and
+`MinecraftServer.createCommandSourceStack()` are what `payoutCommand` runs
+through.
+
+**A real bug caught by reading `Inventory.add`'s bytecode rather than trusting
+its name.** `add(ItemStack)` loops `addResource` until the stack is empty *or it
+stops making progress*, then returns "did I move **any** of this" — and it
+mutates the passed stack down to whatever is left over. So a payout that only
+half fits returns `true` and leaves the remainder in the stack. The first draft
+used the suite's usual `if (!player.getInventory().add(stack))` idiom, which
+would have **silently destroyed** that remainder — and a nearly-full inventory at
+the end of a run is precisely when it happens, which is Stage 5's own check 7.
+Shipped code tests `stack.isEmpty()` afterwards instead. Worth noting that
+`if (!add(stack))` appears in at least eight other files across this suite
+(`bounties/Rewards`, `chatdonkey/Rewards`, `cobbleeconomy/ItemBank`,
+`kamutotems/AssignedQuestHost`, `ballot/BallotCommands`, …) with the same hole.
+
+**Deviations from the plan, all deliberate:**
+
+- **`ExitReason` has two constants, not five.** The plan assumed `Instances.exit`
+  served the rescue, purge and disconnect paths too; it does not — `rescue`,
+  `purge` and `dropMember` each eject directly and never route through `exit`.
+  Shipping `RESCUE`/`PURGE`/`DISCONNECT` would have documented a dispatch that
+  does not exist. Only `EXIT_PAD` and `COMMAND` reach `exit`, and only `EXIT_PAD`
+  pays. Death rescue therefore cannot pay by construction, not by a check.
+- **The arithmetic lives in `PayoutMath`** (new file, no Minecraft imports),
+  covering both the streak transition and the payout count, with
+  `PayoutMathTest` wired into `tasks.test`. Same split as `DifficultyProfile`,
+  and for the same reason: it is the part that is easy to get subtly wrong.
+- **A tier-3 run on a 10-day streak pays 26, not the 28 Stage 3's prose claims.**
+  Stage 3's *formula* is `streakBonusPercent * (streak - 1)`, which makes day ten
+  a 90% bonus: `(6 + 4*2) * 1.90 = 26.6`, floored to 26. Day *eleven* is where the
+  100% cap is reached and 28 lands. The formula is the normative half and the
+  prose is the half that drifted; both numbers are asserted in `PayoutMathTest`
+  so the discrepancy cannot quietly move again.
+- **`recordCompletion` has a date-injectable overload**, driven by two new
+  dev-only commands, `/dungeon admin log record <name> <pathLength> <date>` and
+  `/dungeon admin log show <name>`. The streak rule's only honest test otherwise
+  spans several real days; this walks a whole history from a console in one
+  session, including across a restart.
+- **`payoutCommand` output is not suppressed.** A broken operator command should
+  be visible to whoever configured it.
+- **`lastCompletedDateKey` is stored as `""` rather than null** for "never", so
+  the codec needs no optional-string special case; blank is treated as absent
+  everywhere it is read.
+
+**Verified live on a headless dev server:**
+
+| Check | Result |
+|---|---|
+| Stage 5 items 1–4, driven through `admin log record` | first completion → runs 1, streak 1. Next day → runs 2, streak 2. Same day again → runs 3, **streak still 2**, `bestPathLength` unchanged by a shorter run. Six-day gap → runs 4, streak **reset to 1**, `bestPathLength` raised to 8 |
+| clock-went-backwards (`2026-08-21` then `2026-08-20`) | treated as a gap: streak 1, not an increment |
+| unparseable date key (`not-a-date`) | streak 1, entry still written and readable — no exception, no lost file |
+| Stage 5 item 8, restart | server stopped and restarted: alice/bob/carol all report identical numbers, and a further completion the next day continues the streak (1 → 2) rather than restarting |
+| where the file actually lands | `world/dimensions/minecraft/overworld/data/pocketdungeons/dungeon_log.dat` — **not** `world/data/`, which is where 26.2 keeps the vanilla server-level stores. Worth recording: "no file in `world/data`" looks exactly like a save that silently failed |
+| `/dungeon log` with no history | "… has not finished a dungeon yet.", return code 0 |
+| U1–U3 regression, same build | manifest 14/0, coverage 53/53 with 0 holes, `plansurvey 200` → 200/200 first attempt, `admin build 4242` → 7 rooms, path 5, tier 1, bounds correct |
+| `gradlew build` | all five pure-JDK tests pass, including the new `PayoutMathTest` |
+
+**Cross-cutting interactions traced by hand, not just diffed:**
+
+- **Payout ordering.** `exit` ejects first and pays second, so `Payout.grant`'s
+  drop-what-does-not-fit lands at the player's return point in the overworld,
+  never on the exit pad inside a dungeon that `closeIfEmpty` → `purge` →
+  `teardown` is about to clear. This is the plan's own "will silently eat rewards
+  if it is got wrong" detail, and the bytecode check above is what makes the
+  ordering provably safe rather than probably safe.
+- **The tick watcher's iteration.** `onTick` copies both `bySlot.values()` and
+  `record.members.keySet()` before iterating, and `purge` is only reachable once
+  `members` is empty — so a two-member party both standing on the pad pays A,
+  leaves B a live member, then pays B and purges on B's own iteration. Both paid,
+  each once, no concurrent-modification hazard, no double teardown.
+- **The `paid` set.** Lives on `InstanceRecord` and dies with the instance, so a
+  member who is paid, is pulled back in by a friend, and walks the pad again is
+  ejected normally with the plain "you leave the dungeon behind" message and no
+  second payout — `pay` returns false and the completion message is skipped.
+- **The exit pad is a lodestone, and so is U4's ritual trigger.** `RitualListener`
+  refuses when `Instances.hasInstance` is true *or* the player is in
+  `pocketdungeons:void`, so standing on the pad and right-clicking it cannot cost
+  a key. The dimension half of that test covers the orphan-recovery case, where a
+  player is in the void with no live record.
+
+**What could not be verified here, and why.** Every remaining Stage 5 check needs
+a player standing in a dungeon: payout on a real pad exit, no payout on
+`/dungeon exit`, no payout on death, a full inventory dropping at the return
+point, and two party members each paid once. Those are in
+`CLIENT_TEST_CHECKLIST.md`. The logic behind each was traced above, and the
+`Inventory.add` bug the trace found is the argument for doing that tracing at all.
+
+---
+
+## U6 — the trial rework: vanilla mechanics instead of ours
+
+**Goal:** stop re-implementing what 1.21's trial chambers already do well. Pocket
+Dungeons keeps the parts vanilla has no answer for — the private dimension, the
+slot grid, the layout planner, the streak and the payout — and hands the
+*encounter and reward loop* over to trial spawners, vaults and the ominous
+system. A run stops being "walk in, kill four zombies, open a free chest" and
+becomes a pocket trial chamber: fight the spawner, take the key it ejects, spend
+it on a vault, and decide before you go in whether you want the ominous version.
+
+**Blocked by:** U1 and U2 (templates and the per-cell stamp hook). **Supersedes
+most of U3** — see the division-of-labour table below — and leaves U4 and U5
+untouched apart from one payout multiplier and one ritual branch.
+
+**Assumption stated up front:** "trials" here means vanilla's trial chambers
+(trial spawner, vault, trial key, ominous bottle / Trial Omen), not a separate
+mod in the suite. Everything below is written against those blocks.
+
+### Stage 1 — what the mod stops doing
+
+The point of this milestone is deletion as much as addition. Settle the division
+once so nobody re-adds a lever vanilla already owns:
+
+| Concern | U3's answer | U6's answer |
+|---|---|---|
+| How many mobs in an encounter | `DifficultyProfile.mobCount(depth)`, party size folded in | trial spawner `total_mobs` + `total_mobs_added_per_player`; vanilla counts the players itself |
+| Late joiners rescaling mid-run | punted (U3 Stage 5) | free — the spawner re-detects players every activation |
+| Which mobs | `mobRoster(tier)` picked in Java, spawned by `RoomContent` | the same rosters, moved into `data/pocketdungeons/trial_spawner/tier_N/*.json` |
+| Mobs despawning behind you | `setPersistenceRequired()` on every spawn | the spawner tracks its own mobs and will not over-spawn |
+| Pacing inside a room | none — everything spawns at once | `simultaneous_mobs`, `ticks_between_spawn` |
+| Loot delivery | one shared chest, first-come | a vault per loot room, **per player, once each** |
+| Party generosity | `chestRolls() = partySize - 1` bonus rolls on a shared chest | deleted; the vault pays every member the full table |
+| Depth escalation | `effectiveTier(depth)` bumps the roster one tier | the deep third of the run is stamped **ominous** |
+| Boss stones | tier-2/3 chest pools | ominous vault only |
+
+`DifficultyProfile` survives and stays pure-logic, but shrinks to almost nothing:
+it is still the one place a path length becomes a tier, and the tier is now just
+an index into six data files (Stage 3). `RoomContent` gets *smaller* too — role
+dispatch and block retargeting remain, mob spawning goes away entirely.
+
+**`chestRolls()` and the `partySize` term in `mobCount` are deleted, not
+deprecated.** Leaving them in place while vanilla also scales by player count
+double-counts the party in both directions at once, and that is exactly the kind
+of quiet compounding that makes a tuning complaint impossible to diagnose.
+
+### Stage 2 — authoring: spawners and vaults live in the template
+
+Cross-cutting §3 applies unchanged: anything the room owns is authored into the
+`.nbt`, so `placeInWorld` transforms it for free. Two new authored features in
+`RoomTemplateGenerator`, alongside the existing door and spawn jigsaws:
+
+- **`minecraft:trial_spawner`** at the cell's encounter anchor, carrying
+  `normal_config` / `ominous_config` as **registry ids**, not inline blobs (see
+  the note on vanilla's own pieces below).
+- **`minecraft:vault`** at the loot anchor, replacing the authored chest in
+  floor rooms that carry the `loot` role.
+
+**Do not hand-author either block's NBT — stamp vanilla's own micro-pieces.**
+Measured against the 26.2 server jar, the trial chamber structure ships 191
+pieces, and while the structural ones are far too big for a 16×7×16 cell
+(chambers 11×12×11, corridors 19×20×19, intersections up to 23 wide and **37
+tall**), the *atomic* ones fit with room to spare:
+
+| Vanilla piece family | Size | Count | Use here |
+|---|---|---|---|
+| `trial_chambers/spawner/**` | 3×2×3 (some 3×1×3) | 19 | the encounter anchor |
+| `trial_chambers/reward/vault` | 3×4×3 | 1 | the loot anchor |
+| `trial_chambers/reward/ominous_vault` | 3×4×3 | 1 | the ominous loot anchor |
+| `trial_chambers/chests/**` | 3×2×3, 3×1×3 | 2 | supply chest, if wanted |
+| `trial_chambers/decor/**` | 1×2×1, 2×2×1 | 29 | cell dressing |
+
+These are loaded from the vanilla data pack at runtime through the same
+`StructureTemplateManager` the mod already uses for its own rooms — **nothing is
+copied into this mod's resources**, and the block entities arrive pre-configured
+and known-good rather than hand-typed. `TemplateStamper.place(...)` already takes
+a rotation and an origin, so placing `minecraft:trial_chambers/spawner/melee/
+zombie` at a spawn jigsaw's transformed position is a call, not a feature.
+
+Each of those pieces carries a `minecraft:jigsaw` block of its own (named
+`minecraft:spawner`, `minecraft:reward_connector`, `minecraft:ominous_vault`)
+with `final_state = minecraft:air`. `JigsawFallback.replaceRemaining` filters by
+namespace after U1's widening, so it will **not** clear a `minecraft:`-namespaced
+jigsaw. Widen it once more to "any jigsaw left inside the instance bounds", or
+the M1 regression check — zero `minecraft:jigsaw` blocks anywhere in a built
+instance — starts failing on the borrowed pieces. This is the one code change the
+borrowing costs.
+
+The existing `pocketdungeons:spawn` jigsaws stay. They are no longer mob spawn
+points — the trial spawner has its own `spawn_range` — but they remain the
+rotation-safe way to find *where the spawner should be*: author the trial
+spawner at one of them, and `getJigsaws(placementPos, rotation)` keeps giving
+rotation-correct coordinates with no new transform math. Nothing about
+cross-cutting §7 changes.
+
+Field names, for the fields the stamper still writes — verified against the 26.2
+server jar's own pieces, not from memory:
+
+```
+trial_spawner: required_player_range, target_cooldown_length,
+               normal_config / ominous_config {
+                 spawn_range, total_mobs, simultaneous_mobs,
+                 total_mobs_added_per_player, simultaneous_mobs_added_per_player,
+                 ticks_between_spawn, spawn_potentials[], loot_tables_to_eject[],
+                 items_to_drop_when_ominous }
+       blockstate: trial_spawner_state, ominous
+
+vault:         config { activation_range, deactivation_range,
+                        key_item, loot_table, override_loot_table_to_display },
+               shared_data { display_item }
+       blockstate: vault_state, ominous, facing
+```
+
+`/dungeon admin stamptest` is the harness for this and needs one new assertion:
+after a rotated stamp, the trial spawner and the vault are inside the cell, on
+the floor, and their block entities still carry their configs. A block entity
+that survives rotation but loses its NBT is the failure mode worth pinning, and
+it is invisible to the geometry checks stamptest already runs.
+
+### Stage 3 — `TrialContent`, written at stamp time
+
+New file, called from `LayoutStamper` per cell where `RoomContent` is called
+today; `RoomContent` keeps role dispatch and delegates.
+
+```java
+static void applyEncounter(ServerLevel level, BlockPos cellOrigin, int depth,
+                           DifficultyProfile profile, boolean ominousRun, long seed);
+static void applyLoot(ServerLevel level, BlockPos cellOrigin, int depth,
+                      DifficultyProfile profile, boolean ominousRun, long seed);
+```
+
+Both find their block entity the cheap way — a cell is a chunk (cross-cutting
+§1), so `level.getChunk(cellOrigin).getBlockEntities()` is a map lookup — and
+write:
+
+- **encounter:** `normal_config` and `ominous_config` to
+  `pocketdungeons:tier_N/normal` and `pocketdungeons:tier_N/ominous`, where
+  `tier = profile.lootTier()`. **`minecraft:trial_spawner` is a data-driven
+  registry** — vanilla's own zombie piece stores nothing but the string
+  `minecraft:trial_chamber/melee/zombie/normal` — so the three tiers ship as six
+  JSON files under `data/pocketdungeons/trial_spawner/`, U3's rosters become
+  their `spawn_potentials`, and the Java side sets two strings. `DifficultyProfile`
+  therefore does *not* grow a `spawnerConfig(tier)`; it grows nothing at all, and
+  keeps only `lootTier()`. Set the `ominous` blockstate per the rule below.
+- **loot:** `config.loot_table` to `pocketdungeons:chests/tier_N` — **U3's loot
+  JSON is reused unchanged**, which is most of why this milestone is cheap —
+  `config.key_item` to `vaultKeyItem`, and the `ominous` blockstate per the same
+  rule. Ominous vaults point at `pocketdungeons:chests/tier_N_ominous`, the only
+  new tables (Stage 5).
+
+**Ominous by depth**, replacing `effectiveTier`:
+
+```
+ominous(depth) = ominousRun || depth >= (pathLength * 2) / 3
+```
+
+The far third of a run is ominous whether or not the player paid for it, which
+keeps the ramp U3 wanted, and an ominous *run* makes the whole thing ominous
+from the entrance.
+
+**The one vanilla mechanism not to trust blind.** In vanilla, Bad Omen becomes
+Trial Omen on entering a trial chamber *structure*, and there is no such
+structure in `pocketdungeons:void` — that conversion will not fire here. So:
+
+1. The mod grants `minecraft:trial_omen` directly (Stage 5), never Bad Omen.
+2. **Independently**, the stamper writes the `ominous` blockstate itself, so an
+   ominous room is ominous because the mod stamped it that way, not because a
+   detection path inside vanilla happened to notice a nearby player's effect.
+
+(2) is the load-bearing one. Do it in that order and the feature does not rest on
+an assumption about how `TrialSpawner` decides to go ominous — the kind of
+internal that moves between versions. **Spike (2) in-world before writing any
+other part of this milestone**: if a stamped `ominous` blockstate does not stick,
+the whole ominous half needs a different mechanism, and it is much better to
+learn that in an afternoon than after fourteen rooms have been regenerated.
+
+**Kill switch, same shape as `spawnerDensEnabled`.** With `trialsEnabled: false`,
+`TrialContent` replaces the authored vault with a plain chest and the trial
+spawner with a classic `minecraft:spawner` (or with `mossy_cobblestone`, if
+`spawnerDensEnabled` is also false), and `RoomContent` falls back to its U3 spawn
+path. One flag rolls the whole milestone back without re-authoring a single
+template, and it is the only way to keep U3's behaviour testable side by side
+while tuning.
+
+### Stage 4 — the key loop
+
+This is the actual design change, and it is worth naming: **loot stops being
+free.** Today a loot room is a chest you walk up to. After U6:
+
+1. An encounter room's trial spawner ejects a **trial key** on completion
+   (`loot_tables_to_eject`: one key plus a small consumables pool).
+2. A loot room's vault wants that key.
+3. Every party member holding one gets the full table, once each. Nobody races
+   anybody to a chest.
+
+**Ominous is a second, separate key.** Vanilla's `reward/ominous_vault` piece
+asks for `minecraft:ominous_trial_key`, not `minecraft:trial_key`, and its
+ominous spawner configs eject `minecraft:spawners/ominous/trial_chamber/key`
+rather than the plain one. So `vaultKeyItem` is really two fields —
+`vaultKeyItem` and `ominousVaultKeyItem` — and an ominous cell must eject the
+matching one, or the run generates vaults nobody can open. Since the ominous rule
+is per *cell depth*, a run can legitimately contain both kinds at once: the near
+two-thirds pay plain keys into plain vaults, the deep third pays ominous keys
+into ominous vaults, and `loot <= encounter` has to hold **per kind**, not just
+overall.
+
+Two consequences to design around, and the planner already has the levers for
+both:
+
+- **The generator must not produce a run with more loot cells than encounter
+  cells.** Otherwise a player reaches a vault with no key and reads it as a bug.
+  Add `loot <= encounter` as a check in `LayoutGraphGenerator.validate`,
+  alongside the guarantee pass U1 added, and let the role-weighting pass retry
+  rather than shipping a run that cannot be fully opened.
+- **Keys carried out of a run are a faucet.** A player who clears three
+  encounters and opens one vault leaves with two trial keys, and vanilla trial
+  chambers will happily take them. That is fine and arguably good — a
+  cross-content faucet is DESIGN.md §5's whole posture — but decide it rather
+  than discover it. `vaultKeyItem` is config; an operator who wants the loop
+  sealed points it at something mod-flavoured, and `TrialContent` writes that one
+  field into both the ejection table and the vault config, so the two can never
+  drift.
+
+### Stage 5 — the ominous run
+
+The opt-in stakes lever, and the only place U4 and U5 are touched.
+
+- **Ritual branch (U4).** Right-clicking the lodestone with an ominous bottle
+  instead of the key item starts an **ominous run**: `Instances.enter` takes a
+  `boolean ominous`, the player is granted `minecraft:trial_omen` on arrival, and
+  every cell stamps ominous. The bottle is consumed on the same "only after
+  `enter` succeeded" rule U4 Stage 1 establishes, and the same
+  `custom_data`-must-be-empty rule from U4 Stage 2 applies unchanged.
+- **Command branch.** `/dungeon ominous` for players without a lodestone, gated
+  on `ominousRequiresBottle` (default true) so an operator chooses whether the
+  stakes cost anything.
+- **Payout (U5).** An ominous run multiplies the completion payout by
+  `ominousPayoutPercent` (default 150), applied after the streak bonus, and the
+  completion message says which run it was.
+- **Loot.** Three new tables, `chests/tier_1..3_ominous`: each tier's table plus
+  the boss-stone pool U3 put in tier 2 and 3. Boss stones move here entirely —
+  they become the reason to run ominous — and cross-cutting §6 still holds, since
+  they are still nothing but `set_custom_data` on an echo shard.
+
+Grant Trial Omen with a duration longer than any plausible run, and **clear it on
+exit whatever the `ExitReason`**. A player who leaves a dungeon still carrying
+Trial Omen takes it into the overworld, and that is a real-world effect this mod
+has no business exporting.
+
+### Stage 6 — what this does to the sealed cell
+
+Trial spawners can roll **breeze** and **bogged** at tier 3, which is part of the
+point of using them, and both need a check against M0's sealed-cell contract:
+
+- **Breeze** fires wind charges. Wind charges do not break blocks, but they do
+  activate buttons, levers, doors and trapdoors, and they shove players around.
+  Sealed cells contain none of the former and the doorways are open arches, so
+  the worst case is a player being pushed through a doorway — which is a fight,
+  not a bug. Breeze is in.
+- **Bogged** is a skeleton with poison arrows and behaves like `stray`, which is
+  already in the tier-2 roster. In.
+- **Creepers stay out**, for exactly M0's reason: a hole in a sealed cell is a
+  hole into the void. Vanilla's own trial chamber spawn potentials include them,
+  so the rosters must be authored by hand and **never copied from
+  `minecraft:spawners/trial_chamber/*`**.
+
+Also confirm teardown still cleans up. Spawner mobs are ordinary entities and the
+existing "every non-player entity in the volume" purge covers them, but **ejected
+items on the floor are destroyed by teardown**, same as any dropped item. That is
+already true of chest loot a player leaves behind, so it is not a regression — it
+just becomes far easier to hit, because a vault ejects onto the floor rather than
+into an inventory. Worth one line in the entry message, and worth confirming that
+a player who exits with items still airborne loses only those.
+
+### Stage 7 — verification
+
+Headless, from the console, on a fresh `run/`:
+
+1. `/dungeon admin build 4242` — every encounter cell has exactly one trial
+   spawner whose config matches `DifficultyProfile` for that tier; every loot
+   cell has exactly one vault pointing at `pocketdungeons:chests/tier_N`; still
+   zero `minecraft:jigsaw` blocks anywhere in the volume.
+2. The same build with a seed whose path length is 8: cells at depth ≥ 5 are
+   `ominous=true`, cells below it are not.
+3. `/dungeon admin coverage` and `plansurvey 200` unchanged from U2's numbers,
+   plus the new `loot <= encounter` invariant holding across all 200 seeds.
+4. `trialsEnabled: false` → chests and classic spawners, U3 behaviour intact.
+5. `/dungeon admin purge <slot>` → spawners, vaults, their mobs and any ejected
+   items all gone; slot returned; force-load tickets released.
+
+Client walkthrough, appended to `CLIENT_TEST_CHECKLIST.md`:
+
+6. Solo run: clear a spawner, watch it eject a key, spend the key on a vault, get
+   the tier table.
+7. Party of two: both open the same vault and **both** get a full reward; a
+   second attempt by the same player gets nothing and reads as already claimed.
+8. Reach a vault with no key: the vault is inert and legible as locked, not
+   broken.
+9. Ominous run via the bottle: spawners visibly ominous from the first room, the
+   ominous vault drops a boss stone, the payout is 1.5×, and Trial Omen is
+   **gone** the moment the player is back in the overworld — check after an
+   exit-pad completion, after `/dungeon exit`, and after a death rescue.
+10. Die inside during a spawner fight: ejected, inventory intact, no payout, and
+    the instance's mobs do not follow.
+
+### Deliberately not in this milestone
+
+- **Vanilla trial chamber *structure* generation.** The small pieces are
+  borrowed (Stage 2); the layout stays ours. Three measured reasons, kept here so
+  the question does not get re-opened from memory:
+  - **It cannot fit the grid.** Chamber pieces are 11×12×11, corridors 19×20×19,
+    intersections up to 23 wide and 37 tall. A cell is 16×7×16. There is no
+    subset of the structural pool that a door mask can describe.
+  - **It cannot fit the slot.** `trial_chambers.json` is `size: 20` with
+    `max_distance_from_center: 116` — up to a ~230-block sprawl, hundreds of
+    chunk tickets against the current handful, and a teardown volume orders of
+    magnitude past `clearBlocksPerTick`.
+  - **It would not be sealed.** `terrain_adaptation: encapsulate` runs during
+    chunk generation, not on the manual placement path, so in `pocketdungeons:
+    void` a chamber is a floating shell whose unfilled jigsaw stubs are holes
+    into the void — against M0's one hard safety contract.
+
+  If it is ever wanted, it is a *second instance model* — "deep chamber" as an
+  alternate run type with its own bounds, sealing pass and teardown budget — not
+  a room source for this one. Two things to know before starting that: the public
+  entry point is `JigsawPlacement.generateJigsaw(ServerLevel, Holder<
+  StructureTemplatePool>, Identifier target, int maxDepth, BlockPos, boolean)`,
+  and it passes `PoolAliasLookup.EMPTY`, so the four alias-only spawner pools
+  (`spawner/contents/{melee,ranged,slow_ranged,small_melee}` — they exist only as
+  `pool_aliases` in the structure JSON, with no file on disk; only
+  `contents/breeze.json` is real) never resolve and every chamber comes out with
+  empty spawner sockets. Getting them requires calling the public
+  `JigsawPlacement.addPieces(Structure.GenerationContext, …, PoolAliasLookup
+  .create(bindings, pos, seed), …)` directly, with a hand-built
+  `GenerationContext` and the bindings read out of vanilla's structure JSON.
+- **Ominous ejection-wave tuning.** Defaults first; tune after play, and only
+  through the config fields added here.
+- **Maces and heavy cores.** Vanilla gates them behind ominous vaults in real
+  trial chambers, and minting them from a repeatable pocket dungeon is a much
+  larger economy decision than this milestone should make quietly.
+  `tier_3_ominous` is where that argument goes when someone wants to have it.
+- **Deleting U3's `RoomContent` spawn path.** It stays as the
+  `trialsEnabled: false` fallback. Removing it saves perhaps sixty lines and
+  costs the only rollback.
+
+
+---
+
+## U7 — keystones: the Mythic+ meta
+
+**Goal:** a reason to run the dungeon a hundred times instead of five. The
+dungeon itself does not change — U1's library, U2's planner and U6's trials all
+stay exactly as they are — and a **keystone item** wraps it: an item that carries
+a level, is consumed to start a run, upgrades when you beat the clock, and
+depletes when you don't.
+
+**Blocked by:** U6 for the reward vaults (Stage 3 leans on `VaultBlockEntity`
+being configurable at stamp time). Everything else is additive.
+
+**The one-line version:** WoW's Mythic+ is not a run structure, it is a meta
+*around* a dungeon, so this milestone adds no dungeon content at all.
+
+### Stage 0 — why there is no run state
+
+Earlier drafts of this idea grew a roguelike map — a layered DAG, branching
+doors, an in-progress `RunState` in `SavedData`, and a leave-and-resume flow so a
+long run could survive a logout. All of it is dropped, and it is worth recording
+why, because the reasoning is the whole argument for this design:
+
+**The keystone is the save file.** It is an item with `custom_data`; vanilla
+persists items already. There is no run to resume because there is no run — there
+is a key in your pocket and a dungeon you can spend it on. That deletes the map,
+the `RunState` record, the safe-room bookkeeping, the "can I log out here" rule,
+and the restart-mid-run problem, in exchange for one item and one integer.
+
+The only server-side state this milestone adds is a *pending* keystone for a
+player who was offline when their key came back (Stage 5).
+
+### Stage 1 — the keystone item
+
+```java
+final class Keystone {
+    static ItemStack mint(int level);             // config item + custom_data + name/lore
+    static OptionalInt levelOf(ItemStack stack);  // empty if not ours
+    static boolean isKeystone(ItemStack stack);
+}
+```
+
+`custom_data` is `{pocketdungeons:{keystone:1,level:N}}` on `keystoneItem`
+(default `minecraft:trial_key`), with a display name of `Keystone [N]` and lore
+naming the affix if it has one. Level is clamped to
+`[1, keystoneMaxLevel]` on every mint, so no arithmetic anywhere else has to
+worry about the bounds.
+
+**The collision question is already answered.** Vanilla's vault matches keys with
+`ItemStack.isSameItemSameComponents` — verified in `VaultBlockEntity$Server`'s
+bytecode, components compared, not just the item — so a tagged keystone will not
+open an ordinary trial vault, and an ordinary trial key will not open anything
+this milestone mints. The two key systems cannot be confused by accident, and
+that is enforced by vanilla rather than by mod-side checking.
+
+**`RitualListener` inverts.** U4 Stage 2 established "the ritual only ever
+consumes a stack with no `custom_data` at all", which was the right rule when the
+key was a plain echo shard. It now becomes: consume **only** a stack carrying
+`pocketdungeons.keystone`, and `PASS` on everything else — kamutotems sigils
+included, for exactly U4's reasoning. Lodestone plus keystone is the font.
+
+**Where the first one comes from.** `/dungeon key` mints a level 1 keystone, free
+and unlimited, but only for a player holding none and with none pending. That
+cannot dead-end a player, cannot be farmed (a level 1 key is worth less than the
+walk), and keeps DESIGN.md §5's posture. `/dungeon` with no keystone tells the
+player to run it.
+
+### Stage 2 — the timer
+
+The timer is what makes level 12 *harder* rather than merely longer, and without
+it the ladder is a loot slider with extra steps.
+
+```
+timerSeconds = timerBaseSeconds + timerPerRoomSeconds * layout.pathLength()
+```
+
+**Derived from the dungeon's size, not the key's level** — that is the Mythic+
+shape: a higher key does not shorten the clock, it stiffens what stands between
+you and the end of it. At the defaults (`180` base, `60` per room) a 5-room
+dungeon allows 8 minutes and an 8-room dungeon 11.
+
+`RunTimer` owns a `ServerBossEvent` per instance — server-side, so vanilla
+clients render it with no client mod:
+
+- title `Keystone [7] — 6:42 — 3/8 rooms`
+- progress is time remaining over total
+- colour steps green → yellow → red at 50% and 20%
+- every party member is added to the same bar; a member who leaves is removed
+
+**Expiry does not end the run.** The bar turns red, reads `OVER TIME`, and the
+run continues to whatever end the player walks to. All that changes is the payout
+at the exit pad: an over-time completion returns the keystone at its current
+level (or `overtimeDepletion` below it, default `0`) instead of offering an
+upgrade. This is how Mythic+ actually behaves, it is kinder than ejecting
+somebody at the buzzer, and it means the mod needs no timer-expiry ejection path
+at all — the timer is pure tension.
+
+### Stage 3 — the upgrade offer, and how vanilla enforces "pick one"
+
+Reaching the exit pad in time grants a **completion token** — the configured
+token item carrying `{pocketdungeons:{token:1,level:N}}`, one per player — and
+the exit room is stamped with **three vaults**, all configured with that exact
+token as their `keyItem`.
+
+Because the player holds exactly one token and the vault consumes it,
+**vanilla enforces the choice with no mod-side sealing code**: open one, and the
+other two can never be opened. Each party member carries their own token and
+makes their own choice, which falls out of the same mechanic for free.
+
+Each vault's `getSharedData().setDisplayItem(...)` shows the keystone it would
+give, so the player reads all three offers before committing — the API is public,
+verified in the 26.2 jar alongside `setConfig` and `getServerData()`.
+
+| Offer | Keystone | Character |
+|---|---|---|
+| Safe | `level + 1`, same affix | the default step |
+| Ominous | `level + 2`, ominous affix | U6 already builds the whole ominous half |
+| Fragile | `level + 3`, fragile | depletes double on any failure |
+
+The vault's own `loot_table` points at `pocketdungeons:empty` — a real file with
+no pools, because the config requires an id — and **the keystone is granted from
+Java**, on detecting the player's UUID in `getServerData().getRewardedPlayers()`
+from the instance tick that already runs. A static loot table cannot mint
+`level + 2` when the level is only known at runtime; `set_custom_data` is the
+right tool for boss stones (cross-cutting §6) and the wrong one here.
+
+Grant the keystone with `Payout`'s delivery helper, **not** raw
+`Inventory.add(stack)` — U5's shipped notes record that `add` returns "did I move
+any of this" and mutates the stack down to the remainder, so the suite's usual
+idiom silently destroys what does not fit. A keystone is a single item, so this
+only bites on a completely full inventory, which is precisely when a player has
+just finished a run.
+
+### Stage 4 — depletion
+
+Every failure mode collapses to one rule and one number. The keystone was
+consumed at the font, so *the mod always hands one back* — there is no state
+where a player who owned a key ends up with nothing.
+
+| Outcome | `ExitReason` | Keystone returned |
+|---|---|---|
+| Exit pad, in time | `EXIT_PAD` | the offer they choose, `level + 1..3` |
+| Exit pad, over time | `EXIT_PAD` | `level - overtimeDepletion` (default `0`, so: unchanged) |
+| Death inside | rescue path | `level - depletionOnDeath` (default 2) |
+| `/dungeon exit` | `COMMAND` | `level - depletionOnExit` (default 1) |
+| Disconnect inside | disconnect path | `level - depletionOnDisconnect` (default 3) |
+| Server purge / crash | `PURGE` | **unchanged** — never punish the player for the server |
+
+Fragile keystones double every depletion figure above, which is the whole cost of
+having taken the `+3`.
+
+All results clamp at level 1: a keystone never disappears and never goes to zero.
+A bad night costs levels, never progress, which is the same instinct behind U5's
+grace-free but mild streak reset.
+
+**U5's shipped notes matter here.** `ExitReason` has two constants, not five —
+`rescue`, `purge` and `dropMember` eject directly and never route through
+`exit`. So depletion cannot hang off `ExitReason` alone; it needs a single
+`Keystones.returnTo(player, level, reason)` called from each of those four sites.
+Wiring it to `exit` only would silently skip death and disconnect, which are two
+of the four rows in that table.
+
+### Stage 5 — the offline player
+
+A player who disconnects mid-run is not there to be handed anything, and this is
+the only piece of server state the milestone adds.
+
+`DungeonLog.Entry` gains `pendingKeystoneLevel` (`0` = none), written when a
+depleted key cannot be delivered, and drained by a join handler that mints and
+grants it on the player's next login. `DungeonLog` is already a `SavedData` with
+a Codec and already keyed by UUID, so this is one field and one call site, and it
+survives a restart because that store already does.
+
+Guard it: if a player somehow already holds a keystone when a pending one drains,
+grant both. Two keystones is not a bug worth writing code to prevent — a lost one
+is.
+
+### Stage 6 — what the level actually drives
+
+`DifficultyProfile` re-keys from `pathLength` to keystone level, and stays the
+one place the curve lives:
+
+| Reads | Was | Now |
+|---|---|---|
+| `lootTier()` | path length 5/6-7/8+ | level bands 1–4 / 5–9 / 10+ |
+| trial spawner config | tier | tier, unchanged — U6's six data files still cover it |
+| ominous | deep third of the run | deep third **or** `level >= ominousFromLevel` (default 10) **or** the ominous affix |
+| `Payout` count | `payoutBaseCount + payoutPerTier * (tier-1)` | the same, times `100 + payoutPerLevelPercent * level` |
+
+`pathLength` keeps exactly one job — it sizes the timer (Stage 2). That split is
+deliberate: the planner decides how *big* a dungeon is, the keystone decides how
+*hard* it is, and a tuning complaint maps to one of the two without ambiguity.
+
+**Level is capped at `keystoneMaxLevel`, default 25.** WoW's ladder is unbounded
+because its rewards stop mattering long before its numbers do; here tier 3 is the
+last loot table, so past the cap the only thing still moving is the payout
+multiplier and the bragging line in `/dungeon log`. Capping it is honest about
+where the content ends.
+
+### Stage 7 — verification
+
+Headless:
+
+1. `/dungeon key` with an empty inventory mints `Keystone [1]`; run it again while
+   holding it and it refuses with a reason.
+2. Lodestone + keystone consumes it and enters; lodestone + a kamutotems sigil
+   does not, and the sigil still works (U4 Stage 4 check 2, unchanged).
+3. `/dungeon admin build` at levels 3, 7 and 12: loot tables tier 1/2/3, ominous
+   off/off/on.
+4. Exit-pad completion in time: three vaults, each displaying its keystone; open
+   one, get that keystone, **the other two are inert**. Confirm by trying.
+5. Complete over time: bar reads `OVER TIME`, one vault path is skipped, keystone
+   comes back unchanged.
+6. Die at level 8: keystone comes back at 6, inventory intact, no payout.
+7. Disconnect mid-run at level 8, log back in: `Keystone [5]` on arrival, and the
+   same after a server restart before that login.
+8. Fail a fragile level 8 by dying: comes back at 4, not 6.
+9. Fail at level 1 by every route: still level 1, never 0, never gone.
+10. `/dungeon admin purge` while a player is inside: keystone returns
+    **unchanged**.
+
+Client walkthrough, appended to `CLIENT_TEST_CHECKLIST.md`:
+
+11. The boss bar is visible, counts down, changes colour, and names the level and
+    room count; it disappears on exit.
+12. Party of two: one bar for both, both get their own token, both choose their
+    own keystone, and one member disconnecting does not affect the other's timer.
+13. Full inventory when the keystone is granted: it drops at the return point in
+    the overworld, not in the void.
+
+### Deliberately not in this milestone
+
+- **Affixes beyond ominous and fragile.** Rotating weekly affixes are the obvious
+  next thing and the obvious way to double this milestone's size. Two affixes
+  prove the mechanic; the third is a content decision made after play.
+- **Leaderboards and weekly vaults.** U5's streak is still the entire retention
+  system, and now the keystone level is a second, better one.
+- **Party key averaging.** The keystone that opens the font is the one that
+  counts; other members ride along and receive their own token and offer. Whether
+  a rider's *own* key should also advance is a real question, but it is a rule
+  about parties, not about keystones, and it can be answered without touching any
+  of this.
+- **The roguelike map.** A layered DAG, branching doors as portals, an
+  in-progress `RunState` and a leave-and-resume flow were all designed and
+  dropped in favour of this. The keystone does what the map was for — persistent,
+  escalating, player-chosen progression — with one item instead of a second
+  instance model. Recorded here so the idea is a decision rather than an
+  oversight.
+- **Vanilla chamber pieces as whole arenas.** Still live, still independent: that
+  is a question about what a room is, and this milestone is about what a run is.
+  See U6's "Deliberately not" for the measured version.
+
 ---
 
 ## Config: every new field in one place
@@ -1449,6 +2216,24 @@ contract.
 | `streakBonusPercent` | 10 | U5 | `>= 0` |
 | `streakBonusCapPercent` | 100 | U5 | `>= 0` |
 | `payoutCommand` | `""` | U5 | empty disables |
+| `trialsEnabled` | true | U6 | — (false restores U3 chests + classic spawners) |
+| `vaultKeyItem` | `minecraft:trial_key` | U6 | as `ritualKeyItem`; written into both the vault config and the spawner ejection table |
+| `ominousVaultKeyItem` | `minecraft:ominous_trial_key` | U6 | as above, for ominous cells — vanilla's ominous vault will not take a plain trial key |
+| `ominousRequiresBottle` | true | U6 | — |
+| `ominousPayoutPercent` | 150 | U6 | `>= 100` |
+| `trialSpawnerCooldownTicks` | 36000 | U6 | `>= 0` (only matters if a player re-enters a cleared room) |
+| `keystoneItem` | `minecraft:trial_key` | U7 | as `ritualKeyItem`; the `custom_data` is what distinguishes it, not the item |
+| `keystoneTokenItem` | `minecraft:trial_key` | U7 | as above; may be the same item, the tag differs |
+| `keystoneMaxLevel` | 25 | U7 | `>= 1` |
+| `depletionOnDeath` | 2 | U7 | `>= 0` |
+| `depletionOnExit` | 1 | U7 | `>= 0` |
+| `depletionOnDisconnect` | 3 | U7 | `>= 0` |
+| `overtimeDepletion` | 0 | U7 | `>= 0`; 0 returns the key unchanged |
+| `timerEnabled` | true | U7 | false hides the bar and never depletes for time |
+| `timerBaseSeconds` | 180 | U7 | `>= 0` |
+| `timerPerRoomSeconds` | 60 | U7 | `>= 0` |
+| `payoutPerLevelPercent` | 5 | U7 | `>= 0` |
+| `ominousFromLevel` | 10 | U7 | `>= 1` |
 
 The proposal's `branchProbability` default of 0.35 is a reduction from
 `LayoutGraphGenerator`'s current hardcoded 0.55, and `loopProbability` 0.15 from
@@ -1476,15 +2261,43 @@ cell is a chunk ticket and a teardown cost.
 | `StaticLayout.java` | exists | U2 | add `layout(BlockPos)`; everything else stays as the fallback |
 | `InstanceRecord.java` | exists | U2 | `layout` field, `paid` set |
 | `Instances.java` | exists | U2 + U5 | plan/stamp/fallback glue, layout-driven force-load/bounds/clear, tick-spread teardown, `ExitReason` |
-| `DungeonCommands.java` | exists | U1/U2/U5 | `admin coverage`, `admin stamptest`, `admin build [seed]`, `/dungeon log` |
+| `DungeonCommands.java` | exists | U1/U2/U5 | `admin coverage`, `admin stamptest`, `admin build [seed]`, `/dungeon log [player]`, dev-only `admin log record|show` |
 | `PocketDungeonsConfig.java` | exists | all | 19 new fields, three new readers, `slotPitch % 16` |
 | `DifficultyProfile.java` | **new** | U3 | pure-logic curves and rosters |
 | `RoomContent.java` | **new** | U3 | role dispatch, mob spawning, chest retargeting |
 | `data/.../loot_table/chests/tier_1..3.json`, `bonus.json` | 3 new + 1 rewrite | U3 | generous tiered tables, boss stones |
 | `RitualListener.java` | **new** | U4 | lodestone + key item |
+| `ConfiguredItem.java` | **new** | U4/U5 | shared parse-cache-log-once resolution for `ritualKeyItem` and `payoutItem` |
 | `DungeonLog.java` | **new** | U5 | per-player `SavedData` |
 | `Payout.java` | **new** | U5 | `giveOrDrop`, streak multiplier, optional command hook |
+| `PayoutMath.java` | **new** | U5 | pure streak transition and payout arithmetic |
+| `PayoutMathTest.java` | **new** | U5 | pure-JDK, wired into `tasks.test` |
 | `DifficultyProfileTest.java` | **new** | U3 | pure-JDK, wired into `tasks.test` |
+| `TrialContent.java` | **new** | U6 | trial spawner + vault configuration at stamp time, ominous blockstate, `trialsEnabled` fallback |
+| `RoomTemplateGenerator.java` | exists | U6 | author `trial_spawner` and `vault` into the floor rooms; regenerate the library |
+| `data/.../structure/rooms/*.nbt` | regenerated | U6 | committed output of the above |
+| `data/.../loot_table/chests/tier_1..3_ominous.json` | 3 new | U6 | tier table + the boss-stone pool, which moves out of `tier_2`/`tier_3` |
+| `data/.../loot_table/spawners/trial_key.json` | **new** | U6 | what an encounter spawner ejects |
+| `RoomContent.java` | exists | U6 | delegates encounter/loot to `TrialContent`; its spawn path survives only as the kill-switch fallback |
+| `DifficultyProfile.java` | exists | U6 | `mobCount`/`effectiveTier`/`mobRoster`/`chestRolls` all deleted; only `lootTier()` survives |
+| `data/.../trial_spawner/tier_1..3/{normal,ominous}.json` | 6 new | U6 | the rosters as data; `minecraft:trial_spawner` is a registry, so the block stores only the id |
+| `JigsawFallback.java` | exists | U6 | clear *any* leftover jigsaw in bounds, not just `pocketdungeons:` — vanilla's borrowed pieces carry `minecraft:`-named ones |
+| `LayoutGraphGenerator.java` | exists | U6 | one new `validate` check: `loot <= encounter` |
+| `RitualListener.java` | exists | U6 | ominous-bottle branch |
+| `Instances.java` | exists | U6 | `enter(player, boolean ominous)`, Trial Omen grant, clear-on-exit for every `ExitReason` |
+| `DungeonCommands.java` | exists | U6 | `/dungeon ominous`, stamptest block-entity assertions |
+| `Payout.java` | exists | U6 | `ominousPayoutPercent`, applied after the streak bonus |
+| `Keystone.java` | **new** | U7 | mint/parse the keystone and completion token, clamp the level |
+| `Keystones.java` | **new** | U7 | `returnTo(player, level, reason)` — the one depletion call site, wired to all four exit paths |
+| `RunTimer.java` | **new** | U7 | per-instance `ServerBossEvent`, countdown, over-time flag |
+| `KeystoneMathTest.java` | **new** | U7 | pure-JDK: level bands, depletion clamps, fragile doubling, timer arithmetic |
+| `data/.../loot_table/empty.json` | **new** | U7 | no pools; the choice vaults need a valid id but grant from Java |
+| `RitualListener.java` | exists | U7 | inverts to "keystones only"; reads the level from `custom_data` |
+| `Instances.java` | exists | U7 | carry the keystone level on the record, start/stop the timer, hand the token at the pad |
+| `DungeonLog.java` | exists | U7 | `pendingKeystoneLevel` field plus the join-handler drain |
+| `DifficultyProfile.java` | exists | U7 | re-keyed from `pathLength` to keystone level |
+| `TrialContent.java` | exists | U7 | configure the three exit-room choice vaults, `displayItem` per offer |
+| `DungeonCommands.java` | exists | U7 | `/dungeon key`, level in `/dungeon log` |
 
 ---
 

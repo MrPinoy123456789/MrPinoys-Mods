@@ -154,6 +154,118 @@ not to find new gameplay.
 
 ---
 
+## U4 — the lodestone ritual
+
+Every check here is a right-click, and nothing in a headless console session
+ever right-clicks a block. None of this has been verified; the code was traced
+and the API shapes were confirmed against the jar, which is not the same thing.
+
+### 15. Ritual entry consumes exactly one key
+
+1. Place a lodestone in the overworld. Hold a stack of plain echo shards
+   (`/give @s echo_shard 5`), stand outside any dungeon, and right-click it.
+2. **Expected:** the charge sound plays *at the lodestone and you hear it*, a
+   dungeon opens exactly as `/dungeon` would, and you come back with **4**
+   shards, not 3 and not 5.
+
+### 16. A tagged shard is not a key
+
+1. `/give @s echo_shard[custom_data={kamutotems:{boss_stone:1}}]`, then
+   right-click the lodestone holding it.
+2. **Expected:** nothing consumed, no dungeon, and with kamutotems installed the
+   boss stone behaves exactly as it normally does (this is the whole point of
+   passing rather than failing — kamutotems' own handler still gets its turn).
+3. Repeat with a boss stone that actually dropped from a tier-2 dungeon chest,
+   not a hand-minted one.
+
+### 17. The exit pad cannot eat a key
+
+1. Inside a dungeon, walk to the exit pad and right-click the lodestone you are
+   standing on *before* the tick watcher pulls you out (you have under a second,
+   so try from the side rather than on top of it).
+2. **Expected:** no key consumed, no second dungeon, normal exit.
+
+### 18. Vanilla lodestone behaviour survives
+
+1. Right-click the lodestone with an empty hand, with a wrong item, and with a
+   compass.
+2. **Expected:** nothing from this mod fires, and the compass still binds to the
+   lodestone.
+3. Sneak-right-click while holding echo shards. **Expected:** no ritual — sneak
+   is the deliberate opt-out.
+
+### 19. The kill switch and the failure path
+
+1. Set `ritualEnabled: false`, restart, right-click with shards in hand.
+   **Expected:** nothing happens, `/dungeon` still works.
+2. Set `ritualKeyItem` to a typo, restart. **Expected:** one error line at boot
+   naming the bad id, and the ritual is inert.
+3. Break the dungeon dimension so `Instances.enter` fails, then run the ritual.
+   **Expected:** the "dungeon failed to build" message and **the key is still in
+   your hand** — this is the check that matters most, because eating a real item
+   on a failed entry is a real loss.
+
+---
+
+## U5 — the dungeon log and completion payout
+
+The stateful half (streaks, persistence, the log's numbers) was verified
+headlessly through `/dungeon admin log record`. Everything below needs a player
+actually standing in a dungeon and is unverified.
+
+### 20. A completed run pays, once
+
+1. Enter, walk to the exit pad, let the watcher pull you out.
+2. **Expected:** you land at your return point with the payout in your
+   inventory, and one gold line: `You escape with the loot. Run #1 - streak 1 -
+   6 emeralds.` (the count scales with tier; a tier-1 run at the defaults pays
+   6).
+3. `/dungeon log` afterwards agrees: 1 run, streak 1.
+4. Get a friend to pull you back into the *same* instance and step on the pad
+   again. **Expected:** you are ejected with the plain "you leave the dungeon
+   behind" message, **no second payout**, and `/dungeon log` still says 1 run.
+
+### 21. A retreat and a death do not pay
+
+1. Enter, and from mid-dungeon run `/dungeon exit`. **Expected:** no payout, no
+   completion message, `/dungeon log` unchanged.
+2. Enter and get killed inside. **Expected:** the M0 death-rescue behaviour is
+   completely unchanged — ejected, inventory intact, no death screen — **and no
+   payout**, and `/dungeon log` unchanged.
+
+### 22. A full inventory does not eat the reward
+
+1. Fill every inventory slot (including the offhand and armour) with junk that
+   will not stack with the payout item, then complete a run.
+2. **Expected:** the payout drops at your feet **in the overworld**, at your
+   return point — never at the exit pad, which teardown is already clearing.
+   Count the items on the ground: a partial fit must drop the exact remainder,
+   not a whole stack and not nothing.
+
+### 23. A party is paid per player
+
+1. Two players enter together, both walk out on the pad.
+2. **Expected:** both are paid, each exactly once, each with their own run
+   number and streak.
+3. One member leaves early via `/dungeon exit`: they are not paid, the instance
+   survives, the other completes and is paid.
+
+### 24. The streak across two real days
+
+1. Complete a run today. Note `/dungeon log`.
+2. Complete another run tomorrow. **Expected:** streak 2, and the completion
+   line's payout is 10% larger than yesterday's for the same tier.
+3. Skip a day, then complete. **Expected:** streak back to 1.
+
+### 25. `payoutCommand`, if an operator uses one
+
+1. Set `payoutCommand` to something observable, e.g.
+   `say %player% earned %amount%`, restart, complete a run.
+2. **Expected:** the substituted command runs from the console's own permission
+   level, and the item payout still happens alongside it.
+
+---
+
 ## Test Log
 
 **2026-08-18**
