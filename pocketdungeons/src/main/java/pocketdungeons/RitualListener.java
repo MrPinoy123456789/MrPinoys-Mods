@@ -4,7 +4,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -13,13 +13,12 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 
 /**
- * The lodestone ritual: right-click a lodestone holding the key item and the
+ * The lodestone ritual: right-click a lodestone holding the keystone and the
  * dungeon opens, with no command typed.
  *
  * <h2>U7 inverts the key rule</h2>
@@ -32,8 +31,13 @@ import net.minecraft.world.phys.BlockHitResult;
  * and now for free, because the test is positive rather than a list of things to
  * avoid. Lodestone plus keystone is the font.
  *
- * <p>An ominous bottle in the other hand -- or a keystone carrying the ominous
- * affix -- starts an ominous run instead (U6 Stage 5).
+ * <h2>U8 Stage 4: one lodestone, three destinations</h2>
+ *
+ * <p>Right-clicking a lodestone with the compass now branches on server state
+ * (T14): a pending door offer routes to the selector room, an owned live
+ * instance re-enters it for free, and anything else opens a fresh run. Ominous
+ * is no longer requested here at all -- it rides entirely on the keystone's own
+ * affix (U8 Stage 6).
  *
  * <p>{@code /dungeon} still works and still costs the same keystone. This is a
  * flavour entry point, not a gate: it is the <em>lodestone</em> that is optional,
@@ -58,9 +62,6 @@ final class RitualListener {
 
     private static InteractionResult onUseBlock(Player player, Level level,
                                                 InteractionHand hand, BlockHitResult hit) {
-        if (!PocketDungeonsConfig.ritualEnabled()) {
-            return InteractionResult.PASS;
-        }
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.PASS;
         }
@@ -71,6 +72,20 @@ final class RitualListener {
         }
 
         BlockPos pos = hit.getBlockPos();
+
+        // T13: a door in the player's own selector room. Handled mod-side and
+        // ahead of everything else -- vanilla's own door open/close must never
+        // run for one of these, or a door that swings looks like it did
+        // something.
+        Integer step = Instances.selectorDoorStep(serverPlayer, pos);
+        if (step != null) {
+            sendDoorOffer(serverPlayer, step);
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        if (!PocketDungeonsConfig.ritualEnabled()) {
+            return InteractionResult.PASS;
+        }
         if (!level.getBlockState(pos).is(Blocks.LODESTONE)) {
             return InteractionResult.PASS;
         }
@@ -79,15 +94,6 @@ final class RitualListener {
         // it is the escape hatch for an operator who points ritualKeyItem at
         // something placeable. Same guard kamutotems' Station uses.
         if (player.isShiftKeyDown()) {
-            return InteractionResult.PASS;
-        }
-
-        // The exit pad is a lodestone too. Without this, standing on it and
-        // right-clicking it would eat a key to "enter" a dungeon you are already
-        // standing in. The dimension check covers a player who is in the void
-        // without a live record -- the orphan-recovery case.
-        if (Instances.hasInstance(serverPlayer)
-                || serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             return InteractionResult.PASS;
         }
 
@@ -101,10 +107,26 @@ final class RitualListener {
             return InteractionResult.PASS;
         }
 
-        // An ominous bottle in the off hand buys the stakes. The bottle is checked
-        // rather than consumed here; consumeOminousBottle runs only after entry
-        // succeeded, on the same rule the keystone follows.
-        boolean bottle = hasOminousBottle(serverPlayer);
+        // T14: branch on server state before touching the "already inside"
+        // guards below -- a pending offer or an owned instance both route
+        // somewhere other than a fresh dungeon, from any lodestone anywhere.
+        DungeonLog.Entry entry = DungeonLog.forServer(serverPlayer.level().getServer())
+                .get(serverPlayer.getUUID());
+        if (entry.pendingOfferLevel() > 0) {
+            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 1.0f, 1.0f);
+            Instances.enterSelectorRoom(serverPlayer);
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // The exit pad is a lodestone too. Without this, standing on it and
+        // right-clicking it would eat a key to "enter" a dungeon you are already
+        // standing in. The dimension check covers a player who is in the void
+        // without a live record -- the orphan-recovery case. Free re-entry (T5)
+        // is handled by enterWithKeystone itself, ahead of any keystone spend.
+        if (Instances.hasInstance(serverPlayer)
+                || serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            return InteractionResult.PASS;
+        }
 
         // Ahead of entry, so the player who is about to be teleported away is
         // still here to hear it.
@@ -115,11 +137,8 @@ final class RitualListener {
         // missing dimension, a stamp that could not be placed -- that leave the
         // player exactly where they stood, and eating a keystone somebody spent
         // several runs earning on one of those is a real loss.
-        if (!Instances.enterWithKeystone(serverPlayer, bottle)) {
+        if (!Instances.enterWithKeystone(serverPlayer)) {
             return InteractionResult.PASS;
-        }
-        if (bottle) {
-            consumeOminousBottle(serverPlayer);
         }
         serverPlayer.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
@@ -127,19 +146,41 @@ final class RitualListener {
     }
 
     /**
-     * Whether this player is offering an ominous bottle.
-     *
-     * <p>Off hand only, so the main hand stays free for the keystone and neither
-     * choice has to be made by juggling. {@code ominousRequiresBottle: false} lets
-     * an operator make the stakes free, in which case
-     * {@code /dungeon ominous} is the route and this stays the paid one.
+     * The offer as chat with a clickable accept (T13). Verified against the
+     * 26.2 jar: {@code ClickEvent} is a sealed interface with record subtypes,
+     * so {@code new ClickEvent.RunCommand(...)} plus {@code withClickEvent} is
+     * the shape -- the old {@code new ClickEvent(Action, String)} constructor
+     * form does not compile here.
      */
-    private static boolean hasOminousBottle(ServerPlayer player) {
-        ItemStack offhand = player.getItemInHand(InteractionHand.OFF_HAND);
-        return offhand.is(Items.OMINOUS_BOTTLE) && offhand.get(DataComponents.CUSTOM_DATA) == null;
-    }
+    private static void sendDoorOffer(ServerPlayer player, int step) {
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
+        int pendingLevel = entry.pendingOfferLevel();
+        if (pendingLevel <= 0) {
+            player.sendSystemMessage(Component.literal(
+                    "There is no offer waiting for you here.").withStyle(ChatFormatting.RED));
+            return;
+        }
+        Keystone.Offer[] offers = Keystone.offers(pendingLevel);
+        Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
 
-    private static void consumeOminousBottle(ServerPlayer player) {
-        player.getItemInHand(InteractionHand.OFF_HAND).shrink(1);
+        String heading = (offer.affix() == Keystone.Affix.NONE ? "Oak" : offer.affix().label)
+                + " Door -- Keystone [" + offer.level() + "]"
+                + (offer.affix() == Keystone.Affix.NONE ? "" : ", " + offer.affix().label.toLowerCase())
+                + ".";
+        player.sendSystemMessage(Component.literal(heading).withStyle(offer.affix().colour));
+        if (offer.affix() == Keystone.Affix.OMINOUS) {
+            player.sendSystemMessage(Component.literal(
+                    "Every room runs ominous. The reward room rolls the ominous tables.")
+                    .withStyle(ChatFormatting.GRAY));
+        } else if (offer.affix() == Keystone.Affix.FRAGILE) {
+            player.sendSystemMessage(Component.literal(
+                    "Fragile: your next failure costs double.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+
+        Component accept = Component.literal("[ Take this key ]")
+                .withStyle(s -> s.withColor(ChatFormatting.GREEN)
+                        .withClickEvent(new ClickEvent.RunCommand("/dungeon choose " + step)));
+        player.sendSystemMessage(accept);
     }
 }

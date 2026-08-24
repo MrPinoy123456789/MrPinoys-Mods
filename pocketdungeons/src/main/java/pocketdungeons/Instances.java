@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -92,6 +93,22 @@ final class Instances {
 
     private record Invite(UUID leader, int slot, long expiresAtMillis) {}
 
+    /**
+     * A staged {@code /dungeon party kick}, waiting on its clickable confirmation.
+     *
+     * <p>Keyed by the leader and holding the target itself, so the confirm command
+     * takes no arguments. That is deliberate: a companion who has logged off still
+     * occupies a party slot and still needs removing, and
+     * {@code EntityArgument.player()} cannot name someone who is not online.
+     * Staging the UUID here sidesteps that entirely.
+     *
+     * @param target the companion to drop, or {@code null} for "all of them"
+     */
+    private record PendingKick(UUID target, long expiresAtMillis) {}
+
+    /** Staged kicks awaiting confirmation, keyed by leader. One at a time. */
+    private static final Map<UUID, PendingKick> pendingKicks = new HashMap<>();
+
     private static final class PendingJoinRecovery {
         final UUID player;
         final ReturnPoint point; // null -> world spawn
@@ -136,6 +153,7 @@ final class Instances {
             ServerPlayer player = handler.getPlayer();
             invites.remove(player.getUUID());
             pendingParty.remove(player.getUUID());
+            pendingKicks.remove(player.getUUID());
             InstanceRecord record = byMember.get(player.getUUID());
             if (record == null) {
                 return;
@@ -144,11 +162,10 @@ final class Instances {
             if (point != null) {
                 pendingReturns.put(player.getUUID(), point);
             }
-            // One of the four depletion sites. This one cannot hand anything over
-            // -- the player is on their way out of the process -- so the level is
-            // parked on DungeonLog for their next login (U7 Stage 5).
-            returnKeystone(server, record, player.getUUID(), null, Keystones.Outcome.DISCONNECT);
-            dropMember(server, record, player.getUUID(), "member disconnected");
+            // U8 Stage 1: disconnecting is free. The run keeps running, on its
+            // own clock, whether or not anyone is here to watch it -- there is
+            // nothing to settle on the way out any more.
+            dropMember(server, record, player.getUUID(), player, "member disconnected");
         });
 
         // Rejoining inside a purged slot: send them home rather than leaving them
@@ -156,9 +173,9 @@ final class Instances {
         // JOIN_RECOVERY_DELAY_TICKS.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
-            // Ahead of the dimension check: a keystone parked by a disconnect has
-            // to reach its owner whether or not they logged back in inside the void.
-            Keystones.drainPending(server, player);
+            // No keystone to hand over on login any more: the level is already
+            // theirs server-side, and the watcher's reconcile pass repaints the
+            // remote in their pocket within one interval.
             if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return;
             }
@@ -215,11 +232,13 @@ final class Instances {
      * the caller rather than inferred from a message the player was sent.
      */
     static boolean enter(ServerPlayer player) {
-        return enter(player, 0, Keystone.Affix.NONE, false);
+        return enter(player, 0, Keystone.Affix.NONE);
     }
 
     /**
-     * Spends a keystone from this player's inventory and opens the run it buys.
+     * Spends a keystone from this player's inventory and opens the run it buys,
+     * or -- if this player already owns a live instance -- teleports them back
+     * into it for free (U8 Stage 1: free re-entry).
      *
      * <p>The stack is shrunk only after {@code enter} has actually succeeded --
      * U4's rule, and it matters more here than it did for an echo shard, because a
@@ -229,11 +248,13 @@ final class Instances {
      * never recreates the player, which U4's shipped notes confirmed at bytecode
      * level.
      *
-     * @param ominousRequested the player asked for the ominous run explicitly
-     *                         (an ominous bottle, or {@code /dungeon ominous})
-     * @return whether the player went in
+     * @return whether the player went in (fresh or re-entered)
      */
-    static boolean enterWithKeystone(ServerPlayer player, boolean ominousRequested) {
+    static boolean enterWithKeystone(ServerPlayer player) {
+        if (reenterOwnedInstance(player)) {
+            return true;
+        }
+
         ItemStack keystone = Keystone.findHeld(player);
         if (keystone == null) {
             player.sendSystemMessage(Component.literal(
@@ -243,17 +264,67 @@ final class Instances {
         }
         int level = Keystone.levelOf(keystone).orElse(1);
         Keystone.Affix affix = Keystone.affixOf(keystone);
-        boolean ominous = ominousRequested || affix == Keystone.Affix.OMINOUS;
 
-        if (!enter(player, level, affix, ominous)) {
+        if (!enter(player, level, affix)) {
             return false;
         }
         keystone.shrink(1);
         return true;
     }
 
+    /**
+     * The free-re-entry branch of U8 Stage 1: if this player owns a live instance
+     * they are not currently standing in, teleport them back rather than opening a
+     * new one. Must run <strong>before</strong> any keystone is spent -- re-entering
+     * an existing run costs nothing and must not re-roll its layout.
+     *
+     * @return true if this call was handled here, whatever the outcome
+     */
+    private static boolean reenterOwnedInstance(ServerPlayer player) {
+        if (hasInstance(player)) {
+            // Already physically inside something -- their own run, or (in
+            // practice, never) someone else's. Let the normal "already in a
+            // dungeon" refusal in enter() handle it.
+            return false;
+        }
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return false;
+        }
+        InstanceRecord existing = null;
+        for (InstanceRecord candidate : bySlot.values()) {
+            if (!candidate.selectorRoom && player.getUUID().equals(candidate.owner)) {
+                existing = candidate;
+                break;
+            }
+        }
+        if (existing == null) {
+            return false;
+        }
+        admit(server, existing, player);
+        player.sendSystemMessage(Component.literal("You step back into your dungeon.")
+                .withStyle(ChatFormatting.GOLD));
+        return true;
+    }
+
+    static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix) {
+        return enter(player, keystoneLevel, affix, false);
+    }
+
+    /**
+     * Opens a dungeon with no clock, for {@code /dungeon admin untimed}.
+     *
+     * <p>The one run that never ends on its own. Spends no keystone, so an
+     * operator can walk a level 12 layout without owning a level 12 key, and both
+     * its creation and its teardown are logged so it cannot be quietly forgotten.
+     */
+    static boolean enterUntimed(ServerPlayer player, int keystoneLevel, boolean ominous) {
+        return enter(player, Math.max(1, keystoneLevel),
+                ominous ? Keystone.Affix.OMINOUS : Keystone.Affix.NONE, true);
+    }
+
     static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix,
-                         boolean ominousRun) {
+                         boolean untimed) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return false;
@@ -283,11 +354,15 @@ final class Instances {
         int slot = allocateSlot();
         BlockPos origin = originForSlot(slot);
 
+        // U8 Stage 6: a run is ominous iff its keystone carries the ominous
+        // affix -- one source, replacing U6/U7's depth ramp, off-hand bottle and
+        // ominousFromLevel threshold.
+        boolean ominous = affix == Keystone.Affix.OMINOUS;
+
         // On failure buildLayout has already queued a clear for whatever partial
         // geometry it wrote and the slot's release happens when that clear
         // finishes -- it is deliberately not freed here. See buildLayout's note.
-        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, partySize,
-                keystoneLevel, ominousRun);
+        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous);
         if (layout == null) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. You have not been moved.")
@@ -295,23 +370,22 @@ final class Instances {
             return false;
         }
 
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affix);
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affix,
+                player.getUUID(), false, untimed);
         bySlot.put(slot, record);
 
-        // The three completion offers go into the terminal cell now rather than at
-        // the pad: a vault appearing under a player's nose the instant they arrive
-        // reads as a glitch, and stamping is where every other block goes in.
-        if (record.isKeystoneRun() && TrialContent.enabled()) {
-            try {
-                record.choiceVaults.addAll(TrialContent.applyChoiceVaults(
-                        level, layout.terminal(), layout.keystoneLevel()));
-            } catch (RuntimeException e) {
-                // A run that cannot offer an upgrade is still a run worth walking;
-                // the keystone comes back either way. Do not fail the entry.
-                PocketDungeonsMod.LOG.error("Could not place the choice vaults in slot {}", slot, e);
-            }
+        if (untimed) {
+            PocketDungeonsMod.LOG.info(
+                    "UNTIMED dungeon opened in slot {} by {} (level {}, {} rooms, seed {}). "
+                            + "It will not expire on its own -- /dungeon admin purge {} to close it.",
+                    slot, player.getName().getString(), layout.keystoneLevel(),
+                    layout.roomCount(), layout.seed(), slot);
         }
-        if (record.isKeystoneRun() && PocketDungeonsConfig.timerEnabled()) {
+
+        // Always, for every keystone run. The clock is the only thing that ends an
+        // ordinary dungeon now, so the sole way to opt out is an operator asking
+        // for it explicitly by the command -- and that one is logged and listed.
+        if (record.isKeystoneRun() && !record.untimed) {
             record.timer = new RunTimer(layout.keystoneLevel(),
                     KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
                             PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength()),
@@ -369,9 +443,9 @@ final class Instances {
         if (record.isKeystoneRun()) {
             player.sendSystemMessage(Component.literal(
                     "Keystone [" + layout.keystoneLevel() + "] spent. Clear a trial spawner for a "
-                            + "key, spend the key on a vault, and reach the lodestone before the "
-                            + "clock to be offered a better one. Anything a vault ejects onto the "
-                            + "floor is lost when the dungeon closes -- pick it up.")
+                            + "key, spend the key on a vault, and beat the clock for the best "
+                            + "reward room. Anything a vault ejects onto the floor is lost when "
+                            + "the dungeon closes -- pick it up.")
                     .withStyle(ChatFormatting.GRAY));
         }
 
@@ -438,13 +512,11 @@ final class Instances {
      * on failure any more -- that happens when the queued clear completes, the
      * same as every other teardown path.
      *
-     * @param partySize the opening player's party size, threaded to
-     *                  {@link LayoutStamper#stamp} for the difficulty curve
      * @return the layout, or null if stamping itself failed
      */
     private static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
-                                              int slot, BlockPos origin, long seed, int partySize,
-                                              int keystoneLevel, boolean ominousRun) {
+                                              int slot, BlockPos origin, long seed,
+                                              int keystoneLevel, boolean ominous) {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
@@ -456,8 +528,7 @@ final class Instances {
             PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
-                return LayoutStamper.stamp(level, origin, plan, partySize,
-                        keystoneLevel, ominousRun);
+                return LayoutStamper.stamp(level, origin, plan, keystoneLevel, ominous);
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan at {} failed; clearing whatever was written",
                         origin.toShortString(), e);
@@ -471,7 +542,7 @@ final class Instances {
                 "Planning failed for seed {} after {} attempts ({}); falling back to StaticLayout",
                 seed, outcome.attemptsUsed(), outcome.failureReason());
 
-        InstanceLayout fallback = StaticLayout.layout(origin, keystoneLevel, ominousRun);
+        InstanceLayout fallback = StaticLayout.layout(origin, keystoneLevel, ominous);
         forceLoad(level, fallback.geometry().chunks(), true);
         try {
             StaticLayout.stamp(level, origin);
@@ -589,6 +660,90 @@ final class Instances {
                 .withStyle(ChatFormatting.GOLD));
     }
 
+    /**
+     * Stages {@code /dungeon party kick}, to be confirmed by clicking.
+     *
+     * @param target the companion to drop, or {@code null} to drop every one
+     */
+    static void stageKick(ServerPlayer leader, UUID target, String targetName) {
+        Set<UUID> companions = pendingParty.get(leader.getUUID());
+        if (companions == null || companions.isEmpty()) {
+            leader.sendSystemMessage(Component.literal("You have nobody pre-registered.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (target != null && !companions.contains(target)) {
+            leader.sendSystemMessage(Component.literal(
+                    targetName + " is not in your party.").withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        pendingKicks.put(leader.getUUID(), new PendingKick(target,
+                System.currentTimeMillis() + PocketDungeonsConfig.inviteTtlSeconds() * 1000L));
+
+        String what = target == null
+                ? "all " + companions.size() + " companion" + (companions.size() == 1 ? "" : "s")
+                : targetName;
+        leader.sendSystemMessage(Component.literal("Remove " + what + " from your party?")
+                .withStyle(ChatFormatting.YELLOW));
+        leader.sendSystemMessage(Component.literal("[ Confirm ]")
+                .withStyle(s -> s.withColor(ChatFormatting.RED)
+                        .withClickEvent(new ClickEvent.RunCommand("/dungeon party kickconfirm"))));
+    }
+
+    /** Executes whatever {@link #stageKick} staged for this leader. */
+    static void confirmKick(ServerPlayer leader) {
+        PendingKick kick = pendingKicks.remove(leader.getUUID());
+        if (kick == null || kick.expiresAtMillis() < System.currentTimeMillis()) {
+            leader.sendSystemMessage(Component.literal(
+                    "Nothing to confirm. Run /dungeon party kick again.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        Set<UUID> companions = pendingParty.get(leader.getUUID());
+        if (companions == null || companions.isEmpty()) {
+            leader.sendSystemMessage(Component.literal("You have nobody pre-registered.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        MinecraftServer server = leader.level().getServer();
+        int removed;
+        if (kick.target() == null) {
+            removed = companions.size();
+            for (UUID id : new ArrayList<>(companions)) {
+                notifyKicked(server, leader, id);
+            }
+            pendingParty.remove(leader.getUUID());
+        } else {
+            removed = companions.remove(kick.target()) ? 1 : 0;
+            if (removed > 0) {
+                notifyKicked(server, leader, kick.target());
+            }
+            if (companions.isEmpty()) {
+                pendingParty.remove(leader.getUUID());
+            }
+        }
+
+        leader.sendSystemMessage(Component.literal(
+                removed == 0 ? "Nobody was removed -- your party had already changed."
+                        : "Removed " + removed + " from your party.")
+                .withStyle(ChatFormatting.GOLD));
+    }
+
+    /** Tells a dropped companion, if they are around to hear it. */
+    private static void notifyKicked(MinecraftServer server, ServerPlayer leader, UUID id) {
+        if (server == null) {
+            return;
+        }
+        ServerPlayer companion = server.getPlayerList().getPlayer(id);
+        if (companion != null) {
+            companion.sendSystemMessage(Component.literal(
+                    leader.getName().getString() + " removed you from their dungeon party.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+    }
+
     static void invite(ServerPlayer inviter, ServerPlayer target) {
         InstanceRecord record = byMember.get(inviter.getUUID());
         if (record == null) {
@@ -675,18 +830,152 @@ final class Instances {
                 player.getName().getString(), record.slot);
     }
 
+    // ---- selector room (U8 Stage 3) ------------------------------------------
+
+    /**
+     * Opens (or returns to) this player's private selector room, where a
+     * completed run's door offer is presented (T14). A small, static, single-
+     * player instance -- no planner, no rotation, no library lookup -- built on
+     * demand through the same slot/force-load/stamp machinery every other
+     * instance uses.
+     */
+    static void enterSelectorRoom(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return;
+        }
+        InstanceRecord current = byMember.get(player.getUUID());
+        if (current != null) {
+            if (current.selectorRoom) {
+                return; // already there
+            }
+            player.sendSystemMessage(Component.literal(
+                    "You are already in a dungeon. Use /dungeon exit first.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+
+        int slot = allocateSlot();
+        BlockPos origin = originForSlot(slot);
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        try {
+            TemplateStamper.place(level, level.getStructureManager(), origin,
+                    TemplateStamper.SELECTOR_ROOM, 0, 0L);
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not stamp a selector room for {}",
+                    player.getName().getString(), e);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            usedSlots.remove(slot);
+            player.sendSystemMessage(Component.literal(
+                    "The selector room failed to build.").withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(),
+                selectorRoomLayout(origin), Keystone.Affix.NONE, player.getUUID(), true);
+        bySlot.put(slot, record);
+        admit(server, record, player);
+        player.sendSystemMessage(Component.literal(
+                "Three doors. Choose one, or step onto the lodestone to leave without choosing.")
+                .withStyle(ChatFormatting.GOLD));
+    }
+
+    /** A single fixed cell at rotation 0 -- no keystone, no timer, no reward room. */
+    private static InstanceLayout selectorRoomLayout(BlockPos origin) {
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
+        BlockPos entrance = origin.offset(8, 1, 3);
+        BlockPos exitPad = origin.offset(7, 0, 12);
+        return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
+                0L, 1, 1, 1, false, false, 0, origin);
+    }
+
+    /**
+     * Which of a selector room's three fixed doors (1, 2 or 3) this world
+     * position is, for <em>this player's own</em> selector instance -- or null
+     * if the player is not standing in one, or the position is not a door.
+     * Positions are computed from the record's origin rather than read back out
+     * of the template: the room is always stamped at rotation 0, so there is no
+     * transform to account for.
+     */
+    static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
+        InstanceRecord record = byMember.get(player.getUUID());
+        if (record == null || !record.selectorRoom) {
+            return null;
+        }
+        int dx = pos.getX() - record.origin.getX();
+        int dy = pos.getY() - record.origin.getY();
+        int dz = pos.getZ() - record.origin.getZ();
+        if (dz != 8 || (dy != 1 && dy != 2)) {
+            return null;
+        }
+        return switch (dx) {
+            case 4 -> 1;
+            case 8 -> 2;
+            case 12 -> 3;
+            default -> null;
+        };
+    }
+
+    /**
+     * Settles {@code /dungeon choose} (T13). Validated purely against
+     * {@link DungeonLog}'s pending offer -- not against being in the selector
+     * room, which is presentation only, so a player who disconnects with the
+     * offer message still on screen can accept it later from anywhere.
+     *
+     * @return whether a door was actually taken
+     */
+    static boolean chooseOffer(ServerPlayer player, int step) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return false;
+        }
+        if (step < 1 || step > 3) {
+            player.sendSystemMessage(Component.literal("Choose 1, 2 or 3.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        if (entry.pendingOfferLevel() <= 0) {
+            player.sendSystemMessage(Component.literal("You have no offer waiting.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        Keystone.Offer[] offers = Keystone.offers(entry.pendingOfferLevel());
+        Keystone.Offer offer = offers[step - 1];
+        Keystones.grantOffer(server, player.getUUID(), player, offer);
+        log.clearPendingOffer(player.getUUID());
+
+        player.sendSystemMessage(Component.literal(
+                "Keystone [" + offer.level() + "]"
+                        + (offer.affix() == Keystone.Affix.NONE
+                                ? "" : " (" + offer.affix().label.toLowerCase() + ")")
+                        + " is yours.")
+                .withStyle(ChatFormatting.AQUA));
+
+        if (byMember.containsKey(player.getUUID())) {
+            exit(player, ExitReason.COMMAND);
+        }
+        return true;
+    }
+
     // ---- exit ---------------------------------------------------------------
 
     /**
-     * Why a member is leaving. Only {@link #EXIT_PAD} pays: walking out on the
-     * far pad is a completed run, {@code /dungeon exit} from room three is a
-     * retreat.
-     *
-     * <p>Deliberately only the two reasons that actually reach {@link #exit}.
-     * A death rescue, a purge and a disconnect each leave through
-     * {@code rescue}, {@code purge} and {@code dropMember} instead -- none of
-     * which route through here, and none of which pay. Giving them constants
-     * would be documenting a dispatch that does not exist.
+     * Why a member is leaving. U8 Stage 0 collapses every outcome down to "did
+     * this cost anything", and the answer is now always no: {@link #EXIT_PAD}
+     * used to be the one that paid, but paying now happens once, at
+     * {@link #completeRun}, the moment a member first reaches a pad -- so by the
+     * time either reason reaches {@code exit} there is nothing left to settle
+     * beyond ejecting the player. Kept as two constants purely for the exit
+     * message's wording (a retreat reads differently from walking out after
+     * finishing).
      */
     enum ExitReason { EXIT_PAD, COMMAND }
 
@@ -702,40 +991,47 @@ final class Instances {
             return;
         }
 
-        // A keystone run pays and hands over its token on the *first* pad
-        // contact, which is a separate step from leaving -- see completeRun. By
-        // the time exit() is reached on the pad the payout has already happened,
-        // and record.paid makes a second attempt a no-op regardless.
+        // A keystone run records its completion and hands over its door offer on
+        // the *first* pad contact -- see completeRun. By the time exit() is
+        // reached the completion, if any, has already happened.
         boolean completed = record.completed.contains(player.getUUID());
 
-        // Teleport first, pay second. Payout.grant drops what will not fit at the
-        // player's feet, and feet still on the exit pad are inside a dungeon this
-        // very call is about to tear down.
         eject(server, record, player);
 
-        boolean paid = reason == ExitReason.EXIT_PAD && pay(server, record, player);
+        // U8 Stage 1: leaving never costs anything. The clock is the only thing
+        // that can deplete a keystone, and it does that on its own in onTick --
+        // see expireTimedOut -- independently of anyone leaving or staying.
+        returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
 
-        // One of the four depletion sites. The reason is only a starting point:
-        // returnKeystone upgrades it if this member has already completed.
-        returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.COMMAND);
-
-        if (!paid && !completed) {
-            player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
-                    .withStyle(ChatFormatting.GOLD));
+        // The selector room is solo and its own messages already say everything
+        // worth saying (the offer, or the choice just made) -- the generic
+        // leave/walk-out lines here would just repeat "dungeon" at a player who
+        // was never fighting one.
+        if (!record.selectorRoom) {
+            if (!completed) {
+                player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
+                        .withStyle(ChatFormatting.GOLD));
+            }
+            announce(server, record, player.getName().getString()
+                            + (completed ? " walks out of the dungeon." : " leaves the dungeon."),
+                    player.getUUID());
         }
-        announce(server, record, player.getName().getString()
-                        + (paid || completed ? " walks out of the dungeon." : " leaves the dungeon."),
-                player.getUUID());
 
-        closeIfEmpty(server, record, "last member left");
+        purgeIfAbandonedSelectorRoom(server, record);
     }
 
     /**
      * Hands this member's keystone back, once.
      *
-     * <p>The single call site U7 Stage 4 demands, reached from all four ways out.
-     * It cannot hang off {@link ExitReason}, which has two constants and never
-     * sees a rescue, a purge or a disconnect.
+     * <p>With depletion collapsed to a single cause (U8 Stage 1), every call site
+     * but the timeout expiry passes {@link Keystones.Outcome#NO_CHANGE}, which
+     * costs nothing -- the write still happens, so a stale remote in an offline
+     * member's pocket still catches up. The "a completed run can never be
+     * charged a failure" escalation U7 needed here is gone along with the
+     * outcomes it used to escalate <em>to</em>: {@code COMPLETED_OVER_TIME} could
+     * once cost {@code overtimeDepletion}, so a member who had already finished
+     * needed protecting from a later death or disconnect being mis-costed as a
+     * fresh failure. There is no such outcome left to protect against.
      */
     private static void returnKeystone(MinecraftServer server, InstanceRecord record,
                                        UUID member, ServerPlayer player,
@@ -743,125 +1039,116 @@ final class Instances {
         if (!record.isKeystoneRun() || !record.keystoneReturned.add(member)) {
             return;
         }
-        // A member who has already reached the pad has finished the run, and
-        // nothing they do afterwards can un-finish it. Without this, typing
-        // /dungeon exit to walk out of the exit room -- or dying to a spawner
-        // mob still chasing them around it -- would charge a completed run the
-        // retreat or death penalty, which is the opposite of what they earned.
-        Keystones.Outcome effective = outcome;
-        if (outcome != Keystones.Outcome.SERVER && record.completed.contains(member)) {
-            effective = record.completedInTime.contains(member)
-                    ? Keystones.Outcome.COMPLETED_IN_TIME
-                    : Keystones.Outcome.COMPLETED_OVER_TIME;
-        }
-        Keystones.returnTo(server, member, player, record.layout.keystoneLevel(), record.affix,
-                effective, record.keystoneGranted.contains(member));
+        Keystones.returnTo(server, member, player, record.layout.keystoneLevel(), record.affix, outcome);
     }
 
     /**
-     * The first pad contact of a keystone run: pay, log, and hand over the
-     * completion token. Deliberately <strong>does not eject</strong>.
-     *
-     * <p>This is the one shipped behaviour U7 changes. Before it, stepping on the
-     * lodestone paid and threw you out in the same instant, which is fine when the
-     * pad is the last thing in the run -- and wrong the moment three vaults are
-     * standing in the same room waiting for the token that contact just granted.
-     * The second contact is the one that leaves.
+     * The first pad contact of a keystone run: record the completion, stamp the
+     * reward room on the very first member to reach it, offer a door, and
+     * teleport the player in. Deliberately <strong>does not eject</strong> --
+     * the reward room's own lodestone is the second contact that leaves (U8
+     * Stage 2).
      */
     private static void completeRun(MinecraftServer server, InstanceRecord record,
                                     ServerPlayer player) {
+        boolean firstCompletion = record.completed.isEmpty();
         record.completed.add(player.getUUID());
-        boolean inTime = record.timer == null || !record.timer.overTime();
-        if (inTime) {
-            record.completedInTime.add(player.getUUID());
+
+        if (firstCompletion) {
+            stampRewardRoom(server, record);
         }
 
-        pay(server, record, player);
+        DungeonLog log = DungeonLog.forServer(server);
+        DungeonLog.Entry entry = log.recordCompletion(player.getUUID(),
+                record.layout.pathLength(), record.layout.keystoneLevel());
 
-        if (inTime && !record.choiceVaults.isEmpty()) {
-            Payout.deliver(player, Keystone.mintToken(record.layout.keystoneLevel()));
+        int chests = record.rewardChests;
+        boolean late = chests <= 0;
+        if (late) {
+            // Completed after the clock: the run still counts and still offers a
+            // door, but finishing late costs a couple of levels -- the other way,
+            // besides a full timeout, to lose ground. Settled through the same
+            // path every other depletion is (Keystones.Outcome.LATE), so the
+            // keystoneReturned guard it sets stops a later exit() from
+            // overwriting this back to the pre-run level.
+            returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.LATE);
+        }
+        // The offer is for whatever this player's keystone is now -- the run's
+        // starting level normally, or the just-depleted one on a late finish.
+        // Reaching a door at all is what mitigates the delevel: a +1 door nets
+        // only -1 overall against a 2-level late penalty.
+        log.setPendingOffer(player.getUUID(), log.get(player.getUUID()).keystoneLevel());
+
+        Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
+
+        if (!late) {
             player.sendSystemMessage(Component.literal(
-                    "You beat the clock. Three vaults, one token -- open the keystone you want, "
-                            + "then stand on the lodestone again to leave.")
-                    .withStyle(ChatFormatting.AQUA));
-        } else if (inTime) {
-            player.sendSystemMessage(Component.literal(
-                    "You beat the clock. Stand on the lodestone again to leave.")
+                    "You reach the end with " + chests + " chest" + (chests == 1 ? "" : "s")
+                            + " waiting, and a door to choose from. Take the compass back to a "
+                            + "lodestone when you're ready.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
-                    "Over time. Your keystone comes back as it was -- no upgrade this run. "
-                            + "Stand on the lodestone again to leave.")
+                    "The chests stay empty, but there is still a door waiting. Take the "
+                            + "compass back to a lodestone when you're ready.")
                     .withStyle(ChatFormatting.YELLOW));
         }
+        PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
+                player.getName().getString(), record.slot, entry.runsCompleted(),
+                chests, record.layout.lootTier());
+
+        teleportToRewardRoom(server, record, player);
     }
 
     /**
-     * Grants the keystone behind whichever choice vault a member has opened.
-     *
-     * <p>Vanilla does the sealing: all three vaults ask for the same token, the
-     * player holds exactly one, so opening one makes the other two permanently
-     * inert. Nothing here has to close them.
-     *
-     * <p>The claim is read out of the vault's own saved NBT rather than from
-     * {@code VaultServerData.getRewardedPlayers()}, which is package-private --
-     * see {@code TrialContent.rewardedPlayers}.
+     * Stamps the reward room, once per instance, at a fixed offset well clear of
+     * the planned grid (U8 Stage 2). {@code maxGridSpan} caps a layout at 12
+     * cells (192 blocks) inside a 2048 slot pitch, so two cells north of the
+     * grid origin is comfortably outside anything the planner could have placed
+     * -- if a layout is ever found to reach it, that is {@code maxGridSpan} not
+     * holding, not this offset needing to move.
      */
-    private static void collectVaultClaims(MinecraftServer server, InstanceRecord record) {
-        if (record.choiceVaults.isEmpty() || record.keystoneGranted.size() >= record.members.size()) {
-            return;
-        }
+    private static final int REWARD_ROOM_OFFSET_Z = -2 * RoomGeometry.CELL;
+
+    private static void stampRewardRoom(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
+            record.rewardChests = 0;
             return;
         }
-        Keystone.Offer[] offers = Keystone.offers(record.layout.keystoneLevel());
-        for (int i = 0; i < record.choiceVaults.size() && i < offers.length; i++) {
-            for (UUID claimant : TrialContent.rewardedPlayers(level, record.choiceVaults.get(i))) {
-                if (!record.members.containsKey(claimant) || !record.keystoneGranted.add(claimant)) {
-                    continue;
-                }
-                ServerPlayer winner = server.getPlayerList().getPlayer(claimant);
-                if (winner == null) {
-                    // Claimed it and logged out before the watcher noticed: park it
-                    // rather than lose it, same as any other undeliverable keystone.
-                    DungeonLog.forServer(server).setPendingKeystone(claimant, offers[i].level());
-                    continue;
-                }
-                Payout.deliver(winner, Keystone.mint(offers[i].level(), offers[i].affix()));
-                winner.sendSystemMessage(Component.literal(
-                        "Keystone [" + offers[i].level() + "]"
-                                + (offers[i].affix() == Keystone.Affix.NONE
-                                        ? "" : " (" + offers[i].affix().label.toLowerCase() + ")")
-                                + " is yours. The other two are spent.")
-                        .withStyle(ChatFormatting.AQUA));
-            }
+        BlockPos rewardOrigin = record.origin.offset(0, 0, REWARD_ROOM_OFFSET_Z);
+        record.rewardRoomOrigin = rewardOrigin;
+
+        int secondsRemaining = record.timer != null ? record.timer.secondsRemaining() : Integer.MAX_VALUE;
+        int totalSeconds = record.timer != null ? record.timer.totalSeconds() : 1;
+        int chests = PayoutMath.chestCount(secondsRemaining, totalSeconds,
+                PocketDungeonsConfig.threeChestPercent(), PocketDungeonsConfig.twoChestPercent());
+        record.rewardChests = chests;
+
+        int cellX = rewardOrigin.getX() >> 4;
+        int cellZ = rewardOrigin.getZ() >> 4;
+        level.setChunkForced(cellX, cellZ, true);
+        try {
+            TemplateStamper.place(level, level.getStructureManager(), rewardOrigin,
+                    TemplateStamper.REWARD_HALL, 0, record.layout.seed());
+            TrialContent.applyRewardChests(level, rewardOrigin, chests,
+                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
+                            .lootTier(),
+                    record.affix == Keystone.Affix.OMINOUS, record.layout.seed());
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not stamp the reward room for slot {}", record.slot, e);
         }
     }
 
-    /**
-     * Records the completion and pays for it, once per member per instance.
-     *
-     * <p>The guard is {@link InstanceRecord#paid}, which dies with the instance:
-     * a member who is paid, gets pulled back in by a friend and steps on the pad
-     * again is not paid twice, and earning another payout means walking a fresh
-     * dungeon. That is a rate limit set by a human rather than by a timer.
-     *
-     * @return whether this call actually paid
-     */
-    private static boolean pay(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
-        if (!record.paid.add(player.getUUID())) {
-            return false;
+    /** Standing point just inside the reward room, clear of both the chest row and the pad. */
+    private static void teleportToRewardRoom(MinecraftServer server, InstanceRecord record,
+                                             ServerPlayer player) {
+        if (record.rewardRoomOrigin == null) {
+            return;
         }
-        DungeonLog.Entry entry = DungeonLog.forServer(server)
-                .recordCompletion(player.getUUID(), record.layout.pathLength(),
-                        record.layout.keystoneLevel());
-        int granted = Payout.grant(player, record.layout, entry.streak());
-        Payout.announce(player, entry, granted, record.layout.ominous());
-        PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, streak {}, tier {}, paid {})",
-                player.getName().getString(), record.slot, entry.runsCompleted(),
-                entry.streak(), record.layout.lootTier(), granted);
-        return true;
+        BlockPos standing = record.rewardRoomOrigin.offset(8, 1, 2);
+        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
+                Vec3.atBottomCenterOf(standing), 0.0f, 0.0f);
     }
 
     /**
@@ -885,13 +1172,13 @@ final class Instances {
         player.sendSystemMessage(Component.literal(
                 "The dungeon throws you out. You keep everything you were carrying.")
                 .withStyle(ChatFormatting.RED));
-        // One of the four depletion sites. A death rescue never reaches exit(),
-        // so wiring depletion to ExitReason would silently skip it.
-        returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.DEATH);
+        // U8 Stage 1: dying inside costs nothing. Under a wall clock the walk
+        // back is already the cost; a penalty on top would double-charge it.
+        returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
         announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
                 player.getUUID());
 
-        closeIfEmpty(server, record, "last member thrown out");
+        purgeIfAbandonedSelectorRoom(server, record);
     }
 
     /** Teleports one member to their own return point and drops them from the party. */
@@ -918,22 +1205,48 @@ final class Instances {
      * "someone is still standing here" safety net must not try to teleport
      * them. Doing so mid-disconnect is what corrupts their next login's
      * chunk tracking, leaving them stuck on "Loading terrain..." (see PLAN.md).
+     *
+     * <p>U8 Stage 1: for an ordinary dungeon this is no longer a lifetime event
+     * -- an empty instance is now normal, a dungeon waiting for its owner to
+     * come back. It stays one for the selector room, which is not a keystone run
+     * and has no clock of its own to close it eventually.
      */
     private static void dropMember(MinecraftServer server, InstanceRecord record,
-                                   UUID member, String reason) {
+                                   UUID member, ServerPlayer player, String reason) {
         record.members.remove(member);
         byMember.remove(member);
-        closeIfEmpty(server, record, reason, member);
+
+        // Everything eject detaches, minus the teleport. Dropping a member used to
+        // mean only "forget them", which was survivable when an instance died with
+        // its last member; U8 made instances outlive everyone, so each of these
+        // now persists for the rest of the run:
+        //
+        //  - onPad is UUID-keyed and read as an edge. A member who leaves standing
+        //    on the pad and walks back in (free re-entry, U8 Stage 1) would find
+        //    their contact already recorded and the pad inert until they step off.
+        //  - ServerBossEvent holds ServerPlayer references and prunes none of them
+        //    itself; the timer now ticks with nobody inside, so a disconnected
+        //    player would be broadcast to for the rest of the run.
+        //  - Trial Omen is the one effect this mod can export into the real world.
+        //    eject cleared it; every dropMember path did not, so an admin teleport
+        //    out of an ominous run -- or a disconnect -- carried it to the overworld.
+        record.onPad.remove(member);
+        if (player != null) {
+            if (record.timer != null) {
+                record.timer.removePlayer(player);
+            }
+            clearTrialOmen(player);
+        }
+
+        if (record.selectorRoom) {
+            purge(server, record, reason, member);
+        }
     }
 
-    private static void closeIfEmpty(MinecraftServer server, InstanceRecord record, String reason) {
-        closeIfEmpty(server, record, reason, null);
-    }
-
-    private static void closeIfEmpty(MinecraftServer server, InstanceRecord record,
-                                     String reason, UUID excludeFromStraySweep) {
-        if (record.members.isEmpty()) {
-            purge(server, record, reason, excludeFromStraySweep);
+    /** The selector room's one member just left or chose; an empty selector room has no reason to linger. */
+    private static void purgeIfAbandonedSelectorRoom(MinecraftServer server, InstanceRecord record) {
+        if (record.selectorRoom && record.members.isEmpty()) {
+            purge(server, record, "selector room abandoned");
         }
     }
 
@@ -965,6 +1278,12 @@ final class Instances {
             if (player == null) {
                 continue; // disconnected again before the recovery fired
             }
+            // The disconnect path clears this too, but a crash or a hard restart
+            // fires no disconnect -- the player simply reappears inside the void
+            // still carrying it. This is the last door Trial Omen could have walked
+            // out through, and it is the one effect this mod must never export.
+            clearTrialOmen(player);
+
             if (pending.point != null) {
                 teleport(server, player, pending.point.dimension(), pending.point.pos(),
                         pending.point.yaw(), pending.point.pitch());
@@ -978,29 +1297,86 @@ final class Instances {
 
     // ---- lifecycle watcher --------------------------------------------------
 
+    /**
+     * Repaints every online player's keystone remote from server state.
+     *
+     * <p>The single refresh path. A login, a completion, a depletion, a remote
+     * pulled out of a chest and one handed over by a friend are all the same
+     * event as far as this is concerned -- "the label disagrees with the store" --
+     * and all are corrected within one watcher interval. That is why there is no
+     * item-pickup hook and no mixin: see {@link Keystone#reconcile}.
+     *
+     * <p>The scan is a {@code CUSTOM_DATA} lookup per slot and the write only
+     * fires on an actual mismatch, so the steady state is a few dozen component
+     * reads per player per interval.
+     */
+    private static void reconcileKeystones(MinecraftServer server) {
+        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        if (players.isEmpty()) {
+            return;
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        for (ServerPlayer player : players) {
+            DungeonLog.Entry entry = log.get(player.getUUID());
+            if (entry.keystoneLevel() <= 0) {
+                continue;
+            }
+            Keystone.reconcile(player, entry.keystoneLevel(),
+                    Keystone.Affix.parse(entry.keystoneAffix()));
+        }
+    }
+
     private static void onTick(MinecraftServer server) {
-        if (bySlot.isEmpty() || ++tickCounter % PocketDungeonsConfig.watchIntervalTicks() != 0) {
+        if (++tickCounter % PocketDungeonsConfig.watchIntervalTicks() != 0) {
+            return;
+        }
+
+        // Ahead of the instance sweep and outside its empty check: a remote goes
+        // stale in the overworld, where there is no instance at all.
+        reconcileKeystones(server);
+
+        if (bySlot.isEmpty()) {
             return;
         }
 
         int interval = PocketDungeonsConfig.watchIntervalTicks();
+        long now = server.overworld().getGameTime();
         for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
-            if (record.timer != null && !record.members.isEmpty()) {
+            if (record.timer != null) {
                 record.timer.tick(interval);
             }
-            collectVaultClaims(server, record);
+
+            // U8 Stage 1: the two end conditions, both independent of membership.
+            if (record.isKeystoneRun()) {
+                if (record.timer != null && record.timer.overTime() && record.completed.isEmpty()) {
+                    expireTimedOut(server, record);
+                    continue;
+                }
+                if (!record.completed.isEmpty() && record.expiresAtTick == 0) {
+                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
+                }
+                if (record.expiresAtTick != 0 && now >= record.expiresAtTick) {
+                    purge(server, record, "reward room grace elapsed");
+                    continue;
+                }
+            }
+
             for (UUID member : new ArrayList<>(record.members.keySet())) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
                 if (player == null) {
-                    dropMember(server, record, member, "member offline");
+                    dropMember(server, record, member, null, "member offline");
                     continue;
                 }
                 // An admin teleport or any other route out of the dimension counts
                 // as leaving -- otherwise a member who is not here holds the party
                 // open indefinitely.
                 if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                    dropMember(server, record, member, "member left the dimension");
+                    dropMember(server, record, member, player, "member left the dimension");
                     continue;
+                }
+                PlanCell here = record.layout.geometry().cellAt(player.blockPosition());
+                if (here != null && record.visited.add(here) && record.timer != null) {
+                    record.timer.notePresence(record.visited.size());
                 }
                 if (player.getY() < record.origin.getY() - PocketDungeonsConfig.voidGuardDepth()) {
                     // Rooms are sealed boxes, so this should not happen -- but the
@@ -1029,10 +1405,26 @@ final class Instances {
         }
     }
 
+    /**
+     * The clock ran out and nobody reached a pad in time: the one way left to
+     * lose a keystone level (U8 Stage 1). Depletes the owner alone -- a party
+     * member riding along never had a key at stake -- messages them wherever
+     * they are, ejects anyone still inside, and tears the instance down.
+     */
+    private static void expireTimedOut(MinecraftServer server, InstanceRecord record) {
+        ServerPlayer owner = record.owner != null ? server.getPlayerList().getPlayer(record.owner) : null;
+        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.TIMED_OUT);
+        if (owner == null) {
+            PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
+        }
+        purge(server, record, "timed out");
+    }
+
     // ---- teardown -----------------------------------------------------------
 
     /**
-     * Whether the player is standing on this instance's exit pad.
+     * Whether the player is standing on an exit pad -- the terminal cell's, or
+     * the reward room's, once it exists.
      *
      * <p>Deliberately "the block under you is a lodestone, and you are inside the
      * instance", not a comparison against a recorded coordinate. A single
@@ -1044,8 +1436,23 @@ final class Instances {
      */
     private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
         BlockPos below = player.blockPosition().below();
-        return record.layout.bounds().contains(Vec3.atCenterOf(below))
-                && player.level().getBlockState(below).is(Blocks.LODESTONE);
+        if (!player.level().getBlockState(below).is(Blocks.LODESTONE)) {
+            return false;
+        }
+        if (record.layout.bounds().contains(Vec3.atCenterOf(below))) {
+            return true;
+        }
+        return record.rewardRoomOrigin != null
+                && cellBounds(record.rewardRoomOrigin).contains(Vec3.atCenterOf(below));
+    }
+
+    /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
+    private static AABB cellBounds(BlockPos origin) {
+        return new AABB(
+                origin.getX(), origin.getY(), origin.getZ(),
+                origin.getX() + RoomGeometry.CELL,
+                origin.getY() + RoomGeometry.CEILING_Y + 1,
+                origin.getZ() + RoomGeometry.CELL);
     }
 
     private static void purge(MinecraftServer server, InstanceRecord record, String reason) {
@@ -1064,21 +1471,27 @@ final class Instances {
                 record.members.remove(member);
                 byMember.remove(member);
             }
-            // The fourth depletion site, and the one that costs nothing: a purge,
-            // a shutdown or a crash is the server's fault, so the keystone comes
-            // back exactly as it went in.
-            returnKeystone(server, record, member, player, Keystones.Outcome.SERVER);
+            // U8 Stage 1: a purge, a shutdown or a crash is the server's fault and
+            // never costs anything. The owner's timeout depletion, if any, already
+            // happened in expireTimedOut before this was called.
+            returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         if (record.timer != null) {
             record.timer.close();
         }
+        if (record.untimed) {
+            PocketDungeonsMod.LOG.info("UNTIMED dungeon in slot {} closed ({}), after {}s",
+                    record.slot, reason,
+                    (server.overworld().getGameTime() - record.createdAtTick) / 20L);
+        }
         bySlot.remove(record.slot);
-        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep);
+        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep,
+                record.rewardRoomOrigin);
     }
 
     private static void teardown(MinecraftServer server, int slot, BlockPos origin,
                                  InstanceLayout layout, String reason) {
-        teardown(server, slot, origin, layout, reason, null);
+        teardown(server, slot, origin, layout, reason, null, null);
     }
 
     /**
@@ -1103,7 +1516,8 @@ final class Instances {
      * </ul>
      */
     private static void teardown(MinecraftServer server, int slot, BlockPos origin,
-                                 InstanceLayout layout, String reason, UUID excludeFromStraySweep) {
+                                 InstanceLayout layout, String reason, UUID excludeFromStraySweep,
+                                 BlockPos extraCellOrigin) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             usedSlots.remove(slot);
@@ -1132,9 +1546,17 @@ final class Instances {
         // rather than guessing: it is bounded by the span budget, it stays well
         // inside the slot pitch, and the tick budget makes the extra volume cheap.
         List<BlockPos> cellOrigins = layout != null
-                ? layout.geometry().cellOrigins()
-                : maximalCellOrigins(origin);
+                ? new ArrayList<>(layout.geometry().cellOrigins())
+                : new ArrayList<>(maximalCellOrigins(origin));
         AABB bounds = layout != null ? layout.bounds() : maximalBounds(origin);
+
+        // The reward room lives outside the planned grid entirely (U8 Stage 2),
+        // so it is never part of layout.geometry() -- add its cell explicitly, or
+        // a leaked reward room is a permanent scar on that slot.
+        if (extraCellOrigin != null) {
+            cellOrigins.add(extraCellOrigin);
+            bounds = bounds.minmax(cellBounds(extraCellOrigin));
+        }
 
         // Never clear a slot with someone inside (section 12) -- except the
         // member this teardown was triggered for leaving, whose entity may
@@ -1320,7 +1742,7 @@ final class Instances {
         BlockPos origin = originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), 1, keystoneLevel, ominous);
+                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.
@@ -1328,11 +1750,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Keystone.Affix.NONE);
-        if (record.isKeystoneRun() && TrialContent.enabled()) {
-            record.choiceVaults.addAll(TrialContent.applyChoiceVaults(
-                    level, layout.terminal(), layout.keystoneLevel()));
-        }
+                Keystone.Affix.NONE, null);
         bySlot.put(slot, record);
         return slot;
     }
@@ -1377,6 +1795,7 @@ final class Instances {
             String who = names.isEmpty() ? "unowned (admin build)"
                     : String.join(", ", names) + " (" + names.size() + ")";
             lines.add("slot " + slot + " at " + origin.toShortString()
+                    + (record.untimed ? " -- UNTIMED, never expires" : "")
                     + " -- " + who + ", " + ageSeconds + "s old, "
                     + layout.roomCount() + " rooms, path " + layout.pathLength()
                     + ", tier " + layout.lootTier()

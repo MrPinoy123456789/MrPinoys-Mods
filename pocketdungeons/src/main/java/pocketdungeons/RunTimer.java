@@ -12,13 +12,12 @@ import java.util.UUID;
  * The clock a keystone run is measured against, shown as a server-side boss bar
  * so a vanilla client renders it with no client mod.
  *
- * <p><strong>Expiry does not end the run.</strong> The bar turns red, reads
- * {@code OVER TIME}, and the run continues to whatever end the player walks to.
- * All that changes is what happens at the exit pad: an over-time completion
- * returns the keystone at {@code level - overtimeDepletion} (default 0, so:
- * unchanged) instead of offering an upgrade. That is how Mythic+ actually
- * behaves, it is kinder than ejecting somebody at the buzzer, and it means the
- * mod needs no timer-expiry ejection path at all -- the timer is pure tension.
+ * <p><strong>Expiry alone does not end the run.</strong> The bar turns red, reads
+ * {@code OVER TIME}, and the run continues to whatever end the player walks to --
+ * completing late still reaches the reward room, just with none of its three
+ * chests earned. The run only ends on its own once the clock runs out
+ * <em>and</em> nobody has completed it yet (see {@code Instances}' expiry
+ * check), which is the one way left to lose a keystone level.
  */
 final class RunTimer {
 
@@ -66,6 +65,11 @@ final class RunTimer {
 
     int secondsRemaining() {
         return Math.max(0, totalSeconds - elapsedTicks / 20);
+    }
+
+    /** The clock's full length, for scoring a completion against how much of it is left. */
+    int totalSeconds() {
+        return totalSeconds;
     }
 
     /**

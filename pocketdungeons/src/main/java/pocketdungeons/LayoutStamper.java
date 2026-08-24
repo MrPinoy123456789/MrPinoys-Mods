@@ -32,28 +32,19 @@ final class LayoutStamper {
      * a stamp failure and aborts on -- releasing the slot and the force-load
      * tickets rather than leaving a half-built dungeon allocated.
      *
-     * @param partySize     the opening player's party size, known at stamp time
-     *                      (U3 Stage 5) -- a mid-run joiner does not trigger a
-     *                      re-stamp, so this is fixed for the run's lifetime
      * @param keystoneLevel the level of the keystone spent to open the run, or
      *                      {@code 0} for a run nobody paid for. It drives the loot
-     *                      tier (U7) and, at or above {@code ominousFromLevel},
-     *                      makes the whole run ominous
-     * @param ominousRun    the player asked for an ominous run, with a bottle or
-     *                      with an ominous-affix keystone
+     *                      tier
+     * @param ominous       whether the run is ominous -- U8 Stage 6: this is now
+     *                      the single source, set by the caller from the spent
+     *                      keystone's own affix, with no other route into it
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                int partySize, int keystoneLevel, boolean ominousRun) {
+                                int keystoneLevel, boolean ominous) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
-        DifficultyProfile profile = DifficultyProfile.of(
-                plan.criticalPath().size(), partySize, keystoneLevel);
-
-        // A high enough keystone makes the whole run ominous whether or not the
-        // player asked for it -- U7 Stage 6's third route into the same state.
-        boolean ominous = ominousRun
-                || (keystoneLevel > 0 && keystoneLevel >= PocketDungeonsConfig.ominousFromLevel());
+        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
 
         for (PlanCell cell : stampOrder(plan)) {
             DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);

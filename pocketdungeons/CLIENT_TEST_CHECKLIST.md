@@ -348,11 +348,16 @@ Read the `Shipped:` notes in `UPDATE_PLAN.md` for what *was* checked.
 2. **Expected:** ejected with your inventory, no death screen, no payout — and the
    mobs do **not** follow you out.
 
-### 33. The kill switch
+### 33. Every encounter and loot cell is a trial spawner or a vault
 
-1. Set `trialsEnabled: false`, restart, run a dungeon.
-2. **Expected:** chests and hand-spawned mobs, exactly like before this update.
-   No vault, no trial spawner anywhere.
+1. Run a dungeon opened with **no keystone** (`/dungeon admin build`, or
+   whatever route reaches a plain, non-keystone layout).
+2. **Expected:** every `encounter` cell gets a real trial spawner and every
+   `loot` cell gets a real vault, exactly like a keystone run. `trialsEnabled`
+   (the kill switch that used to restore U3's hand-spawned mobs and free
+   chests) was deleted outright in T17, once the trial loop was confirmed live
+   here — there is no more escape hatch back to it, so this is the one check
+   that would catch a regression there.
 
 ---
 
@@ -381,80 +386,97 @@ Read the `Shipped:` notes in `UPDATE_PLAN.md` for what *was* checked.
 ### 36. The clock
 
 1. Enter with a keystone. **Expected:** a boss bar, titled
-   `Keystone [N] — m:ss — x/y rooms`, counting down.
+   `Keystone [N] - m:ss - x/y rooms`, counting down.
 2. **Expected:** it goes green → yellow at half → red at a fifth.
-3. Let it run out. **Expected:** it reads `OVER TIME`, turns dark red, and **the
-   run does not end.** You keep playing.
-4. Leave. **Expected:** the bar disappears.
+3. **Expected:** the `x/y rooms` counter advances as you walk into new rooms
+   (`RunTimer.notePresence`, wired in T2). **Unverified** — headless testing
+   cannot walk a player through rooms to confirm this.
+4. Let it run out with nobody having completed. **Expected:** it reads
+   `OVER TIME`; some time later the whole instance closes on its own (U8's
+   expiry, not an ejection at the buzzer) and the owner is told their keystone
+   depleted, wherever they are.
+5. Leave the bar's instance behind. **Expected:** the bar disappears from your
+   screen, but the clock keeps running in the background — see §45.
 
-### 37. Three offers, one token — the core of the milestone
+---
 
-1. Reach the exit pad **in time**. **Expected:** you are paid, you get a
-   `Completion Token [N]`, and you are **not** ejected. The message tells you to
-   pick a vault.
-2. **Expected:** three vaults stand in the exit room, each *displaying* the
-   keystone it would give: `[N+1]`, an ominous `[N+2]`, a fragile `[N+3]`.
-3. Open one. **Expected:** you receive that keystone.
-4. **Try the other two.** **Expected:** they will not open — the token is gone.
-   This is vanilla enforcing the choice, not the mod, so it is worth confirming
-   by hand.
-5. Stand on the lodestone again. **Expected:** now you leave, and you are not
-   paid a second time.
+# U8 — the timer is the run
 
-### 38. Walking out without choosing
+### 44. Three-chesting a floor
 
-1. Complete in time, then leave without opening any vault.
-2. **Expected:** your keystone comes back at `[N+1]` anyway. The mod always hands
-   one back; there is no way to end a run holding nothing.
+1. Complete a run inside 60% of the clock.
+2. **Expected:** the exit pad teleports you into a reward room with **three**
+   chests, each opening to the run's tier table (or the ominous table, if the
+   keystone was ominous). A message says how many chests you earned.
+3. Complete a run using between 60% and 80% of the clock. **Expected:** two
+   chests; the third position is bare floor (removed, not empty).
+4. Complete a run using more than 80% but still inside the clock. **Expected:**
+   one chest.
+5. Let the clock run out, then finish anyway. **Expected:** the run still
+   counts and still reaches the reward room, but all three chest positions
+   are bare floor, and a message says your keystone is depleted (by
+   `lateCompletionDepletion`, default 2, floored at 1). Take the door offer
+   that follows anyway -- **expected:** the offer is computed from the
+   *already-depleted* level, e.g. a level-8 key that deleveled to `[6]` shows
+   `[7]`/`[8]`/`[9]` on the three doors, not `[9]`/`[10]`/`[11]`.
 
-### 39. Over time
+### 45. Leave mid-run, come back, finish — no penalty for the break
 
-1. Complete after the clock has expired.
-2. **Expected:** no token, no offer, and the keystone comes back **unchanged** at
-   `[N]` (at the default `overtimeDepletion: 0`).
+1. Enter a run, then log out (or just `/dungeon exit`) partway through.
+2. **Expected:** no message about a depleted keystone, and `/dungeon admin list`
+   (or asking an op) shows the instance still open and its clock still counting
+   down with nobody inside (T3/T4).
+3. Right-click a lodestone (or run `/dungeon`) again. **Expected:** you are
+   teleported back into the **same** instance — same layout, same seed, same
+   time remaining — not a fresh one, and nothing was spent.
+4. Finish the run from there. **Expected:** rewarded normally.
 
-### 40. Every row of the depletion table
+### 46. Take each of the three doors
 
-Start each of these at a known level — level 8 is the easiest to read.
+1. Complete a run and reach the reward room; take its lodestone out.
+2. Right-click any lodestone. **Expected:** since a door offer is pending, you
+   are taken to a private selector room instead of starting a new run.
+3. **Expected:** three real doors — oak, crimson, and an oxidised copper door —
+   each two blocks tall, and a lodestone pad of its own.
+4. Click the oak door. **Expected:** vanilla's door does **not** swing open; a
+   chat message describes a plain `[N+1]` offer with a green
+   `[ Take this key ]` line.
+5. Click it. **Expected:** your keystone is now `[N+1]`, no affix, and you are
+   sent back to the overworld.
+6. Repeat with a fresh completion for the crimson door (**expected:** `[N+2]`,
+   ominous — the next run should stamp every cell ominous from the entrance)
+   and the copper door (**expected:** `[N+3]`, fragile).
 
-1. **Die inside.** **Expected:** `[6]` (`depletionOnDeath: 2`), inventory intact,
-   no payout.
-2. **`/dungeon exit` mid-run.** **Expected:** `[7]` (`depletionOnExit: 1`), no
-   payout.
-3. **Disconnect mid-run, then log back in.** **Expected:** `[5]`
-   (`depletionOnDisconnect: 3`) handed to you on arrival, with a message.
-4. **Same again, but restart the server before logging back in.**
-   **Expected:** still `[5]`. This is the milestone's only persistent state and
-   the only failure mode that loses a keystone outright — worth doing first.
-5. **`/dungeon admin purge` while you are inside.** **Expected:** `[8]`,
-   **unchanged**. Never punish a player for the server.
-6. **Fragile at level 8, then die.** **Expected:** `[4]`, not `[6]` — fragile
-   doubles. And the returned keystone is **plain**, not fragile.
-7. **Fail at level 1 by every route above.** **Expected:** still `[1]` every time.
-   Never `[0]`, never gone.
+### 47. Walking out without choosing, then returning with the compass
 
-### 41. Completing and then failing must not be punished
+1. Complete a run, enter the selector room, and leave via its own lodestone
+   without clicking a door.
+2. **Expected:** ejected normally, and your keystone is **unchanged** — no
+   offer was taken, none was lost.
+3. Right-click a lodestone again. **Expected:** the offer is still pending
+   (`DungeonLog` persisted it), so you are taken straight back to a selector
+   room rather than into a fresh dungeon.
+4. This time run `/dungeon choose 2` directly from the overworld instead of
+   clicking a door. **Expected:** it works exactly the same — the command does
+   not require standing in the room.
 
-1. Reach the pad in time, get your token, then **type `/dungeon exit`** instead of
-   stepping on the pad again.
-2. **Expected:** the keystone still comes back on the *completion* terms — no
-   `depletionOnExit`.
-3. Same again, but get killed by a leftover mob in the exit room after completing.
-   **Expected:** same, no `depletionOnDeath`.
+### 48. Timing out while offline
 
-### 42. A party on one keystone
+1. Enter a run, then log out and stay out until its clock runs out with the
+   run never completed.
+2. Log back in. **Expected:** a message says the keystone depleted (by
+   `timedOutDepletion`, default 1), and `/dungeon admin list` shows the
+   instance already gone.
 
-1. Two players, one keystone, `/dungeon party <player>` then `/dungeon`.
-2. **Expected:** one boss bar shown to both, both get their own token, both make
-   their own independent choice from their own three vaults' worth of offers.
-3. One member disconnects. **Expected:** the other's timer is unaffected, and the
-   disconnecting member gets their depleted keystone on next login.
+### 49. A party on one keystone
 
-### 43. A full inventory when the keystone comes back
-
-1. Fill your inventory completely, then complete a run.
-2. **Expected:** the keystone (and the payout) drop **at your return point in the
-   overworld**, not in the void dimension. Nothing is destroyed.
+1. Two players, one keystone: `/dungeon party <player>` then `/dungeon`.
+2. **Expected:** one boss bar shown to both. Each member who reaches the
+   reward room gets their **own** chest count (fixed at whoever got there
+   first) and their **own** independent door offer.
+3. One member disconnects mid-run. **Expected:** free — the instance and its
+   clock are unaffected, and the disconnecting member can walk back in later
+   at no cost.
 
 ---
 

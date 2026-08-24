@@ -3,11 +3,8 @@ package pocketdungeons;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -33,8 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * Turns a stamped room into a pocket trial chamber: a trial spawner where the
@@ -57,11 +52,11 @@ import java.util.UUID;
  * either way.
  *
  * <p>What that buys: the fourteen shipped {@code .nbt} files, their measured
- * 53/53 coverage and their 200/200 plan success are untouched, and
- * {@code trialsEnabled: false} rolls the whole milestone back to U3's behaviour
- * exactly rather than approximately, because U3's path is the geometry that is
- * still on disk. What it costs: the blocks' configs are written every stamp
- * rather than arriving pre-baked -- which they were going to be anyway, since a
+ * 53/53 coverage and their 200/200 plan success are untouched -- U3's rollback
+ * path this once protected ({@code trialsEnabled: false}) was deleted outright
+ * in T17, once a real client confirmed the trial loop works. What it costs: the
+ * blocks' configs are written every stamp rather than arriving pre-baked --
+ * which they were going to be anyway, since a
  * tier is only known at run time.
  *
  * <h2>Ominous</h2>
@@ -93,8 +88,6 @@ final class TrialContent {
     private static final double ACTIVATION_RANGE = 4.0;
     private static final double DEACTIVATION_RANGE = 4.5;
 
-    private static final Codec<Set<UUID>> REWARDED_PLAYERS =
-            UUIDUtil.CODEC_LINKED_SET.lenientOptionalFieldOf("rewarded_players", Set.of()).codec();
 
     private static final ConfiguredItem VAULT_KEY = new ConfiguredItem("vaultKeyItem",
             PocketDungeonsConfig::vaultKeyItem,
@@ -105,29 +98,17 @@ final class TrialContent {
 
     private TrialContent() {}
 
-    /** Whether the trial loop is on. False restores U3's chests and mob spawns wholesale. */
-    static boolean enabled() {
-        return PocketDungeonsConfig.trialsEnabled();
-    }
-
-    /** Resolves the configured key items once, so a typo is a boot-time log line. */
-    static void warmUp() {
-        if (enabled()) {
-            VAULT_KEY.get();
-            OMINOUS_VAULT_KEY.get();
-        }
-    }
-
     /**
-     * Whether a cell at this depth fights and pays ominously.
+     * Resolves the configured key items once, so a typo is a boot-time log line.
      *
-     * <p>Replaces U3's {@code effectiveTier(depth)}: the far third of a run is
-     * ominous whether or not the player paid for it, and an ominous <em>run</em>
-     * makes the whole thing ominous from the entrance. U7 adds a third route --
-     * a keystone at or above {@code ominousFromLevel}.
+     * <p>Unconditional since T17: the trial loop was the only path even before
+     * then ({@code trialsEnabled: false} was the kill switch for U3's chests and
+     * mob spawns, now deleted), so there is no longer a case where these keys
+     * are not needed.
      */
-    static boolean ominousAt(int depth, int pathLength, boolean ominousRun) {
-        return ominousRun || depth >= (pathLength * 2) / 3;
+    static void warmUp() {
+        VAULT_KEY.get();
+        OMINOUS_VAULT_KEY.get();
     }
 
     // ---- encounter ----------------------------------------------------------
@@ -144,7 +125,7 @@ final class TrialContent {
      * @return true if a spawner was placed
      */
     static boolean applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                                  int tier, boolean ominous, boolean ominousRun) {
+                                  int tier, boolean ominous) {
         BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
         if (anchor == null) {
             PocketDungeonsMod.LOG.warn(
@@ -176,7 +157,7 @@ final class TrialContent {
         // reads the ids back out rather than trusting the write.
         CompoundTag tag = new CompoundTag();
         tag.putString("normal_config", configId(tier, false));
-        tag.putString("ominous_config", ominousConfigId(tier, ominousRun));
+        tag.putString("ominous_config", configId(tier, true));
         tag.putInt("target_cooldown_length", PocketDungeonsConfig.trialSpawnerCooldownTicks());
         tag.putInt("required_player_range", 14);
 
@@ -191,28 +172,6 @@ final class TrialContent {
     private static String configId(int tier, boolean ominous) {
         return PocketDungeonsMod.MOD_ID + ":tier_" + Math.max(1, Math.min(3, tier))
                 + (ominous ? "/ominous" : "/normal");
-    }
-
-    /**
-     * The ominous config a spawner in <em>this run</em> should use.
-     *
-     * <p>Two variants, and the difference is only which key they eject.
-     * {@link #ominousAt} is a function of <em>depth</em>, so a plain run
-     * legitimately contains ominous cells -- but vanilla's ominous vault takes
-     * {@code minecraft:ominous_trial_key}, a different item from
-     * {@code minecraft:trial_key}, so mixing the two kinds inside one run means
-     * the key budget has to balance <em>per kind</em>, and
-     * {@code balanceKeyBudget} only balances the total.
-     *
-     * <p>Rather than teach the planner a second budget, the key is made a
-     * property of the run: a plain run mints plain keys everywhere, an ominous
-     * run mints ominous keys everywhere, and the deep-third ramp survives intact
-     * as a harder fight and a better loot table. One key kind per run makes
-     * {@code loot <= encounter} sufficient exactly as written.
-     */
-    private static String ominousConfigId(int tier, boolean ominousRun) {
-        return PocketDungeonsMod.MOD_ID + ":tier_" + Math.max(1, Math.min(3, tier))
-                + (ominousRun ? "/ominous" : "/ominous_plain_key");
     }
 
     private static BlockPos encounterAnchor(ServerLevel level, BlockPos cellOrigin,
@@ -267,7 +226,7 @@ final class TrialContent {
      * @return true if a vault was placed
      */
     static boolean applyLoot(ServerLevel level, BlockPos cellOrigin, int tier, boolean ominous,
-                             boolean ominousRun, long seed) {
+                             long seed) {
         List<BlockPos> containers = RoomContent.containers(level, cellOrigin);
         containers.sort(TrialContent::compare);
         if (containers.isEmpty()) {
@@ -278,12 +237,10 @@ final class TrialContent {
 
         BlockPos vaultPos = containers.get(0);
         Direction facing = facingOf(level, vaultPos);
-        // The blockstate and the loot table follow the cell's depth; the key
-        // follows the run. See ominousConfigId for why those two come apart.
         placeVault(level, vaultPos, facing, ominous,
                 lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
                         + (ominous ? "_ominous" : "")),
-                keyStack(ominousRun), ItemStack.EMPTY);
+                keyStack(ominous), ItemStack.EMPTY);
 
         // Everything else in the cell stays a chest, retargeted to the supply
         // table: a small free reward beside the key-gated one, which is the shape
@@ -299,48 +256,38 @@ final class TrialContent {
     }
 
     /**
-     * The three completion offers of U7 Stage 3, placed in the terminal cell.
+     * Sets each of the reward room's three chests to the run's tier table (U8
+     * Stage 2), or removes it if the run did not earn it. Chests are read back at
+     * their authored positions -- {@code (4,1,4)}, {@code (8,1,4)},
+     * {@code (12,1,4)} -- rather than scanned, since the reward room is a single
+     * fixed template stamped at rotation 0 every time; there is no rotation to
+     * transform against.
      *
-     * <p>All three take the <em>same</em> token item, and the player holds exactly
-     * one, so <strong>vanilla enforces the choice</strong>: opening one consumes
-     * the token and the other two can never be opened. There is no mod-side
-     * sealing code, and each party member's own token gives them their own
-     * independent choice for free.
-     *
-     * <p>Positions are computed from {@code cellOrigin} rather than read out of the
-     * template -- the exit room authors no chest and no spawn point to hang them
-     * on -- which cross-cutting section 3 warns about. It is safe here for a
-     * specific reason: {@code {5,10} x {5,10}} is <strong>closed under the
-     * rotation transform</strong> ({@code 15 - 5 = 10}), so any fixed choice of
-     * three of those four corners lands on three distinct interior floor positions
-     * at every rotation. They may not be the <em>same</em> three across rotations,
-     * and that does not matter -- the three offers are interchangeable. All four
-     * are clear of the doorway lanes ({@code x,z} in {@code [7,8]}) and of the
-     * 2x2 lodestone pad.
-     *
-     * @return the vault positions, in offer order
+     * <p>Removing an unearned chest uses the same
+     * {@code UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS} flag every other container
+     * removal in this mod does (trap 4): without it, a chest carrying a pending
+     * loot table unpacks and scatters on the floor the instant it is broken.
      */
-    static List<BlockPos> applyChoiceVaults(ServerLevel level, BlockPos cellOrigin,
-                                            int keystoneLevel) {
-        List<BlockPos> placed = new ArrayList<>();
-        ResourceKey<LootTable> empty = lootTable("empty");
-        Keystone.Offer[] offers = Keystone.offers(keystoneLevel);
-        for (int i = 0; i < offers.length && i < CHOICE_SPOTS.length; i++) {
-            BlockPos pos = cellOrigin.offset(CHOICE_SPOTS[i]);
-            ItemStack token = Keystone.mintToken(keystoneLevel);
-            placeVault(level, pos, Direction.SOUTH, offers[i].ominous(), empty, token,
-                    Keystone.mint(offers[i].level(), offers[i].affix()));
-            placed.add(pos);
-        }
-        return placed;
-    }
-
-    /** See {@link #applyChoiceVaults}: three of a rotation-closed four-corner set. */
-    private static final net.minecraft.core.Vec3i[] CHOICE_SPOTS = {
-            new net.minecraft.core.Vec3i(5, 1, 5),
-            new net.minecraft.core.Vec3i(10, 1, 5),
-            new net.minecraft.core.Vec3i(10, 1, 10),
+    private static final BlockPos[] REWARD_CHEST_SPOTS = {
+            new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4)
     };
+
+    static void applyRewardChests(ServerLevel level, BlockPos rewardOrigin, int chests,
+                                  int tier, boolean ominous, long seed) {
+        ResourceKey<LootTable> table = lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
+                + (ominous ? "_ominous" : ""));
+        for (int i = 0; i < REWARD_CHEST_SPOTS.length; i++) {
+            BlockPos pos = rewardOrigin.offset(REWARD_CHEST_SPOTS[i]);
+            if (i < chests) {
+                if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
+                    c.setLootTable(table);
+                    c.setLootTableSeed(seed ^ pos.asLong());
+                }
+            } else {
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
+            }
+        }
+    }
 
     private static void placeVault(ServerLevel level, BlockPos pos, Direction facing,
                                    boolean ominous, ResourceKey<LootTable> table,
@@ -381,10 +328,9 @@ final class TrialContent {
      * <p>Two fields, not one: vanilla's ominous vault takes
      * {@code minecraft:ominous_trial_key}, a different item from
      * {@code minecraft:trial_key}, and the ominous spawner configs eject the
-     * matching one. A run legitimately contains both kinds at once -- the near
-     * two thirds plain, the deep third ominous -- so
-     * {@code loot <= encounter} has to hold per kind, which it does because
-     * {@link #ominousAt} is a function of depth alone and both roles read it.
+     * matching one. Since U8 Stage 6 a run is ominous everywhere or nowhere --
+     * one key kind per run, always -- so {@code loot <= encounter} needs no
+     * per-kind bookkeeping any more.
      */
     static ItemStack keyStack(boolean ominous) {
         ConfiguredItem configured = ominous ? OMINOUS_VAULT_KEY : VAULT_KEY;
@@ -395,34 +341,6 @@ final class TrialContent {
                     : net.minecraft.world.item.Items.TRIAL_KEY);
         }
         return new ItemStack(item);
-    }
-
-    // ---- reading a vault back out -------------------------------------------
-
-    /**
-     * Which players have already claimed this vault.
-     *
-     * <p>{@code VaultServerData.getRewardedPlayers()} is package-private, so this
-     * goes through the block entity's own saved NBT -- {@code saveWithoutMetadata}
-     * is public, and {@code server_data.rewarded_players} is
-     * {@code UUIDUtil.CODEC_LINKED_SET}, which is public too. Reading the codec
-     * rather than the field means a rename shows up as an empty set and a decode
-     * error in the log, not as a compile that quietly does the wrong thing.
-     */
-    static Set<UUID> rewardedPlayers(ServerLevel level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof VaultBlockEntity vault)) {
-            return Set.of();
-        }
-        CompoundTag saved = vault.saveWithoutMetadata(level.registryAccess());
-        Tag serverData = saved.get("server_data");
-        if (serverData == null) {
-            return Set.of();
-        }
-        return REWARDED_PLAYERS.parse(NbtOps.INSTANCE, serverData)
-                .resultOrPartial(err -> PocketDungeonsMod.LOG.warn(
-                        "Could not read rewarded players from the vault at {}: {}",
-                        pos.toShortString(), err))
-                .orElse(Set.of());
     }
 
     // ---- shared -------------------------------------------------------------

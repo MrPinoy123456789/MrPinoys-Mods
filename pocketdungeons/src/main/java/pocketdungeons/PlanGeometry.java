@@ -91,4 +91,17 @@ record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
         }
         return out;
     }
+
+    /**
+     * The occupied cell a world position falls inside, or null if it is outside
+     * every cell this layout owns. The inverse of {@link #cellOrigin}, for the
+     * boss bar's room-visited counter (T2): a player's feet convert to a grid
+     * cell, and that cell is recorded as seen.
+     */
+    PlanCell cellAt(BlockPos pos) {
+        int cellX = Math.floorDiv(pos.getX() - origin.getX(), RoomGeometry.CELL) + minCellX;
+        int cellZ = Math.floorDiv(pos.getZ() - origin.getZ(), RoomGeometry.CELL) + minCellZ;
+        PlanCell candidate = new PlanCell(cellX, cellZ);
+        return cells.contains(candidate) ? candidate : null;
+    }
 }

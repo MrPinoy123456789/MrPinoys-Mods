@@ -9,44 +9,45 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
 
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Per-player run history: how many dungeons they have finished, the longest one,
- * and the daily streak that scales the payout.
+ * Per-player run history and keystone state: how many dungeons a player has
+ * finished, the longest one, their current keystone, and any door offer still
+ * waiting for them to choose.
  *
  * <p>This is the one slice of instance state that persists. Live instances stay
  * in memory (PLAN.md's M5 is still deliberately unshipped -- runs are short and
- * the join handler recovers orphans), but a streak that forgets itself on
- * restart is not a streak.
- *
- * <p>The arithmetic lives in {@link PayoutMath}, which has no Minecraft imports
- * and is unit-tested; this class is storage and nothing else.
+ * a restart simply forgives whatever was in progress), but a player's keystone
+ * and their completion count are not runs; they are the campaign.
  */
 final class DungeonLog extends SavedData {
 
     /**
-     * @param lastCompletedDateKey  an ISO date, or empty for "never completed".
-     *                              Empty rather than null so the codec needs no
-     *                              optional-string special case, and blank is
-     *                              treated as absent everywhere it is read.
-     * @param pendingKeystoneLevel  a keystone that came back while this player was
-     *                              offline, {@code 0} for none. The only piece of
-     *                              server state U7 adds: a player who disconnects
-     *                              mid-run is not there to be handed anything, and
-     *                              a keystone that evaporates because of that is
-     *                              the one outcome the depletion table refuses.
-     *                              This store is already a {@code SavedData} keyed
-     *                              by UUID, so it survives a restart for free.
+     * @param keystoneLevel      <strong>the player's keystone.</strong> {@code 0}
+     *                           means they have never minted one. This is the
+     *                           authority: the item in their inventory is a
+     *                           remote that displays this number, not the number
+     *                           itself. See {@link Keystone} for why that
+     *                           inverted.
+     * @param keystoneAffix      the affix riding on that keystone, lowercase, or
+     *                           empty for none. Persisted alongside the level
+     *                           because picking the ominous or fragile door has
+     *                           to survive until the run that pays for it.
+     * @param pendingOfferLevel  the keystone level a completed run was finished
+     *                           at, if a door choice from that completion is
+     *                           still unmade. {@code 0} means no offer pending.
+     *                           Persisted so it survives a logout, a restart, or
+     *                           losing the compass -- the selector room is not
+     *                           the authority, this is (U8 Stage 3).
      */
-    record Entry(int runsCompleted, int bestPathLength, int streak, String lastCompletedDateKey,
-                 int bestKeystoneLevel, int pendingKeystoneLevel) {}
+    record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
+                 int keystoneLevel, String keystoneAffix, int pendingOfferLevel) {}
 
-    static final Entry NONE = new Entry(0, 0, 0, "", 0, 0);
+    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -61,12 +62,14 @@ final class DungeonLog extends SavedData {
     private static final Codec<Entry> ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.fieldOf("runs").forGetter(Entry::runsCompleted),
             Codec.INT.fieldOf("best_path").forGetter(Entry::bestPathLength),
-            Codec.INT.fieldOf("streak").forGetter(Entry::streak),
-            Codec.STRING.optionalFieldOf("last_completed", "").forGetter(Entry::lastCompletedDateKey),
-            // Both added by U7 and both optional, so a dungeon_log.dat written
-            // before this milestone loads unchanged rather than being discarded.
+            // Optional so a dungeon_log.dat written before U8 -- when this record
+            // still carried a streak and a last-completed date -- loads unchanged.
+            // Those two fields simply drop: the keystone level is the ladder now,
+            // not a daily streak.
             Codec.INT.optionalFieldOf("best_keystone", 0).forGetter(Entry::bestKeystoneLevel),
-            Codec.INT.optionalFieldOf("pending_keystone", 0).forGetter(Entry::pendingKeystoneLevel)
+            Codec.INT.optionalFieldOf("keystone", 0).forGetter(Entry::keystoneLevel),
+            Codec.STRING.optionalFieldOf("keystone_affix", "").forGetter(Entry::keystoneAffix),
+            Codec.INT.optionalFieldOf("pending_offer", 0).forGetter(Entry::pendingOfferLevel)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -111,75 +114,60 @@ final class DungeonLog extends SavedData {
         return entries.getOrDefault(player, NONE);
     }
 
-    /** Records one completed run and returns the entry as it now stands. */
-    Entry recordCompletion(UUID player, int pathLength) {
-        return recordCompletion(player, pathLength, LocalDate.now().toString());
-    }
-
     /** Records one completed run at a keystone level, for the {@code /dungeon log} best-level line. */
     Entry recordCompletion(UUID player, int pathLength, int keystoneLevel) {
-        Entry entry = recordCompletion(player, pathLength, LocalDate.now().toString());
-        if (keystoneLevel > entry.bestKeystoneLevel()) {
-            entry = withBestKeystone(player, entry, keystoneLevel);
-        }
-        return entry;
-    }
-
-    private Entry withBestKeystone(UUID player, Entry entry, int keystoneLevel) {
-        Entry next = new Entry(entry.runsCompleted(), entry.bestPathLength(), entry.streak(),
-                entry.lastCompletedDateKey(), keystoneLevel, entry.pendingKeystoneLevel());
-        entries.put(player, next);
-        setDirty();
-        return next;
-    }
-
-    /**
-     * Parks a keystone for a player who was not online to receive it.
-     *
-     * <p>Takes the higher of the two if one is already parked. Losing a level to
-     * a second disconnect is a fair cost; losing a whole key because two failures
-     * happened to overlap is not.
-     */
-    void setPendingKeystone(UUID player, int level) {
-        Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.streak(), previous.lastCompletedDateKey(), previous.bestKeystoneLevel(),
-                Math.max(previous.pendingKeystoneLevel(), Math.max(0, level))));
-        setDirty();
-    }
-
-    /** Reads and clears the parked keystone. Returns {@code 0} if there was none. */
-    int takePendingKeystone(UUID player) {
-        Entry previous = get(player);
-        int level = previous.pendingKeystoneLevel();
-        if (level <= 0) {
-            return 0;
-        }
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.streak(), previous.lastCompletedDateKey(), previous.bestKeystoneLevel(), 0));
-        setDirty();
-        return level;
-    }
-
-    /**
-     * Same, with the date supplied rather than read from the clock.
-     *
-     * <p>This exists because the streak rule is the one part of U5 whose only
-     * honest test spans several real days. {@code /dungeon admin log record}
-     * drives this overload so a whole streak history can be walked from the
-     * console in one session, including across a restart.
-     */
-    Entry recordCompletion(UUID player, int pathLength, String today) {
         Entry previous = get(player);
         Entry next = new Entry(
                 previous.runsCompleted() + 1,
                 Math.max(previous.bestPathLength(), pathLength),
-                PayoutMath.nextStreak(previous.lastCompletedDateKey(), today, previous.streak()),
-                today,
-                previous.bestKeystoneLevel(),
-                previous.pendingKeystoneLevel());
+                Math.max(previous.bestKeystoneLevel(), keystoneLevel),
+                previous.keystoneLevel(),
+                previous.keystoneAffix(),
+                previous.pendingOfferLevel());
         entries.put(player, next);
         setDirty();
         return next;
+    }
+
+    /**
+     * Sets this player's keystone, which is the whole of what "owning a keystone"
+     * means now.
+     *
+     * <p>There is no delivery to fail and nothing to park: a player who
+     * disconnects mid-run, dies, or is caught by a server purge has their level
+     * written here and reads it back on their next login through the remote in
+     * their pocket.
+     *
+     * @param level clamped by the caller; {@code 0} clears the keystone entirely
+     */
+    void setKeystone(UUID player, int level, Keystone.Affix affix) {
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), Math.max(0, level),
+                affix == null ? "" : affix.name().toLowerCase(), previous.pendingOfferLevel()));
+        setDirty();
+    }
+
+    /**
+     * Records a completed run's unclaimed door offer. Set in {@code completeRun}
+     * at the level the run was finished at; cleared the moment {@code /dungeon
+     * choose} settles it (T13), whatever door was taken.
+     */
+    void setPendingOffer(UUID player, int level) {
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                Math.max(0, level)));
+        setDirty();
+    }
+
+    void clearPendingOffer(UUID player) {
+        Entry previous = get(player);
+        if (previous.pendingOfferLevel() == 0) {
+            return;
+        }
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0));
+        setDirty();
     }
 }

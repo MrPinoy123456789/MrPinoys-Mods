@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * -&gt; write defaults; fails to parse -&gt; defaults in memory, file untouched;
  * parses -&gt; use it. See SPEC.md section 10.
  *
- * <p>Item ids ({@code ritualKeyItem}, {@code payoutItem}) are kept as strings here
+ * <p>Item ids ({@code ritualKeyItem}, {@code keystoneItem}) are kept as strings here
  * and resolved against the registry at their use site. This class carries no
  * Minecraft imports, and config load runs early enough that resolving them here
  * would be betting on registry availability for no benefit.
@@ -43,45 +43,39 @@ public final class PocketDungeonsConfig {
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
 
-    // ---- difficulty ---------------------------------------------------------
-    private static int baseMobsPerEncounter = 2;
-    private static int maxMobsPerRoom = 8;
-    private static boolean spawnerDensEnabled = true;
-
     // ---- ritual -------------------------------------------------------------
     private static boolean ritualEnabled = true;
     private static String ritualKeyItem = "minecraft:echo_shard";
     private static int ritualKeyCount = 1;
 
     // ---- payout -------------------------------------------------------------
-    private static String payoutItem = "minecraft:emerald";
-    private static int payoutBaseCount = 6;
-    private static int payoutPerTier = 4;
-    private static int streakBonusPercent = 10;
-    private static int streakBonusCapPercent = 100;
+    // U8 Stage 0: chests replace the item grant outright. payoutCommand survives
+    // as the one remaining hook an operator has for routing a reward through an
+    // economy mod without this mod taking a Java dependency on it.
     private static String payoutCommand = "";
 
     // ---- trials (U6) --------------------------------------------------------
-    private static boolean trialsEnabled = true;
     private static String vaultKeyItem = "minecraft:trial_key";
     private static String ominousVaultKeyItem = "minecraft:ominous_trial_key";
-    private static boolean ominousRequiresBottle = true;
-    private static int ominousPayoutPercent = 150;
     private static int trialSpawnerCooldownTicks = 36000;
 
-    // ---- keystones (U7) -----------------------------------------------------
-    private static String keystoneItem = "minecraft:trial_key";
-    private static String keystoneTokenItem = "minecraft:trial_key";
+    // ---- keystones (U7/U8) ----------------------------------------------------
+    // U8 Stage 4: the remote moves off minecraft:trial_key -- that item is what
+    // this mod's own spawners eject for its own vaults, and a recovery compass
+    // has no such collision with anything else in the suite.
+    private static String keystoneItem = "minecraft:recovery_compass";
     private static int keystoneMaxLevel = 25;
-    private static int depletionOnDeath = 2;
-    private static int depletionOnExit = 1;
-    private static int depletionOnDisconnect = 3;
-    private static int overtimeDepletion = 0;
-    private static boolean timerEnabled = true;
     private static int timerBaseSeconds = 180;
     private static int timerPerRoomSeconds = 60;
-    private static int payoutPerLevelPercent = 5;
-    private static int ominousFromLevel = 10;
+
+    // ---- U8: the run outlives the player, the reward room, the three doors ---
+    private static int rewardRoomGraceSeconds = 600;
+    private static int threeChestPercent = 60;
+    private static int twoChestPercent = 80;
+    /** The clock ran out before the run was completed. The harshest depletion. */
+    private static int timedOutDepletion = 1;
+    /** Completed, but after the clock. Costs less, and a door offer is still earned. */
+    private static int lateCompletionDepletion = 2;
 
     private PocketDungeonsConfig() {}
 
@@ -166,18 +160,6 @@ public final class PocketDungeonsConfig {
         return clearBlocksPerTick;
     }
 
-    public static int baseMobsPerEncounter() {
-        return baseMobsPerEncounter;
-    }
-
-    public static int maxMobsPerRoom() {
-        return maxMobsPerRoom;
-    }
-
-    public static boolean spawnerDensEnabled() {
-        return spawnerDensEnabled;
-    }
-
     public static boolean ritualEnabled() {
         return ritualEnabled;
     }
@@ -190,32 +172,8 @@ public final class PocketDungeonsConfig {
         return ritualKeyCount;
     }
 
-    public static String payoutItem() {
-        return payoutItem;
-    }
-
-    public static int payoutBaseCount() {
-        return payoutBaseCount;
-    }
-
-    public static int payoutPerTier() {
-        return payoutPerTier;
-    }
-
-    public static int streakBonusPercent() {
-        return streakBonusPercent;
-    }
-
-    public static int streakBonusCapPercent() {
-        return streakBonusCapPercent;
-    }
-
     public static String payoutCommand() {
         return payoutCommand;
-    }
-
-    public static boolean trialsEnabled() {
-        return trialsEnabled;
     }
 
     public static String vaultKeyItem() {
@@ -226,14 +184,6 @@ public final class PocketDungeonsConfig {
         return ominousVaultKeyItem;
     }
 
-    public static boolean ominousRequiresBottle() {
-        return ominousRequiresBottle;
-    }
-
-    public static int ominousPayoutPercent() {
-        return ominousPayoutPercent;
-    }
-
     public static int trialSpawnerCooldownTicks() {
         return trialSpawnerCooldownTicks;
     }
@@ -242,33 +192,10 @@ public final class PocketDungeonsConfig {
         return keystoneItem;
     }
 
-    public static String keystoneTokenItem() {
-        return keystoneTokenItem;
-    }
-
     public static int keystoneMaxLevel() {
         return keystoneMaxLevel;
     }
 
-    public static int depletionOnDeath() {
-        return depletionOnDeath;
-    }
-
-    public static int depletionOnExit() {
-        return depletionOnExit;
-    }
-
-    public static int depletionOnDisconnect() {
-        return depletionOnDisconnect;
-    }
-
-    public static int overtimeDepletion() {
-        return overtimeDepletion;
-    }
-
-    public static boolean timerEnabled() {
-        return timerEnabled;
-    }
 
     public static int timerBaseSeconds() {
         return timerBaseSeconds;
@@ -278,12 +205,24 @@ public final class PocketDungeonsConfig {
         return timerPerRoomSeconds;
     }
 
-    public static int payoutPerLevelPercent() {
-        return payoutPerLevelPercent;
+    public static int rewardRoomGraceSeconds() {
+        return rewardRoomGraceSeconds;
     }
 
-    public static int ominousFromLevel() {
-        return ominousFromLevel;
+    public static int threeChestPercent() {
+        return threeChestPercent;
+    }
+
+    public static int twoChestPercent() {
+        return twoChestPercent;
+    }
+
+    public static int timedOutDepletion() {
+        return timedOutDepletion;
+    }
+
+    public static int lateCompletionDepletion() {
+        return lateCompletionDepletion;
     }
 
     private static void applyDefaults() {
@@ -302,40 +241,26 @@ public final class PocketDungeonsConfig {
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
 
-        baseMobsPerEncounter = 2;
-        maxMobsPerRoom = 8;
-        spawnerDensEnabled = true;
-
         ritualEnabled = true;
         ritualKeyItem = "minecraft:echo_shard";
         ritualKeyCount = 1;
 
-        payoutItem = "minecraft:emerald";
-        payoutBaseCount = 6;
-        payoutPerTier = 4;
-        streakBonusPercent = 10;
-        streakBonusCapPercent = 100;
         payoutCommand = "";
 
-        trialsEnabled = true;
         vaultKeyItem = "minecraft:trial_key";
         ominousVaultKeyItem = "minecraft:ominous_trial_key";
-        ominousRequiresBottle = true;
-        ominousPayoutPercent = 150;
         trialSpawnerCooldownTicks = 36000;
 
-        keystoneItem = "minecraft:trial_key";
-        keystoneTokenItem = "minecraft:trial_key";
+        keystoneItem = "minecraft:recovery_compass";
         keystoneMaxLevel = 25;
-        depletionOnDeath = 2;
-        depletionOnExit = 1;
-        depletionOnDisconnect = 3;
-        overtimeDepletion = 0;
-        timerEnabled = true;
         timerBaseSeconds = 180;
         timerPerRoomSeconds = 60;
-        payoutPerLevelPercent = 5;
-        ominousFromLevel = 10;
+
+        rewardRoomGraceSeconds = 600;
+        threeChestPercent = 60;
+        twoChestPercent = 80;
+        timedOutDepletion = 1;
+        lateCompletionDepletion = 2;
     }
 
     private static void apply(JsonObject root) {
@@ -366,46 +291,39 @@ public final class PocketDungeonsConfig {
         clearBlocksPerTick = readInt(root, "clearBlocksPerTick", 8192,
                 v -> v >= 1024, "must be >= 1024");
 
-        baseMobsPerEncounter = readInt(root, "baseMobsPerEncounter", 2, v -> v >= 0, "must be >= 0");
-        maxMobsPerRoom = readInt(root, "maxMobsPerRoom", 8, v -> v >= 1, "must be >= 1");
-        spawnerDensEnabled = readBoolean(root, "spawnerDensEnabled", true);
-
         ritualEnabled = readBoolean(root, "ritualEnabled", true);
         ritualKeyItem = readString(root, "ritualKeyItem", "minecraft:echo_shard", false);
         ritualKeyCount = readInt(root, "ritualKeyCount", 1, v -> v >= 1, "must be >= 1");
 
-        payoutItem = readString(root, "payoutItem", "minecraft:emerald", false);
-        payoutBaseCount = readInt(root, "payoutBaseCount", 6, v -> v >= 0, "must be >= 0");
-        payoutPerTier = readInt(root, "payoutPerTier", 4, v -> v >= 0, "must be >= 0");
-        streakBonusPercent = readInt(root, "streakBonusPercent", 10, v -> v >= 0, "must be >= 0");
-        streakBonusCapPercent = readInt(root, "streakBonusCapPercent", 100,
-                v -> v >= 0, "must be >= 0");
         payoutCommand = readString(root, "payoutCommand", "", true);
 
-        trialsEnabled = readBoolean(root, "trialsEnabled", true);
         vaultKeyItem = readString(root, "vaultKeyItem", "minecraft:trial_key", false);
         ominousVaultKeyItem = readString(root, "ominousVaultKeyItem",
                 "minecraft:ominous_trial_key", false);
-        ominousRequiresBottle = readBoolean(root, "ominousRequiresBottle", true);
-        ominousPayoutPercent = readInt(root, "ominousPayoutPercent", 150,
-                v -> v >= 100, "must be >= 100");
         trialSpawnerCooldownTicks = readInt(root, "trialSpawnerCooldownTicks", 36000,
                 v -> v >= 0, "must be >= 0");
 
-        keystoneItem = readString(root, "keystoneItem", "minecraft:trial_key", false);
-        keystoneTokenItem = readString(root, "keystoneTokenItem", "minecraft:trial_key", false);
+        keystoneItem = readString(root, "keystoneItem", "minecraft:recovery_compass", false);
         keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 25, v -> v >= 1, "must be >= 1");
-        depletionOnDeath = readInt(root, "depletionOnDeath", 2, v -> v >= 0, "must be >= 0");
-        depletionOnExit = readInt(root, "depletionOnExit", 1, v -> v >= 0, "must be >= 0");
-        depletionOnDisconnect = readInt(root, "depletionOnDisconnect", 3,
-                v -> v >= 0, "must be >= 0");
-        overtimeDepletion = readInt(root, "overtimeDepletion", 0, v -> v >= 0, "must be >= 0");
-        timerEnabled = readBoolean(root, "timerEnabled", true);
         timerBaseSeconds = readInt(root, "timerBaseSeconds", 180, v -> v >= 0, "must be >= 0");
         timerPerRoomSeconds = readInt(root, "timerPerRoomSeconds", 60, v -> v >= 0, "must be >= 0");
-        payoutPerLevelPercent = readInt(root, "payoutPerLevelPercent", 5,
+
+        rewardRoomGraceSeconds = readInt(root, "rewardRoomGraceSeconds", 600,
                 v -> v >= 0, "must be >= 0");
-        ominousFromLevel = readInt(root, "ominousFromLevel", 10, v -> v >= 1, "must be >= 1");
+        threeChestPercent = readInt(root, "threeChestPercent", 60,
+                v -> v >= 1 && v <= 100, "must be between 1 and 100");
+        twoChestPercent = readInt(root, "twoChestPercent", 80,
+                v -> v > threeChestPercent && v <= 100,
+                "must be > threeChestPercent and <= 100");
+        if (twoChestPercent <= threeChestPercent) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json twoChestPercent ({}) must be greater than threeChestPercent "
+                            + "({}); using default 80", twoChestPercent, threeChestPercent);
+            twoChestPercent = Math.max(threeChestPercent + 1, 80);
+        }
+        timedOutDepletion = readInt(root, "timedOutDepletion", 1, v -> v >= 0, "must be >= 0");
+        lateCompletionDepletion = readInt(root, "lateCompletionDepletion", 2,
+                v -> v >= 0, "must be >= 0");
     }
 
     private static int readInt(JsonObject root, String key, int defaultValue,
@@ -514,40 +432,26 @@ public final class PocketDungeonsConfig {
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);
 
-        root.addProperty("baseMobsPerEncounter", 2);
-        root.addProperty("maxMobsPerRoom", 8);
-        root.addProperty("spawnerDensEnabled", true);
-
         root.addProperty("ritualEnabled", true);
         root.addProperty("ritualKeyItem", "minecraft:echo_shard");
         root.addProperty("ritualKeyCount", 1);
 
-        root.addProperty("payoutItem", "minecraft:emerald");
-        root.addProperty("payoutBaseCount", 6);
-        root.addProperty("payoutPerTier", 4);
-        root.addProperty("streakBonusPercent", 10);
-        root.addProperty("streakBonusCapPercent", 100);
         root.addProperty("payoutCommand", "");
 
-        root.addProperty("trialsEnabled", true);
         root.addProperty("vaultKeyItem", "minecraft:trial_key");
         root.addProperty("ominousVaultKeyItem", "minecraft:ominous_trial_key");
-        root.addProperty("ominousRequiresBottle", true);
-        root.addProperty("ominousPayoutPercent", 150);
         root.addProperty("trialSpawnerCooldownTicks", 36000);
 
-        root.addProperty("keystoneItem", "minecraft:trial_key");
-        root.addProperty("keystoneTokenItem", "minecraft:trial_key");
+        root.addProperty("keystoneItem", "minecraft:recovery_compass");
         root.addProperty("keystoneMaxLevel", 25);
-        root.addProperty("depletionOnDeath", 2);
-        root.addProperty("depletionOnExit", 1);
-        root.addProperty("depletionOnDisconnect", 3);
-        root.addProperty("overtimeDepletion", 0);
-        root.addProperty("timerEnabled", true);
         root.addProperty("timerBaseSeconds", 180);
         root.addProperty("timerPerRoomSeconds", 60);
-        root.addProperty("payoutPerLevelPercent", 5);
-        root.addProperty("ominousFromLevel", 10);
+
+        root.addProperty("rewardRoomGraceSeconds", 600);
+        root.addProperty("threeChestPercent", 60);
+        root.addProperty("twoChestPercent", 80);
+        root.addProperty("timedOutDepletion", 1);
+        root.addProperty("lateCompletionDepletion", 2);
         return root;
     }
 }

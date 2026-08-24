@@ -2,7 +2,6 @@ package pocketdungeons;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -31,8 +30,7 @@ import java.util.Set;
 /**
  * {@code /dungeon} to go in, {@code /dungeon exit} to come out, {@code invite}
  * and {@code join} to bring a party along, plus the operator subtree from spec
- * section 10. {@code /extract} is kept as an alias so the spec's vocabulary
- * works too.
+ * section 10.
  *
  * <p>{@code admin build} stamps an instance nobody owns. That exists so the
  * geometry can be built and inspected from the server console without a client
@@ -51,13 +49,29 @@ final class DungeonCommands {
                     .then(Commands.literal("exit")
                             .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
 
-                    .then(Commands.literal("ominous")
-                            .executes(ctx -> enterOminous(ctx.getSource().getPlayerOrException())))
-
                     .then(Commands.literal("key")
                             .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException())))
 
+                    .then(Commands.literal("choose")
+                            .then(Commands.argument("step", IntegerArgumentType.integer(1, 3))
+                                    .executes(ctx -> choose(ctx.getSource().getPlayerOrException(),
+                                            IntegerArgumentType.getInteger(ctx, "step")))))
+
                     .then(Commands.literal("party")
+                            // Literals are matched before arguments, so "kick" and
+                            // "kickconfirm" win over a player who happens to be
+                            // named either.
+                            .then(Commands.literal("kick")
+                                    .then(Commands.literal("all")
+                                            .executes(ctx -> kickAll(
+                                                    ctx.getSource().getPlayerOrException())))
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .executes(ctx -> kick(
+                                                    ctx.getSource().getPlayerOrException(),
+                                                    EntityArgument.getPlayer(ctx, "target")))))
+                            .then(Commands.literal("kickconfirm")
+                                    .executes(ctx -> kickConfirm(
+                                            ctx.getSource().getPlayerOrException())))
                             .then(Commands.argument("target", EntityArgument.player())
                                     .executes(ctx -> party(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "target")))))
@@ -112,28 +126,28 @@ final class DungeonCommands {
                                                                             .BoolArgumentType.getBool(
                                                                             ctx, "ominous")))))))
 
+                            .then(Commands.literal("untimed")
+                                    .executes(ctx -> untimed(ctx.getSource(), 1, false))
+                                    .then(Commands.argument("keystoneLevel",
+                                                    IntegerArgumentType.integer(1, 1000))
+                                            .executes(ctx -> untimed(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(
+                                                            ctx, "keystoneLevel"), false))
+                                            .then(Commands.argument("ominous",
+                                                            com.mojang.brigadier.arguments
+                                                                    .BoolArgumentType.bool())
+                                                    .executes(ctx -> untimed(ctx.getSource(),
+                                                            IntegerArgumentType.getInteger(
+                                                                    ctx, "keystoneLevel"),
+                                                            com.mojang.brigadier.arguments
+                                                                    .BoolArgumentType.getBool(
+                                                                    ctx, "ominous"))))))
+
                             .then(Commands.literal("gentemplates")
                                     .executes(ctx -> generateTemplates(ctx.getSource())))
 
                             .then(Commands.literal("stamptest")
                                     .executes(ctx -> stampTest(ctx.getSource())))
-
-                            .then(Commands.literal("log")
-                                    .then(Commands.literal("record")
-                                            .then(Commands.argument("name", StringArgumentType.word())
-                                                    .then(Commands.argument("pathLength",
-                                                                    IntegerArgumentType.integer(1))
-                                                            .then(Commands.argument("date",
-                                                                            StringArgumentType.word())
-                                                                    .executes(ctx -> logRecord(
-                                                                            ctx.getSource(),
-                                                                            StringArgumentType.getString(ctx, "name"),
-                                                                            IntegerArgumentType.getInteger(ctx, "pathLength"),
-                                                                            StringArgumentType.getString(ctx, "date")))))))
-                                    .then(Commands.literal("show")
-                                            .then(Commands.argument("name", StringArgumentType.word())
-                                                    .executes(ctx -> logShow(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "name"))))))
 
                             .then(Commands.literal("cellreport")
                                     .then(Commands.argument("slot", IntegerArgumentType.integer(0))
@@ -159,9 +173,6 @@ final class DungeonCommands {
                                                     IntegerArgumentType.getInteger(ctx, "count")))))
 
                             .then(manifestBranch())));
-
-            dispatcher.register(Commands.literal("extract")
-                    .executes(ctx -> exit(ctx.getSource().getPlayerOrException())));
         });
     }
 
@@ -173,53 +184,57 @@ final class DungeonCommands {
                         .executes(ctx -> manifestList(ctx.getSource())));
     }
 
-    private static int enter(ServerPlayer player) {
-        return enter(player, false);
-    }
-
     /**
-     * {@code /dungeon ominous}: the stakes without a lodestone.
-     *
-     * <p>{@code ominousRequiresBottle} decides whether that costs anything. It
-     * defaults to true, so by default this command is a convenience for a player
-     * who has the bottle and not the block, not a free upgrade.
+     * {@code /dungeon}: open a fresh run, re-enter an owned one for free (T5), or
+     * -- with no keystone at all -- fail with the usual message. Ominous is no
+     * longer requested here (U8 Stage 6): it rides entirely on the spent
+     * keystone's own affix.
      */
-    private static int enterOminous(ServerPlayer player) {
-        if (PocketDungeonsConfig.ominousRequiresBottle()
-                && !player.getInventory().contains(
-                        stack -> stack.is(net.minecraft.world.item.Items.OMINOUS_BOTTLE))) {
-            player.sendSystemMessage(Component.literal(
-                    "An ominous run wants an ominous bottle. Bring one, or ask an operator to "
-                            + "turn ominousRequiresBottle off.")
-                    .withStyle(ChatFormatting.RED));
-            return 0;
-        }
-        return enter(player, true);
-    }
-
-    private static int enter(ServerPlayer player, boolean ominous) {
+    private static int enter(ServerPlayer player) {
         if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             player.sendSystemMessage(Component.literal("You are already inside a dungeon.")
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        if (!Instances.enterWithKeystone(player, ominous)) {
-            return 0;
-        }
-        if (ominous && PocketDungeonsConfig.ominousRequiresBottle()) {
-            consumeOneOminousBottle(player);
-        }
-        return 1;
+        return Instances.enterWithKeystone(player) ? 1 : 0;
     }
 
-    private static void consumeOneOminousBottle(ServerPlayer player) {
-        var inventory = player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (inventory.getItem(i).is(net.minecraft.world.item.Items.OMINOUS_BOTTLE)) {
-                inventory.getItem(i).shrink(1);
-                return;
-            }
+    /**
+     * {@code /dungeon choose <1|2|3>}: settle a completed run's door offer.
+     * Player-only, not op-gated -- see {@link Instances#chooseOffer}, which does
+     * the real validation against {@link DungeonLog} rather than trusting the
+     * click that sent the player here.
+     */
+    private static int choose(ServerPlayer player, int step) {
+        return Instances.chooseOffer(player, step) ? 1 : 0;
+    }
+
+    /**
+     * {@code /dungeon admin untimed [level] [ominous]}: a dungeon with no clock.
+     *
+     * <p>The timer is what ends an ordinary run, so this one never expires and has
+     * to be closed with {@code /dungeon admin purge}. That is the point -- an
+     * operator walking a layout does not want it dissolving underneath them -- and
+     * it is why both ends of its life are logged to the console and why
+     * {@code admin list} marks it.
+     */
+    private static int untimed(CommandSourceStack source, int keystoneLevel, boolean ominous) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+            source.sendFailure(Component.literal(
+                    "admin untimed opens a dungeon around you, so it needs a player."));
+            return 0;
         }
+        if (!Instances.enterUntimed(player, keystoneLevel, ominous)) {
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Untimed dungeon opened. It will not expire -- close it with "
+                        + "/dungeon admin purge <slot>.")
+                .withStyle(ChatFormatting.YELLOW), true);
+        return 1;
     }
 
     /**
@@ -231,19 +246,31 @@ final class DungeonCommands {
      * it does not need a cooldown, a cost, or a permission node.
      */
     private static int mintKey(ServerPlayer player) {
-        if (Keystone.findHeld(player) != null) {
-            player.sendSystemMessage(Component.literal(
-                    "You already have a keystone. Spend it before asking for another.")
-                    .withStyle(ChatFormatting.RED));
-            return 0;
-        }
         DungeonLog log = DungeonLog.forServer(player.level().getServer());
-        if (log.get(player.getUUID()).pendingKeystoneLevel() > 0) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        int level = entry.keystoneLevel();
+
+        if (level > 0 && Keystone.findHeld(player) != null) {
             player.sendSystemMessage(Component.literal(
-                    "A keystone is already on its way back to you. Rejoin to collect it.")
+                    "You already have a keystone [" + level + "]. Spend it before asking "
+                            + "for another.")
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
+
+        // A player who owns a level but has lost the remote gets a replacement at
+        // their real level, not a fresh level 1. The item is a view onto server
+        // state, so replacing it costs nothing and losing it in lava is no longer
+        // a way to lose a keystone.
+        if (level > 0) {
+            Payout.deliver(player, Keystone.mint(level, Keystone.Affix.parse(entry.keystoneAffix())));
+            player.sendSystemMessage(Component.literal(
+                    "A replacement keystone [" + level + "]. Your progress was never on the item.")
+                    .withStyle(ChatFormatting.AQUA));
+            return 1;
+        }
+
+        log.setKeystone(player.getUUID(), 1, Keystone.Affix.NONE);
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
                 "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
@@ -260,6 +287,10 @@ final class DungeonCommands {
     /**
      * {@code /dungeon log}. Reads the persistent history, not the live instance,
      * so it answers the same before and after a run and survives a restart.
+     *
+     * <p>U8 Stage 0 deletes the streak -- the keystone level is the ladder now.
+     * This prints runs completed, the best keystone level, and the longest
+     * dungeon cleared.
      */
     private static int log(CommandSourceStack source, java.util.UUID player, String name) {
         DungeonLog.Entry entry = DungeonLog.forServer(source.getServer()).get(player);
@@ -268,55 +299,31 @@ final class DungeonCommands {
                     name + " has not finished a dungeon yet.").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
-        int bonus = PayoutMath.streakBonusPercent(entry.streak(),
-                PocketDungeonsConfig.streakBonusPercent(),
-                PocketDungeonsConfig.streakBonusCapPercent());
         source.sendSuccess(() -> Component.literal(
-                name + ": " + entry.runsCompleted() + " run(s) completed, streak "
-                        + entry.streak() + " (+" + bonus + "% payout), longest dungeon cleared "
-                        + entry.bestPathLength() + " rooms deep, best keystone ["
-                        + entry.bestKeystoneLevel() + "], last on "
-                        + entry.lastCompletedDateKey())
+                name + ": " + entry.runsCompleted() + " run(s) completed, best keystone ["
+                        + entry.bestKeystoneLevel() + "], longest dungeon cleared "
+                        + entry.bestPathLength() + " rooms deep")
                 .withStyle(ChatFormatting.GOLD), false);
         return entry.runsCompleted();
     }
 
-    /**
-     * Development-only: record a completion for a synthetic player on a chosen
-     * date. The streak rule's real test spans days, and this is what lets a whole
-     * history -- including the gap and the restart cases -- be walked from a
-     * console in one sitting. It never pays anything; it only writes history.
-     */
-    private static int logRecord(CommandSourceStack source, String name, int pathLength, String date) {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal("admin log record is a development-only command."));
-            return 0;
-        }
-        DungeonLog.Entry entry = DungeonLog.forServer(source.getServer())
-                .recordCompletion(syntheticId(name), pathLength, date);
-        source.sendSuccess(() -> Component.literal(
-                name + " -> runs " + entry.runsCompleted() + ", streak " + entry.streak()
-                        + ", best " + entry.bestPathLength()
-                        + ", last " + entry.lastCompletedDateKey()), false);
-        return entry.streak();
-    }
-
-    private static int logShow(CommandSourceStack source, String name) {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal("admin log show is a development-only command."));
-            return 0;
-        }
-        return log(source, syntheticId(name), name);
-    }
-
-    /** A stable UUID per test name, so a restart looks up the same entry. */
-    private static java.util.UUID syntheticId(String name) {
-        return java.util.UUID.nameUUIDFromBytes(("pocketdungeons-test:" + name)
-                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-    }
-
     private static int party(ServerPlayer leader, ServerPlayer target) {
         Instances.party(leader, target);
+        return 1;
+    }
+
+    private static int kick(ServerPlayer leader, ServerPlayer target) {
+        Instances.stageKick(leader, target.getUUID(), target.getName().getString());
+        return 1;
+    }
+
+    private static int kickAll(ServerPlayer leader) {
+        Instances.stageKick(leader, null, null);
+        return 1;
+    }
+
+    private static int kickConfirm(ServerPlayer leader) {
+        Instances.confirmKick(leader);
         return 1;
     }
 

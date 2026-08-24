@@ -2653,3 +2653,310 @@ front**, before either agent starts — they are pure data with defaults and add
 them early costs nothing, whereas three agents editing one file's `apply` and
 `defaultsJson` methods in parallel is a guaranteed merge conflict over something
 that has no design content in it.
+
+---
+
+# U8 — the timer is the run: free re-entry, a reward room, and a door you choose
+
+**Goal:** make the clock the only thing that can take a keystone level away, and
+turn the end of a run into two rooms a player actually wants to reach — a reward
+room whose chest count is the score, and a private selector room where the next
+key is chosen from three doors.
+
+**Blocked by:** U7's state-as-truth rewrite (shipped: the keystone level lives in
+`DungeonLog`, the item is a remote). **Supersedes** most of U7's exit handling and
+all of U6's ominous entry paths.
+
+**Status: specified, not built.**
+
+## Stage 0 — what this deletes
+
+The reason to do this is subtraction. Settle it up front so none of it gets
+re-added:
+
+| Concern | Today | U8 |
+|---|---|---|
+| Disconnect mid-run | `depletionOnDisconnect` (3), pending-keystone parking | nothing. The timer does not care where you are |
+| `/dungeon exit` | `depletionOnExit` (1) | nothing. Leaving is a break, not a forfeit |
+| Death inside | `depletionOnDeath` (2) | nothing. You are ejected and can walk back in |
+| Losing a level | four exit sites, four outcomes | **one**: the clock ran out |
+| Becoming ominous | depth, `ominousFromLevel`, affix, `/dungeon ominous`, off-hand bottle | **one**: the door you took last run |
+| Payout | `base + perTier` x streak% x level% x ominous150% | **chests**: 1-3 by time, contents by key level |
+| Streak | `PayoutMath.nextStreak`, `/dungeon log` | **deleted** — the keystone level is the ladder |
+| Choosing an upgrade | three vaults in the terminal cell | three doors in a private selector room |
+
+`Keystones.Outcome` collapses from six constants to two: the run was timed, or it
+was not. `depletionOnDeath`, `depletionOnExit`, `depletionOnDisconnect`,
+`ominousRequiresBottle`, `ominousFromLevel`, `streakBonusPercent`,
+`streakBonusCapPercent`, `payoutBaseCount`, `payoutPerTier`, `payoutPerLevelPercent`
+and `ominousPayoutPercent` all go. `Payout`/`PayoutMath` lose their item grant;
+`payoutCommand` is decided in Stage 5.
+
+## Stage 1 — the run outlives the player
+
+The load-bearing change, and everything else depends on it.
+
+**The timer ticks whether or not anyone is inside.** `Instances.onTick` currently
+guards `record.timer.tick(interval)` on `!record.members.isEmpty()`; drop that
+guard. A run is a wall-clock commitment, not a presence-gated one.
+
+**Membership stops being lifetime.** `closeIfEmpty` goes away. An instance now
+ends on exactly one of:
+
+- **expiry** — the clock ran out and the run was never completed. Deplete the
+  keystone one level, tear the instance down, and tell the owner wherever they are.
+- **completion + grace** — the owner reached the exit pad. Hold the instance open
+  for `rewardRoomGraceSeconds` (default 600) so the reward room can be looted at
+  leisure, then tear down.
+
+**Re-entry is free.** `/dungeon` or the compass on a lodestone, while the caller
+already owns a live instance, teleports them back into it rather than opening a
+new one. This is the `hasInstance` branch that currently refuses.
+
+**A restart forgives.** Instances are memory-only (PLAN.md M5 is still
+deliberately unshipped) so a restart loses every live run. That is the `SERVER`
+outcome and it must never deplete — the existing rule, unchanged. Runs are ~10
+minutes, so this is rare, and honest is better than persistent here.
+
+**What this removes:** the disconnect depletion path, the pending-keystone drain,
+`record.onPad`'s two-contact edge tracking, and every "what if they log out"
+question U7 Stage 5 exists to answer.
+
+## Stage 2 — the reward room
+
+**Appended to the dungeon**, one cell past the terminal cell, and the exit-pad
+lodestone teleports into it rather than ejecting. The player is still inside the
+instance; they have simply reached the end of it.
+
+**Chest count is the score.** Measured against the run's own timer, so it scales
+with dungeon size for free:
+
+| Finished within | Chests |
+|---|---|
+| 60% of the clock | 3 |
+| 80% of the clock | 2 |
+| the clock | 1 |
+| over the clock | 0 — and the key delevels |
+
+"Three-chesting a floor" is the bragging line, and it is legible the instant a
+player walks in and counts.
+
+**Chest contents scale off the keystone level**, reusing U6's existing
+`chests/tier_N` and `tier_N_ominous` tables via `DifficultyProfile.lootTier()`.
+An ominous key's reward room rolls the ominous tables. No new loot JSON is
+required, which is most of why this stage is cheap.
+
+**Leaving** is a second lodestone in the reward room, or `/dungeon exit`. Neither
+costs anything.
+
+**The planner never sees it.** An earlier draft of this stage gave the reward room
+a `reward` role and had the planner place it past the terminal cell. That is
+wasted risk: the room is reached by **teleport**, so it has no doors, so it has no
+mask, so there is nothing for the planner to match on. A role would be a formality
+that puts the one subsystem with hard measured guarantees behind it — 53/53
+coverage, 200/200 plan success — in the blast radius of a cosmetic addition.
+
+Instead it is one authored `.nbt` with no doors and no `dungeon_room` metadata,
+stamped at a fixed offset inside the same slot and loaded directly through
+`TemplateStamper.place`, which takes a template `Identifier` and never consults
+the manifest. `StaticLayout` already works exactly this way. The room is still
+"appended" in every sense a player can observe: same slot, same teardown, same
+grace timer.
+
+Teleporting also means the reward room cannot be peeked at early, and a party
+arriving at different times each sees it fresh.
+
+## Stage 3 — the selector room and the three doors
+
+**A separate, private instance.** Only the key owner has any business there, and
+decoupling it from the dungeon is what lets a player come back to it later. It is
+a single static room — no planner, no rotation, no library lookup.
+
+**Reached with the remote.** Right-clicking a lodestone while a choice is pending
+takes you there instead of into a dungeon. The pending choice lives on
+`DungeonLog.Entry` (a new `pendingOfferLevel`), so it survives a logout, a
+restart, and losing the compass.
+
+**Three doors, not three vaults.** Vanilla's vault will not unlock on an empty
+loot roll — see `DISCOVERIES.md` — and a door has no such opinion. Right-clicking
+one is intercepted (`UseBlockCallback`, as the choice vaults already are),
+vanilla's own open/close is cancelled, and the player is sent a chat message
+describing the offer with a **clickable accept**:
+
+```
+Ominous Door -- Keystone [9], ominous.
+Every room runs ominous. The reward room rolls the ominous tables.
+                                                   [ Take this key ]
+```
+
+`[ Take this key ]` is a `ClickEvent` running a command. **Verify the 26.2
+`ClickEvent` shape with `javap` before writing it** — it became a sealed
+interface with record subtypes in recent versions and the old constructor form
+will not compile.
+
+**Doors carry the affix visually**, which is what makes the choice readable
+without lore text:
+
+| Offer | Door | Affix |
+|---|---|---|
+| `+1` | oak | none |
+| `+2` | copper (oxidised) | ominous |
+| `+3` | ? | fragile |
+
+Copper doors and their four oxidation states are the obvious expansion ladder
+when a third and fourth affix arrive. **Open: which door for fragile.**
+
+**Choosing is one-shot and immediate** — write the level and affix to
+`DungeonLog`, clear the pending offer, reconcile the remote, and send the player
+home. Walking out without choosing leaves the offer pending; the compass brings
+them back.
+
+## Stage 4 — the remote becomes a recovery compass
+
+`keystoneItem` default changes from `minecraft:trial_key` to
+`minecraft:recovery_compass`. This is not cosmetic: the trial key is the item
+this mod's own spawners eject for its own vaults, and moving the remote off it
+removes the collision that U7's entire `isSameItemSameComponents` argument
+existed to reason about. Nothing else in the suite touches recovery compasses.
+
+The remote is still never consumed and still displays server state, refreshed by
+the reconcile pass shipped with the U7 rewrite.
+
+## Stage 5 — config after the cull
+
+Removed: `depletionOnDeath`, `depletionOnExit`, `depletionOnDisconnect`,
+`overtimeDepletion`, `ominousRequiresBottle`, `ominousFromLevel`,
+`ominousPayoutPercent`, `payoutBaseCount`, `payoutPerTier`,
+`payoutPerLevelPercent`, `streakBonusPercent`, `streakBonusCapPercent`.
+
+Added:
+
+| Field | Default | Validation |
+|---|---|---|
+| `rewardRoomGraceSeconds` | 600 | `>= 0` |
+| `threeChestPercent` | 60 | `1..100` |
+| `twoChestPercent` | 80 | `> threeChestPercent`, `<= 100` |
+| `timedOutDepletion` | 1 | `>= 0` — the only depletion left |
+
+**Open:** whether `payoutItem`/`payoutCommand` survive at all. The chests replace
+the item grant outright; `payoutCommand` is the only remaining hook for an
+operator routing rewards through `cobbleeconomy`, and it costs one config read.
+
+## Stage 6 — verification
+
+Headless:
+
+1. Timer ticks with the instance empty — open a run, leave, confirm the bar's
+   remaining time still falls and the instance expires on its own.
+2. Expiry deplete: let a run time out with nobody inside; the owner's
+   `DungeonLog` level drops by one and the slot is returned.
+3. Re-entry: `/dungeon` while owning a live instance lands back in the same slot,
+   not a new one.
+4. Reward room chest counts at each threshold, driven by a forced clock.
+5. `/dungeon admin purge` mid-run still leaves the key **unchanged**.
+
+Client, appended to `CLIENT_TEST_CHECKLIST.md`:
+
+6. Complete fast, count three chests; complete slow, count one.
+7. Leave mid-run, come back, finish — no penalty for the break.
+8. Take each of the three doors and confirm the next run matches the affix.
+9. Walk out of the selector room without choosing, then return with the compass.
+10. Time out while offline; log in and find the key one level lower.
+
+## Deliberately not in this milestone
+
+- **Instance persistence across a restart.** Still M5, still unshipped. A restart
+  forgives the run rather than resuming it.
+- **Affixes beyond ominous and fragile.** The door mechanic is built to take more;
+  which ones is a content decision after play.
+- **Death costing anything.** Under a wall clock, dying already costs the walk
+  back. A death penalty on top is double-charging the same mistake.
+
+## Shipped
+
+T1–T16 of `IMPLEMENTATION_PLAN_U8.md` landed in one session; **T17 (deleting
+the U3 rollback path) landed in the following session**, on an explicit
+go-ahead. T19's headless half ran; its client half could not.
+
+**Measured, headless, on a fresh `run/`:**
+
+| Check | Result |
+|---|---|
+| `gradlew build` | all six tests pass (`DoorMaskTest`, `PlanSelectorTest`, `PipelineProofTest`, `DifficultyProfileTest`, `PayoutMathTest`, `KeystoneMathTest`) |
+| `admin gentemplates` | writes all 16 `.nbt` files, including the two new ones, cleanly |
+| `admin manifest reload` | **14 loaded, 0 rejected** — unchanged, as T9 requires: neither new room carries `dungeon_room` metadata |
+| `admin coverage` | all 53 `(mask, role)` pairs satisfied — unchanged |
+| `admin plansurvey 200` | 200/200 — unchanged |
+| `admin stamptest` | all four rotations OK |
+| `/place template pocketdungeons:rooms/reward_hall` and `.../selector_room` | both load cleanly from a bare console command with no errors or warnings |
+| `admin build 4242 5 false` | keystone level 5, tier 2, seed reported, builds and reports correctly |
+| `admin purge` | slot returns cleanly |
+| config round-trip | deleting `pocketdungeons.json` and rebooting regenerates exactly the surviving fields (`rewardRoomGraceSeconds`, `threeChestPercent`, `twoChestPercent`, `timedOutDepletion` present; every deleted field absent), `keystoneItem` defaults to `minecraft:recovery_compass` |
+
+**What could not be verified headlessly:** every behaviour that needs a player
+to actually walk somewhere or click something -- free re-entry teleporting a
+real player back into a live instance, the reward room's teleport and its
+chest count against a real elapsed clock, the selector room's door-click
+interception, `/dungeon choose` end to end, a real timeout firing while a
+player is genuinely offline, and the room-visited counter (T2) advancing as
+someone walks between cells. All of these are now in
+`CLIENT_TEST_CHECKLIST.md` §36 and §44–49, unverified.
+
+**T17, measured headless after landing:** `admin build` with no keystone
+(`keystoneLevel 0`) now stamps trial spawners and vaults exactly like a
+keystone run -- confirmed via `admin cellreport`, which shows a real
+`trial_spawner` in an encounter cell of a keystoneless build. There is no
+longer a second code path to diverge from it. `gradlew build` stays green (all
+six tests, `DifficultyProfileTest` now covering only the tier curve),
+`admin manifest reload`/`coverage`/`plansurvey 200`/`stamptest` are all
+unchanged, and the config round-trips again with `baseMobsPerEncounter`,
+`maxMobsPerRoom`, `spawnerDensEnabled` and `trialsEnabled` gone from both the
+regenerated file and the checked-in `config/pocketdungeons.default.json`
+(updated to match -- it had drifted since before U6/U7 and was still missing
+those milestones' fields entirely before this pass).
+
+**Deviations from `IMPLEMENTATION_PLAN_U8.md`, and why:**
+
+1. **The reward room's and selector room's exact-position door/pad math is not
+   read back out of the template at stamp time**, unlike every planner-placed
+   room. Both rooms are always stamped at a fixed offset and rotation `0`, so
+   there is no rotation to transform against -- cross-cutting section 3's rule
+   ("read positions back out of the placed template") only exists to survive
+   rotation, and it is safe to compute these positions directly from the
+   record's own origin for the same reason `TrialContent.applyChoiceVaults`
+   already did for the (now-deleted) exit-room vaults.
+2. **`record.paid` (the old completion-payment guard) was deleted rather than
+   kept alongside the new chest system.** T8 says to delete `Payout.grant` and
+   its caller `Instances.pay`; once `pay()` was gone, nothing read `record.paid`
+   any more -- `record.completed` already guards a member completing more than
+   once, since `onTick` only calls `completeRun` when `!record.completed.contains(member)`.
+3. **`PayoutMath` kept the chest-count arithmetic**, per T8's explicit "your
+   call, but say which."
+4. **`RoomContent.apply`'s `depth` parameter is now completely unused.** It fed
+   the U3 rollback branch's `effectiveTier`/`mobCount` calls, both deleted in
+   T17. Left in the signature rather than threading its removal back through
+   `LayoutStamper` and `DungeonPlan.depths()` -- `depths()` itself is still
+   needed there for `RoomSelector`'s `minDepth` room filtering, so only the one
+   now-dead parameter on `RoomContent.apply` is affected, and T17 does not ask
+   for a signature change.
+5. **`ominous_plain_key.json` was provably dead**, not just "may be redundant"
+   (T16's open decision #4) -- with the depth ramp gone,
+   `TrialContent.ominousConfigId`'s cell-is-ominous-but-run-is-not branch could
+   no longer occur. **Decided (delete):** the three JSON files are gone,
+   `ominousConfigId` is gone, and `TrialContent.applyEncounter`/`applyLoot`
+   collapsed their now-redundant `ominous`/`ominousRun` pair down to one
+   boolean while at it, since the two had been identical since T16.
+6. **A late completion (finished after the clock, chests already at zero)
+   now depletes the keystone**, closing the gap between this document's own
+   Stage 2 table ("over the clock: 0 chests -- *and the key delevels*") and
+   `IMPLEMENTATION_PLAN_U8.md`'s T4a/T10, which specified the chest side of
+   that row but never the delevel arithmetic. **Decided:** deplete by
+   `lateCompletionDepletion` (new config field, default 2, `>= 0`), floored at
+   1 and doubled by Fragile exactly like `timedOutDepletion` -- via a third
+   `Keystones.Outcome` (`LATE`, alongside `TIMED_OUT` and `NO_CHANGE`). The
+   door offer that follows is computed from the *post-depletion* level, which
+   is the intended mitigation: reaching the door at all turns a `-2` penalty
+   into a net `-1` even at the cheapest (`+1`, no-affix) offer. Settled through
+   the existing `returnKeystone`/`keystoneReturned` machinery so a later
+   `exit()` from the reward room cannot re-write the depleted level back to
+   what the run started at.

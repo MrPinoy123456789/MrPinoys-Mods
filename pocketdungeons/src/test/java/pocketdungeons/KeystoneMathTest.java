@@ -1,9 +1,15 @@
 package pocketdungeons;
 
 /**
- * Pure-JDK regression for U7's arithmetic: level bands, depletion clamps, fragile
- * doubling and the run clock. Same shape and same discipline as
- * {@code PayoutMathTest} -- no Minecraft classpath, run from {@code tasks.test}.
+ * Pure-JDK regression for the keystone arithmetic: level bands, depletion
+ * clamps, fragile doubling, upgrades and the run clock. Same shape and same
+ * discipline as {@code PayoutMathTest} -- no Minecraft classpath, run from
+ * {@code tasks.test}.
+ *
+ * <p>U8 collapses depletion to a single cause -- the clock ran out -- so the
+ * per-outcome cases ({@code death}/{@code exit}/{@code disconnect}) that U7
+ * exercised here are gone; {@link KeystoneMath#deplete} itself is unchanged; only
+ * what feeds it changed.
  */
 public class KeystoneMathTest {
 
@@ -15,7 +21,6 @@ public class KeystoneMathTest {
         testUpgrade();
         testTimer();
         testClockFormat();
-        testPayoutMultipliers();
         System.out.println("KeystoneMathTest passed");
     }
 
@@ -44,22 +49,19 @@ public class KeystoneMathTest {
     }
 
     private static void testDepletion() {
-        // The shipped defaults, on a level 8 key.
-        check(KeystoneMath.deplete(8, 2, false, 25), 6);   // death
-        check(KeystoneMath.deplete(8, 1, false, 25), 7);   // /dungeon exit
-        check(KeystoneMath.deplete(8, 3, false, 25), 5);   // disconnect
-        check(KeystoneMath.deplete(8, 0, false, 25), 8);   // purge, and over time at default
-        // Failing at level 1 by every route still leaves level 1.
-        check(KeystoneMath.deplete(1, 2, false, 25), 1);
-        check(KeystoneMath.deplete(1, 3, false, 25), 1);
+        // The one depletion left: timing out, at the shipped default of 1.
+        check(KeystoneMath.deplete(8, 1, false, 25), 7);
+        // Failing at level 1 still leaves level 1.
+        check(KeystoneMath.deplete(1, 1, false, 25), 1);
         check(KeystoneMath.deplete(1, 99, false, 25), 1);
+        // Zero depletion (a purge, a restart) never costs anything.
+        check(KeystoneMath.deplete(8, 0, false, 25), 8);
         // A negative depletion is an operator typo, not a free upgrade.
         check(KeystoneMath.deplete(8, -5, false, 25), 8);
     }
 
     private static void testFragileDoubling() {
         // Fragile doubles every figure -- the whole cost of having taken the +3.
-        check(KeystoneMath.deplete(8, 2, true, 25), 4);
         check(KeystoneMath.deplete(8, 1, true, 25), 6);
         check(KeystoneMath.deplete(8, 3, true, 25), 2);
         // Zero doubled is still zero: a purge never punishes, fragile or not.
@@ -95,27 +97,6 @@ public class KeystoneMathTest {
         checkEquals(KeystoneMath.formatClock(0), "0:00");
         // Over time reads 0:00 rather than a negative clock.
         checkEquals(KeystoneMath.formatClock(-30), "0:00");
-    }
-
-    /**
-     * The two multipliers U6 and U7 stack on top of U5's payout. Lives here rather
-     * than in {@code PayoutMathTest} because both inputs are keystone concepts.
-     */
-    private static void testPayoutMultipliers() {
-        // Level 0 and a non-ominous run reduce exactly to the U5 numbers, which is
-        // what keeps /dungeon admin build's payout comparable to a real one.
-        check(PayoutMath.count(6, 4, 1, 1, 10, 100, 0, 5, false, 150),
-                PayoutMath.count(6, 4, 1, 1, 10, 100));
-        check(PayoutMath.count(6, 4, 3, 10, 10, 100, 0, 5, false, 150), 26);
-        // 5%/level: a level 10 key is +50% on top of the streak bonus.
-        check(PayoutMath.count(6, 4, 1, 1, 10, 100, 10, 5, false, 150), 9);
-        // Ominous is 150%, applied after the level multiplier.
-        check(PayoutMath.count(6, 4, 1, 1, 10, 100, 10, 5, true, 150), 13);
-        // The multipliers compound rather than summing -- all three cost something
-        // a machine cannot pay, so all three are allowed to stack.
-        check(PayoutMath.count(6, 4, 3, 11, 10, 100, 20, 5, true, 150), 84);
-        // An ominousPayoutPercent below 100 must not become a penalty.
-        check(PayoutMath.count(6, 4, 1, 1, 10, 100, 0, 5, true, 50), 6);
     }
 
     private static void check(int actual, int expected) {

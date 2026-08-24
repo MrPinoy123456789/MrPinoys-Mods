@@ -28,21 +28,39 @@ sequence (not PLAN.md's M-numbers — an earlier draft borrowed those and it was
 actively misleading about execution order; see `UPDATE_PLAN.md`'s opening
 section if you want the full reasoning). **`UPDATE_PLAN.md` also carries a
 U6** — a trial-chambers rework that supersedes most of U3's difficulty
-machinery — appended after U1–U3 shipped. It is a second update sharing the
-document, not the sixth step of this one, and it is untouched.
+machinery — appended after U1–U3 shipped, **a U7** (the keystone/Mythic+ meta
+on top of U6), and **a U8** (this session's work, superseding most of U7's
+exit handling and all of U6's ominous entry paths). Each is a second update
+sharing the document, not the next step of the one before it.
 
 | | Status | |
 |---|---|---|
 | **U1** — room library | ✅ shipped, verified | 14 templates, 0 rejected, 53/53 coverage, 200/200 plan success |
 | **U2** — plan stamping + `Instances` glue | ✅ shipped, verified, **hardened** | procedural `/dungeon`, rotation-correct, tick-spread teardown |
-| **U3** — tiered loot & scaled mobs | ✅ shipped, verified, **hardened twice** | `DifficultyProfile`, mob spawning, chest retargeting, loot tables, boss stones, `/dungeon party` |
-| **U4** — lodestone ritual | ✅ shipped | `RitualListener`, `ConfiguredItem`, `Instances.enter` returns boolean. Config paths verified live; **every right-click path is client-only and unverified** |
-| **U5** — dungeon log & payout | ✅ shipped | `DungeonLog` (`SavedData`), `Payout`, `PayoutMath` + test, `ExitReason`, `/dungeon log`. Streaks and persistence verified live; **every in-dungeon payout path is client-only and unverified** |
-| **U6** — trial-chambers rework | ✅ shipped | trial spawners, vaults, the key loop, ominous runs. Data + block config verified live; **every fight, key and vault interaction is client-only and unverified** |
-| **U7** — keystones (Mythic+ meta) | ✅ shipped | `Keystone`, `Keystones`, `KeystoneMath` + test, `RunTimer`, three choice vaults, depletion at all four exit sites. Tiers/ominous/vault-config verified live; **the whole player loop is client-only and unverified** |
+| **U3** — tiered loot & scaled mobs | superseded, then **deleted** | its mob-spawning path (`DifficultyProfile.mobCount`/`effectiveTier`/`mobRoster`, `RoomContent.spawnMobs`) was the `trialsEnabled: false` rollback and nothing else; deleted outright in T17 once the trial loop was confirmed live. Chest retargeting, loot tables and boss stones live on inside the trial-spawner path; `/dungeon party` survives untouched (it was never difficulty scaling) |
+| **U4** — lodestone ritual | ✅ shipped | `RitualListener`, `ConfiguredItem`. Config paths verified live; **every right-click path is client-only and unverified** |
+| **U5** — dungeon log & payout | superseded by U8 | the streak and the item payout are both deleted; `DungeonLog` and `/dungeon log` survive in reduced form |
+| **U6** — trial-chambers rework | ✅ shipped, mostly superseded | trial spawners and vaults survive; the ominous-by-depth ramp and the choice vaults are gone (U8) |
+| **U7** — keystones (Mythic+ meta) | superseded by U8 | `Keystone`/`Keystones`/`KeystoneMath` survive in reduced form (two depletion outcomes, not six); the three choice vaults, the four-outcome depletion table and the disconnect-parking path are all gone |
+| **U8** — the timer is the run | ✅ code-complete, **T1–T17 all landed** | see below |
 
-**All seven milestones are code-complete.** What remains before calling any of it
-shippable is a real client walkthrough — see below.
+**U8, this session's work (`IMPLEMENTATION_PLAN_U8.md`), T1–T17 all landed.**
+The timer now ticks independent of membership and is the only thing that can
+deplete a keystone; re-entering an owned instance is free; a completed run
+teleports to a reward room whose three chests score how fast you were; the
+upgrade choice is three real doors in a private selector room instead of three
+vaults that vanilla would never unlock; the remote is a recovery compass, not
+a trial key; ominous is now purely the keystone's own affix. **T17** (deleting
+the U3 rollback path) landed in a follow-up session on explicit instruction:
+`spawnerDensEnabled`, `trialsEnabled`, `baseMobsPerEncounter`, `maxMobsPerRoom`,
+`DifficultyProfile.effectiveTier`/`mobCount`/`mobRoster` and
+`RoomContent.spawnMobs` are all gone, and the `partySize` thread into
+difficulty math is gone with them (`/dungeon party` itself is untouched --
+it never was difficulty scaling). Confirmed headless: a keystoneless
+`admin build` now stamps a real trial spawner exactly like a keystone run,
+since there is no longer a second path for it to fall back to. See
+`UPDATE_PLAN.md`'s U8 "Shipped:" section for the full measured verification
+and every deviation.
 
 ## Git state
 
@@ -220,31 +238,51 @@ chasing a phantom save failure here; don't repeat it.
 ## What to do next
 
 **A real client walkthrough is now the only thing left, and it is overdue.**
-`CLIENT_TEST_CHECKLIST.md` sections 15–43 are written and unrun — that is all of
-U4, most of U5, and effectively all of U6 and U7's player-facing behaviour. Every
-user-reported bug on this mod so far came from exactly the paths a console
-session cannot reach, and U6/U7 added a great many of them (right-clicking a
-lodestone, holding an item, standing near a spawner, opening a vault).
+`CLIENT_TEST_CHECKLIST.md` sections 15–33 (U4–U6, still current) and §36,
+§44–49 (U8, new this session) are written and unrun. Every user-reported bug
+on this mod so far came from exactly the paths a console session cannot reach,
+and U8 replaced most of the player-facing loop.
 
 Suggested order, highest risk first:
 
-1. **Section 40.4 — disconnect mid-run, restart the server, log back in.** The
-   pending keystone is the only new persistent state in either milestone, and its
-   failure mode is a silently lost keystone rather than a visible error.
-2. **Section 37 — three offers, one token.** The claim that vanilla seals the
-   other two vaults is load-bearing and rests on `isSameItemSameComponents`. The
-   components were verified to survive being written into the vault config; that
-   they actually *match* the token in a player's hand has only been reasoned
-   about.
-3. **Section 31 — Trial Omen must not leave the dungeon**, by all three exits.
-   It is the one effect this mod can export into the real world.
-4. **Section 26's warning — no creepers, ever.** A creeper in a sealed cell is a
-   hole into the void, which is M0's one hard safety contract.
+1. **§46 — take each of the three doors.** This is U8's core mechanic and the
+   direct replacement for U7's broken vault claim: a door click must be
+   intercepted before vanilla's own door open/close runs, and `/dungeon choose`
+   must write the right level and affix. Nothing here has run against a real
+   client yet.
+2. **§45 — leave mid-run, come back, finish.** Free re-entry is the load-bearing
+   change U8 Stage 1 makes: membership dropping to zero must not tear the
+   instance down, and re-entering must land in the *same* instance, not a new
+   one.
+3. **§48 — time out while offline.** The one way left to lose a keystone level,
+   and its failure mode (a silently un-depleted or double-depleted keystone) is
+   invisible without checking `/dungeon key` afterward.
+4. **§44 — three-chesting.** Confirm the chest count actually tracks the clock
+   and that the reward room's loot tables match the run's tier and affix.
+5. Then the carried-forward U6 risks: **§31** (Trial Omen must not leave the
+   dungeon, by all three exits) and **§26's warning** (no creepers, ever — a
+   hole into the void is M0's one hard safety contract).
 
-After that: nothing in `UPDATE_PLAN.md` is unimplemented. The open ideas it
-records as *decisions* rather than gaps are vanilla chamber pieces as whole
-arenas (a second instance model, not a room source), affixes beyond ominous and
-fragile, and maces/heavy cores from `tier_3_ominous`.
+**T17 has already landed** (`IMPLEMENTATION_PLAN_U8.md`'s Phase 6, on explicit
+instruction): the U3 rollback path is gone --
+`RoomContent.spawnMobs`/`DifficultyProfile.mobCount`/`effectiveTier`/
+`mobRoster`, the `partySize` thread into difficulty math, `spawnerDensEnabled`
+and `trialsEnabled` are all deleted, and the trial-spawner/vault loop is now
+the only encounter/loot path there is. Nothing in the list above changes
+because of it -- T17 never touched the code any of §44–49 or §31/§26 exercise
+-- but it does mean there is no more `trialsEnabled: false` escape hatch if
+the trial loop turns out to need one; that risk is now carried by the same
+client walkthrough already listed above, not a separate one.
+
+Both open decisions from the previous pass are now settled (see
+`DISCOVERIES.md`): `ominous_plain_key.json` and its dead branch in
+`TrialContent.ominousConfigId` are deleted, and a late-but-finished completion
+now depletes the run's keystone by `lateCompletionDepletion` (default 2, config-
+exposed) via a new `Keystones.Outcome.LATE` -- mitigated by the door offer
+still being granted at the post-depletion level, so even a `+1` door nets only
+`-1` overall. Worth a client check alongside §46 and §48: confirm the message
+("your keystone is depleted") shows on a genuinely late completion, and that
+the door offer that follows really is computed off the lower number.
 
 Also outstanding from a previous session: a fix to `kamutotems`'s
 `KamuForge.java` (deferring the Fusion panel's hub reopen to the next

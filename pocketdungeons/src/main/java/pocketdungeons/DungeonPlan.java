@@ -24,10 +24,7 @@ record DungeonPlan(
         Set<PlanEdge> doors,
         PlanCell entrance,
         PlanCell terminal,
-        List<PlanCell> criticalPath,
-        Gate gate) {
+        List<PlanCell> criticalPath) {
 
     record PlacedRoom(String name, int rotation) {}
-
-    record Gate(PlanEdge edge, PlanCell keyCell) {}
 }

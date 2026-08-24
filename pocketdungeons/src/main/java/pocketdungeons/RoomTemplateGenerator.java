@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.FrontAndTop;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
@@ -15,10 +16,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.JigsawBlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
@@ -311,7 +316,89 @@ final class RoomTemplateGenerator {
         // doors and nothing else. Never selected, no metadata file.
         specs.add(new RoomSpec("jig_room", HORIZONTALS));
 
+        // --- U8: the reward room and the selector room. Neither has a door --
+        //     both are reached by teleport, so neither has a mask, and neither
+        //     gets a dungeon_room/*.json: loading either through the manifest
+        //     would put it in the coverage grid and the planner's plan graph for
+        //     no benefit (U8 Stage 2/3). Stamped directly by Identifier through
+        //     TemplateStamper.place, the same way StaticLayout's fallback rooms
+        //     already are.
+
+        // Three chests, scaled by how much of the clock is left; a lodestone
+        // pad -- the same rotation-invariant 2x2 square every exit uses -- to
+        // leave. Reached only after the terminal cell's own pad is stamped.
+        specs.add(new RoomSpec("reward_hall", Set.of())
+                .chests(new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4))
+                .exitPad());
+
+        // Three doors -- the visual language for an affix -- and a lodestone
+        // pad of its own so leaving without choosing costs nothing. The pad
+        // sits well south of the door row (T12 gives no fixed coordinate for
+        // it, only for the doors), clear of both.
+        specs.add(new RoomSpec("selector_room", Set.of())
+                .decor(RoomTemplateGenerator::placeSelectorDoors));
+
         return specs;
+    }
+
+    /**
+     * The three door ids by identifier rather than through {@code Blocks},
+     * because {@code Blocks.COPPER_DOOR} is a {@code WeatheringCopperCollection},
+     * not a {@code Block}, and indexing it is more trouble than it is worth. This
+     * is the visual language for affixes and is expected to grow: copper and its
+     * four oxidation states are the obvious ladder when a fourth and fifth affix
+     * arrive.
+     */
+    private static final Identifier DOOR_NONE = Identifier.parse("minecraft:oak_door");
+    private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
+    private static final Identifier DOOR_FRAGILE = Identifier.parse("minecraft:exposed_copper_door");
+
+    private static void placeSelectorDoors(ServerLevel level, BlockPos o) {
+        placeDoor(level, o.offset(4, 1, 8), DOOR_NONE);
+        placeDoor(level, o.offset(8, 1, 8), DOOR_OMINOUS);
+        placeDoor(level, o.offset(12, 1, 8), DOOR_FRAGILE);
+        // South of the door row (z=8) and clear of it, north of the back wall.
+        placeSquarePad(level, o, RoomGeometry.DOOR_MIN, 12);
+    }
+
+    /** A two-block-tall door, both halves matching. Facing is cosmetic only --
+     *  every click here is intercepted before vanilla ever opens it. */
+    private static void placeDoor(ServerLevel level, BlockPos lower, Identifier blockId) {
+        Block block = BuiltInRegistries.BLOCK.getValue(blockId);
+        BlockState lowerState = block.defaultBlockState()
+                .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
+                .setValue(DoorBlock.FACING, Direction.NORTH)
+                .setValue(DoorBlock.HINGE, DoorHingeSide.LEFT)
+                .setValue(DoorBlock.OPEN, false);
+        RoomBuilder.set(level, lower, lowerState);
+        RoomBuilder.set(level, lower.above(), lowerState.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
+    }
+
+    /**
+     * A 2x2 lodestone square with a chiselled ring, at an arbitrary local
+     * position rather than the rotation-invariant centre {@link #placeExitPad}
+     * uses -- these two rooms are never rotated, so nothing forces the pad to
+     * the centre square the way it does for a room the planner can place at any
+     * of four rotations.
+     */
+    private static void placeSquarePad(ServerLevel level, BlockPos o, int xMin, int zMin) {
+        int xMax = xMin + 1;
+        int zMax = zMin + 1;
+        BlockState lodestone = Blocks.LODESTONE.defaultBlockState();
+        BlockState ring = Blocks.CHISELED_STONE_BRICKS.defaultBlockState();
+        for (int x = xMin; x <= xMax; x++) {
+            for (int z = zMin; z <= zMax; z++) {
+                RoomBuilder.set(level, o.offset(x, 0, z), lodestone);
+            }
+        }
+        for (int x = xMin - 1; x <= xMax + 1; x++) {
+            RoomBuilder.set(level, o.offset(x, 0, zMin - 1), ring);
+            RoomBuilder.set(level, o.offset(x, 0, zMax + 1), ring);
+        }
+        for (int z = zMin; z <= zMax; z++) {
+            RoomBuilder.set(level, o.offset(xMin - 1, 0, z), ring);
+            RoomBuilder.set(level, o.offset(xMax + 1, 0, z), ring);
+        }
     }
 
     // ---- spec ---------------------------------------------------------------

@@ -87,8 +87,7 @@ final class RoomSelector {
                 Set.copyOf(shape.openEdges()),
                 shape.entrance(),
                 shape.terminal(),
-                List.copyOf(shape.criticalPath()),
-                buildGate(shape));
+                List.copyOf(shape.criticalPath()));
         return new Result(plan, null);
     }
 
@@ -232,41 +231,19 @@ final class RoomSelector {
         return order;
     }
 
-    private static DungeonPlan.Gate buildGate(DungeonShape shape) {
-        List<PlanCell> path = shape.criticalPath();
-        if (path.size() < 2) {
-            return null;
-        }
-        int index = Math.max(0, path.size() / 2 - 1);
-        PlanEdge edge = new PlanEdge(path.get(index), path.get(index + 1));
-        PlanCell keyCell = path.get(Math.max(0, index - 1));
-        return new DungeonPlan.Gate(edge, keyCell);
-    }
-
     private static Set<PlanCell> reachableCells(DungeonPlan plan) {
         Set<PlanCell> reachable = new HashSet<>();
-        boolean hasKey = false;
-        PlanEdge gateEdge = plan.gate() != null ? plan.gate().edge() : null;
-        PlanCell keyCell = plan.gate() != null ? plan.gate().keyCell() : null;
         reachable.add(plan.entrance());
 
         boolean changed;
         do {
             changed = false;
-            if (!hasKey && keyCell != null && reachable.contains(keyCell)) {
-                hasKey = true;
-                changed = true;
-            }
             for (PlanCell cell : List.copyOf(reachable)) {
                 for (PlanEdge edge : plan.doors()) {
                     if (!edge.touches(cell)) {
                         continue;
                     }
-                    PlanCell other = edge.other(cell);
-                    if (gateEdge != null && edge.equals(gateEdge) && !hasKey) {
-                        continue;
-                    }
-                    if (reachable.add(other)) {
+                    if (reachable.add(edge.other(cell))) {
                         changed = true;
                     }
                 }

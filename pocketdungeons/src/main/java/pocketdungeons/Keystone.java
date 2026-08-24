@@ -14,22 +14,30 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * The keystone, and the completion token that buys the next one.
+ * The keystone item: a <strong>remote</strong>, not a save file.
  *
- * <p><strong>The keystone is the save file.</strong> It is an item carrying a
- * level in {@code custom_data}; vanilla persists items already. That is why U7
- * adds no run state, no map and no resume flow -- there is no run to resume,
- * there is a key in your pocket and a dungeon you can spend it on.
+ * <p>The level and affix live in {@link DungeonLog}, server-side and keyed by
+ * UUID. The stack in a player's inventory renders that state and is the in-world
+ * affordance for spending it; it is never the authority. Two copies of the remote
+ * therefore both show the same level and both open the same run, which is why
+ * duplicates need no special case.
  *
- * <h2>Why a tagged key cannot be confused with a real one</h2>
+ * <h2>Why this inverted</h2>
  *
- * <p>Vanilla matches a vault's key with {@code ItemStack.isSameItemSameComponents}
- * -- components compared, not just the item -- so a keystone carrying
- * {@code custom_data} will not open an ordinary trial vault, and an ordinary
- * trial key will not open anything this mod mints. The separation is enforced by
- * vanilla rather than by mod-side checking. Confirmed in-world: a vault
- * configured with a {@code custom_data}-tagged {@code minecraft:trial_key} reads
- * the components straight back out of its own NBT.
+ * <p>U7 originally made the item the save file, on the reasoning that "vanilla
+ * persists items already" and a {@code SavedData} could be avoided. That argument
+ * had already expired when it was written: {@link DungeonLog} is a
+ * {@code SavedData} keyed by UUID, built for U5, and it was <em>already</em>
+ * storing keystone levels -- {@code pendingKeystoneLevel} existed purely to
+ * reconcile the two authorities whenever an item could not be handed over. Making
+ * the server the single authority deletes that reconciliation, along with the
+ * offline-delivery path, the duplicate-keystone special case, and the completion
+ * token entirely.
+ *
+ * <p>Staleness is handled by reconciliation rather than by leaving the number off
+ * the item: the instance watcher rewrites any stale remote it finds in an online
+ * player's inventory, so a label is only ever wrong while it sits in a chest, and
+ * never at the moment it is used.
  */
 final class Keystone {
 
@@ -38,10 +46,7 @@ final class Keystone {
 
     private static final ConfiguredItem KEYSTONE_ITEM = new ConfiguredItem("keystoneItem",
             PocketDungeonsConfig::keystoneItem,
-            "keystones will fall back to minecraft:trial_key.");
-    private static final ConfiguredItem TOKEN_ITEM = new ConfiguredItem("keystoneTokenItem",
-            PocketDungeonsConfig::keystoneTokenItem,
-            "completion tokens will fall back to minecraft:trial_key.");
+            "keystones will fall back to minecraft:recovery_compass.");
 
     private Keystone() {}
 
@@ -131,29 +136,6 @@ final class Keystone {
         return stack;
     }
 
-    /**
-     * The completion token: one per player per finished run, and the key all three
-     * choice vaults ask for. Deliberately carries the run's level and nothing
-     * player-specific, so every member of a party mints an identical stack and
-     * one vault configuration serves all of them.
-     */
-    static ItemStack mintToken(int level) {
-        int clamped = KeystoneMath.clampLevel(level, PocketDungeonsConfig.keystoneMaxLevel());
-        ItemStack stack = new ItemStack(resolve(TOKEN_ITEM));
-
-        CompoundTag mine = new CompoundTag();
-        mine.putInt("token", 1);
-        mine.putInt("level", clamped);
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(ROOT, mine));
-
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Completion Token [" + clamped + "]")
-                .withStyle(ChatFormatting.GOLD).withStyle(s -> s.withItalic(false)));
-        stack.set(DataComponents.LORE, new ItemLore(List.of(
-                grey("Spend it on one of the three vaults."),
-                grey("You only get to open one."))));
-        return stack;
-    }
-
     private static Component grey(String text) {
         return Component.literal(text)
                 .withStyle(ChatFormatting.GRAY).withStyle(s -> s.withItalic(true));
@@ -161,13 +143,12 @@ final class Keystone {
 
     private static Item resolve(ConfiguredItem configured) {
         Item item = configured.get();
-        return item == null ? Items.TRIAL_KEY : item;
+        return item == null ? Items.RECOVERY_COMPASS : item;
     }
 
-    /** Resolves both configured items once, so a typo is a boot-time log line. */
+    /** Resolves the configured item once, so a typo is a boot-time log line. */
     static void warmUp() {
         KEYSTONE_ITEM.get();
-        TOKEN_ITEM.get();
     }
 
     // ---- reading ------------------------------------------------------------
@@ -199,9 +180,50 @@ final class Keystone {
         return mine == null ? Affix.NONE : Affix.parse(mine.getStringOr("affix", ""));
     }
 
-    static boolean isToken(ItemStack stack) {
-        CompoundTag mine = mine(stack);
-        return mine != null && mine.getIntOr("token", 0) == 1;
+    // ---- reconciliation -----------------------------------------------------
+
+    /**
+     * Rewrites every stale remote this player is carrying to match {@code level}
+     * and {@code affix}.
+     *
+     * <p>Called from the instance watcher's interval, which is what makes this the
+     * <em>only</em> refresh path: a login, a completion, a depletion, an item
+     * pulled out of a chest and a remote handed over by a friend are all just
+     * "the label disagrees with the server", corrected within a tick interval.
+     * Fabric ships no item-pickup event worth taking a mixin for, and this mod has
+     * none -- see the event list in {@code PocketDungeonsMod}.
+     *
+     * <p>Reads are cheap ({@code CUSTOM_DATA} lookups over ~68 slots) and the
+     * write only fires when a label is actually wrong, so the steady state costs
+     * nothing. Stacks are replaced rather than mutated: a remote carries no count,
+     * durability or per-stack state worth preserving.
+     *
+     * <p>A player whose keystone level is {@code 0} keeps whatever remotes they
+     * hold, untouched. Clearing them would mean confiscating an item from an
+     * inventory, and a remote pointing at "no keystone" is legible on use.
+     */
+    static void reconcile(net.minecraft.server.level.ServerPlayer player,
+                          int level, Affix affix) {
+        if (level <= 0) {
+            return;
+        }
+        reconcileContainer(player.getInventory(), level, affix);
+        reconcileContainer(player.getEnderChestInventory(), level, affix);
+    }
+
+    private static void reconcileContainer(net.minecraft.world.Container container,
+                                           int level, Affix affix) {
+        for (int i = 0; i < container.getContainerSize(); i++) {
+            ItemStack stack = container.getItem(i);
+            OptionalInt shown = levelOf(stack);
+            if (shown.isEmpty()) {
+                continue;
+            }
+            if (shown.getAsInt() == level && affixOf(stack) == affix) {
+                continue;
+            }
+            container.setItem(i, mint(level, affix));
+        }
     }
 
     /**

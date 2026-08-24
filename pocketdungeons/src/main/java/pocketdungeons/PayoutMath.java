@@ -1,99 +1,42 @@
 package pocketdungeons;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-
 /**
- * Streak transitions and payout arithmetic, with no Minecraft imports -- same
- * discipline as {@link DifficultyProfile} and {@link DoorMask}, and for the same
- * reason: this is the part of U5 that is easy to get subtly wrong and trivial to
- * test with plain {@code javac}.
+ * Reward arithmetic with no Minecraft imports -- same discipline as
+ * {@link DifficultyProfile} and {@link DoorMask}, and for the same reason: this
+ * is the part of a reward curve that is easy to get subtly wrong at the
+ * boundaries and trivial to test with plain {@code javac}.
  *
- * <p>The streak rule here is deliberately simpler than
- * {@code kamutotems.core.Streak}: no grace days. Kamutotems grants grace because
- * missing a day there costs a long accumulation; here a streak only scales a
- * payout, so a reset is mild and the code is a third of the size. The date-key
- * format is shared with it on purpose ({@link LocalDate#toString()}), so a player
- * who plays both mods sees both streaks turn over at the same moment.
+ * <p>U8 deletes the streak entirely -- the keystone level is the ladder now --
+ * and replaces the item payout with a chest count scored against the run's own
+ * clock. This file is kept as the home for that arithmetic rather than moved,
+ * since it is the one piece of U5's original reward math that survives.
  */
 final class PayoutMath {
 
     private PayoutMath() {}
 
     /**
-     * The streak a completion on {@code todayKey} earns.
+     * How many of the reward room's three chests are earned, scored against how
+     * much of the clock is left when the run is completed.
      *
-     * <p>Same day leaves it alone, the next day increments, anything else starts
-     * over at 1. "Anything else" includes a clock that has gone backwards and a
-     * date key that will not parse -- a corrupt or hand-edited entry resets the
-     * streak rather than throwing, because the alternative is a save file that
-     * cannot be loaded over a cosmetic number.
+     * <p>Over time (no seconds remaining) earns none -- the run still counts as
+     * finished, but the chests stay empty. {@code totalSeconds} is floored at 1 so
+     * a misconfigured zero-length timer cannot divide by zero; the boundaries are
+     * inclusive of the threshold percentage, so finishing at exactly 60% or 80%
+     * used still earns the better tier.
      */
-    static int nextStreak(String lastCompletedDateKey, String todayKey, int currentStreak) {
-        if (todayKey == null || todayKey.isBlank()) {
-            return Math.max(1, currentStreak);
+    static int chestCount(int secondsRemaining, int totalSeconds,
+                          int threePercent, int twoPercent) {
+        if (secondsRemaining <= 0) {
+            return 0;
         }
-        if (lastCompletedDateKey == null || lastCompletedDateKey.isBlank()) {
-            return 1;
+        int usedPercent = 100 - (secondsRemaining * 100 / Math.max(1, totalSeconds));
+        if (usedPercent <= threePercent) {
+            return 3;
         }
-        if (todayKey.equals(lastCompletedDateKey)) {
-            // A second run on the same day still counts as a run; it just does not
-            // advance the streak. Floor at 1: getting here at all means a
-            // completion has happened.
-            return Math.max(1, currentStreak);
+        if (usedPercent <= twoPercent) {
+            return 2;
         }
-        long gap;
-        try {
-            gap = ChronoUnit.DAYS.between(
-                    LocalDate.parse(lastCompletedDateKey), LocalDate.parse(todayKey));
-        } catch (Exception e) {
-            return 1;
-        }
-        return gap == 1 ? Math.max(1, currentStreak) + 1 : 1;
-    }
-
-    /**
-     * How many payout items one completion is worth.
-     *
-     * <p>{@code (base + perTier * (tier - 1))} scaled by the streak bonus, which
-     * starts at zero on day one and is capped. Integer arithmetic throughout, with
-     * the multiply before the divide so a 10% bonus on a 6-item base is not
-     * rounded away to nothing.
-     */
-    static int count(int baseCount, int perTier, int lootTier,
-                     int streak, int bonusPercent, int capPercent) {
-        int tier = Math.max(1, lootTier);
-        long flat = (long) baseCount + (long) perTier * (tier - 1);
-        int days = Math.max(0, streak - 1);
-        long bonus = Math.min((long) capPercent, (long) bonusPercent * days);
-        long scaled = flat * (100L + bonus) / 100L;
-        return (int) Math.max(0, Math.min(Integer.MAX_VALUE, scaled));
-    }
-
-    /**
-     * The same count, scaled by the two multipliers U6 and U7 add on top.
-     *
-     * <p>Order is fixed and worth stating: the streak bonus first (it is the
-     * daily-return lever), then the keystone level, then the ominous run. Each is
-     * applied to the running total rather than summed into one percentage, so a
-     * long streak on a high key on an ominous run compounds -- which is the point,
-     * since all three cost something a machine cannot pay.
-     */
-    static int count(int baseCount, int perTier, int lootTier,
-                     int streak, int bonusPercent, int capPercent,
-                     int keystoneLevel, int perLevelPercent,
-                     boolean ominousRun, int ominousPercent) {
-        long value = count(baseCount, perTier, lootTier, streak, bonusPercent, capPercent);
-        value = value * (100L + (long) Math.max(0, perLevelPercent)
-                * Math.max(0, keystoneLevel)) / 100L;
-        if (ominousRun) {
-            value = value * Math.max(100L, ominousPercent) / 100L;
-        }
-        return (int) Math.max(0, Math.min(Integer.MAX_VALUE, value));
-    }
-
-    /** The multiplier {@link #count(int, int, int, int, int, int)} is applying, as a percentage. */
-    static int streakBonusPercent(int streak, int bonusPercent, int capPercent) {
-        return (int) Math.min((long) capPercent, (long) bonusPercent * Math.max(0, streak - 1));
+        return 1;
     }
 }
