@@ -90,6 +90,66 @@ second faucet pre-emptively removes the reason anyone opts into Molten.
 
 ---
 
+## D7 — The elevator (public room directory)
+
+**The idea:** every room template carries an elevator in the same position —
+two iron doors, right-click opens a selector, choose a room/party and go
+there. Room and party are the same thing under the M2 hub model (a party
+enters the leader's room and runs from there, per
+`MYTHIC_PLUS_RECONCILIATION.md` §3.2), so the elevator is a lobby browser for
+exactly that, not a new concept.
+
+**Why it's a strong idea, not just a nice-to-have:** identical unmarked doors
+in every room, never explained, is exactly the register `VISION.md` §4 wants
+— it reads like the elevator in an SCP-3008-style anomalous hotel, and the mod
+saying nothing about it is the same discipline that protects the closed loop.
+It's also the more honest answer to a gap the calling-card design admits it
+doesn't solve: cards spread by hand, which is folklore for people who already
+know each other, but does nothing for a stranger with no card finding
+anything. An opt-in public directory is the other half of that problem.
+
+**It is not the same channel as the calling card, and must not be filed as
+one.** `VISION.md` §3.1.1 states the card's address "cannot be searched,
+listed or browsed" — deliberately, because that's what makes it word-of-mouth
+rather than a phone book. The elevator *is* a phone book. Keep both: cards
+stay the private, invited channel; the elevator is a second, separate,
+**opt-in** public one. A room needs a new `listed: boolean` (default false)
+that its owner sets themselves — nobody's private room should appear in a
+stranger's directory just because a milestone shipped a directory.
+
+**Real cost, not a compass-sized one:**
+
+- **A selector needs a real menu.** Checked: this mod has never built a
+  `MenuProvider` / `AbstractContainerMenu`. The existing "choose one of three"
+  pattern (`Instances.chooseOffer`) is chat text plus
+  `/dungeon choose <1|2|3>`, not a GUI. A server-authored container screen is
+  still vanilla-client-safe — it doesn't touch the no-client-mod rule — but it
+  is new machinery, not a reuse of anything that exists. Cheaper first pass:
+  reuse the chat-list-plus-command pattern instead of a real screen, and treat
+  a proper GUI as later polish rather than the first version of this feature.
+- **A fixed anchor in every template is a new template-authoring constraint**,
+  the same shape as the door-jigsaw requirement `RoomManifest` already
+  enforces — every template, including every theme (M1) and every future one,
+  now needs an elevator anchor or the room fails validation. Scope this
+  alongside T1.x work, not after it, or every existing template needs a
+  retrofit pass.
+- **Scope the listing itself before building it:** does the directory show
+  only persisted, opted-in rooms (cosmetic/social — "come see my place"), or
+  also live parties currently recruiting for a run (matchmaking)? The
+  framing ("room and party is effectively the same thing") suggests both
+  belong in one list, which is coherent under the hub model but is genuinely
+  two features — a static directory and live matchmaking have different
+  staleness, different failure modes if a party fills or a room owner logs off
+  mid-list, and different UI needs. Decide this explicitly before scoping a
+  plan file; don't let it default to "both" by accident.
+
+**Blocked on:** M2 (rooms must persist to have anything to list) and M3 (the
+visit mechanism must exist as the thing this reuses for actually getting
+there). **Not scheduled.** No promotion decision has been made; this is
+recorded so the idea isn't lost, not because it's next.
+
+---
+
 ## Promotion checklist
 
 Before moving anything out of this file:

@@ -146,6 +146,7 @@ handoff filename is a convenience marker, not the source of truth.
 | D4 | Multi-cell footprints | `TODO` | Generator is 1×1 |
 | D5 | Room size, station unlocks | `TODO` | After M2 and M6 |
 | D6 | Lava as a second faucet | `TODO` | Only if M6 shows a pinch |
+| D7 | The elevator — public opt-in room/party directory | `TODO` | Needs M2, M3, and a new menu system; reconcile with the card's no-browse rule first |
 
 **Nothing in M8 may be started without an explicit promotion decision.**
 
@@ -157,6 +158,7 @@ Newest first. One line each: date — who — what changed.
 
 | Date | Who | What |
 |---|---|---|
+| 2026-08-24 | design session | D7 "the elevator" (public opt-in room/party directory) added to the M8 backlog — a user idea, not yet scoped into a plan. Flagged its tension with the calling card's deliberate no-browse rule and its real cost (new menu system, new per-template anchor) rather than filing it as free |
 | 2026-08-24 | Devin | M0 T0.1–T0.4 done, T0.5 code-complete pending a human multiplayer test. `RoomManifest` now reloads on `/reload` (verified live over RCON); root `LICENSE` added (MIT, suite-wide); `INTEGRATION.md` written with the schema table and verbatim validation failures; `selectorDoorStep` gated on `record.owner`. `./gradlew build` green |
 | 2026-08-24 | design session | Spec reframed on Skyblock/StoneBlock, Factions cut. Weekly affix rotation cut. Kiss/curse made the affix rule. Calling card designed as the visit mechanism. Every open question closed (§7). Roadmap, plans and this file created |
 | 2026-08-24 | design session | T1.1 `processors` wired, verified end to end on a 26.2 dev server over RCON, committed `f7345eb` |

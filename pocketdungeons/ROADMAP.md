@@ -249,6 +249,7 @@ Held deliberately. Each is a milestone wearing a feature's clothes.
 | **Lava as a second faucet** | Molten is the only source (§5.5). If that proves too narrow, widen it *after* M6 shows whether it actually pinches |
 | **Multi-cell footprints** | `LayoutGraphGenerator` is 1×1 only today |
 | **Room size as progression**, station unlocks | Downstream of M2 and M6 |
+| **The elevator** — public opt-in room/party directory | Needs M2, M3, and a menu system this mod has never built — reconcile with the calling card's deliberate no-browse rule first |
 
 → `plans/M8-deferred.md`
 
