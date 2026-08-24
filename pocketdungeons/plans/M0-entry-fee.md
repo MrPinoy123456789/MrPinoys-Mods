@@ -112,5 +112,9 @@ disconnect mid-prompt.
 - [ ] `INTEGRATION.md` documents all five surfaces and names the three that are
       not extensible
 - [ ] The schema table is published and lists the validation failures verbatim
-- [ ] A guest in a host's selector room gets no prompt
+- [ ] A guest in a host's selector room gets no prompt — **note (2026-08-24):**
+      verified by code (the guard now checks `record.owner`) and covered by
+      `./gradlew build`; the live two-client click check itself is deferred to
+      the suite-wide multiplayer pass recorded in `../PROGRESS.md`, not run
+      per-milestone
 - [ ] `./gradlew build` green

@@ -4,7 +4,16 @@
 > `plans/M<n>-*.md` hold the how, `VISION.md` holds the why. None of those three
 > may contain a checkbox or a status column.
 >
-> **Last updated:** 2026-08-24 · **Current milestone:** M0
+> **Last updated:** 2026-08-24 · **Current milestone:** M1
+>
+> **Multiplayer testing is deferred until every milestone is code-complete.**
+> Several tasks' "Done when" bars call for a live check with two connected
+> clients (a host and a guest, or an owner and a party member). Those checks
+> are not being run per-milestone — they will happen in one pass once M0–M8
+> are all otherwise done. A task marked `DONE` with a note to this effect has
+> had its code verified (build green, reviewed against the plan) but **not**
+> its live multiplayer behaviour; do not read `DONE` here as "played and
+> confirmed in multiplayer" until that pass has happened and the note says so.
 
 ---
 
@@ -31,7 +40,10 @@ handoff filename is a convenience marker, not the source of truth.
 3. **Work the plan.** `plans/M<n>-*.md` is authoritative for scope. If the plan
    is wrong, fix the plan first and say so in the log — never silently diverge.
 4. **Finish honestly.** `DONE` requires the plan's own "Done when" boxes ticked
-   and `./gradlew build` green. Anything partial stays `WIP` with a note.
+   and `./gradlew build` green, **except** live multiplayer checks, which are
+   deferred per the note at the top of this file — a task blocked on nothing
+   but that may still go `DONE` with a note saying so. Anything else partial
+   stays `WIP` with a note.
 5. **Log it.** One line in the Session Log. Newest first.
 
 ### Status values
@@ -68,7 +80,7 @@ handoff filename is a convenience marker, not the source of truth.
 | T0.2 | `LICENSE` at repo root | `DONE` | 2026-08-24, Devin. Every `fabric.mod.json` in the suite (16 mods) declares `"license": "MIT"`, so the root `LICENSE` covers the whole suite, not just `pocketdungeons/` |
 | T0.3 | Published `dungeon_room` schema | `DONE` | 2026-08-24, Devin. Table + validation failures verbatim in `INTEGRATION.md` §2, sourced from `DungeonRoomMeta`/`RoomManifest` |
 | T0.4 | `INTEGRATION.md` | `DONE` | 2026-08-24, Devin. Five surfaces + three non-extensible items, following `kamutotems/INTEGRATION.md`'s structure |
-| T0.5 | Owner check on selector doors | `WIP` | 2026-08-24, Devin. Code fixed (`Instances.selectorDoorStep` now also requires `player.getUUID().equals(record.owner)`) and build-green, but the plan's live positive/negative check needs two connected clients clicking blocks, which RCON can't simulate. Deferred to a human multiplayer pass — see Session Log |
+| T0.5 | Owner check on selector doors | `DONE` | 2026-08-24, Devin. `Instances.selectorDoorStep` now also requires `player.getUUID().equals(record.owner)`. `./gradlew build` green. The plan's live positive/negative click check needs two connected clients; per the suite-wide call above, that is deferred to the single multiplayer pass after every milestone is code-complete, not run per-task |
 
 ## M1 — Themes foundation · `plans/M1-themes-foundation.md`
 
@@ -158,8 +170,9 @@ Newest first. One line each: date — who — what changed.
 
 | Date | Who | What |
 |---|---|---|
+| 2026-08-24 | user + Devin | Decided: multiplayer testing (any task needing two connected clients) is deferred to one pass after every milestone is code-complete, not run per-task. Noted at the top of this file. M0 closed on that basis: T0.5 marked `DONE` on code + build-green, its live click check deferred rather than left `WIP`. Current milestone moved to M1 |
 | 2026-08-24 | design session | D7 "the elevator" (public opt-in room/party directory) added to the M8 backlog — a user idea, not yet scoped into a plan. Flagged its tension with the calling card's deliberate no-browse rule and its real cost (new menu system, new per-template anchor) rather than filing it as free |
-| 2026-08-24 | Devin | M0 T0.1–T0.4 done, T0.5 code-complete pending a human multiplayer test. `RoomManifest` now reloads on `/reload` (verified live over RCON); root `LICENSE` added (MIT, suite-wide); `INTEGRATION.md` written with the schema table and verbatim validation failures; `selectorDoorStep` gated on `record.owner`. `./gradlew build` green |
+| 2026-08-24 | Devin | M0 T0.1–T0.4 done. `RoomManifest` now reloads on `/reload` (verified live over RCON); root `LICENSE` added (MIT, suite-wide); `INTEGRATION.md` written with the schema table and verbatim validation failures; `selectorDoorStep` gated on `record.owner`. `./gradlew build` green |
 | 2026-08-24 | design session | Spec reframed on Skyblock/StoneBlock, Factions cut. Weekly affix rotation cut. Kiss/curse made the affix rule. Calling card designed as the visit mechanism. Every open question closed (§7). Roadmap, plans and this file created |
 | 2026-08-24 | design session | T1.1 `processors` wired, verified end to end on a 26.2 dev server over RCON, committed `f7345eb` |
 
