@@ -86,6 +86,17 @@ not a nice-to-have sitting on the backlog. It is the step that turns a good
 instance generator into a thing with a name, and every precedent this design
 claims says so.
 
+**One correction to how far that claim reaches:** Hypixel did not become the
+biggest thing in Minecraft because it added public islands. It added public
+islands **on top of a population it already had.** Visitability is necessary
+and this design bets correctly on it, but it is not sufficient by itself --
+folklore dynamics need density, and a calling card traded by hand on a
+five-player server produces a nice feature, not a category. The mechanism this
+milestone builds is right regardless of scale; the *category*-forming outcome
+the vision gestures at additionally requires a server that already has people
+on it, which is not something any of these documents can produce on their
+own.
+
 ### 2.2 How we describe it
 
 Internally the lineage is Mythic+, Nephalem Rifts, REPO, Habbo and Skyblock, and
@@ -135,6 +146,14 @@ to produce the largest mode in the game.
 
 That is not an open question any more. **Visitable rooms are the thesis**, and
 the mechanism is the top unbuilt item in §8 rather than a maybe.
+
+> ⚠ **The room is capped at one cell, on purpose, for now.** `RoomManifest`
+> validates every room -- including a player's own -- against a fixed shell,
+> door anchors and a 1×1 footprint; a decorated room that drifts from any of
+> those fails to stamp. Growing it is D4/D5 in `plans/M8-deferred.md`, both
+> genuinely deferred, neither scheduled. The room-as-museum argument in §3.6.1
+> holds at one cell's worth of shelf space; it does not yet scale past that,
+> and nothing on the roadmap currently promises it will.
 
 #### 3.1.1 The calling card — how visiting works
 

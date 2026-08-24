@@ -86,7 +86,7 @@ risk — everything before it was additive, this one changes the lifecycle.
 
 | # | Task |
 |---|---|
-| T2.1 | Persist the room as a `StructureTemplate` blob keyed by owner |
+| T2.1 | Persist the room as a `StructureTemplate` blob keyed by owner — **with backup-on-write and `admin baserestore`, not optional, see the plan's intro** |
 | T2.2 | Owner + whitelist permission mask — **positional, not global**; the quarry must stay breakable |
 | T2.3 | Bedrock envelope — sub-floor and over-ceiling always, outer ring only on faces with no adjacent cell |
 | T2.4 | The closed loop — capture → persist → clear → stamp, order non-negotiable |
@@ -103,4 +103,7 @@ risk — everything before it was additive, this one changes the lifecycle.
       but can use a station and the ender chest
 - [ ] Nothing was said to the player about any of it
 - [ ] A crash injected between capture and stamp loses no room
+- [ ] `admin baserestore` recovers a room after you deliberately corrupt or
+      delete its blob — test the actual recovery, not just that a backup file
+      exists on disk
 - [ ] `./gradlew build` green

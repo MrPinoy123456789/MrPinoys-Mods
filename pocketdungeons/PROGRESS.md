@@ -64,11 +64,11 @@ handoff filename is a convenience marker, not the source of truth.
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T0.1 | `RoomManifest` on `/reload` | `TODO` | |
-| T0.2 | `LICENSE` at repo root | `TODO` | Confirm scope covers the whole suite |
-| T0.3 | Published `dungeon_room` schema | `TODO` | Document `[1,1]`-only footprint |
-| T0.4 | `INTEGRATION.md` | `TODO` | |
-| T0.5 | Owner check on selector doors | `TODO` | **Not** the security bug it was filed as — see plan |
+| T0.1 | `RoomManifest` on `/reload` | `WIP` | 2026-08-24, Devin |
+| T0.2 | `LICENSE` at repo root | `WIP` | 2026-08-24, Devin. Confirm scope covers the whole suite |
+| T0.3 | Published `dungeon_room` schema | `WIP` | 2026-08-24, Devin. Document `[1,1]`-only footprint |
+| T0.4 | `INTEGRATION.md` | `WIP` | 2026-08-24, Devin |
+| T0.5 | Owner check on selector doors | `WIP` | 2026-08-24, Devin. **Not** the security bug it was filed as — see plan |
 
 ## M1 — Themes foundation · `plans/M1-themes-foundation.md`
 
@@ -82,7 +82,7 @@ handoff filename is a convenience marker, not the source of truth.
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T2.1 | Persist room as a blob | `TODO` | |
+| T2.1 | Persist room as a blob | `TODO` | **Backup-on-write and `admin baserestore` are not optional here** — first milestone storing player content |
 | T2.2 | Permission mask | `TODO` | Positional, not global — the quarry must stay breakable |
 | T2.3 | Bedrock envelope | `TODO` | |
 | T2.4 | The closed loop | `TODO` | **capture → persist → clear → stamp**, no early returns |

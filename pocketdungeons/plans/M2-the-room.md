@@ -11,6 +11,29 @@ run ends by walking into it.
 **This is the milestone with real architectural risk.** Everything else in the
 roadmap is additive; this one changes the lifecycle.
 
+**This is also the first milestone that stores player-authored content.**
+Every save format up to now holds only *run state* -- losing it is forgivable,
+a player just re-keys. A room blob is different: it is hours of someone's
+decoration, and losing it is not the same class of failure. Backup-on-write and
+an `admin baserestore` command are **not optional** here
+(`../MYTHIC_PLUS_RECONCILIATION.md` §3.2). Build both alongside T2.1, not as
+a follow-up -- there is no acceptable window where a room blob write can fail
+silently.
+
+**This is also the milestone that caps the product.** The room is locked to a
+single 1×1 cell footprint by construction: `RoomManifest` validates door
+jigsaw layout and footprint, so a decorated room that has drifted from its
+shell, its door anchors, or its 1×1 footprint **fails the stamp**. There is
+no room-size progression in this milestone or on this roadmap until D4
+(multi-cell footprints, `../plans/M8-deferred.md`) is promoted out of M8 --
+and D4 itself needs `LayoutGraphGenerator` to stop being 1×1-only, which is
+real work with no owner yet. If "the room is the product" is the thesis, its
+growth ceiling is fixed at whatever one cell holds for as long as D4 stays
+deferred. That is a deliberate cost-control decision for M2, not an oversight
+-- but ship a default template whose shell and anchors are pre-placed and
+immutable, decorate inward only, so players are decorating *within* a known
+cap rather than discovering it by hitting a wall.
+
 ---
 
 ## The order is not negotiable
@@ -127,4 +150,8 @@ costs the party their run, not their stuff.
       but can use a station and the ender chest
 - [ ] Nothing was said to the player about any of it
 - [ ] A crash injected between capture and stamp loses no room
+- [ ] Every write to a room blob is backed up first, and `admin baserestore`
+      recovers a room from that backup on demand -- test this by actually
+      corrupting or deleting a live blob and running the recovery, not by
+      reading the code and assuming it works
 - [ ] `./gradlew build` green
