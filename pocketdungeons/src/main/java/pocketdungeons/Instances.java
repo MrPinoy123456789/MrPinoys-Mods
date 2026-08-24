@@ -189,9 +189,10 @@ final class Instances {
 
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
-        // freshly started server silently gets the static fallback. M2 left the
-        // load explicit on purpose (wiring it to /reload is its own problem), but
-        // "explicit" was never meant to include the server's own startup.
+        // freshly started server silently gets the static fallback. This is the
+        // one load that RoomManifest.register()'s own /reload listener cannot
+        // cover -- startup reloads resources before SERVER_STARTED fires, so
+        // that listener sees a null server and defers to this call instead.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             RoomManifest manifest = RoomManifest.load(server);
             if (!manifest.rejections().isEmpty()) {
@@ -897,14 +898,20 @@ final class Instances {
     /**
      * Which of a selector room's three fixed doors (1, 2 or 3) this world
      * position is, for <em>this player's own</em> selector instance -- or null
-     * if the player is not standing in one, or the position is not a door.
+     * if the player is not standing in one, the position is not a door, or the
+     * player is a party member riding along in someone else's selector room
+     * rather than its owner. That last check is a clarity fix, not a security
+     * one: {@code chooseOffer} spends the clicking player's own {@link DungeonLog}
+     * offer regardless of location (see its javadoc), so a non-owner could never
+     * have spent anything by clicking here -- they would just see a prompt from
+     * doors that were never theirs.
      * Positions are computed from the record's origin rather than read back out
      * of the template: the room is always stamped at rotation 0, so there is no
      * transform to account for.
      */
     static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = byMember.get(player.getUUID());
-        if (record == null || !record.selectorRoom) {
+        if (record == null || !record.selectorRoom || !player.getUUID().equals(record.owner)) {
             return null;
         }
         int dx = pos.getX() - record.origin.getX();

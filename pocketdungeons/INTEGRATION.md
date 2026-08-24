@@ -1,0 +1,173 @@
+# Pocket Dungeons — Datapack Integration
+
+> **Do not add a dependency on `pocketdungeons`.** Every surface below is a
+> datapack file or a config string, never a Java import, an API module or a
+> mixin. This mirrors `kamutotems/INTEGRATION.md`'s stranger rule — mods in
+> this suite stay strangers.
+
+This document is for authors of datapacks (or other server-side mods) who
+want to add content to Pocket Dungeons — new rooms, new encounters, new loot,
+or a reward hook into another mod — without reading this mod's source.
+
+---
+
+## 1. The five extensible surfaces
+
+### 1.1 `dungeon_room/*.json` — new rooms, from any namespace
+
+`RoomManifest` calls `listResources("dungeon_room", ...)`, which scans **every**
+namespace, not just `pocketdungeons`. A datapack can ship
+`data/mypack/dungeon_room/my_room.json` and it is picked up exactly like a
+built-in room, provided its `template` resolves and its doors validate (§2).
+
+Rooms are hot-reloadable: editing a `dungeon_room/*.json` file and running
+`/reload` rebuilds the manifest immediately, no restart required (T0.1). The
+`/dungeon admin manifest reload` command still exists and still works; it is
+useful for reading back the rejection list (`/dungeon admin manifest list`)
+without needing server logs.
+
+### 1.2 `trial_spawner/tier_N/{normal,ominous}.json`
+
+Standard vanilla trial spawner config, one per tier (1–3) and mode (normal /
+ominous). `spawn_potentials` takes any entity id with arbitrary NBT — this is
+a vanilla trial spawner file, not a Pocket-Dungeons-specific shape, so
+anything the base game's trial chamber format accepts here works, including
+mobs from other mods. Example (`trial_spawner/tier_1/normal.json`):
+
+```json
+{
+  "spawn_range": 4,
+  "total_mobs": 4.0,
+  "simultaneous_mobs": 2.0,
+  "total_mobs_added_per_player": 2.0,
+  "simultaneous_mobs_added_per_player": 1.0,
+  "ticks_between_spawn": 40,
+  "spawn_potentials": [
+    { "data": { "entity": { "id": "minecraft:zombie" } }, "weight": 5 }
+  ],
+  "loot_tables_to_eject": [
+    { "data": "pocketdungeons:spawners/trial_key", "weight": 7 }
+  ]
+}
+```
+
+### 1.3 The `tier_1..3` chest loot tables
+
+`loot_table/chests/tier_{1,2,3}.json` and their `_ominous` counterparts are
+plain vanilla loot tables. Overriding one with a datapack (same id, higher
+pack priority) replaces the reward room's contents for that tier/mode outright
+— no code change needed.
+
+### 1.4 `payoutCommand` — arbitrary command execution on completion
+
+Set in `config/pocketdungeons.json`. **This runs a real console command with
+full operator permissions on every completed run; treat it as arbitrary
+command execution, because that is exactly what it is.** It is the one
+remaining reward hook for routing a payout through another mod's own command
+surface (e.g. `cobbleeconomy`) without a Java dependency. Placeholders:
+
+| Placeholder | Meaning |
+|---|---|
+| `%player%` | The completing player's name |
+| `%level%` | The keystone level the run was finished at |
+| `%chests%` | How many of the reward room's three chests were earned |
+
+Runs from the server console's own command source (not the player's), so it
+is not limited by the player's permission level. Output is not suppressed —
+a broken command is logged loudly rather than swallowed.
+
+### 1.5 `keystoneItem` / `vaultKeyItem` re-pointing
+
+Also in `config/pocketdungeons.json`. Both are plain item ids, resolved
+against the registry at first use (not at config load), so any modded item id
+works:
+
+| Config key | Default | What it gates |
+|---|---|---|
+| `keystoneItem` | `minecraft:recovery_compass` | The item minted as a keystone and required to open a run |
+| `vaultKeyItem` | `minecraft:trial_key` | The normal-mode vault key ejected by trial spawners |
+| `ominousVaultKeyItem` | `minecraft:ominous_trial_key` | The ominous-mode vault key |
+
+If a configured id fails to resolve, the affected feature falls back to its
+vanilla default rather than failing outright — see the log line named in
+`ConfiguredItem`'s usage at startup.
+
+---
+
+## 2. The `dungeon_room` schema
+
+Everything below is parsed by `DungeonRoomMeta.fromJson`; this table is
+documentation of existing behaviour, not a new contract.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `template` | string | **required** | Structure template id (e.g. `pocketdungeons:rooms/hall_tee`) |
+| `footprint` | `[x, z]` | `[1, 1]` | ⚠ **only `[1, 1]` works today** — multi-cell footprints are M8 (D4) |
+| `roles` | string[] | **required, non-empty** | Any of `entrance`, `exit`, `encounter`, `loot`, `corridor` |
+| `weight` | int | `1` | Selection weight; higher is more likely |
+| `minDepth` | int | `0` | Earliest depth (cells from the entrance) this room may appear |
+| `maxPerDungeon` | int | `-1` | `-1` is unlimited; otherwise a hard cap per generated dungeon |
+| `processors` | string | none | Id of a `processor_list` — see M1; a typo here is rejected at load rather than silently ignored |
+
+### 2.1 Validation rules, and their failures verbatim
+
+A room is loaded only if its structure template resolves and its door jigsaw
+layout is internally consistent. Every door must be a
+`pocketdungeons:door` jigsaw, sitting on a cell edge, facing that edge, and
+**complete** — every canonical slot on any wall that has at least one door
+must also have one. A room whose door mask needs `[NORTH, EAST]` but is
+missing one jigsaw on the east wall is rejected outright rather than stamped
+with a hole in it.
+
+**Masks match exactly, not as a superset.** A room carrying a spare door — one
+more than the cell it is stamped into actually needs — punches a doorway
+straight into the void on that wall, so an exact match is required rather
+than "has at least these doors."
+
+Rejections are collected per file and read back with
+`/dungeon admin manifest list`; a rejected room does not take the manifest
+down, the other rooms still load. The exact messages a validator will see
+(from `DungeonRoomMeta` and `RoomManifest`):
+
+| Failure | Message |
+|---|---|
+| Missing `template` | `missing required field: template` |
+| `footprint` present but not a 2-element array | `footprint must be a 2-element array [x,z]` |
+| `roles` missing or not an array | `roles must be a JSON array of strings` |
+| `roles` is an empty array | `roles array must not be empty` |
+| `template` does not resolve to a loaded structure | `template not found: <template>` |
+| `processors` names a processor list that is not loaded | `processor list not found: <processors>` |
+| A door jigsaw is not on any cell edge | `door jigsaw at <pos> is not on a cell edge` |
+| A door jigsaw's facing does not match the wall it sits on | `door jigsaw at <pos> faces <facing> but sits on <edge> wall` |
+| A wall has some doors but is missing a canonical slot | `partial door on <edge> wall: missing jigsaw at <pos>` |
+| A canonical door slot exists but faces the wrong way | `partial door on <edge> wall: jigsaw at <pos> faces <facing>` |
+
+---
+
+## 3. What is *not* extensible yet
+
+Naming these so nobody spends a weekend on them before they are datapack-driven:
+
+1. **Affixes are a Java enum** (`Keystone.Affix`: `NONE`, `OMINOUS`,
+   `FRAGILE`). There is no datapack surface for adding a new one — see
+   roadmap M4/M8 (D3, "data-driven affixes", explicitly gated on 5–6 existing
+   in Java first).
+2. **Room roles are a Java concept**, not a registry — `entrance`, `exit`,
+   `encounter`, `loot`, `corridor` are the fixed set the generator's own
+   `switch`-shaped logic understands. A `dungeon_room` file may only use these
+   five strings in its `roles` array; inventing a sixth does nothing.
+3. **`ritualKeyItem` is dead config.** It still appears in
+   `config/pocketdungeons.json` and is read at load, but nothing branches on
+   it any more — it is referenced only in a comment. The real gate on whether
+   an item opens the ritual is `Keystone.isKeystone`, which checks for the
+   mod's own `CUSTOM_DATA` tag (minted onto `keystoneItem`, §1.5), not this
+   config key. Do not configure against `ritualKeyItem` expecting it to do
+   anything.
+
+---
+
+## 4. For players: how the surfaces above show up in play
+
+None of the above changes player-facing commands. `/dungeon`, `/dungeon exit`,
+and the lodestone ritual all work exactly as before regardless of which
+datapack rooms, loot tables, or spawners are currently loaded.

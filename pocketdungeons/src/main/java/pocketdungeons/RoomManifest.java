@@ -2,13 +2,18 @@ package pocketdungeons;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.Rotation;
@@ -31,8 +36,10 @@ import java.util.Set;
  * files, validates each room's structure template and door jigsaw layout, and
  * indexes the result for M3's planner.
  *
- * <p>This milestone exposes explicit admin commands for loading and listing;
- * wiring it to fire automatically on {@code /reload} is a later follow-up.
+ * <p>T0.1: reloads automatically on {@code /reload} via {@link #register}, in
+ * addition to the explicit admin command, which stays useful for reading
+ * {@link #rejections()} back without spamming chat with every room in the
+ * manifest.
  */
 final class RoomManifest {
 
@@ -40,6 +47,48 @@ final class RoomManifest {
             PocketDungeonsMod.MOD_ID, "door");
 
     private static volatile RoomManifest current = new RoomManifest(Map.of(), List.of());
+
+    /**
+     * Set once by {@link ServerLifecycleEvents#SERVER_STARTED} and cleared on
+     * shutdown. The vanilla data-pack reload listener below only receives a
+     * {@link ResourceManager}, not the {@link MinecraftServer} that {@link #load}
+     * needs for the overworld and registry access -- this is where that comes
+     * from. Startup itself reloads resources <em>before</em> {@code
+     * SERVER_STARTED} fires, so this is null on the very first pass; the
+     * existing explicit {@code RoomManifest.load(server)} call in
+     * {@code Instances.register()} covers that first load, and the guard below
+     * simply defers to it instead of racing it.
+     */
+    private static volatile MinecraftServer server;
+
+    /**
+     * Wires {@link #load} to fire on every {@code /reload}, not just the
+     * {@code /dungeon admin manifest reload} command. Call once from
+     * {@code onInitialize}.
+     */
+    static void register() {
+        ServerLifecycleEvents.SERVER_STARTED.register(s -> server = s);
+        ServerLifecycleEvents.SERVER_STOPPING.register(s -> server = null);
+
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
+                new SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public Identifier getFabricId() {
+                        return Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "room_manifest");
+                    }
+
+                    @Override
+                    public void onResourceManagerReload(ResourceManager manager) {
+                        MinecraftServer s = server;
+                        if (s == null) {
+                            // Startup's own reload, before SERVER_STARTED has run. The
+                            // explicit call in Instances.register() covers this pass.
+                            return;
+                        }
+                        load(s);
+                    }
+                });
+    }
 
     private final Map<String, Entry> byName;
     private final List<Entry> rooms;

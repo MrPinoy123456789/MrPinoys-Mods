@@ -64,11 +64,11 @@ handoff filename is a convenience marker, not the source of truth.
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T0.1 | `RoomManifest` on `/reload` | `WIP` | 2026-08-24, Devin |
-| T0.2 | `LICENSE` at repo root | `WIP` | 2026-08-24, Devin. Confirm scope covers the whole suite |
-| T0.3 | Published `dungeon_room` schema | `WIP` | 2026-08-24, Devin. Document `[1,1]`-only footprint |
-| T0.4 | `INTEGRATION.md` | `WIP` | 2026-08-24, Devin |
-| T0.5 | Owner check on selector doors | `WIP` | 2026-08-24, Devin. **Not** the security bug it was filed as — see plan |
+| T0.1 | `RoomManifest` on `/reload` | `DONE` | 2026-08-24, Devin. Wired via `RoomManifest.register()` (`fabric-resource-loader-v0`). Verified live over RCON on the dev server: edited `hall_tee.json`'s `roles`, ran `/reload` with no restart, `/dungeon admin manifest list` reflected the change; reverted and reloaded again to confirm it tracks edits both ways |
+| T0.2 | `LICENSE` at repo root | `DONE` | 2026-08-24, Devin. Every `fabric.mod.json` in the suite (16 mods) declares `"license": "MIT"`, so the root `LICENSE` covers the whole suite, not just `pocketdungeons/` |
+| T0.3 | Published `dungeon_room` schema | `DONE` | 2026-08-24, Devin. Table + validation failures verbatim in `INTEGRATION.md` §2, sourced from `DungeonRoomMeta`/`RoomManifest` |
+| T0.4 | `INTEGRATION.md` | `DONE` | 2026-08-24, Devin. Five surfaces + three non-extensible items, following `kamutotems/INTEGRATION.md`'s structure |
+| T0.5 | Owner check on selector doors | `WIP` | 2026-08-24, Devin. Code fixed (`Instances.selectorDoorStep` now also requires `player.getUUID().equals(record.owner)`) and build-green, but the plan's live positive/negative check needs two connected clients clicking blocks, which RCON can't simulate. Deferred to a human multiplayer pass — see Session Log |
 
 ## M1 — Themes foundation · `plans/M1-themes-foundation.md`
 
@@ -157,6 +157,7 @@ Newest first. One line each: date — who — what changed.
 
 | Date | Who | What |
 |---|---|---|
+| 2026-08-24 | Devin | M0 T0.1–T0.4 done, T0.5 code-complete pending a human multiplayer test. `RoomManifest` now reloads on `/reload` (verified live over RCON); root `LICENSE` added (MIT, suite-wide); `INTEGRATION.md` written with the schema table and verbatim validation failures; `selectorDoorStep` gated on `record.owner`. `./gradlew build` green |
 | 2026-08-24 | design session | Spec reframed on Skyblock/StoneBlock, Factions cut. Weekly affix rotation cut. Kiss/curse made the affix rule. Calling card designed as the visit mechanism. Every open question closed (§7). Roadmap, plans and this file created |
 | 2026-08-24 | design session | T1.1 `processors` wired, verified end to end on a 26.2 dev server over RCON, committed `f7345eb` |
 
