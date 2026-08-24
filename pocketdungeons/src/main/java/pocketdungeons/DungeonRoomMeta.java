@@ -91,6 +91,7 @@ final class DungeonRoomMeta {
         if (el == null || el.isJsonNull()) {
             return null;
         }
-        return el.getAsString();
+        String value = el.getAsString().trim();
+        return value.isEmpty() ? null : value;
     }
 }

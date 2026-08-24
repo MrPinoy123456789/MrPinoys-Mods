@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -91,6 +92,7 @@ final class RoomManifest {
                     throw new IllegalStateException("template not found: " + meta.template);
                 }
                 StructureTemplate template = optTemplate.get();
+                validateProcessors(server, meta);
                 Entry entry = buildEntry(name, meta, template);
                 entries.add(entry);
             } catch (Exception ex) {
@@ -172,6 +174,22 @@ final class RoomManifest {
     }
 
     record Match(Entry entry, int rotation) {}
+
+    /**
+     * Rejects a room whose {@code processors} field names a processor list that is
+     * not loaded. The stamper degrades to an untinted room instead of failing, so
+     * without this check a typo'd theme is invisible until someone notices the
+     * walls are the wrong colour three runs later.
+     */
+    private static void validateProcessors(MinecraftServer server, DungeonRoomMeta meta) {
+        if (meta.processors == null) {
+            return;
+        }
+        Identifier procId = Identifier.parse(meta.processors);
+        if (server.registryAccess().lookupOrThrow(Registries.PROCESSOR_LIST).getValue(procId) == null) {
+            throw new IllegalStateException("processor list not found: " + meta.processors);
+        }
+    }
 
     private static Entry buildEntry(String name, DungeonRoomMeta meta, StructureTemplate template) {
         Set<Direction> edges = EnumSet.noneOf(Direction.class);

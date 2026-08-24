@@ -67,6 +67,13 @@ tasks.register<JavaExec>("payoutMathTest") {
     mainClass = "pocketdungeons.PayoutMathTest"
 }
 
+tasks.register<JavaExec>("dungeonRoomMetaTest") {
+    group = "verification"
+    description = "Runs the pure-Java DungeonRoomMeta parser regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.DungeonRoomMetaTest"
+}
+
 tasks.register<JavaExec>("keystoneMathTest") {
     group = "verification"
     description = "Runs the pure-Java keystone level, depletion and timer regression test"
@@ -80,6 +87,7 @@ tasks.test {
     dependsOn("difficultyProfileTest")
     dependsOn("payoutMathTest")
     dependsOn("keystoneMathTest")
+    dependsOn("dungeonRoomMetaTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false

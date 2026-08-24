@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -9,6 +10,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.JigsawReplacementProcessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
@@ -78,6 +81,14 @@ final class TemplateStamper {
     private static final Identifier LOOT_VAULT = id("rooms/loot_vault");
     private static final Identifier EXIT_HALL = id("rooms/exit_hall");
 
+    /**
+     * U8's reward and selector rooms. Loaded directly by identifier, exactly
+     * like the four constants above -- neither has a door, so neither has a
+     * mask, and {@code RoomManifest} never touches them.
+     */
+    static final Identifier REWARD_HALL = id("rooms/reward_hall");
+    static final Identifier SELECTOR_ROOM = id("rooms/selector_room");
+
     private TemplateStamper() {}
 
     /** The M0 four-room line, unrotated. The {@link StaticLayout} fallback. */
@@ -105,6 +116,25 @@ final class TemplateStamper {
     static List<BlockPos> place(ServerLevel level, StructureTemplateManager manager,
                                 BlockPos cellOrigin, Identifier templateId,
                                 int quarterTurns, long seed) {
+        return place(level, manager, cellOrigin, templateId, quarterTurns, seed, null);
+    }
+
+    /**
+     * As {@link #place(ServerLevel, StructureTemplateManager, BlockPos, Identifier, int, long)},
+     * with a theme applied.
+     *
+     * @param processorList a {@code minecraft:worldgen/processor_list} id from the
+     *                      room's {@code processors} field, or {@code null} for none.
+     *                      An id that does not resolve is logged and skipped -- a
+     *                      missing theme places the untinted room rather than
+     *                      aborting the stamp and taking the whole run with it.
+     *                      {@code RoomManifest} rejects unresolvable ids at load, so
+     *                      reaching that branch means the datapack changed under a
+     *                      loaded manifest
+     */
+    static List<BlockPos> place(ServerLevel level, StructureTemplateManager manager,
+                                BlockPos cellOrigin, Identifier templateId,
+                                int quarterTurns, long seed, Identifier processorList) {
         StructureTemplate template = manager.get(templateId)
                 .orElseThrow(() -> new IllegalStateException("Missing structure template " + templateId));
 
@@ -117,6 +147,9 @@ final class TemplateStamper {
         settings.setRotationPivot(BlockPos.ZERO);
         settings.setIgnoreEntities(false);
         settings.addProcessor(JigsawReplacementProcessor.INSTANCE);
+        for (StructureProcessor processor : resolveProcessors(level, processorList)) {
+            settings.addProcessor(processor);
+        }
 
         template.placeInWorld(level, placementPos, placementPos, settings,
                 RandomSource.create(seed), STAMP_FLAGS);
@@ -124,6 +157,35 @@ final class TemplateStamper {
         List<BlockPos> spawns = spawnPoints(template, placementPos, rotation);
         JigsawFallback.replaceRemaining(level, cellOrigin, TEMPLATE_SIZE);
         return spawns;
+    }
+
+    /**
+     * The processors of {@code processorList}, or an empty list.
+     *
+     * <p>These are added <em>after</em> {@link JigsawReplacementProcessor}, so a
+     * theme's rules see each jigsaw's {@code final_state} rather than the jigsaw
+     * block itself. A theme that rewrites {@code stone_bricks} therefore also
+     * rewrites the stone bricks a door jigsaw resolved to, which is the wanted
+     * behaviour -- the reverse order would leave jigsaw-authored blocks untinted
+     * and visibly patchy around every doorway.
+     *
+     * <p>{@link JigsawFallback} runs after placement and writes final states
+     * straight to the world, bypassing processors entirely. It only fires for
+     * jigsaws the vanilla processor missed, so in practice it is the same patchy
+     * hazard confined to a path that should never be taken.
+     */
+    private static List<StructureProcessor> resolveProcessors(ServerLevel level, Identifier processorList) {
+        if (processorList == null) {
+            return List.of();
+        }
+        StructureProcessorList list = level.registryAccess()
+                .lookupOrThrow(Registries.PROCESSOR_LIST)
+                .getValue(processorList);
+        if (list == null) {
+            PocketDungeonsMod.LOG.warn("Unknown processor list '{}'; placing room untinted", processorList);
+            return List.of();
+        }
+        return list.list();
     }
 
     private static List<BlockPos> spawnPoints(StructureTemplate template, BlockPos placementPos,

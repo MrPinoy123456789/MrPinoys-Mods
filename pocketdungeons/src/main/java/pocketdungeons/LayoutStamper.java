@@ -68,7 +68,8 @@ final class LayoutStamper {
             BlockPos cellOrigin = geometry.cellOrigin(cell);
             List<BlockPos> spawns = TemplateStamper.place(
                     level, manager, cellOrigin, Identifier.parse(entry.meta.template),
-                    placed.rotation(), plan.seed() ^ cellOrigin.asLong());
+                    placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
+                    entry.meta.processors == null ? null : Identifier.parse(entry.meta.processors));
 
             int depth = plan.depths().getOrDefault(cell, 0);
             RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns,
