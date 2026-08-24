@@ -5,7 +5,11 @@
 **Goal:** other people can stand in your room.
 
 **Blocked on:** M2, completely. **Blocks:** nothing — but it is the reason the
-rest exists.
+rest exists. **Blocks D7 (the elevator, `plans/M8-deferred.md`)** if that
+ever gets promoted: `../DIALOGS_SPEC.md` §7 requires the elevator to call
+whatever single visit/join method this milestone builds, rather than
+inventing a second one — build that method so it has exactly one caller
+today and can gain a second later without changing shape.
 
 > Skyblock was a challenge map for a year and became a *mode* the moment it went
 > multiplayer. Hypixel's version won by adding a public layer beside the private

@@ -29,6 +29,12 @@ is actually `DONE` here. A milestone with no `-completed` handoff is either not
 started or not finished — check this file's tables for the real status, the
 handoff filename is a convenience marker, not the source of truth.
 
+**Building any UI in this mod?** Check `DIALOGS_SPEC.md` first — it specs
+seven menus (door offers, kick/invite confirmations, room whitelist, admin
+restore, the elevator) using the vanilla-dialog mechanism `quizengine` and
+`cobbleeconomy` already ship. Nothing in it is built yet; it exists so the
+shape gets decided once instead of per-milestone.
+
 ---
 
 ## How agents use this file
@@ -158,7 +164,7 @@ handoff filename is a convenience marker, not the source of truth.
 | D4 | Multi-cell footprints | `TODO` | Generator is 1×1 |
 | D5 | Room size, station unlocks | `TODO` | After M2 and M6 |
 | D6 | Lava as a second faucet | `TODO` | Only if M6 shows a pinch |
-| D7 | The elevator — public opt-in room/party directory | `TODO` | Needs M2, M3, and a new menu system; reconcile with the card's no-browse rule first |
+| D7 | The elevator — public opt-in room/party directory | `TODO` | Needs M2, M3. Menu is now spec'd — `DIALOGS_SPEC.md` §7, vanilla-vs-SGUI decision still open |
 
 **Nothing in M8 may be started without an explicit promotion decision.**
 
@@ -170,6 +176,7 @@ Newest first. One line each: date — who — what changed.
 
 | Date | Who | What |
 |---|---|---|
+| 2026-08-24 | design session | `DIALOGS_SPEC.md` written — seven menus spec'd against the vanilla dialog mechanism `quizengine`/`cobbleeconomy` already ship (no code): door offers, kick/invite confirmations, keystone inspection, room whitelist (M2 T2.2), admin baserestore confirm (M2 T2.1), and the elevator (D7). Corrected D7's cost estimate in `plans/M8-deferred.md` — it was priced against building a `MenuProvider` from nothing; the real decision is vanilla `DialogListDialog` vs. adding `eu.pb4:sgui` for pagination. Cross-referenced from M2 and M3's plans |
 | 2026-08-24 | user + Devin | Decided: multiplayer testing (any task needing two connected clients) is deferred to one pass after every milestone is code-complete, not run per-task. Noted at the top of this file. M0 closed on that basis: T0.5 marked `DONE` on code + build-green, its live click check deferred rather than left `WIP`. Current milestone moved to M1 |
 | 2026-08-24 | design session | D7 "the elevator" (public opt-in room/party directory) added to the M8 backlog — a user idea, not yet scoped into a plan. Flagged its tension with the calling card's deliberate no-browse rule and its real cost (new menu system, new per-template anchor) rather than filing it as free |
 | 2026-08-24 | Devin | M0 T0.1–T0.4 done. `RoomManifest` now reloads on `/reload` (verified live over RCON); root `LICENSE` added (MIT, suite-wide); `INTEGRATION.md` written with the schema table and verbatim validation failures; `selectorDoorStep` gated on `record.owner`. `./gradlew build` green |

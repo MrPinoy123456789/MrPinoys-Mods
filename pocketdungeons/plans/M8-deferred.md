@@ -119,14 +119,18 @@ stranger's directory just because a milestone shipped a directory.
 
 **Real cost, not a compass-sized one:**
 
-- **A selector needs a real menu.** Checked: this mod has never built a
-  `MenuProvider` / `AbstractContainerMenu`. The existing "choose one of three"
-  pattern (`Instances.chooseOffer`) is chat text plus
-  `/dungeon choose <1|2|3>`, not a GUI. A server-authored container screen is
-  still vanilla-client-safe — it doesn't touch the no-client-mod rule — but it
-  is new machinery, not a reuse of anything that exists. Cheaper first pass:
-  reuse the chat-list-plus-command pattern instead of a real screen, and treat
-  a proper GUI as later polish rather than the first version of this feature.
+- **A selector needs a real menu — now spec'd, see `../DIALOGS_SPEC.md` §7.**
+  An earlier pass of this entry said the cost was building a
+  `MenuProvider`/`AbstractContainerMenu` from nothing; that measured the
+  wrong tool. This suite already has a working, no-client-mod menu mechanism
+  (vanilla MC 26.2's `net.minecraft.server.dialog` Dialog system, shipped in
+  `quizengine` and `cobbleeconomy`), and the real decision isn't "build a menu
+  system," it's **vanilla `DialogListDialog` (no new dependency, caps out
+  around a handful of entries) vs. `eu.pb4:sgui` paginated chest (a new
+  dependency, already used by `cobbleeconomy`, scales to an unbounded room
+  count)**. `DIALOGS_SPEC.md` §7 lays out the tradeoff and recommends the SGUI
+  path, since a directory that silently truncates undercuts the whole point
+  of this feature — but leaves the final call to whoever promotes this.
 - **A fixed anchor in every template is a new template-authoring constraint**,
   the same shape as the door-jigsaw requirement `RoomManifest` already
   enforces — every template, including every theme (M1) and every future one,

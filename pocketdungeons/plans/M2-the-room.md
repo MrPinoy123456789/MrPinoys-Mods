@@ -18,7 +18,9 @@ decoration, and losing it is not the same class of failure. Backup-on-write and
 an `admin baserestore` command are **not optional** here
 (`../MYTHIC_PLUS_RECONCILIATION.md` §3.2). Build both alongside T2.1, not as
 a follow-up -- there is no acceptable window where a room blob write can fail
-silently.
+silently. `../DIALOGS_SPEC.md` §6 specs a confirmation dialog for the restore
+command itself, since it overwrites whatever's currently there -- optional
+polish, the command must work without it.
 
 **This is also the milestone that caps the product.** The room is locked to a
 single 1×1 cell footprint by construction: `RoomManifest` validates door
@@ -86,6 +88,11 @@ inside a room cell whose owner is not the actor.
 Register `PlayerBlockBreakEvents.BEFORE` and a use-block handler, both
 early-returning `true`/`PASS` when the position is outside any room cell. The
 common case must cost one bounds check.
+
+**This task needs a way for an owner to actually edit the whitelist.** Not
+scoped here — a chat-only `/dungeon room whitelist add/remove <player>` pair
+is the minimum; `../DIALOGS_SPEC.md` §5 specs a dialog front end for it, to
+build alongside the commands or after, implementer's call.
 
 ---
 

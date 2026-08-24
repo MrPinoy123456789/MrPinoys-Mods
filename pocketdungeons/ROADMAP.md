@@ -8,6 +8,10 @@
 > the order, nothing else.
 >
 > **Progress lives in `PROGRESS.md`.** Do not record status here.
+>
+> **Menu/dialog design lives in `DIALOGS_SPEC.md`.** Where a milestone below
+> would benefit from a vanilla-dialog menu instead of chat text, that file has
+> the spec; this file and the per-milestone plans only cross-reference it.
 
 ---
 
