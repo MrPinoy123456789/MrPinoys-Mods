@@ -8,6 +8,20 @@
 
 ---
 
+## Starting a milestone
+
+Each milestone has a self-contained handoff prompt at
+`handoffs/M<n>-handoff.md` — paste the whole file into a fresh chat to start
+work on it with no other context required. Every handoff includes the reading
+list, the standing rules, the verification bar (including live-server RCON
+proof via `tools/rcon.py` where relevant), the doc-update checklist, and the
+final step: renaming itself to `M<n>-handoff-completed.md` once the milestone
+is actually `DONE` here. A milestone with no `-completed` handoff is either not
+started or not finished — check this file's tables for the real status, the
+handoff filename is a convenience marker, not the source of truth.
+
+---
+
 ## How agents use this file
 
 1. **Read before starting.** Check the task is `TODO` and that its milestone's
