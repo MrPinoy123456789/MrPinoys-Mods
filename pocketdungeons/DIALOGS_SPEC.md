@@ -55,6 +55,98 @@ whichever one was built second, not a matter of picking which wins.
   door and walk through"* — that physical walk is the mechanic, not a UI
   limitation waiting to be fixed.
 
+### Movement and safety while a dialog is open
+
+The client cannot send movement input while any `Screen` has input focus —
+this is inherent vanilla client behaviour for every screen (inventory, chat,
+dialogs included), not something a dialog opts into. That covers "can a
+player wander off mid-menu": no, their WASD is captured by the dialog until
+it closes.
+
+**It does not cover combat or fall damage, and no sibling mod has had to
+think about this.** `quizengine`, `cobbleeconomy`, and `smalltalk` all set
+`pause = false` — the house convention this mod should follow too — but none
+of them run combat content, so nobody has verified what `pause` actually
+does server-side. What's certain regardless of that flag: **the player's
+entity keeps ticking.** A mob mid-swing, existing fall velocity, drowning —
+none of that stops because a dialog opened. A dialog is a client-side
+overlay, not a server-side pause.
+
+⚠ **This mod is the first one in the suite where that matters.** None of §1–§7
+are gated to a location that's guaranteed mob-free:
+
+- §1 (door offer) opens only in the selector room, which carries no chest
+  and no spawn points by construction — safe.
+- §2 (kick), §3 (invite), §5 (whitelist), and §7 (elevator) are all reachable
+  from a command, and nothing today stops a command from being run mid-run,
+  inside a live encounter room with an active trial spawner.
+
+**Decision needed, not made here:** either accept that opening one of those
+four mid-encounter is the player's own risk (same as opening an inventory
+screen mid-fight already is, in vanilla), or gate the triggering commands to
+refuse while `Instances` reports the player inside an active, non-selector
+cell. Whoever builds M2/M3/D7 should pick one and say so in that milestone's
+own notes — don't let it default silently either way.
+
+### Exit and escape — no dead ends, on every screen
+
+Every dialog in §1–§7 sets `canCloseWithEscape = true`. This is the house
+convention across the whole suite (`quizengine/DIALOGS.md`: *"Set
+`canCloseWithEscape = true` and `pause = false` on every dialog"*) and there
+is no reason to diverge from it here.
+
+Escape alone is not enough — a first-time player doesn't necessarily know a
+dialog can be escaped, and some expect `E` (inventory close) to work instead,
+which it will not for a `Screen` that isn't a container. So, **every
+`MultiActionDialog` and `DialogListDialog` in this spec sets an explicit
+`exitAction`** — a visible "Cancel" or "Back" button, never relying on
+Escape as the only way out:
+
+| Menu | Dialog type | Explicit exit |
+|---|---|---|
+| §1 door offer | `NoticeDialog` | Can't — a `NoticeDialog` has exactly one `ActionButton` by construction. Walking away from the door, or Escape, is the "no." Documented, not a gap. |
+| §2 kick confirm | `ConfirmationDialog` | `noButton`, always present by construction |
+| §3 invite accept | `ConfirmationDialog` | `noButton` ("Decline") |
+| §4 keystone info | `NoticeDialog` | Same as §1 — the one button is "Close," which *is* the exit |
+| §5 whitelist list | `MultiActionDialog` | `exitAction` = "Close" |
+| §5 add-player sub-screen | `ConfirmationDialog` + `TextInput` (not `NoticeDialog` — see below) | `noButton` ("Cancel") |
+| §6 baserestore confirm | `ConfirmationDialog` | `noButton` ("Cancel") |
+| §7 elevator directory | `DialogListDialog` (or SGUI page) | `exitAction` = "Close" (vanilla path) / a `BARRIER` slot (SGUI path, matching `ShopAdminMenu.openList`'s own close slot) |
+
+### Returning to the right screen after an action
+
+**There is no dialog history stack in this API.** A screen never
+automatically "returns" anywhere — every "back to the list" the user would
+expect is the mod explicitly building and sending a fresh dialog as the last
+step of handling a click, not something the engine gives for free.
+
+This is still allowed under quizengine's *"never push a dialog unprompted"*
+rule — that rule is about not sending a dialog out of nowhere; re-showing a
+rebuilt screen as the direct, synchronous continuation of the click the
+player just made is a response, not a push. Tier A buttons do this from
+inside the command handler the `RunCommand` invokes (e.g. `confirmKick` calls
+`DialogKit.show(player, rebuiltRoster)` as its last line); Tier B buttons do
+it from the end of the router's handler, same idea, one thread hop earlier.
+
+Applied to each menu:
+
+- **§1, §3, §4, §6 are terminal — no "back to a list" applies.** A door
+  choice teleports the player, an accepted invite joins them, keystone info
+  is read-only, and a baserestore confirm is a one-shot admin action. Each
+  ends the interaction by design; don't add a return screen where there was
+  never a list to return to.
+- **§2 needed a real fix, not just a note — see the rewrite below.** As
+  originally spec'd, kick only had a path for a target the leader already
+  named on the command line; there was no roster to return to because there
+  was never a roster screen. §2 is rewritten below to add one.
+- **§5 (whitelist)** — after a remove or an add, re-show the whitelist list
+  rebuilt from live state, not a bare success message. Already implied by
+  the stale-state guard §5 specifies; now stated as the explicit UX rule.
+- **§7 (elevator)** — if a click resolves to a room that's gone stale
+  (delisted, or the owner's status changed after the snapshot), re-show the
+  rebuilt directory with a short reason, rather than erroring into a closed
+  screen with no path back in.
+
 ---
 
 ## Part 1 — Plumbing
@@ -139,22 +231,43 @@ live `DungeonLog` pending offer (`Instances.java:939`'s own javadoc notes it's
 in the selector room"), so a dialog opened against a stale offer fails the
 same way a stale chat link already does today.
 
-### §2. Party kick confirmation (retrofit)
+### §2. Party roster + kick confirmation (retrofit, plus a new entry point)
 
 **Today:** `/dungeon party kick <target>` or `kick all` calls
 `Instances.stageKick` (`Instances.java:676`), which sends `"Remove <who>
 from your party?"` plus a `[ Confirm ]` chat link running
-`/dungeon party kickconfirm`.
+`/dungeon party kickconfirm`. There is no way to *browse* the party today —
+a leader must already know and type the name they want to remove. No
+existing screen this retrofits onto a list, because there was never a list.
 
-**Proposed:** replace the two chat lines with one `ConfirmationDialog` —
-this is precisely the shape cobbleeconomy adopted `ConfirmationDialog` for,
-quoting its own reasoning: *"the two buttons cannot be hit by the same
-twitch."* A two-command chat flow has no such protection; a dialog does.
+**Proposed, two screens, still Tier A — no CustomAll needed.** The server
+already knows every member's name when it builds either screen, so each
+button can carry its own literal `RunCommand` string; nothing here needs the
+client to send free-form data back.
+
+1. **Roster screen** — new trigger, `/dungeon party` with no arguments (or
+   a right-click target, implementer's call). `MultiActionDialog`, one
+   `ActionButton` per current party member, label `"Kick <name>"`, action
+   `StaticAction(RunCommand("/dungeon party kick <name>"))`. `exitAction` =
+   `"Close"`. Gate this screen with **the exact same leader check
+   `stageKick` already applies** — don't build a second permission check
+   that could disagree with the first; see the governing principle.
+2. **Confirmation screen** — unchanged from the original spec below, except
+   for what happens after Yes.
 
 - Body: `PlainMessage("Remove <who> from your party?")`.
 - `yesButton`: label `"Confirm"`, `StaticAction(RunCommand("/dungeon party
   kickconfirm"))` → `Instances.confirmKick` (`Instances.java:703`), unchanged.
 - `noButton`: label `"Cancel"`, no action (closes only).
+
+**After a confirmed kick, `confirmKick`'s handler re-shows the roster
+screen**, rebuilt from the party's current member list — this is what
+"returning to the right page" means concretely here, and it's the fix the
+top-level section above was written to require. **Edge case, decide before
+building:** if the kicked member was the last one, don't construct a
+zero-button `MultiActionDialog` — show a `NoticeDialog` ("Your party is now
+empty.", one "Close" button) instead of either an empty roster or a silent
+close, so the leader gets a clear signal the action actually happened.
 
 ### §3. Party invite — accept/decline (new UX on an existing flow)
 
@@ -215,12 +328,15 @@ together, this is the shape to build.
   and calling-card checks in `RitualListener`, see M3 §3.2).
 - Screen: `MultiActionDialog`, one button per current whitelist entry
   (label = player name, action = `CustomAll("pocketdungeons:room_unwhitelist",
-  {"target": <uuid>})`) plus one `TextInput`-bearing entry point — since
-  `MultiActionDialog` has no input slot of its own, the "add a player" case
-  needs a **second** screen: a `NoticeDialog` with one `TextInput` (player
-  name, `maxLength` ~16) reached via an `"Add..."` button on the first
-  screen, submitting `CustomAll("pocketdungeons:room_whitelist_add",
-  {"name": <text>})`.
+  {"target": <uuid>})`) plus an `"Add..."` button opening a **second**
+  screen for entry, since `MultiActionDialog` has no input slot of its own.
+  That second screen is a **`ConfirmationDialog`** carrying one `TextInput`
+  (player name, `maxLength` ~16) in its `CommonDialogData.inputs()` — not a
+  `NoticeDialog`, which only has one `ActionButton` and so has no room for
+  a "Cancel" alongside "Add." `yesButton` = `"Add"`, submitting
+  `CustomAll("pocketdungeons:room_whitelist_add", {"name": <text>})`;
+  `noButton` = `"Cancel"`, no action — this is what gives the add screen a
+  real exit that isn't only Escape.
 - **Stale-state guard required, unlike §1–§3.** A whitelist can change
   between when the dialog opened and when a remove button is clicked (the
   owner could edit it from another session, or the room itself could stop
@@ -233,6 +349,22 @@ together, this is the shape to build.
   section needs beyond what M2 already specifies — reuse whatever player-name
   resolution `EntityArgument.player()` uses elsewhere in `DungeonCommands`
   rather than inventing a second lookup path.
+- **After either action, the router re-shows the whitelist list, rebuilt
+  from the now-current whitelist** — not a bare success message. This is
+  what makes it a manager rather than a one-shot form.
+- `exitAction` = `"Close"` on the list screen. Clicking `"Cancel"` on the
+  add-player screen re-shows the rebuilt list, same as a successful add
+  does — both are the router's `StaticAction`/`show` call, not two
+  different code paths.
+- ⚠ **Escape specifically** (as opposed to the `noButton` click) is a
+  separate question: `Dialog.onCancel()` (`Optional<Action>`, root API
+  reference) looks like the field for "what happens on dismissal," but its
+  exact trigger semantics — Escape only, any dismissal, or something
+  narrower — aren't pinned down anywhere in this suite's docs or any
+  sibling's implementation report. Not load-bearing here, since the
+  `noButton` already gives this screen a real exit; confirm with `javap`
+  and a live test only if something is meant to specifically distinguish
+  "closed via Escape" from "closed via Cancel."
 
 ### §6. Admin `baserestore` confirmation — ties to M2 T2.1
 
@@ -310,6 +442,14 @@ looking at is a snapshot. A room could stop being listed, or an owner could
 come home, between the dialog opening and a slot being clicked. Carry the
 target owner's UUID in the click payload and re-resolve routing at click
 time against live state — never trust what the snapshot said was true.
+
+**On a stale click, re-show the rebuilt directory rather than erroring into
+a closed screen.** A room that vanished from the list between snapshot and
+click is exactly the case the guard above exists to catch; when it fires,
+the router's response is a fresh `DialogListDialog`/page build plus a short
+reason line (`"That room isn't open any more."`), not a bare failure with no
+way back in. Same principle as §2 and §5 — a rejected click still ends on a
+screen the player can act from, never on nothing.
 
 **Blocked on:** M2 (rooms must persist and carry a `listed` flag) and M3 (the
 visit/join method this reuses must exist). Not scheduled — see D7's own entry
