@@ -15,8 +15,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -219,6 +221,14 @@ final class DungeonCommands {
                                             .executes(ctx -> baseRestore(ctx.getSource(),
                                                     net.minecraft.commands.arguments.GameProfileArgument
                                                             .getGameProfiles(ctx, "target")))))
+
+                            // Debug / moderation: reset a player's keystone progress to 0
+                            // and confiscate any held keystones so the next /dungeon key gives
+                            // a fresh level 1.
+                            .then(Commands.literal("resetkey")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .executes(ctx -> resetKey(ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "target")))))
 
                             .then(manifestBranch())));
         });
@@ -761,6 +771,36 @@ final class DungeonCommands {
             }
         }
         return restored;
+    }
+
+    private static int resetKey(CommandSourceStack source, ServerPlayer target) {
+        MinecraftServer server = source.getServer();
+        DungeonLog.forServer(server).setKeystone(target.getUUID(), 0, Keystone.Affix.NONE);
+        int cleared = clearKeystones(target);
+        source.sendSuccess(() -> Component.literal(
+                "Reset " + target.getName().getString() + "'s keystone progress to 0"
+                        + (cleared > 0 ? " and cleared " + cleared + " keystone(s)." : ".")), true);
+        if (target != source.getPlayer()) {
+            target.sendSystemMessage(Component.literal("Your keystone progress has been reset to 0.")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+        return 1;
+    }
+
+    private static int clearKeystones(ServerPlayer player) {
+        return clearKeystones(player.getInventory()) + clearKeystones(player.getEnderChestInventory());
+    }
+
+    private static int clearKeystones(Container container) {
+        int cleared = 0;
+        for (int i = 0; i < container.getContainerSize(); i++) {
+            ItemStack stack = container.getItem(i);
+            if (Keystone.isKeystone(stack)) {
+                container.setItem(i, ItemStack.EMPTY);
+                cleared++;
+            }
+        }
+        return cleared;
     }
 
     private static int manifestReload(CommandSourceStack source) {
