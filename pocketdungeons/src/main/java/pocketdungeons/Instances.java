@@ -1370,8 +1370,8 @@ final class Instances {
         record.completed.add(player.getUUID());
 
         if (firstCompletion) {
-            stampRewardRoom(server, record);
             moveRoomToTerminal(server, record);
+            placeCompletionChests(server, record);
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -1410,41 +1410,34 @@ final class Instances {
 
         if (!late) {
             player.sendSystemMessage(Component.literal(
-                    "You reach the end with " + chests + " chest" + (chests == 1 ? "" : "s")
-                            + " waiting, and a door to choose from. Take the compass back to a "
-                            + "lodestone when you're ready.")
+                    "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
+                            + " wait in your room, and the door stands open.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
-                    "The chests stay empty, but there is still a door waiting. Take the "
-                            + "compass back to a lodestone when you're ready.")
+                    "The chests stay empty, but the door to your room stands open.")
                     .withStyle(ChatFormatting.YELLOW));
         }
         PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.slot, entry.runsCompleted(),
                 chests, record.layout.lootTier());
 
-        teleportToRewardRoom(server, record, player);
+        // The player is already standing in the terminal cell; after
+        // moveRoomToTerminal that cell *is* their room. Bounce them to the
+        // centre so they don't end up inside a freshly-placed block.
+        teleportToRoomCentre(server, record, player);
     }
 
     /**
-     * Stamps the reward room, once per instance, at a fixed offset well clear of
-     * the planned grid (U8 Stage 2). {@code maxGridSpan} caps a layout at 12
-     * cells (192 blocks) inside a 2048 slot pitch, so two cells north of the
-     * grid origin is comfortably outside anything the planner could have placed
-     * -- if a layout is ever found to reach it, that is {@code maxGridSpan} not
-     * holding, not this offset needing to move.
+     * Places the completion chests directly into the terminal cell after it has
+     * been turned into the player's room by {@link #moveRoomToTerminal}.
      */
-    private static final int REWARD_ROOM_OFFSET_Z = -2 * RoomGeometry.CELL;
-
-    private static void stampRewardRoom(MinecraftServer server, InstanceRecord record) {
+    private static void placeCompletionChests(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
+        if (level == null || record.roomCellOrigin == null) {
             record.rewardChests = 0;
             return;
         }
-        BlockPos rewardOrigin = record.origin.offset(0, 0, REWARD_ROOM_OFFSET_Z);
-        record.rewardRoomOrigin = rewardOrigin;
 
         int secondsRemaining = record.timer != null ? record.timer.secondsRemaining() : Integer.MAX_VALUE;
         int totalSeconds = record.timer != null ? record.timer.totalSeconds() : 1;
@@ -1452,26 +1445,17 @@ final class Instances {
                 PocketDungeonsConfig.threeChestPercent(), PocketDungeonsConfig.twoChestPercent());
         record.rewardChests = chests;
 
-        int cellX = rewardOrigin.getX() >> 4;
-        int cellZ = rewardOrigin.getZ() >> 4;
-        level.setChunkForced(cellX, cellZ, true);
-        try {
-            TemplateStamper.place(level, level.getStructureManager(), rewardOrigin,
-                    TemplateStamper.REWARD_HALL, 0, record.layout.seed());
-            TrialContent.applyRewardChests(level, rewardOrigin, chests,
-                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
-                            .lootTier(),
-                    record.affix == Keystone.Affix.OMINOUS, record.layout.seed());
-        } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Could not stamp the reward room for slot {}", record.slot, e);
-        }
+        TrialContent.placeRewardChests(level, record.roomCellOrigin, chests,
+                DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
+                        .lootTier(),
+                record.affix == Keystone.Affix.OMINOUS, record.layout.seed());
     }
 
     /**
      * M2 T2.4: the closed loop. Moves the room rather than copying it --
      * captured from the entrance cell, persisted, cleared, then re-stamped at
      * the terminal cell behind a closed door. Runs once per instance, on the
-     * first completion, alongside {@link #stampRewardRoom}.
+     * first completion, alongside {@link #placeCompletionChests}.
      *
      * <p><strong>Order is non-negotiable: capture, then persist, then clear,
      * then stamp.</strong> The blob is on disk (T2.1's backup-on-write and all)
@@ -1497,11 +1481,12 @@ final class Instances {
 
         // Hazard: a party straggler standing in the entrance cell when it
         // clears lands on the bedrock sub-floor in an empty box. Sweep them
-        // into the reward room, which stampRewardRoom() has already stamped by
-        // the time this runs.
+        // into the terminal cell, which will become their room once the move
+        // finishes.
         AABB entranceBounds = cellBounds(entranceCellOrigin);
+        BlockPos terminalCellOrigin = record.layout.terminal();
         for (ServerPlayer stray : level.getEntitiesOfClass(ServerPlayer.class, entranceBounds)) {
-            teleportToRewardRoom(server, record, stray);
+            teleportToRoomCentre(server, record, stray);
         }
 
         // Capture, then persist -- before a single block of the entrance cell
@@ -1526,7 +1511,6 @@ final class Instances {
 
         // Stamp: the just-persisted blob, re-placed at the terminal cell,
         // rotated to that cell's own door direction.
-        BlockPos terminalCellOrigin = record.layout.terminal();
         boolean placed = RoomStore.place(level, server, record.owner, terminalCellOrigin,
                 record.layout.terminalRotation(), net.minecraft.util.RandomSource.create(record.layout.seed()));
         if (!placed) {
@@ -1607,13 +1591,13 @@ final class Instances {
         };
     }
 
-    /** Standing point just inside the reward room, clear of both the chest row and the pad. */
-    private static void teleportToRewardRoom(MinecraftServer server, InstanceRecord record,
+    /** Standing point in the centre of the terminal cell, which is now the player's room. */
+    private static void teleportToRoomCentre(MinecraftServer server, InstanceRecord record,
                                              ServerPlayer player) {
-        if (record.rewardRoomOrigin == null) {
+        if (record.roomCellOrigin == null) {
             return;
         }
-        BlockPos standing = record.rewardRoomOrigin.offset(8, 1, 2);
+        BlockPos standing = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                 Vec3.atBottomCenterOf(standing), 0.0f, 0.0f);
     }
@@ -1952,8 +1936,8 @@ final class Instances {
         if (record.layout.bounds().contains(Vec3.atCenterOf(below))) {
             return true;
         }
-        return record.rewardRoomOrigin != null
-                && cellBounds(record.rewardRoomOrigin).contains(Vec3.atCenterOf(below));
+        return record.roomCellOrigin != null
+                && cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
     }
 
     /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
@@ -2031,10 +2015,6 @@ final class Instances {
             for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
                 level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
             }
-            if (record.rewardRoomOrigin != null) {
-                level.setChunkForced(record.rewardRoomOrigin.getX() >> 4,
-                        record.rewardRoomOrigin.getZ() >> 4, false);
-            }
         }
 
         record.lingering = true;
@@ -2068,8 +2048,7 @@ final class Instances {
                     (server.overworld().getGameTime() - record.createdAtTick) / 20L);
         }
         bySlot.remove(record.slot);
-        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep,
-                record.rewardRoomOrigin);
+        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep, null);
     }
 
     private static void teardown(MinecraftServer server, int slot, BlockPos origin,

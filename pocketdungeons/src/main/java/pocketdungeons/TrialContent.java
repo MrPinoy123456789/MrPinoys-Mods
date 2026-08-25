@@ -12,6 +12,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.TrialSpawnerBlock;
 import net.minecraft.world.level.block.VaultBlock;
@@ -272,13 +273,15 @@ final class TrialContent {
             new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4)
     };
 
-    static void applyRewardChests(ServerLevel level, BlockPos rewardOrigin, int chests,
-                                  int tier, boolean ominous, long seed) {
+    static void placeRewardChests(ServerLevel level, BlockPos origin, int chests,
+                                   int tier, boolean ominous, long seed) {
         ResourceKey<LootTable> table = lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
                 + (ominous ? "_ominous" : ""));
         for (int i = 0; i < REWARD_CHEST_SPOTS.length; i++) {
-            BlockPos pos = rewardOrigin.offset(REWARD_CHEST_SPOTS[i]);
+            BlockPos pos = origin.offset(REWARD_CHEST_SPOTS[i]);
             if (i < chests) {
+                level.setBlock(pos, Blocks.CHEST.defaultBlockState()
+                        .setValue(ChestBlock.FACING, Direction.SOUTH), FLAGS);
                 if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
                     c.setLootTable(table);
                     c.setLootTableSeed(seed ^ pos.asLong());

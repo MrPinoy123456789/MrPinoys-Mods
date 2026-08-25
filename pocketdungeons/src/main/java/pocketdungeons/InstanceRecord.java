@@ -124,14 +124,11 @@ final class InstanceRecord {
     long expiresAtTick;
 
     /**
-     * How many of the reward room's three chests were earned, fixed at the first
+     * How many of the completion chests were earned, fixed at the first
      * completion and shared by every member who reaches it afterwards. {@code -1}
-     * until the reward room has been stamped.
+     * until the room has been moved to the terminal cell.
      */
     int rewardChests = -1;
-
-    /** Floor corner of the reward room, once stamped (T10). Null until then. */
-    BlockPos rewardRoomOrigin;
 
     /**
      * True for the small, private, single-player instance a completed run's door
