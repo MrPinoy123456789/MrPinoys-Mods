@@ -76,7 +76,7 @@ final class TemplateStamper {
             new Vec3i(0, 0, CELL - 1)
     };
 
-    private static final Identifier ENTRANCE_HALL = id("rooms/entrance_hall");
+    static final Identifier ENTRANCE_HALL = id("rooms/entrance_hall");
     private static final Identifier ENCOUNTER_ZOMBIE = id("rooms/encounter_zombie");
     private static final Identifier LOOT_VAULT = id("rooms/loot_vault");
     private static final Identifier EXIT_HALL = id("rooms/exit_hall");
@@ -197,5 +197,28 @@ final class TemplateStamper {
             }
         }
         return out;
+    }
+
+    /**
+     * Places an already-in-memory template at a cell, rotated by
+     * {@code quarterTurns} -- the same pivot-at-zero, offset-the-placement scheme
+     * documented on the class, but with no processors and no jigsaw replacement.
+     *
+     * <p>This is {@link RoomStore}'s primitive, not the manifest's: a captured
+     * player room is a raw snapshot of already-resolved blocks, not a
+     * jigsaw-authored template, so there is nothing for
+     * {@link JigsawReplacementProcessor} to do and no theme to apply.
+     */
+    static void placeRotated(ServerLevel level, StructureTemplate template, BlockPos cellOrigin,
+                             int quarterTurns, RandomSource random, boolean ignoreEntities) {
+        int q = ((quarterTurns % 4) + 4) % 4;
+        BlockPos placementPos = cellOrigin.offset(ROTATION_OFFSETS[q]);
+
+        StructurePlaceSettings settings = new StructurePlaceSettings();
+        settings.setRotation(ROTATIONS[q]);
+        settings.setRotationPivot(BlockPos.ZERO);
+        settings.setIgnoreEntities(ignoreEntities);
+
+        template.placeInWorld(level, placementPos, placementPos, settings, random, STAMP_FLAGS);
     }
 }

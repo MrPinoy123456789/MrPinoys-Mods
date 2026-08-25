@@ -30,4 +30,81 @@ record DungeonShape(
         PlanCell terminal,
         List<PlanCell> criticalPath,
         Map<PlanCell, String> roles) {
+
+    /**
+     * A rigid rotation of the whole shape around the entrance -- always
+     * {@code (0,0)}, see {@code LayoutGraphGenerator.generateCriticalPath} --
+     * by {@code quarterTurns} clockwise. Every cell coordinate, and therefore
+     * every edge and role, moves with it; nothing about the generator's random
+     * choices changes.
+     *
+     * <p>The lobby (M2/M3's persistent room) is stamped once, at a fixed
+     * physical orientation, before any shape exists to attach to it. Rotating
+     * the freshly generated shape so its entrance edge lines up with that
+     * already-fixed doorway is far simpler than teaching the generator to
+     * target a specific first direction, and changes nothing about the shapes
+     * it can produce -- it is the same set of shapes, differently labelled.
+     *
+     * <p>{@code (x, z) -> (-z, x)} is one clockwise quarter-turn: it matches
+     * {@link PlanCell#neighbor} exactly (NORTH's {@code (0,-1)} maps to EAST's
+     * {@code (1,0)}), and {@code TemplateStamper}'s own rotation table for the
+     * same reason.
+     */
+    DungeonShape rotate(int quarterTurns) {
+        int q = ((quarterTurns % 4) + 4) % 4;
+        if (q == 0) {
+            return this;
+        }
+        Map<PlanCell, PlanCell> memo = new java.util.HashMap<>();
+        java.util.function.Function<PlanCell, PlanCell> xform = cell ->
+                memo.computeIfAbsent(cell, c -> rotateCell(c, q));
+
+        Set<PlanCell> rotatedCells = new java.util.LinkedHashSet<>();
+        for (PlanCell cell : cells) {
+            rotatedCells.add(xform.apply(cell));
+        }
+        Set<PlanEdge> rotatedEdges = new java.util.LinkedHashSet<>();
+        for (PlanEdge edge : openEdges) {
+            rotatedEdges.add(new PlanEdge(xform.apply(edge.a()), xform.apply(edge.b())));
+        }
+        List<PlanCell> rotatedPath = new java.util.ArrayList<>(criticalPath.size());
+        for (PlanCell cell : criticalPath) {
+            rotatedPath.add(xform.apply(cell));
+        }
+        Map<PlanCell, String> rotatedRoles = new java.util.LinkedHashMap<>();
+        for (Map.Entry<PlanCell, String> entry : roles.entrySet()) {
+            rotatedRoles.put(xform.apply(entry.getKey()), entry.getValue());
+        }
+
+        return new DungeonShape(seed, rotatedCells, rotatedEdges,
+                xform.apply(entrance), xform.apply(terminal), rotatedPath, rotatedRoles);
+    }
+
+    private static PlanCell rotateCell(PlanCell cell, int quarterTurns) {
+        int x = cell.x();
+        int z = cell.z();
+        for (int i = 0; i < quarterTurns; i++) {
+            int nx = -z;
+            int nz = x;
+            x = nx;
+            z = nz;
+        }
+        return new PlanCell(x, z);
+    }
+
+    /**
+     * The single door direction out of the entrance cell -- always exactly one
+     * ({@code LayoutGraphGenerator.validate}) -- before any rotation.
+     */
+    DoorMask.Direction entranceDirection() {
+        for (PlanEdge edge : openEdges) {
+            if (edge.touches(entrance)) {
+                DoorMask.Direction dir = entrance.directionTo(edge.other(entrance));
+                if (dir != null) {
+                    return dir;
+                }
+            }
+        }
+        return null;
+    }
 }

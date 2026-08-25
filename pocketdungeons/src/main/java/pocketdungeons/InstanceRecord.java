@@ -37,8 +37,13 @@ final class InstanceRecord {
      * The shape of this particular dungeon: entrance, exit pad, bounds, occupied
      * cells, tier. Procedural layouts differ per instance, so this travels with
      * the record rather than being recomputed from a constant.
+     *
+     * <p>Not {@code final}: a real keystone run now starts as a one-cell lobby
+     * (M2/M3 §3.2.3) with no plan behind it yet -- see {@link #awaitingDoorChoice}
+     * -- and this is replaced with the real, full layout the moment a door is
+     * chosen and the rest of the dungeon is generated and stamped.
      */
-    final InstanceLayout layout;
+    InstanceLayout layout;
 
     /** Member -> where that member came from. Insertion-ordered: opener first. */
     final Map<UUID, ReturnPoint> members = new LinkedHashMap<>();
@@ -51,8 +56,35 @@ final class InstanceRecord {
     // itself lives in DungeonLog, so there is no run to persist and nothing here
     // has to survive a restart.
 
-    /** The affix the spent keystone carried; {@code FRAGILE} doubles every depletion. */
-    final Keystone.Affix affix;
+    /**
+     * The affix the spent keystone carried; {@code FRAGILE} doubles every
+     * depletion. Not {@code final} for the same reason {@link #layout} is not:
+     * unknown until a door is chosen out of the lobby.
+     */
+    Keystone.Affix affix;
+
+    /**
+     * True while this instance is still just the lobby -- the owner's
+     * standing room, stamped alone with its one connecting door sealed,
+     * showing three doors rendered from {@code Keystone.offers} but no
+     * dungeon behind any of them yet. Cleared the moment a door is chosen:
+     * {@link #layout} and {@link #affix} are replaced with the real thing,
+     * the seal comes down, and {@link #timer} starts.
+     *
+     * <p>Not the same concept as {@link #selectorRoom}, which this retires --
+     * the old selector room was a separate, off-grid, post-completion-only
+     * instance; the lobby is the run's own cell 0, all the time.
+     */
+    boolean awaitingDoorChoice;
+
+    /**
+     * Which of {@code Keystone.offers(level)}'s three doors (1, 2 or 3) was
+     * chosen to open this run, or {@code 0} before that happens. Carried so a
+     * completing member's own banked level/affix (T2.4-adjacent) can be
+     * computed from *their* current keystone level at the same step the
+     * opener chose, rather than the opener's -- see {@code completeRun}.
+     */
+    int chosenStep;
 
     /**
      * The clock. Null only when nobody paid a keystone, or for an operator's
@@ -121,6 +153,32 @@ final class InstanceRecord {
      * until they purge it.
      */
     final boolean untimed;
+
+    /**
+     * Floor corner of whichever cell currently holds this run's persistent room
+     * (M2 T2.1/T2.4) -- the entrance cell until the run completes, the terminal
+     * cell after. {@code null} for a run with no room at all (an untimed or
+     * admin-built dungeon). This is what {@link Instances#roomOwnerAt} checks
+     * against for the T2.2 permission mask, and it moves exactly once, in
+     * {@code Instances.moveRoomToTerminal}.
+     */
+    BlockPos roomCellOrigin;
+
+    /**
+     * True once the room has been moved to the terminal cell and the dungeon has
+     * become a lingering quarry (T2.5): force-load tickets released, blocks left
+     * standing, slot still claimed so at most one lingers per owner. Exempted
+     * from every ordinary expiry/grace check in {@code onTick} -- the only way
+     * out is {@code Instances} purging it outright when the owner opens a new run.
+     */
+    boolean lingering;
+
+    /**
+     * True for a read-only visit instance created when someone uses a calling card
+     * while the room's owner is away (M3 T3.3). It has no timer, no reward room,
+     * and its copy of the room is never captured back to the owner's blob.
+     */
+    boolean visitInstance;
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Keystone.Affix affix, UUID owner) {

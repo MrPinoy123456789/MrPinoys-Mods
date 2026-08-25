@@ -78,6 +78,27 @@ final class LayoutPlanner {
                         int minPath, int maxPath,
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme, null);
+    }
+
+    /**
+     * As the 9-argument {@link #plan}, but the generated shape is rotated
+     * (M2/M3's lobby) so its entrance's one door faces
+     * {@code requiredEntranceDirection} before it is resolved against the
+     * manifest. {@code null} leaves the shape exactly as generated, matching
+     * every other caller.
+     *
+     * <p>This changes no probabilities and produces no new shapes -- rotation
+     * is a rigid relabelling (see {@link DungeonShape#rotate}) -- it only picks
+     * which of the four equally-likely orientations the generator's random
+     * choice gets presented in, so a lobby whose one door is already standing
+     * in the world always finds a matching connection.
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -88,6 +109,9 @@ final class LayoutPlanner {
             if (shape == null) {
                 lastReason = "shape generation exhausted its backtracking budget";
                 continue;
+            }
+            if (requiredEntranceDirection != null) {
+                shape = rotateToEntranceDirection(shape, requiredEntranceDirection);
             }
 
             List<String> shapeProblems = LayoutGraphGenerator.validate(shape);
@@ -119,6 +143,22 @@ final class LayoutPlanner {
         }
 
         return new Outcome(null, attemptBudget, seed + attemptBudget - 1, lastReason);
+    }
+
+    /** Rotates {@code shape} by whatever quarter-turn count puts its entrance edge on {@code direction}. */
+    private static DungeonShape rotateToEntranceDirection(DungeonShape shape, DoorMask.Direction direction) {
+        DoorMask.Direction current = shape.entranceDirection();
+        if (current == null) {
+            return shape; // no outgoing edge at all -- LayoutGraphGenerator.validate catches this separately
+        }
+        int currentBit = DoorMask.fromEdges(java.util.Set.of(current));
+        int targetBit = DoorMask.fromEdges(java.util.Set.of(direction));
+        for (int q = 0; q < 4; q++) {
+            if (DoorMask.rotateClockwise(currentBit, q) == targetBit) {
+                return shape.rotate(q);
+            }
+        }
+        return shape; // unreachable: rotateClockwise cycles through all 4 single bits
     }
 
     /**

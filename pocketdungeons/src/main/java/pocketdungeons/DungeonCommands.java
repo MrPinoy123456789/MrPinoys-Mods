@@ -99,6 +99,26 @@ final class DungeonCommands {
                                     .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "leader")))))
 
+                    // M2 T2.2: an owner's own guest list for their room.
+                    // M3 T3.1: mint a calling card for this owner.
+                    .then(Commands.literal("room")
+                            .then(Commands.literal("card")
+                                    .executes(ctx -> roomCard(ctx.getSource().getPlayerOrException())))
+                            .then(Commands.literal("whitelist")
+                                    .then(Commands.literal("add")
+                                            .then(Commands.argument("target", EntityArgument.player())
+                                                    .executes(ctx -> roomWhitelistAdd(
+                                                            ctx.getSource().getPlayerOrException(),
+                                                            EntityArgument.getPlayer(ctx, "target")))))
+                                    .then(Commands.literal("remove")
+                                            .then(Commands.argument("target", EntityArgument.player())
+                                                    .executes(ctx -> roomWhitelistRemove(
+                                                            ctx.getSource().getPlayerOrException(),
+                                                            EntityArgument.getPlayer(ctx, "target")))))
+                                    .then(Commands.literal("list")
+                                            .executes(ctx -> roomWhitelistList(
+                                                    ctx.getSource().getPlayerOrException())))))
+
                     .then(Commands.literal("admin")
                             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 
@@ -187,6 +207,18 @@ final class DungeonCommands {
 
                             .then(Commands.literal("exportdata")
                                     .executes(ctx -> DatapackExporter.export(ctx.getSource())))
+
+                            // M2 T2.1: not optional for a room blob. Restores this
+                            // owner's live room from its backup file -- for a
+                            // corrupted or accidentally-deleted live blob, or a
+                            // player who wants their previous save back.
+                            .then(Commands.literal("baserestore")
+                                    .then(Commands.argument("target",
+                                                    net.minecraft.commands.arguments.GameProfileArgument
+                                                            .gameProfile())
+                                            .executes(ctx -> baseRestore(ctx.getSource(),
+                                                    net.minecraft.commands.arguments.GameProfileArgument
+                                                            .getGameProfiles(ctx, "target")))))
 
                             .then(manifestBranch())));
         });
@@ -356,6 +388,62 @@ final class DungeonCommands {
             return 0;
         }
         Instances.join(player, leader);
+        return 1;
+    }
+
+    // ---- room whitelist (M2 T2.2) ---------------------------------------------
+
+    private static int roomWhitelistAdd(ServerPlayer owner, ServerPlayer target) {
+        if (target.getUUID().equals(owner.getUUID())) {
+            owner.sendSystemMessage(Component.literal("You already own your room.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        boolean added = RoomWhitelist.forServer(owner.level().getServer())
+                .add(owner.getUUID(), target.getUUID());
+        owner.sendSystemMessage(Component.literal(
+                (added ? "Added " : "") + target.getName().getString()
+                        + (added ? " to your room's whitelist." : " is already whitelisted."))
+                .withStyle(added ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+        return added ? 1 : 0;
+    }
+
+    private static int roomWhitelistRemove(ServerPlayer owner, ServerPlayer target) {
+        boolean removed = RoomWhitelist.forServer(owner.level().getServer())
+                .remove(owner.getUUID(), target.getUUID());
+        owner.sendSystemMessage(Component.literal(
+                removed ? "Removed " + target.getName().getString() + " from your room's whitelist."
+                        : target.getName().getString() + " was not whitelisted.")
+                .withStyle(removed ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+        return removed ? 1 : 0;
+    }
+
+    private static int roomWhitelistList(ServerPlayer owner) {
+        java.util.Set<java.util.UUID> whitelist = RoomWhitelist.forServer(owner.level().getServer())
+                .get(owner.getUUID());
+        if (whitelist.isEmpty()) {
+            owner.sendSystemMessage(Component.literal("Your room's whitelist is empty.")
+                    .withStyle(ChatFormatting.GRAY));
+            return 1;
+        }
+        StringBuilder sb = new StringBuilder("Whitelisted: ");
+        boolean first = true;
+        for (java.util.UUID id : whitelist) {
+            if (!first) {
+                sb.append(", ");
+            }
+            first = false;
+            ServerPlayer online = owner.level().getServer().getPlayerList().getPlayer(id);
+            sb.append(online != null ? online.getName().getString() : id.toString());
+        }
+        owner.sendSystemMessage(Component.literal(sb.toString()).withStyle(ChatFormatting.GRAY));
+        return 1;
+    }
+
+    private static int roomCard(ServerPlayer owner) {
+        Payout.deliver(owner, CallingCard.mint(owner.getUUID()));
+        owner.sendSystemMessage(Component.literal("You mint a calling card for your room.")
+                .withStyle(ChatFormatting.GOLD));
         return 1;
     }
 
@@ -648,6 +736,31 @@ final class DungeonCommands {
         }
         source.sendSuccess(() -> Component.literal("Purged slot " + slot + "."), true);
         return 1;
+    }
+
+    /**
+     * M2 T2.1: "every write to a room blob is backed up first, and
+     * {@code admin baserestore} recovers a room from that backup on demand."
+     * Works for an offline owner -- {@code GameProfileArgument} resolves a name
+     * to a profile without requiring the target to be connected, which matters
+     * here more than anywhere else in this command tree: the operator reaching
+     * for this is very possibly doing it *because* the owner cannot log in to
+     * fix it themselves.
+     */
+    private static int baseRestore(CommandSourceStack source,
+                                   java.util.Collection<net.minecraft.server.players.NameAndId> targets) {
+        int restored = 0;
+        for (net.minecraft.server.players.NameAndId target : targets) {
+            if (RoomStore.restoreFromBackup(source.getServer(), target.id())) {
+                source.sendSuccess(() -> Component.literal(
+                        "Restored " + target.name() + "'s room from its backup."), true);
+                restored++;
+            } else {
+                source.sendFailure(Component.literal(
+                        target.name() + " has no room backup to restore from."));
+            }
+        }
+        return restored;
     }
 
     private static int manifestReload(CommandSourceStack source) {

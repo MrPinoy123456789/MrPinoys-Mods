@@ -94,7 +94,7 @@ final class RoomBuilder {
         set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
 
         for (Direction door : doors) {
-            punchDoor(level, o, door);
+            openDoor(level, o, door);
         }
     }
 
@@ -103,7 +103,22 @@ final class RoomBuilder {
      * wall; the neighbour independently punches its facing wall at the same
      * coordinates, and the two openings line up because the slot is fixed.
      */
-    private static void punchDoor(ServerLevel level, BlockPos cellOrigin, Direction door) {
+    static void openDoor(ServerLevel level, BlockPos cellOrigin, Direction door) {
+        doorSlot(level, cellOrigin, door, AIR);
+    }
+
+    /**
+     * The opposite of {@link #openDoor}: fills the canonical door slot back in
+     * with wall. For the M2/M3 lobby, whose one connecting door is sealed until
+     * a door choice generates the dungeon behind it -- there is nothing on the
+     * other side yet, so an open gap would be a gap onto bedrock (T2.3), not a
+     * doorway.
+     */
+    static void sealDoor(ServerLevel level, BlockPos cellOrigin, Direction door) {
+        doorSlot(level, cellOrigin, door, WALL);
+    }
+
+    private static void doorSlot(ServerLevel level, BlockPos cellOrigin, Direction door, BlockState state) {
         for (int y = 1; y <= DOOR_HEIGHT; y++) {
             for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {
                 BlockPos pos = switch (door) {
@@ -113,7 +128,7 @@ final class RoomBuilder {
                     case EAST -> cellOrigin.offset(CELL - 1, y, i);
                     default -> throw new IllegalArgumentException("door must be horizontal: " + door);
                 };
-                set(level, pos, AIR);
+                set(level, pos, state);
             }
         }
     }

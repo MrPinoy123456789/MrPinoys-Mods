@@ -17,6 +17,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 
+import java.util.UUID;
+
 /**
  * The lodestone ritual: right-click a lodestone holding the keystone and the
  * dungeon opens, with no command typed.
@@ -56,6 +58,7 @@ final class RitualListener {
         // nothing happen.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             Keystone.warmUp();
+            CallingCard.warmUp();
             TrialContent.warmUp();
         });
     }
@@ -73,10 +76,31 @@ final class RitualListener {
 
         BlockPos pos = hit.getBlockPos();
 
-        // T13: a door in the player's own selector room. Handled mod-side and
-        // ahead of everything else -- vanilla's own door open/close must never
-        // run for one of these, or a door that swings looks like it did
-        // something.
+        // M2 T2.2: the room's permission mask, ahead of everything else below --
+        // a denied container open or a denied placement must never fall through
+        // to the ritual or to vanilla's own handling of the block. Positional
+        // (Instances.roomOwnerAt is one bounds check per live instance) and
+        // early-returns the moment the position is not inside anyone's room, so
+        // the common case -- the other 15 cells of the dungeon, or the
+        // overworld entirely -- costs exactly that one check.
+        if (RoomProtection.denyContainerUse(level, player, pos, level.getBlockEntity(pos))) {
+            return InteractionResult.FAIL;
+        }
+        // Placement: there is no generic "before a block is placed" event in
+        // this mod's Fabric API surface, so this is the same trick as the
+        // container check above -- deny the use-on-block interaction that a
+        // placement begins from when the target face sits inside someone else's
+        // room and the held item would place something there.
+        UUID placementRoomOwner = Instances.roomOwnerAt(hit.getBlockPos().relative(hit.getDirection()));
+        if (placementRoomOwner != null
+                && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem
+                && !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
+            return InteractionResult.FAIL;
+        }
+
+        // M2/M3: a door in the player's own lobby. Handled mod-side and ahead
+        // of everything else -- vanilla's own door open/close must never run
+        // for one of these, or a door that swings looks like it did something.
         Integer step = Instances.selectorDoorStep(serverPlayer, pos);
         if (step != null) {
             sendDoorOffer(serverPlayer, step);
@@ -103,19 +127,21 @@ final class RitualListener {
         // outcome U4 wanted, reached by a rule that cannot be wrong about a tagged
         // item nobody has written yet.
         ItemStack held = player.getItemInHand(hand);
-        if (!Keystone.isKeystone(held)) {
+
+        // M3 T3.2: calling card -- positive test, falls through to the keystone
+        // branch if it is not a card, and foreign items still PASS cleanly.
+        java.util.Optional<java.util.UUID> cardOwner = CallingCard.ownerOf(held);
+        if (cardOwner.isPresent()) {
+            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
+                    SoundSource.BLOCKS, 1.0f, 1.0f);
+            if (Instances.visit(serverPlayer, cardOwner.get())) {
+                return InteractionResult.SUCCESS_SERVER;
+            }
             return InteractionResult.PASS;
         }
 
-        // T14: branch on server state before touching the "already inside"
-        // guards below -- a pending offer or an owned instance both route
-        // somewhere other than a fresh dungeon, from any lodestone anywhere.
-        DungeonLog.Entry entry = DungeonLog.forServer(serverPlayer.level().getServer())
-                .get(serverPlayer.getUUID());
-        if (entry.pendingOfferLevel() > 0) {
-            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 1.0f, 1.0f);
-            Instances.enterSelectorRoom(serverPlayer);
-            return InteractionResult.SUCCESS_SERVER;
+        if (!Keystone.isKeystone(held)) {
+            return InteractionResult.PASS;
         }
 
         // The exit pad is a lodestone too. Without this, standing on it and
@@ -146,21 +172,20 @@ final class RitualListener {
     }
 
     /**
-     * The offer as chat with a clickable accept (T13). Verified against the
-     * 26.2 jar: {@code ClickEvent} is a sealed interface with record subtypes,
-     * so {@code new ClickEvent.RunCommand(...)} plus {@code withClickEvent} is
+     * The offer as chat with a clickable accept. Verified against the 26.2
+     * jar: {@code ClickEvent} is a sealed interface with record subtypes, so
+     * {@code new ClickEvent.RunCommand(...)} plus {@code withClickEvent} is
      * the shape -- the old {@code new ClickEvent(Action, String)} constructor
      * form does not compile here.
+     *
+     * <p>M2/M3: rendered from the player's <em>current</em> keystone level,
+     * not a banked "pending offer" -- the doors in the lobby are always live,
+     * every visit, not a one-time reward after a completed run.
      */
     private static void sendDoorOffer(ServerPlayer player, int step) {
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
-        int pendingLevel = entry.pendingOfferLevel();
-        if (pendingLevel <= 0) {
-            player.sendSystemMessage(Component.literal(
-                    "There is no offer waiting for you here.").withStyle(ChatFormatting.RED));
-            return;
-        }
-        Keystone.Offer[] offers = Keystone.offers(pendingLevel);
+        int level = Math.max(1, entry.keystoneLevel());
+        Keystone.Offer[] offers = Keystone.offers(level);
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
 
         String heading = (offer.affix() == Keystone.Affix.NONE ? "Oak" : offer.affix().label)

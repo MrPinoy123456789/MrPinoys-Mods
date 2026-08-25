@@ -32,6 +32,12 @@ import net.minecraft.world.phys.AABB;
  *                     ({@code /dungeon admin build})
  * @param terminal     the terminal cell's floor corner, where U7's three choice
  *                     vaults go
+ * @param entranceRotation the quarter-turns the entrance cell's room was
+ *                     actually stamped at -- M2 T2.1/T2.4 needs this to know
+ *                     what rotation a captured room blob was captured at
+ * @param terminalRotation the quarter-turns the terminal cell's room was
+ *                     actually stamped at -- what T2.4's closed loop re-stamps
+ *                     the moved room at
  */
 record InstanceLayout(
         BlockPos origin,
@@ -47,7 +53,9 @@ record InstanceLayout(
         boolean procedural,
         boolean ominous,
         int keystoneLevel,
-        BlockPos terminal) {
+        BlockPos terminal,
+        int entranceRotation,
+        int terminalRotation) {
 
     /**
      * Yaw that faces from the entrance cell into the dungeon.
@@ -75,6 +83,6 @@ record InstanceLayout(
      */
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
-                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false, false, 0, origin);
+                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false, false, 0, origin, 0, 0);
     }
 }

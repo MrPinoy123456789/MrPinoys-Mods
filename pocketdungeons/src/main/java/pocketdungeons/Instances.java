@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
@@ -15,9 +16,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
@@ -293,7 +296,19 @@ final class Instances {
         }
         InstanceRecord existing = null;
         for (InstanceRecord candidate : bySlot.values()) {
-            if (!candidate.selectorRoom && player.getUUID().equals(candidate.owner)) {
+            // A lingering quarry (T2.5) is not re-entered for free -- it is done,
+            // and opening a new run purges it. See enter()'s lingering-quarry check.
+            //
+            // Nor is an instance that has already completed (T2.4): once the
+            // room has moved to the terminal cell, "re-entering" this instance
+            // means dropping the player at a cleared entrance cell with their
+            // room sitting at the far end, which reads as broken even though it
+            // is exactly what a finished run looks like now. A run that is done
+            // is done -- there is nothing left to continue, and the reward room
+            // stays reachable through its own grace window/lingering-quarry
+            // path regardless (T2.5), not through free re-entry.
+            if (!candidate.selectorRoom && !candidate.lingering && candidate.completed.isEmpty()
+                    && player.getUUID().equals(candidate.owner)) {
                 existing = candidate;
                 break;
             }
@@ -342,6 +357,23 @@ final class Instances {
             return false;
         }
 
+        // T2.5: opening a new run is the lingering quarry's purge trigger. Also
+        // catches an already-*completed* instance that has not reached
+        // rewardRoomGraceSeconds yet -- reenterOwnedInstance no longer offers
+        // free re-entry into one of those (see its note), so without this a
+        // completed-but-not-yet-lingering instance would just sit there
+        // orphaned, still holding its slot, while a second one gets built.
+        // retireOrPurge turns it into a proper lingering quarry if its room
+        // already moved, or purges it outright if it never got that far.
+        for (InstanceRecord candidate : new ArrayList<>(bySlot.values())) {
+            if (!candidate.selectorRoom
+                    && (candidate.lingering || !candidate.completed.isEmpty())
+                    && player.getUUID().equals(candidate.owner)) {
+                retireOrPurge(server, candidate, "new run started");
+                break;
+            }
+        }
+
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             player.sendSystemMessage(Component.literal(
@@ -356,6 +388,17 @@ final class Instances {
         List<ServerPlayer> companions = resolveParty(server, player);
         int partySize = 1 + companions.size();
 
+        // M2/M3 §3.2.3: an ordinary keystone run no longer builds a full
+        // dungeon on entry at all -- it opens into the owner's lobby (their
+        // persistent room, cell 0), and generation is deferred to whichever of
+        // its three doors gets chosen (chooseOffer -> generateBehindLobby).
+        // /dungeon admin untimed keeps the old immediate-full-build path below:
+        // it is a debug tool, not the player-facing loop, and changing it earns
+        // nothing.
+        if (!untimed) {
+            return enterLobby(server, level, player, companions);
+        }
+
         long seed = level.getRandom().nextLong();
         int slot = allocateSlot();
         BlockPos origin = originForSlot(slot);
@@ -368,7 +411,8 @@ final class Instances {
         // On failure buildLayout has already queued a clear for whatever partial
         // geometry it wrote and the slot's release happens when that clear
         // finishes -- it is deliberately not freed here. See buildLayout's note.
-        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous, theme);
+        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous, theme,
+                player.getUUID());
         if (layout == null) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. You have not been moved.")
@@ -378,6 +422,15 @@ final class Instances {
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affix,
                 player.getUUID(), false, untimed);
+        // M2 T2.1/T2.4: the entrance cell is the room, for every keystone run
+        // that got a real (procedural) layout. Untimed/admin runs and the
+        // StaticLayout fallback have no room concept and stay null.
+        if (record.isKeystoneRun() && layout.procedural()) {
+            PlanCell entranceCell = layout.geometry().cellAt(layout.entrance());
+            if (entranceCell != null) {
+                record.roomCellOrigin = layout.geometry().cellOrigin(entranceCell);
+            }
+        }
         bySlot.put(slot, record);
 
         if (untimed) {
@@ -523,7 +576,7 @@ final class Instances {
     private static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
                                               int slot, BlockPos origin, long seed,
                                               int keystoneLevel, boolean ominous,
-                                              String theme) {
+                                              String theme, UUID owner) {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
@@ -535,7 +588,7 @@ final class Instances {
             PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
-                return LayoutStamper.stamp(level, origin, plan, keystoneLevel, ominous);
+                return LayoutStamper.stamp(level, origin, plan, keystoneLevel, ominous, owner);
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan at {} failed; clearing whatever was written",
                         origin.toShortString(), e);
@@ -837,87 +890,130 @@ final class Instances {
                 player.getName().getString(), record.slot);
     }
 
-    // ---- selector room (U8 Stage 3) ------------------------------------------
+    // ---- the lobby (M2/M3 §3.2.3) ---------------------------------------------
+    //
+    // Retires U8 Stage 3's separate, off-grid, post-completion-only selector
+    // room. The lobby is the same shape -- one fixed cell, three fixed interior
+    // doors, a leave-lodestone -- but it is now the run's own cell 0, present
+    // every time, and its three doors choose the run about to start rather than
+    // a reward banked after one already finished. `InstanceRecord.selectorRoom`
+    // and the guards reading it are left in place (harmless dead weight) rather
+    // than touched everywhere they are checked, to keep this change contained.
 
     /**
-     * Opens (or returns to) this player's private selector room, where a
-     * completed run's door offer is presented (T14). A small, static, single-
-     * player instance -- no planner, no rotation, no library lookup -- built on
-     * demand through the same slot/force-load/stamp machinery every other
-     * instance uses.
+     * The absolute compass direction the lobby's one connecting door is placed
+     * at, every time -- whatever {@code entrance_hall}'s own un-rotated mask
+     * happens to be. Read from the manifest rather than assumed, so this stays
+     * correct however that template is authored.
      */
-    static void enterSelectorRoom(ServerPlayer player) {
-        MinecraftServer server = player.level().getServer();
-        if (server == null) {
-            return;
-        }
-        InstanceRecord current = byMember.get(player.getUUID());
-        if (current != null) {
-            if (current.selectorRoom) {
-                return; // already there
+    private static DoorMask.Direction lobbyDoorDirection() {
+        RoomManifest.Entry entry = RoomManifest.current().byName("entrance_hall");
+        int mask = entry != null ? entry.maskAtRotation(0) : DoorMask.NORTH;
+        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
+            if (DoorMask.hasEdge(mask, dir)) {
+                return dir;
             }
-            player.sendSystemMessage(Component.literal(
-                    "You are already in a dungeon. Use /dungeon exit first.")
-                    .withStyle(ChatFormatting.RED));
-            return;
         }
-
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return;
-        }
-
-        int slot = allocateSlot();
-        BlockPos origin = originForSlot(slot);
-        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
-        try {
-            TemplateStamper.place(level, level.getStructureManager(), origin,
-                    TemplateStamper.SELECTOR_ROOM, 0, 0L);
-        } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Could not stamp a selector room for {}",
-                    player.getName().getString(), e);
-            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            usedSlots.remove(slot);
-            player.sendSystemMessage(Component.literal(
-                    "The selector room failed to build.").withStyle(ChatFormatting.RED));
-            return;
-        }
-
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(),
-                selectorRoomLayout(origin), Keystone.Affix.NONE, player.getUUID(), true);
-        bySlot.put(slot, record);
-        admit(server, record, player);
-        player.sendSystemMessage(Component.literal(
-                "Three doors. Choose one, or step onto the lodestone to leave without choosing.")
-                .withStyle(ChatFormatting.GOLD));
+        return DoorMask.Direction.NORTH;
     }
 
-    /** A single fixed cell at rotation 0 -- no keystone, no timer, no reward room. */
-    private static InstanceLayout selectorRoomLayout(BlockPos origin) {
+    /**
+     * Opens (or returns to) this player's lobby: their persistent room,
+     * standing alone with no dungeon behind it yet. Companions pre-registered
+     * via {@code /dungeon party} come in too, exactly as they would for an
+     * already-generated run -- they just wait on the owner's door choice.
+     */
+    private static boolean enterLobby(MinecraftServer server, ServerLevel level, ServerPlayer player,
+                                      List<ServerPlayer> companions) {
+        int slot = allocateSlot();
+        BlockPos origin = originForSlot(slot);
+
+        InstanceLayout layout = stampLobby(server, level, slot, origin, player.getUUID());
+        if (layout == null) {
+            player.sendSystemMessage(Component.literal(
+                    "Your room failed to build. You have not been moved.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
+                Keystone.Affix.NONE, player.getUUID());
+        record.awaitingDoorChoice = true;
+        record.roomCellOrigin = origin;
+        bySlot.put(slot, record);
+
+        admit(server, record, player);
+        for (ServerPlayer companion : companions) {
+            admit(server, record, companion);
+        }
+
+        player.sendSystemMessage(Component.literal(
+                "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
+        return true;
+    }
+
+    /**
+     * Stamps just the lobby -- the owner's saved room (M2 T2.1) if they have
+     * one, {@code entrance_hall} untouched otherwise -- with its one connecting
+     * door sealed (T2.3's envelope covers the other three sides; nothing exists
+     * to connect to yet) and its three fixed choice-doors ready. No plan, no
+     * timer: {@link #chooseLobbyDoor} is what generates the rest of the run.
+     *
+     * @return the one-cell layout, or {@code null} if the stamp failed (the
+     *         slot's tickets are already released on that path)
+     */
+    private static InstanceLayout stampLobby(MinecraftServer server, ServerLevel level,
+                                             int slot, BlockPos origin, UUID owner) {
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        try {
+            boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
+                    RandomSource.create(level.getRandom().nextLong()));
+            if (!placedOwnRoom) {
+                TemplateStamper.place(level, level.getStructureManager(), origin,
+                        TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
+            }
+            RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
+            BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            usedSlots.remove(slot);
+            return null;
+        }
+        return lobbyLayout(origin);
+    }
+
+    private static net.minecraft.core.Direction mcDirection(DoorMask.Direction dir) {
+        return switch (dir) {
+            case NORTH -> net.minecraft.core.Direction.NORTH;
+            case SOUTH -> net.minecraft.core.Direction.SOUTH;
+            case EAST -> net.minecraft.core.Direction.EAST;
+            case WEST -> net.minecraft.core.Direction.WEST;
+        };
+    }
+
+    /** A single fixed cell at rotation 0 -- no keystone, no timer, no reward room, until a door is chosen. */
+    private static InstanceLayout lobbyLayout(BlockPos origin) {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         BlockPos entrance = origin.offset(8, 1, 3);
         BlockPos exitPad = origin.offset(7, 0, 12);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, false, 0, origin);
+                0L, 1, 1, 1, false, false, 0, origin, 0, 0);
     }
 
     /**
-     * Which of a selector room's three fixed doors (1, 2 or 3) this world
-     * position is, for <em>this player's own</em> selector instance -- or null
-     * if the player is not standing in one, the position is not a door, or the
-     * player is a party member riding along in someone else's selector room
-     * rather than its owner. That last check is a clarity fix, not a security
-     * one: {@code chooseOffer} spends the clicking player's own {@link DungeonLog}
-     * offer regardless of location (see its javadoc), so a non-owner could never
-     * have spent anything by clicking here -- they would just see a prompt from
-     * doors that were never theirs.
-     * Positions are computed from the record's origin rather than read back out
-     * of the template: the room is always stamped at rotation 0, so there is no
-     * transform to account for.
+     * Which of the lobby's three fixed doors (1, 2 or 3) this world position
+     * is, for <em>this player's own</em> lobby -- or null if the player is not
+     * standing in one that is still {@link InstanceRecord#awaitingDoorChoice},
+     * the position is not a door, or the player is a party member riding along
+     * rather than the lobby's owner (only the owner's keystone is on the
+     * line). Positions are computed from the record's origin rather than read
+     * back out of the template: the lobby is always stamped at rotation 0, so
+     * there is no transform to account for.
      */
     static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = byMember.get(player.getUUID());
-        if (record == null || !record.selectorRoom || !player.getUUID().equals(record.owner)) {
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
             return null;
         }
         int dx = pos.getX() - record.origin.getX();
@@ -935,10 +1031,12 @@ final class Instances {
     }
 
     /**
-     * Settles {@code /dungeon choose} (T13). Validated purely against
-     * {@link DungeonLog}'s pending offer -- not against being in the selector
-     * room, which is presentation only, so a player who disconnects with the
-     * offer message still on screen can accept it later from anywhere.
+     * Settles a door choice out of the lobby (M2/M3 §3.2.3): generates the rest
+     * of the dungeon at the chosen offer's level and affix, connects it through
+     * the lobby's already-sealed door, starts the timer, and admits every
+     * member already standing in the lobby into the real run. The keystone
+     * stays the authority throughout -- the level/affix are read off
+     * {@link DungeonLog} at the moment of choosing, not carried on any item.
      *
      * @return whether a door was actually taken
      */
@@ -952,36 +1050,211 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        DungeonLog log = DungeonLog.forServer(server);
-        DungeonLog.Entry entry = log.get(player.getUUID());
-        if (entry.pendingOfferLevel() <= 0) {
-            player.sendSystemMessage(Component.literal("You have no offer waiting.")
+        InstanceRecord record = byMember.get(player.getUUID());
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
+            player.sendSystemMessage(Component.literal("There is no door here for you to choose.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
 
-        Keystone.Offer[] offers = Keystone.offers(entry.pendingOfferLevel());
+        DungeonLog log = DungeonLog.forServer(server);
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        Keystone.Offer[] offers = Keystone.offers(entry.keystoneLevel());
         Keystone.Offer offer = offers[step - 1];
-        Keystones.grantOffer(server, player.getUUID(), player, offer);
-        log.clearPendingOffer(player.getUUID());
 
-        // Guard the later exit() from settling the keystone again after we have
-        // already replaced it with the chosen offer.
-        InstanceRecord record = byMember.get(player.getUUID());
-        if (record != null) {
-            record.keystoneReturned.add(player.getUUID());
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null || !generateBehindLobby(server, level, record, offer, step)) {
+            player.sendSystemMessage(Component.literal(
+                    "The dungeon failed to build. Try another door.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
         }
 
         player.sendSystemMessage(Component.literal(
-                "Keystone [" + offer.level() + "]"
-                        + (offer.affix() == Keystone.Affix.NONE
-                                ? "" : " (" + offer.affix().label.toLowerCase() + ")")
-                        + " is yours.")
-                .withStyle(ChatFormatting.AQUA));
+                (offer.affix() == Keystone.Affix.NONE ? "" : offer.affix().label + " ")
+                        + "Keystone [" + offer.level() + "]. The door opens.")
+                .withStyle(offer.affix().colour));
+        return true;
+    }
 
-        if (record != null) {
-            exit(player, ExitReason.COMMAND);
+    /**
+     * The generation half of {@link #chooseOffer}: plans a shape rotated so its
+     * entrance edge lines up with the lobby's already-standing, already-sealed
+     * door, resolves and stamps everything except cell 0 (the lobby, untouched),
+     * force-loads the new chunks, opens the seal, starts the timer, and
+     * replaces the record's placeholder lobby layout with the real one.
+     *
+     * <p>On failure the lobby itself is left standing -- nothing about it was
+     * touched -- so the player is exactly where they were and can try another
+     * door.
+     */
+    private static boolean generateBehindLobby(MinecraftServer server, ServerLevel level,
+                                                InstanceRecord record, Keystone.Offer offer, int step) {
+        long seed = level.getRandom().nextLong();
+        LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
+                seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
+                PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
+                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                PocketDungeonsConfig.maxGridSpan(), null, lobbyDoorDirection());
+
+        DungeonPlan plan = outcome.plan();
+        boolean ominous = offer.affix() == Keystone.Affix.OMINOUS;
+        InstanceLayout layout;
+        if (plan != null) {
+            // The lobby is physically at record.origin, already resolved to
+            // grid (0,0) -- entrance is always (0,0) -- but the plan's own
+            // cell set may reach negative x/z (a branch heading north or
+            // west). PlanGeometry anchors its *lowest* cell at the world
+            // origin it is given, so the world origin fed to the stamper has
+            // to be shifted back by exactly that much or cell (0,0) would not
+            // land on the lobby that is already standing there.
+            int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
+            int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
+            BlockPos planOrigin = record.origin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
+            PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
+            forceLoad(level, geometry.chunks(), true);
+            try {
+                layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), ominous,
+                        record.owner);
+            } catch (RuntimeException e) {
+                PocketDungeonsMod.LOG.error("Stamping plan behind the lobby at {} failed",
+                        record.origin.toShortString(), e);
+                teardown(server, record.slot, record.origin, InstanceLayout.forClearingOnly(planOrigin, geometry),
+                        "stamp failed");
+                return false;
+            }
+        } else {
+            PocketDungeonsMod.LOG.warn(
+                    "Planning failed behind the lobby for seed {} after {} attempts ({})",
+                    seed, outcome.attemptsUsed(), outcome.failureReason());
+            return false;
         }
+
+        RoomBuilder.openDoor(level, record.origin, mcDirection(lobbyDoorDirection()));
+
+        record.layout = layout;
+        record.affix = offer.affix();
+        record.awaitingDoorChoice = false;
+        record.chosenStep = step;
+        record.roomCellOrigin = record.origin; // unchanged: the lobby is still cell 0
+        if (!record.untimed) {
+            record.timer = new RunTimer(layout.keystoneLevel(),
+                    KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
+                            PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength()),
+                    layout.roomCount());
+        }
+        return true;
+    }
+
+    // ---- visiting (M3) ------------------------------------------------------
+
+    /**
+     * Routes a visitor holding a calling card to the owner's room.
+     *
+     * <p>The owner is "home" when they have a live, non-lingering instance: the
+     * visitor joins that exact instance, so two cards to the same owner always
+     * converge. When the owner is away, a read-only visit instance is stamped
+     * from their saved room blob; a second visitor joins the existing copy rather
+     * than creating another. The copy is never written back to the owner's blob.
+     */
+    static boolean visit(ServerPlayer visitor, UUID owner) {
+        if (visitor.getUUID().equals(owner)) {
+            visitor.sendSystemMessage(Component.literal("You don't need a card to enter your own room. Use /dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        if (hasInstance(visitor)) {
+            visitor.sendSystemMessage(Component.literal("You are already in a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        MinecraftServer server = visitor.level().getServer();
+        if (server == null) {
+            return false;
+        }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            visitor.sendSystemMessage(Component.literal(
+                    "The dungeon dimension is not loaded. This world needs the Pocket Dungeons data pack enabled.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        InstanceRecord owned = findOwnedLiveRoom(owner);
+        if (owned != null) {
+            admit(server, owned, visitor);
+            ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
+            String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
+            visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
+                    .withStyle(ChatFormatting.GOLD));
+            return true;
+        }
+
+        InstanceRecord existingVisit = findVisitInstance(owner);
+        if (existingVisit != null) {
+            admit(server, existingVisit, visitor);
+            return true;
+        }
+
+        return createVisitInstance(server, level, visitor, owner);
+    }
+
+    private static InstanceRecord findOwnedLiveRoom(UUID owner) {
+        for (InstanceRecord record : bySlot.values()) {
+            if (record.owner.equals(owner) && !record.lingering && !record.visitInstance) {
+                return record;
+            }
+        }
+        return null;
+    }
+
+    private static InstanceRecord findVisitInstance(UUID owner) {
+        for (InstanceRecord record : bySlot.values()) {
+            if (record.owner.equals(owner) && record.visitInstance) {
+                return record;
+            }
+        }
+        return null;
+    }
+
+    private static boolean createVisitInstance(MinecraftServer server, ServerLevel level,
+                                               ServerPlayer visitor, UUID owner) {
+        int slot = allocateSlot();
+        BlockPos origin = originForSlot(slot);
+
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        try {
+            boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
+                    RandomSource.create(level.getRandom().nextLong()));
+            if (!placedOwnRoom) {
+                TemplateStamper.place(level, level.getStructureManager(), origin,
+                        TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
+            }
+            BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            usedSlots.remove(slot);
+            visitor.sendSystemMessage(Component.literal("The room could not be reached right now.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        InstanceLayout layout = lobbyLayout(origin);
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
+                Keystone.Affix.NONE, owner);
+        record.visitInstance = true;
+        record.roomCellOrigin = origin;
+        bySlot.put(slot, record);
+
+        admit(server, record, visitor);
+        ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
+        String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
+        visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
+                .withStyle(ChatFormatting.GOLD));
+        PocketDungeonsMod.LOG.info("{} visited {}'s room in slot {}",
+                visitor.getName().getString(), owner, slot);
         return true;
     }
 
@@ -1016,6 +1289,17 @@ final class Instances {
         // reached the completion, if any, has already happened.
         boolean completed = record.completed.contains(player.getUUID());
 
+        // T2.6: a deliberate /dungeon exit is still a leadership change if the
+        // owner is walking out on a party that is still in there. purge() ejects
+        // and settles the keystone for every member -- this player included --
+        // so there is nothing left to do here but hand off to it.
+        boolean othersRemain = record.members.keySet().stream()
+                .anyMatch(m -> !m.equals(player.getUUID()));
+        if (leadershipChanged(record, player.getUUID(), othersRemain)) {
+            purge(server, record, "party leader left", player.getUUID());
+            return;
+        }
+
         eject(server, record, player);
 
         // U8 Stage 1: leaving never costs anything. The clock is the only thing
@@ -1035,6 +1319,13 @@ final class Instances {
             announce(server, record, player.getName().getString()
                             + (completed ? " walks out of the dungeon." : " leaves the dungeon."),
                     player.getUUID());
+        }
+
+        // M3 T3.3: a visit instance is read-only and has no timer; tear it down
+        // as soon as its last visitor leaves.
+        if (record.visitInstance && record.members.isEmpty()) {
+            purge(server, record, "visit ended", player.getUUID());
+            return;
         }
 
         purgeIfAbandonedSelectorRoom(server, record);
@@ -1076,6 +1367,7 @@ final class Instances {
 
         if (firstCompletion) {
             stampRewardRoom(server, record);
+            moveRoomToTerminal(server, record);
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -1093,11 +1385,22 @@ final class Instances {
             // overwriting this back to the pre-run level.
             returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.LATE);
         }
-        // The offer is for whatever this player's keystone is now -- the run's
-        // starting level normally, or the just-depleted one on a late finish.
-        // Reaching a door at all is what mitigates the delevel: a +1 door nets
-        // only -1 overall against a 2-level late penalty.
-        log.setPendingOffer(player.getUUID(), log.get(player.getUUID()).keystoneLevel());
+        // M2/M3: the door choice already happened, at the lobby, before this
+        // run started -- record.chosenStep is which of Keystone.offers this
+        // player's own current level (the run's starting level normally, or
+        // the just-depleted one on a late finish) is banked at. Reaching a
+        // door at all is what mitigates the delevel: a +1 door nets only -1
+        // overall against a 2-level late penalty. Banked immediately rather
+        // than parked as a pending offer -- there is no later "go choose a
+        // door" step any more, so nothing is left to settle.
+        if (record.chosenStep > 0) {
+            Keystone.Offer[] offers = Keystone.offers(log.get(player.getUUID()).keystoneLevel());
+            Keystone.Offer banked = offers[record.chosenStep - 1];
+            Keystones.grantOffer(server, player.getUUID(), player, banked);
+            // Guards a later exit() from settling the keystone again now that
+            // it has already been replaced with the banked offer.
+            record.keystoneReturned.add(player.getUUID());
+        }
 
         Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
 
@@ -1158,6 +1461,146 @@ final class Instances {
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp the reward room for slot {}", record.slot, e);
         }
+    }
+
+    /**
+     * M2 T2.4: the closed loop. Moves the room rather than copying it --
+     * captured from the entrance cell, persisted, cleared, then re-stamped at
+     * the terminal cell behind a closed door. Runs once per instance, on the
+     * first completion, alongside {@link #stampRewardRoom}.
+     *
+     * <p><strong>Order is non-negotiable: capture, then persist, then clear,
+     * then stamp.</strong> The blob is on disk (T2.1's backup-on-write and all)
+     * before the entrance cell is touched, so a crash in this window loses
+     * nothing -- the base is reconstructible from disk at every point after
+     * the persist. See {@code MYTHIC_PLUS_RECONCILIATION.md} §3.2.4.
+     *
+     * <p>The single-cell clear this needs is small enough (one cell, a few
+     * thousand blocks) to run synchronously rather than through the
+     * tick-spread {@link PendingClear} queue -- against
+     * {@code clearBlocksPerTick}, it is a fraction of one tick's budget.
+     */
+    private static void moveRoomToTerminal(MinecraftServer server, InstanceRecord record) {
+        if (record.roomCellOrigin == null) {
+            return; // no room concept for this run (fallback layout, or none captured)
+        }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+
+        BlockPos entranceCellOrigin = record.roomCellOrigin;
+
+        // Hazard: a party straggler standing in the entrance cell when it
+        // clears lands on the bedrock sub-floor in an empty box. Sweep them
+        // into the reward room, which stampRewardRoom() has already stamped by
+        // the time this runs.
+        AABB entranceBounds = cellBounds(entranceCellOrigin);
+        for (ServerPlayer stray : level.getEntitiesOfClass(ServerPlayer.class, entranceBounds)) {
+            teleportToRewardRoom(server, record, stray);
+        }
+
+        // Capture, then persist -- before a single block of the entrance cell
+        // is touched.
+        RoomStore.capture(level, server, record.owner, entranceCellOrigin, record.layout.entranceRotation());
+
+        // Clear, synchronously -- see the class note on why this cell does not
+        // need the tick-spread queue.
+        for (int x = 0; x < RoomGeometry.CELL; x++) {
+            for (int y = 0; y <= RoomGeometry.CEILING_Y; y++) {
+                for (int z = 0; z < RoomGeometry.CELL; z++) {
+                    level.setBlock(entranceCellOrigin.offset(x, y, z), Blocks.AIR.defaultBlockState(),
+                            Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                                    | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
+                }
+            }
+        }
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, entranceBounds,
+                e -> !(e instanceof ServerPlayer))) {
+            entity.discard();
+        }
+
+        // Stamp: the just-persisted blob, re-placed at the terminal cell,
+        // rotated to that cell's own door direction.
+        BlockPos terminalCellOrigin = record.layout.terminal();
+        boolean placed = RoomStore.place(level, server, record.owner, terminalCellOrigin,
+                record.layout.terminalRotation(), net.minecraft.util.RandomSource.create(record.layout.seed()));
+        if (!placed) {
+            PocketDungeonsMod.LOG.error(
+                    "moveRoomToTerminal captured a room for {} but could not re-place it at slot {}",
+                    record.owner, record.slot);
+            record.roomCellOrigin = null;
+            return;
+        }
+        closeTerminalDoor(level, record.layout.geometry(), terminalCellOrigin);
+
+        record.roomCellOrigin = terminalCellOrigin;
+    }
+
+    /**
+     * Fills the terminal cell's one door gap with a real, closed door -- "the
+     * player opens it and walks into their own room" (T2.4), not an open
+     * archway. The terminal cell is guaranteed exactly one door
+     * ({@code LayoutGraphGenerator.validate}), so there is exactly one wall to
+     * find: whichever one faces the terminal's single occupied neighbour.
+     */
+    private static void closeTerminalDoor(ServerLevel level, PlanGeometry geometry,
+                                          BlockPos terminalCellOrigin) {
+        PlanCell terminalCell = geometry.cellAt(terminalCellOrigin.offset(
+                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
+        if (terminalCell == null) {
+            return;
+        }
+        DoorMask.Direction facing = null;
+        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
+            PlanCell neighbour = neighbourCell(terminalCell, dir);
+            if (geometry.cells().contains(neighbour)) {
+                facing = dir;
+                break;
+            }
+        }
+        if (facing == null) {
+            PocketDungeonsMod.LOG.warn("Terminal cell {} has no neighbour; leaving its door gap open",
+                    terminalCell);
+            return;
+        }
+
+        Direction mcFacing = switch (facing) {
+            case NORTH -> Direction.NORTH;
+            case SOUTH -> Direction.SOUTH;
+            case EAST -> Direction.EAST;
+            case WEST -> Direction.WEST;
+        };
+        BlockState lower = Blocks.OAK_DOOR.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.DoorBlock.FACING, mcFacing)
+                .setValue(net.minecraft.world.level.block.DoorBlock.OPEN, false)
+                .setValue(net.minecraft.world.level.block.DoorBlock.HALF,
+                        net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
+        BlockState upper = lower.setValue(net.minecraft.world.level.block.DoorBlock.HALF,
+                net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+            BlockPos base = switch (facing) {
+                case NORTH -> terminalCellOrigin.offset(i, 0, 0);
+                case SOUTH -> terminalCellOrigin.offset(i, 0, RoomGeometry.CELL - 1);
+                case WEST -> terminalCellOrigin.offset(0, 0, i);
+                case EAST -> terminalCellOrigin.offset(RoomGeometry.CELL - 1, 0, i);
+            };
+            level.setBlock(base.above(), lower, flags);
+            level.setBlock(base.above(2), upper, flags);
+        }
+    }
+
+    /** The plan cell one step over in {@code dir}, independent of the room manifest. */
+    private static PlanCell neighbourCell(PlanCell cell, DoorMask.Direction dir) {
+        return switch (dir) {
+            case NORTH -> new PlanCell(cell.x(), cell.z() - 1);
+            case SOUTH -> new PlanCell(cell.x(), cell.z() + 1);
+            case WEST -> new PlanCell(cell.x() - 1, cell.z());
+            case EAST -> new PlanCell(cell.x() + 1, cell.z());
+        };
     }
 
     /** Standing point just inside the reward room, clear of both the chest row and the pad. */
@@ -1258,15 +1701,52 @@ final class Instances {
             clearTrialOmen(player);
         }
 
-        if (record.selectorRoom) {
+        // record.members has already had `member` removed above, so a non-empty
+        // set here means someone else is still in the party.
+        if (leadershipChanged(record, member, !record.members.isEmpty())) {
+            purge(server, record, "party leader left", member);
+            return;
+        }
+
+        if (record.selectorRoom
+                || (record.awaitingDoorChoice && record.members.isEmpty())
+                || (record.visitInstance && record.members.isEmpty())) {
             purge(server, record, reason, member);
         }
     }
 
-    /** The selector room's one member just left or chose; an empty selector room has no reason to linger. */
+    /**
+     * T2.6 / {@code MYTHIC_PLUS_RECONCILIATION.md} §7.2: leadership does not
+     * transfer. If the owner is the one leaving <em>and someone else is still in
+     * the party</em>, the whole run ends with them -- stricter than plain
+     * purge-when-empty, and deliberately so: transferring ownership is real work
+     * with real edge cases this codebase already paid for once (the
+     * disconnect-during-teardown race {@code PLAN.md} documents), and "purge and
+     * let them re-key" costs nobody anything (no death, inventory kept), just the
+     * run.
+     *
+     * <p>An owner leaving <em>alone</em> is not a leadership change -- that is
+     * still U8 Stage 1's free re-entry, unaffected by this rule. A lingering
+     * quarry (T2.5) has no live run left to end, so it is exempt too.
+     *
+     * @param othersRemain whether anyone besides {@code member} is still in the
+     *                     party at the moment of leaving
+     */
+    private static boolean leadershipChanged(InstanceRecord record, UUID member, boolean othersRemain) {
+        return !record.lingering && !record.selectorRoom
+                && member.equals(record.owner) && othersRemain;
+    }
+
+    /**
+     * The selector room's one member just left or chose; an empty selector
+     * room has no reason to linger. Also covers an abandoned lobby (M2/M3) --
+     * one that never got a door choice and now has nobody in it holds a slot
+     * and a force-load ticket for nothing, unlike a real run, which
+     * {@code onTick} watches for exactly this reason.
+     */
     private static void purgeIfAbandonedSelectorRoom(MinecraftServer server, InstanceRecord record) {
-        if (record.selectorRoom && record.members.isEmpty()) {
-            purge(server, record, "selector room abandoned");
+        if ((record.selectorRoom || record.awaitingDoorChoice) && record.members.isEmpty()) {
+            purge(server, record, "lobby abandoned");
         }
     }
 
@@ -1362,6 +1842,12 @@ final class Instances {
         int interval = PocketDungeonsConfig.watchIntervalTicks();
         long now = server.overworld().getGameTime();
         for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
+            // T2.5: a lingering quarry has no timer, no reward grace, and no
+            // members to watch for -- it is exempt from every check below until
+            // Instances.enter() purges it as the next run's opening move.
+            if (record.lingering) {
+                continue;
+            }
             if (record.timer != null) {
                 record.timer.tick(interval);
             }
@@ -1376,7 +1862,7 @@ final class Instances {
                     record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
                 if (record.expiresAtTick != 0 && now >= record.expiresAtTick) {
-                    purge(server, record, "reward room grace elapsed");
+                    retireOrPurge(server, record, "reward room grace elapsed");
                     continue;
                 }
             }
@@ -1467,6 +1953,30 @@ final class Instances {
     }
 
     /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
+    /**
+     * The owner of whichever live instance's room currently occupies {@code pos},
+     * or {@code null} if {@code pos} is not inside anyone's room right now (M2
+     * T2.2). Deliberately checks {@link InstanceRecord#roomCellOrigin} rather
+     * than any cell in the instance -- the quarry (every other cell) stays fully
+     * breakable by anyone, and a lingering instance is still checked here since
+     * it stays in {@code bySlot}.
+     */
+    static UUID roomOwnerAt(BlockPos pos) {
+        for (InstanceRecord record : bySlot.values()) {
+            BlockPos roomOrigin = record.roomCellOrigin;
+            if (roomOrigin == null) {
+                continue;
+            }
+            if (pos.getX() >= roomOrigin.getX() && pos.getX() < roomOrigin.getX() + RoomGeometry.CELL
+                    && pos.getZ() >= roomOrigin.getZ() && pos.getZ() < roomOrigin.getZ() + RoomGeometry.CELL
+                    && pos.getY() >= roomOrigin.getY()
+                    && pos.getY() <= roomOrigin.getY() + RoomGeometry.CEILING_Y) {
+                return record.owner;
+            }
+        }
+        return null;
+    }
+
     private static AABB cellBounds(BlockPos origin) {
         return new AABB(
                 origin.getX(), origin.getY(), origin.getZ(),
@@ -1477,6 +1987,55 @@ final class Instances {
 
     private static void purge(MinecraftServer server, InstanceRecord record, String reason) {
         purge(server, record, reason, null);
+    }
+
+    /**
+     * The reward-room grace period ran out (T2.5). If this run's room has
+     * already moved to the terminal cell (T2.4 completed), the dungeon becomes a
+     * lingering quarry instead of a normal purge: force-load tickets are
+     * released so it costs no standing tick budget, but the blocks stay
+     * standing to be mined. A run with no room at all -- {@code /dungeon admin
+     * build} or {@code untimed} -- has nothing to linger, so it falls back to
+     * the ordinary purge.
+     *
+     * <p>The record stays in {@code bySlot} and its slot stays claimed:
+     * {@code Instances.enter()}'s lingering-quarry check is the only way out,
+     * bounding this at one lingering dungeon per owner.
+     */
+    private static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
+        if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
+            purge(server, record, reason);
+            return;
+        }
+
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                eject(server, record, player);
+            } else {
+                record.members.remove(member);
+                byMember.remove(member);
+            }
+            returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+        }
+        if (record.timer != null) {
+            record.timer.close();
+        }
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level != null) {
+            for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
+                level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
+            }
+            if (record.rewardRoomOrigin != null) {
+                level.setChunkForced(record.rewardRoomOrigin.getX() >> 4,
+                        record.rewardRoomOrigin.getZ() >> 4, false);
+            }
+        }
+
+        record.lingering = true;
+        PocketDungeonsMod.LOG.info("Dungeon slot {} is now a lingering quarry for {} ({})",
+                record.slot, record.owner, reason);
     }
 
     private static void purge(MinecraftServer server, InstanceRecord record,
@@ -1762,7 +2321,7 @@ final class Instances {
         BlockPos origin = originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous, null);
+                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous, null, null);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.

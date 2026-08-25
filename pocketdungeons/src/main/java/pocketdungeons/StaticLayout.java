@@ -74,7 +74,8 @@ final class StaticLayout {
                 false,
                 ominous,
                 keystoneLevel,
-                RoomBuilder.cellOrigin(origin, CELL_COUNT - 1, 0));
+                RoomBuilder.cellOrigin(origin, CELL_COUNT - 1, 0),
+                0, 0);
     }
 
     /** Where the player lands: centre of the first room, facing east down the run. */
