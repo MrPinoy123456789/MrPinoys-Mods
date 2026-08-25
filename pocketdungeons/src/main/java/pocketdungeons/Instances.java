@@ -974,7 +974,7 @@ final class Instances {
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
             BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
-            RoomTemplateGenerator.placeSelectorDoors(level, origin);
+            RoomTemplateGenerator.placeSelectorDoors(level, origin, lobbyDoorDirection());
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -1132,6 +1132,7 @@ final class Instances {
         }
 
         RoomBuilder.openDoor(level, record.origin, mcDirection(lobbyDoorDirection()));
+        RoomTemplateGenerator.clearSelectorDoors(level, record.origin, lobbyDoorDirection());
 
         record.layout = layout;
         record.affix = offer.affix();
@@ -1234,7 +1235,7 @@ final class Instances {
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
             BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
-            RoomTemplateGenerator.placeSelectorDoors(level, origin);
+            RoomTemplateGenerator.placeSelectorDoors(level, origin, lobbyDoorDirection());
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);

@@ -162,8 +162,8 @@ final class RoomTemplateGenerator {
 
         // No mob: the entrance is where a party arrives and regroups, and where
         // the void guard bounces a falling player back to. It stays safe.
-        specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.EAST))
-                .decor(RoomTemplateGenerator::placeSelectorDoors));
+        specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.SOUTH))
+                .decor((level, o) -> placeSelectorDoors(level, o, DoorMask.Direction.SOUTH)));
 
         specs.add(new RoomSpec("exit_hall", EnumSet.of(Direction.WEST)).exitPad());
 
@@ -337,7 +337,7 @@ final class RoomTemplateGenerator {
         // sits well south of the door row (T12 gives no fixed coordinate for
         // it, only for the doors), clear of both.
         specs.add(new RoomSpec("selector_room", Set.of())
-                .decor(RoomTemplateGenerator::placeSelectorDoors));
+                .decor((level, o) -> placeSelectorDoors(level, o, DoorMask.Direction.SOUTH)));
 
         return specs;
     }
@@ -354,21 +354,54 @@ final class RoomTemplateGenerator {
     private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
     private static final Identifier DOOR_FRAGILE = Identifier.parse("minecraft:exposed_copper_door");
 
-    static void placeSelectorDoors(ServerLevel level, BlockPos o) {
-        placeDoor(level, o.offset(4, 1, 8), DOOR_NONE);
-        placeDoor(level, o.offset(8, 1, 8), DOOR_OMINOUS);
-        placeDoor(level, o.offset(12, 1, 8), DOOR_FRAGILE);
-        // South of the door row (z=8) and clear of it, north of the back wall.
+    static void placeSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        // Three doors along the wall that will become the dungeon entrance once a
+        // choice is made. The middle door overlaps the right half of the eventual
+        // 2-wide opening; removing all three on choice and opening the slot turns
+        // that whole middle section into the double doorway.
+        net.minecraft.core.Direction facing = switch (wall) {
+            case NORTH -> Direction.SOUTH; // doors on north wall, open/facing into room
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
+        };
+        Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_FRAGILE};
+        int[] positions = {4, 8, 12};
+        for (int i = 0; i < positions.length; i++) {
+            BlockPos lower = switch (wall) {
+                case NORTH -> o.offset(positions[i], 1, 0);
+                case SOUTH -> o.offset(positions[i], 1, RoomGeometry.CELL - 1);
+                case EAST -> o.offset(RoomGeometry.CELL - 1, 1, positions[i]);
+                case WEST -> o.offset(0, 1, positions[i]);
+            };
+            placeDoor(level, lower, blocks[i], facing);
+        }
+        // South of the door row and clear of it, north of the back wall.
         placeSquarePad(level, o, RoomGeometry.DOOR_MIN, 12);
+    }
+
+    /** Clears the three selector doors placed by {@link #placeSelectorDoors}. */
+    static void clearSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int pos : new int[]{4, 8, 12}) {
+            BlockPos lower = switch (wall) {
+                case NORTH -> o.offset(pos, 1, 0);
+                case SOUTH -> o.offset(pos, 1, RoomGeometry.CELL - 1);
+                case EAST -> o.offset(RoomGeometry.CELL - 1, 1, pos);
+                case WEST -> o.offset(0, 1, pos);
+            };
+            RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
+            RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
+        }
     }
 
     /** A two-block-tall door, both halves matching. Facing is cosmetic only --
      *  every click here is intercepted before vanilla ever opens it. */
-    private static void placeDoor(ServerLevel level, BlockPos lower, Identifier blockId) {
+    private static void placeDoor(ServerLevel level, BlockPos lower, Identifier blockId,
+                                  net.minecraft.core.Direction facing) {
         Block block = BuiltInRegistries.BLOCK.getValue(blockId);
         BlockState lowerState = block.defaultBlockState()
                 .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
-                .setValue(DoorBlock.FACING, Direction.NORTH)
+                .setValue(DoorBlock.FACING, facing)
                 .setValue(DoorBlock.HINGE, DoorHingeSide.LEFT)
                 .setValue(DoorBlock.OPEN, false);
         RoomBuilder.set(level, lower, lowerState);
