@@ -162,7 +162,8 @@ final class RoomTemplateGenerator {
 
         // No mob: the entrance is where a party arrives and regroups, and where
         // the void guard bounces a falling player back to. It stays safe.
-        specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.EAST)));
+        specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.EAST))
+                .decor(RoomTemplateGenerator::placeSelectorDoors));
 
         specs.add(new RoomSpec("exit_hall", EnumSet.of(Direction.WEST)).exitPad());
 
@@ -353,7 +354,7 @@ final class RoomTemplateGenerator {
     private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
     private static final Identifier DOOR_FRAGILE = Identifier.parse("minecraft:exposed_copper_door");
 
-    private static void placeSelectorDoors(ServerLevel level, BlockPos o) {
+    static void placeSelectorDoors(ServerLevel level, BlockPos o) {
         placeDoor(level, o.offset(4, 1, 8), DOOR_NONE);
         placeDoor(level, o.offset(8, 1, 8), DOOR_OMINOUS);
         placeDoor(level, o.offset(12, 1, 8), DOOR_FRAGILE);

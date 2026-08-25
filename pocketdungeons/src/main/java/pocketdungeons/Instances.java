@@ -974,6 +974,7 @@ final class Instances {
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
             BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
+            RoomTemplateGenerator.placeSelectorDoors(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -1233,6 +1234,7 @@ final class Instances {
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
             BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
+            RoomTemplateGenerator.placeSelectorDoors(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -2248,16 +2250,22 @@ final class Instances {
 
         /** Writes at most {@code budget} blocks; returns how many it actually wrote. */
         int advance(ServerLevel level, int budget) {
-            final int cellVolume = RoomGeometry.CELL * RoomGeometry.CELL
-                    * (RoomGeometry.CEILING_Y + 1);
+            // Clear the cell plus the one-block bedrock envelope (T2.3) around it:
+            // sub-floor, over-ceiling, and the outer wall ring. Shared faces between
+            // adjacent cells are cleared twice, which is harmless and cheaper than
+            // computing the outer hull of the whole geometry.
+            final int sizeX = RoomGeometry.CELL + 2;
+            final int sizeY = RoomGeometry.CEILING_Y + 3;
+            final int sizeZ = RoomGeometry.CELL + 2;
+            final int cellVolume = sizeX * sizeY * sizeZ;
             int written = 0;
             while (written < budget && cell < cellOrigins.size()) {
                 BlockPos origin = cellOrigins.get(cell);
-                int x = index / ((RoomGeometry.CEILING_Y + 1) * RoomGeometry.CELL);
-                int rest = index % ((RoomGeometry.CEILING_Y + 1) * RoomGeometry.CELL);
-                int z = rest / (RoomGeometry.CEILING_Y + 1);
-                int y = rest % (RoomGeometry.CEILING_Y + 1);
-                RoomBuilder.set(level, origin.offset(x, y, z), AIR);
+                int x = index / (sizeY * sizeZ);
+                int rest = index % (sizeY * sizeZ);
+                int z = rest / sizeY;
+                int y = rest % sizeY;
+                RoomBuilder.set(level, origin.offset(x - 1, y - 1, z - 1), AIR);
                 written++;
                 if (++index >= cellVolume) {
                     index = 0;
