@@ -23,8 +23,13 @@ S = spawn / standing point
 Top-down view of the floor (y=1). The connecting door to the dungeon is on the
 south wall, in the middle (x=7..8, z=15).
 
+A cell is 16×16 (indices `0..15`). The wall is the full outer ring, so each edge
+is 16 blocks long including the two corner blocks. If you draw only the straight
+wall segment between corners, it is 14 blocks wide. Either way, the door slot at
+`7..8` is centred.
+
 ```
-z/x  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+z/x 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 0   # # # # # # # # # # # # # # # # # # #
 1   # . . . . . . . . . . . . . . . . . #
 2   # . . . . . . . . . . . . . . . . . #
@@ -55,6 +60,19 @@ y=2 # . . . . . . . . . . . . . . #
 y=1 # . . . . . . . . . . . . . . #
 y=0 # # # # # # # # # # # # # # # #
     z=0                         z=15
+```
+
+Same room drawn with only the straight wall segments (corners removed) to make
+the 14-wide wall clear:
+
+```
+z/x  1 2 3 4 5 6 7 8 9 10 11 12 13 14
+1   # . . . . . . . . . . . . . . #   <- north wall (14 wide)
+2   # . . . . . . . . . . . . . . #
+...
+14  # . . . . . . . . . . . . . . #
+15  # . D . . . . D . . . . D . #   <- south wall with doors
+    # # # # # # # # # # # # # # # # #
 ```
 
 ## After a door is chosen
