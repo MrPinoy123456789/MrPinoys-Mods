@@ -307,8 +307,8 @@ final class Instances {
             // is done -- there is nothing left to continue, and the reward room
             // stays reachable through its own grace window/lingering-quarry
             // path regardless (T2.5), not through free re-entry.
-            if (!candidate.selectorRoom && !candidate.lingering && candidate.completed.isEmpty()
-                    && player.getUUID().equals(candidate.owner)) {
+            if (!candidate.selectorRoom && !candidate.lingering && !candidate.visitInstance
+                    && candidate.completed.isEmpty() && player.getUUID().equals(candidate.owner)) {
                 existing = candidate;
                 break;
             }
@@ -1231,6 +1231,7 @@ final class Instances {
                 TemplateStamper.place(level, level.getStructureManager(), origin,
                         TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
             }
+            RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
             BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
