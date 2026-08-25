@@ -9,13 +9,14 @@ Use this file to sketch room arrangements. One cell is 16x16x7 blocks
 ```
 # = wall / solid block
 . = floor / air (walkable)
-D = door (lower block)
-d = door (upper block)
+d = selector door
 L = lodestone (exit pad)
 l = chiseled stone ring around pad
 C = chest
 S = spawn / standing point
 ~ = bedrock envelope (outside the cell)
+e = entrance into the lobby room
+M = exit into the dungeon
 ```
 
 ## Lobby / Player Room (16x16, south-wall doors)
@@ -29,112 +30,79 @@ wall segment between corners, it is 14 blocks wide. Either way, the door slot at
 `7..8` is centred.
 
 ```
-z/x 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
-0   # # # # # # # # # # # # # # # # # # #
-1   # . . . . . . . . . . . . . . . . . #
-2   # . . . . . . . . . . . . . . . . . #
-3   # . . . . . . . . S . . . . . . . . #   <- player spawn / entrance
-4   # . . . . . . . . . . . . . . . . . #
-5   # . . . . . . . . . . . . . . . . . #
-6   # . . . . . . . . . . . . . . . . . #
-7   # . . . . . . . . . . . . . . . . . #
-8   # . . . . . . . . . . . . . . . . . #
-9   # . . . . . . . . . . . . . . . . . #
-10  # . . . . . . . . . . . . . . . . . #
-11  # . . . . . . . . . . . . . . . . . #
-12  # . . . L L . . . . . . . . . . . . #   <- 2x2 lodestone leave-pad
-13  # . . . l l . . . . . . . . . . . . #
-14  # . . . . . . . . . . . . . . . . . #
-15  # . . . D . . . . D . . . . D . . . #   <- three selector doors (x=4,8,12)
-    # # # # # # # # # # # # # # # # # # #
-```
-
-Cross-section through the middle (x=7..8, looking east):
-
-```
-y=6 # # # # # # # # # # # # # # # #
-y=5 # # # # # # # # # # # # # # # #
-y=4 # # # # # # # # # # # # # # # #
-y=3 # . . . . . . . . . . . . . . #
-y=2 # . . . . . . . . . . . . . . #
-y=1 # . . . . . . . . . . . . . . #
-y=0 # # # # # # # # # # # # # # # #
-    z=0                         z=15
-```
-
-Same room drawn with only the straight wall segments (corners removed) to make
-the 14-wide wall clear:
-
-```
-z/x  1 2 3 4 5 6 7 8 9 10 11 12 13 14
-1   # . . . . . . . . . . . . . . #   <- north wall (14 wide)
-2   # . . . . . . . . . . . . . . #
-...
-14  # . . . . . . . . . . . . . . #
-15  # . D . . . . D . . . . D . #   <- south wall with doors
-    # # # # # # # # # # # # # # # # #
+z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
+0   # # # # # # # e e # # # # # # #
+1   # L l . . . . . . . . . . . . #  <- lodestone leave-pad
+2   # l l . . . . . . . . . . . . # 
+3   # . . S . . . . . . . . . . . #  <- player spawn / entrance  
+4   # . . . . . . . . . . . . . . #
+5   # . . . . . . . . . . . . . . #
+6   # . . . . . . . . . . . . . . #
+7   # . . . . . . . . . . . . . . #
+8   # . . . . . . . . . . . . . . #
+9   # . . . . . . . . . . . . . . #
+A   # . . . . . . . . . . . . . . #
+B   # . . . . . . . . . . . . . . #
+C   # . . . . . . . . . . . . . . #   
+D   # . . . . . . . . . . . . . . #   
+E   # . . . . . d d d . . . . . . #   <- three selector doors (x=4,8,12)
+F   # # # # # # # M M # # # # # # #
 ```
 
 ## After a door is chosen
 
-The three selector doors on the south wall disappear and the sealed 2-wide
-slot at x=7..8, z=15 opens into the dungeon. The side doors at x=4 and x=12
-leave empty 1x2 openings.
+The `d` selector doors on the south wall disappear and the sealed 2-wide `MM`
+slot at x=7..8, z=F opens into the new dungeon.
 
 ```
-z=15:  # . . D . . . . . . . . D . . #
-            ^                 ^
-            |                 |
-            x=4               x=12
-
-        (middle section x=7..8 is now air connecting to the dungeon)
+z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
+0   # # # # # # # e e # # # # # # #
+1   # L l . . . . . . . . . . . . #
+2   # l l . . . . . . . . . . . . # 
+3   # . . S . . . . . . . . . . . #
+4   # . . . . . . . . . . . . . . #
+5   # . . . . . . . . . . . . . . #
+6   # . . . . . . . . . . . . . . #
+7   # . . . . . . . . . . . . . . #
+8   # . . . . . . . . . . . . . . #
+9   # . . . . . . . . . . . . . . #
+A   # . . . . . . . . . . . . . . #
+B   # . . . . . . . . . . . . . . #
+C   # . . . . . . . . . . . . . . #   
+D   # . . . . . . . . . . . . . . #   
+E   # . . . . . . . . . . . . . . #
+F   # # # # # # # M M # # # # # # #   <- 2-wide exit into new dungeon
 ```
 
-## Completion: terminal cell becomes the player's room
+## Completion: the room becomes the terminal cell
 
-The terminal cell is stamped with the saved room blob. Reward chests appear at
-(x=4, z=4), (x=8, z=4), (x=12, z=4). The door back to the dungeon is on
-whichever wall the terminal cell's one open side faces.
-
-```
-z/x  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
-0   # # # # # # # # # # # # # # # # # # #
-1   # . . . . . . . . . . . . . . . . . #
-2   # . . . . . . . . . . . . . . . . . #
-3   # . . . . . . . . . . . . . . . . . #
-4   # . . . C . . . . C . . . . C . . . #   <- reward chests
-5   # . . . . . . . . . . . . . . . . . #
-6   # . . . . . . . . . . . . . . . . . #
-7   # . . . . . . . . . . . . . . . . . #
-8   # . . . . . . . . . . . . . . . . . #
-9   # . . . . . . . . . . . . . . . . . #
-10  # . . . . . . . . . . . . . . . . . #
-11  # . . . . . . . . . . . . . . . . . #
-12  # . . . . . . . . . . . . . . . . . #
-13  # . . . . . . . . . . . . . . . . . #
-14  # . . . . . . . . . . . . . . . . . #
-15  # # # # # # # D D # # # # # # # # # #   <- closed door back to dungeon
-    # # # # # # # # # # # # # # # # # # #
-```
-
-## Bedrock envelope (one block outside the cell)
+The player's saved room blob is stamped into the terminal cell. Reward chests
+appear at (x=4, z=4), (x=8, z=4), (x=12, z=4). The `e e` side is the door the
+player arrives through from the just-finished dungeon.
 
 ```
-   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-   ~ # # # # # # # # # # # # # # # # # ~
-   ~ # . . . . . . . . . . . . . . . # ~
-   ~ # . . . . . . . . . . . . . . . # ~
-   ...
-   ~ # . . . . . . . . . . . . . . . # ~
-   ~ # # # # # # # # # # # # # # # # # ~
-   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
+0   # # # # # # # # # # # # # # # #
+1   # . . . . . . . . . . . . . . #
+2   # . . . . . . . . . . . . . . #
+3   # . . . . . . . . . . . . . . #
+4   # . . . C . . . . C . . . . C . #   <- reward chests
+5   # . . . . . . . . . . . . . . #
+6   # . . . . . . . . . . . . . . #
+7   # . . . . . . . . . . . . . . #
+8   # . . . . . . . . . . . . . . #
+9   # . . . . . . . . . . . . . . #
+A   # . . . . . . . . . . . . . . #
+B   # . . . . . . . . . . . . . . #
+C   # . . . . . . . . . . . . . . #
+D   # . . . . . . . . . . . . . . #
+E   # . . . . . . . . . . . . . . #
+F   # # # # # # # e e # # # # # # #   <- entrance from finished dungeon
 ```
 
 ## Notes
 
-- Door blocks are two tall; mark both `D` (lower y=1) and `d` (upper y=2) if
-  you want to show the full column.
-- The leave-pad lodestone is at y=0, so a side view of that corner would show
-  `L` at y=0 and `.` above it.
-- Reward chests are placed by overwriting whatever is at those coordinates in
-  the saved room blob.
+- Door blocks are two tall; the `d`, `M`, and `e` markers in the top-down view
+  represent the 2-wide, 3-tall door slot.
+- `e e` is sealed with wall when no previous dungeon connects to it; `MM` is
+  sealed and covered by selector doors `d` until a choice is made.
