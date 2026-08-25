@@ -153,13 +153,19 @@ final class InstanceRecord {
 
     /**
      * Floor corner of whichever cell currently holds this run's persistent room
-     * (M2 T2.1/T2.4) -- the entrance cell until the run completes, the terminal
-     * cell after. {@code null} for a run with no room at all (an untimed or
-     * admin-built dungeon). This is what {@link Instances#roomOwnerAt} checks
-     * against for the T2.2 permission mask, and it moves exactly once, in
-     * {@code Instances.moveRoomToTerminal}.
+     * (M2 T2.1/T2.4) -- the entrance cell until the run completes, the cell
+     * behind the terminal cell after. {@code null} for a run with no room at all
+     * (an untimed or admin-built dungeon). This is what
+     * {@link Instances#roomOwnerAt} checks against for the T2.2 permission mask.
      */
     BlockPos roomCellOrigin;
+
+    /**
+     * Which wall of {@link #roomCellOrigin} the next dungeon extends from (the
+     * {@code MM} side). Fixed at lobby creation; updated when the room is moved
+     * behind the terminal cell so the next run can start in the right direction.
+     */
+    DoorMask.Direction roomDungeonDoor = DoorMask.Direction.SOUTH;
 
     /**
      * True once the room has been moved to the terminal cell and the dungeon has

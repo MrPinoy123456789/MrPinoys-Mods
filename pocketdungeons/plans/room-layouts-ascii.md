@@ -12,7 +12,7 @@ Use this file to sketch room arrangements. One cell is 16x16x7 blocks
 d = selector door
 L = lodestone (exit pad)
 l = chiseled stone ring around pad
-C = chest
+c = chest
 S = spawn / standing point
 ~ = bedrock envelope (outside the cell)
 e = entrance into the lobby room
@@ -86,7 +86,7 @@ z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
 1   # . . . . . . . . . . . . . . #
 2   # . . . . . . . . . . . . . . #
 3   # . . . . . . . . . . . . . . #
-4   # . . . C . . . . C . . . . C . #   <- reward chests
+4   # . . C . . . . C . . . . C . #   <- reward chests
 5   # . . . . . . . . . . . . . . #
 6   # . . . . . . . . . . . . . . #
 7   # . . . . . . . . . . . . . . #

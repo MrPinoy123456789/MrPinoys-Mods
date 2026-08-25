@@ -50,7 +50,7 @@ final class RoomBuilder {
             | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
     private static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
-    private static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
+    static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
     private static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
     private static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();

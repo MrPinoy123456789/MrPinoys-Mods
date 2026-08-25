@@ -1017,13 +1017,39 @@ final class Instances {
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
             return null;
         }
-        int dx = pos.getX() - record.origin.getX();
-        int dy = pos.getY() - record.origin.getY();
-        int dz = pos.getZ() - record.origin.getZ();
-        if (dz != 8 || (dy != 1 && dy != 2)) {
+        BlockPos o = record.roomCellOrigin;
+        if (o == null) {
             return null;
         }
-        return switch (dx) {
+        int dx = pos.getX() - o.getX();
+        int dy = pos.getY() - o.getY();
+        int dz = pos.getZ() - o.getZ();
+        if (dy != 1 && dy != 2) {
+            return null;
+        }
+        int along;
+        switch (record.roomDungeonDoor) {
+            case NORTH -> {
+                if (dz != 0) return null;
+                along = dx;
+            }
+            case SOUTH -> {
+                if (dz != RoomGeometry.CELL - 1) return null;
+                along = dx;
+            }
+            case WEST -> {
+                if (dx != 0) return null;
+                along = dz;
+            }
+            case EAST -> {
+                if (dx != RoomGeometry.CELL - 1) return null;
+                along = dz;
+            }
+            default -> {
+                return null;
+            }
+        }
+        return switch (along) {
             case 4 -> 1;
             case 8 -> 2;
             case 12 -> 3;
@@ -1079,66 +1105,62 @@ final class Instances {
     }
 
     /**
-     * The generation half of {@link #chooseOffer}: plans a shape rotated so its
-     * entrance edge lines up with the lobby's already-standing, already-sealed
-     * door, resolves and stamps everything except cell 0 (the lobby, untouched),
-     * force-loads the new chunks, opens the seal, starts the timer, and
-     * replaces the record's placeholder lobby layout with the real one.
-     *
-     * <p>On failure the lobby itself is left standing -- nothing about it was
-     * touched -- so the player is exactly where they were and can try another
-     * door.
+     * The generation half of {@link #chooseOffer}: before planning, any stragglers
+     * still in the old dungeon are pulled into the room, the old dungeon cells
+     * are cleared, and the room's {@code ee} wall (the entrance from the previous
+     * dungeon) is sealed. Then a new shape is planned so its entrance edge lines
+     * up with the room's {@code MM} side, and everything except cell 0 (the room)
+     * is stamped.
      */
     private static boolean generateBehindLobby(MinecraftServer server, ServerLevel level,
                                                 InstanceRecord record, Keystone.Offer offer, int step) {
+        // M2/M3: clear the previous dungeon before generating the next one.
+        resetForNextDungeon(server, record);
+
         long seed = level.getRandom().nextLong();
+        DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
                 PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                PocketDungeonsConfig.maxGridSpan(), null, lobbyDoorDirection());
+                PocketDungeonsConfig.maxGridSpan(), null, dungeonDoor);
 
         DungeonPlan plan = outcome.plan();
         boolean ominous = offer.affix() == Keystone.Affix.OMINOUS;
         InstanceLayout layout;
         if (plan != null) {
-            // The lobby is physically at record.origin, already resolved to
-            // grid (0,0) -- entrance is always (0,0) -- but the plan's own
-            // cell set may reach negative x/z (a branch heading north or
-            // west). PlanGeometry anchors its *lowest* cell at the world
-            // origin it is given, so the world origin fed to the stamper has
-            // to be shifted back by exactly that much or cell (0,0) would not
-            // land on the lobby that is already standing there.
+            // The room is physically at record.roomCellOrigin, resolved to grid
+            // (0,0). The plan's own cell set may reach negative x/z, so the
+            // world origin is shifted back by the minimum cell coordinates.
             int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
             int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
-            BlockPos planOrigin = record.origin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
+            BlockPos planOrigin = record.roomCellOrigin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
             PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
                 layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), ominous,
                         record.owner);
             } catch (RuntimeException e) {
-                PocketDungeonsMod.LOG.error("Stamping plan behind the lobby at {} failed",
-                        record.origin.toShortString(), e);
+                PocketDungeonsMod.LOG.error("Stamping plan behind the room at {} failed",
+                        record.roomCellOrigin.toShortString(), e);
                 teardown(server, record.slot, record.origin, InstanceLayout.forClearingOnly(planOrigin, geometry),
                         "stamp failed");
                 return false;
             }
         } else {
             PocketDungeonsMod.LOG.warn(
-                    "Planning failed behind the lobby for seed {} after {} attempts ({})",
+                    "Planning failed behind the room for seed {} after {} attempts ({})",
                     seed, outcome.attemptsUsed(), outcome.failureReason());
             return false;
         }
 
-        RoomBuilder.openDoor(level, record.origin, mcDirection(lobbyDoorDirection()));
-        RoomTemplateGenerator.clearSelectorDoors(level, record.origin, lobbyDoorDirection());
+        RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(dungeonDoor));
+        RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, dungeonDoor);
 
         record.layout = layout;
         record.affix = offer.affix();
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
-        record.roomCellOrigin = record.origin; // unchanged: the lobby is still cell 0
         if (!record.untimed) {
             record.timer = new RunTimer(layout.keystoneLevel(),
                     KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
@@ -1146,6 +1168,47 @@ final class Instances {
                     layout.roomCount());
         }
         return true;
+    }
+
+    /**
+     * Teleports party members still in the old dungeon back into the room, clears
+     * the old dungeon cells, and seals the room's {@code ee} wall so the void
+     * behind the previous dungeon cannot be entered.
+     */
+    private static void resetForNextDungeon(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null || record.roomCellOrigin == null) {
+            return;
+        }
+        BlockPos roomOrigin = record.roomCellOrigin;
+        DoorMask.Direction eeDir = opposite(record.roomDungeonDoor);
+
+        // Pull stragglers into the room.
+        BlockPos roomCentre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        for (ServerPlayer straggler : server.getPlayerList().getPlayers()) {
+            if (!record.members.containsKey(straggler.getUUID())) {
+                continue;
+            }
+            if (straggler.level().dimension() != PocketDungeonsMod.DUNGEON_LEVEL) {
+                continue;
+            }
+            if (roomOwnerAt(straggler.blockPosition()) != null) {
+                continue; // already inside the room
+            }
+            teleport(server, straggler, PocketDungeonsMod.DUNGEON_LEVEL,
+                    Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+        }
+
+        // Clear every cell of the previous dungeon except the room itself.
+        for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
+            if (cellOrigin.equals(roomOrigin)) {
+                continue;
+            }
+            clearCellSync(level, cellOrigin);
+        }
+
+        // Seal the room's entrance from the previous dungeon.
+        sealDoorOnWall(level, roomOrigin, eeDir);
     }
 
     // ---- visiting (M3) ------------------------------------------------------
@@ -1370,8 +1433,7 @@ final class Instances {
         record.completed.add(player.getUUID());
 
         if (firstCompletion) {
-            moveRoomToTerminal(server, record);
-            placeCompletionChests(server, record);
+            completeDungeon(server, record, player);
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -1421,23 +1483,26 @@ final class Instances {
         PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.slot, entry.runsCompleted(),
                 chests, record.layout.lootTier());
-
-        // The player is already standing in the terminal cell; after
-        // moveRoomToTerminal that cell *is* their room. Bounce them to the
-        // centre so they don't end up inside a freshly-placed block.
-        teleportToRoomCentre(server, record, player);
     }
 
     /**
-     * Places the completion chests directly into the terminal cell after it has
-     * been turned into the player's room by {@link #moveRoomToTerminal}.
+     * The player reached the terminal exit pad. The terminal cell itself stays
+     * the exit room with its 4 lodestones; chests spawn on the far side, and the
+     * persistent room is stamped behind the sealed far wall. The sealed door is
+     * then opened so the player can walk into their room.
      */
-    private static void placeCompletionChests(MinecraftServer server, InstanceRecord record) {
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null || record.roomCellOrigin == null) {
-            record.rewardChests = 0;
+    private static void completeDungeon(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+        if (record.roomCellOrigin == null) {
             return;
         }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+
+        BlockPos terminalOrigin = record.layout.terminal();
+        DoorMask.Direction entranceDir = terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
+        DoorMask.Direction farWall = opposite(entranceDir);
 
         int secondsRemaining = record.timer != null ? record.timer.secondsRemaining() : Integer.MAX_VALUE;
         int totalSeconds = record.timer != null ? record.timer.totalSeconds() : 1;
@@ -1445,139 +1510,135 @@ final class Instances {
                 PocketDungeonsConfig.threeChestPercent(), PocketDungeonsConfig.twoChestPercent());
         record.rewardChests = chests;
 
-        TrialContent.placeRewardChests(level, record.roomCellOrigin, chests,
+        // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
+        // pad and in front of the sealed door.
+        TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                         .lootTier(),
                 record.affix == Keystone.Affix.OMINOUS, record.layout.seed());
-    }
 
-    /**
-     * M2 T2.4: the closed loop. Moves the room rather than copying it --
-     * captured from the entrance cell, persisted, cleared, then re-stamped at
-     * the terminal cell behind a closed door. Runs once per instance, on the
-     * first completion, alongside {@link #placeCompletionChests}.
-     *
-     * <p><strong>Order is non-negotiable: capture, then persist, then clear,
-     * then stamp.</strong> The blob is on disk (T2.1's backup-on-write and all)
-     * before the entrance cell is touched, so a crash in this window loses
-     * nothing -- the base is reconstructible from disk at every point after
-     * the persist. See {@code MYTHIC_PLUS_RECONCILIATION.md} §3.2.4.
-     *
-     * <p>The single-cell clear this needs is small enough (one cell, a few
-     * thousand blocks) to run synchronously rather than through the
-     * tick-spread {@link PendingClear} queue -- against
-     * {@code clearBlocksPerTick}, it is a fraction of one tick's budget.
-     */
-    private static void moveRoomToTerminal(MinecraftServer server, InstanceRecord record) {
-        if (record.roomCellOrigin == null) {
-            return; // no room concept for this run (fallback layout, or none captured)
-        }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
+        // Sealed door in the far wall, behind the chests.
+        sealDoorOnWall(level, terminalOrigin, farWall);
+
+        // Capture, persist, and clear the current room cell.
+        BlockPos oldRoomOrigin = record.roomCellOrigin;
+        RoomStore.capture(level, server, record.owner, oldRoomOrigin, record.layout.entranceRotation());
+        clearCellSync(level, oldRoomOrigin);
+
+        // Stamp the room in the cell behind the far wall, rotated so its entrance
+        // (the 'ee' side) faces back toward the terminal cell.
+        BlockPos newRoomOrigin = offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
+        int targetRotation = rotationToFace(DoorMask.Direction.NORTH, farWall);
+        boolean placed = RoomStore.place(level, server, record.owner, newRoomOrigin, targetRotation,
+                net.minecraft.util.RandomSource.create(record.layout.seed()));
+        if (!placed) {
+            PocketDungeonsMod.LOG.error(
+                    "completeDungeon captured a room for {} but could not re-place it at slot {}",
+                    record.owner, record.slot);
+            record.roomCellOrigin = null;
             return;
         }
+        record.roomCellOrigin = newRoomOrigin;
+        record.roomDungeonDoor = farWall;
 
-        BlockPos entranceCellOrigin = record.roomCellOrigin;
+        // Open the sealed door into the room.
+        openDoorOnWall(level, terminalOrigin, farWall);
 
-        // Hazard: a party straggler standing in the entrance cell when it
-        // clears lands on the bedrock sub-floor in an empty box. Sweep them
-        // into the terminal cell, which will become their room once the move
-        // finishes.
-        AABB entranceBounds = cellBounds(entranceCellOrigin);
-        BlockPos terminalCellOrigin = record.layout.terminal();
-        for (ServerPlayer stray : level.getEntitiesOfClass(ServerPlayer.class, entranceBounds)) {
-            teleportToRoomCentre(server, record, stray);
+        // Bounce the player into the centre of their new room so they don't stand
+        // inside a block.
+        BlockPos standing = newRoomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
+                Vec3.atBottomCenterOf(standing), 0.0f, 0.0f);
+    }
+
+    private static DoorMask.Direction terminalEntranceDirection(PlanGeometry geometry, BlockPos terminalOrigin) {
+        PlanCell terminalCell = geometry.cellAt(terminalOrigin.offset(
+                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
+        if (terminalCell == null) {
+            return DoorMask.Direction.SOUTH;
         }
+        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
+            if (geometry.cells().contains(neighbourCell(terminalCell, dir))) {
+                return dir;
+            }
+        }
+        return DoorMask.Direction.SOUTH;
+    }
 
-        // Capture, then persist -- before a single block of the entrance cell
-        // is touched.
-        RoomStore.capture(level, server, record.owner, entranceCellOrigin, record.layout.entranceRotation());
+    private static DoorMask.Direction opposite(DoorMask.Direction dir) {
+        return switch (dir) {
+            case NORTH -> DoorMask.Direction.SOUTH;
+            case SOUTH -> DoorMask.Direction.NORTH;
+            case EAST -> DoorMask.Direction.WEST;
+            case WEST -> DoorMask.Direction.EAST;
+        };
+    }
 
-        // Clear, synchronously -- see the class note on why this cell does not
-        // need the tick-spread queue.
-        for (int x = 0; x < RoomGeometry.CELL; x++) {
-            for (int y = 0; y <= RoomGeometry.CEILING_Y; y++) {
-                for (int z = 0; z < RoomGeometry.CELL; z++) {
-                    level.setBlock(entranceCellOrigin.offset(x, y, z), Blocks.AIR.defaultBlockState(),
+    private static BlockPos offsetInDirection(BlockPos origin, DoorMask.Direction dir, int distance) {
+        return switch (dir) {
+            case NORTH -> origin.north(distance);
+            case SOUTH -> origin.south(distance);
+            case EAST -> origin.east(distance);
+            case WEST -> origin.west(distance);
+        };
+    }
+
+    private static int rotationToFace(DoorMask.Direction originalWall, DoorMask.Direction targetWall) {
+        int idx = switch (originalWall) {
+            case NORTH -> 0;
+            case EAST -> 1;
+            case SOUTH -> 2;
+            case WEST -> 3;
+        };
+        int targetIdx = switch (targetWall) {
+            case NORTH -> 0;
+            case EAST -> 1;
+            case SOUTH -> 2;
+            case WEST -> 3;
+        };
+        return (targetIdx - idx + 4) % 4;
+    }
+
+    private static void sealDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
+        doorSlot(level, cellOrigin, wall, RoomBuilder.WALL);
+    }
+
+    private static void openDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
+        doorSlot(level, cellOrigin, wall, Blocks.AIR.defaultBlockState());
+    }
+
+    private static void doorSlot(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall,
+                                 BlockState state) {
+        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
+            for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+                BlockPos pos = switch (wall) {
+                    case NORTH -> cellOrigin.offset(i, y, 0);
+                    case SOUTH -> cellOrigin.offset(i, y, RoomGeometry.CELL - 1);
+                    case WEST -> cellOrigin.offset(0, y, i);
+                    case EAST -> cellOrigin.offset(RoomGeometry.CELL - 1, y, i);
+                };
+                level.setBlock(pos, state, Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                        | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
+            }
+        }
+    }
+
+    private static void clearCellSync(ServerLevel level, BlockPos origin) {
+        for (int x = -1; x <= RoomGeometry.CELL; x++) {
+            for (int y = -1; y <= RoomGeometry.CEILING_Y + 1; y++) {
+                for (int z = -1; z <= RoomGeometry.CELL; z++) {
+                    level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(),
                             Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
                                     | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
                 }
             }
         }
-        for (Entity entity : level.getEntitiesOfClass(Entity.class, entranceBounds,
+        AABB bounds = new AABB(origin.getX() - 1, origin.getY() - 1, origin.getZ() - 1,
+                origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
+                origin.getZ() + RoomGeometry.CELL + 1);
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
                 e -> !(e instanceof ServerPlayer))) {
             entity.discard();
-        }
-
-        // Stamp: the just-persisted blob, re-placed at the terminal cell,
-        // rotated to that cell's own door direction.
-        boolean placed = RoomStore.place(level, server, record.owner, terminalCellOrigin,
-                record.layout.terminalRotation(), net.minecraft.util.RandomSource.create(record.layout.seed()));
-        if (!placed) {
-            PocketDungeonsMod.LOG.error(
-                    "moveRoomToTerminal captured a room for {} but could not re-place it at slot {}",
-                    record.owner, record.slot);
-            record.roomCellOrigin = null;
-            return;
-        }
-        closeTerminalDoor(level, record.layout.geometry(), terminalCellOrigin);
-
-        record.roomCellOrigin = terminalCellOrigin;
-    }
-
-    /**
-     * Fills the terminal cell's one door gap with a real, closed door -- "the
-     * player opens it and walks into their own room" (T2.4), not an open
-     * archway. The terminal cell is guaranteed exactly one door
-     * ({@code LayoutGraphGenerator.validate}), so there is exactly one wall to
-     * find: whichever one faces the terminal's single occupied neighbour.
-     */
-    private static void closeTerminalDoor(ServerLevel level, PlanGeometry geometry,
-                                          BlockPos terminalCellOrigin) {
-        PlanCell terminalCell = geometry.cellAt(terminalCellOrigin.offset(
-                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
-        if (terminalCell == null) {
-            return;
-        }
-        DoorMask.Direction facing = null;
-        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
-            PlanCell neighbour = neighbourCell(terminalCell, dir);
-            if (geometry.cells().contains(neighbour)) {
-                facing = dir;
-                break;
-            }
-        }
-        if (facing == null) {
-            PocketDungeonsMod.LOG.warn("Terminal cell {} has no neighbour; leaving its door gap open",
-                    terminalCell);
-            return;
-        }
-
-        Direction mcFacing = switch (facing) {
-            case NORTH -> Direction.NORTH;
-            case SOUTH -> Direction.SOUTH;
-            case EAST -> Direction.EAST;
-            case WEST -> Direction.WEST;
-        };
-        BlockState lower = Blocks.OAK_DOOR.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.DoorBlock.FACING, mcFacing)
-                .setValue(net.minecraft.world.level.block.DoorBlock.OPEN, false)
-                .setValue(net.minecraft.world.level.block.DoorBlock.HALF,
-                        net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
-        BlockState upper = lower.setValue(net.minecraft.world.level.block.DoorBlock.HALF,
-                net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
-
-        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
-                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
-        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
-            BlockPos base = switch (facing) {
-                case NORTH -> terminalCellOrigin.offset(i, 0, 0);
-                case SOUTH -> terminalCellOrigin.offset(i, 0, RoomGeometry.CELL - 1);
-                case WEST -> terminalCellOrigin.offset(0, 0, i);
-                case EAST -> terminalCellOrigin.offset(RoomGeometry.CELL - 1, 0, i);
-            };
-            level.setBlock(base.above(), lower, flags);
-            level.setBlock(base.above(2), upper, flags);
         }
     }
 
@@ -1589,17 +1650,6 @@ final class Instances {
             case WEST -> new PlanCell(cell.x() - 1, cell.z());
             case EAST -> new PlanCell(cell.x() + 1, cell.z());
         };
-    }
-
-    /** Standing point in the centre of the terminal cell, which is now the player's room. */
-    private static void teleportToRoomCentre(MinecraftServer server, InstanceRecord record,
-                                             ServerPlayer player) {
-        if (record.roomCellOrigin == null) {
-            return;
-        }
-        BlockPos standing = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
-        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
-                Vec3.atBottomCenterOf(standing), 0.0f, 0.0f);
     }
 
     /**

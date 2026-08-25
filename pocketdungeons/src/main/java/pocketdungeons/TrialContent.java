@@ -273,15 +273,36 @@ final class TrialContent {
             new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4)
     };
 
-    static void placeRewardChests(ServerLevel level, BlockPos origin, int chests,
-                                   int tier, boolean ominous, long seed) {
+    static void placeCompletionChests(ServerLevel level, BlockPos origin,
+                                        DoorMask.Direction entranceDir, int chests,
+                                        int tier, boolean ominous, long seed) {
         ResourceKey<LootTable> table = lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
                 + (ominous ? "_ominous" : ""));
-        for (int i = 0; i < REWARD_CHEST_SPOTS.length; i++) {
-            BlockPos pos = origin.offset(REWARD_CHEST_SPOTS[i]);
+
+        // Three chests on the far side of the terminal cell, beyond the 2x2
+        // lodestone pad and in front of the sealed door. Spots are mirrored by
+        // the entrance direction so they always face the player walking in.
+        BlockPos[] spots = switch (entranceDir) {
+            case NORTH -> new BlockPos[]{new BlockPos(4, 1, 12), new BlockPos(8, 1, 12),
+                    new BlockPos(12, 1, 12)};
+            case SOUTH -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(8, 1, 4),
+                    new BlockPos(12, 1, 4)};
+            case WEST -> new BlockPos[]{new BlockPos(12, 1, 4), new BlockPos(12, 1, 8),
+                    new BlockPos(12, 1, 12)};
+            case EAST -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(4, 1, 8),
+                    new BlockPos(4, 1, 12)};
+        };
+        Direction facing = switch (entranceDir) {
+            case NORTH -> Direction.NORTH;
+            case SOUTH -> Direction.SOUTH;
+            case WEST -> Direction.WEST;
+            case EAST -> Direction.EAST;
+        };
+        for (int i = 0; i < spots.length; i++) {
+            BlockPos pos = origin.offset(spots[i]);
             if (i < chests) {
                 level.setBlock(pos, Blocks.CHEST.defaultBlockState()
-                        .setValue(ChestBlock.FACING, Direction.SOUTH), FLAGS);
+                        .setValue(ChestBlock.FACING, facing), FLAGS);
                 if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
                     c.setLootTable(table);
                     c.setLootTableSeed(seed ^ pos.asLong());
