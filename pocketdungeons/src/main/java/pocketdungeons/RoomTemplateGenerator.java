@@ -163,7 +163,10 @@ final class RoomTemplateGenerator {
         // No mob: the entrance is where a party arrives and regroups, and where
         // the void guard bounces a falling player back to. It stays safe.
         specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.SOUTH))
-                .decor((level, o) -> placeSelectorDoors(level, o, DoorMask.Direction.SOUTH)));
+                .decor((level, o) -> {
+                    placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
+                    placeCornerLeavePad(level, o);
+                }));
 
         specs.add(new RoomSpec("exit_hall", EnumSet.of(Direction.WEST)).exitPad());
 
@@ -337,7 +340,10 @@ final class RoomTemplateGenerator {
         // sits well south of the door row (T12 gives no fixed coordinate for
         // it, only for the doors), clear of both.
         specs.add(new RoomSpec("selector_room", Set.of())
-                .decor((level, o) -> placeSelectorDoors(level, o, DoorMask.Direction.SOUTH)));
+                .decor((level, o) -> {
+                    placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
+                    placeCornerLeavePad(level, o);
+                }));
 
         return specs;
     }
@@ -354,11 +360,25 @@ final class RoomTemplateGenerator {
     private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
     private static final Identifier DOOR_FRAGILE = Identifier.parse("minecraft:exposed_copper_door");
 
+    /**
+     * Where the three selector doors stand along their wall: the 2-wide slot
+     * itself ({@link RoomGeometry#DOOR_MIN}..{@code DOOR_MAX}) plus one block of
+     * plain wall beside it, so the strip is contiguous.
+     */
+    private static final int[] SELECTOR_DOORS = {7, 8, 9};
+
     static void placeSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        // Three doors along the wall that will become the dungeon entrance once a
-        // choice is made. The middle door overlaps the right half of the eventual
-        // 2-wide opening; removing all three on choice and opening the slot turns
-        // that whole middle section into the double doorway.
+        // Three doors standing one block in front of the wall that will become the
+        // dungeon entrance once a choice is made. They cover the eventual 2-wide
+        // opening and one block of plain wall beside it; removing all three on
+        // choice and opening the slot turns that middle section into the doorway.
+        // Deliberately not in the wall itself: the slot there is sealed solid
+        // until a dungeon exists behind it, and a door is not a seal.
+        //
+        // Doors only. The leave-pad is authored at fixed local coordinates and so
+        // is only correct at rotation 0; a room re-stamped behind the terminal
+        // cell arrives at whatever rotation puts its 'ee' side facing back, and
+        // carries its own pad in the blob already.
         net.minecraft.core.Direction facing = switch (wall) {
             case NORTH -> Direction.SOUTH; // doors on north wall, open/facing into room
             case SOUTH -> Direction.NORTH;
@@ -366,32 +386,32 @@ final class RoomTemplateGenerator {
             case WEST -> Direction.EAST;
         };
         Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_FRAGILE};
-        int[] positions = {4, 8, 12};
-        for (int i = 0; i < positions.length; i++) {
-            BlockPos lower = switch (wall) {
-                case NORTH -> o.offset(positions[i], 1, 0);
-                case SOUTH -> o.offset(positions[i], 1, RoomGeometry.CELL - 1);
-                case EAST -> o.offset(RoomGeometry.CELL - 1, 1, positions[i]);
-                case WEST -> o.offset(0, 1, positions[i]);
-            };
-            placeDoor(level, lower, blocks[i], facing);
+        for (int i = 0; i < SELECTOR_DOORS.length; i++) {
+            placeDoor(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), blocks[i], facing);
         }
-        // South of the door row and clear of it, north of the back wall.
-        placeSquarePad(level, o, RoomGeometry.DOOR_MIN, 12);
     }
 
     /** Clears the three selector doors placed by {@link #placeSelectorDoors}. */
     static void clearSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        for (int pos : new int[]{4, 8, 12}) {
-            BlockPos lower = switch (wall) {
-                case NORTH -> o.offset(pos, 1, 0);
-                case SOUTH -> o.offset(pos, 1, RoomGeometry.CELL - 1);
-                case EAST -> o.offset(RoomGeometry.CELL - 1, 1, pos);
-                case WEST -> o.offset(0, 1, pos);
-            };
+        for (int pos : SELECTOR_DOORS) {
+            BlockPos lower = selectorDoorPos(o, wall, pos);
             RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
             RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
         }
+    }
+
+    /**
+     * The lower half of the selector door at {@code along}, one block inside the
+     * room from {@code wall} -- {@link Instances#selectorDoorStep} inverts this,
+     * so the two must agree.
+     */
+    private static BlockPos selectorDoorPos(BlockPos o, DoorMask.Direction wall, int along) {
+        return switch (wall) {
+            case NORTH -> o.offset(along, 1, 1);
+            case SOUTH -> o.offset(along, 1, RoomGeometry.CELL - 2);
+            case EAST -> o.offset(RoomGeometry.CELL - 2, 1, along);
+            case WEST -> o.offset(1, 1, along);
+        };
     }
 
     /** A two-block-tall door, both halves matching. Facing is cosmetic only --
@@ -409,30 +429,23 @@ final class RoomTemplateGenerator {
     }
 
     /**
-     * A 2x2 lodestone square with a chiselled ring, at an arbitrary local
-     * position rather than the rotation-invariant centre {@link #placeExitPad}
-     * uses -- these two rooms are never rotated, so nothing forces the pad to
-     * the centre square the way it does for a room the planner can place at any
-     * of four rotations.
+     * The lobby's leave-pad: a single lodestone tucked into the corner nearest
+     * the entrance slot, with chiselled stone on the floor and wall face around
+     * it so it reads as a built alcove rather than a stray block. Authored at a
+     * fixed local position rather than the rotation-invariant centre
+     * {@link #placeExitPad} uses -- the lobby is never rotated, so nothing
+     * forces the pad to the centre square.
      */
-    private static void placeSquarePad(ServerLevel level, BlockPos o, int xMin, int zMin) {
-        int xMax = xMin + 1;
-        int zMax = zMin + 1;
-        BlockState lodestone = Blocks.LODESTONE.defaultBlockState();
+    static void placeCornerLeavePad(ServerLevel level, BlockPos o) {
+        int lx = 2;
+        int lz = 1;
         BlockState ring = Blocks.CHISELED_STONE_BRICKS.defaultBlockState();
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
-                RoomBuilder.set(level, o.offset(x, 0, z), lodestone);
-            }
-        }
-        for (int x = xMin - 1; x <= xMax + 1; x++) {
-            RoomBuilder.set(level, o.offset(x, 0, zMin - 1), ring);
-            RoomBuilder.set(level, o.offset(x, 0, zMax + 1), ring);
-        }
-        for (int z = zMin; z <= zMax; z++) {
-            RoomBuilder.set(level, o.offset(xMin - 1, 0, z), ring);
-            RoomBuilder.set(level, o.offset(xMax + 1, 0, z), ring);
-        }
+        RoomBuilder.set(level, o.offset(lx, 0, lz), Blocks.LODESTONE.defaultBlockState());
+        RoomBuilder.set(level, o.offset(lx - 1, 0, lz), ring);
+        RoomBuilder.set(level, o.offset(lx + 1, 0, lz), ring);
+        RoomBuilder.set(level, o.offset(lx, 0, lz + 1), ring);
+        RoomBuilder.set(level, o.offset(lx - 1, 0, lz + 1), ring);
+        RoomBuilder.set(level, o.offset(lx, 1, lz - 1), ring); // wall face behind the pad
     }
 
     // ---- spec ---------------------------------------------------------------

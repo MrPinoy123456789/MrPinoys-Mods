@@ -100,34 +100,50 @@ final class BedrockEnvelope {
      * reserved side alone.
      */
     static void applyToLobbyCell(ServerLevel level, BlockPos o, DoorMask.Direction reservedSide) {
+        applyToCell(level, o, Set.of(reservedSide));
+    }
+
+    /**
+     * As {@link #applyToLobbyCell}, but reserving <em>several</em> sides at once.
+     *
+     * <p>A room relocated behind a terminal cell (T2.4) has two sides that must
+     * stay clear, not one: the wall a future dungeon will connect through, and
+     * the wall the terminal cell is <em>already</em> standing against. The ring
+     * this writes sits one block outside the cell, which is the same block as
+     * the neighbour's own wall column -- so bedrocking a side that has a live
+     * neighbour does not "back" that wall, it replaces it, doorway included.
+     * That is the same reason {@link #apply} skips faces with an occupied
+     * neighbour, expressed for a cell that has no {@link PlanGeometry} yet.
+     */
+    static void applyToCell(ServerLevel level, BlockPos o, Set<DoorMask.Direction> reservedSides) {
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 set(level, o.offset(x, -1, z));
                 set(level, o.offset(x, CEILING_Y + 1, z));
             }
         }
-        if (reservedSide != DoorMask.Direction.NORTH) {
+        if (!reservedSides.contains(DoorMask.Direction.NORTH)) {
             for (int x = 0; x < CELL; x++) {
                 for (int y = -1; y <= CEILING_Y + 1; y++) {
                     set(level, o.offset(x, y, -1));
                 }
             }
         }
-        if (reservedSide != DoorMask.Direction.SOUTH) {
+        if (!reservedSides.contains(DoorMask.Direction.SOUTH)) {
             for (int x = 0; x < CELL; x++) {
                 for (int y = -1; y <= CEILING_Y + 1; y++) {
                     set(level, o.offset(x, y, CELL));
                 }
             }
         }
-        if (reservedSide != DoorMask.Direction.WEST) {
+        if (!reservedSides.contains(DoorMask.Direction.WEST)) {
             for (int z = 0; z < CELL; z++) {
                 for (int y = -1; y <= CEILING_Y + 1; y++) {
                     set(level, o.offset(-1, y, z));
                 }
             }
         }
-        if (reservedSide != DoorMask.Direction.EAST) {
+        if (!reservedSides.contains(DoorMask.Direction.EAST)) {
             for (int z = 0; z < CELL; z++) {
                 for (int y = -1; y <= CEILING_Y + 1; y++) {
                     set(level, o.offset(CELL, y, z));

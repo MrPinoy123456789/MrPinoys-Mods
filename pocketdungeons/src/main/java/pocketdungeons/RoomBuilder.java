@@ -49,7 +49,7 @@ final class RoomBuilder {
     private static final int STAMP_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
             | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
-    private static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
+    static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
     static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
     private static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
     private static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
@@ -93,6 +93,38 @@ final class RoomBuilder {
         set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
         set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
 
+        for (Direction door : doors) {
+            openDoor(level, o, door);
+        }
+    }
+
+    /**
+     * Stamps a blank stone-brick shell over one cell -- floor, walls and ceiling
+     * all {@link #WALL}, nothing inside -- and reopens the doorways named in
+     * {@code doors}.
+     *
+     * <p>What a room cell becomes once the player's room has been captured out
+     * of it and moved elsewhere (T2.4). Deliberately a stamp and not a clear:
+     * clearing wrote air through the one-block margin as well, and that margin
+     * is where the bedrock envelope lives -- on any face without an occupied
+     * neighbour, erasing it opens a mineable path off the edge of the world from
+     * whatever room is still standing next door. Writing a room in place touches
+     * nothing outside the cell, so the shell around it survives untouched.
+     *
+     * <p>No lamps and no floor material of its own, unlike {@link #buildCell}:
+     * this is the blank that replaces a room, and it is meant to read as one.
+     */
+    static void buildLiminalCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
+        for (int x = 0; x < CELL; x++) {
+            for (int z = 0; z < CELL; z++) {
+                boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
+                set(level, o.offset(x, 0, z), WALL);
+                set(level, o.offset(x, CEILING_Y, z), WALL);
+                for (int y = 1; y <= WALL_HEIGHT; y++) {
+                    set(level, o.offset(x, y, z), edge ? WALL : AIR);
+                }
+            }
+        }
         for (Direction door : doors) {
             openDoor(level, o, door);
         }

@@ -973,8 +973,33 @@ final class Instances {
                         TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
-            BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
-            RoomTemplateGenerator.placeSelectorDoors(level, origin, lobbyDoorDirection());
+            // reservedSide is the wall a real connection will exist behind once a
+            // door is chosen -- the dungeon wall (SOUTH), not the entrance wall
+            // lobbyDoorDirection() returns. Getting this backwards leaves the
+            // entrance-wall gap bedrock-free (harmless -- sealDoor already fills
+            // it with wall) and puts bedrock in the one-block gap the chosen
+            // dungeon needs to connect through -- BedrockEnvelope.apply(), run
+            // once a door is chosen, only ever *adds* bedrock for the finished
+            // geometry, it never removes what a wrong reservedSide left behind.
+            BedrockEnvelope.applyToLobbyCell(level, origin, DoorMask.Direction.SOUTH);
+            // The MM slot itself has to be sealed explicitly, the same as ee just
+            // above -- RoomStore.place stamps the owner's blob exactly as it was
+            // captured, and a room saved mid-run (saveRoom on disconnect, or any
+            // other leave path while a dungeon was generated behind it) captures
+            // that wall genuinely open. Without this, a returning owner's very
+            // first lobby stamp would carry that hole straight through: no wall,
+            // and no bedrock backstop either, since the envelope above
+            // deliberately leaves this same side clear for a real connection.
+            RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
+            // The selector doors and MM slot sit on the room's *dungeon* wall,
+            // not its entrance wall -- lobbyDoorDirection() is the latter (it is
+            // where sealDoor/the bedrock envelope's reserved side belong, ee's
+            // wall). A fresh record always starts at InstanceRecord's default
+            // roomDungeonDoor (SOUTH); stampLobby/createVisitInstance run before
+            // the InstanceRecord exists, so that default is named directly here
+            // instead, and the two must not drift apart.
+            RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
+            RoomTemplateGenerator.placeCornerLeavePad(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -996,8 +1021,8 @@ final class Instances {
     /** A single fixed cell at rotation 0 -- no keystone, no timer, no reward room, until a door is chosen. */
     private static InstanceLayout lobbyLayout(BlockPos origin) {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
-        BlockPos entrance = origin.offset(8, 1, 3);
-        BlockPos exitPad = origin.offset(7, 0, 12);
+        BlockPos entrance = origin.offset(3, 1, 3);
+        BlockPos exitPad = origin.offset(2, 0, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
                 0L, 1, 1, 1, false, false, 0, origin, 0, 0);
     }
@@ -1030,19 +1055,19 @@ final class Instances {
         int along;
         switch (record.roomDungeonDoor) {
             case NORTH -> {
-                if (dz != 0) return null;
+                if (dz != 1) return null;
                 along = dx;
             }
             case SOUTH -> {
-                if (dz != RoomGeometry.CELL - 1) return null;
+                if (dz != RoomGeometry.CELL - 2) return null;
                 along = dx;
             }
             case WEST -> {
-                if (dx != 0) return null;
+                if (dx != 1) return null;
                 along = dz;
             }
             case EAST -> {
-                if (dx != RoomGeometry.CELL - 1) return null;
+                if (dx != RoomGeometry.CELL - 2) return null;
                 along = dz;
             }
             default -> {
@@ -1050,9 +1075,9 @@ final class Instances {
             }
         }
         return switch (along) {
-            case 4 -> 1;
+            case 7 -> 1;
             case 8 -> 2;
-            case 12 -> 3;
+            case 9 -> 3;
             default -> null;
         };
     }
@@ -1161,6 +1186,29 @@ final class Instances {
         record.affix = offer.affix();
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
+
+        // This InstanceRecord is being reused for a second run behind the same
+        // lobby (M3: finish a dungeon, choose again without ever leaving), not
+        // replaced. Every piece of state completeRun/the exit-pad watcher use to
+        // recognise "this member already finished" belongs to the run that just
+        // ended, not the one about to start -- left alone, the exit-pad watcher
+        // finds the owner already in record.completed the moment they touch the
+        // new terminal pad and routes them through plain exit() instead of
+        // completeRun(), which reads as being ejected right at the finish line.
+        // record.expiresAtTick carries the same risk on a longer timeline: it is
+        // the previous run's reward-room grace deadline, computed from a
+        // completion that already happened, and left ticking it can expire
+        // *during* the new run and retire the whole record out from under the
+        // player. rewardChests stays at its old value for the same reason a
+        // stale keystoneReturned would let a second completion slip past
+        // returnKeystone's once-only guard.
+        record.completed.clear();
+        record.keystoneReturned.clear();
+        record.onPad.clear();
+        record.visited.clear();
+        record.rewardChests = -1;
+        record.expiresAtTick = 0;
+
         if (!record.untimed) {
             record.timer = new RunTimer(layout.keystoneLevel(),
                     KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
@@ -1168,6 +1216,75 @@ final class Instances {
                     layout.roomCount());
         }
         return true;
+    }
+
+    /**
+     * Persists the owner's room exactly as it stands right now.
+     *
+     * <p>Called on every path where the owner stops looking at the room -- the
+     * leave-pad, {@code /dungeon exit}, a disconnect, walking out of the
+     * dimension, an admin teleport, a purge -- because a block they broke or
+     * placed is theirs and must not depend on the run ending tidily. Saving the
+     * same room twice is harmless (the second capture is the same blocks, and
+     * {@link RoomStore} keeps a {@code .bak} of the previous write either way),
+     * so the leave paths overlap on purpose rather than trying to be exclusive.
+     *
+     * <p>Skips the two cases that have no room of their own: a
+     * {@code visitInstance} is a read-only copy of somebody else's, and a
+     * record with no {@code roomCellOrigin} is an admin or untimed run.
+     */
+    private static void saveRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        if (record.roomCellOrigin == null || record.visitInstance) {
+            return;
+        }
+        DoorMask.Direction eeDir = opposite(record.roomDungeonDoor);
+        int roomRotation = rotationToFace(DoorMask.Direction.NORTH, eeDir);
+
+        // While a door choice is pending, the three selector doors are standing
+        // live blocks in the room -- capturing them would bake that instant's
+        // doors into the blob permanently. They would be overwritten correctly
+        // everywhere the room is re-stamped as a lobby (placeSelectorDoors always
+        // runs right after RoomStore.place there), but LayoutStamper also
+        // re-skins a generated dungeon's entrance cell with this same blob, and
+        // that path has no reason to touch selector doors at all -- baked-in
+        // ones would leak into every dungeon run forever. Clear them out for the
+        // capture and put them straight back, so the live room the owner is
+        // standing in is undisturbed.
+        if (record.awaitingDoorChoice) {
+            RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
+        }
+        RoomStore.capture(level, server, record.owner, record.roomCellOrigin, roomRotation);
+        if (record.awaitingDoorChoice) {
+            RoomTemplateGenerator.placeSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
+        }
+    }
+
+    /**
+     * {@link #saveRoom} for callers that only have a server, and only if
+     * {@code member} is the owner.
+     *
+     * <p>Routed through {@link MinecraftServer#execute}, not called directly:
+     * {@code ServerPlayConnectionEvents.DISCONNECT} -- the source of most calls
+     * here, via {@link #dropMember} -- fires on Netty's IO thread, not the
+     * server thread, for an abrupt disconnect. {@link RoomStore#capture} does
+     * real world work (entity discard, {@code StructureTemplate.fillFromWorld}),
+     * and discarding an entity off-thread is exactly what a threading-safety mod
+     * like c2me's async-unload guard exists to catch -- it throws rather than
+     * let two threads race on the same chunk's entity list. {@code execute}
+     * runs synchronously when already on the server thread (every other caller:
+     * {@link #eject}, {@link #retireOrPurge}, {@link #purge}) and defers to the
+     * next tick otherwise, so this is a no-op behaviour change for all of them.
+     */
+    private static void saveRoomIfOwner(MinecraftServer server, InstanceRecord record, UUID member) {
+        if (!record.owner.equals(member) || record.roomCellOrigin == null || record.visitInstance) {
+            return;
+        }
+        server.execute(() -> {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (level != null) {
+                saveRoom(level, server, record);
+            }
+        });
     }
 
     /**
@@ -1182,6 +1299,10 @@ final class Instances {
         }
         BlockPos roomOrigin = record.roomCellOrigin;
         DoorMask.Direction eeDir = opposite(record.roomDungeonDoor);
+
+        // Persist any edits made to the room while the last run was lingering,
+        // before the old dungeon is cleared and the room is re-sealed.
+        saveRoom(level, server, record);
 
         // Pull stragglers into the room.
         BlockPos roomCentre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
@@ -1199,16 +1320,26 @@ final class Instances {
                     Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
         }
 
-        // Clear every cell of the previous dungeon except the room itself.
+        // Clear every cell of the previous dungeon except the room itself. The
+        // room is named as a keep-cell because the cell adjacent to it clears a
+        // one-block margin that lands squarely on the room's own wall column.
+        List<BlockPos> keepRoom = List.of(roomOrigin);
         for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
             if (cellOrigin.equals(roomOrigin)) {
                 continue;
             }
-            clearCellSync(level, cellOrigin);
+            clearCellSync(level, cellOrigin, keepRoom);
         }
 
         // Seal the room's entrance from the previous dungeon.
         sealDoorOnWall(level, roomOrigin, eeDir);
+
+        // ...and put the bedrock back behind that seal. The clear above ran
+        // through the margin the room's own envelope occupies, so without this
+        // the room is left with a sealed wall and nothing but cleared void
+        // behind it. Only the MM side stays reserved -- that is where the run
+        // about to be generated connects.
+        BedrockEnvelope.applyToCell(level, roomOrigin, Set.of(record.roomDungeonDoor));
     }
 
     // ---- visiting (M3) ------------------------------------------------------
@@ -1297,8 +1428,33 @@ final class Instances {
                         TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
-            BedrockEnvelope.applyToLobbyCell(level, origin, lobbyDoorDirection());
-            RoomTemplateGenerator.placeSelectorDoors(level, origin, lobbyDoorDirection());
+            // reservedSide is the wall a real connection will exist behind once a
+            // door is chosen -- the dungeon wall (SOUTH), not the entrance wall
+            // lobbyDoorDirection() returns. Getting this backwards leaves the
+            // entrance-wall gap bedrock-free (harmless -- sealDoor already fills
+            // it with wall) and puts bedrock in the one-block gap the chosen
+            // dungeon needs to connect through -- BedrockEnvelope.apply(), run
+            // once a door is chosen, only ever *adds* bedrock for the finished
+            // geometry, it never removes what a wrong reservedSide left behind.
+            BedrockEnvelope.applyToLobbyCell(level, origin, DoorMask.Direction.SOUTH);
+            // The MM slot itself has to be sealed explicitly, the same as ee just
+            // above -- RoomStore.place stamps the owner's blob exactly as it was
+            // captured, and a room saved mid-run (saveRoom on disconnect, or any
+            // other leave path while a dungeon was generated behind it) captures
+            // that wall genuinely open. Without this, a returning owner's very
+            // first lobby stamp would carry that hole straight through: no wall,
+            // and no bedrock backstop either, since the envelope above
+            // deliberately leaves this same side clear for a real connection.
+            RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
+            // The selector doors and MM slot sit on the room's *dungeon* wall,
+            // not its entrance wall -- lobbyDoorDirection() is the latter (it is
+            // where sealDoor/the bedrock envelope's reserved side belong, ee's
+            // wall). A fresh record always starts at InstanceRecord's default
+            // roomDungeonDoor (SOUTH); stampLobby/createVisitInstance run before
+            // the InstanceRecord exists, so that default is named directly here
+            // instead, and the two must not drift apart.
+            RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
+            RoomTemplateGenerator.placeCornerLeavePad(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -1433,7 +1589,7 @@ final class Instances {
         record.completed.add(player.getUUID());
 
         if (firstCompletion) {
-            completeDungeon(server, record, player);
+            completeDungeon(server, record);
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -1491,7 +1647,7 @@ final class Instances {
      * persistent room is stamped behind the sealed far wall. The sealed door is
      * then opened so the player can walk into their room.
      */
-    private static void completeDungeon(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+    private static void completeDungeon(MinecraftServer server, InstanceRecord record) {
         if (record.roomCellOrigin == null) {
             return;
         }
@@ -1520,15 +1676,52 @@ final class Instances {
         // Sealed door in the far wall, behind the chests.
         sealDoorOnWall(level, terminalOrigin, farWall);
 
-        // Capture, persist, and clear the current room cell.
+        // Capture, persist, and clear the current room cell. The room's actual
+        // rotation right now comes from record.roomDungeonDoor -- exactly the
+        // formula saveRoom/resetForNextDungeon use -- not layout.entranceRotation():
+        // that field is the planner's rotation for a room LayoutStamper itself
+        // stamps into the entrance cell, and stampBehindLobby explicitly never
+        // does that for the lobby (Instances stamps/relocates it with its own,
+        // unrelated rotation math). Using it here captured the room under
+        // whatever unrelated value the planner happened to assign the entrance
+        // cell, so the very next RoomStore.place below could rotate the entire
+        // captured room by however far that value differed from the truth --
+        // walls and doors landing wherever the rotation put them, not where the
+        // fresh openDoorOnWall/sealDoorOnWall/placeSelectorDoors calls after it
+        // assume they are. Each completed run recaptured whatever that had
+        // already left standing, so the damage compounded floor over floor.
         BlockPos oldRoomOrigin = record.roomCellOrigin;
-        RoomStore.capture(level, server, record.owner, oldRoomOrigin, record.layout.entranceRotation());
-        clearCellSync(level, oldRoomOrigin);
+        int oldRoomRotation = rotationToFace(DoorMask.Direction.NORTH, opposite(record.roomDungeonDoor));
+        RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);
+
+        // What the room leaves behind: a blank stone-brick room, not a hole.
+        // Clearing this cell wrote air through the one-block margin too, and
+        // that margin is the bedrock envelope -- so on every face of this cell
+        // without an occupied neighbour, the clear erased the shell and left the
+        // still-standing dungeon room next door with a mineable path off the
+        // edge of the world. A stamp stays inside the cell and leaves the
+        // bedrock alone.
+        //
+        // Doorways are reopened toward whichever neighbours are still standing,
+        // so a player who walks back up the dungeon finds an empty room rather
+        // than a sealed face where their room used to be.
+        Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
+        for (DoorMask.Direction dir : standingNeighbours(record.layout.geometry(), oldRoomOrigin)) {
+            backDoors.add(mcDirection(dir));
+        }
+        for (Entity leftover : level.getEntitiesOfClass(Entity.class, cellBounds(oldRoomOrigin),
+                e -> !(e instanceof ServerPlayer))) {
+            // The blob just captured these; without this they would stand here
+            // as well as in the room's new cell.
+            leftover.discard();
+        }
+        RoomBuilder.buildLiminalCell(level, oldRoomOrigin, backDoors);
 
         // Stamp the room in the cell behind the far wall, rotated so its entrance
-        // (the 'ee' side) faces back toward the terminal cell.
+        // (the 'ee' side) faces back toward the terminal cell. farWall is the MM
+        // side, so ee is the opposite wall.
         BlockPos newRoomOrigin = offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
-        int targetRotation = rotationToFace(DoorMask.Direction.NORTH, farWall);
+        int targetRotation = rotationToFace(DoorMask.Direction.NORTH, opposite(farWall));
         boolean placed = RoomStore.place(level, server, record.owner, newRoomOrigin, targetRotation,
                 net.minecraft.util.RandomSource.create(record.layout.seed()));
         if (!placed) {
@@ -1541,14 +1734,35 @@ final class Instances {
         record.roomCellOrigin = newRoomOrigin;
         record.roomDungeonDoor = farWall;
 
-        // Open the sealed door into the room.
-        openDoorOnWall(level, terminalOrigin, farWall);
+        // The room arrives exactly as it was captured: 'ee' sealed (the run that
+        // just finished sealed it), 'MM' standing open onto the cell the last
+        // dungeon used to occupy, and no selector doors -- choosing one is what
+        // cleared them. Re-arm all three against the room's new orientation, or
+        // the player lands in a sealed box whose doors are gone and whose one
+        // opening looks out onto nothing.
+        openDoorOnWall(level, newRoomOrigin, opposite(farWall));
+        sealDoorOnWall(level, newRoomOrigin, farWall);
+        RoomTemplateGenerator.placeSelectorDoors(level, newRoomOrigin, farWall);
+        record.awaitingDoorChoice = true;
 
-        // Bounce the player into the centre of their new room so they don't stand
-        // inside a block.
-        BlockPos standing = newRoomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
-        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
-                Vec3.atBottomCenterOf(standing), 0.0f, 0.0f);
+        // The bedrock envelope, same as stampLobby's applyToLobbyCell: nothing
+        // else stamps one for this cell until a door is chosen and
+        // LayoutStamper.stampBehindLobby's full BedrockEnvelope.apply runs over
+        // the next plan's whole geometry. Left alone, the relocated room is
+        // walled but has no bedrock backstop for however long the owner takes
+        // to choose -- and voidGuardDepth's fallback aside, that gap is real
+        // digging distance, not a documented default. farWall stays reserved
+        // (no bedrock) since a real connection will exist there once a door is
+        // chosen, exactly like a fresh lobby's reservedSide.
+        BedrockEnvelope.applyToCell(level, newRoomOrigin, Set.of(farWall, opposite(farWall)));
+
+        // Open the sealed door into the room. That is the whole of the reward for
+        // reaching the pad: nobody is teleported anywhere. The terminal cell's
+        // lodestones mark the end of the run, not an exit -- the chests are here,
+        // the door to the room now stands open behind them, and walking through
+        // it is the player's to do. (The room's own leave-pad is the lodestone
+        // that actually moves anyone, and it moves them out of the dungeon.)
+        openDoorOnWall(level, terminalOrigin, farWall);
     }
 
     private static DoorMask.Direction terminalEntranceDirection(PlanGeometry geometry, BlockPos terminalOrigin) {
@@ -1623,11 +1837,29 @@ final class Instances {
         }
     }
 
-    private static void clearCellSync(ServerLevel level, BlockPos origin) {
+    /**
+     * Clears one cell and the one-block margin around it -- the margin is where
+     * the bedrock envelope lives, so a clear that stopped at the cell wall would
+     * leave the shell standing.
+     *
+     * <p>{@code keepCells} are cell origins whose own 16x16 volume must survive.
+     * That margin is not empty space: offset {@code CELL} from one cell origin is
+     * the <em>neighbouring</em> cell's local 0 -- its wall column. Clearing it
+     * unconditionally erases a live neighbour's entire wall, leaving only
+     * whatever is written back afterwards (a resealed door slot reads as an
+     * inside-out wall: stone exactly where the doorway was, air everywhere
+     * else). Any cell that is still standing when this runs has to be named
+     * here.
+     */
+    private static void clearCellSync(ServerLevel level, BlockPos origin, List<BlockPos> keepCells) {
         for (int x = -1; x <= RoomGeometry.CELL; x++) {
             for (int y = -1; y <= RoomGeometry.CEILING_Y + 1; y++) {
                 for (int z = -1; z <= RoomGeometry.CELL; z++) {
-                    level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(),
+                    BlockPos pos = origin.offset(x, y, z);
+                    if (insideAnyCell(pos, keepCells)) {
+                        continue;
+                    }
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(),
                             Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
                                     | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
                 }
@@ -1640,6 +1872,41 @@ final class Instances {
                 e -> !(e instanceof ServerPlayer))) {
             entity.discard();
         }
+    }
+
+    /**
+     * The directions in which {@code cellOrigin}'s neighbouring cell is part of
+     * {@code geometry} -- i.e. the walls that have a real room on the other side
+     * rather than the bedrock shell.
+     */
+    private static Set<DoorMask.Direction> standingNeighbours(PlanGeometry geometry, BlockPos cellOrigin) {
+        Set<DoorMask.Direction> out = new LinkedHashSet<>();
+        PlanCell cell = geometry.cellAt(cellOrigin.offset(
+                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
+        if (cell == null) {
+            return out;
+        }
+        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
+            if (geometry.cells().contains(neighbourCell(cell, dir))) {
+                out.add(dir);
+            }
+        }
+        return out;
+    }
+
+    /** Whether {@code pos} falls inside any of these cells' own 16x16 volumes. */
+    private static boolean insideAnyCell(BlockPos pos, List<BlockPos> cellOrigins) {
+        for (BlockPos cell : cellOrigins) {
+            int dx = pos.getX() - cell.getX();
+            int dy = pos.getY() - cell.getY();
+            int dz = pos.getZ() - cell.getZ();
+            if (dx >= 0 && dx < RoomGeometry.CELL
+                    && dz >= 0 && dz < RoomGeometry.CELL
+                    && dy >= 0 && dy <= RoomGeometry.CEILING_Y) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The plan cell one step over in {@code dir}, independent of the room manifest. */
@@ -1684,6 +1951,8 @@ final class Instances {
 
     /** Teleports one member to their own return point and drops them from the party. */
     private static void eject(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+        // Before the teleport, while the room is still exactly as they left it.
+        saveRoomIfOwner(server, record, player.getUUID());
         ReturnPoint point = record.members.remove(player.getUUID());
         byMember.remove(player.getUUID());
         record.onPad.remove(player.getUUID());
@@ -1714,6 +1983,8 @@ final class Instances {
      */
     private static void dropMember(MinecraftServer server, InstanceRecord record,
                                    UUID member, ServerPlayer player, String reason) {
+        // Keyed off `member`, not `player`: an offline drop passes a null player.
+        saveRoomIfOwner(server, record, member);
         record.members.remove(member);
         byMember.remove(member);
 
@@ -1747,7 +2018,7 @@ final class Instances {
         }
 
         if (record.selectorRoom
-                || (record.awaitingDoorChoice && record.members.isEmpty())
+                || (record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty())
                 || (record.visitInstance && record.members.isEmpty())) {
             purge(server, record, reason, member);
         }
@@ -1783,7 +2054,8 @@ final class Instances {
      * {@code onTick} watches for exactly this reason.
      */
     private static void purgeIfAbandonedSelectorRoom(MinecraftServer server, InstanceRecord record) {
-        if ((record.selectorRoom || record.awaitingDoorChoice) && record.members.isEmpty()) {
+        if ((record.selectorRoom || (record.awaitingDoorChoice && record.chosenStep == 0))
+                && record.members.isEmpty()) {
             purge(server, record, "lobby abandoned");
         }
     }
@@ -1939,9 +2211,24 @@ final class Instances {
                     record.onPad.remove(member);
                 }
                 if (stepped) {
-                    if (record.isKeystoneRun() && !record.completed.contains(member)) {
-                        completeRun(server, record, player);
+                    if (isOnRoomLeavePad(player, record)) {
+                        // The room's own pad -- the only lodestone that moves
+                        // anyone, and it moves them out of the dungeon entirely.
+                        exit(player, ExitReason.EXIT_PAD);
+                    } else if (record.isKeystoneRun()) {
+                        // A dungeon pad: the terminal cell's. First contact ends
+                        // the run; every contact after that does nothing at all.
+                        // It used to fall through to exit() once completed was
+                        // set, so stepping off the pad and back on -- trivially
+                        // easy while looting the chests standing right there --
+                        // threw the player out of the dungeon.
+                        if (!record.completed.contains(member)) {
+                            completeRun(server, record, player);
+                        }
                     } else {
+                        // No room and no keystone: /dungeon admin build and
+                        // untimed runs, where the dungeon pad is still the way
+                        // out because there is no room pad to use instead.
                         exit(player, ExitReason.EXIT_PAD);
                     }
                 }
@@ -1978,6 +2265,20 @@ final class Instances {
      * run. Testing the block itself is rotation-proof and template-agnostic: a
      * future room can put a lodestone anywhere and it just works.
      */
+    /**
+     * Whether the player is standing on the pad in their <em>room</em>, as
+     * opposed to a dungeon cell's. Only the room's pad leaves the dungeon; the
+     * terminal cell's marks the end of a run and moves nobody.
+     */
+    private static boolean isOnRoomLeavePad(ServerPlayer player, InstanceRecord record) {
+        if (record.roomCellOrigin == null) {
+            return false;
+        }
+        BlockPos below = player.blockPosition().below();
+        return player.level().getBlockState(below).is(Blocks.LODESTONE)
+                && cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
+    }
+
     private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
         BlockPos below = player.blockPosition().below();
         if (!player.level().getBlockState(below).is(Blocks.LODESTONE)) {
@@ -2041,6 +2342,9 @@ final class Instances {
      * bounding this at one lingering dungeon per owner.
      */
     private static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
+        // Safety net: eject/dropMember have almost certainly saved already, but a
+        // teardown is the last moment the room exists to be read.
+        saveRoomIfOwner(server, record, record.owner);
         if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
             purge(server, record, reason);
             return;
@@ -2074,6 +2378,8 @@ final class Instances {
 
     private static void purge(MinecraftServer server, InstanceRecord record,
                               String reason, UUID excludeFromStraySweep) {
+        // Safety net, as in retireOrPurge: last chance to read the room.
+        saveRoomIfOwner(server, record, record.owner);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
@@ -2098,7 +2404,19 @@ final class Instances {
                     (server.overworld().getGameTime() - record.createdAtTick) / 20L);
         }
         bySlot.remove(record.slot);
-        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep, null);
+        // The room's cell almost never coincides with anywhere layout.geometry()
+        // still reaches: completeDungeon/moveRoomToTerminal relocates the room to
+        // whatever cell sits behind the terminal, one full dungeon's footprint
+        // away from the plan that captured it, and never updates record.layout to
+        // match -- the next generateBehindLobby cycle folds it back into a fresh
+        // plan's geometry, but a slot that closes before that (an abandoned
+        // completed run, a disconnect, an admin purge) tears down with the stale
+        // geometry. Passed through as the extra cell exactly like the reward
+        // room -- also outside the planned grid -- already is: without it, the
+        // room's blocks and bedrock envelope are never cleared, and whatever the
+        // slot is handed to next stamps its own layout on top of them.
+        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep,
+                record.roomCellOrigin);
     }
 
     private static void teardown(MinecraftServer server, int slot, BlockPos origin,
@@ -2391,6 +2709,28 @@ final class Instances {
             teardown(server, slot, originForSlot(slot), null, "purged by an operator");
         }
         return true;
+    }
+
+    /**
+     * Purges every live instance {@code owner} has open right now -- their
+     * lobby, an active run, a lingering quarry, and any visit instance of their
+     * room (a stale copy of the room {@code /dungeon admin resetroom} is about
+     * to delete, so it has no reason to keep standing). For
+     * {@code /dungeon admin resetroom}, ahead of wiping the saved blob: a room
+     * still open in the world would otherwise get re-captured out from under
+     * the reset the next time its owner leaves it.
+     *
+     * @return how many slots were purged
+     */
+    static int adminPurgeByOwner(MinecraftServer server, UUID owner) {
+        int purged = 0;
+        for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
+            if (record.owner.equals(owner)) {
+                purge(server, record, "room reset by an operator");
+                purged++;
+            }
+        }
+        return purged;
     }
 
     /** One line per live instance, for {@code /dungeon admin list}. */

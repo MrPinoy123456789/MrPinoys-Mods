@@ -11,6 +11,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -57,6 +59,23 @@ final class RoomStore {
 
     private static final String DIR = "pocketdungeons/rooms";
     private static final String ROTATION_KEY = "pd_captured_rotation";
+    private static final String VERSION_KEY = "pd_room_version";
+
+    /**
+     * Bumped whenever a capture written by this version would place wrongly
+     * under an older version's assumptions. {@code place} sweeps a blob below
+     * this version once, the moment it is next placed at the rotation it was
+     * captured in -- see {@link #sweepLegacyLobbyFurniture}.
+     *
+     * <ul>
+     *   <li>1: the selector doors moved from sitting in the sealed MM wall
+     *       itself (x=4,8,12) to standing one block in front of it (x=7,8,9);
+     *       the corner leave-pad moved from a 2x2 centre-south square to a
+     *       single lodestone in the north-west corner. A pre-1 blob may carry
+     *       either as ordinary captured blocks.</li>
+     * </ul>
+     */
+    private static final int CURRENT_VERSION = 1;
 
     private RoomStore() {}
 
@@ -87,6 +106,14 @@ final class RoomStore {
      * Filtering before the capture rather than after keeps this to APIs that
      * already exist -- {@code StructureTemplate} has no public per-entity filter
      * on load.
+     *
+     * <p>Players are exempt from that sweep. A capture now runs whenever the
+     * owner leaves ({@code Instances.saveRoom}), and the owner is standing in
+     * the room when they do -- discarding them there is a removed player entity
+     * mid-logout, the same class of failure {@code PLAN.md} documents for
+     * teardown teleports. Nothing is lost by skipping them: vanilla's
+     * {@code fillEntityList} already refuses to capture a {@link Player}, so
+     * they were never going into the blob either way.
      */
     static void capture(ServerLevel level, MinecraftServer server, UUID owner,
                         BlockPos cellOrigin, int capturedQuarterTurns) {
@@ -94,7 +121,7 @@ final class RoomStore {
                 new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(), cellOrigin.getZ(),
                         cellOrigin.getX() + RoomGeometry.CELL, cellOrigin.getY() + RoomGeometry.CEILING_Y + 1,
                         cellOrigin.getZ() + RoomGeometry.CELL),
-                e -> !(e instanceof ItemFrame) && !(e instanceof ArmorStand))) {
+                e -> !(e instanceof Player) && !(e instanceof ItemFrame) && !(e instanceof ArmorStand))) {
             entity.discard();
         }
 
@@ -102,6 +129,7 @@ final class RoomStore {
         template.fillFromWorld(level, cellOrigin, TemplateStamper.TEMPLATE_SIZE, true, List.of());
         CompoundTag tag = template.save(new CompoundTag());
         tag.putInt(ROTATION_KEY, ((capturedQuarterTurns % 4) + 4) % 4);
+        tag.putInt(VERSION_KEY, CURRENT_VERSION);
         save(server, owner, tag);
     }
 
@@ -123,7 +151,42 @@ final class RoomStore {
         int capturedQ = tag.getIntOr(ROTATION_KEY, 0);
         int delta = (((targetQuarterTurns - capturedQ) % 4) + 4) % 4;
         TemplateStamper.placeRotated(level, template, cellOrigin, delta, random, false);
+        // Only correct when the room lands at exactly the rotation it was
+        // captured in: the fixed local coordinates below are where the old
+        // furniture actually sits in world space only when nothing has rotated
+        // it out from under them. A pre-1 blob captured at any other selector
+        // wall (i.e. from a completed run, under the pre-fix code) is not swept.
+        if (delta == 0 && capturedQ == 0 && tag.getIntOr(VERSION_KEY, 0) < CURRENT_VERSION) {
+            sweepLegacyLobbyFurniture(level, cellOrigin);
+        }
         return true;
+    }
+
+    /**
+     * Cleans up the two lobby-geometry mistakes a pre-1 blob carries as
+     * ordinary captured blocks: three door blocks baked directly into the
+     * sealed MM wall at the old x=4,8,12 positions (now restored to plain
+     * wall -- whatever currently owns those coordinates, the room's own
+     * template or {@link RoomTemplateGenerator#placeSelectorDoors}, re-stamps
+     * over them regardless), and the old 2x2 lodestone pad with its ring,
+     * centred south of the door row (now restored to floor). Both are
+     * one-shot: {@link #capture} always writes {@link #CURRENT_VERSION} now,
+     * so a blob only ever needs this once.
+     */
+    private static void sweepLegacyLobbyFurniture(ServerLevel level, BlockPos cellOrigin) {
+        for (int x : new int[]{4, 8, 12}) {
+            for (int y = 1; y <= 2; y++) {
+                BlockPos pos = cellOrigin.offset(x, y, RoomGeometry.CELL - 1);
+                if (level.getBlockState(pos).getBlock() instanceof DoorBlock) {
+                    RoomBuilder.set(level, pos, RoomBuilder.WALL);
+                }
+            }
+        }
+        for (int x = 6; x <= 9; x++) {
+            for (int z = 11; z <= 14; z++) {
+                RoomBuilder.set(level, cellOrigin.offset(x, 0, z), RoomBuilder.FLOOR);
+            }
+        }
     }
 
     /**
@@ -167,6 +230,30 @@ final class RoomStore {
         // backup behind -- a second corruption does not strand the operator
         // with nothing left to fall back to.
         save(server, owner, tag);
+        return true;
+    }
+
+    /**
+     * Wipes {@code owner}'s saved room, for {@code /dungeon admin resetroom} --
+     * a player asking to start their room over, or an operator cleaning up
+     * inappropriate content. The live blob is backed up first, same as every
+     * other write here: a reset is still a mistake an operator can make, and
+     * {@code baserestore} needs somewhere to recover from just as much after a
+     * reset as after a bad capture.
+     *
+     * @return {@code false} if this owner had no saved room to reset
+     */
+    static boolean reset(MinecraftServer server, UUID owner) {
+        Path live = liveFile(server, owner);
+        if (!Files.exists(live)) {
+            return false;
+        }
+        try {
+            Files.copy(live, backupFile(server, owner), StandardCopyOption.REPLACE_EXISTING);
+            Files.delete(live);
+        } catch (IOException e) {
+            PocketDungeonsMod.LOG.error("Could not reset the room for {}", owner, e);
+        }
         return true;
     }
 

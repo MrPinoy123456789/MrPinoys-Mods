@@ -222,6 +222,20 @@ final class DungeonCommands {
                                                     net.minecraft.commands.arguments.GameProfileArgument
                                                             .getGameProfiles(ctx, "target")))))
 
+                            // Wipes a player's saved room and closes anything of theirs
+                            // still open in the world -- their lobby, an active run,
+                            // a lingering quarry, any visit copy of the room. Offline-
+                            // capable via GameProfileArgument, same as baserestore:
+                            // the operator reaching for this may be doing it because
+                            // the owner cannot fix it themselves.
+                            .then(Commands.literal("resetroom")
+                                    .then(Commands.argument("target",
+                                                    net.minecraft.commands.arguments.GameProfileArgument
+                                                            .gameProfile())
+                                            .executes(ctx -> resetRoom(ctx.getSource(),
+                                                    net.minecraft.commands.arguments.GameProfileArgument
+                                                            .getGameProfiles(ctx, "target")))))
+
                             // Debug / moderation: reset a player's keystone progress to 0
                             // and confiscate any held keystones so the next /dungeon key gives
                             // a fresh level 1.
@@ -771,6 +785,36 @@ final class DungeonCommands {
             }
         }
         return restored;
+    }
+
+    /**
+     * {@code /dungeon admin resetroom <target>}: closes every instance
+     * {@code target} has open (their lobby, an active run, a lingering quarry,
+     * any visit copy of the room) and deletes their saved room, backing it up
+     * first the same as every other {@link RoomStore} write. The next time they
+     * open a lobby they get a fresh {@code entrance_hall}, same as a player who
+     * has never saved a room at all.
+     */
+    private static int resetRoom(CommandSourceStack source,
+                                 java.util.Collection<net.minecraft.server.players.NameAndId> targets) {
+        MinecraftServer server = source.getServer();
+        int handled = 0;
+        for (net.minecraft.server.players.NameAndId target : targets) {
+            int purged = Instances.adminPurgeByOwner(server, target.id());
+            boolean hadRoom = RoomStore.reset(server, target.id());
+            if (!hadRoom && purged == 0) {
+                source.sendFailure(Component.literal(
+                        target.name() + " has no saved room and nothing open to reset."));
+                continue;
+            }
+            String detail = hadRoom
+                    ? (purged > 0 ? "room and " + purged + " open instance(s)" : "room")
+                    : purged + " open instance(s), no saved room";
+            source.sendSuccess(() -> Component.literal(
+                    "Reset " + target.name() + "'s " + detail + "."), true);
+            handled++;
+        }
+        return handled;
     }
 
     private static int resetKey(CommandSourceStack source, ServerPlayer target) {
