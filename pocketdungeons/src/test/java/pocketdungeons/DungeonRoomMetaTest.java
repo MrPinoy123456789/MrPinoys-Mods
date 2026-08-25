@@ -20,6 +20,9 @@ public class DungeonRoomMetaTest {
         testProcessorsPresent();
         testProcessorsBlank();
         testUnrelatedFieldsStillParse();
+        testThemeAbsent();
+        testThemePresent();
+        testThemeEmptyArray();
         System.out.println("DungeonRoomMetaTest passed");
     }
 
@@ -65,6 +68,40 @@ public class DungeonRoomMetaTest {
                   "processors": "   "
                 }
                 """).processors, null, "whitespace processors");
+    }
+
+    private static void testThemeAbsent() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"]
+                }
+                """);
+        check(meta.theme.isEmpty(), true, "absent theme is empty");
+    }
+
+    private static void testThemePresent() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "theme": ["deepslate", "prismarine"]
+                }
+                """);
+        check(meta.theme.size(), 2, "theme size");
+        check(meta.theme.get(0), "deepslate", "theme[0]");
+        check(meta.theme.get(1), "prismarine", "theme[1]");
+    }
+
+    private static void testThemeEmptyArray() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "theme": []
+                }
+                """);
+        check(meta.theme.isEmpty(), true, "empty theme array");
     }
 
     /** The field is additive: nothing else about the schema moved. */

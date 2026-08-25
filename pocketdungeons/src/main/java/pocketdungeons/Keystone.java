@@ -127,7 +127,7 @@ final class Keystone {
         stack.set(DataComponents.CUSTOM_NAME,
                 Component.literal(name).withStyle(affix.colour).withStyle(s -> s.withItalic(false)));
         stack.set(DataComponents.LORE, new ItemLore(List.of(
-                grey("Right-click a lodestone to spend it."),
+                grey("Right-click a lodestone to use it."),
                 grey(affix == Affix.FRAGILE
                         ? "Fragile: every failure costs double."
                         : affix == Affix.OMINOUS

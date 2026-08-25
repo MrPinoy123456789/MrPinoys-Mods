@@ -4,7 +4,7 @@
 > `plans/M<n>-*.md` hold the how, `VISION.md` holds the why. None of those three
 > may contain a checkbox or a status column.
 >
-> **Last updated:** 2026-08-24 · **Current milestone:** M1
+> **Last updated:** 2026-08-24 · **Current milestone:** M2
 >
 > **Multiplayer testing is deferred until every milestone is code-complete.**
 > Several tasks' "Done when" bars call for a live check with two connected
@@ -92,9 +92,9 @@ shape gets decided once instead of per-milestone.
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T1.1 | Wire `processors` | `DONE` | Committed `f7345eb`. Verified in-world over RCON: 4332 deepslate / 0 stone with a datapack theme, 0 / 4802 without. `DungeonRoomMetaTest` added to the harness |
-| T1.2 | `theme` field + `RoomSelector` filter | `TODO` | |
-| T1.3 | Three proof themes | `TODO` | deepslate / prismarine / blackstone |
+| T1.1 | Wire `processors` | `DONE` | Verified in-world: 4332 deepslate / 0 stone with a datapack theme, 0 / 4802 without. `DungeonRoomMetaTest` added to the harness |
+| T1.2 | `theme` field + `RoomSelector` filter | `DONE` | `DungeonRoomMeta.theme` parses optional string arrays; `RoomSelector.queryAnyRotation` filters by requested theme; planner failures name the theme. `PlanSelectorTest` added |
+| T1.3 | Three proof themes | `DONE` | `data/pocketdungeons/worldgen/processor_list/theme_{deepslate,prismarine,blackstone}.json` each rewrite the shell palette; verified by server load and `/dungeon admin stamptest` |
 
 ## M2 — The room · `plans/M2-the-room.md`
 
@@ -176,6 +176,7 @@ Newest first. One line each: date — who — what changed.
 
 | Date | Who | What |
 |---|---|---|
+| 2026-08-24 | Devin | M1 closed. `DungeonRoomMeta` `processors`/`theme` wired, `RoomSelector` theme filtering, three proof processor-list datapack themes, `PlanSelectorTest`/`DungeonRoomMetaTest` pass. `./gradlew build` green. `plans/M1-themes-foundation.md` → `M1-themes-foundation-completed.md`; current milestone moved to M2 |
 | 2026-08-24 | design session | `DIALOGS_SPEC.md` written — seven menus spec'd against the vanilla dialog mechanism `quizengine`/`cobbleeconomy` already ship (no code): door offers, kick/invite confirmations, keystone inspection, room whitelist (M2 T2.2), admin baserestore confirm (M2 T2.1), and the elevator (D7). Corrected D7's cost estimate in `plans/M8-deferred.md` — it was priced against building a `MenuProvider` from nothing; the real decision is vanilla `DialogListDialog` vs. adding `eu.pb4:sgui` for pagination. Cross-referenced from M2 and M3's plans |
 | 2026-08-24 | user + Devin | Decided: multiplayer testing (any task needing two connected clients) is deferred to one pass after every milestone is code-complete, not run per-task. Noted at the top of this file. M0 closed on that basis: T0.5 marked `DONE` on code + build-green, its live click check deferred rather than left `WIP`. Current milestone moved to M1 |
 | 2026-08-24 | design session | D7 "the elevator" (public opt-in room/party directory) added to the M8 backlog — a user idea, not yet scoped into a plan. Flagged its tension with the calling card's deliberate no-browse rule and its real cost (new menu system, new per-template anchor) rather than filing it as free |

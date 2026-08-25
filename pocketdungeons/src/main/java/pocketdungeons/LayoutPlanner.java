@@ -58,7 +58,7 @@ final class LayoutPlanner {
                         int minPath, int maxPath) {
         return plan(seed, manifest, attemptBudget, minPath, maxPath,
                 DEFAULT_BRANCH_PROBABILITY, DEFAULT_LOOP_PROBABILITY,
-                DEFAULT_MAX_GRID_SPAN);
+                DEFAULT_MAX_GRID_SPAN, null);
     }
 
     /**
@@ -70,6 +70,14 @@ final class LayoutPlanner {
                         int minPath, int maxPath,
                         double branchProbability, double loopProbability,
                         int maxGridSpan) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, null);
+    }
+
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -91,12 +99,13 @@ final class LayoutPlanner {
                                 + String.join("; ", shapeProblems));
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme);
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()
                         + " (mask " + DoorMask.toLetters(failure.mask())
-                        + ", role " + failure.role() + ")";
+                        + ", role " + failure.role() + ")"
+                        + (theme != null ? " for theme " + theme : "");
                 continue;
             }
 

@@ -197,11 +197,19 @@ final class RoomManifest {
      * <p>The spec does allow the alternative -- let the planner over-select and
      * have a finalize pass wall off the leftovers -- but explicitly prefers the
      * planner solving it ("prefer the former"), and no finalize pass exists yet.
+     *
+     * @param theme requested theme, or {@code null} for none. A room whose
+     *              {@code theme} list is empty matches every requested theme;
+     *              otherwise it matches only if the list contains the requested
+     *              theme.
      */
-    List<Match> queryAnyRotation(int requiredMask, String role) {
+    List<Match> queryAnyRotation(int requiredMask, String role, String theme) {
         List<Match> out = new ArrayList<>();
         for (Entry entry : rooms) {
             if (role != null && !entry.meta.roles.contains(role)) {
+                continue;
+            }
+            if (!matchesTheme(entry.meta.theme, theme)) {
                 continue;
             }
             for (int r = 0; r < 4; r++) {
@@ -211,6 +219,17 @@ final class RoomManifest {
             }
         }
         return out;
+    }
+
+    List<Match> queryAnyRotation(int requiredMask, String role) {
+        return queryAnyRotation(requiredMask, role, null);
+    }
+
+    private static boolean matchesTheme(List<String> roomThemes, String requested) {
+        if (requested == null) {
+            return true;
+        }
+        return roomThemes.isEmpty() || roomThemes.contains(requested);
     }
 
     /** Package-private test factory; production code uses {@link #load}. */

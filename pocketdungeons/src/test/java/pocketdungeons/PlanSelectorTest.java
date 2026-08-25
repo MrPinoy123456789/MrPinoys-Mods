@@ -19,6 +19,7 @@ public class PlanSelectorTest {
         testBranchFailsLegibly();
         testBudgetValidation();
         testConfiguredGridSpan();
+        testThemeFilter();
         System.out.println("PlanSelectorTest passed");
     }
 
@@ -106,6 +107,26 @@ public class PlanSelectorTest {
         }
     }
 
+    private static void testThemeFilter() {
+        DungeonShape shape = straightShape(3);
+        RoomManifest manifest = makeThemedManifest();
+
+        Optional<DungeonPlan> noTheme = RoomSelector.resolve(shape, manifest);
+        if (noTheme.isEmpty()) {
+            throw new AssertionError("expected unfiltered plan to resolve");
+        }
+
+        Optional<DungeonPlan> themed = RoomSelector.resolve(shape, manifest, "deepslate");
+        if (themed.isPresent()) {
+            throw new AssertionError("expected deepslate theme to filter out the unthemed encounter room");
+        }
+
+        RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, "deepslate");
+        if (!"encounter".equals(result.failure().role())) {
+            throw new AssertionError("expected theme failure to name encounter role, got " + result.failure());
+        }
+    }
+
     private static DungeonShape straightShape(int n) {
         Set<PlanCell> cells = new LinkedHashSet<>();
         List<PlanCell> critical = new ArrayList<>();
@@ -175,7 +196,23 @@ public class PlanSelectorTest {
         return RoomManifest.create(entries, List.of());
     }
 
+    private static RoomManifest makeThemedManifest() {
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        entries.add(new RoomManifest.Entry("entrance_hall",
+                meta("entrance_hall", List.of("entrance"), List.of("deepslate")), DoorMask.EAST));
+        entries.add(new RoomManifest.Entry("encounter_zombie",
+                meta("encounter_zombie", List.of("encounter"), List.of("prismarine")),
+                DoorMask.EAST | DoorMask.WEST));
+        entries.add(new RoomManifest.Entry("exit_hall",
+                meta("exit_hall", List.of("exit"), List.of("deepslate")), DoorMask.WEST));
+        return RoomManifest.create(entries, List.of());
+    }
+
     private static DungeonRoomMeta meta(String template, List<String> roles) {
         return new DungeonRoomMeta(template, 1, 1, roles, 1, 0, -1, null);
+    }
+
+    private static DungeonRoomMeta meta(String template, List<String> roles, List<String> theme) {
+        return new DungeonRoomMeta(template, 1, 1, roles, 1, 0, -1, null, theme);
     }
 }

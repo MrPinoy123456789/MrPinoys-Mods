@@ -133,10 +133,10 @@ final class RitualListener {
         level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
 
-        // Consume only on success. enterWithKeystone() has failure paths --
-        // missing dimension, a stamp that could not be placed -- that leave the
-        // player exactly where they stood, and eating a keystone somebody spent
-        // several runs earning on one of those is a real loss.
+        // The keystone is a remote, not a cost: it is not consumed on entry.
+        // enterWithKeystone() still has failure paths -- missing dimension, a stamp
+        // that could not be placed -- that leave the player exactly where they
+        // stood, so the sound and message below only fire on success.
         if (!Instances.enterWithKeystone(serverPlayer)) {
             return InteractionResult.PASS;
         }

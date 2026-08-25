@@ -10,6 +10,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -127,12 +128,12 @@ final class DungeonCommands {
                                                                             ctx, "ominous")))))))
 
                             .then(Commands.literal("untimed")
-                                    .executes(ctx -> untimed(ctx.getSource(), 1, false))
+                                    .executes(ctx -> untimed(ctx.getSource(), 1, false, null))
                                     .then(Commands.argument("keystoneLevel",
                                                     IntegerArgumentType.integer(1, 1000))
                                             .executes(ctx -> untimed(ctx.getSource(),
                                                     IntegerArgumentType.getInteger(
-                                                            ctx, "keystoneLevel"), false))
+                                                            ctx, "keystoneLevel"), false, null))
                                             .then(Commands.argument("ominous",
                                                             com.mojang.brigadier.arguments
                                                                     .BoolArgumentType.bool())
@@ -141,7 +142,19 @@ final class DungeonCommands {
                                                                     ctx, "keystoneLevel"),
                                                             com.mojang.brigadier.arguments
                                                                     .BoolArgumentType.getBool(
-                                                                    ctx, "ominous"))))))
+                                                                    ctx, "ominous"), null))
+                                                    .then(Commands.argument("theme",
+                                                                    com.mojang.brigadier.arguments
+                                                                            .StringArgumentType.string())
+                                                            .executes(ctx -> untimed(ctx.getSource(),
+                                                                    IntegerArgumentType.getInteger(
+                                                                            ctx, "keystoneLevel"),
+                                                                    com.mojang.brigadier.arguments
+                                                                            .BoolArgumentType.getBool(
+                                                                            ctx, "ominous"),
+                                                                    com.mojang.brigadier.arguments
+                                                                            .StringArgumentType.getString(
+                                                                            ctx, "theme")))))))
 
                             .then(Commands.literal("gentemplates")
                                     .executes(ctx -> generateTemplates(ctx.getSource())))
@@ -171,6 +184,9 @@ final class DungeonCommands {
                                     .then(Commands.argument("count", IntegerArgumentType.integer(1, 1000))
                                             .executes(ctx -> planSurvey(ctx.getSource(),
                                                     IntegerArgumentType.getInteger(ctx, "count")))))
+
+                            .then(Commands.literal("exportdata")
+                                    .executes(ctx -> DatapackExporter.export(ctx.getSource())))
 
                             .then(manifestBranch())));
         });
@@ -218,7 +234,8 @@ final class DungeonCommands {
      * it is why both ends of its life are logged to the console and why
      * {@code admin list} marks it.
      */
-    private static int untimed(CommandSourceStack source, int keystoneLevel, boolean ominous) {
+    private static int untimed(CommandSourceStack source, int keystoneLevel, boolean ominous,
+                                 String theme) {
         ServerPlayer player;
         try {
             player = source.getPlayerOrException();
@@ -227,7 +244,7 @@ final class DungeonCommands {
                     "admin untimed opens a dungeon around you, so it needs a player."));
             return 0;
         }
-        if (!Instances.enterUntimed(player, keystoneLevel, ominous)) {
+        if (!Instances.enterUntimed(player, keystoneLevel, ominous, theme)) {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
@@ -464,11 +481,14 @@ final class DungeonCommands {
         }
 
         List<String> report = new ArrayList<>();
+        Identifier processorList = entry.meta.processors == null
+                ? null
+                : Identifier.parse(entry.meta.processors);
         for (int q = 0; q < 4; q++) {
             BlockPos cellOrigin = base.offset(q * RoomGeometry.CELL, 0, 0);
             List<BlockPos> spawns = TemplateStamper.place(level, level.getStructureManager(),
-                    cellOrigin, net.minecraft.resources.Identifier.parse(entry.meta.template),
-                    q, 0L);
+                    cellOrigin, Identifier.parse(entry.meta.template),
+                    q, 0L, processorList);
 
             int observed = 0;
             boolean escaped = false;

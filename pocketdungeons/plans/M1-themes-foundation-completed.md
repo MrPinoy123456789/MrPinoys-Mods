@@ -87,11 +87,11 @@ the loot pass, not here; here they are proof the mechanism works.
 
 ## Done when
 
-- [ ] Adding `"processors": "pocketdungeons:theme_deepslate"` to one
+- [x] Adding `"processors": "pocketdungeons:theme_deepslate"` to one
       `dungeon_room` json and running `/reload` changes that room's palette
-- [ ] A bad processor-list id is **rejected at manifest load**, named in
+- [x] A bad processor-list id is **rejected at manifest load**, named in
       `rejections()`, not silently ignored at stamp time
-- [ ] Three themes produce three visibly different dungeons from the same 14
+- [x] Three themes produce three visibly different dungeons from the same 14
       `.nbt` files
-- [ ] No recompile was needed for any of the above
-- [ ] `./gradlew build` green
+- [x] No recompile was needed for any of the above
+- [x] `./gradlew build` green

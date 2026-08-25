@@ -22,9 +22,11 @@ final class DungeonRoomMeta {
     final int minDepth;
     final int maxPerDungeon;
     final String processors;
+    final List<String> theme;
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
-                    int weight, int minDepth, int maxPerDungeon, String processors) {
+                    int weight, int minDepth, int maxPerDungeon, String processors,
+                    List<String> theme) {
         this.template = template;
         this.footprintX = footprintX;
         this.footprintZ = footprintZ;
@@ -33,6 +35,13 @@ final class DungeonRoomMeta {
         this.minDepth = minDepth;
         this.maxPerDungeon = maxPerDungeon;
         this.processors = processors;
+        this.theme = theme;
+    }
+
+    DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
+                    int weight, int minDepth, int maxPerDungeon, String processors) {
+        this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon,
+                processors, List.of());
     }
 
     static DungeonRoomMeta fromJson(JsonObject obj) {
@@ -43,8 +52,9 @@ final class DungeonRoomMeta {
         int minDepth = intOr(obj.get("minDepth"), 0);
         int maxPerDungeon = intOr(obj.get("maxPerDungeon"), -1);
         String processors = stringOrNull(obj.get("processors"));
+        List<String> theme = parseTheme(obj.get("theme"));
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,
-                weight, minDepth, maxPerDungeon, processors);
+                weight, minDepth, maxPerDungeon, processors, theme);
     }
 
     private static String requiredString(JsonObject obj, String key) {
@@ -85,6 +95,18 @@ final class DungeonRoomMeta {
             return defaultValue;
         }
         return el.getAsInt();
+    }
+
+    private static List<String> parseTheme(JsonElement el) {
+        if (el == null || !el.isJsonArray()) {
+            return List.of();
+        }
+        JsonArray arr = el.getAsJsonArray();
+        List<String> theme = new ArrayList<>(arr.size());
+        for (JsonElement e : arr) {
+            theme.add(e.getAsString());
+        }
+        return Collections.unmodifiableList(theme);
     }
 
     private static String stringOrNull(JsonElement el) {

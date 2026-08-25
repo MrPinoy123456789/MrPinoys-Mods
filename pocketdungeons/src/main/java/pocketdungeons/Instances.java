@@ -269,7 +269,6 @@ final class Instances {
         if (!enter(player, level, affix)) {
             return false;
         }
-        keystone.shrink(1);
         return true;
     }
 
@@ -319,13 +318,19 @@ final class Instances {
      * operator can walk a level 12 layout without owning a level 12 key, and both
      * its creation and its teardown are logged so it cannot be quietly forgotten.
      */
-    static boolean enterUntimed(ServerPlayer player, int keystoneLevel, boolean ominous) {
+    static boolean enterUntimed(ServerPlayer player, int keystoneLevel, boolean ominous,
+                                String theme) {
         return enter(player, Math.max(1, keystoneLevel),
-                ominous ? Keystone.Affix.OMINOUS : Keystone.Affix.NONE, true);
+                ominous ? Keystone.Affix.OMINOUS : Keystone.Affix.NONE, true, theme);
     }
 
     static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix,
                          boolean untimed) {
+        return enter(player, keystoneLevel, affix, untimed, null);
+    }
+
+    static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix,
+                         boolean untimed, String theme) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return false;
@@ -363,7 +368,7 @@ final class Instances {
         // On failure buildLayout has already queued a clear for whatever partial
         // geometry it wrote and the slot's release happens when that clear
         // finishes -- it is deliberately not freed here. See buildLayout's note.
-        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous);
+        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous, theme);
         if (layout == null) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. You have not been moved.")
@@ -517,12 +522,13 @@ final class Instances {
      */
     private static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
                                               int slot, BlockPos origin, long seed,
-                                              int keystoneLevel, boolean ominous) {
+                                              int keystoneLevel, boolean ominous,
+                                              String theme) {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
                 PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                PocketDungeonsConfig.maxGridSpan());
+                PocketDungeonsConfig.maxGridSpan(), theme);
 
         DungeonPlan plan = outcome.plan();
         if (plan != null) {
@@ -959,6 +965,13 @@ final class Instances {
         Keystones.grantOffer(server, player.getUUID(), player, offer);
         log.clearPendingOffer(player.getUUID());
 
+        // Guard the later exit() from settling the keystone again after we have
+        // already replaced it with the chosen offer.
+        InstanceRecord record = byMember.get(player.getUUID());
+        if (record != null) {
+            record.keystoneReturned.add(player.getUUID());
+        }
+
         player.sendSystemMessage(Component.literal(
                 "Keystone [" + offer.level() + "]"
                         + (offer.affix() == Keystone.Affix.NONE
@@ -966,7 +979,7 @@ final class Instances {
                         + " is yours.")
                 .withStyle(ChatFormatting.AQUA));
 
-        if (byMember.containsKey(player.getUUID())) {
+        if (record != null) {
             exit(player, ExitReason.COMMAND);
         }
         return true;
@@ -1749,7 +1762,7 @@ final class Instances {
         BlockPos origin = originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous);
+                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous, null);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.

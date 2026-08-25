@@ -37,7 +37,16 @@ final class RoomSelector {
      * if any cell has no room/rotation that satisfies its required mask and role.
      */
     static Optional<DungeonPlan> resolve(DungeonShape shape, RoomManifest manifest) {
-        Result result = resolveDetailed(shape, manifest);
+        return resolve(shape, manifest, null);
+    }
+
+    /**
+     * As {@link #resolve(DungeonShape, RoomManifest)}, filtered to a requested
+     * theme. A {@code null} theme matches every room; a non-null theme only
+     * matches rooms that either omit the {@code theme} field or include it.
+     */
+    static Optional<DungeonPlan> resolve(DungeonShape shape, RoomManifest manifest, String theme) {
+        Result result = resolveDetailed(shape, manifest, theme);
         return Optional.ofNullable(result.plan());
     }
 
@@ -46,6 +55,10 @@ final class RoomSelector {
      * find a match for a cell.
      */
     static Result resolveDetailed(DungeonShape shape, RoomManifest manifest) {
+        return resolveDetailed(shape, manifest, null);
+    }
+
+    static Result resolveDetailed(DungeonShape shape, RoomManifest manifest, String theme) {
         List<PlanCell> order = sortedCells(shape.cells());
         Map<PlanCell, DungeonPlan.PlacedRoom> placed = new LinkedHashMap<>();
         Map<PlanCell, Integer> depths = depths(shape);
@@ -62,7 +75,7 @@ final class RoomSelector {
                 return new Result(null, new Failure(cell, mask, "missing role"));
             }
 
-            List<RoomManifest.Match> matches = manifest.queryAnyRotation(mask, role);
+            List<RoomManifest.Match> matches = manifest.queryAnyRotation(mask, role, theme);
             if (matches.isEmpty()) {
                 return new Result(null, new Failure(cell, mask, role));
             }
