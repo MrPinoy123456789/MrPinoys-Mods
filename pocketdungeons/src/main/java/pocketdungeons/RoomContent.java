@@ -11,6 +11,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 /**
  * Applies a cell's <em>role</em> to the room that was just stamped into it.
@@ -55,18 +57,63 @@ final class RoomContent {
 
     static void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      boolean ominous) {
+                      Set<Affix> affixes) {
         if (role == null) {
             return;
         }
         switch (role) {
             case "encounter" -> {
                 removeChests(level, cellOrigin);
-                TrialContent.applyEncounter(level, cellOrigin, spawns, profile.lootTier(), ominous);
+                TrialContent.applyEncounter(level, cellOrigin, spawns, profile.lootTier(), affixes);
             }
-            case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(), ominous, seed);
+            case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
+                    affixes.contains(Affix.OMINOUS), seed);
             case "corridor" -> removeChests(level, cellOrigin);
             default -> { /* entrance and exit carry no chest and no spawn points */ }
+        }
+        // Molten (M4 T4.5): lava underfoot, and the only source of lava in the
+        // game -- a sealed dungeon has none otherwise, and it gates furnace fuel
+        // and, with water, obsidian (VISION.md 3.7). Entrance and exit are
+        // deliberately excluded: they carry the lobby door and the lodestone
+        // pad, and a hazard placed there would make either impassable rather
+        // than merely dangerous.
+        if (affixes.contains(Affix.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
+                || "corridor".equals(role))) {
+            placeMoltenHazards(level, cellOrigin, spawns, seed);
+        }
+    }
+
+    /**
+     * Scatters {@link PocketDungeonsConfig#moltenHazardsPerCell} lava blocks
+     * across the cell's floor, seeded off the run so a given seed always stamps
+     * the same hazards.
+     *
+     * <p>Kept to the interior margin ({@code 3..12} of a 16-wide cell) rather
+     * than the full floor: that clears both the wall/door band and the two
+     * anchor columns ({@code 7}/{@code 8}) the door and spawn jigsaws use, so a
+     * cell never comes out impassable. Spawn anchors themselves are skipped
+     * explicitly on top of that, since a spawner sitting in lava is its own kind
+     * of broken.
+     */
+    private static void placeMoltenHazards(ServerLevel level, BlockPos cellOrigin,
+                                           List<BlockPos> spawns, long seed) {
+        int count = PocketDungeonsConfig.moltenHazardsPerCell();
+        if (count <= 0) {
+            return;
+        }
+        Random random = new Random(seed ^ cellOrigin.asLong());
+        int placed = 0;
+        int attempts = 0;
+        while (placed < count && attempts < count * 8) {
+            attempts++;
+            int x = 3 + random.nextInt(10);
+            int z = 3 + random.nextInt(10);
+            BlockPos pos = cellOrigin.offset(x, 0, z);
+            if (spawns.contains(pos)) {
+                continue;
+            }
+            level.setBlock(pos, Blocks.LAVA.defaultBlockState(), FLAGS);
+            placed++;
         }
     }
 

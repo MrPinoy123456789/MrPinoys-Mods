@@ -12,6 +12,7 @@ import net.minecraft.world.level.storage.SavedDataStorage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,10 +34,15 @@ final class DungeonLog extends SavedData {
      *                           remote that displays this number, not the number
      *                           itself. See {@link Keystone} for why that
      *                           inverted.
-     * @param keystoneAffix      the affix riding on that keystone, lowercase, or
-     *                           empty for none. Persisted alongside the level
-     *                           because picking the ominous or fragile door has
-     *                           to survive until the run that pays for it.
+     * @param keystoneAffix      the <em>elective</em> affixes riding on that
+     *                           keystone: lowercase names, comma-joined in enum
+     *                           order, or empty for none. Persisted alongside the
+     *                           level because picking the ominous or fragile door
+     *                           has to survive until the run that pays for it.
+     *                           The affixes the level's thresholds seed are not
+     *                           here -- they follow from the level and are derived
+     *                           on read ({@link AffixMath#effective}), which is why
+     *                           M4 needed no codec migration.
      * @param pendingOfferLevel  the keystone level a completed run was finished
      *                           at, if a door choice from that completion is
      *                           still unmade. {@code 0} means no offer pending.
@@ -138,13 +144,20 @@ final class DungeonLog extends SavedData {
      * written here and reads it back on their next login through the remote in
      * their pocket.
      *
+     * <p><strong>Only the elective affixes are stored</strong> (M4 T4.1). What the
+     * level's thresholds hand a player on top is re-derived from
+     * {@code (player, level)} on every read, so there is nothing here that can
+     * disagree with the level beside it -- and the field keeps its old shape, so
+     * a save written before affixes stacked still loads: {@code "ominous"} parses
+     * as a one-element set and {@code ""} as an empty one.
+     *
      * @param level clamped by the caller; {@code 0} clears the keystone entirely
      */
-    void setKeystone(UUID player, int level, Keystone.Affix affix) {
+    void setKeystone(UUID player, int level, Set<Affix> affixes) {
         Entry previous = get(player);
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), Math.max(0, level),
-                affix == null ? "" : affix.name().toLowerCase(), previous.pendingOfferLevel()));
+                AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel()));
         setDirty();
     }
 

@@ -216,6 +216,25 @@ final class RoomStore {
     }
 
     /**
+     * When this owner's backup file was last written, or {@code null} if there is
+     * no backup to restore from.
+     *
+     * <p>Read-only, and added for the {@code baserestore} confirmation screen to
+     * have something concrete to name: "restore the backup" is a very different
+     * question from "restore the backup made forty minutes ago". Nothing about
+     * how backups are written changed to provide it -- this is the file's own
+     * modified time, which {@link #save} sets by copying.
+     */
+    static java.time.Instant backupTime(MinecraftServer server, UUID owner) {
+        try {
+            Path backup = backupFile(server, owner);
+            return Files.exists(backup) ? Files.getLastModifiedTime(backup).toInstant() : null;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /**
      * Restores this owner's live blob from the backup file, for
      * {@code /dungeon admin baserestore}.
      *

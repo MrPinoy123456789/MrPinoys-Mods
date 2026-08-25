@@ -78,6 +78,16 @@ public final class PocketDungeonsConfig {
     /** Completed, but after the clock. Costs less, and a door offer is still earned. */
     private static int lateCompletionDepletion = 2;
 
+    // ---- affixes (M4) --------------------------------------------------------
+    /** Overclocked scales {@link #trialSpawnerCooldownTicks} down by this. */
+    private static double overclockedCooldownFactor = 0.4;
+    /** Swarming scales a tier's total/simultaneous mob counts up by this. */
+    private static double swarmingMobFactor = 1.5;
+    /** Silenced's trial spawners detect players at this range instead of 14. */
+    private static int silencedPlayerRange = 6;
+    /** Molten hazard blocks placed per cell. */
+    private static int moltenHazardsPerCell = 4;
+
     private PocketDungeonsConfig() {}
 
     /** Loads and validates every registry setting, preserving an unreadable file for manual repair. */
@@ -189,6 +199,22 @@ public final class PocketDungeonsConfig {
         return trialSpawnerCooldownTicks;
     }
 
+    public static double overclockedCooldownFactor() {
+        return overclockedCooldownFactor;
+    }
+
+    public static double swarmingMobFactor() {
+        return swarmingMobFactor;
+    }
+
+    public static int silencedPlayerRange() {
+        return silencedPlayerRange;
+    }
+
+    public static int moltenHazardsPerCell() {
+        return moltenHazardsPerCell;
+    }
+
     public static String keystoneItem() {
         return keystoneItem;
     }
@@ -267,6 +293,11 @@ public final class PocketDungeonsConfig {
         twoChestPercent = 80;
         timedOutDepletion = 1;
         lateCompletionDepletion = 2;
+
+        overclockedCooldownFactor = 0.4;
+        swarmingMobFactor = 1.5;
+        silencedPlayerRange = 6;
+        moltenHazardsPerCell = 4;
     }
 
     private static void apply(JsonObject root) {
@@ -331,6 +362,13 @@ public final class PocketDungeonsConfig {
         timedOutDepletion = readInt(root, "timedOutDepletion", 1, v -> v >= 0, "must be >= 0");
         lateCompletionDepletion = readInt(root, "lateCompletionDepletion", 2,
                 v -> v >= 0, "must be >= 0");
+
+        overclockedCooldownFactor = readDouble(root, "overclockedCooldownFactor", 0.4,
+                v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
+        swarmingMobFactor = readDouble(root, "swarmingMobFactor", 1.5,
+                v -> v >= 1, "must be >= 1");
+        silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
+        moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
     }
 
     private static int readInt(JsonObject root, String key, int defaultValue,
@@ -460,6 +498,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("twoChestPercent", 80);
         root.addProperty("timedOutDepletion", 1);
         root.addProperty("lateCompletionDepletion", 2);
+
+        root.addProperty("overclockedCooldownFactor", 0.4);
+        root.addProperty("swarmingMobFactor", 1.5);
+        root.addProperty("silencedPlayerRange", 6);
+        root.addProperty("moltenHazardsPerCell", 4);
         return root;
     }
 }

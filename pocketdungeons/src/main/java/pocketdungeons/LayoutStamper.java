@@ -43,8 +43,8 @@ final class LayoutStamper {
      *                      keystone's own affix, with no other route into it
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                int keystoneLevel, boolean ominous) {
-        return stamp(level, origin, plan, keystoneLevel, ominous, null);
+                                int keystoneLevel, Set<Affix> affixes) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, null);
     }
 
     /**
@@ -54,8 +54,8 @@ final class LayoutStamper {
      * ({@code /dungeon admin build}/{@code untimed}).
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                int keystoneLevel, boolean ominous, UUID owner) {
-        return stamp(level, origin, plan, keystoneLevel, ominous, owner, false);
+                                int keystoneLevel, Set<Affix> affixes, UUID owner) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, false);
     }
 
     /**
@@ -67,12 +67,12 @@ final class LayoutStamper {
      * bookkeeping -- is identical.
      */
     static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                           int keystoneLevel, boolean ominous, UUID owner) {
-        return stamp(level, origin, plan, keystoneLevel, ominous, owner, true);
+                                           int keystoneLevel, Set<Affix> affixes, UUID owner) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true);
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                        int keystoneLevel, boolean ominous, UUID owner,
+                                        int keystoneLevel, Set<Affix> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
@@ -101,7 +101,7 @@ final class LayoutStamper {
 
             int depth = plan.depths().getOrDefault(cell, 0);
             RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns,
-                    plan.seed(), ominous);
+                    plan.seed(), affixes);
 
             // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
             // ordinary content pass rather than skipping it keeps RoomSelector's
@@ -132,7 +132,7 @@ final class LayoutStamper {
                 plan.cells().size(),
                 profile.lootTier(),
                 true,
-                ominous,
+                affixes,
                 keystoneLevel,
                 geometry.cellOrigin(plan.terminal()),
                 plan.rooms().get(entranceCell).rotation(),

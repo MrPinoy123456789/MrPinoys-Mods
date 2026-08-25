@@ -5,6 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -55,17 +57,24 @@ final class Keystones {
      *               happens, only the chat line is skipped
      */
     static void returnTo(MinecraftServer server, UUID member, ServerPlayer player,
-                         int level, Keystone.Affix affix, Outcome outcome) {
+                         int level, Set<Affix> affixes, Outcome outcome) {
         if (level <= 0) {
             return;
         }
+        // M4 T4.3: the max across the set, capped at 2x -- never the sum and never
+        // the product. Two doubling affixes on one key still cost a double, or a
+        // level-20 key would shed most of a ladder on one bad night.
         int returned = KeystoneMath.deplete(level, outcome.depletion(),
-                affix == Keystone.Affix.FRAGILE, PocketDungeonsConfig.keystoneMaxLevel());
+                AffixMath.depletionMultiplier(affixes), PocketDungeonsConfig.keystoneMaxLevel());
 
-        // The affix does not survive: it was the price of the extra levels the
-        // player already banked when they took the offer, and carrying Fragile
-        // forward forever would compound one bad night into every night after it.
-        DungeonLog.forServer(server).setKeystone(member, returned, Keystone.Affix.NONE);
+        // The elective affixes do not survive: they were the price of the extra
+        // levels the player already banked when they took the offer, and carrying
+        // Big L forward forever would compound one bad night into every night
+        // after it. The seeded ones are not stored at all -- they follow from the
+        // level, so the returned key simply re-derives whatever its new level
+        // earns.
+        EnumSet<Affix> none = EnumSet.noneOf(Affix.class);
+        DungeonLog.forServer(server).setKeystone(member, returned, none);
 
         if (player == null) {
             PocketDungeonsMod.LOG.info("Keystone for absent player {} settled at level {} ({})",
@@ -73,7 +82,7 @@ final class Keystones {
             return;
         }
 
-        Keystone.reconcile(player, returned, Keystone.Affix.NONE);
+        Keystone.reconcile(player, returned, AffixMath.effective(member, returned, none));
         if (returned < level) {
             player.sendSystemMessage(Component.literal(
                     "Your keystone is depleted: [" + level + "] -> [" + returned + "].")
@@ -90,12 +99,16 @@ final class Keystones {
      */
     static void grantOffer(MinecraftServer server, UUID member, ServerPlayer player,
                            Keystone.Offer offer) {
-        DungeonLog.forServer(server).setKeystone(member, offer.level(), offer.affix());
+        // Only the elective half is written. What the new level's thresholds hand
+        // the player on top is derived on every read, so it cannot go stale and
+        // needs no codec field of its own.
+        DungeonLog.forServer(server).setKeystone(member, offer.level(), offer.affixes());
         if (player == null) {
             PocketDungeonsMod.LOG.info("Offer for absent player {} settled at level {}",
                     member, offer.level());
             return;
         }
-        Keystone.reconcile(player, offer.level(), offer.affix());
+        Keystone.reconcile(player, offer.level(),
+                AffixMath.effective(member, offer.level(), offer.affixes()));
     }
 }

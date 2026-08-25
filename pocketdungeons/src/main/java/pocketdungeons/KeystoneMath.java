@@ -27,9 +27,14 @@ final class KeystoneMath {
      * <p>A fragile keystone doubles every figure, which is the entire cost of
      * having taken the {@code +3}. The floor is 1, always: a keystone never
      * disappears and never goes to zero.
+     *
+     * <p>{@code multiplier} arrives from {@link AffixMath#depletionMultiplier} --
+     * the {@code max} across the run's whole affix set, never a product -- and is
+     * clamped to {@code [1, 2]} here as well, so no caller can double a key twice
+     * over by passing a figure the set never produced.
      */
-    static int deplete(int level, int amount, boolean fragile, int maxLevel) {
-        int cost = Math.max(0, amount) * (fragile ? 2 : 1);
+    static int deplete(int level, int amount, int multiplier, int maxLevel) {
+        int cost = Math.max(0, amount) * Math.max(1, Math.min(2, multiplier));
         return clampLevel(level - cost, maxLevel);
     }
 

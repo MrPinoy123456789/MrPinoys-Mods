@@ -1,15 +1,20 @@
 package pocketdungeons;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
@@ -31,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Turns a stamped room into a pocket trial chamber: a trial spawner where the
@@ -126,7 +132,11 @@ final class TrialContent {
      * @return true if a spawner was placed
      */
     static boolean applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                                  int tier, boolean ominous) {
+                                  int tier, Set<Affix> affixes) {
+        boolean ominous = affixes.contains(Affix.OMINOUS);
+        boolean swarming = affixes.contains(Affix.SWARMING);
+        boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
+        boolean silenced = affixes.contains(Affix.SILENCED);
         BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
         if (anchor == null) {
             PocketDungeonsMod.LOG.warn(
@@ -156,11 +166,31 @@ final class TrialContent {
         // A misspelt id does not throw -- the codec drops the field and the
         // spawner silently keeps FullConfig.DEFAULT -- so `admin cellreport`
         // reads the ids back out rather than trusting the write.
+        //
+        // Swarming is the one exception: the two-arg RegistryFileCodec Mojang
+        // built TrialSpawnerConfig.CODEC from allows an *inline* config object
+        // in place of the id string, so a swarming run writes the tier's config
+        // back out with its mob counts scaled, rather than needing a JSON file
+        // per affix per tier (M4 5.1/T4.5).
         CompoundTag tag = new CompoundTag();
-        tag.putString("normal_config", configId(tier, false));
-        tag.putString("ominous_config", configId(tier, true));
-        tag.putInt("target_cooldown_length", PocketDungeonsConfig.trialSpawnerCooldownTicks());
-        tag.putInt("required_player_range", 14);
+        if (swarming) {
+            writeInlineConfig(level, tag, "normal_config", tier, false);
+            writeInlineConfig(level, tag, "ominous_config", tier, true);
+        } else {
+            tag.putString("normal_config", configId(tier, false));
+            tag.putString("ominous_config", configId(tier, true));
+        }
+        // Overclocked: the waves come back fast, so a fast clear is faster still.
+        int cooldown = PocketDungeonsConfig.trialSpawnerCooldownTicks();
+        if (overclocked) {
+            cooldown = (int) Math.round(cooldown * PocketDungeonsConfig.overclockedCooldownFactor());
+        }
+        tag.putInt("target_cooldown_length", cooldown);
+        // Silenced: the mobs cannot hear you either -- a tighter detection range
+        // hands back the tactical "sneak it or fight it" choice section 3.3 says
+        // procedural layouts otherwise destroy.
+        tag.putInt("required_player_range",
+                silenced ? PocketDungeonsConfig.silencedPlayerRange() : 14);
 
         ValueInput input = TagValueInput.create(
                 ProblemReporter.DISCARDING, level.registryAccess(), tag);
@@ -173,6 +203,50 @@ final class TrialContent {
     private static String configId(int tier, boolean ominous) {
         return PocketDungeonsMod.MOD_ID + ":tier_" + Math.max(1, Math.min(3, tier))
                 + (ominous ? "/ominous" : "/normal");
+    }
+
+    /**
+     * Resolves the tier's shipped config out of the registry and writes it back
+     * under {@code key}, scaling {@code totalMobs}/{@code simultaneousMobs} by
+     * {@link PocketDungeonsConfig#swarmingMobFactor()}. More bodies is more
+     * drops -- Swarming's kiss.
+     *
+     * <p>If the base id is missing from the registry (a typo, a datapack that
+     * failed to load) this falls back to writing the plain id string, which is
+     * exactly what every other run already does and costs nothing extra.
+     */
+    private static void writeInlineConfig(ServerLevel level, CompoundTag tag, String key,
+                                          int tier, boolean ominous) {
+        Identifier id = Identifier.parse(configId(tier, ominous));
+        TrialSpawnerConfig base = level.registryAccess()
+                .lookupOrThrow(Registries.TRIAL_SPAWNER_CONFIG).getValue(id);
+        if (base == null) {
+            PocketDungeonsMod.LOG.warn(
+                    "Swarming: trial spawner config {} not found; falling back to the plain id", id);
+            tag.putString(key, id.toString());
+            return;
+        }
+        double factor = PocketDungeonsConfig.swarmingMobFactor();
+        TrialSpawnerConfig scaled = new TrialSpawnerConfig(
+                base.spawnRange(),
+                (float) (base.totalMobs() * factor),
+                (float) (base.simultaneousMobs() * factor),
+                base.totalMobsAddedPerPlayer(),
+                base.simultaneousMobsAddedPerPlayer(),
+                base.ticksBetweenSpawn(),
+                base.spawnPotentialsDefinition(),
+                base.lootTablesToEject(),
+                base.itemsToDropWhenOminous());
+
+        RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, level.registryAccess());
+        DataResult<Tag> encoded = TrialSpawnerConfig.DIRECT_CODEC.encodeStart(ops, scaled);
+        Optional<Tag> result = encoded.resultOrPartial(error ->
+                PocketDungeonsMod.LOG.warn("Swarming: failed to encode scaled config for {}: {}", id, error));
+        if (result.isPresent()) {
+            tag.put(key, result.get());
+        } else {
+            tag.putString(key, id.toString());
+        }
     }
 
     private static BlockPos encounterAnchor(ServerLevel level, BlockPos cellOrigin,

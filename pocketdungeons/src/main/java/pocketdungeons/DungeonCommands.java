@@ -53,7 +53,14 @@ final class DungeonCommands {
                             .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
 
                     .then(Commands.literal("key")
-                            .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException())))
+                            .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException()))
+                            // Read-only companion to the lore tooltip and /dungeon log,
+                            // in one screen. A chat trigger rather than a sneak-right-click
+                            // because RitualListener's use handler is already carrying the
+                            // ritual, the calling card and the exit pad, and it does not
+                            // need a fourth meaning for the same gesture.
+                            .then(Commands.literal("info")
+                                    .executes(ctx -> keyInfo(ctx.getSource().getPlayerOrException()))))
 
                     .then(Commands.literal("choose")
                             .then(Commands.argument("step", IntegerArgumentType.integer(1, 3))
@@ -61,6 +68,11 @@ final class DungeonCommands {
                                             IntegerArgumentType.getInteger(ctx, "step")))))
 
                     .then(Commands.literal("party")
+                            // Bare /dungeon party opens the roster. New surface, not a
+                            // replacement: before this there was no way to see a party at
+                            // all, only to name somebody you already remembered. Adding an
+                            // executes() to a literal that had none cannot shadow anything.
+                            .executes(ctx -> partyRoster(ctx.getSource().getPlayerOrException()))
                             // Literals are matched before arguments, so "kick" and
                             // "kickconfirm" win over a player who happens to be
                             // named either.
@@ -107,6 +119,11 @@ final class DungeonCommands {
                             .then(Commands.literal("card")
                                     .executes(ctx -> roomCard(ctx.getSource().getPlayerOrException())))
                             .then(Commands.literal("whitelist")
+                                    // Bare form opens the manager; add/remove/list keep
+                                    // working exactly as they did, for console and for
+                                    // anyone who prefers typing.
+                                    .executes(ctx -> roomWhitelistScreen(
+                                            ctx.getSource().getPlayerOrException()))
                                     .then(Commands.literal("add")
                                             .then(Commands.argument("target", EntityArgument.player())
                                                     .executes(ctx -> roomWhitelistAdd(
@@ -214,13 +231,22 @@ final class DungeonCommands {
                             // owner's live room from its backup file -- for a
                             // corrupted or accidentally-deleted live blob, or a
                             // player who wants their previous save back.
+                            // A room blob is somebody's build, not disposable run state,
+                            // and restoring one overwrites whatever is there now. The bare
+                            // form asks first when a player ran it; "confirm" is the form
+                            // that actually restores, and the one the console (which has no
+                            // screen to be asked on) and the dialog's own button both use.
                             .then(Commands.literal("baserestore")
                                     .then(Commands.argument("target",
                                                     net.minecraft.commands.arguments.GameProfileArgument
                                                             .gameProfile())
-                                            .executes(ctx -> baseRestore(ctx.getSource(),
+                                            .executes(ctx -> baseRestoreAsk(ctx.getSource(),
                                                     net.minecraft.commands.arguments.GameProfileArgument
-                                                            .getGameProfiles(ctx, "target")))))
+                                                            .getGameProfiles(ctx, "target")))
+                                            .then(Commands.literal("confirm")
+                                                    .executes(ctx -> baseRestore(ctx.getSource(),
+                                                            net.minecraft.commands.arguments.GameProfileArgument
+                                                                    .getGameProfiles(ctx, "target"))))))
 
                             // Wipes a player's saved room and closes anything of theirs
                             // still open in the world -- their lobby, an active run,
@@ -336,14 +362,15 @@ final class DungeonCommands {
         // state, so replacing it costs nothing and losing it in lava is no longer
         // a way to lose a keystone.
         if (level > 0) {
-            Payout.deliver(player, Keystone.mint(level, Keystone.Affix.parse(entry.keystoneAffix())));
+            Payout.deliver(player, Keystone.mint(level, AffixMath.effective(player.getUUID(), level,
+                    AffixMath.parse(entry.keystoneAffix()))));
             player.sendSystemMessage(Component.literal(
                     "A replacement keystone [" + level + "]. Your progress was never on the item.")
                     .withStyle(ChatFormatting.AQUA));
             return 1;
         }
 
-        log.setKeystone(player.getUUID(), 1, Keystone.Affix.NONE);
+        log.setKeystone(player.getUUID(), 1, java.util.EnumSet.noneOf(Affix.class));
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
                 "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
@@ -378,6 +405,45 @@ final class DungeonCommands {
                         + entry.bestPathLength() + " rooms deep")
                 .withStyle(ChatFormatting.GOLD), false);
         return entry.runsCompleted();
+    }
+
+    /**
+     * Bare {@code /dungeon party}: who is coming with you, one "Kick" button each.
+     *
+     * <p>No leader check here on purpose. The buttons run
+     * {@code /dungeon party kick <name>}, which lands in {@code Instances.stageKick}
+     * and is checked there, once -- a second check in front of the screen could
+     * disagree with the first, and this mod already spent a session on two things
+     * that each looked locally correct disagreeing about the same concept.
+     */
+    private static int partyRoster(ServerPlayer leader) {
+        DialogKit.show(leader, DialogScreens.partyRoster(leader.level().getServer(),
+                Instances.partyCompanions(leader.getUUID())));
+        return 1;
+    }
+
+    /** {@code /dungeon key info}: the held keystone plus this player's run statistics. */
+    private static int keyInfo(ServerPlayer player) {
+        ItemStack held = Keystone.findHeld(player);
+        if (held.isEmpty()) {
+            player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                .get(player.getUUID());
+        DialogKit.show(player, DialogScreens.keystoneInfo(held, entry));
+        return 1;
+    }
+
+    /** Bare {@code /dungeon room whitelist}: the guest list, as something you can edit. */
+    private static int roomWhitelistScreen(ServerPlayer owner) {
+        java.util.List<java.util.UUID> entries = new java.util.ArrayList<>(
+                RoomWhitelist.forServer(owner.level().getServer()).get(owner.getUUID()));
+        entries.sort(java.util.Comparator.comparing(java.util.UUID::toString));
+        DialogKit.show(owner, DialogScreens.whitelist(owner.level().getServer(),
+                owner.getUUID(), entries, null));
+        return 1;
     }
 
     private static int party(ServerPlayer leader, ServerPlayer target) {
@@ -731,8 +797,10 @@ final class DungeonCommands {
                 sb.append("trial_spawner ominous=")
                         .append(state.getValue(net.minecraft.world.level.block
                                 .TrialSpawnerBlock.OMINOUS))
-                        .append(" normal=").append(tag.getStringOr("normal_config", "<DEFAULT>"))
-                        .append(" ominous_cfg=").append(tag.getStringOr("ominous_config", "<DEFAULT>"));
+                        .append(" normal=").append(configSummary(tag, "normal_config"))
+                        .append(" ominous_cfg=").append(configSummary(tag, "ominous_config"))
+                        .append(" cooldown=").append(tag.getIntOr("target_cooldown_length", -1))
+                        .append(" range=").append(tag.getIntOr("required_player_range", -1));
             } else {
                 net.minecraft.nbt.CompoundTag config = tag.getCompoundOrEmpty("config");
                 sb.append("vault ominous=")
@@ -753,6 +821,30 @@ final class DungeonCommands {
         }
     }
 
+    /**
+     * The trial spawner config field is either a plain id string, or -- for a
+     * Swarming run (M4 T4.5) -- an inline {@code TrialSpawnerConfig} object with
+     * its {@code total_mobs}/{@code simultaneous_mobs} scaled. A misspelt id or
+     * a codec that rejected the inline blob does not throw; either drops the
+     * field silently and the spawner keeps {@code FullConfig.DEFAULT}
+     * (`TrialContent#writeInlineConfig`'s note). So this reads back whichever
+     * shape is actually there rather than assuming the id form.
+     */
+    private static String configSummary(net.minecraft.nbt.CompoundTag tag, String key) {
+        net.minecraft.nbt.Tag value = tag.get(key);
+        if (value == null) {
+            return "<DEFAULT>";
+        }
+        if (value instanceof net.minecraft.nbt.StringTag) {
+            return tag.getStringOr(key, "<DEFAULT>");
+        }
+        if (value instanceof net.minecraft.nbt.CompoundTag inline) {
+            return "inline(total_mobs=" + inline.get("total_mobs")
+                    + " simultaneous_mobs=" + inline.get("simultaneous_mobs") + ")";
+        }
+        return value.toString();
+    }
+
     private static int purge(CommandSourceStack source, int slot) {
         if (!Instances.adminPurge(source.getServer(), slot)) {
             source.sendFailure(Component.literal("Slot " + slot + " is not allocated."));
@@ -771,6 +863,37 @@ final class DungeonCommands {
      * for this is very possibly doing it *because* the owner cannot log in to
      * fix it themselves.
      */
+    /**
+     * The confirmation step in front of {@link #baseRestore}.
+     *
+     * <p>Only an operator with a screen can be asked, and only about one room at a
+     * time: {@code GameProfileArgument} accepts a selector that resolves to many,
+     * and there is no honest way to render "restore these fourteen rooms" as one
+     * yes/no. Console, and any multi-target run, are told to use the explicit
+     * {@code confirm} form instead -- which is the same command the dialog's own
+     * button runs, not a second code path.
+     */
+    private static int baseRestoreAsk(CommandSourceStack source,
+                                      java.util.Collection<net.minecraft.server.players.NameAndId> targets) {
+        ServerPlayer operator = source.getPlayer();
+        if (operator == null || targets.size() != 1) {
+            source.sendFailure(Component.literal(
+                    "Add \"confirm\" to restore: /dungeon admin baserestore <player> confirm"));
+            return 0;
+        }
+        net.minecraft.server.players.NameAndId target = targets.iterator().next();
+        java.time.Instant when = RoomStore.backupTime(source.getServer(), target.id());
+        if (when == null) {
+            source.sendFailure(Component.literal(
+                    target.name() + " has no room backup to restore from."));
+            return 0;
+        }
+        DialogKit.show(operator, DialogScreens.baseRestoreConfirm(target.name(),
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                        .withZone(java.time.ZoneId.systemDefault()).format(when)));
+        return 1;
+    }
+
     private static int baseRestore(CommandSourceStack source,
                                    java.util.Collection<net.minecraft.server.players.NameAndId> targets) {
         int restored = 0;
@@ -819,7 +942,7 @@ final class DungeonCommands {
 
     private static int resetKey(CommandSourceStack source, ServerPlayer target) {
         MinecraftServer server = source.getServer();
-        DungeonLog.forServer(server).setKeystone(target.getUUID(), 0, Keystone.Affix.NONE);
+        DungeonLog.forServer(server).setKeystone(target.getUUID(), 0, java.util.EnumSet.noneOf(Affix.class));
         int cleared = clearKeystones(target);
         source.sendSuccess(() -> Component.literal(
                 "Reset " + target.getName().getString() + "'s keystone progress to 0"

@@ -1,9 +1,16 @@
 # Pocket Dungeons — vanilla dialogs spec
 
-> **Status: spec only. Nothing here is built.** No code, no `DialogKit`, no
-> mixin. This is a menu design pass — where a dialog would help, what shape it
-> takes, what it calls — written so the choice of *when* to build any of it
-> stays separate from *what* it should look like when someone does.
+> **Status: §1–§6 are built. §7 is not.** See
+> [`DIALOGS.md`](DIALOGS.md) for what shipped, the two decisions this document
+> deferred and how they were settled, and what has not been tested in play yet.
+> §7 (the elevator) stays spec-only — it is blocked on a `listed` flag that
+> does not exist and on M3's shared visit method.
+>
+> What follows is the original design pass, kept as written: where a dialog
+> would help, what shape it takes, what it calls. Two of its assumptions were
+> already out of date by the time it was built — M2's whitelist commands and
+> `admin baserestore` both ship today, so §5 and §6 were retrofits onto
+> existing commands rather than the command-and-dialog co-designs they describe.
 >
 > Nothing here is blocked on the roadmap milestones except where a section
 > says so explicitly. Most of what follows retrofits UI onto commands that

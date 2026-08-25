@@ -4,7 +4,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -172,11 +171,19 @@ final class RitualListener {
     }
 
     /**
-     * The offer as chat with a clickable accept. Verified against the 26.2
-     * jar: {@code ClickEvent} is a sealed interface with record subtypes, so
-     * {@code new ClickEvent.RunCommand(...)} plus {@code withClickEvent} is
-     * the shape -- the old {@code new ClickEvent(Action, String)} constructor
-     * form does not compile here.
+     * The offer behind one door, as a dialog.
+     *
+     * <p>Was three chat lines and a {@code [ Take this key ]} link; it is now the
+     * same heading, the same affix warning and the same {@code /dungeon choose
+     * <step>} click, rendered as a vanilla {@code NoticeDialog}. Nothing about
+     * what a door does changed -- the button runs the command the link ran, and
+     * {@code /dungeon choose} still works typed. A dialog is a runtime value sent
+     * with {@code Holder.direct}, so this needs nothing installed client-side and
+     * leaves the server-only rule intact.
+     *
+     * <p>Pushed rather than hung off a chat message, unlike every other screen in
+     * this mod: the player right-clicked the door a tick ago, so the screen is the
+     * direct answer to an action they just took, not an interruption.
      *
      * <p>M2/M3: rendered from the player's <em>current</em> keystone level,
      * not a banked "pending offer" -- the doors in the lobby are always live,
@@ -188,24 +195,11 @@ final class RitualListener {
         Keystone.Offer[] offers = Keystone.offers(level);
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
 
-        String heading = (offer.affix() == Keystone.Affix.NONE ? "Oak" : offer.affix().label)
-                + " Door -- Keystone [" + offer.level() + "]"
-                + (offer.affix() == Keystone.Affix.NONE ? "" : ", " + offer.affix().label.toLowerCase())
+        java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());
+        String doorAffix = ordered.isEmpty() ? "Oak" : ordered.get(0).label;
+        String heading = doorAffix + " Door -- Keystone [" + offer.level() + "]"
+                + (ordered.isEmpty() ? "" : ", " + ordered.get(0).label.toLowerCase())
                 + ".";
-        player.sendSystemMessage(Component.literal(heading).withStyle(offer.affix().colour));
-        if (offer.affix() == Keystone.Affix.OMINOUS) {
-            player.sendSystemMessage(Component.literal(
-                    "Every room runs ominous. The reward room rolls the ominous tables.")
-                    .withStyle(ChatFormatting.GRAY));
-        } else if (offer.affix() == Keystone.Affix.FRAGILE) {
-            player.sendSystemMessage(Component.literal(
-                    "Fragile: your next failure costs double.")
-                    .withStyle(ChatFormatting.GRAY));
-        }
-
-        Component accept = Component.literal("[ Take this key ]")
-                .withStyle(s -> s.withColor(ChatFormatting.GREEN)
-                        .withClickEvent(new ClickEvent.RunCommand("/dungeon choose " + step)));
-        player.sendSystemMessage(accept);
+        DialogKit.show(player, DialogScreens.doorOffer(offer, step, heading));
     }
 }

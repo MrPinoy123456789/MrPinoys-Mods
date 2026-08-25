@@ -122,10 +122,29 @@ knobs are known (§6.1, M8).
 
 ## Done when
 
-- [ ] A level-16 key reads `Menace Cooked Keystone [16] [Swarming]`
-- [ ] Old saves holding `"ominous"` load as a one-element set, no migration
-- [ ] Two affixes that both touch depletion produce `max`, not a product
-- [ ] Each of the five affixes can be described to a player as "it does X, and
-      you get Y" without hesitating
-- [ ] The keystone name is stable across a watcher reconciliation
-- [ ] `./gradlew build` green
+- [x] A level-16 key reads a stacked name, e.g.
+      `Menace Cooked Keystone [16] [Swarming, Molten]` — **note:** the door's
+      elective affix (Cooked/Big L) sits *on top of* the level's seeded
+      affixes, not inside their count, so a level-16 Cooked key carries three
+      affixes total (one elective + two seeded), not the single-subtitle
+      example this line originally sketched. Decided explicitly with the user
+      before implementation.
+- [x] Old saves holding `"ominous"` load as a one-element set, no migration
+      (`AffixMathTest.testParseCompat`/`testJoinRoundTrip`)
+- [x] Two affixes that both touch depletion produce `max`, not a product
+      (`AffixMathTest.testDepletionMultiplier`, `KeystoneMathTest`'s
+      multiplier-cap case)
+- [x] Each of the five affixes can be described to a player as "it does X, and
+      you get Y" without hesitating — `Affix.blurb`, one per affix, rendered as
+      lore on the item and in the `/dungeon key` dialog
+- [x] The keystone name is stable across a watcher reconciliation — the name is
+      a pure function of `(level, affixSet)` and the seeded pick is a pure
+      function of `(owner, level)`; `AffixMathTest.testSeededForStability`
+      checks 100 repeat calls agree and a round trip through the stored form
+      agrees
+- [x] `./gradlew build` green — `affixMathTest` added alongside the other
+      pure-Java verification tasks
+
+**Still open, in-world with a client:** the stacked chest reward table, Molten's
+passability, and Silenced's two halves (denied consumable + reduced spawner
+range) have not been walked live yet — see `PROGRESS.md`'s T4.5 note.

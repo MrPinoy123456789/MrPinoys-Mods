@@ -10,7 +10,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -29,6 +28,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -228,6 +228,17 @@ final class Instances {
     }
 
     /**
+     * The affixes active on the run this member is currently standing in, or an
+     * empty set if they are not in one. Used by {@link SilenceListener} rather
+     * than reading a keystone -- the item may be sitting in a chest, and the
+     * question is what the run itself is doing right now.
+     */
+    static Set<Affix> affixesFor(UUID member) {
+        InstanceRecord record = byMember.get(member);
+        return record == null ? EnumSet.noneOf(Affix.class) : record.affixes;
+    }
+
+    /**
      * Opens a dungeon for this player and their pre-registered party.
      *
      * <p>Returns whether the player actually went in. Every failure path here
@@ -236,7 +247,7 @@ final class Instances {
      * the caller rather than inferred from a message the player was sent.
      */
     static boolean enter(ServerPlayer player) {
-        return enter(player, 0, Keystone.Affix.NONE);
+        return enter(player, 0, EnumSet.noneOf(Affix.class));
     }
 
     /**
@@ -267,9 +278,13 @@ final class Instances {
             return false;
         }
         int level = Keystone.levelOf(keystone).orElse(1);
-        Keystone.Affix affix = Keystone.affixOf(keystone);
+        // The elective half comes off the stack; the seeded half is re-derived
+        // from the level rather than trusted, so a remote the watcher has not
+        // caught up with yet still opens the run its level actually earns.
+        EnumSet<Affix> affixes = AffixMath.effective(player.getUUID(), level,
+                AffixMath.elective(Keystone.affixOf(keystone)));
 
-        if (!enter(player, level, affix)) {
+        if (!enter(player, level, affixes)) {
             return false;
         }
         return true;
@@ -322,8 +337,8 @@ final class Instances {
         return true;
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix) {
-        return enter(player, keystoneLevel, affix, false);
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes) {
+        return enter(player, keystoneLevel, affixes, false);
     }
 
     /**
@@ -335,16 +350,20 @@ final class Instances {
      */
     static boolean enterUntimed(ServerPlayer player, int keystoneLevel, boolean ominous,
                                 String theme) {
-        return enter(player, Math.max(1, keystoneLevel),
-                ominous ? Keystone.Affix.OMINOUS : Keystone.Affix.NONE, true, theme);
+        int level = Math.max(1, keystoneLevel);
+        // The admin path takes the thresholds too: the whole point of it is to
+        // walk a level 16 run without owning a level 16 key, and a level 16 run
+        // is two seeded affixes whether or not a keystone paid for it.
+        return enter(player, level, AffixMath.effective(player.getUUID(), level,
+                ominous ? EnumSet.of(Affix.OMINOUS) : EnumSet.noneOf(Affix.class)), true, theme);
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix,
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes,
                          boolean untimed) {
-        return enter(player, keystoneLevel, affix, untimed, null);
+        return enter(player, keystoneLevel, affixes, untimed, null);
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Keystone.Affix affix,
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes,
                          boolean untimed, String theme) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
@@ -406,12 +425,14 @@ final class Instances {
         // U8 Stage 6: a run is ominous iff its keystone carries the ominous
         // affix -- one source, replacing U6/U7's depth ramp, off-hand bottle and
         // ominousFromLevel threshold.
-        boolean ominous = affix == Keystone.Affix.OMINOUS;
+        // M4 carries the whole affix set down this path instead of that one
+        // boolean, and OMINOUS is read back out of it at the two leaves that
+        // still care.
 
         // On failure buildLayout has already queued a clear for whatever partial
         // geometry it wrote and the slot's release happens when that clear
         // finishes -- it is deliberately not freed here. See buildLayout's note.
-        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, ominous, theme,
+        InstanceLayout layout = buildLayout(server, level, slot, origin, seed, keystoneLevel, affixes, theme,
                 player.getUUID());
         if (layout == null) {
             player.sendSystemMessage(Component.literal(
@@ -420,7 +441,7 @@ final class Instances {
             return false;
         }
 
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affix,
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affixes,
                 player.getUUID(), false, untimed);
         // M2 T2.1/T2.4: the entrance cell is the room, for every keystone run
         // that got a real (procedural) layout. Untimed/admin runs and the
@@ -575,7 +596,7 @@ final class Instances {
      */
     private static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
                                               int slot, BlockPos origin, long seed,
-                                              int keystoneLevel, boolean ominous,
+                                              int keystoneLevel, Set<Affix> affixes,
                                               String theme, UUID owner) {
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
@@ -588,7 +609,7 @@ final class Instances {
             PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
-                return LayoutStamper.stamp(level, origin, plan, keystoneLevel, ominous, owner);
+                return LayoutStamper.stamp(level, origin, plan, keystoneLevel, affixes, owner);
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan at {} failed; clearing whatever was written",
                         origin.toShortString(), e);
@@ -602,7 +623,7 @@ final class Instances {
                 "Planning failed for seed {} after {} attempts ({}); falling back to StaticLayout",
                 seed, outcome.attemptsUsed(), outcome.failureReason());
 
-        InstanceLayout fallback = StaticLayout.layout(origin, keystoneLevel, ominous);
+        InstanceLayout fallback = StaticLayout.layout(origin, keystoneLevel, affixes);
         forceLoad(level, fallback.geometry().chunks(), true);
         try {
             StaticLayout.stamp(level, origin);
@@ -744,11 +765,11 @@ final class Instances {
         String what = target == null
                 ? "all " + companions.size() + " companion" + (companions.size() == 1 ? "" : "s")
                 : targetName;
-        leader.sendSystemMessage(Component.literal("Remove " + what + " from your party?")
-                .withStyle(ChatFormatting.YELLOW));
-        leader.sendSystemMessage(Component.literal("[ Confirm ]")
-                .withStyle(s -> s.withColor(ChatFormatting.RED)
-                        .withClickEvent(new ClickEvent.RunCommand("/dungeon party kickconfirm"))));
+        // Was a "Remove X?" line plus a [ Confirm ] chat link; it is the same
+        // question and the same /dungeon party kickconfirm behind a real yes/no
+        // screen now. The leader ran a command a tick ago, so this is the answer
+        // to something they just did rather than an unprompted push.
+        DialogKit.show(leader, DialogScreens.kickConfirm(what));
     }
 
     /** Executes whatever {@link #stageKick} staged for this leader. */
@@ -789,6 +810,26 @@ final class Instances {
                 removed == 0 ? "Nobody was removed -- your party had already changed."
                         : "Removed " + removed + " from your party.")
                 .withStyle(ChatFormatting.GOLD));
+
+        // Back to the roster, rebuilt from what the party is now. There is no
+        // history stack in the dialog API -- a screen returns nowhere on its own,
+        // so "back to the list" is this call and nothing else. An emptied party
+        // gets a plain notice instead of a buttonless list; partyRoster handles
+        // that case itself.
+        if (server != null) {
+            DialogKit.show(leader, DialogScreens.partyRoster(server,
+                    partyCompanions(leader.getUUID())));
+        }
+    }
+
+    /**
+     * Read-only view of a leader's pre-registered companions, in the order they
+     * were added, for the roster screen. A copy: {@code pendingParty}'s sets are
+     * mutated in place by {@code party} and {@code confirmKick}.
+     */
+    static List<UUID> partyCompanions(UUID leader) {
+        Set<UUID> companions = pendingParty.get(leader);
+        return companions == null ? List.of() : List.copyOf(companions);
     }
 
     /** Tells a dropped companion, if they are around to hear it. */
@@ -836,11 +877,19 @@ final class Instances {
         inviter.sendSystemMessage(Component.literal(
                 "Invited " + target.getName().getString() + ". The invitation lasts two minutes.")
                 .withStyle(ChatFormatting.GOLD));
+        // The invitee's line was plain, unclickable text until now. It keeps every
+        // word of it -- the command is still the documented way in -- and grows a
+        // click that opens an accept/decline screen. Hung off the message rather
+        // than pushed: an invitation arrives while they are doing something else,
+        // and seizing their screen for it would be exactly the push every sibling
+        // mod's rule forbids.
+        String inviterName = inviter.getName().getString();
         target.sendSystemMessage(Component.literal(
-                inviter.getName().getString() + " invites you into their dungeon. "
-                        + "Run /dungeon join " + inviter.getName().getString()
+                inviterName + " invites you into their dungeon. "
+                        + "Run /dungeon join " + inviterName
                         + " within two minutes to go in.")
-                .withStyle(ChatFormatting.GOLD));
+                .withStyle(s -> s.withColor(ChatFormatting.GOLD)
+                        .withClickEvent(DialogKit.open(DialogScreens.inviteOffer(inviterName)))));
     }
 
     static void join(ServerPlayer player, ServerPlayer leader) {
@@ -937,7 +986,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Keystone.Affix.NONE, player.getUUID());
+                EnumSet.noneOf(Affix.class), player.getUUID());
         record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
         bySlot.put(slot, record);
@@ -1024,7 +1073,7 @@ final class Instances {
         BlockPos entrance = origin.offset(3, 1, 3);
         BlockPos exitPad = origin.offset(2, 0, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, false, 0, origin, 0, 0);
+                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0);
     }
 
     /**
@@ -1122,10 +1171,12 @@ final class Instances {
             return false;
         }
 
+        EnumSet<Affix> granted = AffixMath.effective(player.getUUID(), offer.level(),
+                offer.affixes());
         player.sendSystemMessage(Component.literal(
-                (offer.affix() == Keystone.Affix.NONE ? "" : offer.affix().label + " ")
-                        + "Keystone [" + offer.level() + "]. The door opens.")
-                .withStyle(offer.affix().colour));
+                AffixMath.name(offer.level(), granted) + ". The door opens.")
+                .withStyle(Keystone.colourOf(
+                        AffixMath.ordered(granted).stream().findFirst().orElse(null))));
         return true;
     }
 
@@ -1151,7 +1202,9 @@ final class Instances {
                 PocketDungeonsConfig.maxGridSpan(), null, dungeonDoor);
 
         DungeonPlan plan = outcome.plan();
-        boolean ominous = offer.affix() == Keystone.Affix.OMINOUS;
+        // The door's elective affix plus whatever the offered level seeds: the run
+        // about to be stamped is the run the new key advertises, not just the door.
+        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
         InstanceLayout layout;
         if (plan != null) {
             // The room is physically at record.roomCellOrigin, resolved to grid
@@ -1163,7 +1216,7 @@ final class Instances {
             PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
             try {
-                layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), ominous,
+                layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
                         record.owner);
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan behind the room at {} failed",
@@ -1183,7 +1236,7 @@ final class Instances {
         RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, dungeonDoor);
 
         record.layout = layout;
-        record.affix = offer.affix();
+        record.affixes = affixes;
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
 
@@ -1466,7 +1519,7 @@ final class Instances {
 
         InstanceLayout layout = lobbyLayout(origin);
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Keystone.Affix.NONE, owner);
+                EnumSet.noneOf(Affix.class), owner);
         record.visitInstance = true;
         record.roomCellOrigin = origin;
         bySlot.put(slot, record);
@@ -1573,7 +1626,7 @@ final class Instances {
         if (!record.isKeystoneRun() || !record.keystoneReturned.add(member)) {
             return;
         }
-        Keystones.returnTo(server, member, player, record.layout.keystoneLevel(), record.affix, outcome);
+        Keystones.returnTo(server, member, player, record.layout.keystoneLevel(), record.affixes, outcome);
     }
 
     /**
@@ -1671,7 +1724,7 @@ final class Instances {
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                         .lootTier(),
-                record.affix == Keystone.Affix.OMINOUS, record.layout.seed());
+                record.affixes.contains(Affix.OMINOUS), record.layout.seed());
 
         // Sealed door in the far wall, behind the chests.
         sealDoorOnWall(level, terminalOrigin, farWall);
@@ -2132,7 +2185,8 @@ final class Instances {
                 continue;
             }
             Keystone.reconcile(player, entry.keystoneLevel(),
-                    Keystone.Affix.parse(entry.keystoneAffix()));
+                    AffixMath.effective(player.getUUID(), entry.keystoneLevel(),
+                            AffixMath.parse(entry.keystoneAffix())));
         }
     }
 
@@ -2678,7 +2732,8 @@ final class Instances {
         BlockPos origin = originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel, ominous, null, null);
+                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel,
+                ominous ? EnumSet.of(Affix.OMINOUS) : EnumSet.noneOf(Affix.class), null, null);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.
@@ -2686,7 +2741,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Keystone.Affix.NONE, null);
+                EnumSet.noneOf(Affix.class), null);
         bySlot.put(slot, record);
         return slot;
     }

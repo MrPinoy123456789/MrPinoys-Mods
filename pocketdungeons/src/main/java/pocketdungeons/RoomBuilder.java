@@ -111,8 +111,11 @@ final class RoomBuilder {
      * whatever room is still standing next door. Writing a room in place touches
      * nothing outside the cell, so the shell around it survives untouched.
      *
-     * <p>No lamps and no floor material of its own, unlike {@link #buildCell}:
-     * this is the blank that replaces a room, and it is meant to read as one.
+     * <p>No floor material of its own, unlike {@link #buildCell}: this is the
+     * blank that replaces a room, and it is meant to read as one. It is still
+     * lit, though -- the same four ceiling lamps {@link #buildCell} places. A
+     * blank room is a design choice; a dark one is a mob farm, and this cell
+     * sits inside a live instance the owner can walk back into.
      */
     static void buildLiminalCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
         for (int x = 0; x < CELL; x++) {
@@ -125,6 +128,11 @@ final class RoomBuilder {
                 }
             }
         }
+        set(level, o.offset(4, CEILING_Y, 4), LAMP);
+        set(level, o.offset(4, CEILING_Y, CELL - 5), LAMP);
+        set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
+        set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
+
         for (Direction door : doors) {
             openDoor(level, o, door);
         }

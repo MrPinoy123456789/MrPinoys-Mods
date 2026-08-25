@@ -37,14 +37,23 @@ surface.
 
 ## T5.1 — Spawn at stamp time
 
-⚠ `RoomContent.spawnMobs` was **deleted in T17**. There is no direct entity-spawn
-path left — trial spawners and vaults are the only content, and `TrialContent`
-deliberately *replaces* classic spawners.
+`RoomContent.spawnMobs` was deleted in T17 along with the `trialsEnabled: false`
+rollback path it belonged to. The deletion was justified at the time by "two
+spawners in one room is two difficulty curves" — a real concern, but one that
+applies specifically to *encounter* cells, where `TrialContent` owns the combat
+loop and a parallel classic spawner would double the difficulty. It does not
+apply to a tameable wolf placed as a feature rather than a fight, and it does
+not apply to the broader set of direct-spawn use cases the mod will accumulate
+as it grows.
 
-So this milestone **reintroduces a direct spawn path**. Do it narrowly: a single
-Feral-only call site in `RoomContent`, not a general-purpose spawner. Anything
-wider re-opens the "two spawners in one room is two difficulty curves" problem
-T17 closed.
+So this milestone **brings `RoomContent.spawnMobs` back** — restored from commit
+history (the parent of the T17 deletion, `8dbb006^`, via
+`git show 8dbb006^:pocketdungeons/src/main/java/pocketdungeons/RoomContent.java`)
+— as a **general-purpose direct entity-spawn path** on `RoomContent`, not a
+Feral-only special case. The boundary that actually matters is the one T17 was
+protecting in spirit: `TrialContent` still owns *encounter* cells, and
+`spawnMobs` is not called there. Direct spawn is for content that is not the
+room's combat loop — Feral wolves first, and whatever else follows.
 
 Pin each wolf with `setHomeTo(cellCentre, radius)` so it cannot wander into the
 next cell and break the room-geometry invariant.

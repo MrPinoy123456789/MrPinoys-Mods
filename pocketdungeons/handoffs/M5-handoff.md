@@ -79,11 +79,16 @@ Forced consequences, already decided, do not relitigate:
    should already show `BLOCKED` on T6.1 — leave it that way unless M6 has since
    shipped; check its `PROGRESS.md` status, don't assume from the roadmap.
 3. Implement per `plans/M5-wolves-feral.md`.
-   - T5.1 **reintroduces a direct entity-spawn path** that was deliberately
-     deleted in an earlier milestone (T17, per the plan) because "two spawners
-     in one room is two difficulty curves." Keep this narrow — a single
-     Feral-only call site, not a general-purpose spawner. Read `RoomContent.java`
-     and its history before adding anything here.
+   - T5.1 **reintroduces a direct entity-spawn path** that was deleted in an
+     earlier milestone (T17, per the plan). Bring back `RoomContent.spawnMobs`
+     from commit history (the parent of the T17 deletion, `8dbb006^`, via
+     `git show 8dbb006^:pocketdungeons/src/main/java/pocketdungeons/RoomContent.java`)
+     as a **general-purpose** spawn path on `RoomContent`, not a Feral-only
+     special case. The "two difficulty curves" concern T17 raised applies to
+     *encounter* cells, which `TrialContent` still owns — `spawnMobs` is not
+     called there. Direct spawn is for content that is not the room's combat
+     loop; expect more call sites over time. Read `RoomContent.java` and its
+     history before adding anything here.
 4. Verify:
    - `./gradlew build` green.
    - Live-server proof via `tools/rcon.py`: a Feral run spawns coat-appropriate

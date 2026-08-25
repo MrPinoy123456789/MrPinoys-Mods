@@ -81,12 +81,20 @@ tasks.register<JavaExec>("keystoneMathTest") {
     mainClass = "pocketdungeons.KeystoneMathTest"
 }
 
+tasks.register<JavaExec>("affixMathTest") {
+    group = "verification"
+    description = "Runs the pure-Java affix set, threshold, seeding and naming regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.AffixMathTest"
+}
+
 tasks.test {
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
     dependsOn("payoutMathTest")
     dependsOn("keystoneMathTest")
+    dependsOn("affixMathTest")
     dependsOn("dungeonRoomMetaTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")

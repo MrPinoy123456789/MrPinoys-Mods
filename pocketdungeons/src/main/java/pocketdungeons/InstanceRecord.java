@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,11 +58,12 @@ final class InstanceRecord {
     // has to survive a restart.
 
     /**
-     * The affix the spent keystone carried; {@code FRAGILE} doubles every
-     * depletion. Not {@code final} for the same reason {@link #layout} is not:
-     * unknown until a door is chosen out of the lobby.
+     * The affixes riding on this run -- the elective one the door bought plus
+     * whatever the key's level seeded. {@code FRAGILE} doubles every depletion;
+     * the rest bend the run itself. Not {@code final} for the same reason
+     * {@link #layout} is not: unknown until a door is chosen out of the lobby.
      */
-    Keystone.Affix affix;
+    Set<Affix> affixes;
 
     /**
      * True while this instance is still just the lobby -- the owner's
@@ -184,22 +186,22 @@ final class InstanceRecord {
     boolean visitInstance;
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Keystone.Affix affix, UUID owner) {
-        this(slot, origin, createdAtTick, layout, affix, owner, false, false);
+                   Set<Affix> affixes, UUID owner) {
+        this(slot, origin, createdAtTick, layout, affixes, owner, false, false);
     }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Keystone.Affix affix, UUID owner, boolean selectorRoom) {
-        this(slot, origin, createdAtTick, layout, affix, owner, selectorRoom, false);
+                   Set<Affix> affixes, UUID owner, boolean selectorRoom) {
+        this(slot, origin, createdAtTick, layout, affixes, owner, selectorRoom, false);
     }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Keystone.Affix affix, UUID owner, boolean selectorRoom, boolean untimed) {
+                   Set<Affix> affixes, UUID owner, boolean selectorRoom, boolean untimed) {
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
         this.layout = layout;
-        this.affix = affix;
+        this.affixes = affixes == null ? EnumSet.noneOf(Affix.class) : affixes;
         this.owner = owner;
         this.selectorRoom = selectorRoom;
         this.untimed = untimed;

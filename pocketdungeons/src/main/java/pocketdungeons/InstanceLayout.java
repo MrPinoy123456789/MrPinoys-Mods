@@ -3,6 +3,8 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 
+import java.util.Set;
+
 /**
  * Everything {@link Instances} needs to know about the shape of one live
  * dungeon, resolved once at stamp time and carried on the {@link InstanceRecord}.
@@ -24,9 +26,11 @@ import net.minecraft.world.phys.AABB;
  *                     {@code pathLength} otherwise
  * @param procedural   false for the {@link StaticLayout} fallback, which is worth
  *                     being able to tell apart when a player reports a run
- * @param ominous      the whole run is ominous: every cell was stamped that way,
- *                     the payout is multiplied, and the member holds Trial Omen
- *                     until they leave
+ * @param affixes      everything riding on this run: the affix a door bought
+ *                     plus whatever the key's level seeded. {@code OMINOUS} means
+ *                     every cell was stamped that way, the payout is multiplied,
+ *                     and the member holds Trial Omen until they leave -- read it
+ *                     back through {@link #ominous()} rather than by hand
  * @param keystoneLevel the level of the keystone spent to open this run, or
  *                     {@code 0} for a run nobody paid a keystone for
  *                     ({@code /dungeon admin build})
@@ -51,11 +55,21 @@ record InstanceLayout(
         int roomCount,
         int lootTier,
         boolean procedural,
-        boolean ominous,
+        Set<Affix> affixes,
         int keystoneLevel,
         BlockPos terminal,
         int entranceRotation,
         int terminalRotation) {
+
+    /**
+     * Whether the whole run is ominous.
+     *
+     * <p>Derived rather than stored since M4: the layout carries the affix set,
+     * and this is the one member of it that half the mod asks about by name.
+     */
+    boolean ominous() {
+        return affixes.contains(Affix.OMINOUS);
+    }
 
     /**
      * Yaw that faces from the entrance cell into the dungeon.
@@ -83,6 +97,7 @@ record InstanceLayout(
      */
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
-                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false, false, 0, origin, 0, 0);
+                geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false,
+                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0);
     }
 }

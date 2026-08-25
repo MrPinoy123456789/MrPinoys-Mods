@@ -47,7 +47,7 @@ final class StaticLayout {
      * firing at all means the planner or the room library needs looking at.
      */
     static InstanceLayout layout(BlockPos origin) {
-        return layout(origin, 0, false);
+        return layout(origin, 0, EnumSet.noneOf(Affix.class));
     }
 
     /**
@@ -55,7 +55,7 @@ final class StaticLayout {
      * whose dungeon collapsed into the M0 four-room line is still paid and still
      * handed their keystone back on the terms they paid for.
      */
-    static InstanceLayout layout(BlockPos origin, int keystoneLevel, boolean ominous) {
+    static InstanceLayout layout(BlockPos origin, int keystoneLevel, Set<Affix> affixes) {
         List<PlanCell> cells = new ArrayList<>(CELL_COUNT);
         for (int i = 0; i < CELL_COUNT; i++) {
             cells.add(new PlanCell(i, 0));
@@ -72,7 +72,7 @@ final class StaticLayout {
                 CELL_COUNT,
                 keystoneLevel > 0 ? KeystoneMath.lootTier(keystoneLevel) : 1,
                 false,
-                ominous,
+                affixes,
                 keystoneLevel,
                 RoomBuilder.cellOrigin(origin, CELL_COUNT - 1, 0),
                 0, 0);

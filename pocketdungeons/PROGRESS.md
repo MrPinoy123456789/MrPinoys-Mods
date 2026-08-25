@@ -134,17 +134,17 @@ shape gets decided once instead of per-milestone.
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T4.1 | `Affix` enum → set | `TODO` | 3 branch sites; no codec migration |
-| T4.2 | Thresholds 5 / 11 / 17 | `TODO` | Seeded from the key. **No weekly rotation** |
-| T4.3 | Depletion takes the max | `TODO` | Capped at 2×, never the product |
-| T4.4 | Naming | `TODO` | Enum order, always |
-| T4.5 | Swarming / Overclocked / Molten / Silenced | `TODO` | Every one owes a kiss |
+| T4.1 | `Affix` enum → set | `DONE` | 2026-08-25. Moved to its own `Affix.java`, no Minecraft imports; `AffixMath` (also import-free) owns parse/join/thresholds/seeding/naming/depletion. `NONE` deleted -- an empty `EnumSet` says it. `DungeonLog` stores only the *elective* affixes; the seeded ones are re-derived from `(owner, level)` on every read, so a save holding `"ominous"` still loads as a one-element set with no codec migration |
+| T4.2 | Thresholds 5 / 11 / 17 | `DONE` | 2026-08-25. `AffixMath.seededCount`/`seededFor`; the door's elective affix sits **on top** of the thresholds, not inside them (decided explicitly, since the door was worth ~2 more levels either way). Seed is `hash(owner, level)`, no new persistence -- watcher-reconciliation stability verified in `AffixMathTest` (100 repeat calls, one owner never drifts; two owners diverge somewhere across the ladder) |
+| T4.3 | Depletion takes the max | `DONE` | 2026-08-25. `AffixMath.depletionMultiplier` = max over the set, capped at 2; `KeystoneMath.deplete` takes the multiplier directly (and clamps it again, so a bad caller cannot double-double it). `Keystones.returnTo` is the only caller |
+| T4.4 | Naming | `DONE` | 2026-08-25. `AffixMath.name`/`intensifier`; title = first affix in enum order, rest in a bracketed subtitle. Pure function of `(level, affixSet)`, no randomness -- the watcher rewrite-stability requirement |
+| T4.5 | Swarming / Overclocked / Molten / Silenced | `DONE` | 2026-08-25. Overclocked scales `target_cooldown_length`; Swarming writes an **inline** `TrialSpawnerConfig` (not a new JSON file per tier -- `TrialSpawnerConfig.CODEC` is the 2-arg `RegistryFileCodec.create`, which allows it) with scaled `total_mobs`/`simultaneous_mobs`, verified at bytecode level against `minecraft-merged-deobf-26.2.jar`; falls back to the plain id if the base config is missing from the registry. Molten stamps lava in the cell's interior margin, clear of doors and spawn anchors. Silenced denies `DataComponents.CONSUMABLE` use (`SilenceListener`, new `UseItemCallback`) and tightens `required_player_range`. **Correction to the plan doc**: the trial-spawner JSON files are static resources `DatapackExporter` only copies, not "a document the mod already generates" as §5.1/T4.5 stated -- `TrialContent` only ever wrote an id string before this. `./gradlew build` green, `affixMathTest` added alongside the other pure-Java tasks. In-world client verification of the stacked chest reward, Molten passability and Silenced's two halves still deferred |
 
 ## M5 — Wolves and Feral · `plans/M5-wolves-feral.md`
 
 | # | Task | Status | Note |
 |---|---|---|---|
-| T5.1 | Spawn at stamp time | `TODO` | Reintroduces a spawn path deleted in T17 — keep it narrow |
+| T5.1 | Spawn at stamp time | `TODO` | Brings back `RoomContent.spawnMobs` from commit history (`8dbb006^`) as a general-purpose direct spawn path; `TrialContent` still owns encounter cells |
 | T5.2 | Coats by tier | `TODO` | 9 variants |
 | T5.3 | Bones as a guaranteed floor | `BLOCKED` | On T6.1 |
 | T5.4 | Spirit Stone permanence | `TODO` | Zero code both sides; verify no import appears |
