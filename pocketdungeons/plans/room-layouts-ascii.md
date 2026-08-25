@@ -33,15 +33,16 @@ to be moved.
 ## 1. Lobby / player room before a dungeon is chosen
 
 `e e` is on the north wall and is sealed because there is no previous dungeon.
-The leave-pad sits in the north-west corner so the player spawns as if they
-just walked in through it. The `d d d` selector doors sit on the south wall in
-front of the hidden 2-wide `MM` slot.
+The leave-pad is a single lodestone tucked in the north-west corner with
+chiseled stone around it so it sticks out from the wall. The player spawns as
+if they just walked in through it. The `d d d` selector doors sit on the south
+wall in front of the hidden 2-wide `MM` slot.
 
 ```
 z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
 0   # # # # # # # e e # # # # # # #
-1   # L l . . . . . . . . . . . . #   <- lodestone leave-pad
-2   # l l . . . . . . . . . . . . #
+1   # l L l . . . . . . . . . . . #   <- single lodestone leave-pad in corner
+2   # l l . . . . . . . . . . . . #   <- chiselled ring on the adjacent walls/floor
 3   # . . S . . . . . . . . . . . #   <- player spawn / entrance
 4   # . . . . . . . . . . . . . . #
 5   # . . . . . . . . . . . . . . #
@@ -53,8 +54,8 @@ A   # . . . . . . . . . . . . . . #
 B   # . . . . . . . . . . . . . . #
 C   # . . . . . . . . . . . . . . #
 D   # . . . . . . . . . . . . . . #
-E   # . . . . . . d d d . . . . . #   <- three selector doors
-F   # # # # # # # M M # # # # # # #   <- sealed exit into new dungeon
+E   # . . . . . . . d d d . . . . #   <- three selector doors cover x=7..9
+F   # # # # # # # M M # # # # # # #   <- sealed 2-wide exit at x=7..8
 ```
 
 ## 2. After a selector door is chosen
@@ -122,7 +123,7 @@ finished dungeon.
                   v
 z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
 0   # # # # # # # e e # # # # # # #   <- entrance from finished dungeon
-1   # L l . . . . . . . . . . . . #   <- leave-pad
+1   # l L l . . . . . . . . . . . #   <- single lodestone leave-pad
 2   # l l . . . . . . . . . . . . #
 3   # . . S . . . . . . . . . . . #   <- player now inside the room
 4   # . . . . . . . . . . . . . . #
@@ -150,7 +151,7 @@ Before a new dungeon is generated:
 ```
 z/x 0 1 2 3 4 5 6 7 8 9 A B C D E F
 0   # # # # # # # e e # # # # # # #   <- sealed: old dungeon is gone
-1   # L l . . . . . . . . . . . . #
+1   # l L l . . . . . . . . . . . #
 2   # l l . . . . . . . . . . . . #
 3   # . . S . . . . . . . . . . . #
 ... (empty room)
@@ -169,6 +170,7 @@ extends to the south, exactly as in section 2.
   are mirrored to the opposite wall. The room is always stamped in the cell
   directly behind that sealed door.
 - Door slots (`e e` and `MM`) are 2-wide, 3-tall, centred at positions 7-8 on
-  the wall. The `d d d` selector doors in the intended design are sketched as
-  three adjacent 1-wide doors; the current implementation places them at
-  positions 4, 8, and 12 on the wall instead.
+  the wall. The `d d d` selector doors in the intended design are a contiguous
+  strip covering x=7..9 so the middle pair overlaps the `MM` slot; the current
+  implementation still places three separate 1-wide doors at positions 4, 8,
+  and 12.
