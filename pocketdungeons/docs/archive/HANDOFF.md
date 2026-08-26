@@ -1,3 +1,6 @@
+> Archived 2026-08-25 (M9 C5): superseded by `handoffs/M<n>-handoff.md`, the
+> per-milestone handoff format `PROGRESS.md` now uses.
+
 # Pocket Dungeons — Handoff to Opus
 
 ## What you're being asked to do

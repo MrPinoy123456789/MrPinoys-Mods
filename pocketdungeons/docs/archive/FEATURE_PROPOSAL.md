@@ -1,3 +1,7 @@
+> Archived 2026-08-25 (M9 C5): superseded by `UPDATE_PLAN.md` (also archived),
+> which expanded this proposal to full specificity, and then by the shipped
+> milestones under `plans/`.
+
 # Pocket Dungeons — Lean Feature Proposal (next player-visible update)
 
 Goal: turn the one-off four-room demo into a **repeatable, generous faucet** with the

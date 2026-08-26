@@ -1,3 +1,7 @@
+> Archived 2026-08-25 (M9 C5): the update it planned (U1-U8) shipped;
+> superseded by the milestone plans under `plans/` and their status in
+> `PROGRESS.md`.
+
 # Pocket Dungeons — update plan: "every run is different, and it pays"
 
 Implementation plan for the next player-visible update, expanding

@@ -1,3 +1,6 @@
+> Archived 2026-08-25 (M9 C5): superseded by `PROGRESS.md`'s Session log and
+> the per-milestone `handoffs/M<n>-handoff.md` files.
+
 # Pocket Dungeons — continue from here
 
 Paste this into a fresh session to resume work.

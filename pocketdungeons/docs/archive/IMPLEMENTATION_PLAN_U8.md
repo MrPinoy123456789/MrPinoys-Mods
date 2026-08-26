@@ -1,3 +1,6 @@
+> Archived 2026-08-25 (M9 C5): U8 shipped; superseded by the milestone plans
+> under `plans/` and their status in `PROGRESS.md`.
+
 # U8 implementation plan — for an implementing agent
 
 Work through this **in order**. Every task is self-contained: it compiles on its
