@@ -94,7 +94,7 @@ public class AffixMathTest {
         // a wall-clock or a level-only lookup table.
         UUID other = UUID.fromString("99999999-8888-7777-6666-555555555555");
         EnumSet<Affix> otherPick = AffixMath.seededFor(other, 17);
-        // Both are size 3 out of a 4-member seeded pool, so equality is a real
+        // Both are size 3 out of a 5-member seeded pool, so equality is a real
         // possibility by chance; only fail if every level in [5, 25] agrees, which
         // would mean the seed ignored the owner entirely.
         boolean everAgreesDifferently = false;
