@@ -23,6 +23,7 @@ pass.
 | `docs/DISCOVERIES.md` | Verified 26.2 API findings, so nobody re-derives them the hard way |
 | `docs/MYTHIC_PLUS_RECONCILIATION.md` | The affix system's design reasoning |
 | `docs/DOOR_LADDER_BRAINSTORM.md` | An uncommitted scratchpad for the design pass after M9. Nothing in it ships until it is scoped into a plan |
+| `docs/D3_PROGRESSION_PLAN.md` | The buildable plan promoted from the brainstorm: the two-tier door reframe, the level cap and mob scaling, and the five D3-inspired sinks, sequenced as M10-M17 |
 | `docs/LORE.md` | The fiction, and where it couples to the mechanics. `docs/VISION.md` §9 now permits discoverable fiction in written books, so the retrofits and the diary writing pass are unblocked. **Nothing is written or shipped yet**, and the couplings marked *Designed* stay gated |
 
 
