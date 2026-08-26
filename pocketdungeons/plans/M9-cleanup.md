@@ -169,14 +169,14 @@ outward.
 
 **Correction on the size target, found during implementation:** "under 600
 lines" assumed the `RunLifecycle` cluster was mostly self-contained. It is
-not -- `enter` alone calls `buildLayout`, `admit` and `enterLobby`;
+not. `enter` alone calls `buildLayout`, `admit` and `enterLobby`;
 `chooseOffer` calls `generateBehindLobby`; `resetForNextDungeon` calls
 `roomOwnerAt`, `teleport` and `clearCellSync`; `completeDungeon` calls
 `mcDirection`. All of those stay in `Instances` because the tick watcher and
 the admin commands need them too, which means `Instances` keeps a real body
 of lobby-stamping logic alongside the watcher, not just event wiring and a
 free-list. Measured result: `Instances.java` 1,203 lines (from 3,008),
-`RunLifecycle.java` 928 lines -- both well past the original guess, and both
+`RunLifecycle.java` 928 lines, both well past the original guess, and both
 now the correct shape for what the file split actually needed to separate
 (slot/party/teardown/visit bookkeeping from world-mutating logic), which was
 the goal the byte count was only ever a proxy for.
@@ -243,7 +243,7 @@ ten" count assumed six candidates archived unconditionally. `PLAN.md` was a
 seventh candidate by size alone, but it is referenced by four other live
 documents (`VISION.md`, `MYTHIC_PLUS_RECONCILIATION.md`,
 `CLIENT_TEST_CHECKLIST.md`, `DISCOVERIES.md`) as the standing technical spec,
-not a superseded plan -- archiving it would break those references for no
+not a superseded plan, and archiving it would break those references for no
 reason. Six archived, eleven left live. Same lesson as C3's line-count
 targets: judge by whether a document is actually still load-bearing, not by
 a count picked before reading the documents.

@@ -26,6 +26,7 @@ chat.
 | `MYTHIC_PLUS_RECONCILIATION.md` | The affix system's design reasoning |
 | `CLIENT_TEST_CHECKLIST.md` | The manual verification pass for a live client |
 | `DOOR_LADDER_BRAINSTORM.md` | An uncommitted scratchpad for the design pass after M9. Nothing in it ships until it is scoped into a plan |
+| `LORE.md` | The fiction, and where it couples to the mechanics. **Nothing in it is shipped or approved to ship**; `VISION.md` §9 still says "not a lore project" and revising that is an open decision |
 
 `docs/archive/` holds documents superseded by the above, kept for history.
 Each carries a two-line header saying what replaced it and when it was
