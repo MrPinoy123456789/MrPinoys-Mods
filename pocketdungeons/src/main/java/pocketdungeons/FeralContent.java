@@ -23,7 +23,7 @@ import java.util.Optional;
  * <h2>Why nothing here angers them</h2>
  *
  * <p>Read out of the 26.2 bytecode rather than tuned by guess
- * ({@code MYTHIC_PLUS_RECONCILIATION.md} section 7.4):
+ * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 7.4):
  *
  * <table>
  *   <caption>Verified wolf behaviour</caption>
@@ -46,7 +46,7 @@ import java.util.Optional;
  * <p>The nine vanilla coats are split into three exclusive bands by
  * {@link DifficultyProfile#lootTier()}, so a deep run yields coats a shallow one
  * never does and "where did you get that wolf" has a real answer
- * ({@code VISION.md} section 3.6.1's provenance argument, applied to a living
+ * ({@code docs/VISION.md} section 3.6.1's provenance argument, applied to a living
  * thing). Exclusive, not cumulative: a cumulative ladder makes a tier-3 wolf
  * merely <em>likelier</em> to be rare, which reads as luck rather than as
  * evidence.

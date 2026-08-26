@@ -110,7 +110,7 @@ final class RoomStore {
      * <p>Players are exempt from that sweep. A capture now runs whenever the
      * owner leaves ({@code RunLifecycle.saveRoom}), and the owner is standing in
      * the room when they do -- discarding them there is a removed player entity
-     * mid-logout, the same class of failure {@code PLAN.md} documents for
+     * mid-logout, the same class of failure {@code docs/PLAN.md} documents for
      * teardown teleports. Nothing is lost by skipping them: vanilla's
      * {@code fillEntityList} already refuses to capture a {@link Player}, so
      * they were never going into the blob either way.

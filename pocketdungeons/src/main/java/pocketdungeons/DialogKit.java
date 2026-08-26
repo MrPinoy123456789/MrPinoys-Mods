@@ -31,7 +31,7 @@ import java.util.Optional;
  *
  * <p>Every dialog is a runtime value sent with {@link Holder#direct}: no registry
  * entry, no datapack JSON, and nothing a client has to install. That is the whole
- * reason this mod can have menus at all without breaking {@code VISION.md} section 9's
+ * reason this mod can have menus at all without breaking {@code docs/VISION.md} section 9's
  * server-only rule -- {@code fabric.mod.json}'s {@code "environment": "server"}
  * and the absent {@code assets/} directory stay exactly as true as before.
  *

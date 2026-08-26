@@ -55,7 +55,7 @@ final class Instances {
      * fired synchronously. JOIN fires as part of the connection handshake
      * itself -- issuing a dimension-change teleport in that exact window
      * races the client's own initial world load and is what caused the
-     * "stuck on Loading terrain..." login hang (see PLAN.md). A short delay
+     * "stuck on Loading terrain..." login hang (see docs/PLAN.md). A short delay
      * lets that initial load settle first.
      */
     /** Longer than any plausible run; {@code clearTrialOmen} is what actually ends it. */
@@ -175,7 +175,7 @@ final class Instances {
             }
             // There are no more ticks coming, so the queued clears have to run
             // now. A force-load ticket that never gets released pins its chunks
-            // for the rest of the process (PLAN.md's M4 amendment).
+            // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
         });
     }
@@ -1149,7 +1149,7 @@ final class Instances {
      * dimension change needs; calling it directly is what caused players to
      * hang on "Loading terrain..." (sometimes permanently, on their next
      * login) after entering, exiting, or being recovered into a dungeon. See
-     * PLAN.md.
+     * docs/PLAN.md.
      */
     static void teleport(MinecraftServer server, ServerPlayer player,
                                  ResourceKey<Level> dimension, Vec3 pos, float yaw, float pitch) {

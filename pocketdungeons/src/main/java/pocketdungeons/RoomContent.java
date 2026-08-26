@@ -94,7 +94,7 @@ final class RoomContent {
         }
         // Molten (M4 T4.5): lava underfoot, and the only source of lava in the
         // game -- a sealed dungeon has none otherwise, and it gates furnace fuel
-        // and, with water, obsidian (VISION.md 3.7). Entrance and exit are
+        // and, with water, obsidian (docs/VISION.md 3.7). Entrance and exit are
         // deliberately excluded: they carry the lobby door and the lodestone
         // pad, and a hazard placed there would make either impassable rather
         // than merely dangerous.

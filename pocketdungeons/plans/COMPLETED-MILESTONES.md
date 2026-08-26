@@ -2,13 +2,13 @@
 
 > **Status:** All milestones below are code-complete (`./gradlew build` green,
 > unit tests passing). Live multiplayer verification is deferred to a single
-> suite-wide pass, per `../PROGRESS.md`.
+> suite-wide pass, per `../docs/LIVE_TEST_PASS.md`.
 >
 > M8 (Deferred) is not here — its items are recorded in
-> `../DOOR_LADDER_BRAINSTORM.md` alongside the future design work they relate to.
+> `../docs/DOOR_LADDER_BRAINSTORM.md` alongside the future design work they relate to.
 >
 > This file replaces the individual `M0`–`M7` and `M9` plan files, which have
-> been deleted. `PROGRESS.md` remains the source of truth for task-level status;
+> been deleted. `../docs/LIVE_TEST_PASS.md` covers the outstanding live verification;
 > this document is the architectural summary of what was built and why.
 
 ---
@@ -21,7 +21,7 @@ its source, and the repo states its own licence.
 - `RoomManifest` reloads on `/reload` via a Fabric server-data-pack listener,
   no restart needed. Verified live over RCON.
 - Root `LICENSE` (MIT, suite-wide).
-- `INTEGRATION.md` documents five extensible surfaces and three non-extensible
+- `docs/INTEGRATION.md` documents five extensible surfaces and three non-extensible
   items, following `kamutotems/INTEGRATION.md`'s structure.
 - Published `dungeon_room` schema with validation failures verbatim.
 - Owner check on selector doors (`selectorDoorStep` gates on `record.owner`).
@@ -205,5 +205,5 @@ changes.
   extraction per commit, moves only, no behaviour change.
 - **C4:** `CellGeometryTest` landed. `InstanceRecord` down to one constructor.
   New `LootTables` validates nine core loot table ids at `SERVER_STARTED`.
-- **C5:** Six superseded design docs archived to `docs/archive/`. New root
-  `README.md`. `PLAN.md` kept (referenced by four live documents).
+- **C5:** Six superseded design docs deleted from `docs/archive/`. All live
+  docs consolidated into `docs/`. `README.md` at root.

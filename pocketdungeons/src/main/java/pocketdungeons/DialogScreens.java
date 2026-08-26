@@ -54,7 +54,7 @@ final class DialogScreens {
 
     /**
      * The offer behind one selector door. Deliberately per-door and never a
-     * combined three-door picker: {@code VISION.md} section 1's hook is that you
+     * combined three-door picker: {@code docs/VISION.md} section 1's hook is that you
      * walk to a door and spend your keystone on it, and that walk is the mechanic,
      * not a UI limitation waiting to be tidied away.
      *

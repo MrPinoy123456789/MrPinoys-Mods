@@ -9,7 +9,7 @@
 > rather than smoothed over.
 >
 > Related: `VISION.md` (the hook and pillars), `MYTHIC_PLUS_RECONCILIATION.md`
-> (the affix reasoning), `plans/COMPLETED-MILESTONES.md` (the built work
+> (the affix reasoning), `../plans/COMPLETED-MILESTONES.md` (the built work
 > several of these ideas rework).
 
 ---
@@ -649,7 +649,7 @@ If any of this is promoted to a real plan, these are the touch points:
 - `VISION.md` 5.4: the recipe system's folklore argument. Adventures preserve
   the dynamic through a hidden graph rather than hidden compositions; the
   principle holds, the mechanism changes.
-- `plans/COMPLETED-MILESTONES.md` M4: the elective affix system. Ominous
+- `../plans/COMPLETED-MILESTONES.md` M4: the elective affix system. Ominous
   migrates, Fragile is deleted.
 - `Keystone.offers`, `Keystones.grantOffer`, `DialogScreens.doorOffer`: the
   door-offer plumbing. The UX surface (per-door dialog, `/dungeon choose`)
@@ -1779,7 +1779,7 @@ Before moving any of these out of this section:
 
 - The reason it was deferred no longer applies, and that is written down
 - It has its own plan file (or a section in a future plan)
-- `ROADMAP.md` and `PROGRESS.md` both updated
+- `ROADMAP.md` and `LIVE_TEST_PASS.md` both updated
 - Nothing currently in flight depends on the shape it is about to change
 
 ---
@@ -1804,7 +1804,7 @@ Ender pearls, an ender chest, and chorus flowers already sit in the tier-3
 loot tables. End stone, end stone bricks, purpur, and the "ancient city"
 material palette (deepslate tiles, chiselled deepslate, sculk, sculk vein,
 soul lantern, reinforced deepslate) are already the tier-3 block palette,
-per `PROGRESS.md`'s T6.2 note. None of that was authored as Ender-flavoured
+per `LIVE_TEST_PASS.md`'s tiered-blocks section. None of that was authored as Ender-flavoured
 on purpose; it fell out of "what is rare and thematically deep-tier in
 vanilla." A Herobrine-and-the-Ender-Dragon origin gives all of it a single
 reason to already look the way it does, discovered after the fact rather

@@ -3,9 +3,8 @@
 protocol, no third-party dependency).
 
 Used for in-world verification of milestone work -- proving a change did the
-thing in a running 26.2 server, not just that it compiled. See PROGRESS.md and
-any plans/M<n>-*.md "Done when" section for what each milestone should verify
-this way.
+thing in a running 26.2 server, not just that it compiled. See docs/LIVE_TEST_PASS.md
+for what to verify this way.
 
 Usage:
     python tools/rcon.py "<command 1>" "<command 2>" ...

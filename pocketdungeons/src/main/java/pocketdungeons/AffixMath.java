@@ -23,7 +23,7 @@ import java.util.UUID;
  * on top of both, electively, at any level.
  *
  * <p>There is deliberately <strong>no weekly rotation</strong>
- * ({@code MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed would make
+ * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed would make
  * the keystone's name drift under the instance watcher, which rewrites stale
  * remotes in place; seeding from the key keeps the name a pure function of
  * {@code (level, affixSet)}.
@@ -218,7 +218,7 @@ final class AffixMath {
      *
      * <p>Kamu Totems' <em>convention</em>, with entirely separate words -- same
      * machinery, no shared code and no shared vocabulary, per
-     * {@code kamutotems/INTEGRATION.md}'s stranger rule.
+     * ({@code kamutotems/INTEGRATION.md}'s stranger rule).
      */
     static String intensifier(int level) {
         if (level <= 5) {

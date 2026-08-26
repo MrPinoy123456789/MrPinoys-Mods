@@ -17,7 +17,7 @@ package pocketdungeons;
  * <h2>The rule every member here owes</h2>
  *
  * <p><strong>Every affix bends a rule and pays for it with a gift</strong>
- * ({@code MYTHIC_PLUS_RECONCILIATION.md} 5.0). {@link #blurb} is where that debt
+ * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} 5.0). {@link #blurb} is where that debt
  * is settled: it is the line a player reads on the item, and it has to say both
  * halves in one sentence. An affix whose blurb cannot be written is an affix that
  * should not ship.

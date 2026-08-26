@@ -16,14 +16,14 @@
 > says so explicitly. Most of what follows retrofits UI onto commands that
 > already ship today.
 
-**Read [`docs/DIALOGS_SPEC.md`](../docs/DIALOGS_SPEC.md) Part 0 first.** It is
+**Read Part 0 below first.** It is
 the verified API reference (`net.minecraft.server.dialog`, the send/receive
 path, the mixin shape) built by disassembling the real 26.2 jar, and it
 applies unchanged to every mod in this workspace. Do not re-derive it here.
 Three sibling mods have already shipped against it —
-[`quizengine/DIALOGS.md`](../quizengine/DIALOGS.md),
-[`cobbleeconomy/DIALOGS.md`](../cobbleeconomy/DIALOGS.md),
-[`smalltalk/SPEC.md`](../smalltalk/SPEC.md) §6 — and this spec leans on their
+[`quizengine/DIALOGS.md`](../../quizengine/DIALOGS.md),
+[`cobbleeconomy/DIALOGS.md`](../../cobbleeconomy/DIALOGS.md),
+[`smalltalk/SPEC.md`](../../smalltalk/SPEC.md) §6 — and this spec leans on their
 confirmed payload shapes and established patterns rather than re-guessing.
 
 ## Why this mod is a good fit
@@ -323,7 +323,7 @@ should intercept that.
 
 **Not a retrofit — this proposes both a command surface and its dialog
 front end together**, since M2 hasn't shipped a whitelist command yet
-(`plans/COMPLETED-MILESTONES.md` M2 T2.2 specifies the permission mask but not how an
+(`../plans/COMPLETED-MILESTONES.md` M2 T2.2 specifies the permission mask but not how an
 owner edits it). If M2 lands with a chat-only `/dungeon room whitelist
 add/remove <player>` pair, this section is exactly what to layer a dialog
 onto next; if M2's implementer wants to build the dialog and the command
@@ -375,7 +375,7 @@ together, this is the shape to build.
 
 ### §6. Admin `baserestore` confirmation — ties to M2 T2.1
 
-`plans/COMPLETED-MILESTONES.md` M2 now requires an `admin baserestore` command
+`../plans/COMPLETED-MILESTONES.md` M2 now requires an `admin baserestore` command
 (added after the Fable-review pass) precisely because a room blob is
 player-authored content, not disposable run state. Restoring one **overwrites
 whatever is there now** — a `ConfirmationDialog` is the right guard for an

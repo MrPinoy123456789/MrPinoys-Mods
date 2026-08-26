@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * The game loop: entry, the door choice out of the lobby, completion, exit,
  * and what ends a run early. Sixth and last of {@code Instances}' six M9 C3
- * extractions -- every mechanic in {@code DOOR_LADDER_BRAINSTORM.md} edits
+ * extractions -- every mechanic in {@code docs/DOOR_LADDER_BRAINSTORM.md} edits
  * here, which is exactly why it should not share a file with slot arithmetic.
  *
  * <p>Revised during implementation from the plan's original scope
@@ -841,7 +841,7 @@ final class RunLifecycle {
      * leaving (disconnecting, or already off the player list), so teardown's
      * "someone is still standing here" safety net must not try to teleport
      * them. Doing so mid-disconnect is what corrupts their next login's
-     * chunk tracking, leaving them stuck on "Loading terrain..." (see PLAN.md).
+     * chunk tracking, leaving them stuck on "Loading terrain..." (see docs/PLAN.md).
      *
      * <p>U8 Stage 1: for an ordinary dungeon this is no longer a lifetime event
      * -- an empty instance is now normal, a dungeon waiting for its owner to
@@ -891,12 +891,12 @@ final class RunLifecycle {
     }
 
     /**
-     * T2.6 / {@code MYTHIC_PLUS_RECONCILIATION.md} §7.2: leadership does not
+     * T2.6 / {@code docs/MYTHIC_PLUS_RECONCILIATION.md} §7.2: leadership does not
      * transfer. If the owner is the one leaving <em>and someone else is still in
      * the party</em>, the whole run ends with them -- stricter than plain
      * purge-when-empty, and deliberately so: transferring ownership is real work
      * with real edge cases this codebase already paid for once (the
-     * disconnect-during-teardown race {@code PLAN.md} documents), and "purge and
+     * disconnect-during-teardown race {@code docs/PLAN.md} documents), and "purge and
      * let them re-key" costs nobody anything (no death, inventory kept), just the
      * run.
      *

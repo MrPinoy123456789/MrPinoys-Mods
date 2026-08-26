@@ -4,10 +4,10 @@
 > `VISION.md` and `MYTHIC_PLUS_RECONCILIATION.md` describe.
 >
 > **What this is not:** a design document. Every *why* lives in `VISION.md`; every
-> *how* lives in `plans/M<n>-*.md`. This file is the order and the reasoning for
+> *how* lives in `../plans/M<n>-*.md`. This file is the order and the reasoning for
 > the order, nothing else.
 >
-> **Progress lives in `PROGRESS.md`.** Do not record status here.
+> **Live verification lives in `LIVE_TEST_PASS.md`.** Do not record status here.
 >
 > **Menu/dialog design lives in `DIALOGS_SPEC.md`.** Where a milestone below
 > would benefit from a vanilla-dialog menu instead of chat text, that file has
@@ -71,7 +71,7 @@ hits on day one. Nothing here is blocked on anything.
 **Done when:** a datapack author can iterate with `/reload`, the repo states its
 own licence, and a third party has a schema to write against.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -92,7 +92,7 @@ after this one is cheaper because of it.
 **Done when:** one `.nbt` and three JSON files produce three visibly different
 dungeons, and none of it required a recompile.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -119,7 +119,7 @@ when they walk back.
 
 **Protect:** the mod says nothing about any of this (§4). No message, no sound.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -141,7 +141,7 @@ half on its own. This is the highest-value milestone in the document and it is
 **Done when:** two players holding cards to the same room stand in it together,
 neither can break anything, and both can use the stations.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -166,7 +166,7 @@ the `max` across the set, capped at 2×, never the product (§7.1).
 **Done when:** a level-16 key reads `Menace Cooked Keystone [16] [Swarming]` and
 the player can name what each word bought them.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -195,7 +195,7 @@ trailing the party through a timed run.
 **Done when:** a Feral run spawns coat-appropriate wolves, a player tames one with
 bones from the same run, and binding it to a Spirit Stone preserves the coat.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -218,7 +218,7 @@ lands, "could a player progress without ever leaving?" has the answer *no*.
 **Done when:** a server with an emptied overworld is fully playable and nobody had
 to tune anything twice.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 
@@ -237,7 +237,7 @@ to have been recording them for a while.
 **Done when:** someone comes back with *New Dungeon Discovered* and their friends
 have to ask what they did.
 
-→→ `plans/COMPLETED-MILESTONES.md`
+→→ `../plans/COMPLETED-MILESTONES.md`
 
 ---
 

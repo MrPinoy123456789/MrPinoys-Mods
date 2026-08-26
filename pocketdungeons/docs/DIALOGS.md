@@ -1,7 +1,7 @@
 # Vanilla dialogs in Pocket Dungeons
 
 Implements [`DIALOGS_SPEC.md`](DIALOGS_SPEC.md) §1–§6, against Part 0 and Part 1 of
-[`../docs/DIALOGS_SPEC.md`](../docs/DIALOGS_SPEC.md). §7 (the elevator) is **not**
+[`DIALOGS_SPEC.md`](DIALOGS_SPEC.md). §7 (the elevator) is **not**
 built — see "What was left out" below.
 
 Door offers, the party roster and kick confirmation, party invites, keystone

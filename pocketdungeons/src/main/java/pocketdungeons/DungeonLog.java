@@ -21,7 +21,7 @@ import java.util.UUID;
  * waiting for them to choose.
  *
  * <p>This is the one slice of instance state that persists. Live instances stay
- * in memory (PLAN.md's M5 is still deliberately unshipped -- runs are short and
+ * in memory (docs/PLAN.md's M5 is still deliberately unshipped -- runs are short and
  * a restart simply forgives whatever was in progress), but a player's keystone
  * and their completion count are not runs; they are the campaign.
  */

@@ -49,7 +49,7 @@ import java.util.function.BiConsumer;
  * {@code src/main/resources/data/pocketdungeons/structure/rooms/}.
  *
  * <p>Entity capture is deferred by one tick so the level's spatial index has
- * time to pick up anything freshly spawned (see PLAN.md's round-trip note).
+ * time to pick up anything freshly spawned (see docs/PLAN.md's round-trip note).
  *
  * <h2>The library</h2>
  *
