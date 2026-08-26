@@ -218,11 +218,27 @@ scale (more thresholds, or a percentage-based system). The intensifier bands
 
 ---
 
-## 3. The sink
+## 3. The sink: a gearing loop shaped by Diablo 3
 
 Dungeons are a faucet with no drain today. Depletion drains ladder position,
 never items. Every run adds materials and nothing removes them. A sink is
 needed; the design just has not got one yet.
+
+**Why Diablo 3 is the reference point, not just a source of individual
+ideas.** Open question 1 (section 5) asks what a level-100 player is working
+toward that a level-10 player is not, and D3's Nephalem Rift / Greater Rift
+split answers it structurally rather than just economically: an untimed,
+ungated farming tier that produces the currency a timed, gated ladder tier
+consumes, so there is always something productive to do and the thing you do
+produces the thing you spend. Pocket Dungeons today collapses both tiers
+into one door type, which is why the keystone only ever goes up or down and
+nothing is ever spent. Three of the four ideas below are that same two-tier
+shape applied at a different scale of the loop: the run itself (3.1), the
+gear a run drops (3.2), and the permanent power slotted into that gear
+(3.3), each with its own "D3 analogue" line so the lineage stays traceable
+rather than asserted. The fourth (3.4) has no D3 source and says so; it
+belongs in the same package because it is the step that produces the base
+item 3.2 and 3.3 both assume exists.
 
 **Fuel source must stay inside the dungeon loop** per `VISION.md` 3.7:
 "Nothing required for progression may live outside the dungeon loop." So the
@@ -249,7 +265,52 @@ the loop feeds itself and the sink does nothing. Premium rooms should drop
 rather than more of the fuel currency. Or use echo shards as fuel while
 premium rooms drop diamonds, so the currencies are orthogonal.
 
-### 3.1 Gear reroll: a lapis sink, orthogonal to the fuel sink
+### 3.1 Two-tier doors: the Nephalem/Greater Rift split
+
+**D3 analogue: Nephalem Rifts feed Greater Rifts.** A Nephalem Rift is
+untimed, always available, costs nothing, and its only job is to drop a
+Greater Rift Keystone. A Greater Rift consumes that keystone, is timed, and
+pays out in ladder position and rarity. The farming tier's product is the
+ladder tier's admission price. Applied here: **door 1 stays the free door
+this brainstorm already has** (section 2.1's "+1, no fragile"), but it also
+becomes the fuel source, not just the safe option. **Doors 2 and 3 become
+the Greater tier**: timed, fuel-consuming, depleting on failure the way
+every door does today, level-gated, and drawn from the adventure graph
+(section 2.2). Concretely: door 1 is untimed or generously timed, spends no
+fuel, and never depletes the keystone on failure, in exchange for the
+modest loot a free door already implies. Doors 2 and 3 keep the clock, the
+depletion, and the level gate they have today, and additionally cost fuel
+(section 3's echo shards, or whichever currency question 4 settles on).
+
+**This is what makes section 2.4's option 3 concrete rather than aspirational.**
+2.4 already argues the keystone level should gate *which doors are
+available*, not just how hard the same door is; the two-tier split is the
+mechanism that makes that true rather than just asserted. A level-100 key
+is not "the same three doors, but scarier." It is access to door-2/3 offers
+a level-10 key cannot open at all, farmed for by running the free door
+enough times to afford them. The free door was already load-bearing
+(`KeystoneMath.deplete`'s "a keystone never goes to zero" principle, section
+3's "the free door must always exist"); this reframe gives it a second job
+instead of adding a fourth door to do it.
+
+**What this does not change.** The three-door UI, the door-offer dialog (or
+its physical replacement in section 10), `Keystone.offers`, and the
+depletion math on doors 2/3 all stay exactly as designed elsewhere in this
+document. The only new mechanical fact is that door 1 stops depleting and
+starts paying fuel, and doors 2/3 start costing it.
+
+**Open, folded into question 4:** whether door 1 needs its own, shorter
+timer for pacing (an unlimited door risks becoming the only door anyone
+ever takes) and how much fuel a door-1 run should typically produce
+relative to what a door-2/3 run costs, so the loop neither stalls (never
+enough fuel to push) nor trivializes (door 1 alone drowns the sink).
+
+### 3.2 Gear reroll: a lapis sink, orthogonal to the fuel sink
+
+**D3 analogue: Kanai's Cube's reroll, or the Mystic's enchant.** Both let a
+player replace one property on an item they already have, spending a
+material sink to do it, without touching the rest of the item. The station
+below is that shape with lapis standing in for D3's crafting materials.
 
 **The pitch in one sentence:** a room station that rerolls one enchantment on
 a piece of gear, player's choice of which, costing lapis that scales with the
@@ -312,7 +373,7 @@ curve, whether the station is available from run 1 or unlocked, and whether
 premium doors should avoid dropping extra lapis the way section 3 warns
 against self-funding fuel with more fuel.
 
-### 3.2 Armor trims: consumed patterns that actually do something
+### 3.3 Armor trims: consumed patterns that actually do something
 
 **The pitch in one sentence:** armor trim templates drop as dungeon loot,
 applying one at a smithing table permanently consumes it (the vanilla
@@ -323,7 +384,7 @@ combat bonus, not just a colour.
 **Why this is a sink and not just flavour.** Vanilla trims already cost
 something to apply: a template, an armour piece, and seven of a trim
 material at the smithing table, same shape as the reroll station's cost in
-section 3.1. What vanilla also does, and what makes an applied trim
+section 3.2. What vanilla also does, and what makes an applied trim
 worthless as a sink, is let a player duplicate the template afterward: place
 it with a diamond and seven more of the same material at a crafting table
 and walk away with two templates again. If dungeon-found templates go
@@ -370,7 +431,7 @@ which the templates and materials satisfy (both are dungeon-loot-gated), but
 a worn trim's combat bonus applies wherever the player wears the armour,
 overworld included. That is consistent with the letter of 3.7 (nothing about
 *reaching* the bonus requires leaving the loop) but it is a bigger
-commitment than section 3.1's reroll station: this is passive combat power
+commitment than section 3.2's reroll station: this is passive combat power
 active outside the dungeon dimension, not a dungeon-run modifier, and it is
 worth being deliberate about that rather than backing into it.
 
@@ -381,6 +442,61 @@ jar, and whether the combat bonus should be dungeon-only (checked against
 the player's dimension, the same guard `RoomProtection` already reads) rather
 than global, which would resolve the tension above at the cost of a trimmed
 piece feeling like a prop the moment the player leaves.
+
+### 3.4 Grindstone: strip and sharpen, then re-enchant
+
+**No clean D3 analogue; included because it completes the loop the other
+three start.** The closest D3 gets is the general principle that permanent
+power is bought by spending something real, not the specific mechanic; this
+one is Minecraft-native rather than translated. It belongs in the package
+anyway because 3.2 and 3.3 both assume a base item worth investing in, and
+this is where that base item comes from.
+
+**The pitch in one sentence:** a grindstone still does exactly what a
+grindstone does (strips enchantments, returns some of their XP, repairs
+combined items), but grinding a piece of dungeon-tier gear also adds one
+permanent "sharpened" stack to it, each stack a flat damage increase, in
+exchange for every enchantment on the item. The player is not left with a
+stripped, naked item afterward: the point of stripping it is to re-enchant
+it clean, at a normal enchanting table or the reroll station in 3.2, on top
+of a base item that now hits harder than the one that walked in. Grind,
+re-enchant, and optionally reroll or trim later: this is usually the
+**first** station in the gearing sequence despite being the last one written
+up here.
+
+**The sink is the enchantments themselves, not a new material.** Every
+other idea in this section adds a material cost (lapis, a trim template and
+its material) on top of an item that keeps what it had. This one spends the
+item's *own* value: a piece with three good enchantments on it is a real
+sacrifice to grind, which is exactly why a player would only do it for gear
+worth the permanent investment, not everything that drops. No new loot
+table entry, no new item, nothing to add to the chest tables. That also
+means it needs no tier-gating of its own; the gear's own tier already gates
+how good the enchantments being sacrificed are, which is gate enough.
+
+**Why capped, not unlimited.** An uncapped stack turns the grindstone into
+the only station that matters: grind everything forever, ignore reroll and
+trim entirely. Capping sharpen stacks low (three to five, tier-scaled the
+way 3.6.1's palettes already are, so a tier-3 item can be sharpened further
+than a tier-1 one) keeps it one ingredient in the loop instead of the whole
+recipe, and leaves the stripped-and-reenchanted item genuinely wanting what
+3.2 and 3.3 offer rather than replacing them.
+
+**Implementation shape.** The sharpen stack has to persist on the item
+across the strip (a `DataComponents`-level component the grindstone
+interaction adds to, read the same way 3.3's trim bonus reads
+`DataComponents.TRIM`), and the damage bonus itself is another attribute
+modifier keyed off that component, same shape as 3.3's. The grindstone's
+own vanilla strip-and-repair behaviour is untouched; this is an addition to
+what already happens when the interaction fires, not a replacement, which
+keeps it a small diff against a recipe/interaction Minecraft already ships.
+
+**Open:** the exact stack cap and per-stack damage value, whether the
+sharpen bonus is dungeon-only like 3.3's open question about trims, and
+whether grinding a piece that has never been enchanted should be blocked
+outright (nothing to sacrifice, so nothing to sharpen either) or simply do
+nothing, which is the safer default until there is a reason to special-case
+it.
 
 ---
 
@@ -397,7 +513,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, enchantments spent at a grindstone for permanent damage |
 
 ---
 
@@ -425,13 +541,17 @@ If all of these landed, the shape would be:
 7. **How do the affix thresholds scale past 25?** More thresholds, or a
    percentage-based system?
 8. **What is the gear-reroll lapis curve, and is the station gated?**
-   (section 3.1) Same shape as question 4, one level down: the fuel currency
+   (section 3.2) Same shape as question 4, one level down: the fuel currency
    gates the ladder, this gates the gear the ladder hands out.
 9. **Should an armour trim's combat bonus work outside the dungeon?**
-   (section 3.2) The templates and materials are dungeon-gated either way;
+   (section 3.3) The templates and materials are dungeon-gated either way;
    this is whether the bonus itself is too, and it is a bigger design
    commitment than either other sink, since it is the first idea here that
    reaches past the dungeon loop into ordinary overworld combat.
+10. **What is the sharpen stack cap and per-stack value?** (section 3.4)
+    Too low and grinding is never worth the enchantments it costs; too high
+    and it stops being one ingredient in the gearing loop and becomes the
+    whole recipe.
 
 ---
 
