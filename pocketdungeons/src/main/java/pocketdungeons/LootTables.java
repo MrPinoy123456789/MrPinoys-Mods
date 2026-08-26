@@ -17,7 +17,7 @@ import java.util.List;
  * chests, {@code placeCompletionChests}) and never checked the result
  * resolved to anything. A typo or a deleted table surfaced as a silently
  * empty chest at play time, with no log line anywhere pointing at the cause
- * (plans/M9-cleanup.md C4). The themed {@code lootSuffix} variant
+ * (plans/COMPLETED-MILESTONES.md M9 C4). The themed {@code lootSuffix} variant
  * ({@code chests/tier_1_drowned} and its kin) is deliberately not in
  * {@link #ALL}: it is optional by design -- {@link TrialContent#applyLoot}'s
  * {@code resolveLootTable} already falls back to the base table when a

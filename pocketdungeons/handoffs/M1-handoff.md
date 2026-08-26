@@ -11,7 +11,7 @@ Read, in order, before writing anything:
 
 1. `pocketdungeons/VISION.md` — §5.1–5.3 is what this milestone is for
 2. `pocketdungeons/ROADMAP.md` — where M1 sits
-3. `pocketdungeons/plans/M1-themes-foundation.md` — **the authoritative scope**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M1 — **the authoritative scope**
 4. `pocketdungeons/PROGRESS.md` — find the `## M1` table for current status
 
 **T1.1 ("wire `processors`") is already `DONE`**, committed as `f7345eb`. Read
@@ -44,7 +44,7 @@ After this milestone a theme is datapack JSON and needs no recompile.
 1. Read the docs above in full, including the T1.1 commit.
 2. In `PROGRESS.md`, set T1.2 and T1.3 to `WIP` with your name/date before
    touching them.
-3. Implement per `plans/M1-themes-foundation.md`.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M1.
 4. Verify — **this milestone is exactly where end-to-end proof matters most**,
    because a theme that silently fails to apply is invisible until someone
    notices a wall is the wrong colour:

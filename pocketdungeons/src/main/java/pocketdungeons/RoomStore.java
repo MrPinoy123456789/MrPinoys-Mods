@@ -36,7 +36,7 @@ import java.util.UUID;
  *
  * <p>This is the first milestone that stores player-authored content,
  * and losing hours of someone's decoration is not the same class of failure
- * as losing run state (`../plans/M2-the-room.md`). Every write:
+ * as losing run state (`../plans/COMPLETED-MILESTONES.md` M2). Every write:
  * <ol>
  *   <li>copies whatever is currently live to a {@code .bak} file <em>first</em>,
  *       so {@code /dungeon admin baserestore} has somewhere to recover from

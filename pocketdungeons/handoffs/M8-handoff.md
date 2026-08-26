@@ -10,11 +10,11 @@
 **M8 items may not be started without an explicit promotion decision from the
 person directing this work.** If you were handed this file without being told
 which item, and which specific reason-for-deferral no longer applies, **stop
-and ask** rather than picking one yourself. `plans/M8-deferred.md` exists
+and ask** rather than picking one yourself. `DOOR_LADDER_BRAINSTORM.md` §15.7 exists
 precisely to stop these from being picked up casually.
 
 If you *were* given a specific item and a stated reason it's now ready, write
-that reason down in `plans/M8-deferred.md`'s promotion checklist before writing
+that reason down in `DOOR_LADDER_BRAINSTORM.md` §15.7's promotion checklist before writing
 any code — that record is what stops the next person re-deferring it by
 accident, or re-deferring something else for the same now-resolved reason.
 
@@ -27,10 +27,10 @@ Read, in order:
 
 1. `pocketdungeons/VISION.md` and `pocketdungeons/MYTHIC_PLUS_RECONCILIATION.md`
    — general context; search both for your specific item, several are discussed
-   at length outside `plans/M8-deferred.md` (e.g. outdoor themes in `VISION.md`
+   at length outside `DOOR_LADDER_BRAINSTORM.md` §15.7 (e.g. outdoor themes in `VISION.md`
    §5.3, rule-breaking dungeons in §5.5)
 2. `pocketdungeons/ROADMAP.md` — M8's place in the overall order
-3. `pocketdungeons/plans/M8-deferred.md` — **read the entry for your specific
+3. `pocketdungeons/DOOR_LADDER_BRAINSTORM.md` §15.7 — **read the entry for your specific
    item in full**, including its stated reason for deferral
 4. `pocketdungeons/PROGRESS.md` — find the `## M8` table
 
@@ -51,8 +51,8 @@ Read, in order:
 
 1. Confirm the promotion decision exists and is written down (see above).
 2. Write your own `plans/M<item>-<name>.md` for the promoted item, following the
-   structure of `plans/M0-entry-fee.md` through `plans/M7-recipes.md` — verified
-   API facts, hazards, scope table, "Done when." M8's own file only has a short
+   structure of the completed milestones in `plans/COMPLETED-MILESTONES.md` — verified
+   API facts, hazards, scope table, "Done when." §15.7 only has a short
    paragraph per item; a promoted item needs the same depth of plan every other
    milestone got before it started.
 3. Add a section to this milestone's row in `pocketdungeons/PROGRESS.md`
@@ -65,7 +65,7 @@ Read, in order:
 6. Update docs:
    - `PROGRESS.md`: your item's row → `DONE` with commit hash and what was
      verified. Session Log line.
-   - `plans/M8-deferred.md`: **remove the promoted item from the deferred
+   - `DOOR_LADDER_BRAINSTORM.md` §15.7: **remove the promoted item from the deferred
      list**, or mark it promoted with a pointer to its new plan file — don't
      leave a stale entry that reads as still-blocked.
    - `ROADMAP.md`: if this item is now a real milestone in the sequence rather
@@ -77,7 +77,7 @@ Read, in order:
    `PROGRESS.md`'s Session Log which specific item was promoted and completed.
    Only rename `handoffs/M8-handoff.md` → `handoffs/M8-handoff-completed.md` if
    you are the one closing out the **last** remaining item in
-   `plans/M8-deferred.md` — check the file is actually empty of open items
+   `DOOR_LADDER_BRAINSTORM.md` §15.7 — check the section is actually empty of open items
    before doing that.
 
 ## The items, and why each is currently held
@@ -92,5 +92,5 @@ Read, in order:
 | D6 | Lava as a second faucet | Molten (M4) is already the only faucet; widen only if M6 shows it actually pinches |
 
 Full detail, including hazards specific to each, is in
-`plans/M8-deferred.md` — this table is a locator, not a substitute for reading
-that file's actual entry before starting.
+`DOOR_LADDER_BRAINSTORM.md` §15.7 — this table is a locator, not a substitute for reading
+that section's actual entry before starting.

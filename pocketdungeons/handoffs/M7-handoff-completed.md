@@ -12,7 +12,7 @@ Read, in order, before writing anything:
 1. `pocketdungeons/VISION.md` - §5.4 (the design this milestone implements) and
    §6 (why the recipe table has to load across every namespace)
 2. `pocketdungeons/ROADMAP.md` - where M7 sits
-3. `pocketdungeons/plans/M7-recipes.md` - **the authoritative scope**, including
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M7 — **the authoritative scope**, including
    the section "Correction, 2026-08-25", which you must read before T7.1
 4. `pocketdungeons/PROGRESS.md` - find the `## M7` table, and read the note on
    T7.0 there
@@ -92,7 +92,7 @@ visibly different dungeons, and that bar is met. Leave M1 marked `DONE`.
 1. Read every doc above in full.
 2. In `PROGRESS.md`, set each M7 task to `WIP` with your name and the date
    *before* the first edit.
-3. Implement per `plans/M7-recipes.md`, in task order. T7.0 first; T7.4 last.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M7, in task order. T7.0 first; T7.4 last.
    - **T7.0's loaders**: model `ThemeManifest` on `RoomManifest` line for line,
      including the startup ordering guard its `server` field documents (the
      resource reload runs before `SERVER_STARTED`, so the first pass is covered

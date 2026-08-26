@@ -9,8 +9,8 @@
 > rather than smoothed over.
 >
 > Related: `VISION.md` (the hook and pillars), `MYTHIC_PLUS_RECONCILIATION.md`
-> (the affix reasoning), `plans/M4-affixes.md` (the affix system several of
-> these ideas rework).
+> (the affix reasoning), `plans/COMPLETED-MILESTONES.md` (the built work
+> several of these ideas rework).
 
 ---
 
@@ -649,8 +649,8 @@ If any of this is promoted to a real plan, these are the touch points:
 - `VISION.md` 5.4: the recipe system's folklore argument. Adventures preserve
   the dynamic through a hidden graph rather than hidden compositions; the
   principle holds, the mechanism changes.
-- `plans/M4-affixes.md`: the elective affix system. Ominous migrates, Fragile
-  is deleted.
+- `plans/COMPLETED-MILESTONES.md` M4: the elective affix system. Ominous
+  migrates, Fragile is deleted.
 - `Keystone.offers`, `Keystones.grantOffer`, `DialogScreens.doorOffer`: the
   door-offer plumbing. The UX surface (per-door dialog, `/dungeon choose`)
   stays; what the doors offer changes.
@@ -1697,6 +1697,90 @@ or on player death, it tears down the child instance and returns the player
 to the parent instance at the room they entered from. The parent's tick
 watcher continues running throughout; only the player's position and active
 instance change.
+
+---
+
+## 15.7 Deferred items (formerly M8)
+
+The seven items held in the old M8 backlog. Each is a milestone wearing a
+feature's clothes. None may start without an explicit promotion decision.
+Several are already discussed elsewhere in this document; cross-references
+below.
+
+### D1 — Outdoor themes (needs a second dimension)
+
+The dungeon dimension is `has_skylight: false`, `ambient_light: 0.0`,
+`effects: minecraft:the_end`. A village at sunset needs real sky, and sky is
+per-dimension. Supporting both means a second dimension, and `Instances` is
+built around one level with one slot grid.
+
+Biome/realm themes (lush cave, dripstone, frozen, jungle, badlands, swamp,
+cherry, pale garden, Nether, End, Deep Dark) are processors + spawn potentials
+and belong in ordinary theme work, not here. Outdoor is not a theme; it is a
+milestone.
+
+### D2 — One rule-breaking dungeon: the Endless Mine
+
+Forward-only traversal, the terminal exit, and `RoomSelector.validate`'s
+reachability guarantee are `LayoutGraphGenerator` invariants. The Endless Mine
+("do not place a terminal, keep extending") bends them least. No terminal
+means no closed loop (M2) and no way home by the normal route — design the
+exit before the generator. Hold the rest (Inversion, Labyrinth, Descent) until
+it ships.
+
+Ties to section 2.2's adventure graph: a non-terminating descent is the same
+idea without the boss reset.
+
+### D3 — Data-driven affixes
+
+Affixes are a Java enum; a pack author cannot add one without compiling. Do
+this after 5–6 affixes exist in Java and the varying knobs are known.
+Data-driving a system with three examples produces a schema shaped like those
+three examples.
+
+### D4 — Multi-cell footprints
+
+`DungeonRoomMeta` parses `footprint`, but `LayoutGraphGenerator` is 1×1 only
+(`maxGridSpan: 12`, self-avoiding walk, 5–8 rooms, 0–2 spurs). The field is
+accepted and ignored. Section 9.1's immutable shell discussion already names
+the 1×1 cap as deliberate cost control.
+
+### D5 — Room size as progression, station unlocks
+
+Downstream of M2 (room must persist) and M6 (stations must be the economy
+before unlocking them means anything). Section 3.2's gear-reroll station is
+the first concrete instance of this — a room station that costs lapis, gated
+by keystone level or recipe completion. The general "room size progression"
+half stays held until D4 (multi-cell) is promoted, since the room is capped at
+one cell.
+
+### D6 — Lava as a second faucet
+
+Molten (M4) is currently the only lava source. If that proves too narrow,
+widen it — but only after playtesting shows whether it actually pinches.
+Adding a second faucet pre-emptively removes the reason anyone opts into
+Molten. Section 3's sink discussion already warns against self-funding loops;
+the same logic applies here.
+
+### D7 — The elevator (public room/party directory)
+
+**Fully superseded by section 8 (visiting rework) above.** The old M8 entry
+described a public opt-in directory needing a menu system and a per-template
+anchor. Section 8 replaces the calling card with exactly that: a lobby
+directory accessed from the wall terminal (section 11), with a host-set
+`publicListed` boolean. The vanilla-`DialogListDialog`-vs-SGUI pagination
+decision (recorded in `DIALOGS_SPEC.md` §7) is the one open implementation
+choice. Section 8 is the promotion of D7 out of the backlog; this entry stays
+as a cross-reference so the lineage is traceable.
+
+### Promotion checklist
+
+Before moving any of these out of this section:
+
+- The reason it was deferred no longer applies, and that is written down
+- It has its own plan file (or a section in a future plan)
+- `ROADMAP.md` and `PROGRESS.md` both updated
+- Nothing currently in flight depends on the shape it is about to change
 
 ---
 

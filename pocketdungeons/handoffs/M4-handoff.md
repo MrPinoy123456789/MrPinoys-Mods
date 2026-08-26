@@ -13,7 +13,7 @@ Read, in order, before writing anything:
    §7.3 are all directly load-bearing for this milestone; read the whole
    document once, this is the section it was mostly written for
 2. `pocketdungeons/ROADMAP.md` — where M4 sits
-3. `pocketdungeons/plans/M4-affixes.md` — **the authoritative scope**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M4 — **the authoritative scope**
 4. `pocketdungeons/PROGRESS.md` — find the `## M4` table
 
 ## Goal
@@ -55,7 +55,7 @@ specified; implement both halves of each affix, not just the punishing half.
 
 1. Read every doc above in full.
 2. In `PROGRESS.md`, set each M4 task to `WIP` with your name/date first.
-3. Implement per `plans/M4-affixes.md`.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M4.
    - T4.1's storage change needs **no codec migration** — `DungeonLog` already
      stores the affix as `Codec.STRING.optionalFieldOf("keystone_affix", "")`;
      comma-join a set into the same field. Verify old-save compatibility as part

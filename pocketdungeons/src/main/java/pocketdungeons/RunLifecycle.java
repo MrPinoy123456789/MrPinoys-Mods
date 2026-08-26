@@ -24,7 +24,7 @@ import java.util.UUID;
  * here, which is exactly why it should not share a file with slot arithmetic.
  *
  * <p>Revised during implementation from the plan's original scope
- * (plans/M9-cleanup.md's PartyService/RunLifecycle rows): {@code dropMember}
+ * (plans/COMPLETED-MILESTONES.md M9's PartyService/RunLifecycle rows): {@code dropMember}
  * and {@code leadershipChanged} were briefly scoped to {@link PartyService}
  * instead, then moved here once it was clear both call {@link InstanceTeardown#purge}
  * and {@link #saveRoomIfOwner}, run-teardown machinery, not party bookkeeping.

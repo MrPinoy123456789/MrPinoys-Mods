@@ -11,7 +11,7 @@ Read, in order, before writing anything:
 
 1. `A:\MrPinoys Mods\CLAUDE.md` - the punctuation rule. It is enforced, and it
    applies to every line you write including javadoc and commit messages.
-2. `pocketdungeons/plans/M9-cleanup.md` - **the authoritative scope.** Every
+2. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M9 - **the authoritative scope.** Every
    phase, every verified finding with its file and line number, and the
    explicit not-in-scope list at the bottom.
 3. `pocketdungeons/PROGRESS.md` - the process rules at the top, and the M7
@@ -76,7 +76,7 @@ else. That changes the shape of this milestone.
 
 ### Then C1 through C5
 
-Follow `plans/M9-cleanup.md`. C1 (dead code) and C2 (shell palette) are
+Follow `plans/COMPLETED-MILESTONES.md` M9. C1 (dead code) and C2 (shell palette) are
 independent and either can go first. C3 (the split) needs C1 done. C4 and C5
 can land any time after C0.
 
@@ -123,7 +123,7 @@ The plan has a not-in-scope list and it is load-bearing. In particular:
 1. `PROGRESS.md`: the M9 table with real statuses, and one Session Log line
    (newest first).
 2. `ROADMAP.md`: add M9 in its place in the order.
-3. `plans/M9-cleanup.md`: if you diverge from the plan, **fix the plan first
+3. `plans/COMPLETED-MILESTONES.md` M9: if you diverge from the plan, **fix the plan first
    and say so**, per process rule 3. Never silently diverge.
 4. The new `pocketdungeons/README.md` from C5.
 5. Rename this file to `M9-handoff-completed.md` once M9 is actually `DONE` in

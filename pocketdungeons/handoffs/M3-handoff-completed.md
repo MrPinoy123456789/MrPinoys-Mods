@@ -12,7 +12,7 @@ Read, in order, before writing anything:
 1. `pocketdungeons/VISION.md` — §2.1 (why this is the thesis, not a nice-to-have)
    and §3.1.1 (the mechanism this milestone builds)
 2. `pocketdungeons/ROADMAP.md` — where M3 sits
-3. `pocketdungeons/plans/M3-calling-card.md` — **the authoritative scope**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M3 — **the authoritative scope**
 4. `pocketdungeons/PROGRESS.md` — find the `## M3` table
 
 **Hard prerequisite: confirm M2 is `DONE` in `PROGRESS.md` before starting
@@ -50,10 +50,10 @@ reason most of the rest of this document exists.
 
 1. Read the docs above in full, plus whatever M2 actually shipped — its plan
    file may have been edited during implementation, so check `git log
-   pocketdungeons/plans/M2-the-room.md` for late corrections, not just the
+   pocketdungeons/plans/COMPLETED-MILESTONES.md` for late corrections, not just the
    original text.
 2. In `PROGRESS.md`, set each M3 task to `WIP` with your name/date first.
-3. Implement per `plans/M3-calling-card.md`.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M3.
    - **Owner UUID, not a `GlobalPos`.** This is stated three times across the
      docs because it's the one detail most likely to get "simplified" back into
      a position by mistake — a room blob moves between slots, so a stored

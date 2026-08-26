@@ -14,7 +14,7 @@ Read, in order, before writing anything:
 2. `pocketdungeons/MYTHIC_PLUS_RECONCILIATION.md` — §3.2–3.2.4 (the detailed
    design this milestone implements) and §7.2 (the leadership-purge decision)
 3. `pocketdungeons/ROADMAP.md` — where M2 sits
-4. `pocketdungeons/plans/M2-the-room.md` — **the authoritative scope**
+4. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M2 — **the authoritative scope**
 5. `pocketdungeons/PROGRESS.md` — find the `## M2` table
 
 ## Goal
@@ -49,7 +49,7 @@ risk — everything before it was additive, this one changes the lifecycle.
    design detail behind it than any other — do not start from the plan alone.
 2. In `PROGRESS.md`, set each M2 task to `WIP` with your name/date before
    touching it.
-3. Implement per `plans/M2-the-room.md`. **The capture → persist → clear → stamp
+3. Implement per `plans/COMPLETED-MILESTONES.md` M2. **The capture → persist → clear → stamp
    order is not negotiable** — write it as one method with no early returns
    between capture and persist, so a crash mid-sequence cannot lose a room.
 4. Verify:

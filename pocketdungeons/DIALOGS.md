@@ -122,7 +122,7 @@ that does not exist anywhere in the source yet (`grep -rn "listed" src/` finds
 nothing but prose), and M3's shared visit/join method as its single entry point. The
 vanilla-`DialogListDialog`-vs-SGUI call is still open; `cobbleeconomy` already ships
 `eu.pb4:sgui:2.1.0+26.2` to copy from if it goes that way. Record the choice in
-`plans/M8-deferred.md` when D7 is promoted.
+`DOOR_LADDER_BRAINSTORM.md` §15.7 when D7 is promoted.
 
 ## Unverified in play
 

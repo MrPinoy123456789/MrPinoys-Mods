@@ -323,7 +323,7 @@ should intercept that.
 
 **Not a retrofit — this proposes both a command surface and its dialog
 front end together**, since M2 hasn't shipped a whitelist command yet
-(`plans/M2-the-room.md` T2.2 specifies the permission mask but not how an
+(`plans/COMPLETED-MILESTONES.md` M2 T2.2 specifies the permission mask but not how an
 owner edits it). If M2 lands with a chat-only `/dungeon room whitelist
 add/remove <player>` pair, this section is exactly what to layer a dialog
 onto next; if M2's implementer wants to build the dialog and the command
@@ -375,7 +375,7 @@ together, this is the shape to build.
 
 ### §6. Admin `baserestore` confirmation — ties to M2 T2.1
 
-`plans/M2-the-room.md` now requires an `admin baserestore` command
+`plans/COMPLETED-MILESTONES.md` M2 now requires an `admin baserestore` command
 (added after the Fable-review pass) precisely because a room blob is
 player-authored content, not disposable run state. Restoring one **overwrites
 whatever is there now** — a `ConfirmationDialog` is the right guard for an
@@ -394,7 +394,7 @@ deciding when M2's backup format is actually designed, not here.
 ### §7. The elevator — public room/party directory, ties to D7
 
 The big one, and the one item on this page that genuinely needs new
-plumbing beyond what §1–§6 need. Filed as D7 in `plans/M8-deferred.md`;
+plumbing beyond what §1–§6 need. Filed as D7 in `DOOR_LADDER_BRAINSTORM.md` §15.7;
 this section corrects and sharpens that entry's cost estimate now that the
 suite's actual dialog mechanism is known — the earlier estimate ("this mod
 has never built a `MenuProvider`") was measuring the wrong tool.
@@ -422,7 +422,7 @@ pagination, copying `ShopAdminMenu.openList`'s shape directly rather than
 inventing a new pagination scheme. But this is a real, single-sentence-sized
 cost (one new dependency, one new file pattern) that whoever promotes D7
 should decide deliberately, not by default — record the choice in
-`plans/M8-deferred.md` when it's made, the way every other design call in
+`DOOR_LADDER_BRAINSTORM.md` §15.7 when it's made, the way every other design call in
 this repo is recorded rather than left implicit.
 
 **Listing scope — restated from D7, now with a screen to hang it on:** each

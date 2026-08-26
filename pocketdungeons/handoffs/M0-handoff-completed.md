@@ -11,7 +11,7 @@ Read, in order, before writing anything:
 
 1. `pocketdungeons/VISION.md` — why the mod exists; §6.1 is what this milestone closes
 2. `pocketdungeons/ROADMAP.md` — where M0 sits (first; nothing blocks it)
-3. `pocketdungeons/plans/M0-entry-fee.md` — **the authoritative scope for this work**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M0 — **the authoritative scope for this work**
 4. `pocketdungeons/PROGRESS.md` — find the `## M0` table for current task status
 
 ## Goal
@@ -42,7 +42,7 @@ and the repo states its own licence.
 1. Read the docs above in full first.
 2. In `PROGRESS.md`, set each task in the `## M0` table to `WIP` with your
    name/date **before** touching it.
-3. Implement per `plans/M0-entry-fee.md`. If the plan turns out wrong — like the
+3. Implement per `plans/COMPLETED-MILESTONES.md` M0. If the plan turns out wrong — like the
    version of this milestone before it was corrected, which had filed T0.5 as an
    exploitable permission bug when the code doesn't actually allow that — fix the
    plan file itself and say why. Don't silently diverge from a stale plan without

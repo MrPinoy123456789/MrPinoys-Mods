@@ -12,7 +12,7 @@ Read, in order, before writing anything:
 1. `pocketdungeons/VISION.md` — §3.6.1 (provenance) and all of §3.7 (this
    milestone exists to make §3.7's constraint literally true, not aspirational)
 2. `pocketdungeons/ROADMAP.md` — where M6 sits
-3. `pocketdungeons/plans/M6-supply.md` — **the authoritative scope**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M6 — **the authoritative scope**
 4. `pocketdungeons/PROGRESS.md` — find the `## M6` table — also check T5.3 in
    the `## M5` table, since your T6.1 unblocks it
 
@@ -41,14 +41,14 @@ they're built from are real), and directly unblocks M5's T5.3.
 6. **Superseded designs get marked superseded, not deleted.**
 7. **Do not reopen a `MYTHIC_PLUS_RECONCILIATION.md` §7 decision** without
    writing down what changed it. Lava is Molten's job (M4) — do not add a
-   second lava faucet here; see D6 in `plans/M8-deferred.md` for when that's
+   second lava faucet here; see D6 in `DOOR_LADDER_BRAINSTORM.md` §15.7 for when that's
    allowed to be revisited.
 
 ## Process
 
 1. Read every doc above in full.
 2. In `PROGRESS.md`, set each M6 task to `WIP` with your name/date first.
-3. Implement per `plans/M6-supply.md`.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M6.
    - T6.1's rule — **guaranteed floors for consumables, weighted rolls for
      treasure** — should be a floor pass over the existing tier tables, not a
      separate table. A floor that lives in a different file from the rolls is a

@@ -150,7 +150,8 @@ the mechanism is the top unbuilt item in §8 rather than a maybe.
 > ⚠ **The room is capped at one cell, on purpose, for now.** `RoomManifest`
 > validates every room -- including a player's own -- against a fixed shell,
 > door anchors and a 1×1 footprint; a decorated room that drifts from any of
-> those fails to stamp. Growing it is D4/D5 in `plans/M8-deferred.md`, both
+> those fails to stamp. Growing it is D4/D5 in
+> `DOOR_LADDER_BRAINSTORM.md` §15.7, both
 > genuinely deferred, neither scheduled. The room-as-museum argument in §3.6.1
 > holds at one cell's worth of shelf space; it does not yet scale past that,
 > and nothing on the roadmap currently promises it will.

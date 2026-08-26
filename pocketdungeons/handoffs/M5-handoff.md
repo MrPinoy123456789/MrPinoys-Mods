@@ -13,7 +13,7 @@ Read, in order, before writing anything:
 1. `pocketdungeons/MYTHIC_PLUS_RECONCILIATION.md` — §7.4, the verified wolf
    bytecode facts this whole milestone is built on
 2. `pocketdungeons/ROADMAP.md` — where M5 sits
-3. `pocketdungeons/plans/M5-wolves-feral.md` — **the authoritative scope**
+3. `pocketdungeons/plans/COMPLETED-MILESTONES.md` M5 — **the authoritative scope**
 4. `pocketdungeons/PROGRESS.md` — find the `## M5` table
 5. `kamutotems/INTEGRATION.md` — the suite's "mods stay strangers" rule; read
    this even though it's a different mod, because M5 is the first milestone
@@ -78,7 +78,7 @@ Forced consequences, already decided, do not relitigate:
 2. In `PROGRESS.md`, set each M5 task to `WIP` with your name/date first. T5.3
    should already show `BLOCKED` on T6.1 — leave it that way unless M6 has since
    shipped; check its `PROGRESS.md` status, don't assume from the roadmap.
-3. Implement per `plans/M5-wolves-feral.md`.
+3. Implement per `plans/COMPLETED-MILESTONES.md` M5.
    - T5.1 **reintroduces a direct entity-spawn path** that was deleted in an
      earlier milestone (T17, per the plan). Bring back `RoomContent.spawnMobs`
      from commit history (the parent of the T17 deletion, `8dbb006^`, via
