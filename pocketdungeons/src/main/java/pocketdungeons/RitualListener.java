@@ -133,7 +133,7 @@ final class RitualListener {
         if (cardOwner.isPresent()) {
             level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
                     SoundSource.BLOCKS, 1.0f, 1.0f);
-            if (Instances.visit(serverPlayer, cardOwner.get())) {
+            if (VisitService.visit(serverPlayer, cardOwner.get())) {
                 return InteractionResult.SUCCESS_SERVER;
             }
             return InteractionResult.PASS;
