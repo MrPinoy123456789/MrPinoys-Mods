@@ -1868,3 +1868,107 @@ across runs at that band, and whether Alex's fate is ever stated outright
 anywhere or stays exactly as unresolved as the rest of this section's
 "found, not announced" decision asks everything else in section 16 to
 stay.
+
+### 16.4 Make the compass actually point
+
+**The proposal:** stop treating `LODESTONE_TRACKER` as decoration. Point
+the keystone at the terminal cell's pad for the duration of a run, so it
+is a real navigation aid pointing at the end of the dungeon, and re-point
+it at the room's own lodestone the moment completion stamps that room in
+front of the player. The mod already places a lodestone at both of those
+exact positions (`RoomTemplateGenerator.placeExitPad` for the terminal
+pad, `placeCornerLeavePad` for the room), so there is nothing new to
+place; the only new thing is writing a `GlobalPos` onto the item and
+rewriting it at two transitions.
+
+**This directly contradicts `VISION.md` §3.1.1, and that contradiction is
+the point.** That section says the tracker "may still be attached with
+`tracked: false` purely for the glint and the vanilla item name... but it
+is decoration, not the address," and its reasoning is sound *for the
+calling card*: a card points at a room, rooms move (section 4's whole
+trick), so a stored `GlobalPos` goes stale. But the keystone is not the
+card. It points at a *run*, and a run's terminal pad does not move for
+the run's whole life. Re-pointing at each transition sidesteps staleness
+instead of storing once and hoping. §3.1.1's warning stays correct about
+what it was written about; it just does not generalise to this.
+
+**Verified against the 26.2 jar, not assumed.**
+`net.minecraft.world.item.component.LodestoneTracker` is
+`(Optional<GlobalPos> target, boolean tracked)`, matching what §3.1.1
+already recorded, and it carries a `tick(ServerLevel)` whose decompiled
+body is:
+
+```java
+if (!this.tracked || this.target.isEmpty()) return this;
+if (this.target.get().dimension() != level.dimension()) return this;
+BlockPos pos = this.target.get().pos();
+if (!level.isInWorldBounds(pos)
+        || !level.getPoiManager().existsAtPosition(PoiTypes.LODESTONE, pos)) {
+    return new LodestoneTracker(Optional.empty(), true);
+}
+return this;
+```
+
+Three things fall out of that, all useful:
+
+1. **`tracked: true` self-heals on teardown.** When the instance is
+   purged and the lodestone stops existing, vanilla clears the target
+   itself and the compass goes back to spinning. The mod does not have
+   to chase stale pointers on every teardown path.
+2. **It only self-heals in the target's own dimension.** A player
+   standing in the overworld never triggers the clear, so a torn-down
+   dungeon's pointer survives harmlessly until they next set foot in the
+   dungeon dimension, where it resolves immediately.
+3. **`tracked: false` skips the check entirely** (first line), which is
+   the fallback if the POI problem below turns out to bite.
+
+**The one real risk, and it is a real one: POI registration.** That check
+is `getPoiManager().existsAtPosition(PoiTypes.LODESTONE, pos)`, not a
+block-state read. Every lodestone in this mod is placed through
+`RoomBuilder.set`, which calls `level.setBlock` with
+`UPDATE_CLIENTS | UPDATE_SUPPRESS_DROPS | UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`,
+and the terminal pad additionally arrives via `StructureTemplate`
+placement rather than a direct `setBlock` at all. **If mod-placed
+lodestones do not land in the POI manager, `tracked: true` clears the
+target on the first tick and the compass breaks instantly.** This needs
+checking on a live server before any of this is worth building, and it is
+the single thing that decides between `tracked: true` (self-healing, nicer)
+and `tracked: false` (mod owns staleness, always works). Do not assume it
+either way from this document.
+
+**The update hook already exists.** `Instances.reconcileKeystones` runs
+on the watcher interval and already rewrites every online player's
+keystone in place through `Keystone.reconcile`; `Keystones.returnTo` and
+`Keystones.grantOffer` do the same at run boundaries. Re-pointing is one
+more field written by machinery that already runs for exactly this
+purpose, not a new subsystem.
+
+**The lore beat comes for free, which is the part worth noticing.** A
+lodestone compass whose target is in another dimension spins rather than
+points (vanilla behaviour, worth confirming live but not in doubt). So
+the keystone spins in the overworld, where there is nothing to find, and
+steadies the moment the player enters the dungeon and it knows where to
+go. That is section 16.3's diary beat exactly, "they only spin when there
+is nothing yet to find," arrived at from a pure navigation-utility
+argument with no lore intent at all. Third retrofit in this section after
+16.1's Ender palette and 16.3's recovery compass.
+
+**One genuine tension to weigh, not resolve here.** `VISION.md` §4 asks
+that the room-relocation trick stay unexplained, and specifically warns
+against rationalising it away "with a UI, a message, or a loading
+screen." A compass that quietly swings to a new bearing at the moment the
+room moves is none of those three, and it explains nothing in words. But
+it *is* a signal, and a player watching their compass would notice
+something happened. The honest read is that this makes the trick more
+discoverable rather than less mysterious, which may be exactly right (a
+quiet wrongness the player catches themselves, rather than a toast that
+tells them) or may be the first crack in a silence §4 asks to be
+protected. Worth a deliberate call alongside the §9 lore revision that
+section 16 already says is a separate conversation.
+
+**Open:** the POI question above, first and blocking. Then: what a party
+member's keystone points at while standing in someone else's dungeon
+(their own room, which may not currently be stamped anywhere), whether
+the pointer should clear on leaving rather than linger, and whether a
+lingering quarry's room lodestone (T2.5, still standing after the run
+ends) is a legitimate target or should be dropped like everything else.
