@@ -88,7 +88,24 @@ tasks.register<JavaExec>("affixMathTest") {
     mainClass = "pocketdungeons.AffixMathTest"
 }
 
+for ((taskName, testClass) in mapOf(
+    "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
+    "keystoneOfferTest" to "KeystoneOfferTest",
+    "recipeMatchTest" to "RecipeMatchTest",
+    "dungeonLogTest" to "DungeonLogTest"
+)) {
+    tasks.register<JavaExec>(taskName) {
+        group = "verification"
+        classpath = sourceSets["test"].runtimeClasspath
+        mainClass = "pocketdungeons.$testClass"
+    }
+}
+
 tasks.test {
+    dependsOn("dungeonThemeMetaTest")
+    dependsOn("keystoneOfferTest")
+    dependsOn("recipeMatchTest")
+    dependsOn("dungeonLogTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
