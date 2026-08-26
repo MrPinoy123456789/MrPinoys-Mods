@@ -442,9 +442,9 @@ the player's dimension, the same guard `RoomProtection` already reads) rather
 than global, which would resolve the tension above at the cost of a trimmed
 piece feeling like a prop the moment the player leaves.
 
-### 3.4 A gambler: diamonds for a random piece in a chosen slot
+### 3.4 A gambler: emeralds for a random piece in a chosen slot
 
-**D3 analogue: Kadala.** Spend her currency (Blood Shards there, diamonds
+**D3 analogue: Kadala.** Spend her currency (Blood Shards there, emeralds
 here), pick a slot, get back a random item that fits it. No guarantee of
 quality within the slot, which is the whole point: it is a currency sink
 that trades certainty for volume, sitting next to 3.2's guaranteed,
@@ -452,14 +452,19 @@ targeted reroll rather than replacing it. A player who knows exactly what
 they want rerolls it (3.2); a player who just wants more shots at
 *something* for that slot gambles instead.
 
-**This is the fund diamonds actually want.** Section 3 flagged diamonds
+**This is the sink emeralds actually want.** Section 3 flagged diamonds
 as risky fuel because premium doors already drop them, so a diamond-costed
-door would self-fund. That objection does not apply here: the output of a
-gamble is gear, not diamonds, so there is no loop feeding itself the way a
-diamond-gated door would. Diamonds get a real second job (a currency spent
-here, a material found everywhere else) without the self-funding trap,
-which is arguably the cleanest fit any of the four sinks in this section
-has for the currency it spends.
+door would self-fund; emeralds sit in the same already-in-the-tables
+category, so the same question applies and gets the same answer here. The
+output of a gamble is gear, not more currency, so there is no loop feeding
+itself the way an emerald-gated door would. Emeralds get a real second job
+(a currency spent here, a material found everywhere else) without the
+self-funding trap, which is arguably the cleanest fit any of the four sinks
+in this section has for the currency it spends. Keeping emeralds here and
+echo shards or diamonds as the door fuel (section 3.1, still open per
+question 4) also keeps the two ladder-scale and gear-scale sinks on
+different currencies, the same orthogonality section 3's closing paragraph
+already argues for.
 
 **Slot first, tier second.** The player picks a slot (any one of the eight
 equipment slots) the way Kadala's menu does, and the cost scales with which
@@ -478,11 +483,11 @@ top of what is already there.
 block interception (`RitualListener`'s shape) opens a dialog
 (`DialogKit`/`DialogScreens`) offering the eight slots and whichever tiers
 the player's keystone level has unlocked; confirming a slot and tier spends
-the diamonds and draws one item from that slot's tier pool, the same
+the emeralds and draws one item from that slot's tier pool, the same
 `ResourceKey<LootTable>` mechanism `TrialContent`/`LootTables` already use
 for chests, just keyed by slot instead of by container.
 
-**Open:** the exact diamond cost per tier, whether every slot costs the
+**Open:** the exact emerald cost per tier, whether every slot costs the
 same at a given tier or weapon slots cost more than armour slots the way
 D3 weighs different Kadala pulls differently, and whether the gear pool (if
 it needs authoring) should be a subset of the existing tier tables or its
@@ -504,7 +509,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, diamonds for a slot gamble |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, emeralds for a slot gamble |
 
 ---
 
