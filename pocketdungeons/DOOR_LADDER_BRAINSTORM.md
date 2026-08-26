@@ -218,7 +218,7 @@ scale (more thresholds, or a percentage-based system). The intensifier bands
 
 ---
 
-## 3. The sink: three ideas borrowed from Diablo 3
+## 3. The sink: four ideas borrowed from Diablo 3
 
 Dungeons are a faucet with no drain today. Depletion drains ladder position,
 never items. Every run adds materials and nothing removes them. A sink is
@@ -232,11 +232,12 @@ ungated farming tier that produces the currency a timed, gated ladder tier
 consumes, so there is always something productive to do and the thing you do
 produces the thing you spend. Pocket Dungeons today collapses both tiers
 into one door type, which is why the keystone only ever goes up or down and
-nothing is ever spent. The three ideas below are that same two-tier shape
+nothing is ever spent. The four ideas below are that same two-tier shape
 applied at a different scale of the loop: the run itself (3.1), the gear a
-run drops (3.2), and the permanent power slotted into that gear (3.3), each
-with its own "D3 analogue" line so the lineage stays traceable rather than
-asserted.
+run drops (3.2), the permanent power slotted into that gear (3.3), and a
+volume-over-certainty way to get more of that gear in the first place
+(3.4), each with its own "D3 analogue" line so the lineage stays traceable
+rather than asserted.
 
 **Fuel source must stay inside the dungeon loop** per `VISION.md` 3.7:
 "Nothing required for progression may live outside the dungeon loop." So the
@@ -441,6 +442,53 @@ the player's dimension, the same guard `RoomProtection` already reads) rather
 than global, which would resolve the tension above at the cost of a trimmed
 piece feeling like a prop the moment the player leaves.
 
+### 3.4 A gambler: diamonds for a random piece in a chosen slot
+
+**D3 analogue: Kadala.** Spend her currency (Blood Shards there, diamonds
+here), pick a slot, get back a random item that fits it. No guarantee of
+quality within the slot, which is the whole point: it is a currency sink
+that trades certainty for volume, sitting next to 3.2's guaranteed,
+targeted reroll rather than replacing it. A player who knows exactly what
+they want rerolls it (3.2); a player who just wants more shots at
+*something* for that slot gambles instead.
+
+**This is the fund diamonds actually want.** Section 3 flagged diamonds
+as risky fuel because premium doors already drop them, so a diamond-costed
+door would self-fund. That objection does not apply here: the output of a
+gamble is gear, not diamonds, so there is no loop feeding itself the way a
+diamond-gated door would. Diamonds get a real second job (a currency spent
+here, a material found everywhere else) without the self-funding trap,
+which is arguably the cleanest fit any of the four sinks in this section
+has for the currency it spends.
+
+**Slot first, tier second.** The player picks a slot (any one of the eight
+equipment slots) the way Kadala's menu does, and the cost scales with which
+tier's gear pool the gamble draws from, the same tier-scaling shape as
+3.2's reroll cost and 3.3's trim material. A tier-1 gamble is cheap and
+draws from the tier-1 gear pool; a tier-3 gamble costs more and draws from
+better gear, still with no guarantee of which piece or what it rolls with.
+**Checked, not just flagged: the gear pool does not exist yet.** None of
+the existing `chests/tier_N*.json` tables carry an armour or weapon entry
+of any kind (see question 10, section 5); every tier table is materials,
+blocks, food, and consumables. A slot gamble has nothing to draw from until
+that pool is authored, which is real content work, not a small addition on
+top of what is already there.
+
+**Implementation shape.** Same house pattern as the rest of this section: a
+block interception (`RitualListener`'s shape) opens a dialog
+(`DialogKit`/`DialogScreens`) offering the eight slots and whichever tiers
+the player's keystone level has unlocked; confirming a slot and tier spends
+the diamonds and draws one item from that slot's tier pool, the same
+`ResourceKey<LootTable>` mechanism `TrialContent`/`LootTables` already use
+for chests, just keyed by slot instead of by container.
+
+**Open:** the exact diamond cost per tier, whether every slot costs the
+same at a given tier or weapon slots cost more than armour slots the way
+D3 weighs different Kadala pulls differently, and whether the gear pool (if
+it needs authoring) should be a subset of the existing tier tables or its
+own thing so a lucky gamble cannot simply out-produce opening the chests
+the run already offered.
+
 ---
 
 ## 4. How it could fit together
@@ -456,7 +504,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, diamonds for a slot gamble |
 
 ---
 
@@ -491,6 +539,15 @@ If all of these landed, the shape would be:
    this is whether the bonus itself is too, and it is a bigger design
    commitment than either other sink, since it is the first idea here that
    reaches past the dungeon loop into ordinary overworld combat.
+10. **The chest loot tables carry no armour or weapons at all, checked.**
+    (section 3.4) `grep` across every `chests/*.json` table turns up
+    materials, blocks, food, and consumables, nothing wearable or wieldable.
+    A slot gamble has nothing to draw from until a tiered gear pool is
+    authored first, which is real content work (per-slot, per-tier item
+    pools with sensible enchantment weighting), not a small addition on top
+    of what exists. This is the one prerequisite in this section that is
+    not "verify against the jar" but "author new loot content before any
+    code is worth writing."
 
 ---
 
