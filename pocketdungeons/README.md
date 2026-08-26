@@ -23,7 +23,7 @@ pass.
 | `docs/DISCOVERIES.md` | Verified 26.2 API findings, so nobody re-derives them the hard way |
 | `docs/MYTHIC_PLUS_RECONCILIATION.md` | The affix system's design reasoning |
 | `docs/DOOR_LADDER_BRAINSTORM.md` | An uncommitted scratchpad for the design pass after M9. Nothing in it ships until it is scoped into a plan |
-| `docs/LORE.md` | The fiction, and where it couples to the mechanics. **Nothing in it is shipped or approved to ship**; `docs/VISION.md` §9 still says "not a lore project" and revising that is an open decision |
+| `docs/LORE.md` | The fiction, and where it couples to the mechanics. `docs/VISION.md` §9 now permits discoverable fiction in written books, so the retrofits and the diary writing pass are unblocked. **Nothing is written or shipped yet**, and the couplings marked *Designed* stay gated |
 
 
 ## House conventions

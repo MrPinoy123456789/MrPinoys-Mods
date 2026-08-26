@@ -585,7 +585,12 @@ one rule-breaking dungeon.
   §3.7 only guarantees it is never *required*.
 - **Not competitive.** No PvP, no forced scarcity, no ranked pressure.
 - **Not monetised.** `payoutCommand` is an operator hook, not a storefront.
-- **Not a lore project.** The mechanics carry the weight. The text stays funny.
+- **Lore is a second register, never the point.** The mechanics carry the
+  weight, and a player who reads none of it loses nothing mechanical.
+  Discoverable fiction may ship in vanilla written books; it never names an
+  item, an affix or a system message, those stay terse and funny, and it never
+  explains a mechanic that works better unexplained (§4). No system may depend
+  on the fiction to make sense. See `LORE.md`.
 - **Not chasing the roguelite label.** No in-run buildcraft, no drafted
   abilities, no synergy engine. Adding them would trade the strongest idea —
   players physically constructing a record of their runs — for a weaker one that

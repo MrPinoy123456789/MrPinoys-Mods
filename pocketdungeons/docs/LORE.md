@@ -1,11 +1,23 @@
 # Pocket Dungeons Lore
 
-> **Nothing in this document is shipped, and none of it is approved to ship.**
-> `VISION.md` §9 currently states "**Not a lore project.** The mechanics carry
-> the weight. The text stays funny," and §4 asks that the room-relocation trick
-> stay unexplained. Revising §9 is a real decision that has not been made. Until
-> it is, this document is the reasoning and the fiction, held in one place so it
-> is neither lost nor accidentally implemented.
+> **Nothing in this document is shipped yet, and the approval to ship is
+> partial.** `VISION.md` §9 has been revised: it no longer says "not a lore
+> project," and instead permits discoverable fiction in vanilla written books
+> under the constraints §8 below already imposes on itself. §4's request that the
+> room-relocation trick stay unexplained is unchanged and is reinforced by §1.
+>
+> That revision unblocks two things and deliberately does not unblock a third:
+>
+> - **Unblocked: the retrofits.** Every row in §7 marked *Retrofit* describes a
+>   mechanic that already shipped. They cost no mechanical change, which is why
+>   they were never what §9 was guarding against.
+> - **Unblocked: the diary writing pass.** §9 open question 2. §10 fixes the
+>   voice; the rest needs a writing pass, not more design.
+> - **Still gated: every row marked *Designed*.** The Herobrine Cube as "his
+>   instrument," the endgame containment loop, the §16.4 compass retarget. In
+>   those the fiction is driving the mechanic, which is exactly the failure §9
+>   still guards. Each is scoped and judged as a mechanic on its own merits, and
+>   if it is only good because of who it belonged to, it is not good.
 >
 > Design conversation and mechanical proposals live in
 > `DOOR_LADDER_BRAINSTORM.md` §16, which this consolidates. Where the two
@@ -181,8 +193,11 @@ evidence the fiction suits the mod, while one invented to fit proves nothing.
 
 ## 9. Open questions
 
-1. **Does `VISION.md` §9 get revised?** Everything here is blocked on that, and
-   it is a deliberate decision, not a formality.
+1. ~~**Does `VISION.md` §9 get revised?**~~ **Decided: yes, in part.** The bullet
+   became "Lore is a second register, never the point," permitting discoverable
+   fiction in written books while keeping every guard that mattered. The
+   retrofits and the diary pass are unblocked; the *Designed* couplings are not.
+   See the header.
 2. **The actual diary text.** Not drafted. It needs a writing pass, not
    paragraphs inside a design document. §10 is one specimen, not a start.
 3. **Alex's fate.** Succeeded, failed, or stopped writing. See §4.
