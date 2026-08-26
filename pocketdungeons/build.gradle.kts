@@ -88,6 +88,13 @@ tasks.register<JavaExec>("affixMathTest") {
     mainClass = "pocketdungeons.AffixMathTest"
 }
 
+tasks.register<JavaExec>("cellGeometryTest") {
+    group = "verification"
+    description = "Runs the cell-grid coordinate and door-wall arithmetic regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.CellGeometryTest"
+}
+
 for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
@@ -113,6 +120,7 @@ tasks.test {
     dependsOn("keystoneMathTest")
     dependsOn("affixMathTest")
     dependsOn("dungeonRoomMetaTest")
+    dependsOn("cellGeometryTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false

@@ -1355,8 +1355,8 @@ final class Instances {
         if (record.roomCellOrigin == null || record.visitInstance) {
             return;
         }
-        DoorMask.Direction eeDir = opposite(record.roomDungeonDoor);
-        int roomRotation = rotationToFace(DoorMask.Direction.NORTH, eeDir);
+        DoorMask.Direction eeDir = CellGeometry.opposite(record.roomDungeonDoor);
+        int roomRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, eeDir);
 
         // While a door choice is pending, the three selector doors are standing
         // live blocks in the room -- capturing them would bake that instant's
@@ -1422,7 +1422,7 @@ final class Instances {
             return;
         }
         BlockPos roomOrigin = record.roomCellOrigin;
-        DoorMask.Direction eeDir = opposite(record.roomDungeonDoor);
+        DoorMask.Direction eeDir = CellGeometry.opposite(record.roomDungeonDoor);
 
         // Persist any edits made to the room while the last run was lingering,
         // before the old dungeon is cleared and the room is re-sealed.
@@ -1456,7 +1456,7 @@ final class Instances {
         }
 
         // Seal the room's entrance from the previous dungeon.
-        sealDoorOnWall(level, roomOrigin, eeDir);
+        CellGeometry.sealDoorOnWall(level, roomOrigin, eeDir);
 
         // ...and put the bedrock back behind that seal. The clear above ran
         // through the margin the room's own envelope occupies, so without this
@@ -1778,8 +1778,8 @@ final class Instances {
         }
 
         BlockPos terminalOrigin = record.layout.terminal();
-        DoorMask.Direction entranceDir = terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
-        DoorMask.Direction farWall = opposite(entranceDir);
+        DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
+        DoorMask.Direction farWall = CellGeometry.opposite(entranceDir);
 
         int secondsRemaining = record.timer != null ? record.timer.secondsRemaining() : Integer.MAX_VALUE;
         int totalSeconds = record.timer != null ? record.timer.totalSeconds() : 1;
@@ -1797,7 +1797,7 @@ final class Instances {
                         : ThemeManifest.current().byId(record.theme).meta().lootSuffix);
 
         // Sealed door in the far wall, behind the chests.
-        sealDoorOnWall(level, terminalOrigin, farWall);
+        CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
 
         // Capture, persist, and clear the current room cell. The room's actual
         // rotation right now comes from record.roomDungeonDoor -- exactly the
@@ -1814,7 +1814,7 @@ final class Instances {
         // assume they are. Each completed run recaptured whatever that had
         // already left standing, so the damage compounded floor over floor.
         BlockPos oldRoomOrigin = record.roomCellOrigin;
-        int oldRoomRotation = rotationToFace(DoorMask.Direction.NORTH, opposite(record.roomDungeonDoor));
+        int oldRoomRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, CellGeometry.opposite(record.roomDungeonDoor));
         RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);
 
         // What the room leaves behind: a blank stone-brick room, not a hole.
@@ -1829,10 +1829,10 @@ final class Instances {
         // so a player who walks back up the dungeon finds an empty room rather
         // than a sealed face where their room used to be.
         Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
-        for (DoorMask.Direction dir : standingNeighbours(record.layout.geometry(), oldRoomOrigin)) {
+        for (DoorMask.Direction dir : CellGeometry.standingNeighbours(record.layout.geometry(), oldRoomOrigin)) {
             backDoors.add(mcDirection(dir));
         }
-        for (Entity leftover : level.getEntitiesOfClass(Entity.class, cellBounds(oldRoomOrigin),
+        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldRoomOrigin),
                 e -> !(e instanceof ServerPlayer))) {
             // The blob just captured these; without this they would stand here
             // as well as in the room's new cell.
@@ -1843,8 +1843,8 @@ final class Instances {
         // Stamp the room in the cell behind the far wall, rotated so its entrance
         // (the 'ee' side) faces back toward the terminal cell. farWall is the MM
         // side, so ee is the opposite wall.
-        BlockPos newRoomOrigin = offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
-        int targetRotation = rotationToFace(DoorMask.Direction.NORTH, opposite(farWall));
+        BlockPos newRoomOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
+        int targetRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, CellGeometry.opposite(farWall));
         boolean placed = RoomStore.place(level, server, record.owner, newRoomOrigin, targetRotation,
                 net.minecraft.util.RandomSource.create(record.layout.seed()));
         if (!placed) {
@@ -1863,8 +1863,8 @@ final class Instances {
         // cleared them. Re-arm all three against the room's new orientation, or
         // the player lands in a sealed box whose doors are gone and whose one
         // opening looks out onto nothing.
-        openDoorOnWall(level, newRoomOrigin, opposite(farWall));
-        sealDoorOnWall(level, newRoomOrigin, farWall);
+        CellGeometry.openDoorOnWall(level, newRoomOrigin, CellGeometry.opposite(farWall));
+        CellGeometry.sealDoorOnWall(level, newRoomOrigin, farWall);
         RoomTemplateGenerator.placeSelectorDoors(level, newRoomOrigin, farWall);
         record.awaitingDoorChoice = true;
 
@@ -1877,7 +1877,7 @@ final class Instances {
         // digging distance, not a documented default. farWall stays reserved
         // (no bedrock) since a real connection will exist there once a door is
         // chosen, exactly like a fresh lobby's reservedSide.
-        BedrockEnvelope.applyToCell(level, newRoomOrigin, Set.of(farWall, opposite(farWall)));
+        BedrockEnvelope.applyToCell(level, newRoomOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
 
         // Open the sealed door into the room. That is the whole of the reward for
         // reaching the pad: nobody is teleported anywhere. The terminal cell's
@@ -1885,79 +1885,7 @@ final class Instances {
         // the door to the room now stands open behind them, and walking through
         // it is the player's to do. (The room's own leave-pad is the lodestone
         // that actually moves anyone, and it moves them out of the dungeon.)
-        openDoorOnWall(level, terminalOrigin, farWall);
-    }
-
-    private static DoorMask.Direction terminalEntranceDirection(PlanGeometry geometry, BlockPos terminalOrigin) {
-        PlanCell terminalCell = geometry.cellAt(terminalOrigin.offset(
-                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
-        if (terminalCell == null) {
-            return DoorMask.Direction.SOUTH;
-        }
-        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
-            if (geometry.cells().contains(neighbourCell(terminalCell, dir))) {
-                return dir;
-            }
-        }
-        return DoorMask.Direction.SOUTH;
-    }
-
-    private static DoorMask.Direction opposite(DoorMask.Direction dir) {
-        return switch (dir) {
-            case NORTH -> DoorMask.Direction.SOUTH;
-            case SOUTH -> DoorMask.Direction.NORTH;
-            case EAST -> DoorMask.Direction.WEST;
-            case WEST -> DoorMask.Direction.EAST;
-        };
-    }
-
-    private static BlockPos offsetInDirection(BlockPos origin, DoorMask.Direction dir, int distance) {
-        return switch (dir) {
-            case NORTH -> origin.north(distance);
-            case SOUTH -> origin.south(distance);
-            case EAST -> origin.east(distance);
-            case WEST -> origin.west(distance);
-        };
-    }
-
-    private static int rotationToFace(DoorMask.Direction originalWall, DoorMask.Direction targetWall) {
-        int idx = switch (originalWall) {
-            case NORTH -> 0;
-            case EAST -> 1;
-            case SOUTH -> 2;
-            case WEST -> 3;
-        };
-        int targetIdx = switch (targetWall) {
-            case NORTH -> 0;
-            case EAST -> 1;
-            case SOUTH -> 2;
-            case WEST -> 3;
-        };
-        return (targetIdx - idx + 4) % 4;
-    }
-
-    private static void sealDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
-        doorSlot(level, cellOrigin, wall, RoomBuilder.WALL);
-    }
-
-    private static void openDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
-        doorSlot(level, cellOrigin, wall, Blocks.AIR.defaultBlockState());
-    }
-
-    private static void doorSlot(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall,
-                                 BlockState state) {
-        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
-            for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
-                BlockPos pos = switch (wall) {
-                    case NORTH -> cellOrigin.offset(i, y, 0);
-                    case SOUTH -> cellOrigin.offset(i, y, RoomGeometry.CELL - 1);
-                    case WEST -> cellOrigin.offset(0, y, i);
-                    case EAST -> cellOrigin.offset(RoomGeometry.CELL - 1, y, i);
-                };
-                level.setBlock(pos, state, Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
-                        | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
-            }
-        }
+        CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
     }
 
     /**
@@ -1979,7 +1907,7 @@ final class Instances {
             for (int y = -1; y <= RoomGeometry.CEILING_Y + 1; y++) {
                 for (int z = -1; z <= RoomGeometry.CELL; z++) {
                     BlockPos pos = origin.offset(x, y, z);
-                    if (insideAnyCell(pos, keepCells)) {
+                    if (CellGeometry.insideAnyCell(pos, keepCells)) {
                         continue;
                     }
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(),
@@ -1995,51 +1923,6 @@ final class Instances {
                 e -> !(e instanceof ServerPlayer))) {
             entity.discard();
         }
-    }
-
-    /**
-     * The directions in which {@code cellOrigin}'s neighbouring cell is part of
-     * {@code geometry} -- i.e. the walls that have a real room on the other side
-     * rather than the bedrock shell.
-     */
-    private static Set<DoorMask.Direction> standingNeighbours(PlanGeometry geometry, BlockPos cellOrigin) {
-        Set<DoorMask.Direction> out = new LinkedHashSet<>();
-        PlanCell cell = geometry.cellAt(cellOrigin.offset(
-                RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
-        if (cell == null) {
-            return out;
-        }
-        for (DoorMask.Direction dir : DoorMask.Direction.values()) {
-            if (geometry.cells().contains(neighbourCell(cell, dir))) {
-                out.add(dir);
-            }
-        }
-        return out;
-    }
-
-    /** Whether {@code pos} falls inside any of these cells' own 16x16 volumes. */
-    private static boolean insideAnyCell(BlockPos pos, List<BlockPos> cellOrigins) {
-        for (BlockPos cell : cellOrigins) {
-            int dx = pos.getX() - cell.getX();
-            int dy = pos.getY() - cell.getY();
-            int dz = pos.getZ() - cell.getZ();
-            if (dx >= 0 && dx < RoomGeometry.CELL
-                    && dz >= 0 && dz < RoomGeometry.CELL
-                    && dy >= 0 && dy <= RoomGeometry.CEILING_Y) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** The plan cell one step over in {@code dir}, independent of the room manifest. */
-    private static PlanCell neighbourCell(PlanCell cell, DoorMask.Direction dir) {
-        return switch (dir) {
-            case NORTH -> new PlanCell(cell.x(), cell.z() - 1);
-            case SOUTH -> new PlanCell(cell.x(), cell.z() + 1);
-            case WEST -> new PlanCell(cell.x() - 1, cell.z());
-            case EAST -> new PlanCell(cell.x() + 1, cell.z());
-        };
     }
 
     /**
@@ -2422,7 +2305,7 @@ final class Instances {
         }
         BlockPos below = player.blockPosition().below();
         return player.level().getBlockState(below).is(Blocks.LODESTONE)
-                && cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
+                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
     }
 
     private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
@@ -2434,7 +2317,7 @@ final class Instances {
             return true;
         }
         return record.roomCellOrigin != null
-                && cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
+                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
     }
 
     /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
@@ -2460,14 +2343,6 @@ final class Instances {
             }
         }
         return null;
-    }
-
-    private static AABB cellBounds(BlockPos origin) {
-        return new AABB(
-                origin.getX(), origin.getY(), origin.getZ(),
-                origin.getX() + RoomGeometry.CELL,
-                origin.getY() + RoomGeometry.CEILING_Y + 1,
-                origin.getZ() + RoomGeometry.CELL);
     }
 
     private static void purge(MinecraftServer server, InstanceRecord record, String reason) {
@@ -2631,7 +2506,7 @@ final class Instances {
         // a leaked reward room is a permanent scar on that slot.
         if (extraCellOrigin != null) {
             cellOrigins.add(extraCellOrigin);
-            bounds = bounds.minmax(cellBounds(extraCellOrigin));
+            bounds = bounds.minmax(CellGeometry.cellBounds(extraCellOrigin));
         }
 
         // Never clear a slot with someone inside (section 12) -- except the
