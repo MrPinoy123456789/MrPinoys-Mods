@@ -443,7 +443,7 @@ final class DungeonCommands {
      */
     private static int partyRoster(ServerPlayer leader) {
         DialogKit.show(leader, DialogScreens.partyRoster(leader.level().getServer(),
-                Instances.partyCompanions(leader.getUUID())));
+                PartyService.partyCompanions(leader.getUUID())));
         return 1;
     }
 
@@ -472,27 +472,27 @@ final class DungeonCommands {
     }
 
     private static int party(ServerPlayer leader, ServerPlayer target) {
-        Instances.party(leader, target);
+        PartyService.party(leader, target);
         return 1;
     }
 
     private static int kick(ServerPlayer leader, ServerPlayer target) {
-        Instances.stageKick(leader, target.getUUID(), target.getName().getString());
+        PartyService.stageKick(leader, target.getUUID(), target.getName().getString());
         return 1;
     }
 
     private static int kickAll(ServerPlayer leader) {
-        Instances.stageKick(leader, null, null);
+        PartyService.stageKick(leader, null, null);
         return 1;
     }
 
     private static int kickConfirm(ServerPlayer leader) {
-        Instances.confirmKick(leader);
+        PartyService.confirmKick(leader);
         return 1;
     }
 
     private static int invite(ServerPlayer inviter, ServerPlayer target) {
-        Instances.invite(inviter, target);
+        PartyService.invite(inviter, target);
         return 1;
     }
 
@@ -502,7 +502,7 @@ final class DungeonCommands {
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        Instances.join(player, leader);
+        PartyService.join(player, leader);
         return 1;
     }
 
