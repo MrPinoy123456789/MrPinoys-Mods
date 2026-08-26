@@ -237,8 +237,16 @@ No rewriting. Sorting and archiving only.
 `CLAUDE.md` rule governs new text only, and a punctuation sweep across 558 KB of
 history would bury this milestone's real diffs.
 
-**Done when:** root has under ten markdown files and a `README.md` that says what
-each is.
+**Done when:** every root markdown file is genuinely live, and a `README.md`
+says what each is. **Correction, found during implementation:** the "under
+ten" count assumed six candidates archived unconditionally. `PLAN.md` was a
+seventh candidate by size alone, but it is referenced by four other live
+documents (`VISION.md`, `MYTHIC_PLUS_RECONCILIATION.md`,
+`CLIENT_TEST_CHECKLIST.md`, `DISCOVERIES.md`) as the standing technical spec,
+not a superseded plan -- archiving it would break those references for no
+reason. Six archived, eleven left live. Same lesson as C3's line-count
+targets: judge by whether a document is actually still load-bearing, not by
+a count picked before reading the documents.
 
 ---
 
