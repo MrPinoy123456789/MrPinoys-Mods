@@ -1814,3 +1814,57 @@ level-100 player has access the ladder gates; narratively, they are the
 one still doing the containment work everyone else stopped needing to
 worry about the moment the seal held. Neither answer was written to match
 the other; they simply do.
+
+### 16.3 Delivery: Alex's diaries
+
+**The mechanism the "found, not announced" decision above needed and did
+not have yet.** Alex, Steve's lover, went into the dungeons herself first,
+trying to save him from his own madness before anyone else did. Diary
+pages, found at milestones rather than handed out on a schedule, are hers:
+written in the middle of an attempt the player is now, unknowingly,
+continuing. `minecraft:written_book` is the entire implementation this
+needs: a real vanilla item, pre-authored pages and a title, dropped instead
+of crafted, same "no custom items" discipline everything else in this
+document already holds to. No new item, no new mechanic, just content.
+
+**Another retrofit, same shape as 16.1's.** `VISION.md` §3.1.1 already
+says "the keystone is a recovery compass" and has since M3. Written before
+any of this lore existed, for an unrelated mechanical reason (it is
+crafted from echo shards and echo shards find things). It reads
+differently now: not just *a* recovery compass, *Alex's* recovery
+compass, or something built the same way hers was. The player is not
+just delving dungeons; they are carrying the same kind of tool she carried
+doing the same thing she did.
+
+**What the diaries are for, narratively.** Not a lore dump split into
+pieces; an arc of her own, found out of order the way the adventure graph
+itself is discovered (2.2), so no player reads it start to finish on
+purpose. Early entries read as hope: she thinks she can reach him. Middle
+entries read as dread, as whatever she is finding down there tells her
+more than she wanted to know about what he has become. Late entries are
+where hers and the player's arc (16.2) meet: she arrives, on her own,
+at "saving him is not the same as reaching him, and sealing him away may
+be the only mercy left." Whether she succeeds, fails, or simply stops
+writing is deliberately not decided here; any of the three sets up a
+different reason the player is the one finishing this, and that choice
+should be made once alongside actually authoring the entries, not now.
+
+**Where the milestones come from.** The mod already has a named
+progression ladder with no lore attached to it: `AffixMath.intensifier`'s
+bands (Baby 1-5, Lowkey 6-10, Highkey 11-15, Menace 16-20, Unhinged 21+,
+extended by section 2.4's cap-raise). Hanging one diary find on each new
+band entered is a milestone system this document does not have to invent;
+it already exists and already means something to a player who has seen the
+names on their own keystone. This also means diary count is naturally
+capped and naturally rare (one per band crossed, once per player, tracked
+the same way `DungeonLog.Entry.completedThemes` already tracks a
+no-duplicates set), rather than a random drop that could double up or
+never show at all.
+
+**Open:** the actual entry text (not written here on purpose; it needs its
+own pass, not a paragraph inside a mechanics brainstorm), whether a diary
+is a guaranteed find on first entry to a new band or a weighted chance
+across runs at that band, and whether Alex's fate is ever stated outright
+anywhere or stays exactly as unresolved as the rest of this section's
+"found, not announced" decision asks everything else in section 16 to
+stay.
