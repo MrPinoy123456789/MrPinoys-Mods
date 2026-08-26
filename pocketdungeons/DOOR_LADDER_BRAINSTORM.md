@@ -218,7 +218,7 @@ scale (more thresholds, or a percentage-based system). The intensifier bands
 
 ---
 
-## 3. The sink: four ideas borrowed from Diablo 3
+## 3. The sink: five ideas borrowed from Diablo 3
 
 Dungeons are a faucet with no drain today. Depletion drains ladder position,
 never items. Every run adds materials and nothing removes them. A sink is
@@ -232,11 +232,12 @@ ungated farming tier that produces the currency a timed, gated ladder tier
 consumes, so there is always something productive to do and the thing you do
 produces the thing you spend. Pocket Dungeons today collapses both tiers
 into one door type, which is why the keystone only ever goes up or down and
-nothing is ever spent. The four ideas below are that same two-tier shape
+nothing is ever spent. The five ideas below are that same two-tier shape
 applied at a different scale of the loop: the run itself (3.1), the gear a
-run drops (3.2), the permanent power slotted into that gear (3.3), and a
+run drops (3.2), the permanent power slotted into that gear (3.3), a
 volume-over-certainty way to get more of that gear in the first place
-(3.4), each with its own "D3 analogue" line so the lineage stays traceable
+(3.4), and a way to make one rare drop matter forever instead of once
+(3.5), each with its own "D3 analogue" line so the lineage stays traceable
 rather than asserted.
 
 **Fuel source must stay inside the dungeon loop** per `VISION.md` 3.7:
@@ -494,6 +495,80 @@ it needs authoring) should be a subset of the existing tier tables or its
 own thing so a lucky gamble cannot simply out-produce opening the chests
 the run already offered.
 
+### 3.5 The Herobrine Cube: extract a power, imbue it anywhere
+
+**D3 analogue: Kanai's Cube, in Diablo 2's Horadric Cube's shape.** Kanai's
+Cube is where this idea's *function* comes from: consume a rare item once,
+permanently remember one fixed power it carried, and re-apply that power to
+any future item cheaply, without ever needing the original item again. The
+Horadric Cube is where its *interface* comes from, per the clarification
+this section is written against: a crafting table, not a new block or GUI,
+where the right combination of items in the grid does not produce a normal
+crafted result but performs a ritual instead. That is the same shape
+`RitualListener` already uses for the lodestone-and-keystone interaction:
+intercept a vanilla interaction (there, a right-click; here, a craft
+result) and substitute mod behaviour for whatever vanilla would have done.
+A crafting table anywhere still crafts normally for anything that is not a
+recognised ritual combination.
+
+**What a ritual does.** Two rituals, mirroring Kanai's Cube's two halves:
+
+- **Extract.** Place a qualifying item (see below) in the grid; instead of
+  a crafted result, its one fixed power is added to the player's
+  permanently remembered set (persisted the same way `DungeonLog.Entry`
+  already tracks `completedThemes`, a per-player, never-truncated
+  collection) and the item itself is consumed. This is the real sink: a
+  hard-won item is gone for good, in exchange for never needing to find
+  another one like it again.
+- **Imbue.** Place an ordinary item of the matching slot plus a smaller
+  material cost (emeralds, lapis, whatever question 4/8's currency
+  questions settle on) in the grid; instead of a crafted result, one
+  previously extracted power (player's choice, from whatever they have
+  extracted so far) is applied to that item. Cheap and repeatable, the
+  point being that the expensive part already happened at extraction.
+
+**What is extractable, and why that has to stay rare.** Not ordinary tier
+loot, and not gamble (3.4) or reroll (3.2) output: a fixed, powerful,
+build-defining effect is a different kind of reward than a stat roll, and
+handing it out at the same rate as everything else in this section would
+flatten the whole package instead of capping it. The natural source is the
+rare adventure-graph nodes section 2.2 already describes (a "pharaoh's
+chamber" drop, found once in a long while, down a path most players never
+walk), which gives the Cube something section 2.2 does not yet have: a
+concrete reason those rare nodes matter beyond a shell unlock (15.5) or a
+recipe theme (2.2's own reward). This section, 3.4's gear pool, and 15.5's
+shell tokens all draw on the same well of "rare adventure-node reward,"
+worth reconciling into one authored list rather than three separate ones
+once any of this is scoped.
+
+**Why capped at equip time, not just rare at extraction.** D3 caps how
+many extracted powers can be *worn* at once (three slots: weapon, armour,
+jewellery) even though the player's extracted library can grow arbitrarily
+large. Without an equip cap, the Cube stops being a build decision and
+becomes a checklist: extract everything, wear everything, done. A small
+cap (three slots, matching D3's, or fewer) keeps "which powers do I run"
+a real choice every time a new one is found, the same shape 3.3's
+material-decides-the-bonus trim design already leans on to keep decisions
+meaningful rather than additive.
+
+**Implementation shape.** The crafting-table ritual interception is new
+plumbing this mod does not have yet (`RitualListener` intercepts a
+right-click, not a craft result; the closest existing pattern is still the
+one to study, not one to copy verbatim). Extracted powers persist per
+player, the same shape as `completedThemes`. The equipped-power check at
+combat time is the same attribute-modifier-on-equip shape 3.3's trim bonus
+already needs, generalised to read "which of my extracted powers am I
+currently slotting" instead of "what trim is on this piece." This section
+depends on 3.3's implementation existing first for exactly that reason.
+
+**Open:** the exact extractable-item source (rare adventure nodes only, or
+also a very-low-weight Cube-only gamble slot in 3.4), the equip slot count
+and whether it is per-armour-piece or a fixed pool independent of gear
+slots, the imbue cost and currency, and whether extraction should be
+reversible at all (D3's is not: once extracted, an item's power is a
+permanent unlock, never an item again) or whether that is too harsh a
+sink for a server where a mis-click costs a genuinely rare drop forever.
+
 ---
 
 ## 4. How it could fit together
@@ -509,7 +584,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, emeralds for a slot gamble |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, emeralds for a slot gamble, a rare drop extracted once via the Herobrine Cube for a permanent power |
 
 ---
 
@@ -553,6 +628,11 @@ If all of these landed, the shape would be:
     of what exists. This is the one prerequisite in this section that is
     not "verify against the jar" but "author new loot content before any
     code is worth writing."
+11. **Where do Herobrine Cube extracts actually come from, and how many
+    can be equipped at once?** (section 3.5) The rare-adventure-node source
+    ties it to section 2.2, which has no authored rare-node reward list
+    yet; the equip cap is the one number that decides whether the Cube is
+    a real build choice or a checklist.
 
 ---
 
@@ -1617,3 +1697,75 @@ or on player death, it tears down the child instance and returns the player
 to the parent instance at the room they entered from. The parent's tick
 watcher continues running throughout; only the player's position and active
 instance change.
+
+---
+
+## 16. Lore: why this world exists, and a real tension with VISION.md
+
+**The idea, recorded in full before anything is decided about it.** A
+noble adventurer, Steve, was corrupted by the idea of a perfect world and
+set out to build one of his own. He sought the power of the Ender, and
+absorbing the Ender Dragon's power is what turned him into Herobrine. Mad
+with that power, what he built instead was a fractured, recursive
+reflection of a world: Pocket Dungeons. The Herobrine Cube (section 3.5)
+is his own ritual tool, the one he used to fracture the world in the first
+place, which is why placing the right items in it does not craft anything
+Steve ever meant to craft.
+
+**This retroactively explains a lot that was previously just flavour.**
+Echo shards mint the keystone (section 3's fuel discussion) and are the
+one vanilla item whose entire purpose is navigating the deep dark, the
+closest thing vanilla has to "a device for finding something buried."
+Ender pearls, an ender chest, and chorus flowers already sit in the tier-3
+loot tables. End stone, end stone bricks, purpur, and the "ancient city"
+material palette (deepslate tiles, chiselled deepslate, sculk, sculk vein,
+soul lantern, reinforced deepslate) are already the tier-3 block palette,
+per `PROGRESS.md`'s T6.2 note. None of that was authored as Ender-flavoured
+on purpose; it fell out of "what is rare and thematically deep-tier in
+vanilla." A Herobrine-and-the-Ender-Dragon origin gives all of it a single
+reason to already look the way it does, discovered after the fact rather
+than planned into it.
+
+**The real tension, named rather than smoothed over.** `VISION.md` §9
+states plainly: "**Not a lore project.** The mechanics carry the weight.
+The text stays funny." §4, "The trick," is more specific and calls the
+silence itself the point: "**Nothing explains this.** No message, no
+sound, no lore entry... The single acknowledgement is an advancement on
+first completion. A toast, a shrug, no confirmation," and names this "the
+most memorable thing in the design and the cheapest to accidentally
+rationalise away with a UI, a message, or a loading screen." An explicit
+Steve-becomes-Herobrine origin myth, told anywhere a player can read it in
+full, is exactly what those two sections were written to rule out. This
+brainstorm does not get to overrule a decision `VISION.md` states that
+plainly; it can only surface the conflict and ask which way it resolves.
+
+**Three ways this could actually land, in decreasing order of how much it
+disturbs the existing decision:**
+
+1. **Never surfaced to players at all.** The lore lives here and in
+   whatever internal naming it inspires (`Herobrine Cube` the class name,
+   commit messages, this document) and nothing in-game ever states it.
+   Item names and existing flavour stay exactly as terse and unexplained
+   as `VISION.md` §4 already wants. This changes nothing about the shipped
+   experience and needs no decision at all; it is already true of everything
+   this document does today.
+2. **One object, one line, in the suite's existing voice.** The Cube
+   itself gets a lore-tooltip line in the style `Unhinged Feral Keystone
+   [24]` and `Cooked`/`Big L` already use: terse, funny, suggestive rather
+   than explanatory. Something that rewards a player who already suspects
+   something is wrong with this place without ever confirming it in full
+   sentences. This is the closest reading of "the text stays funny" that
+   still lets the name `Herobrine Cube` mean something to a player who
+   sees it, and it is the one this document would recommend if a decision
+   is wanted.
+3. **A real narrative surface** (an advancement description, a book, a
+   structure), told in full. This is the one that actually conflicts with
+   §4 and §9 as written, and it does not get adopted by a brainstorm
+   document; it needs `VISION.md` itself revised, with the same
+   deliberateness §4's "protect this idea" already asks for everything
+   else in that section.
+
+**Not decided here.** This section exists so the idea is not lost and the
+conflict is not quietly avoided, not to settle it. If option 3 is what is
+actually wanted, that is a `VISION.md` conversation, not a brainstorm
+addition.
