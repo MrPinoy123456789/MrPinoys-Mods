@@ -62,21 +62,35 @@ final class DialogScreens {
      * bypassed: {@code chooseOffer} re-validates against {@code DungeonLog}'s live
      * pending offer, so a dialog left open across a state change fails exactly the
      * way a stale chat link already does.
+     *
+     * <p>A {@code ConfirmationDialog} and not the {@code NoticeDialog} the spec
+     * asks for. The spec's reasoning was that a notice has exactly one button by
+     * construction, so the offer could not have a visible "no" -- but that is an
+     * argument for picking a different dialog type, not for leaving the player
+     * with one button and Escape. Every screen in this mod has a way out you can
+     * see and click, this one included; the door offer is the first screen a new
+     * player meets, and it is the worst possible place to require knowing that
+     * Escape closes a dialog.
      */
     static Dialog doorOffer(Keystone.Offer offer, int step, String heading) {
         List<DialogBody> body = new ArrayList<>();
         java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());
         Affix doorAffix = ordered.isEmpty() ? null : ordered.get(0);
         body.add(DialogKit.text(Component.literal(heading).withStyle(Keystone.colourOf(doorAffix))));
+        ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
+        if (theme != null) {
+            body.add(DialogKit.text(Component.literal("Theme: " + theme.meta().name)
+                    .withStyle(ChatFormatting.GRAY)));
+        }
         if (doorAffix != null) {
             body.add(DialogKit.text(Component.literal(doorAffix.blurb).withStyle(ChatFormatting.GRAY)));
         }
-        // A NoticeDialog has exactly one button by construction, so there is no
-        // "Decline" to add here. Walking away from the door -- or Escape -- is the
-        // no, and nothing has been spent until this button is pressed.
-        return DialogKit.notice("Door " + step, body,
+        // "Close" is a real no: nothing is spent until "Take this key" is pressed,
+        // and the door is still there to right-click again afterwards.
+        return DialogKit.confirm("Door " + step, body,
                 DialogKit.command("Take this key", "Spends your run on this door",
-                        "/dungeon choose " + step));
+                        "/dungeon choose " + step),
+                DialogKit.closeButton("Close"));
     }
 
     // ---- section 2: party roster and kick confirmation ----------------------

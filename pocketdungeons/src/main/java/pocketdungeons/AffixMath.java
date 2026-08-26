@@ -176,11 +176,11 @@ final class AffixMath {
      * A stable, well-spread seed for {@code (owner, level)}.
      *
      * <p>{@code java.util.Random} correlates badly on low-entropy seeds and the
-     * pick here is a shuffle of four elements, so the UUID's two halves and the
+     * pick here is a shuffle of five elements, so the UUID's two halves and the
      * level go through a SplitMix64-style finaliser before they reach the
      * constructor rather than straight into it.
      */
-    private static long seed(UUID owner, int level) {
+    static long seed(UUID owner, int level) {
         long mixed = owner == null ? 0L
                 : owner.getMostSignificantBits() * 31L + owner.getLeastSignificantBits();
         mixed = mixed * 0x9E3779B97F4A7C15L + level;

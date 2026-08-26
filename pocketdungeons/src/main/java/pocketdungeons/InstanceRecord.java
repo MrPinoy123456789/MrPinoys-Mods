@@ -65,6 +65,9 @@ final class InstanceRecord {
      */
     Set<Affix> affixes;
 
+    /** The dungeon theme id selected for this run, or null for an unthemed run. */
+    String theme;
+
     /**
      * True while this instance is still just the lobby -- the owner's
      * standing room, stamped alone with its one connecting door sealed,

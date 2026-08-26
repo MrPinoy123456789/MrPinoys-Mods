@@ -64,16 +64,27 @@ final class LayoutStamper {
      * before any plan was generated -- see {@code Instances.stampLobby}), so it
      * is skipped entirely here rather than re-stamped on top of. Everything
      * else -- every other cell, the bedrock envelope, the returned layout's
-     * bookkeeping -- is identical.
+     * bookkeeping is identical.
+     *
+     * <p>A room's own processors always win over the run theme. A grove remains a
+     * strange chamber inside a deepslate run instead of quietly recolouring itself
+     * to match the walls around it.
      */
     static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                           int keystoneLevel, Set<Affix> affixes, UUID owner) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true);
+                                           int keystoneLevel, Set<Affix> affixes, UUID owner,
+                                           String theme) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme);
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<Affix> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null);
+    }
+
+    private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                                        int keystoneLevel, Set<Affix> affixes, UUID owner,
+                                        boolean entranceAlreadyStamped, String theme) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
@@ -94,14 +105,18 @@ final class LayoutStamper {
             }
 
             BlockPos cellOrigin = geometry.cellOrigin(cell);
+            ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
+            String processors = entry.meta.processors != null ? entry.meta.processors
+                    : runTheme == null ? null : runTheme.meta().processors;
             List<BlockPos> spawns = TemplateStamper.place(
                     level, manager, cellOrigin, Identifier.parse(entry.meta.template),
                     placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
-                    entry.meta.processors == null ? null : Identifier.parse(entry.meta.processors));
+                    processors == null ? null : Identifier.parse(processors));
 
             int depth = plan.depths().getOrDefault(cell, 0);
+            String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
             RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns,
-                    plan.seed(), affixes);
+                    plan.seed(), affixes, lootSuffix);
 
             // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
             // ordinary content pass rather than skipping it keeps RoomSelector's

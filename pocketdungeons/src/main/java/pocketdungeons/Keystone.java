@@ -64,6 +64,7 @@ final class Keystone {
         return switch (affix) {
             case OMINOUS -> ChatFormatting.LIGHT_PURPLE;
             case FRAGILE -> ChatFormatting.RED;
+            case FERAL -> ChatFormatting.WHITE;
             case SWARMING -> ChatFormatting.DARK_GREEN;
             case OVERCLOCKED -> ChatFormatting.YELLOW;
             case MOLTEN -> ChatFormatting.GOLD;
@@ -79,7 +80,7 @@ final class Keystone {
      * thresholds hand them on top is derived, never chosen and never stored
      * (see {@link AffixMath}).
      */
-    record Offer(int level, EnumSet<Affix> affixes, int step) {
+    record Offer(int level, EnumSet<Affix> affixes, int step, String theme) {
         boolean ominous() {
             return affixes.contains(Affix.OMINOUS);
         }
@@ -90,12 +91,25 @@ final class Keystone {
      * placed. Safe, ominous, fragile -- {@code +1}, {@code +2}, {@code +3}, with
      * the extra levels paid for in stakes rather than given away.
      */
-    static Offer[] offers(int level) {
+    static Offer[] offers(java.util.UUID owner, int level) {
+        return offers(owner, level, List.of());
+    }
+
+    static Offer[] offers(java.util.UUID owner, int level, List<String> recentThemes) {
         int max = PocketDungeonsConfig.keystoneMaxLevel();
+        List<String> themes = ThemeOfferMath.pick(owner, level,
+                ThemeManifest.current().discoverableIds());
+        String first = themes.isEmpty() ? null : themes.get(0);
+        String second = themes.isEmpty() ? null : themes.get(1);
+        String third = themes.isEmpty() ? null : themes.get(2);
+        String recipe = DungeonRecipes.current().match(recentThemes);
+        if (recipe != null) {
+            third = recipe;
+        }
         return new Offer[] {
-                new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1),
-                new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2),
-                new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.of(Affix.FRAGILE), 3),
+                new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1, first),
+                new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2, second),
+                new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.of(Affix.FRAGILE), 3, third),
         };
     }
 

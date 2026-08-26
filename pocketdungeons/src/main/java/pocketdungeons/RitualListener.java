@@ -192,12 +192,12 @@ final class RitualListener {
     private static void sendDoorOffer(ServerPlayer player, int step) {
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
         int level = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(level);
+        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), level, entry.recentThemes());
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
 
         java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());
         String doorAffix = ordered.isEmpty() ? "Oak" : ordered.get(0).label;
-        String heading = doorAffix + " Door -- Keystone [" + offer.level() + "]"
+        String heading = doorAffix + " Door - Keystone [" + offer.level() + "]"
                 + (ordered.isEmpty() ? "" : ", " + ordered.get(0).label.toLowerCase())
                 + ".";
         DialogKit.show(player, DialogScreens.doorOffer(offer, step, heading));

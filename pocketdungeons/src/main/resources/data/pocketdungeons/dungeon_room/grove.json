@@ -1,0 +1,9 @@
+{
+  "template": "pocketdungeons:rooms/mossy_tee",
+  "processors": "pocketdungeons:theme_grove",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 1
+}

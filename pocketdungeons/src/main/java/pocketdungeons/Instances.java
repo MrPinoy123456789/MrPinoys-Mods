@@ -197,6 +197,8 @@ final class Instances {
         // cover -- startup reloads resources before SERVER_STARTED fires, so
         // that listener sees a null server and defers to this call instead.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            ThemeManifest.load(server);
+            DungeonRecipes.load(server);
             RoomManifest manifest = RoomManifest.load(server);
             if (!manifest.rejections().isEmpty()) {
                 PocketDungeonsMod.LOG.error("{} dungeon room(s) were rejected at startup; "
@@ -309,7 +311,24 @@ final class Instances {
         if (server == null) {
             return false;
         }
-        InstanceRecord existing = null;
+        InstanceRecord existing = reenterableInstance(player.getUUID());
+        if (existing == null) {
+            return false;
+        }
+        admit(server, existing, player);
+        player.sendSystemMessage(Component.literal("You step back into your dungeon.")
+                .withStyle(ChatFormatting.GOLD));
+        return true;
+    }
+
+    /**
+     * The live instance this owner could step back into for free, or {@code null}.
+     *
+     * <p>Extracted from {@link #reenterOwnedInstance} in M6 so
+     * {@link #ownsReenterableInstance} can ask the question without answering it.
+     * The filter is subtle enough that a second copy of it would go wrong.
+     */
+    private static InstanceRecord reenterableInstance(UUID owner) {
         for (InstanceRecord candidate : bySlot.values()) {
             // A lingering quarry (T2.5) is not re-entered for free -- it is done,
             // and opening a new run purges it. See enter()'s lingering-quarry check.
@@ -323,18 +342,24 @@ final class Instances {
             // stays reachable through its own grace window/lingering-quarry
             // path regardless (T2.5), not through free re-entry.
             if (!candidate.selectorRoom && !candidate.lingering && !candidate.visitInstance
-                    && candidate.completed.isEmpty() && player.getUUID().equals(candidate.owner)) {
-                existing = candidate;
-                break;
+                    && candidate.completed.isEmpty() && owner.equals(candidate.owner)) {
+                return candidate;
             }
         }
-        if (existing == null) {
-            return false;
-        }
-        admit(server, existing, player);
-        player.sendSystemMessage(Component.literal("You step back into your dungeon.")
-                .withStyle(ChatFormatting.GOLD));
-        return true;
+        return null;
+    }
+
+    /**
+     * Whether {@code /dungeon} would put this player back into a run they already
+     * own rather than open a new one (M6 T6.5).
+     *
+     * <p>The command asks before deciding whether to hand out a first keystone: a
+     * player standing outside a run they are in the middle of holds no keystone,
+     * because they spent it going in, and minting them another one for walking
+     * back through their own door would be a free key every time.
+     */
+    static boolean ownsReenterableInstance(ServerPlayer player) {
+        return !hasInstance(player) && reenterableInstance(player.getUUID()) != null;
     }
 
     static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes) {
@@ -457,7 +482,7 @@ final class Instances {
         if (untimed) {
             PocketDungeonsMod.LOG.info(
                     "UNTIMED dungeon opened in slot {} by {} (level {}, {} rooms, seed {}). "
-                            + "It will not expire on its own -- /dungeon admin purge {} to close it.",
+                            + "It will not expire on its own; /dungeon admin purge {} to close it.",
                     slot, player.getName().getString(), layout.keystoneLevel(),
                     layout.roomCount(), layout.seed(), slot);
         }
@@ -480,14 +505,14 @@ final class Instances {
         player.sendSystemMessage(Component.literal("You step into the dungeon.")
                 .withStyle(ChatFormatting.GOLD));
         player.sendSystemMessage(Component.literal(
-                layout.roomCount() + " rooms. Nothing here can kill you -- a killing "
-                        + "blow throws you out with your inventory intact -- but "
+                layout.roomCount() + " rooms. Nothing here can kill you; a killing "
+                        + "blow throws you out with your inventory intact, but "
                         + "anything you drop inside is lost. Stand on a lodestone, "
                         + "or run /dungeon exit, to leave.")
                 .withStyle(ChatFormatting.GRAY));
         if (!layout.procedural()) {
             player.sendSystemMessage(Component.literal(
-                    "The dungeon collapsed into its oldest shape -- four rooms, "
+                    "The dungeon collapsed into its oldest shape: four rooms, "
                             + "heading east. Tell an operator: the room library or "
                             + "the planner needs looking at.")
                     .withStyle(ChatFormatting.YELLOW));
@@ -525,7 +550,7 @@ final class Instances {
                     "Keystone [" + layout.keystoneLevel() + "] spent. Clear a trial spawner for a "
                             + "key, spend the key on a vault, and beat the clock for the best "
                             + "reward room. Anything a vault ejects onto the floor is lost when "
-                            + "the dungeon closes -- pick it up.")
+                            + "the dungeon closes; pick it up.")
                     .withStyle(ChatFormatting.GRAY));
         }
 
@@ -807,7 +832,7 @@ final class Instances {
         }
 
         leader.sendSystemMessage(Component.literal(
-                removed == 0 ? "Nobody was removed -- your party had already changed."
+                removed == 0 ? "Nobody was removed; your party had already changed."
                         : "Removed " + removed + " from your party.")
                 .withStyle(ChatFormatting.GOLD));
 
@@ -1160,7 +1185,8 @@ final class Instances {
 
         DungeonLog log = DungeonLog.forServer(server);
         DungeonLog.Entry entry = log.get(player.getUUID());
-        Keystone.Offer[] offers = Keystone.offers(entry.keystoneLevel());
+        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
+                entry.recentThemes());
         Keystone.Offer offer = offers[step - 1];
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -1195,11 +1221,13 @@ final class Instances {
 
         long seed = level.getRandom().nextLong();
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
+        ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
                 PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                PocketDungeonsConfig.maxGridSpan(), null, dungeonDoor);
+                PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
+                dungeonDoor);
 
         DungeonPlan plan = outcome.plan();
         // The door's elective affix plus whatever the offered level seeds: the run
@@ -1217,7 +1245,7 @@ final class Instances {
             forceLoad(level, geometry.chunks(), true);
             try {
                 layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
-                        record.owner);
+                        record.owner, offer.theme());
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan behind the room at {} failed",
                         record.roomCellOrigin.toShortString(), e);
@@ -1237,6 +1265,7 @@ final class Instances {
 
         record.layout = layout;
         record.affixes = affixes;
+        record.theme = offer.theme();
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
 
@@ -1262,11 +1291,48 @@ final class Instances {
         record.rewardChests = -1;
         record.expiresAtTick = 0;
 
+        // The previous run's bar, if this record is being reused for a second
+        // dungeon behind the same lobby. Dropping the reference without closing it
+        // first leaves a dead ServerBossEvent with every member still attached --
+        // nothing ticks it again, so it hangs on their screens frozen at whatever
+        // the old run's last reading was, beside the new one.
+        if (record.timer != null) {
+            record.timer.close();
+            record.timer = null;
+        }
         if (!record.untimed) {
             record.timer = new RunTimer(layout.keystoneLevel(),
                     KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
                             PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength()),
                     layout.roomCount());
+        }
+
+        // Everything admit() hands a player off the record's layout has to be
+        // handed out again here, and this is the only place it can be.
+        //
+        // <p>Lobby-first entry (M2/M3 3.2.3) inverted the order the old flow had:
+        // admit() runs at enterLobby, when the record carries a one-cell lobby
+        // layout with no level, no affixes and no clock, and the real run does not
+        // exist until a door is chosen -- here. admit()'s two side effects were
+        // both written against the old "enter() builds the whole dungeon, then
+        // admits" order and are silently skipped by the new one: the boss bar is
+        // created with nobody watching it (the clock runs, expires and can end the
+        // run without a single player ever having seen it), and an ominous run
+        // never grants its Trial Omen. Re-running them for every member standing
+        // in the lobby is what puts the two orders back in agreement.
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer inside = server.getPlayerList().getPlayer(member);
+            if (inside == null) {
+                continue;
+            }
+            if (record.timer != null) {
+                record.timer.addPlayer(inside);
+            }
+            // Clear before applying, not instead of: a second run behind the same
+            // lobby can be plain where the first was ominous, and applyTrialOmen
+            // returns early on a plain run rather than taking the old effect away.
+            clearTrialOmen(inside);
+            applyTrialOmen(inside, record);
         }
         return true;
     }
@@ -1329,7 +1395,13 @@ final class Instances {
      * next tick otherwise, so this is a no-op behaviour change for all of them.
      */
     private static void saveRoomIfOwner(MinecraftServer server, InstanceRecord record, UUID member) {
-        if (!record.owner.equals(member) || record.roomCellOrigin == null || record.visitInstance) {
+        // An unowned instance (/dungeon admin build) has no owner to save a room
+        // for and never gets a roomCellOrigin, so there is nothing to capture.
+        // The owner null check has to come first regardless: purge and
+        // retireOrPurge both open by passing record.owner straight back in here,
+        // and RoomStore.capture below would take the null the same way.
+        if (record.owner == null || !record.owner.equals(member)
+                || record.roomCellOrigin == null || record.visitInstance) {
             return;
         }
         server.execute(() -> {
@@ -1451,7 +1523,7 @@ final class Instances {
 
     private static InstanceRecord findOwnedLiveRoom(UUID owner) {
         for (InstanceRecord record : bySlot.values()) {
-            if (record.owner.equals(owner) && !record.lingering && !record.visitInstance) {
+            if (owner.equals(record.owner) && !record.lingering && !record.visitInstance) {
                 return record;
             }
         }
@@ -1460,7 +1532,7 @@ final class Instances {
 
     private static InstanceRecord findVisitInstance(UUID owner) {
         for (InstanceRecord record : bySlot.values()) {
-            if (record.owner.equals(owner) && record.visitInstance) {
+            if (owner.equals(record.owner) && record.visitInstance) {
                 return record;
             }
         }
@@ -1646,8 +1718,9 @@ final class Instances {
         }
 
         DungeonLog log = DungeonLog.forServer(server);
-        DungeonLog.Entry entry = log.recordCompletion(player.getUUID(),
-                record.layout.pathLength(), record.layout.keystoneLevel());
+        log.recordCompletion(player.getUUID(), record.layout.pathLength(),
+                record.layout.keystoneLevel());
+        DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.theme);
 
         int chests = record.rewardChests;
         boolean late = chests <= 0;
@@ -1669,7 +1742,9 @@ final class Instances {
         // than parked as a pending offer -- there is no later "go choose a
         // door" step any more, so nothing is left to settle.
         if (record.chosenStep > 0) {
-            Keystone.Offer[] offers = Keystone.offers(log.get(player.getUUID()).keystoneLevel());
+            DungeonLog.Entry memberEntry = log.get(player.getUUID());
+            Keystone.Offer[] offers = Keystone.offers(player.getUUID(), memberEntry.keystoneLevel(),
+                    memberEntry.recentThemes());
             Keystone.Offer banked = offers[record.chosenStep - 1];
             Keystones.grantOffer(server, player.getUUID(), player, banked);
             // Guards a later exit() from settling the keystone again now that
@@ -1724,7 +1799,9 @@ final class Instances {
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                         .lootTier(),
-                record.affixes.contains(Affix.OMINOUS), record.layout.seed());
+                record.affixes.contains(Affix.OMINOUS), record.layout.seed(),
+                record.theme == null || ThemeManifest.current().byId(record.theme) == null ? null
+                        : ThemeManifest.current().byId(record.theme).meta().lootSuffix);
 
         // Sealed door in the far wall, behind the chests.
         sealDoorOnWall(level, terminalOrigin, farWall);
@@ -2014,6 +2091,13 @@ final class Instances {
         }
         clearTrialOmen(player);
         if (point != null) {
+            // M6 T6.5: the exit does not consult the room itself. It does not
+            // need to. Teleport falls back to sendHome when the return dimension
+            // is gone, and by then this player has already been removed from the
+            // record, so reenterOwnedInstance puts them back into the run they
+            // were walking out of. That is the plan's "no-op when there is nowhere
+            // to go", reached without a second code path: on a server with an
+            // overworld the return point resolves and the fallback never fires.
             teleport(server, player, point.dimension(), point.pos(), point.yaw(), point.pitch());
         } else {
             sendToWorldSpawn(server, player);
@@ -2151,7 +2235,11 @@ final class Instances {
                 teleport(server, player, pending.point.dimension(), pending.point.pos(),
                         pending.point.yaw(), pending.point.pitch());
             } else {
-                sendToWorldSpawn(server, player);
+                // M6 T6.5: no return point means this player has no recorded
+                // "outside": a crash before admit(), or a first join straight
+                // into the void. World spawn is the wrong answer on a server that
+                // has emptied its overworld; sendHome asks for the room first.
+                sendHome(server, player);
             }
             player.sendSystemMessage(Component.literal("Your dungeon was closed while you were away.")
                     .withStyle(ChatFormatting.GRAY));
@@ -2243,6 +2331,22 @@ final class Instances {
                 if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                     dropMember(server, record, member, player, "member left the dimension");
                     continue;
+                }
+                // A member who reached the run after its clock started -- invited
+                // mid-run, re-entered their own live instance, or simply walked
+                // back into the dimension -- has no bar until something attaches
+                // them to one. Doing it here rather than at each entry point means
+                // every route in is covered by construction, including whichever
+                // ones get added next: the lobby-first rework already produced one
+                // bug of exactly this shape by adding an entry order that admit()
+                // had not been written for.
+                //
+                // <p>Costs a hash lookup per member per interval and nothing else.
+                // {@code ServerBossEvent.addPlayer} is a {@code Set.add} whose
+                // result gates the packet send, so a member already watching is
+                // added again to nothing.
+                if (record.timer != null) {
+                    record.timer.addPlayer(player);
                 }
                 PlanCell here = record.layout.geometry().cellAt(player.blockPosition());
                 if (here != null && record.visited.add(here) && record.timer != null) {
@@ -2780,7 +2884,7 @@ final class Instances {
     static int adminPurgeByOwner(MinecraftServer server, UUID owner) {
         int purged = 0;
         for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
-            if (record.owner.equals(owner)) {
+            if (owner.equals(record.owner)) {
                 purge(server, record, "room reset by an operator");
                 purged++;
             }
@@ -2795,7 +2899,7 @@ final class Instances {
             BlockPos origin = originForSlot(slot);
             InstanceRecord record = bySlot.get(slot);
             if (record == null) {
-                lines.add("slot " + slot + " at " + origin.toShortString() + " -- unowned (admin build)");
+                lines.add("slot " + slot + " at " + origin.toShortString() + ": unowned (admin build)");
                 continue;
             }
             List<String> names = new ArrayList<>();
@@ -2808,8 +2912,8 @@ final class Instances {
             String who = names.isEmpty() ? "unowned (admin build)"
                     : String.join(", ", names) + " (" + names.size() + ")";
             lines.add("slot " + slot + " at " + origin.toShortString()
-                    + (record.untimed ? " -- UNTIMED, never expires" : "")
-                    + " -- " + who + ", " + ageSeconds + "s old, "
+                    + (record.untimed ? " (UNTIMED, never expires)" : "")
+                    + ": " + who + ", " + ageSeconds + "s old, "
                     + layout.roomCount() + " rooms, path " + layout.pathLength()
                     + ", tier " + layout.lootTier()
                     + (layout.procedural() ? ", seed " + layout.seed() : ", STATIC FALLBACK"));
@@ -2867,13 +2971,39 @@ final class Instances {
                                  ResourceKey<Level> dimension, Vec3 pos, float yaw, float pitch) {
         ServerLevel target = server.getLevel(dimension);
         if (target == null) {
-            PocketDungeonsMod.LOG.warn("Return dimension {} is gone; using world spawn",
-                    dimension.identifier());
-            sendToWorldSpawn(server, player);
+            PocketDungeonsMod.LOG.warn("Return dimension {} is gone; sending {} home instead",
+                    dimension.identifier(), player.getName().getString());
+            sendHome(server, player);
             return;
         }
         player.teleport(new TeleportTransition(target, pos, Vec3.ZERO, yaw, pitch,
                 TeleportTransition.DO_NOTHING));
+    }
+
+    /**
+     * Where a player goes when the place they came from is not an answer any more:
+     * the return dimension is gone, or there was never a return point to begin
+     * with (M6 T6.5).
+     *
+     * <p>Preference order, not a mode. The room comes first because on a server
+     * whose overworld has been emptied it is the only place a player has, and on
+     * a suite server this branch is not reached at all, because the return point
+     * resolved and {@link #teleport} never called here. Nothing is tuned twice:
+     * both servers run the same order and get the answer that is true for them.
+     *
+     * <p>The room is reached through {@link #reenterOwnedInstance}, which is
+     * already the "put this player back in their own live run" path and already
+     * refuses when they are standing in one. The dungeon level is checked first so
+     * this cannot recurse: {@code reenterOwnedInstance} admits through
+     * {@link #teleport}, and a missing dungeon level there would land straight back
+     * here.
+     */
+    private static void sendHome(MinecraftServer server, ServerPlayer player) {
+        if (server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL) != null
+                && reenterOwnedInstance(player)) {
+            return;
+        }
+        sendToWorldSpawn(server, player);
     }
 
     private static void sendToWorldSpawn(MinecraftServer server, ServerPlayer player) {

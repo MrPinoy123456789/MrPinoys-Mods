@@ -51,9 +51,15 @@ final class DungeonLog extends SavedData {
      *                           the authority, this is (U8 Stage 3).
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
-                 int keystoneLevel, String keystoneAffix, int pendingOfferLevel) {}
+                 int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
+                 List<String> recentThemes, Map<String, Integer> completedThemes) {
+        Entry {
+            recentThemes = List.copyOf(recentThemes);
+            completedThemes = Map.copyOf(completedThemes);
+        }
+    }
 
-    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0);
+    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of());
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -75,7 +81,11 @@ final class DungeonLog extends SavedData {
             Codec.INT.optionalFieldOf("best_keystone", 0).forGetter(Entry::bestKeystoneLevel),
             Codec.INT.optionalFieldOf("keystone", 0).forGetter(Entry::keystoneLevel),
             Codec.STRING.optionalFieldOf("keystone_affix", "").forGetter(Entry::keystoneAffix),
-            Codec.INT.optionalFieldOf("pending_offer", 0).forGetter(Entry::pendingOfferLevel)
+            Codec.INT.optionalFieldOf("pending_offer", 0).forGetter(Entry::pendingOfferLevel),
+            Codec.STRING.listOf().optionalFieldOf("recent_themes", List.of())
+                    .forGetter(Entry::recentThemes),
+            Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("completed_themes", Map.of())
+                    .forGetter(Entry::completedThemes)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -129,7 +139,7 @@ final class DungeonLog extends SavedData {
                 Math.max(previous.bestKeystoneLevel(), keystoneLevel),
                 previous.keystoneLevel(),
                 previous.keystoneAffix(),
-                previous.pendingOfferLevel());
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes());
         entries.put(player, next);
         setDirty();
         return next;
@@ -157,7 +167,8 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), Math.max(0, level),
-                AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel()));
+                AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
+                previous.recentThemes(), previous.completedThemes()));
         setDirty();
     }
 
@@ -170,7 +181,7 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                Math.max(0, level)));
+                Math.max(0, level), previous.recentThemes(), previous.completedThemes()));
         setDirty();
     }
 
@@ -180,7 +191,23 @@ final class DungeonLog extends SavedData {
             return;
         }
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0));
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
+                previous.recentThemes(), previous.completedThemes()));
         setDirty();
+    }
+
+    Entry recordTheme(UUID player, String theme) {
+        if (theme == null || theme.isBlank()) {
+            return get(player);
+        }
+        Entry previous = get(player);
+        Map<String, Integer> counts = new HashMap<>(previous.completedThemes());
+        counts.merge(theme, 1, Integer::sum);
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), ThemeHistory.push(previous.recentThemes(), theme), counts);
+        entries.put(player, next);
+        setDirty();
+        return next;
     }
 }

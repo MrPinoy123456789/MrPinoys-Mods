@@ -270,7 +270,10 @@ final class DungeonCommands {
                                             .executes(ctx -> resetKey(ctx.getSource(),
                                                     EntityArgument.getPlayer(ctx, "target")))))
 
-                            .then(manifestBranch())));
+                            .then(manifestBranch())
+                            .then(Commands.literal("theme")
+                                    .then(Commands.literal("list")
+                                            .executes(ctx -> themeList(ctx.getSource()))))));
         });
     }
 
@@ -292,6 +295,19 @@ final class DungeonCommands {
         if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             player.sendSystemMessage(Component.literal("You are already inside a dungeon.")
                     .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        // M6 T6.5: /dungeon is the route in, not a fallback behind the overworld
+        // lodestone and not a fallback behind /dungeon key. A player holding no
+        // keystone gets one here and goes in, in one command. That is what
+        // "first-class" has to mean on a server whose overworld is empty, where
+        // there is no lodestone to right-click and nobody to be told to go and
+        // find one. This is the same free keystone /dungeon key already hands out
+        // on the same terms, so it adds no way to farm one: the re-entry check
+        // below is what stops a player who is standing outside a live run of their
+        // own from minting a second key by walking back into it.
+        if (Keystone.findHeld(player) == null && !Instances.ownsReenterableInstance(player)
+                && mintKey(player) == 0) {
             return 0;
         }
         return Instances.enterWithKeystone(player) ? 1 : 0;
@@ -330,7 +346,7 @@ final class DungeonCommands {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
-                "Untimed dungeon opened. It will not expire -- close it with "
+                "Untimed dungeon opened. It will not expire; close it with "
                         + "/dungeon admin purge <slot>.")
                 .withStyle(ChatFormatting.YELLOW), true);
         return 1;
@@ -404,6 +420,15 @@ final class DungeonCommands {
                         + entry.bestKeystoneLevel() + "], longest dungeon cleared "
                         + entry.bestPathLength() + " rooms deep")
                 .withStyle(ChatFormatting.GOLD), false);
+        String counts = entry.completedThemes().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(value -> {
+                    ThemeManifest.Entry theme = ThemeManifest.current().byId(value.getKey());
+                    return (theme == null ? value.getKey() : theme.meta().name) + " " + value.getValue();
+                })
+                .collect(java.util.stream.Collectors.joining(", "));
+        source.sendSuccess(() -> Component.literal("Themes completed: "
+                + (counts.isEmpty() ? "none" : counts)).withStyle(ChatFormatting.GRAY), false);
         return entry.runsCompleted();
     }
 
@@ -589,7 +614,7 @@ final class DungeonCommands {
         BlockPos origin = Instances.slotOrigin(slot);
         InstanceLayout layout = Instances.adminLayout(slot);
         source.sendSuccess(() -> Component.literal(
-                "Built slot " + slot + " -- origin " + origin.toShortString()
+                "Built slot " + slot + ": origin " + origin.toShortString()
                         + ", entrance " + layout.entrance().toShortString()
                         + ", exit pad " + layout.exitPad().toShortString()
                         + ", " + layout.roomCount() + " rooms, path " + layout.pathLength()
@@ -597,7 +622,7 @@ final class DungeonCommands {
                         + ", keystone " + layout.keystoneLevel()
                         + (layout.ominous() ? ", OMINOUS" : "")
                         + (layout.procedural() ? ", seed " + layout.seed()
-                                : " -- STATIC FALLBACK, the planner failed")), false);
+                                : ", STATIC FALLBACK: the planner failed")), false);
         // Printed so a headless check can aim a /fill sweep at the exact volume
         // without having to guess how far a procedural layout sprawled.
         source.sendSuccess(() -> Component.literal(
@@ -694,8 +719,8 @@ final class DungeonCommands {
                     + DoorMask.toLetters(observed)
                     + ", expected " + DoorMask.toLetters(expected)
                     + ", " + spawns.size() + " spawn points"
-                    + (escaped ? " -- SPAWN OUTSIDE CELL" : "")
-                    + (ok ? " -- OK" : " -- MISMATCH"));
+                    + (escaped ? ", SPAWN OUTSIDE CELL" : "")
+                    + (ok ? ", OK" : ", MISMATCH"));
         }
 
         for (String line : report) {
@@ -968,6 +993,20 @@ final class DungeonCommands {
             }
         }
         return cleared;
+    }
+
+    private static int themeList(CommandSourceStack source) {
+        ThemeManifest manifest = ThemeManifest.current();
+        for (ThemeManifest.Entry theme : manifest.themes()) {
+            source.sendSuccess(() -> Component.literal(theme.id() + ": " + theme.meta().name), false);
+        }
+        for (String rejection : manifest.rejections()) {
+            source.sendFailure(Component.literal("  rejected: " + rejection));
+        }
+        for (String rejection : DungeonRecipes.current().rejections()) {
+            source.sendFailure(Component.literal("  recipe rejected: " + rejection));
+        }
+        return manifest.themes().size();
     }
 
     private static int manifestReload(CommandSourceStack source) {
