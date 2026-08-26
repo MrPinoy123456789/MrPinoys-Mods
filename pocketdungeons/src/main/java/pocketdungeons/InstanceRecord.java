@@ -73,12 +73,12 @@ final class InstanceRecord {
      * standing room, stamped alone with its one connecting door sealed,
      * showing three doors rendered from {@code Keystone.offers} but no
      * dungeon behind any of them yet. Cleared the moment a door is chosen:
-     * {@link #layout} and {@link #affix} are replaced with the real thing,
+     * {@link #layout} and {@link #affixes} are replaced with the real thing,
      * the seal comes down, and {@link #timer} starts.
      *
-     * <p>Not the same concept as {@link #selectorRoom}, which this retires --
-     * the old selector room was a separate, off-grid, post-completion-only
-     * instance; the lobby is the run's own cell 0, all the time.
+     * <p>Not the same concept as the pre-U8 selector room this retired -- that
+     * was a separate, off-grid, post-completion-only instance; the lobby is the
+     * run's own cell 0, all the time.
      */
     boolean awaitingDoorChoice;
 
@@ -136,14 +136,6 @@ final class InstanceRecord {
     int rewardChests = -1;
 
     /**
-     * True for the small, private, single-player instance a completed run's door
-     * choice is presented in (U8 Stage 3). Not a keystone run in its own right --
-     * it carries no timer, no reward room, and closes the moment its one member
-     * leaves or chooses, unlike an ordinary dungeon which now outlives its members.
-     */
-    final boolean selectorRoom;
-
-    /**
      * An operator's deliberately clockless run, opened by
      * {@code /dungeon admin untimed}.
      *
@@ -190,23 +182,17 @@ final class InstanceRecord {
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner) {
-        this(slot, origin, createdAtTick, layout, affixes, owner, false, false);
+        this(slot, origin, createdAtTick, layout, affixes, owner, false);
     }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner, boolean selectorRoom) {
-        this(slot, origin, createdAtTick, layout, affixes, owner, selectorRoom, false);
-    }
-
-    InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner, boolean selectorRoom, boolean untimed) {
+                   Set<Affix> affixes, UUID owner, boolean untimed) {
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
         this.layout = layout;
         this.affixes = affixes == null ? EnumSet.noneOf(Affix.class) : affixes;
         this.owner = owner;
-        this.selectorRoom = selectorRoom;
         this.untimed = untimed;
     }
 

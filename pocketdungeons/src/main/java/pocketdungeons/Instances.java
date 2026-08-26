@@ -341,7 +341,7 @@ final class Instances {
             // is done -- there is nothing left to continue, and the reward room
             // stays reachable through its own grace window/lingering-quarry
             // path regardless (T2.5), not through free re-entry.
-            if (!candidate.selectorRoom && !candidate.lingering && !candidate.visitInstance
+            if (!candidate.lingering && !candidate.visitInstance
                     && candidate.completed.isEmpty() && owner.equals(candidate.owner)) {
                 return candidate;
             }
@@ -410,8 +410,7 @@ final class Instances {
         // retireOrPurge turns it into a proper lingering quarry if its room
         // already moved, or purges it outright if it never got that far.
         for (InstanceRecord candidate : new ArrayList<>(bySlot.values())) {
-            if (!candidate.selectorRoom
-                    && (candidate.lingering || !candidate.completed.isEmpty())
+            if ((candidate.lingering || !candidate.completed.isEmpty())
                     && player.getUUID().equals(candidate.owner)) {
                 retireOrPurge(server, candidate, "new run started");
                 break;
@@ -467,7 +466,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affixes,
-                player.getUUID(), false, untimed);
+                player.getUUID(), untimed);
         // M2 T2.1/T2.4: the entrance cell is the room, for every keystone run
         // that got a real (procedural) layout. Untimed/admin runs and the
         // StaticLayout fallback have no room concept and stay null.
@@ -971,8 +970,8 @@ final class Instances {
     // doors, a leave-lodestone -- but it is now the run's own cell 0, present
     // every time, and its three doors choose the run about to start rather than
     // a reward banked after one already finished. `InstanceRecord.selectorRoom`
-    // and the guards reading it are left in place (harmless dead weight) rather
-    // than touched everywhere they are checked, to keep this change contained.
+    // and every guard that read it were removed in M9 C1, once it was confirmed
+    // the field was never set true anywhere.
 
     /**
      * The absolute compass direction the lobby's one connecting door is placed
@@ -1655,19 +1654,13 @@ final class Instances {
         // see expireTimedOut -- independently of anyone leaving or staying.
         returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
 
-        // The selector room is solo and its own messages already say everything
-        // worth saying (the offer, or the choice just made) -- the generic
-        // leave/walk-out lines here would just repeat "dungeon" at a player who
-        // was never fighting one.
-        if (!record.selectorRoom) {
-            if (!completed) {
-                player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
-                        .withStyle(ChatFormatting.GOLD));
-            }
-            announce(server, record, player.getName().getString()
-                            + (completed ? " walks out of the dungeon." : " leaves the dungeon."),
-                    player.getUUID());
+        if (!completed) {
+            player.sendSystemMessage(Component.literal("You leave the dungeon behind.")
+                    .withStyle(ChatFormatting.GOLD));
         }
+        announce(server, record, player.getName().getString()
+                        + (completed ? " walks out of the dungeon." : " leaves the dungeon."),
+                player.getUUID());
 
         // M3 T3.3: a visit instance is read-only and has no timer; tear it down
         // as soon as its last visitor leaves.
@@ -1676,7 +1669,7 @@ final class Instances {
             return;
         }
 
-        purgeIfAbandonedSelectorRoom(server, record);
+        purgeIfAbandonedLobby(server, record);
     }
 
     /**
@@ -2076,7 +2069,7 @@ final class Instances {
         announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
                 player.getUUID());
 
-        purgeIfAbandonedSelectorRoom(server, record);
+        purgeIfAbandonedLobby(server, record);
     }
 
     /** Teleports one member to their own return point and drops them from the party. */
@@ -2154,8 +2147,7 @@ final class Instances {
             return;
         }
 
-        if (record.selectorRoom
-                || (record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty())
+        if ((record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty())
                 || (record.visitInstance && record.members.isEmpty())) {
             purge(server, record, reason, member);
         }
@@ -2179,20 +2171,16 @@ final class Instances {
      *                     party at the moment of leaving
      */
     private static boolean leadershipChanged(InstanceRecord record, UUID member, boolean othersRemain) {
-        return !record.lingering && !record.selectorRoom
-                && member.equals(record.owner) && othersRemain;
+        return !record.lingering && member.equals(record.owner) && othersRemain;
     }
 
     /**
-     * The selector room's one member just left or chose; an empty selector
-     * room has no reason to linger. Also covers an abandoned lobby (M2/M3) --
-     * one that never got a door choice and now has nobody in it holds a slot
-     * and a force-load ticket for nothing, unlike a real run, which
-     * {@code onTick} watches for exactly this reason.
+     * An abandoned lobby (M2/M3) -- one that never got a door choice and now
+     * has nobody in it -- holds a slot and a force-load ticket for nothing,
+     * unlike a real run, which {@code onTick} watches for exactly this reason.
      */
-    private static void purgeIfAbandonedSelectorRoom(MinecraftServer server, InstanceRecord record) {
-        if ((record.selectorRoom || (record.awaitingDoorChoice && record.chosenStep == 0))
-                && record.members.isEmpty()) {
+    private static void purgeIfAbandonedLobby(MinecraftServer server, InstanceRecord record) {
+        if (record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty()) {
             purge(server, record, "lobby abandoned");
         }
     }
