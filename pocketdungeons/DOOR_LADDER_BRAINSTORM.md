@@ -312,6 +312,76 @@ curve, whether the station is available from run 1 or unlocked, and whether
 premium doors should avoid dropping extra lapis the way section 3 warns
 against self-funding fuel with more fuel.
 
+### 3.2 Armor trims: consumed patterns that actually do something
+
+**The pitch in one sentence:** armor trim templates drop as dungeon loot,
+applying one at a smithing table permanently consumes it (the vanilla
+template-duplication recipe is removed for these, so there is no way back to
+more copies), and the material used in the trim grants the piece a real
+combat bonus, not just a colour.
+
+**Why this is a sink and not just flavour.** Vanilla trims already cost
+something to apply: a template, an armour piece, and seven of a trim
+material at the smithing table, same shape as the reroll station's cost in
+section 3.1. What vanilla also does, and what makes an applied trim
+worthless as a sink, is let a player duplicate the template afterward: place
+it with a diamond and seven more of the same material at a crafting table
+and walk away with two templates again. If dungeon-found templates go
+through that same
+duplication recipe, they are not a sink, they are a one-time toll on an
+otherwise infinite resource. The mechanic only works as a sink if the
+loot table is the *only* source and using a trim spends it for good, which
+means the duplication recipe has to be removed for these templates
+specifically, or for every template server-wide if there turns out to be no
+clean way to distinguish "a dungeon-found template" from "an ordinary one" at
+the recipe level. **Needs verifying against the 26.2 jar before committing
+to either shape**: whether trim template duplication is its own data-driven
+recipe type that can be conditionally excluded, and whether a template
+carries any distinguishing data (an NBT tag, a custom component) once it
+leaves the loot table, or whether every copy of `minecraft:sentry_armor_trim`
+is identical and the removal has to be global.
+
+**What the bonus actually is, and why the material decides it, not the
+pattern.** Vanilla ships around ten trim materials (iron, copper, gold,
+lapis, emerald, diamond, netherite, redstone, quartz, amethyst) crossed with
+roughly seventeen patterns, which is too many cells to author a distinct
+bonus for each without the table becoming arbitrary. Splitting the axes
+fixes that: **the material determines the bonus** (an attribute modifier,
+following the same "material already means something" logic the 3.6.1 tier
+palettes use, e.g. diamond trims toughness, netherite trims knockback
+resistance, gold trims a small speed bonus, lapis loops back into section
+3.1's reroll cost by trimming XP gain instead) **and the pattern stays what
+vanilla already made it: cosmetic and a rarity signal**, some patterns
+authored rarer than others the way the adventure graph's rare nodes already
+are (section 2.2). That keeps the design to "ten bonuses, tune once" instead
+of "170 combinations, tune all of them," and it means a player chases a
+specific material for the bonus and a specific pattern for the look, two
+separate reasons to want two different rare drops.
+
+**Implementation shape, and the part that reaches outside the dungeon
+loop.** Reading which trim, if any, sits on a worn armour piece is a
+`DataComponents.TRIM` read (verify the exact component name and its shape
+against 26.2), and turning that into an attribute modifier is an equip-time
+or per-tick check, the same shape as `SilenceListener`'s item-use
+interception but keyed on armour slots changing rather than item use. The
+open design tension worth naming rather than skating past: `VISION.md` 3.7
+says nothing *required for progression* may live outside the dungeon loop,
+which the templates and materials satisfy (both are dungeon-loot-gated), but
+a worn trim's combat bonus applies wherever the player wears the armour,
+overworld included. That is consistent with the letter of 3.7 (nothing about
+*reaching* the bonus requires leaving the loop) but it is a bigger
+commitment than section 3.1's reroll station: this is passive combat power
+active outside the dungeon dimension, not a dungeon-run modifier, and it is
+worth being deliberate about that rather than backing into it.
+
+**Open:** the exact material-to-attribute table, whether patterns are
+authored with real rarity weights or just cosmetic variety, how the
+duplication-recipe removal is actually implemented once verified against the
+jar, and whether the combat bonus should be dungeon-only (checked against
+the player's dimension, the same guard `RoomProtection` already reads) rather
+than global, which would resolve the tension above at the cost of a trimmed
+piece feeling like a prop the moment the player leaves.
+
 ---
 
 ## 4. How it could fit together
@@ -327,7 +397,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus |
 
 ---
 
@@ -357,6 +427,11 @@ If all of these landed, the shape would be:
 8. **What is the gear-reroll lapis curve, and is the station gated?**
    (section 3.1) Same shape as question 4, one level down: the fuel currency
    gates the ladder, this gates the gear the ladder hands out.
+9. **Should an armour trim's combat bonus work outside the dungeon?**
+   (section 3.2) The templates and materials are dungeon-gated either way;
+   this is whether the bonus itself is too, and it is a bigger design
+   commitment than either other sink, since it is the first idea here that
+   reaches past the dungeon loop into ordinary overworld combat.
 
 ---
 
