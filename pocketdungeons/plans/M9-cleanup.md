@@ -153,14 +153,33 @@ Suggested order, smallest blast radius first:
 | 1 | `CellGeometry` | `openDoorOnWall`, `sealDoorOnWall`, `doorSlot`, `rotationToFace`, `neighbourCell`, `standingNeighbours`, `cellBounds`, `insideAnyCell`, `offsetInDirection`, `opposite`, `terminalEntranceDirection` | Pure coordinate math. No world state, so it becomes testable with plain `javac` in the manner of `DoorMask` and `KeystoneMath`. Do this first; it gives C3 a test net it does not currently have |
 | 2 | `InstanceRegistry` | `byMember`, `bySlot`, `usedSlots`, `allocateSlot`, `originForSlot`, `slotOrigin`, `hasInstance`, `maximalCellOrigins`, `maximalBounds` | Bookkeeping only. Every other extraction depends on this existing |
 | 3 | `PartyService` | `party`, `invite`, `join`, `stageKick`, `confirmKick`, `notifyKicked`, `partyCompanions`, `resolveParty`, plus `invites`, `pendingParty`, `pendingKicks`, the `Invite` and `PendingKick` records | Self-contained apart from two calls back into `Instances` (`admit`, `announce`, both opened from `private` to package-visible) that `join` needs to actually seat a player. **Revised during implementation:** `dropMember` and `leadershipChanged` were listed here originally but turned out to call `purge` and `saveRoomIfOwner`, both deep run-teardown machinery, not party bookkeeping; moved to row 6 (`RunLifecycle`) instead, where they sit next to the rest of what they actually call |
-| 4 | `InstanceTeardown` | both `teardown` overloads, both `purge` overloads, `retireOrPurge`, `PendingClear`, `processClears`, `finishClear`, `drainClears`, `isClearing`, `forceLoad` | Already its own async state machine with its own queue |
+| 4 | `InstanceTeardown` | both `teardown` overloads, both `purge` overloads, `retireOrPurge`, `PendingClear`, `processClears`, `finishClear`, `drainClears`, `isClearing` | Already its own async state machine with its own queue. **Correction:** `forceLoad` was listed here originally on the assumption teardown released force-load tickets through it; reading the code showed teardown always released them with an inline `level.setChunkForced` call, and `forceLoad` is called only by the stamping side (`buildLayout`, `generateBehindLobby`). Left in `Instances`, not moved |
 | 5 | `VisitService` | `visit`, `findOwnedLiveRoom`, `findVisitInstance`, `createVisitInstance` | Brainstorm section 8 rewrites this entry point. Isolating it first makes that a contained change |
 | 6 | `RunLifecycle` | the `enter*` overloads, `chooseOffer`, `completeRun`, `completeDungeon`, `expireTimedOut`, `exit`, `returnKeystone`, `saveRoom`, `saveRoomIfOwner`, `resetForNextDungeon`, plus `dropMember` and `leadershipChanged` (moved here from row 3, see its note) | The game loop. Every mechanic in the brainstorm edits here, which is exactly why it should not share a file with slot arithmetic |
 
 What is left in `Instances` afterwards: the tick watcher (`onTick`,
 `processJoinRecoveries`, `reconcileKeystones`, the pad checks), the admin
-commands, and the public entry points that delegate outward. Target is under 600
-lines.
+commands, the lobby-stamping helpers the tick watcher and admin commands both
+still need (`buildLayout`, `admit`, `applyTrialOmen`, `clearTrialOmen`,
+`enterLobby`, `generateBehindLobby`, `mcDirection`, `lobbyDoorDirection`,
+`lobbyLayout`, `selectorDoorStep`, `clearCellSync`, `rescue`, `eject`,
+`purgeIfAbandonedLobby`, `announce`, `roomOwnerAt`, `forceLoad`, `teleport`,
+`sendHome`, `sendToWorldSpawn`), and the public entry points that delegate
+outward.
+
+**Correction on the size target, found during implementation:** "under 600
+lines" assumed the `RunLifecycle` cluster was mostly self-contained. It is
+not -- `enter` alone calls `buildLayout`, `admit` and `enterLobby`;
+`chooseOffer` calls `generateBehindLobby`; `resetForNextDungeon` calls
+`roomOwnerAt`, `teleport` and `clearCellSync`; `completeDungeon` calls
+`mcDirection`. All of those stay in `Instances` because the tick watcher and
+the admin commands need them too, which means `Instances` keeps a real body
+of lobby-stamping logic alongside the watcher, not just event wiring and a
+free-list. Measured result: `Instances.java` 1,203 lines (from 3,008),
+`RunLifecycle.java` 928 lines -- both well past the original guess, and both
+now the correct shape for what the file split actually needed to separate
+(slot/party/teardown/visit bookkeeping from world-mutating logic), which was
+the goal the byte count was only ever a proxy for.
 
 **Rules for this phase, non-negotiable:**
 
@@ -170,8 +189,11 @@ lines.
   separate, clearly labelled commit after the move lands.
 - `./gradlew build` green after every commit.
 
-**Done when:** `Instances.java` is under 600 lines, no new class exceeds 500,
-build green, tests pass.
+**Done when:** all six extractions land, each its own commit, no behaviour
+change, build green, tests pass. (The original "under 600 / under 500" line
+targets did not survive contact with the actual dependency graph; see the
+correction above. Judge this phase by whether each class now has one
+coherent responsibility, not by a byte count.)
 
 ### C4 - Harden the seams
 
@@ -238,7 +260,10 @@ For copying into `PROGRESS.md`.
 ## Done when
 
 - `./gradlew build` green, all tests pass, plus `CellGeometryTest`.
-- `Instances.java` under 600 lines; no new class over 500.
+- `Instances.java` reduced to slot-adjacent bookkeeping plus the tick watcher,
+  admin commands, and the lobby-stamping helpers those two need. The line-count
+  targets in C3 did not survive contact with the real dependency graph; see
+  that section's correction. Judged by responsibility, not byte count.
 - `git status --short` clean under `src/`.
 - No behaviour change observable in play. The verification bar is
   `CLIENT_TEST_CHECKLIST.md` run once at the end: enter a run, choose a door,

@@ -162,7 +162,7 @@ final class RitualListener {
         // enterWithKeystone() still has failure paths -- missing dimension, a stamp
         // that could not be placed -- that leave the player exactly where they
         // stood, so the sound and message below only fire on success.
-        if (!Instances.enterWithKeystone(serverPlayer)) {
+        if (!RunLifecycle.enterWithKeystone(serverPlayer)) {
             return InteractionResult.PASS;
         }
         serverPlayer.sendSystemMessage(Component.literal("The lodestone pulls you under.")

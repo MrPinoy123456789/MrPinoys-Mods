@@ -108,7 +108,7 @@ final class RoomStore {
      * on load.
      *
      * <p>Players are exempt from that sweep. A capture now runs whenever the
-     * owner leaves ({@code Instances.saveRoom}), and the owner is standing in
+     * owner leaves ({@code RunLifecycle.saveRoom}), and the owner is standing in
      * the room when they do -- discarding them there is a removed player entity
      * mid-logout, the same class of failure {@code PLAN.md} documents for
      * teardown teleports. Nothing is lost by skipping them: vanilla's

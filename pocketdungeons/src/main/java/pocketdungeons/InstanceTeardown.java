@@ -22,10 +22,11 @@ import java.util.UUID;
  * extractions -- already its own async state machine ({@link PendingClear})
  * before this move, which is what made it a clean cut.
  *
- * <p>Calls back into {@code Instances} for four run-lifecycle side effects that
- * belong there, not here: {@link Instances#saveRoomIfOwner}, {@link Instances#eject},
- * {@link Instances#returnKeystone} and {@link Instances#sendToWorldSpawn}, all
- * opened from {@code private} to package-visible for exactly this.
+ * <p>Calls back into {@code Instances} for two run-lifecycle side effects that
+ * stay there ({@link Instances#eject}, {@link Instances#sendToWorldSpawn}) and
+ * into {@code RunLifecycle} for two more that moved there in the same M9 C3
+ * pass ({@link RunLifecycle#saveRoomIfOwner}, {@link RunLifecycle#returnKeystone}),
+ * all four opened from {@code private} to package-visible for exactly this.
  */
 final class InstanceTeardown {
 
@@ -48,13 +49,13 @@ final class InstanceTeardown {
      * the ordinary purge.
      *
      * <p>The record stays in {@code InstanceRegistry.bySlot} and its slot stays claimed:
-     * {@code Instances.enter()}'s lingering-quarry check is the only way out,
+     * {@code RunLifecycle.enter()}'s lingering-quarry check is the only way out,
      * bounding this at one lingering dungeon per owner.
      */
     static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
         // Safety net: eject/dropMember have almost certainly saved already, but a
         // teardown is the last moment the room exists to be read.
-        Instances.saveRoomIfOwner(server, record, record.owner);
+        RunLifecycle.saveRoomIfOwner(server, record, record.owner);
         if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
             purge(server, record, reason);
             return;
@@ -68,7 +69,7 @@ final class InstanceTeardown {
                 record.members.remove(member);
                 InstanceRegistry.byMember.remove(member);
             }
-            Instances.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+            RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         if (record.timer != null) {
             record.timer.close();
@@ -89,7 +90,7 @@ final class InstanceTeardown {
     static void purge(MinecraftServer server, InstanceRecord record,
                       String reason, UUID excludeFromStraySweep) {
         // Safety net, as in retireOrPurge: last chance to read the room.
-        Instances.saveRoomIfOwner(server, record, record.owner);
+        RunLifecycle.saveRoomIfOwner(server, record, record.owner);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
@@ -103,7 +104,7 @@ final class InstanceTeardown {
             // U8 Stage 1: a purge, a shutdown or a crash is the server's fault and
             // never costs anything. The owner's timeout depletion, if any, already
             // happened in expireTimedOut before this was called.
-            Instances.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+            RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         if (record.timer != null) {
             record.timer.close();

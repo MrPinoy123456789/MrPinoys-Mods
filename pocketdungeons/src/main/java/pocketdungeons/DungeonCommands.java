@@ -306,21 +306,21 @@ final class DungeonCommands {
         // on the same terms, so it adds no way to farm one: the re-entry check
         // below is what stops a player who is standing outside a live run of their
         // own from minting a second key by walking back into it.
-        if (Keystone.findHeld(player) == null && !Instances.ownsReenterableInstance(player)
+        if (Keystone.findHeld(player) == null && !RunLifecycle.ownsReenterableInstance(player)
                 && mintKey(player) == 0) {
             return 0;
         }
-        return Instances.enterWithKeystone(player) ? 1 : 0;
+        return RunLifecycle.enterWithKeystone(player) ? 1 : 0;
     }
 
     /**
      * {@code /dungeon choose <1|2|3>}: settle a completed run's door offer.
-     * Player-only, not op-gated -- see {@link Instances#chooseOffer}, which does
+     * Player-only, not op-gated -- see {@link RunLifecycle#chooseOffer}, which does
      * the real validation against {@link DungeonLog} rather than trusting the
      * click that sent the player here.
      */
     private static int choose(ServerPlayer player, int step) {
-        return Instances.chooseOffer(player, step) ? 1 : 0;
+        return RunLifecycle.chooseOffer(player, step) ? 1 : 0;
     }
 
     /**
@@ -342,7 +342,7 @@ final class DungeonCommands {
                     "admin untimed opens a dungeon around you, so it needs a player."));
             return 0;
         }
-        if (!Instances.enterUntimed(player, keystoneLevel, ominous, theme)) {
+        if (!RunLifecycle.enterUntimed(player, keystoneLevel, ominous, theme)) {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
@@ -396,7 +396,7 @@ final class DungeonCommands {
 
     private static int exit(ServerPlayer player) {
         // A command exit is a retreat, not a completion -- it does not pay.
-        Instances.exit(player, Instances.ExitReason.COMMAND);
+        RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
         return 1;
     }
 
