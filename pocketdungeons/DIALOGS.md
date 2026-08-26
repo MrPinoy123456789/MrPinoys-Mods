@@ -32,8 +32,8 @@ opposite of the spec's "don't reshape what commands already call". Only
 Five, all presentational:
 
 - `RitualListener.sendDoorOffer` — three chat lines and a `[ Take this key ]` link
-  became one `NoticeDialog`. Same heading, same affix warning, same
-  `/dungeon choose <step>`.
+  became one `ConfirmationDialog`. Same heading, same affix warning, same
+  `/dungeon choose <step>`, plus a "Close" that spends nothing.
 - `Instances.stageKick` — the `[ Confirm ]` chat link became a `ConfirmationDialog`.
 - `Instances.confirmKick` — grew one line: re-show the rebuilt roster.
 - `Instances.invite` — the invitee's message was plain, unclickable text. It keeps
@@ -98,12 +98,22 @@ re-sends the whitelist after every outcome, success and rejection alike, and
 `confirmKick` re-sends the roster. An emptied party gets a one-button notice rather
 than a zero-button `MultiActionDialog`.
 
-**Explicit exits everywhere.** `canCloseWithEscape = true` and `pause = false` on
-every screen, per house convention, but Escape is never the only way out: the two
-lists carry an "Close" `exitAction`, and both confirmations carry a `noButton`. The
-two `NoticeDialog`s (door offer, keystone info) have one button by construction —
-walking away from the door is the "no", and nothing is spent until the button is
-pressed.
+**Explicit exits everywhere, including the door offer.** `canCloseWithEscape =
+true` and `pause = false` on every screen, per house convention, but Escape is
+never the only way out: the lists carry a "Close" `exitAction` and every
+confirmation carries a `noButton`.
+
+The spec (§1, and its exit table) said the door offer could not have one, because
+a `NoticeDialog` has exactly one `ActionButton` by construction — "walking away
+from the door, or Escape, is the no. Documented, not a gap." That was built as
+written and it *was* a gap: the first screen a new player meets is the worst place
+to require knowing that Escape closes a dialog. The one-button constraint is real,
+but it is an argument for a different dialog type, not for shipping a screen with
+no visible way out — so the door offer is a `ConfirmationDialog` whose `noButton`
+is "Close". Nothing is spent until "Take this key" is pressed, and the door is
+still there to right-click again.
+
+Keystone inspection stays a `NoticeDialog`: its single button *is* "Close".
 
 ## What was left out
 
