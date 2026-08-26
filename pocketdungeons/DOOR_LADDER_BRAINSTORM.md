@@ -218,7 +218,7 @@ scale (more thresholds, or a percentage-based system). The intensifier bands
 
 ---
 
-## 3. The sink: a gearing loop shaped by Diablo 3
+## 3. The sink: three ideas borrowed from Diablo 3
 
 Dungeons are a faucet with no drain today. Depletion drains ladder position,
 never items. Every run adds materials and nothing removes them. A sink is
@@ -232,13 +232,11 @@ ungated farming tier that produces the currency a timed, gated ladder tier
 consumes, so there is always something productive to do and the thing you do
 produces the thing you spend. Pocket Dungeons today collapses both tiers
 into one door type, which is why the keystone only ever goes up or down and
-nothing is ever spent. Three of the four ideas below are that same two-tier
-shape applied at a different scale of the loop: the run itself (3.1), the
-gear a run drops (3.2), and the permanent power slotted into that gear
-(3.3), each with its own "D3 analogue" line so the lineage stays traceable
-rather than asserted. The fourth (3.4) has no D3 source and says so; it
-belongs in the same package because it is the step that produces the base
-item 3.2 and 3.3 both assume exists.
+nothing is ever spent. The three ideas below are that same two-tier shape
+applied at a different scale of the loop: the run itself (3.1), the gear a
+run drops (3.2), and the permanent power slotted into that gear (3.3), each
+with its own "D3 analogue" line so the lineage stays traceable rather than
+asserted.
 
 **Fuel source must stay inside the dungeon loop** per `VISION.md` 3.7:
 "Nothing required for progression may live outside the dungeon loop." So the
@@ -443,61 +441,6 @@ the player's dimension, the same guard `RoomProtection` already reads) rather
 than global, which would resolve the tension above at the cost of a trimmed
 piece feeling like a prop the moment the player leaves.
 
-### 3.4 Grindstone: strip and sharpen, then re-enchant
-
-**No clean D3 analogue; included because it completes the loop the other
-three start.** The closest D3 gets is the general principle that permanent
-power is bought by spending something real, not the specific mechanic; this
-one is Minecraft-native rather than translated. It belongs in the package
-anyway because 3.2 and 3.3 both assume a base item worth investing in, and
-this is where that base item comes from.
-
-**The pitch in one sentence:** a grindstone still does exactly what a
-grindstone does (strips enchantments, returns some of their XP, repairs
-combined items), but grinding a piece of dungeon-tier gear also adds one
-permanent "sharpened" stack to it, each stack a flat damage increase, in
-exchange for every enchantment on the item. The player is not left with a
-stripped, naked item afterward: the point of stripping it is to re-enchant
-it clean, at a normal enchanting table or the reroll station in 3.2, on top
-of a base item that now hits harder than the one that walked in. Grind,
-re-enchant, and optionally reroll or trim later: this is usually the
-**first** station in the gearing sequence despite being the last one written
-up here.
-
-**The sink is the enchantments themselves, not a new material.** Every
-other idea in this section adds a material cost (lapis, a trim template and
-its material) on top of an item that keeps what it had. This one spends the
-item's *own* value: a piece with three good enchantments on it is a real
-sacrifice to grind, which is exactly why a player would only do it for gear
-worth the permanent investment, not everything that drops. No new loot
-table entry, no new item, nothing to add to the chest tables. That also
-means it needs no tier-gating of its own; the gear's own tier already gates
-how good the enchantments being sacrificed are, which is gate enough.
-
-**Why capped, not unlimited.** An uncapped stack turns the grindstone into
-the only station that matters: grind everything forever, ignore reroll and
-trim entirely. Capping sharpen stacks low (three to five, tier-scaled the
-way 3.6.1's palettes already are, so a tier-3 item can be sharpened further
-than a tier-1 one) keeps it one ingredient in the loop instead of the whole
-recipe, and leaves the stripped-and-reenchanted item genuinely wanting what
-3.2 and 3.3 offer rather than replacing them.
-
-**Implementation shape.** The sharpen stack has to persist on the item
-across the strip (a `DataComponents`-level component the grindstone
-interaction adds to, read the same way 3.3's trim bonus reads
-`DataComponents.TRIM`), and the damage bonus itself is another attribute
-modifier keyed off that component, same shape as 3.3's. The grindstone's
-own vanilla strip-and-repair behaviour is untouched; this is an addition to
-what already happens when the interaction fires, not a replacement, which
-keeps it a small diff against a recipe/interaction Minecraft already ships.
-
-**Open:** the exact stack cap and per-stack damage value, whether the
-sharpen bonus is dungeon-only like 3.3's open question about trims, and
-whether grinding a piece that has never been enchanted should be blocked
-outright (nothing to sacrifice, so nothing to sharpen either) or simply do
-nothing, which is the safer default until there is a reason to special-case
-it.
-
 ---
 
 ## 4. How it could fit together
@@ -513,7 +456,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus, enchantments spent at a grindstone for permanent damage |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll, consumed armour trim templates for a real combat bonus |
 
 ---
 
@@ -548,10 +491,6 @@ If all of these landed, the shape would be:
    this is whether the bonus itself is too, and it is a bigger design
    commitment than either other sink, since it is the first idea here that
    reaches past the dungeon loop into ordinary overworld combat.
-10. **What is the sharpen stack cap and per-stack value?** (section 3.4)
-    Too low and grinding is never worth the enchantments it costs; too high
-    and it stops being one ingredient in the gearing loop and becomes the
-    whole recipe.
 
 ---
 
