@@ -37,9 +37,23 @@ enum Affix {
     FRAGILE("Big L", Kind.ELECTIVE, 2,
             "Big L: every failure costs double. The extra levels were the gift."),
 
+    /**
+     * Wolves in the halls. The curse is that they are there at all and they are
+     * not yours yet; the kiss is that they can be, and a wolf caught on a deep
+     * key wears a coat a shallow one never hands out.
+     *
+     * <p>The wolves spawn <strong>neutral</strong>. That is not a softening --
+     * {@code Wolf.mobInteract} refuses a bone outright while {@code isAngry()},
+     * so an angered wolf is an untameable wolf and the kiss would be worth
+     * nothing. The rule a player actually reads is "don't hit it, feed it", and
+     * vanilla's anger-on-hit enforces it for free.
+     */
+    FERAL("Feral", Kind.SEEDED, 1,
+            "Feral: wolves in the halls. Swing and they are lost, feed them and they are yours."),
+
     /** More bodies per trial spawner. */
     SWARMING("Swarming", Kind.SEEDED, 1,
-            "Swarming: more of them -- and more of them is more drops."),
+            "Swarming: more of them, and more of them is more drops."),
 
     /** Trial spawners come back off cooldown far sooner. */
     OVERCLOCKED("Overclocked", Kind.SEEDED, 1,
@@ -51,7 +65,7 @@ enum Affix {
      * blocks <em>are</em> the reward.
      */
     MOLTEN("Molten", Kind.SEEDED, 1,
-            "Molten: lava underfoot -- and the only lava you will ever find."),
+            "Molten: lava underfoot, and the only lava you will ever find."),
 
     /** No consumables. The mobs cannot hear you either. */
     SILENCED("Silenced", Kind.SEEDED, 1,

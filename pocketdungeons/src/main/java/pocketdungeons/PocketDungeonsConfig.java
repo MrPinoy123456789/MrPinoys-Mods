@@ -87,6 +87,8 @@ public final class PocketDungeonsConfig {
     private static int silencedPlayerRange = 6;
     /** Molten hazard blocks placed per cell. */
     private static int moltenHazardsPerCell = 4;
+    /** Feral wolves spawned per non-encounter cell. Zero disables the affix's spawns. */
+    private static int feralWolvesPerCell = 2;
 
     private PocketDungeonsConfig() {}
 
@@ -215,6 +217,10 @@ public final class PocketDungeonsConfig {
         return moltenHazardsPerCell;
     }
 
+    public static int feralWolvesPerCell() {
+        return feralWolvesPerCell;
+    }
+
     public static String keystoneItem() {
         return keystoneItem;
     }
@@ -298,6 +304,7 @@ public final class PocketDungeonsConfig {
         swarmingMobFactor = 1.5;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
+        feralWolvesPerCell = 2;
     }
 
     private static void apply(JsonObject root) {
@@ -369,6 +376,7 @@ public final class PocketDungeonsConfig {
                 v -> v >= 1, "must be >= 1");
         silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
+        feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
     }
 
     private static int readInt(JsonObject root, String key, int defaultValue,
@@ -503,6 +511,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("swarmingMobFactor", 1.5);
         root.addProperty("silencedPlayerRange", 6);
         root.addProperty("moltenHazardsPerCell", 4);
+        root.addProperty("feralWolvesPerCell", 2);
         return root;
     }
 }

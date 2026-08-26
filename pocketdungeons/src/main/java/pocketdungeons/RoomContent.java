@@ -2,7 +2,12 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -13,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Applies a cell's <em>role</em> to the room that was just stamped into it.
@@ -34,7 +40,19 @@ import java.util.Set;
  * <p><strong>T17 deleted the U3 rollback path</strong> this class used to carry
  * beside the trial-spawner one: {@code spawnMobs} and its helpers, and the
  * {@code trialsEnabled: false} branch that chose between them. Trial spawners
- * and vaults are the only encounter and loot content now.
+ * and vaults are the only <em>encounter and loot</em> content, and that has not
+ * changed.
+ *
+ * <p><strong>M5 brings {@link #spawnMobs} back</strong>, restored from the parent
+ * of that deletion ({@code 8dbb006^}) but rebuilt as a <em>general-purpose direct
+ * spawn path</em> rather than the roster-driven encounter builder it was. T17's
+ * reason for the deletion -- two spawners in one room is two difficulty curves --
+ * was about <em>encounter</em> cells, where {@link TrialContent} owns the combat
+ * loop and a parallel classic spawner would double it. That argument does not
+ * reach content which is not the room's fight: a Feral wolf is a feature standing
+ * in a corridor, not an encounter. So the boundary is kept where it actually
+ * matters -- <strong>{@code spawnMobs} is never called for an {@code encounter}
+ * cell</strong> -- and the path itself is open to whatever comes next.
  */
 final class RoomContent {
 
@@ -53,11 +71,14 @@ final class RoomContent {
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
             | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
+    /** How far a repeated spawn may drift off its anchor. One block, as in U3. */
+    private static final int SPAWN_JITTER = 1;
+
     private RoomContent() {}
 
     static void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes) {
+                      Set<Affix> affixes, String lootSuffix) {
         if (role == null) {
             return;
         }
@@ -67,7 +88,7 @@ final class RoomContent {
                 TrialContent.applyEncounter(level, cellOrigin, spawns, profile.lootTier(), affixes);
             }
             case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
-                    affixes.contains(Affix.OMINOUS), seed);
+                    affixes.contains(Affix.OMINOUS), seed, lootSuffix);
             case "corridor" -> removeChests(level, cellOrigin);
             default -> { /* entrance and exit carry no chest and no spawn points */ }
         }
@@ -80,6 +101,86 @@ final class RoomContent {
         if (affixes.contains(Affix.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
                 || "corridor".equals(role))) {
             placeMoltenHazards(level, cellOrigin, spawns, seed);
+        }
+        // Feral (M5 T5.1/T5.2): wolves as a feature, not a fight. Encounter cells
+        // are deliberately excluded -- TrialContent owns those, and a wolf pack
+        // beside a live trial spawner is exactly the two-difficulty-curves problem
+        // T17 deleted the old spawn path over. Entrance and exit are excluded for
+        // the same reason Molten excludes them: one is the player's own room, the
+        // other the lodestone pad and the reward chests.
+        if (affixes.contains(Affix.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
+            FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), seed);
+        }
+    }
+
+    /**
+     * Spawns {@code count} entities of one type across a cell's authored spawn
+     * anchors, seeded off the run so a given seed always stamps the same bodies in
+     * the same places.
+     *
+     * <p>The general-purpose direct-spawn path, restored in M5 (see the class
+     * note). It takes the type and the count rather than rolling them from a
+     * weighted roster the way the T17-era version did: the roster machinery went
+     * with {@code DifficultyProfile}'s U3 fields, and a caller that wants a mix can
+     * call this once per type. <strong>Do not call it for an {@code encounter}
+     * cell.</strong>
+     *
+     * <p>{@code after} runs on each spawned entity before the next one is placed --
+     * this is where a caller pins, re-skins or otherwise configures what it asked
+     * for. Every mob is marked persistent first, without which it despawns out from
+     * under a player who backtracks through a room they already walked.
+     */
+    static void spawnMobs(ServerLevel level, BlockPos cellOrigin, EntityType<?> type, int count,
+                          List<BlockPos> spawns, long seed, Consumer<Entity> after) {
+        if (count <= 0 || spawns.isEmpty()) {
+            return;
+        }
+        RandomSource random = RandomSource.create(seed ^ cellOrigin.asLong());
+        List<BlockPos> shuffled = new ArrayList<>(spawns);
+        shuffle(shuffled, random);
+
+        for (int i = 0; i < count; i++) {
+            BlockPos base = shuffled.get(i % shuffled.size());
+            BlockPos pos = i < shuffled.size() ? base : jitterOrFallBack(level, base, random);
+            Entity entity = type.spawn(level, pos, EntitySpawnReason.TRIGGERED);
+            if (entity == null) {
+                continue;
+            }
+            if (entity instanceof Mob mob) {
+                mob.setPersistenceRequired();
+            }
+            if (after != null) {
+                after.accept(entity);
+            }
+        }
+    }
+
+    /**
+     * Once the authored spawn anchors run out, cycles back through them with a
+     * small jitter so extra bodies do not stack on exactly the same block. A room's
+     * few anchors are frequently close to a wall, so a jittered offset can land in
+     * one -- falling back to the exact, always-air anchor rather than skipping the
+     * spawn entirely is what keeps {@code count} a guarantee instead of a ceiling
+     * that quietly undercounts on small templates.
+     */
+    private static BlockPos jitterOrFallBack(ServerLevel level, BlockPos base, RandomSource random) {
+        for (int attempt = 0; attempt < 4; attempt++) {
+            int jx = random.nextInt(2 * SPAWN_JITTER + 1) - SPAWN_JITTER;
+            int jz = random.nextInt(2 * SPAWN_JITTER + 1) - SPAWN_JITTER;
+            BlockPos candidate = base.offset(jx, 0, jz);
+            if (level.getBlockState(candidate).isAir()) {
+                return candidate;
+            }
+        }
+        return base;
+    }
+
+    private static void shuffle(List<BlockPos> list, RandomSource random) {
+        for (int i = list.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            BlockPos tmp = list.get(i);
+            list.set(i, list.get(j));
+            list.set(j, tmp);
         }
     }
 
