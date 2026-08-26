@@ -148,7 +148,7 @@ final class VisitService {
 
         InstanceLayout layout = Instances.lobbyLayout(origin);
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), owner);
+                EnumSet.noneOf(Affix.class), owner, false);
         record.visitInstance = true;
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);

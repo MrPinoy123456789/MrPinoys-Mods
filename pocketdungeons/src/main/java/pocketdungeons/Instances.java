@@ -161,6 +161,7 @@ final class Instances {
                         + "run /dungeon admin manifest reload for the reasons",
                         manifest.rejections().size());
             }
+            LootTables.validateAtStartup(server);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -364,7 +365,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), player.getUUID());
+                EnumSet.noneOf(Affix.class), player.getUUID(), false);
         record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);
@@ -1049,7 +1050,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), null);
+                EnumSet.noneOf(Affix.class), null, false);
         InstanceRegistry.bySlot.put(slot, record);
         return slot;
     }

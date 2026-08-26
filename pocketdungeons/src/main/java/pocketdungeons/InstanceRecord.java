@@ -181,11 +181,6 @@ final class InstanceRecord {
     boolean visitInstance;
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner) {
-        this(slot, origin, createdAtTick, layout, affixes, owner, false);
-    }
-
-    InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
         this.slot = slot;
         this.origin = origin;

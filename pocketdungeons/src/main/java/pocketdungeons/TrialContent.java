@@ -313,8 +313,7 @@ final class TrialContent {
         BlockPos vaultPos = containers.get(0);
         Direction facing = facingOf(level, vaultPos);
         placeVault(level, vaultPos, facing, ominous,
-                resolveLootTable(level, "chests/tier_" + Math.max(1, Math.min(3, tier))
-                        + (ominous ? "_ominous" : ""), lootSuffix),
+                resolveLootTable(level, LootTables.tierTable(tier, ominous), lootSuffix),
                 keyStack(ominous), ItemStack.EMPTY);
 
         // Everything else in the cell stays a chest, retargeted to the supply
@@ -330,8 +329,7 @@ final class TrialContent {
         for (int i = 1; i < containers.size(); i++) {
             BlockPos pos = containers.get(i);
             if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                c.setLootTable(lootTable("chests/supply_tier_"
-                        + Math.max(1, Math.min(3, tier))));
+                c.setLootTable(lootTable(LootTables.supplyTable(tier)));
                 c.setLootTableSeed(seed ^ pos.asLong());
             }
         }
@@ -359,8 +357,7 @@ final class TrialContent {
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix) {
         ResourceKey<LootTable> table = resolveLootTable(level,
-                "chests/tier_" + Math.max(1, Math.min(3, tier))
-                        + (ominous ? "_ominous" : ""), lootSuffix);
+                LootTables.tierTable(tier, ominous), lootSuffix);
 
         // Three chests on the far side of the terminal cell, beyond the 2x2
         // lodestone pad and in front of the sealed door. Spots are mirrored by
