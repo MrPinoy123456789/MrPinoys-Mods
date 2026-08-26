@@ -1700,7 +1700,7 @@ instance change.
 
 ---
 
-## 16. Lore: why this world exists, and a real tension with VISION.md
+## 16. Lore: why this world exists
 
 **The idea, recorded in full before anything is decided about it.** A
 noble adventurer, Steve, was corrupted by the idea of a perfect world and
@@ -1754,18 +1754,63 @@ disturbs the existing decision:**
    [24]` and `Cooked`/`Big L` already use: terse, funny, suggestive rather
    than explanatory. Something that rewards a player who already suspects
    something is wrong with this place without ever confirming it in full
-   sentences. This is the closest reading of "the text stays funny" that
-   still lets the name `Herobrine Cube` mean something to a player who
-   sees it, and it is the one this document would recommend if a decision
-   is wanted.
+   sentences.
 3. **A real narrative surface** (an advancement description, a book, a
-   structure), told in full. This is the one that actually conflicts with
-   §4 and §9 as written, and it does not get adopted by a brainstorm
-   document; it needs `VISION.md` itself revised, with the same
-   deliberateness §4's "protect this idea" already asks for everything
-   else in that section.
+   structure), told in full. The one that actually conflicts with §4 and
+   §9 as written.
 
-**Not decided here.** This section exists so the idea is not lost and the
-conflict is not quietly avoided, not to settle it. If option 3 is what is
-actually wanted, that is a `VISION.md` conversation, not a brainstorm
-addition.
+**Decided: both tones coexist, kept separate.** Item and mechanic naming
+(`Herobrine Cube`, keystone names, affix names) stays exactly as terse and
+funny as `VISION.md` already wants, untouched by any of this. The lore
+itself is a different register and is allowed to be a real narrative,
+discoverable rather than announced: environmental and fragmentary, closer
+to how vanilla tells the Deep Dark's or the End's story (no dialogue, no
+exposition dump, pieced together from what is found) than to a book that
+explains everything on page one. That reading keeps §4's actual point,
+*the room trick specifically stays silent*, while letting the wider "why
+does this place exist" question be something curious players can dig for.
+Whether that fragmentary delivery becomes real structures, item lore, or
+nothing shipped at all is still open; what is settled is that the lore is
+allowed to exist and be found, on its own tonal register, without touching
+the mechanical naming's voice. Formally updating `VISION.md` §9's "not a
+lore project" line to reflect this is still a distinct step, not implied
+by settling the tone question here.
+
+### 16.1 The cosmology: a world built from fractured memory
+
+The dungeon is not a place Herobrine built on purpose so much as a place
+his fractured memory keeps building, over and over, out of the pieces of
+Steve's own adventures. That is the diegetic reason runs are procedural
+and thematic rather than one fixed dungeon: each generated layout is an
+echo of somewhere Steve actually went, replayed chaotically rather than in
+order, which is also why the adventure graph (section 2.2) is a graph
+players discover rather than a story told in sequence. **The mechanical
+progression already mirrors this without having been designed to:** themes
+are echoes of specific adventures, rare adventure-graph nodes and
+Herobrine Cube extracts (3.5) are the sharper, more intact memories buried
+deeper in the chaos, and the ladder climbing further in is, diegetically,
+digging further into what is left of him. Section 3's whole D3-package
+answer to "what does level 100 have that level 10 doesn't" already reads
+as "you have gone deeper into the wreckage"; this cosmology is why that
+was true before anyone set out to make it true.
+
+### 16.2 The arc: restore, seal, then keep it contained
+
+Past whatever the endgame zone ends up being (the tier-3 Ender palette
+already points at something End-flavoured, though nothing here commits to
+a second dimension; that stays M8 D1's call), the narrative goal is not
+"defeat Herobrine." It is restoration: undo what the corruption did and
+return Steve to whatever he was before the Ender Dragon's power remade
+him. Succeeding seals both Steve and Herobrine away, together, rather than
+destroying either one. **The endgame loop is what happens after that
+success, not before it:** the world Herobrine built out of his own
+fractured memory does not stop existing just because he is sealed, so the
+job past that point is containment. Every dungeon run after the seal is
+diegetically the same work the ladder already asks for mechanically, going
+back in to keep a chaotic, memory-built world from spilling back out,
+which means the narrative and the mechanical answers to open question 1
+now say the same thing from two different directions: mechanically, a
+level-100 player has access the ladder gates; narratively, they are the
+one still doing the containment work everyone else stopped needing to
+worry about the moment the seal held. Neither answer was written to match
+the other; they simply do.
