@@ -114,7 +114,7 @@ final class RitualListener {
         }
         // Sneaking means "act on what I am holding, not on this block" -- it is
         // how vanilla lets you place against a block you would otherwise use, and
-        // it is the escape hatch for an operator who points ritualKeyItem at
+        // it is the escape hatch for an operator who points keystoneItem at
         // something placeable. Same guard kamutotems' Station uses.
         if (player.isShiftKeyDown()) {
             return InteractionResult.PASS;

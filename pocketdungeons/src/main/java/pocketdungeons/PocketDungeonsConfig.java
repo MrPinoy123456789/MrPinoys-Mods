@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * -&gt; write defaults; fails to parse -&gt; defaults in memory, file untouched;
  * parses -&gt; use it. See SPEC.md section 10.
  *
- * <p>Item ids ({@code ritualKeyItem}, {@code keystoneItem}) are kept as strings here
+ * <p>Item ids ({@code keystoneItem}) are kept as strings here
  * and resolved against the registry at their use site. This class carries no
  * Minecraft imports, and config load runs early enough that resolving them here
  * would be betting on registry availability for no benefit.
@@ -45,8 +45,6 @@ public final class PocketDungeonsConfig {
 
     // ---- ritual -------------------------------------------------------------
     private static boolean ritualEnabled = true;
-    private static String ritualKeyItem = "minecraft:echo_shard";
-    private static int ritualKeyCount = 1;
 
     // ---- payout -------------------------------------------------------------
     // U8 Stage 0: chests replace the item grant outright. payoutCommand survives
@@ -177,14 +175,6 @@ public final class PocketDungeonsConfig {
         return ritualEnabled;
     }
 
-    public static String ritualKeyItem() {
-        return ritualKeyItem;
-    }
-
-    public static int ritualKeyCount() {
-        return ritualKeyCount;
-    }
-
     public static String payoutCommand() {
         return payoutCommand;
     }
@@ -279,8 +269,6 @@ public final class PocketDungeonsConfig {
         clearBlocksPerTick = 8192;
 
         ritualEnabled = true;
-        ritualKeyItem = "minecraft:echo_shard";
-        ritualKeyCount = 1;
 
         payoutCommand = "";
 
@@ -336,8 +324,6 @@ public final class PocketDungeonsConfig {
                 v -> v >= 1024, "must be >= 1024");
 
         ritualEnabled = readBoolean(root, "ritualEnabled", true);
-        ritualKeyItem = readString(root, "ritualKeyItem", "minecraft:echo_shard", false);
-        ritualKeyCount = readInt(root, "ritualKeyCount", 1, v -> v >= 1, "must be >= 1");
 
         payoutCommand = readString(root, "payoutCommand", "", true);
 
@@ -486,8 +472,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("clearBlocksPerTick", 8192);
 
         root.addProperty("ritualEnabled", true);
-        root.addProperty("ritualKeyItem", "minecraft:echo_shard");
-        root.addProperty("ritualKeyCount", 1);
 
         root.addProperty("payoutCommand", "");
 
