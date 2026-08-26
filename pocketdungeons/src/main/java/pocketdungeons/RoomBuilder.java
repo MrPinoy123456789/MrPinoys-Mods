@@ -49,11 +49,16 @@ final class RoomBuilder {
     private static final int STAMP_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
             | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
+    // The shell palette. Package-visible: RoomTemplateGenerator builds the same
+    // shell (plus its own door/jigsaw finishing) and used to carry its own copy
+    // of every one of these five constants -- the duplication this class and
+    // that one are now sharing a single source for, so a future skin swap is
+    // one table instead of two that can silently drift apart (M9 C2).
     static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
     static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
-    private static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
-    private static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
-    private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+    static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
+    static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
+    static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
     private RoomBuilder() {}
 
@@ -68,17 +73,20 @@ final class RoomBuilder {
     }
 
     /**
-     * Stamps one sealed room: floor, four walls, ceiling, lighting, then punches
-     * a doorway through each wall named in {@code doors}.
+     * The blank shell shared by every cell-building method in this class and by
+     * {@link RoomTemplateGenerator}'s own template variant: floor, four walls,
+     * ceiling, four lamps, no doors opened. Callers finish it differently --
+     * this one punches doorways with {@link #openDoor}, {@link RoomTemplateGenerator}
+     * overlays jigsaw blocks at the same slots instead -- so the shell itself is
+     * the only piece worth sharing (M9 C2). {@code floor} is a parameter because
+     * {@link #buildLiminalCell} stamps {@link #WALL} in the floor's place rather
+     * than {@link #FLOOR}; every other block in the shell is fixed.
      */
-    static void buildCell(ServerLevel level, BlockPos instanceOrigin,
-                          int cellX, int cellZ, Set<Direction> doors) {
-        BlockPos o = cellOrigin(instanceOrigin, cellX, cellZ);
-
+    static void buildShell(ServerLevel level, BlockPos o, BlockState floor) {
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
-                set(level, o.offset(x, 0, z), FLOOR);
+                set(level, o.offset(x, 0, z), floor);
                 set(level, o.offset(x, CEILING_Y, z), CEILING);
                 for (int y = 1; y <= WALL_HEIGHT; y++) {
                     set(level, o.offset(x, y, z), edge ? WALL : AIR);
@@ -92,7 +100,16 @@ final class RoomBuilder {
         set(level, o.offset(4, CEILING_Y, CELL - 5), LAMP);
         set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
         set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
+    }
 
+    /**
+     * Stamps one sealed room: floor, four walls, ceiling, lighting, then punches
+     * a doorway through each wall named in {@code doors}.
+     */
+    static void buildCell(ServerLevel level, BlockPos instanceOrigin,
+                          int cellX, int cellZ, Set<Direction> doors) {
+        BlockPos o = cellOrigin(instanceOrigin, cellX, cellZ);
+        buildShell(level, o, FLOOR);
         for (Direction door : doors) {
             openDoor(level, o, door);
         }
@@ -118,21 +135,7 @@ final class RoomBuilder {
      * sits inside a live instance the owner can walk back into.
      */
     static void buildLiminalCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
-        for (int x = 0; x < CELL; x++) {
-            for (int z = 0; z < CELL; z++) {
-                boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
-                set(level, o.offset(x, 0, z), WALL);
-                set(level, o.offset(x, CEILING_Y, z), WALL);
-                for (int y = 1; y <= WALL_HEIGHT; y++) {
-                    set(level, o.offset(x, y, z), edge ? WALL : AIR);
-                }
-            }
-        }
-        set(level, o.offset(4, CEILING_Y, 4), LAMP);
-        set(level, o.offset(4, CEILING_Y, CELL - 5), LAMP);
-        set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
-        set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
-
+        buildShell(level, o, WALL);
         for (Direction door : doors) {
             openDoor(level, o, door);
         }

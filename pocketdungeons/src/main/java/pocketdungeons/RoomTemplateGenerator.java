@@ -82,11 +82,8 @@ final class RoomTemplateGenerator {
     private static final int CEILING_Y = RoomGeometry.CEILING_Y;
     private static final Vec3i TEMPLATE_SIZE = new Vec3i(CELL, CEILING_Y + 1, CELL);
 
-    private static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
-    private static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
-    private static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
-    private static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
-    private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+    // Shell palette lives on RoomBuilder now (M9 C2); this class used to carry
+    // its own copy of all five constants.
 
     private static final Identifier DOOR = Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "door");
     /** Marks a mob spawn point. Read out of the template at stamp time, then erased
@@ -222,11 +219,10 @@ final class RoomTemplateGenerator {
                 .chests(new BlockPos(2, 1, 2))
                 .spawns(concat(QUAD_SPAWNS, new BlockPos(2, 1, 5), new BlockPos(13, 1, 10)))
                 .decor((level, o) -> {
-                    BlockState brick = Blocks.STONE_BRICKS.defaultBlockState();
-                    column(level, o, 5, 1, WALL_HEIGHT, 5, brick);
-                    column(level, o, 10, 1, WALL_HEIGHT, 5, brick);
-                    column(level, o, 5, 1, WALL_HEIGHT, 10, brick);
-                    column(level, o, 10, 1, WALL_HEIGHT, 10, brick);
+                    column(level, o, 5, 1, WALL_HEIGHT, 5, RoomBuilder.WALL);
+                    column(level, o, 10, 1, WALL_HEIGHT, 5, RoomBuilder.WALL);
+                    column(level, o, 5, 1, WALL_HEIGHT, 10, RoomBuilder.WALL);
+                    column(level, o, 10, 1, WALL_HEIGHT, 10, RoomBuilder.WALL);
                 }));
 
         // --- flavour layer: same shapes, higher weight, themed.
@@ -272,10 +268,10 @@ final class RoomTemplateGenerator {
                     column(level, o, 10, 1, WALL_HEIGHT, 5, deepslate);
                     column(level, o, 5, 1, WALL_HEIGHT, 10, deepslate);
                     column(level, o, 10, 1, WALL_HEIGHT, 10, deepslate);
-                    RoomBuilder.set(level, o.offset(5, 0, 5), LAMP);
-                    RoomBuilder.set(level, o.offset(10, 0, 5), LAMP);
-                    RoomBuilder.set(level, o.offset(5, 0, 10), LAMP);
-                    RoomBuilder.set(level, o.offset(10, 0, 10), LAMP);
+                    RoomBuilder.set(level, o.offset(5, 0, 5), RoomBuilder.LAMP);
+                    RoomBuilder.set(level, o.offset(10, 0, 5), RoomBuilder.LAMP);
+                    RoomBuilder.set(level, o.offset(5, 0, 10), RoomBuilder.LAMP);
+                    RoomBuilder.set(level, o.offset(10, 0, 10), RoomBuilder.LAMP);
                 }));
 
         // Named for the look, not for water: a flooded room would need source
@@ -532,27 +528,33 @@ final class RoomTemplateGenerator {
         }, 1));
     }
 
+    /**
+     * The same blank shell {@link RoomBuilder#buildCell} stamps for a live room
+     * (M9 C2's shared {@link RoomBuilder#buildShell}), finished differently: a
+     * template's door slots get a jigsaw block instead of open air, since a
+     * template has no neighbour on the other side to connect to yet, only a
+     * marker for the generator to erase and reconnect at stamp time
+     * ({@link JigsawFallback}).
+     */
     private static void buildCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
+        RoomBuilder.buildShell(level, o, RoomBuilder.FLOOR);
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
-                RoomBuilder.set(level, o.offset(x, 0, z), FLOOR);
-                RoomBuilder.set(level, o.offset(x, CEILING_Y, z), CEILING);
+                if (!edge) {
+                    continue;
+                }
+                Direction doorDir = RoomGeometry.wallDirection(x, z);
+                if (doorDir == null || !doors.contains(doorDir)) {
+                    continue;
+                }
                 for (int y = 1; y <= WALL_HEIGHT; y++) {
-                    BlockPos pos = o.offset(x, y, z);
-                    Direction doorDir = edge ? RoomGeometry.wallDirection(x, z) : null;
-                    if (doorDir != null && doors.contains(doorDir) && isDoorSlot(x, y, z, doorDir)) {
-                        placeJigsaw(level, pos, DOOR, orientationFor(doorDir));
-                    } else {
-                        RoomBuilder.set(level, pos, edge ? WALL : AIR);
+                    if (isDoorSlot(x, y, z, doorDir)) {
+                        placeJigsaw(level, o.offset(x, y, z), DOOR, orientationFor(doorDir));
                     }
                 }
             }
         }
-        RoomBuilder.set(level, o.offset(4, CEILING_Y, 4), LAMP);
-        RoomBuilder.set(level, o.offset(4, CEILING_Y, CELL - 5), LAMP);
-        RoomBuilder.set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
-        RoomBuilder.set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
     }
 
     /** A vertical run of one block, inclusive of both y bounds. */
@@ -712,7 +714,7 @@ final class RoomTemplateGenerator {
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 for (int y = 0; y <= CEILING_Y; y++) {
-                    RoomBuilder.set(level, o.offset(x, y, z), AIR);
+                    RoomBuilder.set(level, o.offset(x, y, z), RoomBuilder.AIR);
                 }
             }
         }
