@@ -249,6 +249,69 @@ the loop feeds itself and the sink does nothing. Premium rooms should drop
 rather than more of the fuel currency. Or use echo shards as fuel while
 premium rooms drop diamonds, so the currencies are orthogonal.
 
+### 3.1 Gear reroll: a lapis sink, orthogonal to the fuel sink
+
+**The pitch in one sentence:** a room station that rerolls one enchantment on
+a piece of gear, player's choice of which, costing lapis that scales with the
+item's own tier. Not the fuel sink (section 3's echo shards gate the
+*ladder*: which doors you can take); this one gates *gear*: how far you can
+push the loot the ladder hands you. The two sinks answer different halves of
+open question 1 (section 5): fuel is why level 100 is worth reaching, lapis
+is why the gear it drops is worth using.
+
+**Why lapis, not a new item.** Lapis is already a real vanilla currency tied
+to gear progression (it is what enchanting spends), it is a plausible chest
+drop at every tier the same way diamonds already are, and reusing it costs no
+new item and no new loot table category, only new pool entries in the
+existing tier tables. The "no custom items" rule stays intact for the
+same reason it did for echo-shard fuel.
+
+**Deliberately not vanilla enchanting.** The station is a separate
+interaction, not an interception of the enchanting table: a themed block
+(the `ConfiguredItem` pattern `Keystone`/`TrialContent` already use for
+`keystoneItem`/`vaultKeyItem` covers "what block or item, configurable, with
+a sane default" cleanly) right-clicked to open a reroll dialog, following the
+`RitualListener` house pattern of intercepting a specific block's use rather
+than replacing a vanilla one. A player's actual enchanting table, wherever
+they placed it, keeps doing exactly what vanilla enchanting tables do. This
+keeps the reroll additive: nothing a player already knows about Minecraft
+stops working, the dungeon just hands them a second thing to do with lapis.
+
+**What a reroll does.** The dialog lists the item's current enchantments
+(`DialogKit`/`DialogScreens` again, same vanilla-dialog mechanism the door
+offers and party roster already use); the player picks one. That
+enchantment is replaced with a different enchantment drawn from the valid
+pool for that item type (excluding the one just removed and any already on
+the item, the same way vanilla's own table avoids offering a duplicate), at
+a random level within that enchantment's normal range. Every other
+enchantment on the item is untouched. A full-reroll ("clear everything, roll
+a fresh set") was the other shape considered and rejected here: one
+enchantment at a time reads as a controllable decision with a target in
+mind, closer to a crafting station than a gamble, and it cannot produce a
+strictly worse item than the one that walked in, which a full reroll can.
+
+**Cost scales with item tier, not enchantment level.** The gear itself
+already carries a tier signal (the loot table it came from, section 3.6.1's
+provenance argument), so the reroll cost reads it off the item rather than
+introducing a second tier concept. A tier-1 drop rerolls cheap; the gear a
+deep key hands out costs more lapis to touch, which is the same shape as
+`KeystoneMath.deplete`'s cost curve: the further in you are, the more each
+decision costs, never so much that the door closes.
+
+**Where it lives and what unlocks it.** The natural home is the player's own
+room, alongside whatever else M8's D5 ("room size, station unlocks") ends up
+specifying, which this reframes from a vague backlog line into a concrete
+first station. Gating it behind a keystone level, a completed recipe
+dungeon (section 2.2), or nothing at all (available from the first room) is
+still open; the fuel-gated-door precedent in section 3 argues for *some*
+gate, since an ungated sink is not much of a sink once diamonds/lapis start
+overflowing the way section 3 already warns diamonds could.
+
+**Open, same shape as section 5's fuel questions:** the exact lapis-per-tier
+curve, whether the station is available from run 1 or unlocked, and whether
+premium doors should avoid dropping extra lapis the way section 3 warns
+against self-funding fuel with more fuel.
+
 ---
 
 ## 4. How it could fit together
@@ -264,7 +327,7 @@ If all of these landed, the shape would be:
 | Completion | Touch terminal pad | Clear N% of spawners, then touch pad |
 | Mob difficulty | Tier-based (1-3) | Tier-based + level-scaled (+1%/level) |
 | Loot | 3 tiers, plateau at level 10 | 3 tiers + door-gated premium materials at high keys |
-| Sink | None | Fuel (echo shards?) for premium doors |
+| Sink | None | Fuel (echo shards?) for premium doors, lapis for gear reroll |
 
 ---
 
@@ -291,6 +354,9 @@ If all of these landed, the shape would be:
    needs playtesting against spur-cell edge cases.
 7. **How do the affix thresholds scale past 25?** More thresholds, or a
    percentage-based system?
+8. **What is the gear-reroll lapis curve, and is the station gated?**
+   (section 3.1) Same shape as question 4, one level down: the fuel currency
+   gates the ladder, this gates the gear the ladder hands out.
 
 ---
 
