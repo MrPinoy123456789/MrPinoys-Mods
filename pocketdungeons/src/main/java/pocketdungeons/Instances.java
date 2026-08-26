@@ -31,12 +31,10 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -47,16 +45,8 @@ import java.util.UUID;
  */
 final class Instances {
 
-    /** Section 9: not config-exposed -- changing it mid-campaign would relocate
-     *  every existing instance's world coordinates. */
-    private static final int BASE_Y = 64;
-
-    /** Every member of every live instance resolves to its record. Many-to-one. */
-    private static final Map<UUID, InstanceRecord> byMember = new HashMap<>();
-    /** Live instances by slot, including any that momentarily have no members. */
-    private static final Map<Integer, InstanceRecord> bySlot = new LinkedHashMap<>();
-    /** Allocated slots, owned instances and admin builds alike. */
-    private static final Set<Integer> usedSlots = new TreeSet<>();
+    // Slot allocation and the InstanceRegistry.byMember/InstanceRegistry.bySlot/InstanceRegistry.usedSlots lookup maps live on
+    // InstanceRegistry now (M9 C3 #2).
 
     /** Invitee -> outstanding invitation. */
     private static final Map<UUID, Invite> invites = new HashMap<>();
@@ -141,7 +131,7 @@ final class Instances {
             if (!(entity instanceof ServerPlayer player)) {
                 return true;
             }
-            InstanceRecord record = byMember.get(player.getUUID());
+            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             if (record == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return true;
             }
@@ -157,7 +147,7 @@ final class Instances {
             invites.remove(player.getUUID());
             pendingParty.remove(player.getUUID());
             pendingKicks.remove(player.getUUID());
-            InstanceRecord record = byMember.get(player.getUUID());
+            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             if (record == null) {
                 return;
             }
@@ -182,7 +172,7 @@ final class Instances {
             if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return;
             }
-            if (byMember.containsKey(player.getUUID())) {
+            if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
                 return;
             }
             ReturnPoint point = pendingReturns.remove(player.getUUID());
@@ -208,12 +198,12 @@ final class Instances {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            for (int slot : new ArrayList<>(usedSlots)) {
-                InstanceRecord record = bySlot.get(slot);
+            for (int slot : new ArrayList<>(InstanceRegistry.usedSlots)) {
+                InstanceRecord record = InstanceRegistry.bySlot.get(slot);
                 if (record != null) {
                     purge(server, record, "server stopping");
                 } else {
-                    teardown(server, slot, originForSlot(slot), null, "server stopping");
+                    teardown(server, slot, InstanceRegistry.originForSlot(slot), null, "server stopping");
                 }
             }
             // There are no more ticks coming, so the queued clears have to run
@@ -225,10 +215,6 @@ final class Instances {
 
     // ---- entry --------------------------------------------------------------
 
-    static boolean hasInstance(ServerPlayer player) {
-        return byMember.containsKey(player.getUUID());
-    }
-
     /**
      * The affixes active on the run this member is currently standing in, or an
      * empty set if they are not in one. Used by {@link SilenceListener} rather
@@ -236,7 +222,7 @@ final class Instances {
      * question is what the run itself is doing right now.
      */
     static Set<Affix> affixesFor(UUID member) {
-        InstanceRecord record = byMember.get(member);
+        InstanceRecord record = InstanceRegistry.byMember.get(member);
         return record == null ? EnumSet.noneOf(Affix.class) : record.affixes;
     }
 
@@ -301,7 +287,7 @@ final class Instances {
      * @return true if this call was handled here, whatever the outcome
      */
     private static boolean reenterOwnedInstance(ServerPlayer player) {
-        if (hasInstance(player)) {
+        if (InstanceRegistry.hasInstance(player)) {
             // Already physically inside something -- their own run, or (in
             // practice, never) someone else's. Let the normal "already in a
             // dungeon" refusal in enter() handle it.
@@ -329,7 +315,7 @@ final class Instances {
      * The filter is subtle enough that a second copy of it would go wrong.
      */
     private static InstanceRecord reenterableInstance(UUID owner) {
-        for (InstanceRecord candidate : bySlot.values()) {
+        for (InstanceRecord candidate : InstanceRegistry.bySlot.values()) {
             // A lingering quarry (T2.5) is not re-entered for free -- it is done,
             // and opening a new run purges it. See enter()'s lingering-quarry check.
             //
@@ -359,7 +345,7 @@ final class Instances {
      * back through their own door would be a free key every time.
      */
     static boolean ownsReenterableInstance(ServerPlayer player) {
-        return !hasInstance(player) && reenterableInstance(player.getUUID()) != null;
+        return !InstanceRegistry.hasInstance(player) && reenterableInstance(player.getUUID()) != null;
     }
 
     static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes) {
@@ -394,7 +380,7 @@ final class Instances {
         if (server == null) {
             return false;
         }
-        if (hasInstance(player)) {
+        if (InstanceRegistry.hasInstance(player)) {
             player.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon exit first.")
                     .withStyle(ChatFormatting.RED));
@@ -409,7 +395,7 @@ final class Instances {
         // orphaned, still holding its slot, while a second one gets built.
         // retireOrPurge turns it into a proper lingering quarry if its room
         // already moved, or purges it outright if it never got that far.
-        for (InstanceRecord candidate : new ArrayList<>(bySlot.values())) {
+        for (InstanceRecord candidate : new ArrayList<>(InstanceRegistry.bySlot.values())) {
             if ((candidate.lingering || !candidate.completed.isEmpty())
                     && player.getUUID().equals(candidate.owner)) {
                 retireOrPurge(server, candidate, "new run started");
@@ -443,8 +429,8 @@ final class Instances {
         }
 
         long seed = level.getRandom().nextLong();
-        int slot = allocateSlot();
-        BlockPos origin = originForSlot(slot);
+        int slot = InstanceRegistry.allocateSlot();
+        BlockPos origin = InstanceRegistry.originForSlot(slot);
 
         // U8 Stage 6: a run is ominous iff its keystone carries the ominous
         // affix -- one source, replacing U6/U7's depth ramp, off-hand bottle and
@@ -476,7 +462,7 @@ final class Instances {
                 record.roomCellOrigin = layout.geometry().cellOrigin(entranceCell);
             }
         }
-        bySlot.put(slot, record);
+        InstanceRegistry.bySlot.put(slot, record);
 
         if (untimed) {
             PocketDungeonsMod.LOG.info(
@@ -581,7 +567,7 @@ final class Instances {
             }
             ServerPlayer companion = server.getPlayerList().getPlayer(id);
             if (companion == null || companion.getUUID().equals(leader.getUUID())
-                    || hasInstance(companion)) {
+                    || InstanceRegistry.hasInstance(companion)) {
                 continue;
             }
             companions.add(companion);
@@ -612,7 +598,7 @@ final class Instances {
      * than just releasing the force-load tickets, so that partial geometry is
      * swept up instead of orphaned at an origin some later dungeon will be
      * stamped on top of. Ownership of the slot's release moves with it: neither
-     * branch (nor either caller) removes the slot from {@code usedSlots} directly
+     * branch (nor either caller) removes the slot from {@code InstanceRegistry.usedSlots} directly
      * on failure any more -- that happens when the queued clear completes, the
      * same as every other teardown path.
      *
@@ -666,7 +652,7 @@ final class Instances {
         record.members.put(player.getUUID(), new ReturnPoint(
                 player.level().dimension(), player.position(),
                 player.getYRot(), player.getXRot()));
-        byMember.put(player.getUUID(), record);
+        InstanceRegistry.byMember.put(player.getUUID(), record);
         pendingReturns.remove(player.getUUID());
 
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
@@ -723,7 +709,7 @@ final class Instances {
      * it is computed once, at stamp time, from the party size known then.
      */
     static void party(ServerPlayer leader, ServerPlayer target) {
-        if (hasInstance(leader)) {
+        if (InstanceRegistry.hasInstance(leader)) {
             leader.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon invite instead.")
                     .withStyle(ChatFormatting.RED));
@@ -734,7 +720,7 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             return;
         }
-        if (hasInstance(target)) {
+        if (InstanceRegistry.hasInstance(target)) {
             leader.sendSystemMessage(Component.literal(
                     target.getName().getString() + " is already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
@@ -870,7 +856,7 @@ final class Instances {
     }
 
     static void invite(ServerPlayer inviter, ServerPlayer target) {
-        InstanceRecord record = byMember.get(inviter.getUUID());
+        InstanceRecord record = InstanceRegistry.byMember.get(inviter.getUUID());
         if (record == null) {
             inviter.sendSystemMessage(Component.literal(
                     "You are not in a dungeon. Run /dungeon first, then invite people in.")
@@ -882,7 +868,7 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             return;
         }
-        if (byMember.containsKey(target.getUUID())) {
+        if (InstanceRegistry.byMember.containsKey(target.getUUID())) {
             inviter.sendSystemMessage(Component.literal(
                     target.getName().getString() + " is already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
@@ -921,7 +907,7 @@ final class Instances {
         if (server == null) {
             return;
         }
-        if (hasInstance(player)) {
+        if (InstanceRegistry.hasInstance(player)) {
             player.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon exit first.")
                     .withStyle(ChatFormatting.RED));
@@ -938,7 +924,7 @@ final class Instances {
             return;
         }
 
-        InstanceRecord record = bySlot.get(invite.slot());
+        InstanceRecord record = InstanceRegistry.bySlot.get(invite.slot());
         if (record == null || !record.members.containsKey(invite.leader())) {
             invites.remove(player.getUUID());
             player.sendSystemMessage(Component.literal("That dungeon has already closed.")
@@ -998,8 +984,8 @@ final class Instances {
      */
     private static boolean enterLobby(MinecraftServer server, ServerLevel level, ServerPlayer player,
                                       List<ServerPlayer> companions) {
-        int slot = allocateSlot();
-        BlockPos origin = originForSlot(slot);
+        int slot = InstanceRegistry.allocateSlot();
+        BlockPos origin = InstanceRegistry.originForSlot(slot);
 
         InstanceLayout layout = stampLobby(server, level, slot, origin, player.getUUID());
         if (layout == null) {
@@ -1013,7 +999,7 @@ final class Instances {
                 EnumSet.noneOf(Affix.class), player.getUUID());
         record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
-        bySlot.put(slot, record);
+        InstanceRegistry.bySlot.put(slot, record);
 
         admit(server, record, player);
         for (ServerPlayer companion : companions) {
@@ -1076,7 +1062,7 @@ final class Instances {
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            usedSlots.remove(slot);
+            InstanceRegistry.usedSlots.remove(slot);
             return null;
         }
         return lobbyLayout(origin);
@@ -1111,7 +1097,7 @@ final class Instances {
      * there is no transform to account for.
      */
     static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
-        InstanceRecord record = byMember.get(player.getUUID());
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
             return null;
         }
@@ -1175,7 +1161,7 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        InstanceRecord record = byMember.get(player.getUUID());
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
             player.sendSystemMessage(Component.literal("There is no door here for you to choose.")
                     .withStyle(ChatFormatting.RED));
@@ -1483,7 +1469,7 @@ final class Instances {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        if (hasInstance(visitor)) {
+        if (InstanceRegistry.hasInstance(visitor)) {
             visitor.sendSystemMessage(Component.literal("You are already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
             return false;
@@ -1521,7 +1507,7 @@ final class Instances {
     }
 
     private static InstanceRecord findOwnedLiveRoom(UUID owner) {
-        for (InstanceRecord record : bySlot.values()) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             if (owner.equals(record.owner) && !record.lingering && !record.visitInstance) {
                 return record;
             }
@@ -1530,7 +1516,7 @@ final class Instances {
     }
 
     private static InstanceRecord findVisitInstance(UUID owner) {
-        for (InstanceRecord record : bySlot.values()) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             if (owner.equals(record.owner) && record.visitInstance) {
                 return record;
             }
@@ -1540,8 +1526,8 @@ final class Instances {
 
     private static boolean createVisitInstance(MinecraftServer server, ServerLevel level,
                                                ServerPlayer visitor, UUID owner) {
-        int slot = allocateSlot();
-        BlockPos origin = originForSlot(slot);
+        int slot = InstanceRegistry.allocateSlot();
+        BlockPos origin = InstanceRegistry.originForSlot(slot);
 
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
         try {
@@ -1582,7 +1568,7 @@ final class Instances {
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            usedSlots.remove(slot);
+            InstanceRegistry.usedSlots.remove(slot);
             visitor.sendSystemMessage(Component.literal("The room could not be reached right now.")
                     .withStyle(ChatFormatting.RED));
             return false;
@@ -1593,7 +1579,7 @@ final class Instances {
                 EnumSet.noneOf(Affix.class), owner);
         record.visitInstance = true;
         record.roomCellOrigin = origin;
-        bySlot.put(slot, record);
+        InstanceRegistry.bySlot.put(slot, record);
 
         admit(server, record, visitor);
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
@@ -1624,7 +1610,7 @@ final class Instances {
         if (server == null) {
             return;
         }
-        InstanceRecord record = byMember.get(player.getUUID());
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             player.sendSystemMessage(Component.literal("You are not in a dungeon.")
                     .withStyle(ChatFormatting.RED));
@@ -1960,7 +1946,7 @@ final class Instances {
         // Before the teleport, while the room is still exactly as they left it.
         saveRoomIfOwner(server, record, player.getUUID());
         ReturnPoint point = record.members.remove(player.getUUID());
-        byMember.remove(player.getUUID());
+        InstanceRegistry.byMember.remove(player.getUUID());
         record.onPad.remove(player.getUUID());
         if (record.timer != null) {
             record.timer.removePlayer(player);
@@ -1999,7 +1985,7 @@ final class Instances {
         // Keyed off `member`, not `player`: an offline drop passes a null player.
         saveRoomIfOwner(server, record, member);
         record.members.remove(member);
-        byMember.remove(member);
+        InstanceRegistry.byMember.remove(member);
 
         // Everything eject detaches, minus the teleport. Dropping a member used to
         // mean only "forget them", which was survivable when an instance died with
@@ -2158,13 +2144,13 @@ final class Instances {
         // stale in the overworld, where there is no instance at all.
         reconcileKeystones(server);
 
-        if (bySlot.isEmpty()) {
+        if (InstanceRegistry.bySlot.isEmpty()) {
             return;
         }
 
         int interval = PocketDungeonsConfig.watchIntervalTicks();
         long now = server.overworld().getGameTime();
-        for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
+        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
             // T2.5: a lingering quarry has no timer, no reward grace, and no
             // members to watch for -- it is exempt from every check below until
             // Instances.enter() purges it as the next run's opening move.
@@ -2327,10 +2313,10 @@ final class Instances {
      * T2.2). Deliberately checks {@link InstanceRecord#roomCellOrigin} rather
      * than any cell in the instance -- the quarry (every other cell) stays fully
      * breakable by anyone, and a lingering instance is still checked here since
-     * it stays in {@code bySlot}.
+     * it stays in {@code InstanceRegistry.bySlot}.
      */
     static UUID roomOwnerAt(BlockPos pos) {
-        for (InstanceRecord record : bySlot.values()) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             BlockPos roomOrigin = record.roomCellOrigin;
             if (roomOrigin == null) {
                 continue;
@@ -2358,7 +2344,7 @@ final class Instances {
      * build} or {@code untimed} -- has nothing to linger, so it falls back to
      * the ordinary purge.
      *
-     * <p>The record stays in {@code bySlot} and its slot stays claimed:
+     * <p>The record stays in {@code InstanceRegistry.bySlot} and its slot stays claimed:
      * {@code Instances.enter()}'s lingering-quarry check is the only way out,
      * bounding this at one lingering dungeon per owner.
      */
@@ -2377,7 +2363,7 @@ final class Instances {
                 eject(server, record, player);
             } else {
                 record.members.remove(member);
-                byMember.remove(member);
+                InstanceRegistry.byMember.remove(member);
             }
             returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
@@ -2409,7 +2395,7 @@ final class Instances {
                         .withStyle(ChatFormatting.GRAY));
             } else {
                 record.members.remove(member);
-                byMember.remove(member);
+                InstanceRegistry.byMember.remove(member);
             }
             // U8 Stage 1: a purge, a shutdown or a crash is the server's fault and
             // never costs anything. The owner's timeout depletion, if any, already
@@ -2424,7 +2410,7 @@ final class Instances {
                     record.slot, reason,
                     (server.overworld().getGameTime() - record.createdAtTick) / 20L);
         }
-        bySlot.remove(record.slot);
+        InstanceRegistry.bySlot.remove(record.slot);
         // The room's cell almost never coincides with anywhere layout.geometry()
         // still reaches: completeDungeon/moveRoomToTerminal relocates the room to
         // whatever cell sits behind the terminal, one full dungeon's footprint
@@ -2471,7 +2457,7 @@ final class Instances {
                                  BlockPos extraCellOrigin) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
-            usedSlots.remove(slot);
+            InstanceRegistry.usedSlots.remove(slot);
             PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", slot, reason);
             return;
         }
@@ -2498,8 +2484,8 @@ final class Instances {
         // inside the slot pitch, and the tick budget makes the extra volume cheap.
         List<BlockPos> cellOrigins = layout != null
                 ? new ArrayList<>(layout.geometry().cellOrigins())
-                : new ArrayList<>(maximalCellOrigins(origin));
-        AABB bounds = layout != null ? layout.bounds() : maximalBounds(origin);
+                : new ArrayList<>(InstanceRegistry.maximalCellOrigins(origin));
+        AABB bounds = layout != null ? layout.bounds() : InstanceRegistry.maximalBounds(origin);
 
         // The reward room lives outside the planned grid entirely (U8 Stage 2),
         // so it is never part of layout.geometry() -- add its cell explicitly, or
@@ -2571,7 +2557,7 @@ final class Instances {
         for (BlockPos cellOrigin : clear.cellOrigins) {
             level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
         }
-        usedSlots.remove(clear.slot);
+        InstanceRegistry.usedSlots.remove(clear.slot);
         PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", clear.slot, clear.reason);
     }
 
@@ -2645,27 +2631,6 @@ final class Instances {
         }
     }
 
-    /** Cell origins covering the largest footprint a layout is permitted. */
-    private static List<BlockPos> maximalCellOrigins(BlockPos origin) {
-        int span = PocketDungeonsConfig.maxGridSpan();
-        List<BlockPos> out = new ArrayList<>(span * span);
-        for (int cx = 0; cx < span; cx++) {
-            for (int cz = 0; cz < span; cz++) {
-                out.add(origin.offset(cx * RoomGeometry.CELL, 0, cz * RoomGeometry.CELL));
-            }
-        }
-        return out;
-    }
-
-    private static AABB maximalBounds(BlockPos origin) {
-        int span = PocketDungeonsConfig.maxGridSpan() * RoomGeometry.CELL;
-        return new AABB(
-                origin.getX(), origin.getY(), origin.getZ(),
-                origin.getX() + span,
-                origin.getY() + RoomGeometry.CEILING_Y + 1,
-                origin.getZ() + span);
-    }
-
     // ---- admin (spec section 10) --------------------------------------------
 
     /**
@@ -2674,7 +2639,7 @@ final class Instances {
      * {@code /execute if block}, and purge it again.
      *
      * <p>A memberless record is registered for the built slot so teardown knows
-     * the layout it has to clear. {@code bySlot} already documents that it holds
+     * the layout it has to clear. {@code InstanceRegistry.bySlot} already documents that it holds
      * instances which momentarily have no members, and nothing purges an empty
      * instance on its own, so the record is stable until an operator purges it.
      *
@@ -2695,8 +2660,8 @@ final class Instances {
         if (level == null) {
             return -1;
         }
-        int slot = allocateSlot();
-        BlockPos origin = originForSlot(slot);
+        int slot = InstanceRegistry.allocateSlot();
+        BlockPos origin = InstanceRegistry.originForSlot(slot);
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
                 seed != null ? seed : level.getRandom().nextLong(), keystoneLevel,
@@ -2709,26 +2674,26 @@ final class Instances {
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
                 EnumSet.noneOf(Affix.class), null);
-        bySlot.put(slot, record);
+        InstanceRegistry.bySlot.put(slot, record);
         return slot;
     }
 
     /** The layout of a built slot, for admin reporting. Null if the slot is unknown. */
     static InstanceLayout adminLayout(int slot) {
-        InstanceRecord record = bySlot.get(slot);
+        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
         return record != null ? record.layout : null;
     }
 
     /** Force teardown by slot, whether or not anyone is inside it. */
     static boolean adminPurge(MinecraftServer server, int slot) {
-        if (!usedSlots.contains(slot)) {
+        if (!InstanceRegistry.usedSlots.contains(slot)) {
             return false;
         }
-        InstanceRecord record = bySlot.get(slot);
+        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
         if (record != null) {
             purge(server, record, "purged by an operator");
         } else {
-            teardown(server, slot, originForSlot(slot), null, "purged by an operator");
+            teardown(server, slot, InstanceRegistry.originForSlot(slot), null, "purged by an operator");
         }
         return true;
     }
@@ -2746,7 +2711,7 @@ final class Instances {
      */
     static int adminPurgeByOwner(MinecraftServer server, UUID owner) {
         int purged = 0;
-        for (InstanceRecord record : new ArrayList<>(bySlot.values())) {
+        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
             if (owner.equals(record.owner)) {
                 purge(server, record, "room reset by an operator");
                 purged++;
@@ -2758,9 +2723,9 @@ final class Instances {
     /** One line per live instance, for {@code /dungeon admin list}. */
     static List<String> adminList(MinecraftServer server) {
         List<String> lines = new ArrayList<>();
-        for (int slot : usedSlots) {
-            BlockPos origin = originForSlot(slot);
-            InstanceRecord record = bySlot.get(slot);
+        for (int slot : InstanceRegistry.usedSlots) {
+            BlockPos origin = InstanceRegistry.originForSlot(slot);
+            InstanceRecord record = InstanceRegistry.bySlot.get(slot);
             if (record == null) {
                 lines.add("slot " + slot + " at " + origin.toShortString() + ": unowned (admin build)");
                 continue;
@@ -2784,28 +2749,7 @@ final class Instances {
         return lines;
     }
 
-    /** Origin of a slot, so admin tooling can point at the geometry. */
-    static BlockPos slotOrigin(int slot) {
-        return originForSlot(slot);
-    }
-
     // ---- helpers ------------------------------------------------------------
-
-    private static int allocateSlot() {
-        int slot = 0;
-        while (usedSlots.contains(slot)) {
-            slot++;
-        }
-        usedSlots.add(slot);
-        return slot;
-    }
-
-    private static BlockPos originForSlot(int slot) {
-        int slotsPerRow = PocketDungeonsConfig.slotsPerRow();
-        int slotPitch = PocketDungeonsConfig.slotPitch();
-        return new BlockPos((slot % slotsPerRow) * slotPitch, BASE_Y,
-                (slot / slotsPerRow) * slotPitch);
-    }
 
     /**
      * One ticket per occupied cell. Because a slot origin is chunk-aligned

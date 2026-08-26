@@ -611,7 +611,7 @@ final class DungeonCommands {
                     "Could not build: the dungeon dimension is missing or stamping failed."));
             return 0;
         }
-        BlockPos origin = Instances.slotOrigin(slot);
+        BlockPos origin = InstanceRegistry.slotOrigin(slot);
         InstanceLayout layout = Instances.adminLayout(slot);
         source.sendSuccess(() -> Component.literal(
                 "Built slot " + slot + ": origin " + origin.toShortString()

@@ -148,7 +148,7 @@ final class RitualListener {
         // standing in. The dimension check covers a player who is in the void
         // without a live record -- the orphan-recovery case. Free re-entry (T5)
         // is handled by enterWithKeystone itself, ahead of any keystone spend.
-        if (Instances.hasInstance(serverPlayer)
+        if (InstanceRegistry.hasInstance(serverPlayer)
                 || serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             return InteractionResult.PASS;
         }
