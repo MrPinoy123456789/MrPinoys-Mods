@@ -301,7 +301,7 @@ final class TrialContent {
      * @return true if a vault was placed
      */
     static boolean applyLoot(ServerLevel level, BlockPos cellOrigin, int tier, boolean ominous,
-                             long seed) {
+                             long seed, String lootSuffix) {
         List<BlockPos> containers = RoomContent.containers(level, cellOrigin);
         containers.sort(TrialContent::compare);
         if (containers.isEmpty()) {
@@ -313,17 +313,25 @@ final class TrialContent {
         BlockPos vaultPos = containers.get(0);
         Direction facing = facingOf(level, vaultPos);
         placeVault(level, vaultPos, facing, ominous,
-                lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
-                        + (ominous ? "_ominous" : "")),
+                resolveLootTable(level, "chests/tier_" + Math.max(1, Math.min(3, tier))
+                        + (ominous ? "_ominous" : ""), lootSuffix),
                 keyStack(ominous), ItemStack.EMPTY);
 
         // Everything else in the cell stays a chest, retargeted to the supply
         // table: a small free reward beside the key-gated one, which is the shape
         // a real trial chamber has.
+        //
+        // M6 T6.1: the supply table is tiered, and it carries the same guaranteed
+        // floor the tier tables do. It is the only container in a run that is
+        // gated on nothing (no key, no clock), so a player who fights badly
+        // still walks out with food, light, bones, blocks and seeds. The tier
+        // matters for the same reason it matters in the vault (T6.2): a tier-3
+        // run's free chest has no business handing out tier-1 blocks.
         for (int i = 1; i < containers.size(); i++) {
             BlockPos pos = containers.get(i);
             if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                c.setLootTable(lootTable("chests/supply"));
+                c.setLootTable(lootTable("chests/supply_tier_"
+                        + Math.max(1, Math.min(3, tier))));
                 c.setLootTableSeed(seed ^ pos.asLong());
             }
         }
@@ -349,9 +357,10 @@ final class TrialContent {
 
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
-                                        int tier, boolean ominous, long seed) {
-        ResourceKey<LootTable> table = lootTable("chests/tier_" + Math.max(1, Math.min(3, tier))
-                + (ominous ? "_ominous" : ""));
+                                        int tier, boolean ominous, long seed, String lootSuffix) {
+        ResourceKey<LootTable> table = resolveLootTable(level,
+                "chests/tier_" + Math.max(1, Math.min(3, tier))
+                        + (ominous ? "_ominous" : ""), lootSuffix);
 
         // Three chests on the far side of the terminal cell, beyond the 2x2
         // lodestone pad and in front of the sealed door. Spots are mirrored by
@@ -442,6 +451,18 @@ final class TrialContent {
     }
 
     // ---- shared -------------------------------------------------------------
+
+    private static ResourceKey<LootTable> resolveLootTable(ServerLevel level, String basePath,
+                                                            String suffix) {
+        if (suffix != null && !suffix.isBlank()) {
+            Identifier candidate = Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID,
+                    basePath + suffix);
+            if (level.registryAccess().lookupOrThrow(Registries.LOOT_TABLE).getValue(candidate) != null) {
+                return ResourceKey.create(Registries.LOOT_TABLE, candidate);
+            }
+        }
+        return lootTable(basePath);
+    }
 
     private static ResourceKey<LootTable> lootTable(String path) {
         return ResourceKey.create(Registries.LOOT_TABLE,

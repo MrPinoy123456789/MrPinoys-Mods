@@ -29,8 +29,22 @@ weighted chance at bones is fine for flavour and fatal for a taming economy.
 | Building blocks | Trophy items |
 | Seeds and dirt | |
 
-Implement as a floor pass over the tier tables, not as a separate table — a floor
+Implement as a floor pass over the tier tables, not as a separate table: a floor
 that lives in a different file from the rolls is a floor that drifts.
+
+> **As built.** The floor is inlined as guaranteed pools at the top of all six
+> tier tables (`chests/tier_1..3`, plus each `_ominous` twin). There was nothing
+> to share out into a referenced sub-table even if the rule allowed it: the
+> blocks pool differs by tier by design (T6.2), so the tiers are not copies of
+> one floor, they are three floors.
+>
+> One thing the plan did not anticipate. The tier tables are reached through a
+> **vault** (needs a key) or the **reward chests** (need the clock), so a floor
+> that lived only there would be gated after all. `chests/supply` (the free
+> chest beside a vault, gated on nothing) was a single tier-agnostic table.
+> It is now three (`chests/supply_tier_1..3`), carrying the same floor, which is
+> the one-line change in `TrialContent.applyLoot` that makes the floor genuinely
+> per-run rather than per-reward.
 
 ---
 
@@ -70,6 +84,37 @@ player has dirt, water and seeds, the room becomes their farm and food stops
 being a loot problem permanently. That is the Skyblock bootstrap, and it is the
 one thing §3.7 genuinely borrows.
 
+> **As built.** Two corrections, neither of them Java.
+>
+> **It is two JSON files, not one, and no new `.nbt`.** The grove is a
+> `worldgen/processor_list` (`theme_grove`) plus a `dungeon_room` entry
+> (`grove.json`) that points the existing `rooms/mossy_tee` template at it. That
+> is M1's whole argument being cashed in: stone bricks become oak logs, polished
+> andesite becomes grass, and the mossy floor patch and its two corner columns
+> become persistent oak leaves. A second template was never needed, and adding
+> one would have meant regenerating an `.nbt` through
+> `RoomTemplateGenerator`, which *is* Java.
+>
+> **No water, and that is a decision rather than an omission.** The generator
+> already records why a flooded room does not work here: source blocks spread out
+> through the doorways into the neighbouring cell, and the doorways are two blocks
+> wide. Restricting a rule processor to floor level to get a flush pool is
+> possible but fragile, and it would put a waterfall in the two corner columns,
+> which are the same block. So the sealed dungeon has no water at all, and the
+> farm does not need it: crops grow on dry farmland, and **bone meal is a
+> guaranteed floor** (T6.1). Water arrives as a T6.4 *product* instead, a
+> `water_bucket` in the tier-2 pool, which is the same argument as the ender
+> chest applied to a resource rather than a station.
+>
+> **The sapling is guaranteed, not weighted.** Measured on a live server, the
+> grove lands in about 12% of dungeons and raising its weight does not move that
+> number: it already wins whenever it is eligible, and eligibility is a
+> tee-masked corridor cell at depth 1 or more. That is the right frequency for a
+> strange overgrown chamber and the wrong frequency for the only wood in the
+> world, so `oak_sapling` has its own guaranteed pool beside dirt and seeds. The
+> grove is the room type the milestone asked for; the sapling is what makes wood
+> a floor rather than a find.
+
 ---
 
 ## T6.4 — Nether and End: products, not ingredients
@@ -81,6 +126,16 @@ brewing stand, the anvil.
 **This is exactly where station unlocks stop being arbitrary and become the
 economy.** A station is not a reward for its own sake; it is the only route to a
 chain the sealed world cannot otherwise reach.
+
+> **As built.** Tier 2 carries the workshop, on a 40% pool: brewing stand,
+> cauldron, anvil, glass bottles, nether wart, soul sand, blaze powder, and the
+> `water_bucket` T6.3 hands over to this task. Tier 3 carries the unreachable
+> chains, on a pool with no chance gate at all. Every tier-3 chest yields one
+> product: ender chest, enchanting table, obsidian, chorus flower, end rod, blaze
+> rod, ender pearls. That asymmetry is deliberate. A weighted chance at the only
+> route to a chain is the same failure the floor rule exists to prevent, and a
+> tier-3 chest is already earned twice over, by the keystone level and by the
+> clock.
 
 Lava is now **Molten's** job (M4) — do not add a second faucet here. If Molten
 proves too narrow a channel, widen it after this milestone shows whether it
@@ -99,6 +154,28 @@ preference order.
 | Exit | Room lodestone → overworld | Absent or no-op when there is nowhere to go |
 | Join | Vanilla spawns in the overworld | Teleport to the room — `ServerPlayConnectionEvents.JOIN` is already registered with `JOIN_RECOVERY_DELAY_TICKS = 20` |
 | Stray fallback | `getRespawnData()` → world spawn (`Instances.java:1867`) | Prefer the room |
+
+> **As built.** The four rows turned out to be two changes, because three of the
+> four ways out already funnel through one method.
+>
+> **Entry.** `/dungeon` now mints the first keystone itself when the player holds
+> none, instead of refusing and naming `/dungeon key`. On a server with no
+> overworld there is no lodestone to right-click and nobody to send looking for
+> one, so a route that needs a second command first is still a fallback. It is
+> the same free keystone `/dungeon key` already hands out on the same terms, and
+> it is gated behind a new `Instances.ownsReenterableInstance` check so a player
+> standing outside their own live run cannot mint a key by walking back into it.
+>
+> **Exit, join and stray.** All three end at `Instances.teleport`, whose
+> missing-dimension fallback was a straight trip to the world spawn. It now calls
+> `sendHome`, which asks `reenterOwnedInstance` for the player's room first and
+> only then falls back to the world spawn. The join-recovery path with no return
+> point calls it too. This is preference order and not a mode: on a suite server
+> the return point resolves, `sendHome` is never reached, and nothing about the
+> behaviour changed. On a server whose overworld is gone it is the only branch
+> that can fire, and it lands the player in their room. The exit itself is left
+> asking for the return point first on purpose, and gets the "no-op when there is
+> nowhere to go" behaviour for free through the same fallback, one level down.
 
 > Note: the dimension sets `bed_works: false` and `respawn_anchor_works: false`,
 > so wool is decoration, not a respawn chain. Immaterial in practice — nobody
