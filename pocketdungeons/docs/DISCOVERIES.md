@@ -55,9 +55,13 @@ bite.
    not `run/world/data/`. "No file in `world/data`" looks exactly like a failed
    save and is not one.
 
-9. **This mod has zero mixins and must keep it that way.** Everything runs on
-   stock Fabric API events. If you think you need a mixin, you have taken a wrong
-   turn — say so in your report instead.
+9. **This mod has exactly one mixin, and that is the budget.** `CustomClickMixin`
+   catches dialog button payloads, because Fabric API has no event for
+   `ServerboundCustomClickActionPacket` and vanilla's own hook has already
+   discarded which player clicked. Everything else runs on stock Fabric API
+   events. If you think you need a second mixin, you have probably taken a wrong
+   turn: say so in your report and look for the event or the datapack route
+   first. (Traps 14 and 15 are a worked example of that search paying off.)
 
 10. **Headless testing cannot right-click anything.** Anything involving a click,
     a GUI, or a player standing somewhere goes in `LIVE_TEST_PASS.md` as
@@ -69,6 +73,49 @@ bite.
 
 12. **`ItemStack.is(Item)` no longer appears in `javap ItemStack`** — it is
     inherited from `TypedInstance.is(T)`.
+
+13. **There is no diamond, obsidian, netherite or ender door in vanilla.**
+    Verified against the 26.2 jar's `block/doors.json` and `block/wooden_doors.json`
+    tags. The complete list is 21 blocks: twelve wooden (oak, spruce, birch,
+    jungle, acacia, dark_oak, pale_oak, crimson, warped, mangrove, bamboo,
+    cherry), eight copper (plain, exposed, weathered, oxidized, and the four
+    waxed variants), and `iron_door`. Any design that wants a material ladder of
+    doors has to express the material somewhere other than the door block,
+    because section 9 forbids adding one.
+
+14. **Crafting recipe results support arbitrary `components`.** Vanilla's own
+    `suspicious_stew_from_*.json` recipes prove it. A datapack recipe can
+    therefore produce a renamed, marked vanilla item with no Java at all, which
+    is almost always cheaper than mixing into `CraftingMenu`. For the record, if
+    a mixin ever is unavoidable, the server-side hook is
+    `CraftingMenu.slotChangedCraftingGrid(AbstractContainerMenu, ServerLevel,
+    Player, CraftingContainer, ResultContainer, RecipeHolder<CraftingRecipe>)`,
+    and the rule there is to inject only when vanilla produced no result, so a
+    real recipe can never be shadowed. Note that "eight around one" is already a
+    vanilla shape (golden apple, enchanted golden apple).
+
+15. **A datapack recipe with no unlock advancement is craftable but invisible.**
+    It never appears in the recipe book and autofill never offers it, yet anyone
+    who knows the pattern can still craft it by hand. That is a hidden-recipe
+    discovery mechanic for free, with no delivery mechanism to build.
+
+16. **Placing a door loses every component it carried.** A door has no block
+    entity, so `custom_data` on the item does not survive becoming a block, and
+    the block type alone cannot prove provenance (a warped door is craftable
+    from planks). Read the marker at use-on-block time instead, the way
+    `RitualListener` already handles placement: there is no generic
+    before-a-block-is-placed event in this mod's Fabric API surface, so the
+    use-on-block interaction that a placement begins from is the hook.
+
+17. **Anything placed in the room while a door choice is pending must be cleared
+    before capture.** `RunLifecycle.saveRoom` clears the selector doors, calls
+    `RoomStore.capture`, and puts them straight back, because `LayoutStamper`
+    re-skins a generated dungeon's entrance cell from the same blob and baked-in
+    furniture would leak into every run forever. Frame blocks, decorations or
+    any future lobby fixture inherit that requirement. Note the asymmetry:
+    selector doors clear to `AIR` because they stand in open room space, but
+    anything that replaces wall must clear back to `RoomBuilder.WALL` or it
+    punches a hole in the seal.
 
 ---
 
