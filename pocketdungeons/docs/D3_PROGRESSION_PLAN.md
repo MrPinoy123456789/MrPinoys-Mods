@@ -271,6 +271,22 @@ selection).
   much fuel a door-1 run produces relative to what a door-2/3 run costs, are
   settled in-milestone so the loop neither stalls (never enough fuel to push)
   nor trivializes (door 1 alone drowns the sink).
+- **Deferred: a crafted fourth door.** A design pass considered a Herobrine-Cube
+  ritual (8 obsidian plus flint and steel, in the shape of a nether portal) that
+  crafts a vanilla door item marked with a tier, placed by the player at a
+  fourth selector position and read by `RitualListener` before the placement
+  consumes the marker (a door has no block entity, so `custom_data` does not
+  survive becoming a block). The recipe ships with no unlock advancement, so it
+  is craftable but never listed, which is a hidden-recipe discovery mechanic
+  for free. Deliberately out of scope for this milestone: it is additive and
+  blocks nothing here, and what the door offers depends on the adventure graph
+  (M11) and the cap curve (M10) settling first. If it is picked up later, it
+  should gate `lootTier` itself (`min(levelTier, clearedTier)`, both landing
+  together, since a tier gate with no door to clear it strands the ladder at
+  tier 1) rather than shipping as a cosmetic extra. See `DISCOVERIES.md` traps
+  13 to 17 for what was verified against the 26.2 jar before deferring: the
+  door-block material list, the recipe-component and hidden-recipe mechanics,
+  and the placement/capture pitfalls.
 
 **Touch points:** the door-offer plumbing (`Keystone.offers`,
 `Keystones.grantOffer`, `DialogScreens.doorOffer`, the `chooseOffer` path);
