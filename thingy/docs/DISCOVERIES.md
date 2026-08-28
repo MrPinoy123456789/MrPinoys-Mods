@@ -445,3 +445,43 @@ them.
   were ported verbatim in Phase 1 and have not been touched since. (`hasChunkAt`
   is deprecated in the 26.2 jar and produces a compiler note; that note is
   pre-existing in wondrous itself, not something this port introduced.)
+
+---
+
+## 7. Phase 4: partly done, archiving deliberately withheld
+
+PLAN.md's exit criteria are "wondrous jar removed from the server" and a
+migration dry-run against a copy of production. Both are live-server actions;
+this environment has no running server to perform or verify them against.
+
+### Done
+
+- **No `wondrous:` dependency remains in any active mod.** Confirmed by
+  search: cobbleeconomy (Phase 2) was the only external consumer of
+  `wondrous.api`, and it now depends on `thingy-api`. Nothing else in the
+  workspace references `wondrous:wondrous-api` or imports `wondrous.api`.
+- **The `/wondrous` to `/thingy` command change is documented for operators**
+  in `thingy/docs/OPERATOR-MIGRATION.md`, including the swap procedure, the
+  rollback procedure, and what does and does not change (item ids in
+  `shop.json` stay `wondrous:`, placed stations/sprinklers/links stay in the
+  same world-data file, the suite_items datapack ships from the new jar).
+- **The 30 suite_items files shipping from the Thingy jar instead of the
+  wondrous jar** was already true as of Phase 1; nothing about archiving
+  wondrous changes that, since Thingy never reads wondrous's copy.
+
+### Deliberately not done
+
+**The `wondrous/` directory has not been moved to `archived/`.** Asked and
+decided with the user (2026-08-28): hold off. The reasoning is the same as
+the reason a swap test cannot be claimed complete from this environment: the
+code-level evidence (identical `custom_data` tag shape, identical
+`SavedDataType` id, cobbleeconomy migrated and passing) is strong, but PLAN.md
+gates this phase on that evidence surviving an actual restart on an actual
+server, which nobody has run yet. Archiving the source before that run would
+mean the fallback PLAN.md's own rollback story depends on ("recoverable by
+putting the wondrous jar back") stops being backed by a maintained mod if
+something in the live run needs a source fix.
+
+**Next step, when ready:** run the swap in `thingy/docs/OPERATOR-MIGRATION.md`
+against a copy of the production world, confirm every item in its "How to do
+the swap" checklist, and only then move `wondrous/` into `archived/`.
