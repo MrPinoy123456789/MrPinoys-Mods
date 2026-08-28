@@ -7,9 +7,9 @@ without re investigating.
 
 ## Fixed
 
-PD-1, PD-3, PD-4, PD-5, and PD-6 are fixed (2026-08-27); `compileJava`
-and the full test suite pass. PD-2 stays open below as a content
-update, deferred by request.
+PD-1, PD-3, PD-4, PD-5, PD-6, PD-7, and PD-8 are fixed (2026-08-27);
+`compileJava` and the full test suite pass. PD-2 stays open below as a
+content update, deferred by request.
 
 ## Open
 
@@ -1183,7 +1183,7 @@ After the fix:
 
 **Reported:** 2026-08-27
 **Severity:** High (gameplay frustration)
-**Status:** Open, fix plan ready
+**Status:** Fixed (2026-08-27)
 
 When the keystone timer runs out, the dungeon closes immediately and
 the player is ejected. The player wants the dungeon to stay open so
@@ -1504,7 +1504,7 @@ After the fix:
 
 **Reported:** 2026-08-27
 **Severity:** High (player loses room edits on every timeout/disconnect/teardown)
-**Status:** Open, root cause identified, fix plan ready
+**Status:** Fixed (2026-08-27)
 
 When a player times out of a keystone run (or disconnects, or the
 instance is purged for any other reason), the room they decorated

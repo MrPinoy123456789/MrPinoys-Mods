@@ -522,6 +522,24 @@ final class RunLifecycle {
     }
 
     /**
+     * Synchronous version of {@link #saveRoomIfOwner}, for paths where the
+     * room cell is about to be cleared (purge, retireOrPurge). The deferred
+     * {@code server.execute} in {@link #saveRoomIfOwner} can race with the
+     * {@code PendingClear} those paths queue right after: if the clear
+     * reaches the room cell before the deferred save captures it, the room
+     * is written back as empty air (PD-8). Callers that are about to destroy
+     * the room must save it now, before the clear is queued, not after.
+     */
+    static void saveRoomIfOwnerSync(ServerLevel level, MinecraftServer server,
+                                    InstanceRecord record, UUID member) {
+        if (record.owner == null || !record.owner.equals(member)
+                || record.roomCellOrigin == null || record.visitInstance) {
+            return;
+        }
+        saveRoom(level, server, record);
+    }
+
+    /**
      * Teleports party members still in the old dungeon back into the room, clears
      * the old dungeon cells, and seals the room's {@code ee} wall so the void
      * behind the previous dungeon cannot be entered.
@@ -994,10 +1012,10 @@ final class RunLifecycle {
     }
 
     /**
-     * The clock ran out and nobody reached a pad in time: the one way left to
-     * lose a keystone level (U8 Stage 1). Depletes the owner alone -- a party
-     * member riding along never had a key at stake -- messages them wherever
-     * they are, ejects anyone still inside, and tears the instance down.
+     * The clock ran out: the keystone is downgraded once, but the dungeon
+     * stays open (PD-7) so the owner can still reach a door in overtime.
+     * Depletes the owner alone -- a party member riding along never had a
+     * key at stake -- and messages them wherever they are.
      *
      * <p>M12: a free-door run settles as {@code NO_CHANGE} instead. Door 1
      * never depletes, and a generous flat clock ({@code door1TimerSeconds})
@@ -1008,9 +1026,15 @@ final class RunLifecycle {
         ServerPlayer owner = record.owner != null ? server.getPlayerList().getPlayer(record.owner) : null;
         returnKeystone(server, record, record.owner, owner,
                 record.freeDoor ? Keystones.Outcome.NO_CHANGE : Keystones.Outcome.TIMED_OUT);
-        if (owner == null) {
+        record.timedOutPenaltyApplied = true;
+        if (owner != null) {
+            owner.sendSystemMessage(Component.literal(
+                    "The clock ran out. Your keystone is downgraded by "
+                            + PocketDungeonsConfig.timedOutDepletion()
+                            + ", but the dungeon stays open. Finish it for a door.")
+                    .withStyle(ChatFormatting.YELLOW));
+        } else {
             PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
         }
-        InstanceTeardown.purge(server, record, "timed out");
     }
 }

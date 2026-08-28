@@ -12,12 +12,10 @@ import java.util.UUID;
  * The clock a keystone run is measured against, shown as a server-side boss bar
  * so a vanilla client renders it with no client mod.
  *
- * <p><strong>Expiry alone does not end the run.</strong> The bar turns red, reads
- * {@code OVER TIME}, and the run continues to whatever end the player walks to --
- * completing late still reaches the reward room, just with none of its three
- * chests earned. The run only ends on its own once the clock runs out
- * <em>and</em> nobody has completed it yet (see {@code Instances}' expiry
- * check), which is the one way left to lose a keystone level.
+ * <p><strong>Expiry does not end the run.</strong> The bar turns red, reads
+ * {@code OVER TIME}, and the run continues. The keystone is downgraded by 2
+ * levels once when the clock runs out, but the player can still finish and
+ * earn a door offer to mitigate the loss.
  */
 final class RunTimer {
 

@@ -13,14 +13,12 @@ import java.util.UUID;
  * The one place a keystone comes back to a player, and the only place depletion
  * is decided.
  *
- * <p>U8 Stage 1 collapses the four outcomes U7 shipped into two: the clock ran
- * out before the run was completed, or anything else. Disconnecting, dying,
- * running {@code /dungeon exit}, and a server purge all cost nothing now.
- * A completion finished after the clock adds a third, smaller way to lose
- * ground: it still counts, still offers a door, but a couple of levels are
- * the cost of being late -- mitigated by the door itself, since even the
- * smallest offer nets a net loss of only one level against a two-level
- * penalty.
+ * <p>Running out of time downgrades the keystone by 2 levels but does not
+ * close the dungeon: the player can still finish in overtime, and a door 1
+ * finish gives +1, so the net loss is only 1 level. A completion finished
+ * after the clock adds no further penalty since the timeout already applied
+ * it. Disconnecting, dying, running {@code /dungeon exit}, and a server
+ * purge all cost nothing.
  */
 final class Keystones {
 

@@ -54,8 +54,13 @@ final class InstanceTeardown {
      */
     static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
         // Safety net: eject/dropMember have almost certainly saved already, but a
-        // teardown is the last moment the room exists to be read.
-        RunLifecycle.saveRoomIfOwner(server, record, record.owner);
+        // teardown is the last moment the room exists to be read. Synchronous
+        // because purge (below) queues a PendingClear that can race a deferred
+        // save (PD-8).
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level != null) {
+            RunLifecycle.saveRoomIfOwnerSync(level, server, record, record.owner);
+        }
         if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
             purge(server, record, reason);
             return;
@@ -75,7 +80,6 @@ final class InstanceTeardown {
             record.timer.close();
         }
 
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level != null) {
             for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
                 level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
@@ -90,7 +94,13 @@ final class InstanceTeardown {
     static void purge(MinecraftServer server, InstanceRecord record,
                       String reason, UUID excludeFromStraySweep) {
         // Safety net, as in retireOrPurge: last chance to read the room.
-        RunLifecycle.saveRoomIfOwner(server, record, record.owner);
+        // Synchronous because teardown (below) queues a PendingClear that
+        // will erase the room cell; a deferred save could race with it
+        // (PD-8).
+        ServerLevel purgeLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (purgeLevel != null) {
+            RunLifecycle.saveRoomIfOwnerSync(purgeLevel, server, record, record.owner);
+        }
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {

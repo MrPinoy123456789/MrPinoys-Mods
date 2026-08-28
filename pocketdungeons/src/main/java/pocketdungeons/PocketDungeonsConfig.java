@@ -76,7 +76,7 @@ public final class PocketDungeonsConfig {
     private static int threeChestPercent = 60;
     private static int twoChestPercent = 80;
     /** The clock ran out before the run was completed. The harshest depletion. */
-    private static int timedOutDepletion = 1;
+    private static int timedOutDepletion = 2;
     /** Completed, but after the clock. Costs less, and a door offer is still earned. */
     private static int lateCompletionDepletion = 2;
 
@@ -537,7 +537,7 @@ public final class PocketDungeonsConfig {
         rewardRoomGraceSeconds = 600;
         threeChestPercent = 60;
         twoChestPercent = 80;
-        timedOutDepletion = 1;
+        timedOutDepletion = 2;
         lateCompletionDepletion = 2;
 
         overclockedCooldownFactor = 0.4;
@@ -632,7 +632,7 @@ public final class PocketDungeonsConfig {
                             + "({}); using default 80", twoChestPercent, threeChestPercent);
             twoChestPercent = Math.max(threeChestPercent + 1, 80);
         }
-        timedOutDepletion = readInt(root, "timedOutDepletion", 1, v -> v >= 0, "must be >= 0");
+        timedOutDepletion = readInt(root, "timedOutDepletion", 2, v -> v >= 0, "must be >= 0");
         lateCompletionDepletion = readInt(root, "lateCompletionDepletion", 2,
                 v -> v >= 0, "must be >= 0");
 
@@ -862,7 +862,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("rewardRoomGraceSeconds", 600);
         root.addProperty("threeChestPercent", 60);
         root.addProperty("twoChestPercent", 80);
-        root.addProperty("timedOutDepletion", 1);
+        root.addProperty("timedOutDepletion", 2);
         root.addProperty("lateCompletionDepletion", 2);
 
         root.addProperty("overclockedCooldownFactor", 0.4);
