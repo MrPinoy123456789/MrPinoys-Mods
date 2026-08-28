@@ -37,8 +37,8 @@ import java.util.stream.Collectors;
  * item carries {@link #tierOf}'s {@code pocketdungeons.tier} custom_data tag
  * (written by M13's loot). Any other item at the same block falls through to
  * vanilla's own smithing table behaviour untouched, the same positive-test
- * shape {@link Keystone#isKeystone} and {@link CallingCard#isCard} already
- * use ahead of this branch in {@link RitualListener}.
+ * shape {@link Keystone#isKeystone} already uses ahead of this branch in
+ * {@link RitualListener}.
  *
  * <p><b>One enchantment at a time, never a full reroll.</b> The picker lists
  * the item's current enchantments; each button removes exactly the one
@@ -75,7 +75,7 @@ final class RerollStation {
     /**
      * The tier this stack claims, read off {@code custom_data.pocketdungeons.tier}
      * (the same {@code ROOT = PocketDungeonsMod.MOD_ID} nested-compound shape
-     * {@link CallingCard} and {@link Keystone} already use). {@code 0} for
+     * {@link Keystone} already uses). {@code 0} for
      * anything that is not tagged gear. A bare vanilla item has no other
      * signal that it came out of a dungeon, so absence must never default to
      * tier 1.

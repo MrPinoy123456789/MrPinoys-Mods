@@ -67,7 +67,6 @@ public final class PocketDungeonsConfig {
     // has no such collision with anything else in the suite.
     private static String keystoneItem = "minecraft:recovery_compass";
     private static int keystoneMaxLevel = 100;
-    private static String callingCardItem = "minecraft:compass";
     private static int timerBaseSeconds = 180;
     private static int timerPerRoomSeconds = 60;
 
@@ -471,10 +470,6 @@ public final class PocketDungeonsConfig {
         return keystoneMaxLevel;
     }
 
-    public static String callingCardItem() {
-        return callingCardItem;
-    }
-
 
     public static int timerBaseSeconds() {
         return timerBaseSeconds;
@@ -530,7 +525,6 @@ public final class PocketDungeonsConfig {
 
         keystoneItem = "minecraft:recovery_compass";
         keystoneMaxLevel = 100;
-        callingCardItem = "minecraft:compass";
         timerBaseSeconds = 180;
         timerPerRoomSeconds = 60;
 
@@ -615,7 +609,6 @@ public final class PocketDungeonsConfig {
 
         keystoneItem = readString(root, "keystoneItem", "minecraft:recovery_compass", false);
         keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 100, v -> v >= 1, "must be >= 1");
-        callingCardItem = readString(root, "callingCardItem", "minecraft:compass", false);
         timerBaseSeconds = readInt(root, "timerBaseSeconds", 180, v -> v >= 0, "must be >= 0");
         timerPerRoomSeconds = readInt(root, "timerPerRoomSeconds", 60, v -> v >= 0, "must be >= 0");
 
@@ -855,7 +848,6 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("keystoneItem", "minecraft:recovery_compass");
         root.addProperty("keystoneMaxLevel", 100);
-        root.addProperty("callingCardItem", "minecraft:compass");
         root.addProperty("timerBaseSeconds", 180);
         root.addProperty("timerPerRoomSeconds", 60);
 

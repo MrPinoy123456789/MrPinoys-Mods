@@ -204,8 +204,8 @@ final class InstanceRecord {
     boolean lingering;
 
     /**
-     * True for a read-only visit instance created when someone uses a calling card
-     * while the room's owner is away (M3 T3.3). It has no timer, no reward room,
+     * True for a read-only visit instance created when someone visits while the
+     * room's owner is away (M3 T3.3). It has no timer, no reward room,
      * and its copy of the room is never captured back to the owner's blob.
      */
     boolean visitInstance;

@@ -33,7 +33,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  * station is a positive test on the held item, so a non-gear item at the same
  * block still gets vanilla's own screen; a gamble draw has nothing to check
  * about what is held, so the configured block is fully claimed the moment it
- * matches, the same way a selector door or a calling-card lodestone is. The
+ * matches, the same way a selector door claims its click. The
  * default ({@code minecraft:emerald_block}) is picked so an operator is
  * unlikely to already be using it for its vanilla purpose somewhere the
  * gamble would surprise them.
