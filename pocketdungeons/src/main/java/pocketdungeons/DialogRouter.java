@@ -1,10 +1,14 @@
 package pocketdungeons;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -68,6 +72,17 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_POWER, ""));
             case DialogScreens.ACTION_VISIT_ROOM -> visitRoom(player, server,
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
+            // M21: the wall-lodestone menu's options. The keystone is checked
+            // here, on the click, never when the menu opened.
+            case DialogScreens.ACTION_START_DUNGEON -> startDungeon(player);
+            case DialogScreens.ACTION_BROWSE_LOBBIES -> browseLobbies(player, server);
+            case DialogScreens.ACTION_MANAGE_ROOM -> manageRoom(player, server);
+            case DialogScreens.ACTION_INSPECT_KEYSTONE -> inspectKeystone(player);
+            case DialogScreens.ACTION_LEAVE_DUNGEON ->
+                    RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
+            case DialogScreens.ACTION_SET_ROOM_NAME -> setRoomName(player, server,
+                    tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
+            case DialogScreens.ACTION_TOGGLE_PUBLIC -> togglePublic(player, server);
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
         }
     }
@@ -124,6 +139,69 @@ public final class DialogRouter {
         List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(ownerId));
         entries.sort(Comparator.comparing(UUID::toString));
         DialogKit.show(owner, DialogScreens.whitelist(server, ownerId, entries, notice));
+    }
+
+    /**
+     * The menu's Start Dungeon option. The keystone is checked here, on the
+     * click, never when the menu opened: the menu opens with any item or an
+     * empty hand, so a player who just wants to leave or browse never needs
+     * their compass first. The main hand is the check, matching the chat
+     * refusal; {@link RunLifecycle#enterWithKeystone} re-reads the inventory
+     * and still handles free re-entry into a live instance.
+     */
+    private static void startDungeon(ServerPlayer player) {
+        if (!Keystone.isKeystone(player.getMainHandItem())) {
+            player.sendSystemMessage(Component.literal("Hold a keystone to start a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        // Ahead of entry, so the player who is about to be teleported away is
+        // still here to hear it, the same cue the old block-use ritual played.
+        player.level().playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
+                SoundSource.BLOCKS, 1.0f, 1.0f);
+        if (RunLifecycle.enterWithKeystone(player)) {
+            player.sendSystemMessage(Component.literal("The lodestone pulls you under.")
+                    .withStyle(ChatFormatting.DARK_PURPLE));
+        }
+    }
+
+    /** The menu's Browse Lobbies option: M20's directory, invoked verbatim. */
+    private static void browseLobbies(ServerPlayer player, MinecraftServer server) {
+        DialogKit.show(player, DialogScreens.lobbyBrowser(server, player.getUUID()));
+    }
+
+    /** The menu's Manage Room option: the whitelist plus name and visibility. */
+    private static void manageRoom(ServerPlayer player, MinecraftServer server) {
+        DialogKit.show(player, DialogScreens.manageRoom(server, player.getUUID()));
+    }
+
+    /**
+     * The menu's Inspect Keystone option, the same screen
+     * {@code /dungeon key info} opens.
+     */
+    private static void inspectKeystone(ServerPlayer player) {
+        if (Keystone.findHeld(player).isEmpty()) {
+            player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        DialogKit.show(player, DialogScreens.inspectKeystone(player));
+    }
+
+    /** The manage-room screen's name entry; caps at 16 like the command. */
+    private static void setRoomName(ServerPlayer owner, MinecraftServer server, String name) {
+        if (name.length() > 16) {
+            name = name.substring(0, 16);
+        }
+        DungeonLog.forServer(server).setRoomName(owner.getUUID(), name);
+        DialogKit.show(owner, DialogScreens.manageRoom(server, owner.getUUID()));
+    }
+
+    /** The manage-room screen's visibility toggle; flips and re-shows. */
+    private static void togglePublic(ServerPlayer owner, MinecraftServer server) {
+        DungeonLog log = DungeonLog.forServer(server);
+        log.setPublicListed(owner.getUUID(), !log.get(owner.getUUID()).publicListed());
+        DialogKit.show(owner, DialogScreens.manageRoom(server, owner.getUUID()));
     }
 
     /**
