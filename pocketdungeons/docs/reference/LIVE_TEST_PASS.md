@@ -1376,3 +1376,42 @@ other three fixes are compile- and unit-test-verified.
 3. **Expected:** the player is teleported straight back into the run for
    free, with "You step back into your dungeon." and no "Hold a keystone"
    refusal. `/dungeon` must behave identically.
+
+## 28. Room template editor (M23)
+
+Development-only, op-gated commands that write `.nbt` files into the mod's
+own `src/main/resources` tree; they need a Loom dev server whose working
+directory resolves `templateOutDir()` to the project.
+
+### 28.1 buildroom
+
+1. As an operator in the overworld, run `/dungeon admin buildroom`.
+2. **Expected:** you teleport into an empty 16x16x6 shell at a fresh slot in
+   `pocketdungeons:void`, standing at its centre, lit by the four ceiling
+   lamps. No doors, no selector furniture, no timer, no keystone.
+3. Break and place blocks freely, shell included (floor, walls, ceiling,
+   lamps).
+4. **Expected:** nothing is protected and nothing drops weirdly.
+5. Run `/dungeon admin list`. **Expected:** the slot is marked
+   `(BUILD ROOM)` and names you.
+6. Run `/dungeon admin buildroom` again. **Expected:** the old shell is torn
+   down and you land in a fresh shell at a new slot.
+7. Run `buildroom` while inside a live dungeon (e.g. your own lobby).
+   **Expected:** a refusal: "You are inside a live instance."
+
+### 28.2 saveroom
+
+1. Build something in the shell, then run `/dungeon admin saveroom myroom`.
+2. **Expected:** you are teleported to the overworld spawn; the file
+   `myroom_<playername>_<timestamp>.nbt` exists under
+   `pocketdungeons/src/main/resources/data/pocketdungeons/structure/rooms/`;
+   `/dungeon admin list` no longer shows the slot.
+3. Load the file through the room manifest: add a `dungeon_room` JSON
+   referencing the template (or point an existing entry at it) and reload.
+   **Expected:** no rejection, and the room count in `admin list` reflects
+   it.
+4. Door jigsaws: place `pocketdungeons:door` jigsaws in the shell's wall
+   slots, save again, and confirm the manifest derives the expected door
+   mask.
+5. Run `saveroom` with no build room open. **Expected:** a refusal: "No
+   build room is open for you."

@@ -1263,3 +1263,49 @@ lodestoneMenuTest included).
 **Live-only, not yet verified:** the stale-click refusals (fix 1) and free
 re-entry without a keystone in hand (fix 2); recorded as section 27 in
 `LIVE_TEST_PASS.md`.
+
+## M23: Room template editor (buildroom / saveroom)
+
+**Goal:** a dev tool for hand-authoring room templates in Minecraft. An
+operator opens an empty shell in the void dimension, builds a room by hand,
+and saves it to a `.nbt` file in the mod's own template directory, where an
+AI (or a human) can read it and generate matching code. Two commands, both
+op-gated under the existing `admin` literal and both development-only like
+`gentemplates` and `stamptest`, since writing into the mod's source tree is
+a dev-environment act.
+
+- `/dungeon admin buildroom` stamps an empty 16x16x6 cell
+  (`RoomBuilder.buildShell`) at the next free slot, registers it as an
+  `InstanceRecord` carrying a new `adminBuild` flag, and teleports the
+  operator into the shell's centre. No doors, no timer, no keystone, no
+  protection, no room-store capture. The record's `roomCellOrigin` stays
+  null, so nothing ever treats the shell as a player room: teardown never
+  saves it back to the owner's blob, `RoomProtection.roomOwnerAt` never
+  matches it, and the shell is fully breakable by anyone. One per player:
+  opening a build room while one exists tears the old one down first. It
+  refuses while the operator is inside a live instance, so `admit` can never
+  clobber another record's membership. `admin list` marks the slot
+  `(BUILD ROOM)`.
+- `/dungeon admin saveroom <name>` finds the player's build room, captures
+  the cell with `StructureTemplate.fillFromWorld` (entities included, like
+  the generator's own captures), writes `pd_author` (the player's UUID) and
+  `pd_saved_at` (epoch millis) onto the blob, and writes
+  `data/pocketdungeons/structure/rooms/<name>_<author>_<timestamp>.nbt`
+  through the same `templateOutDir()` the generator uses. Both tags are
+  unknown to `StructureTemplate.load`, so the file stays loadable by the
+  room manifest system like any shipped template. It then drops the member
+  (so the teardown has nobody to eject back to the old return point), sends
+  the operator to the overworld spawn, and purges the instance.
+- **Landed divergences from the handoff:** the plan's dependency check for a
+  `RoomStore.captureAndSave` came back negative (the capture machinery lives
+  privately in `RoomTemplateGenerator`, which already owns the resources
+  output directory), so the saveroom capture was placed there as
+  `captureRoomToFile` rather than added to `RoomStore`; and the commands
+  register in `DungeonCommands.java`, which is the actual name of the file
+  the handoff calls `PocketDungeonsCommands.java`.
+
+**Headless-verified:** `./gradlew build` green; both subcommands register
+under the op-gated `admin` literal and compile against the live call sites.
+
+**Live-only, not yet verified:** the full open/build/save loop; recorded as
+section 28 in `LIVE_TEST_PASS.md`.
