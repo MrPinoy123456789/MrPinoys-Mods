@@ -214,6 +214,7 @@ final class RitualListener {
             return InteractionResult.PASS;
         }
         DialogKit.show(serverPlayer, DialogScreens.lodestoneMenu(serverPlayer, inDungeon));
+        Chime.menuOpens(serverPlayer);
         return InteractionResult.SUCCESS_SERVER;
     }
 
@@ -232,7 +233,7 @@ final class RitualListener {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record != null && record.awaitingDoorChoice && record.roomCellOrigin != null) {
             if (record.selectedStep == 0) {
-                // M22: Chime.refused(player).
+                Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
                         DungeonScreen.refusalContent("Select a door first"));
                 return InteractionResult.SUCCESS_SERVER;
@@ -258,6 +259,7 @@ final class RitualListener {
                 }
             }
             if (RunLifecycle.chooseOffer(player, record.selectedStep)) {
+                Chime.runStarts(player);
                 // The run started; generateBehindLobby reset the selection,
                 // darkened the bulbs and switched the screen to the run.
                 return InteractionResult.SUCCESS_SERVER;
@@ -294,5 +296,6 @@ final class RitualListener {
         }
         RoomTemplateGenerator.setBulb(level, o, wall, 10, true); // ready to commit
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
+        Chime.doorSelected(player);
     }
 }
