@@ -2,13 +2,13 @@
 
 > **Status:** All milestones below are code-complete (`./gradlew build` green,
 > unit tests passing). Live multiplayer verification is deferred to a single
-> suite-wide pass, per `../docs/LIVE_TEST_PASS.md`.
+> suite-wide pass, per `../docs/reference/LIVE_TEST_PASS.md`.
 >
 > M8 (Deferred) is not here — its items are recorded in
-> `../docs/DOOR_LADDER_BRAINSTORM.md` alongside the future design work they relate to.
+> `../docs/reference/DOOR_LADDER_BRAINSTORM.md` alongside the future design work they relate to.
 >
 > This file replaces the individual `M0`–`M7` and `M9` plan files, which have
-> been deleted. `../docs/LIVE_TEST_PASS.md` covers the outstanding live verification;
+> been deleted. `../docs/reference/LIVE_TEST_PASS.md` covers the outstanding live verification;
 > this document is the architectural summary of what was built and why.
 
 ---
@@ -213,7 +213,7 @@ changes.
 ## M10: Ladder reframe
 
 **Goal:** the keystone level gates access; difficulty lives on the map. The
-first milestone of `docs/D3_PROGRESSION_PLAN.md`, raising the cap from 25 to
+first milestone of `docs/reference/D3_PROGRESSION_PLAN.md`, raising the cap from 25 to
 100 and giving the ladder somewhere to go.
 
 - **Cap 25 → 100:** `PocketDungeonsConfig.keystoneMaxLevel` bumped in its
@@ -317,7 +317,7 @@ forward-looking descent graph, and give the ladder its first boss.
   session had no live client to author or capture one with, so
   `BossContent.spawn` places a tagged, heavily scaled `minecraft:ravager`
   directly into the terminal cell's existing `exit_hall` template instead
-  (documented in `docs/D3_PROGRESSION_PLAN.md`'s M11 section). The
+  (documented in `docs/reference/D3_PROGRESSION_PLAN.md`'s M11 section). The
   completion gate (`RunLifecycle.completeRun`) refuses a boss-themed run's
   pad contact while `BossContent.bossAlive` finds the tagged mob still alive
   in the terminal cell, the same shape M10's spawner-clear gate uses. The
@@ -841,7 +841,7 @@ adventure graph (`AdventureGraph.nodeForReward`).
 everyone, the owner included; the lodestone moves from the floor to the wall;
 the selector opening gets physical double doors; and the ceiling gets top
 slabs with stair-framed light fixtures. First milestone of
-`docs/ROOM_UX_PLAN.md`'s Room UX pass, and the prerequisite for M24's room
+`docs/reference/ROOM_UX_PLAN.md`'s Room UX pass, and the prerequisite for M24's room
 skins: a shell no player can edit is one the mod is free to swap.
 
 - **Immutable shell:** `RoomProtection.isShell(pos, roomOrigin)` is a pure
@@ -920,7 +920,7 @@ wall lodestone, and looking up at the ceiling; recorded as section 22 in
 bulbs as selection indicators, and a lever as the commit replace the
 dialog-based door offer, and a separate engine terminal (a respawn anchor)
 manages fuel. No popups: the walk between doors is the browse, the lever pull
-is the commit. Second milestone of `docs/ROOM_UX_PLAN.md`'s Room UX pass.
+is the commit. Second milestone of `docs/reference/ROOM_UX_PLAN.md`'s Room UX pass.
 
 - **`selectedStep` on `InstanceRecord`:** 0 = no selection, 1/2/3 = the
   selector door the owner last right-clicked. In-memory like every other
@@ -999,7 +999,7 @@ recorded as section 23 in `LIVE_TEST_PASS.md`.
 `MultiActionDialog` listing every online player whose room is publicly
 listed, with room name and occupancy, opened from the room's wall lodestone.
 Privacy becomes a host-set `publicListed` toggle, not a token. Third
-milestone of `docs/ROOM_UX_PLAN.md`'s Room UX pass.
+milestone of `docs/reference/ROOM_UX_PLAN.md`'s Room UX pass.
 
 - **`publicListed` and `roomName` on `DungeonLog.Entry`:** two new record
   components persisted via `optionalFieldOf` with safe defaults (`false`,
@@ -1077,7 +1077,7 @@ commands, the wall-lodestone right-click invocation, and confirming
 menu on the wall lodestone. The stand-on leave-pad is deleted. The
 `hasInstance` guard inverts: right-clicking while in a dungeon opens the
 in-dungeon menu instead of blocking. Fourth milestone of
-`docs/ROOM_UX_PLAN.md`'s Room UX pass.
+`docs/reference/ROOM_UX_PLAN.md`'s Room UX pass.
 
 - **`DialogScreens.lodestoneMenu`:** a `MultiActionDialog` whose buttons
   depend on context, the same shape as `partyRoster` and `lobbyBrowser`, with
@@ -1154,3 +1154,77 @@ the live `RunLifecycle.exit`/`enterWithKeystone` signatures.
 button lists on a real client, clicking each option, the leave-pad deletion
 (walking over the old position does nothing), and the terminal pad still
 completing; recorded as section 25 in `LIVE_TEST_PASS.md`.
+
+## M22: Sound pass
+
+**Goal:** a `Chime.java` class following the spiritwolves/wondrous pattern,
+one static method per event, each sending a `ClientboundSoundPacket` to the
+player's connection so only they hear it. All vanilla `SoundEvents`, no
+custom sound files, no assets, server-side only. Final milestone of
+`docs/reference/ROOM_UX_PLAN.md`'s Room UX pass.
+
+- **`Chime.java` (new, ~150 lines):** one `public static void <cue>
+  (ServerPlayer)` per event, each a one-line call to a private `play`
+  helper that builds the packet at the player's position with
+  `SoundSource.RECORDS` and a fresh seed, and sends it down
+  `player.connection.send(...)`. The `NOTE_BLOCK_*` constants are typed
+  `Holder.Reference<SoundEvent>` and pass straight into the packet's
+  `Holder<SoundEvent>` parameter; the plain `SoundEvent` constants
+  (`RESPAWN_ANCHOR_CHARGE`, `ENDERMAN_TELEPORT`, `STONE_PLACE`) are wrapped
+  in `Holder.direct(...)` — the wondrous line-45 shape, verified against the
+  26.2 jar's `ClientboundSoundPacket` constructor
+  (`Holder<SoundEvent>, SoundSource, double, double, double, float, float,
+  long`). Multi-note cues are two back-to-back `play` calls: run complete
+  (bell then chime, rising), keystone depleted (bass, descending 0.8 to
+  0.6), visitor arrives (bell, 1.0 then 1.2).
+- **Every cue table event has a call site.** Door selection: `doorSelected`
+  at the end of `RitualListener.selectDoor`, `noSelection` in
+  `pullLever`'s selectedStep == 0 branch, `runStarts` in `pullLever` after
+  `chooseOffer` returns true. Run lifecycle: `runComplete` at the end of
+  `RunLifecycle.completeRun`, `runTimedOut` inside `expireTimedOut`'s
+  `owner != null` block (never fires for an offline owner),
+  `keystoneLevelUp` after `Keystones.grantOffer`'s reconcile,
+  `keystoneDepleted` inside `returnTo`'s `returned < level` block when the
+  outcome is `TIMED_OUT` or `LATE`. Room and menu: `menuOpens` after the
+  lodestone menu's `DialogKit.show`, `roomListed`/`roomUnlisted` at all
+  three `setPublicListed` call sites that have a player
+  (`DialogRouter.togglePublic`, `DungeonCommands.roomPublic`,
+  `roomPrivate`), `visitorArrives` in `VisitService.createVisitInstance`
+  sent to the room owner, not the visitor, `roomRelocated` in
+  `completeDungeon` after the room is re-placed behind the terminal cell.
+  Lobby visiting: `lobbyOpens` after the lobby browser's `DialogKit.show`,
+  `visitStarts` on all three of `VisitService.visit`'s success paths,
+  `visitEnds` in `RunLifecycle.exit` when `record.visitInstance`.
+- **The one broadcast migrated:** the `RESPAWN_ANCHOR_CHARGE`
+  `level.playSound(null, ...)` in `DialogRouter.startDungeon` is gone,
+  replaced by `Chime.runStarts(player)` — the cue now plays only for the
+  player who started the run, not the whole room, and the now-unused
+  `SoundEvents`/`SoundSource` imports were removed from the file.
+- **Landed divergence: the spawner-cleared cue is a small watcher, not a
+  one-liner.** There is no per-cell spawner-clear event anywhere in the
+  codebase to hook (the only clear read is `TrialContent.countCleared`'s
+  completion-gate call on pad contact), so the plan's "no new hooks, no new
+  listeners, no new state" cannot apply to that one cue. `InstanceRecord`
+  gains an in-memory `clearedCells` set (dies with the instance, never
+  persisted, same as `visited`), and `Instances.onTick`'s per-record loop
+  watches `layout.trialSpawners()` grouped by cell via
+  `layout.geometry().cellAt(pos)` for keystone runs that are not lingering
+  and not already completed; the moment a cell's every spawner sits at
+  `COOLDOWN` (the exact `TrialContent.countCleared` predicate), the cell is
+  added to `clearedCells` once and `Chime.spawnerCleared` fires to each
+  member currently standing in that cell. One field and one watcher block,
+  no codec, no migration. The plan's M22 touch-points were fixed to say so;
+  the cue could not be faked by firing on completion (that would mislead the
+  player into thinking the gate had passed).
+- **The chime is a side effect, never a gate:** no `connection.send`
+  try/catch, no return-value check, no config toggle, no second mixin.
+
+**Headless-verified:** `./gradlew build` green after every commit, every
+`SoundEvents` constant and the `ClientboundSoundPacket` constructor verified
+against the 26.2 jar (`javap`), and each cue method compiling against the
+live call sites. No runtime test is possible without a client.
+
+**Live-only, not yet verified:** every cue playing, each heard only by the
+relevant player (except `visitorArrives`, heard by the owner), at a sensible
+volume; the volumes and pitches are starting points to tune during live
+testing; recorded as section 26 in `LIVE_TEST_PASS.md`.
