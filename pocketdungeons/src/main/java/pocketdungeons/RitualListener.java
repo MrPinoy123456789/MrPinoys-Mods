@@ -15,6 +15,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RespawnAnchorBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
 import java.util.UUID;
@@ -146,6 +148,37 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // M19 19.6: the engine terminal, a respawn anchor on the wall beside
+        // the selector wall. Intercepted ahead of vanilla's own anchor
+        // behaviour (the Nether glowstone charge) and ahead of the door
+        // branches: the anchor is not a door, but it stands in the same room
+        // and answers to the same gesture.
+        if (Instances.engineTerminalAt(serverPlayer, pos)
+                && level.getBlockState(pos).is(Blocks.RESPAWN_ANCHOR)) {
+            ItemStack held = player.getItemInHand(hand);
+            if (Fuel.isFuel(held)) {
+                Fuel.spend(serverPlayer, 1);
+                BlockState anchor = level.getBlockState(pos);
+                int charges = Math.min(anchor.getValue(RespawnAnchorBlock.CHARGE) + 1,
+                        RespawnAnchorBlock.MAX_CHARGES);
+                RoomBuilder.set((ServerLevel) level, pos,
+                        anchor.setValue(RespawnAnchorBlock.CHARGE, charges));
+            }
+            InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+            if (record != null) {
+                DungeonScreen.updateEngine((ServerLevel) level, record, serverPlayer);
+            }
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // M19 19.3: the commit lever. Ahead of the selector-door branch: the
+        // lever stands in the same row as the doors and answers to the same
+        // gesture, but it commits rather than previews, so a lever pull must
+        // never fall through to a door branch or to vanilla's own toggle.
+        if (Instances.isCommitLever(serverPlayer, pos)) {
+            return pullLever(serverPlayer, level);
+        }
+
         // M2/M3: a door in the player's own lobby. Handled mod-side and ahead
         // of everything else -- vanilla's own door open/close must never run
         // for one of these, or a door that swings looks like it did something.
@@ -218,6 +251,57 @@ final class RitualListener {
         }
         serverPlayer.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
+        return InteractionResult.SUCCESS_SERVER;
+    }
+
+    /**
+     * M19 19.3/19.6: pulling the commit lever. With a door selected, starts
+     * the run through {@code RunLifecycle.chooseOffer}; with none selected,
+     * or a greater door the player cannot afford, the refusal stays on the
+     * door screen rather than in a chat line. The greater-tier gates are
+     * pre-checked here so the screen can name the reason; {@code chooseOffer}
+     * re-checks them anyway, and its chat line is the fallback for anything
+     * this screen cannot know (a failed stamp). Always consumes the click so
+     * vanilla's lever toggle never runs: the lever stays visually up, ready
+     * for the next pull.
+     */
+    private static InteractionResult pullLever(ServerPlayer player, Level level) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record != null && record.awaitingDoorChoice && record.roomCellOrigin != null) {
+            if (record.selectedStep == 0) {
+                // M22: Chime.refused(player).
+                DungeonScreen.updateDoor((ServerLevel) level, record,
+                        DungeonScreen.refusalContent("Select a door first"));
+                return InteractionResult.SUCCESS_SERVER;
+            }
+            DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                    .get(player.getUUID());
+            int offerLevel = Math.max(1, entry.keystoneLevel());
+            Keystone.Offer[] offers = Keystone.offers(player.getUUID(), offerLevel,
+                    entry.currentTheme(), entry.depth());
+            Keystone.Offer offer = offers[Math.min(record.selectedStep - 1, offers.length - 1)];
+            if (!offer.free()) {
+                int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+                if (entry.keystoneLevel() < minLevel) {
+                    DungeonScreen.updateDoor((ServerLevel) level, record,
+                            DungeonScreen.refusalContent("Door " + record.selectedStep
+                                    + " needs level " + minLevel));
+                    return InteractionResult.SUCCESS_SERVER;
+                }
+                if (Fuel.count(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
+                    DungeonScreen.updateDoor((ServerLevel) level, record,
+                            DungeonScreen.refusalContent("Not enough fuel"));
+                    return InteractionResult.SUCCESS_SERVER;
+                }
+            }
+            if (RunLifecycle.chooseOffer(player, record.selectedStep)) {
+                // The run started; generateBehindLobby reset the selection,
+                // darkened the bulbs and switched the screen to the run.
+                return InteractionResult.SUCCESS_SERVER;
+            }
+            DungeonScreen.updateDoor((ServerLevel) level, record,
+                    DungeonScreen.refusalContent("The door refuses"));
+        }
         return InteractionResult.SUCCESS_SERVER;
     }
 

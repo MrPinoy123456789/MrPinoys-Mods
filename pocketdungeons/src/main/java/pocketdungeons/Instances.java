@@ -548,6 +548,36 @@ final class Instances {
     }
 
     /**
+     * M19 19.3: whether {@code pos} is this player's own lobby's commit lever:
+     * the lever block beside the third selector door on the room's dungeon
+     * wall. Only the owner may pull it, the same rule as the doors: their
+     * keystone is the one on the line.
+     */
+    static boolean isCommitLever(ServerPlayer player, BlockPos pos) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
+                || record.roomCellOrigin == null) {
+            return false;
+        }
+        return RoomTemplateGenerator.leverPos(record.roomCellOrigin, record.roomDungeonDoor).equals(pos);
+    }
+
+    /**
+     * M19 19.6: whether {@code pos} is the engine terminal in this player's
+     * room: the respawn anchor on the wall to the left of the selector wall
+     * ({@link RoomGeometry#leftOf}). Any member of the room may view or feed
+     * it, since fuel is per-player inventory, so this does not require the
+     * owner.
+     */
+    static boolean engineTerminalAt(ServerPlayer player, BlockPos pos) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || record.roomCellOrigin == null) {
+            return false;
+        }
+        return RoomTemplateGenerator.enginePos(record.roomCellOrigin, record.roomDungeonDoor).equals(pos);
+    }
+
+    /**
      * The generation half of {@code RunLifecycle.chooseOffer}: before planning,
      * any stragglers still in the old dungeon are pulled into the room, the old dungeon cells
      * are cleared, and the room's {@code ee} wall (the entrance from the previous
