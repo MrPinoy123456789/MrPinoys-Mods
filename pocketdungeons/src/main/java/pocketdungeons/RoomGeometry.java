@@ -27,4 +27,19 @@ final class RoomGeometry {
         if (x == CELL - 1) return Direction.EAST;
         return null;
     }
+
+    /**
+     * M19: the wall on the viewer's left when they stand inside the room and
+     * face {@code wall}. The engine terminal sits there so it is visible from
+     * the selector doors: facing the doors, the engine is beside you, never
+     * behind you.
+     */
+    static DoorMask.Direction leftOf(DoorMask.Direction wall) {
+        return switch (wall) {
+            case NORTH -> DoorMask.Direction.WEST;
+            case SOUTH -> DoorMask.Direction.EAST;
+            case EAST -> DoorMask.Direction.NORTH;
+            case WEST -> DoorMask.Direction.SOUTH;
+        };
+    }
 }

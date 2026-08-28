@@ -107,7 +107,14 @@ final class RitualListener {
         if (placementRoomOwner != null
                 && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem) {
             BlockPos placementRoomOrigin = Instances.roomOriginAt(placementPos);
-            if ((placementRoomOrigin != null && RoomProtection.isShell(placementPos, placementRoomOrigin))
+            // M19 19.7: furniture is protected from placement the same way the
+            // shell is. The door screen blocks sit in the wall ring (already
+            // shell), but the bulbs, the lever and the engine screen stand on
+            // interior or adjacent-wall positions that only this check covers.
+            if ((placementRoomOrigin != null
+                    && (RoomProtection.isShell(placementPos, placementRoomOrigin)
+                            || RoomProtection.isFurniture(placementPos, placementRoomOrigin,
+                                    Instances.roomDungeonDoorAt(placementPos))))
                     || !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
                 return InteractionResult.FAIL;
             }

@@ -1086,6 +1086,19 @@ final class Instances {
         return record == null ? null : record.roomCellOrigin;
     }
 
+    /**
+     * Which wall of the room occupying {@code pos} the selector doors stand on
+     * (the record's {@link InstanceRecord#roomDungeonDoor}), or {@code null}
+     * outside every room. The direction half of {@link #roomOriginAt}: the
+     * furniture protection (M19 19.7) needs it to run its wall-relative
+     * coordinate test, and like the origin it shares {@link #roomRecordAt} so
+     * the two lookups can never disagree.
+     */
+    static DoorMask.Direction roomDungeonDoorAt(BlockPos pos) {
+        InstanceRecord record = roomRecordAt(pos);
+        return record == null ? null : record.roomDungeonDoor;
+    }
+
     private static InstanceRecord roomRecordAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             BlockPos roomOrigin = record.roomCellOrigin;

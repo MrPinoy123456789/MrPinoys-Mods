@@ -102,6 +102,13 @@ tasks.register<JavaExec>("roomShellTest") {
     mainClass = "pocketdungeons.RoomShellTest"
 }
 
+tasks.register<JavaExec>("roomFurnitureTest") {
+    group = "verification"
+    description = "Runs the pure-Java room furniture coordinate regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.RoomFurnitureTest"
+}
+
 for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
@@ -135,6 +142,7 @@ tasks.test {
     dependsOn("dungeonRoomMetaTest")
     dependsOn("cellGeometryTest")
     dependsOn("roomShellTest")
+    dependsOn("roomFurnitureTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false
