@@ -82,6 +82,9 @@ final class Keystones {
 
         Keystone.reconcile(player, returned, AffixMath.effective(member, returned, none));
         if (returned < level) {
+            if (outcome == Outcome.TIMED_OUT || outcome == Outcome.LATE) {
+                Chime.keystoneDepleted(player);
+            }
             player.sendSystemMessage(Component.literal(
                     "Your keystone is depleted: [" + level + "] -> [" + returned + "].")
                     .withStyle(ChatFormatting.RED));
@@ -108,5 +111,6 @@ final class Keystones {
         }
         Keystone.reconcile(player, offer.level(),
                 AffixMath.effective(member, offer.level(), offer.affixes()));
+        Chime.keystoneLevelUp(player);
     }
 }

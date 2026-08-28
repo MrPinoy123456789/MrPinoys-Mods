@@ -676,6 +676,11 @@ final class RunLifecycle {
 
         Instances.eject(server, record, player);
 
+        // M3: leaving a read-only visit instance gets its own return cue.
+        if (record.visitInstance) {
+            Chime.visitEnds(player);
+        }
+
         // U8 Stage 1: leaving never costs anything. The clock is the only thing
         // that can deplete a keystone, and it does that on its own in onTick --
         // see expireTimedOut -- independently of anyone leaving or staying.
@@ -843,6 +848,7 @@ final class RunLifecycle {
         PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.slot, entry.runsCompleted(),
                 chests, record.layout.lootTier());
+        Chime.runComplete(player);
     }
 
     /**
@@ -948,6 +954,12 @@ final class RunLifecycle {
         }
         record.roomCellOrigin = newRoomOrigin;
         record.roomDungeonDoor = farWall;
+
+        // M22: the post-completion relocation stamp, heard by the owner.
+        ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(record.owner);
+        if (ownerPlayer != null) {
+            Chime.roomRelocated(ownerPlayer);
+        }
 
         // The room arrives exactly as it was captured: 'ee' sealed (the run that
         // just finished sealed it), 'MM' standing open onto the cell the last
@@ -1085,6 +1097,7 @@ final class RunLifecycle {
                             + PocketDungeonsConfig.timedOutDepletion()
                             + ", but the dungeon stays open. Finish it for a door.")
                     .withStyle(ChatFormatting.YELLOW));
+            Chime.runTimedOut(owner);
         } else {
             PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
         }
