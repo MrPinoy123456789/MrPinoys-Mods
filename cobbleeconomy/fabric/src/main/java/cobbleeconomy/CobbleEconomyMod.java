@@ -71,10 +71,10 @@ public final class CobbleEconomyMod implements ModInitializer {
         LeaderboardService leaderboard = new LeaderboardService(economy, names::nameOf);
 
         ShopConfig shopConfig = new ShopConfig(configDir, currencies);
-        // Loaded on SERVER_STARTED, not here -- "wondrous" is only a "suggests"
-        // dependency, so its onInitialize() (which populates WondrousItems.Holder)
+        // Loaded on SERVER_STARTED, not here: "thingy" is only a "suggests"
+        // dependency, so its onInitialize() (which populates VirtualItems.Holder)
         // is not guaranteed to have run yet. Loading here would silently drop every
-        // wondrous: shop entry whenever wondrous initialises after this mod.
+        // wondrous: shop entry whenever thingy initialises after this mod.
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
                 Identifier.fromNamespaceAndPath(MOD_ID, "suite_items"),
                 SuiteItems.Loader::new);

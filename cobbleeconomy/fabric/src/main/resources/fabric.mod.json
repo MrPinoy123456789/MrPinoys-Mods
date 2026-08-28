@@ -21,6 +21,6 @@
     "fabric-api": "*"
   },
   "suggests": {
-    "wondrous": "*"
+    "thingy": "*"
   }
 }

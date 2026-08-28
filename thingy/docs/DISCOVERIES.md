@@ -336,3 +336,48 @@ output, which `processResources` produces, so depending on it from a task that
    `processResources` output. A code generator that a `processResources`-time
    task depends on must use `compileClasspath` plus the classes directory
    explicitly, or the task graph cycles back on itself.
+
+---
+
+## 5. Phase 2: CobbleEconomy integration
+
+`cobbleeconomy/fabric/src/main/java/cobbleeconomy/WondrousShop.java` (the one
+file in that mod that touches a wondrous/thingy API class) now imports
+`thingy.api` instead of `wondrous.api`: `VirtualItems` instead of
+`WondrousItems`, `VirtualItem` instead of `WondrousItem`, `Give` instead of
+`WondrousGive`, `FabricLoader.isModLoaded("thingy")` instead of
+`isModLoaded("wondrous")`. The `compileOnly` dependency in
+`cobbleeconomy/fabric/build.gradle.kts` moved from `wondrous:wondrous-api:0.1.0`
+to `thingy:thingy-api:0.1.0`, and `fabric.mod.json`'s `"suggests"` moved from
+`"wondrous"` to `"thingy"`.
+
+### The `wondrous:` config prefix: kept, permanently
+
+PLAN.md Phase 2 calls for an explicit decision here, not a default. The
+decision: **`shop.json` keeps naming these items `"wondrous:<id>"` forever.**
+Nothing in `ShopConfig`, `ShopMenu`, `ShopDisplay`, or `ShopPurchase` changed;
+`WondrousShop.isWondrousItemId` and `.idFrom` still check and strip the same
+literal prefix they always did.
+
+The reasoning: the prefix names the item's own identity namespace (the value
+already inside its `minecraft:custom_data` tag), not the mod currently
+resolving that id. That is exactly the namespace rule PLAN.md states for
+Thingy itself, applied one layer up: a shop config is content, and content
+keeps the namespace it was authored under regardless of which framework jar
+is installed. Migrating every `shop.json` in production to a `thingy:` prefix
+would have bought nothing (the items are not renamed, only re-hosted) and cost
+a rewrite of every server owner's config the moment they update. `WondrousShop`
+itself absorbs the one real change: `VirtualItems.byId` wants the namespaced
+id, so `lookup` re-prepends `"wondrous:"` before calling it, rather than
+pushing that translation out to every call site.
+
+### What did not need to change
+
+`ShopConfig`'s load-time validation (`WondrousShop.available()` plus
+`.baseItem(id).isEmpty()`, warning and skipping an entry that fails either)
+already treated a missing or unresolvable wondrous item as "reported, not
+fatal" before this phase. Nothing about that behaviour is Thingy-specific, so
+none of it moved. Same for `SuiteItems`: it reads `data/*/suite_items` as a
+generic vanilla datapack merge, unaware of which mod's jar the files came
+from, so Phase 1's switch from hand-authored to generated `suite_items` JSON
+is invisible to it.

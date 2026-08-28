@@ -32,12 +32,17 @@ dependencies {
     implementation(project(":core"))
     include(project(":core"))
 
-    // Compile-only: wondrous is a soft dependency (see fabric.mod.json "suggests").
-    // Absent at runtime is fine -- WondrousShop degrades to skipping wondrous:
+    // Compile-only: thingy is a soft dependency (see fabric.mod.json "suggests").
+    // Absent at runtime is fine: WondrousShop degrades to skipping wondrous:
     // listings at shop-load. Plain compileOnly, not modCompileOnly: 26.x ships
     // unobfuscated, so the remapping mod* variants perform is a no-op here, and Loom
     // does not generate that Kotlin DSL accessor in this setup.
-    compileOnly("wondrous:wondrous-api:0.1.0")
+    //
+    // Switched from wondrous-api (Thingy PLAN.md Phase 2): the item namespace a
+    // shop listing names, "wondrous:<id>", is unchanged; that identity belongs
+    // to the item, not to whichever mod currently hosts it. Only the jar that
+    // resolves the id at runtime has moved.
+    compileOnly("thingy:thingy-api:0.1.0")
 }
 
 repositories {
