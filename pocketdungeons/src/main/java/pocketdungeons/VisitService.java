@@ -130,6 +130,7 @@ final class VisitService {
             // instead, and the two must not drift apart.
             RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
             RoomTemplateGenerator.placeWallLodestone(level, origin);
+            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -145,6 +146,15 @@ final class VisitService {
         record.visitInstance = true;
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);
+
+        // M19: a visit copy gets the physical UI too. The door screen shows the
+        // room as a place (the owner's room, its visitors and whitelist) since
+        // a visitor never chooses doors; the engine screen shows the cost line
+        // without the owner's fuel count.
+        DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
+                DungeonScreen.roomContent(server, record, visitor));
+        DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
+                DungeonScreen.engineContent(null));
 
         Instances.admit(server, record, visitor);
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);

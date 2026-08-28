@@ -487,11 +487,39 @@ final class RunLifecycle {
         } else {
             RoomTemplateGenerator.clearPostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
         }
+        // M19: the physical selection furniture has the same capture hygiene as
+        // the doors above: bulbs, lever, screen blocks and the engine block are
+        // run-scoped mod furniture, not part of the room, and must not bake
+        // into the blob either.
+        RoomTemplateGenerator.clearFurniture(level, record.roomCellOrigin, record.roomDungeonDoor);
         RoomStore.capture(level, server, record.owner, record.roomCellOrigin, roomRotation);
         if (record.awaitingDoorChoice) {
             RoomTemplateGenerator.placeSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
         } else {
             RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
+        }
+        RoomTemplateGenerator.placeFurniture(level, record.roomCellOrigin, record.roomDungeonDoor);
+
+        // The capture swept every non-frame/armour-stand entity out of the
+        // cell, the door screen's text_display included. Bring it back so the
+        // room does not stand without it. In a lobby the selection state is
+        // restored too (bulb and preview) so an owner who left mid-choice
+        // returns to the same choice; the engine screen comes back on its next
+        // click or at the next stamp.
+        if (record.awaitingDoorChoice) {
+            if (record.selectedStep > 0) {
+                RoomTemplateGenerator.setBulb(level, record.roomCellOrigin, record.roomDungeonDoor,
+                        record.selectedStep, true);
+                RoomTemplateGenerator.setBulb(level, record.roomCellOrigin, record.roomDungeonDoor, 10, true);
+                DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
+                        DungeonScreen.previewContent(level, record.owner, record.selectedStep));
+            } else {
+                DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
+                        DungeonScreen.idleContent());
+            }
+        } else {
+            DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
+                    DungeonScreen.runContent(record));
         }
     }
 
@@ -875,8 +903,10 @@ final class RunLifecycle {
         // finished. Clear them first (capture hygiene, trap 17) so they do not
         // bake into the blob and leak into some later placement of it; the room
         // is moving anyway, so there is nothing to put back. The old cell is
-        // blanked below and the new one is re-armed by the caller.
+        // blanked below and the new one is re-armed by the caller. M19: the
+        // selection furniture and its screen entities are swept the same way.
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldRoomOrigin, record.roomDungeonDoor);
+        RoomTemplateGenerator.clearFurniture(level, oldRoomOrigin, record.roomDungeonDoor);
         RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);
 
         // What the room leaves behind: a blank stone-brick room, not a hole.
@@ -928,6 +958,12 @@ final class RunLifecycle {
         CellGeometry.openDoorOnWall(level, newRoomOrigin, CellGeometry.opposite(farWall));
         CellGeometry.sealDoorOnWall(level, newRoomOrigin, farWall);
         RoomTemplateGenerator.placeSelectorDoors(level, newRoomOrigin, farWall);
+        // M19: re-arm the physical selection furniture and both screens against
+        // the room's new orientation, and clear the previous run's selection.
+        record.selectedStep = 0;
+        RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall);
+        DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent());
+        DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
         record.awaitingDoorChoice = true;
 
         // The bedrock envelope, same as stampLobby's applyToCell: nothing

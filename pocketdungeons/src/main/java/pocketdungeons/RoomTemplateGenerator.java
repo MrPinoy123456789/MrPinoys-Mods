@@ -19,9 +19,12 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.JigsawBlock;
+import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -356,6 +359,22 @@ final class RoomTemplateGenerator {
     private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
     private static final Identifier DOOR_GREATER_3 = Identifier.parse("minecraft:exposed_copper_door");
 
+    // ---- M19 furniture -------------------------------------------------------
+
+    /** Unlit by default; the blockstate writes in {@link #setBulb} flip LIT. */
+    private static final BlockState BULB = BuiltInRegistries.BLOCK.getValue(
+            Identifier.parse("minecraft:copper_bulb")).defaultBlockState();
+    private static final BlockState BULB_LIT = BuiltInRegistries.BLOCK.getValue(
+            Identifier.parse("minecraft:copper_bulb")).defaultBlockState()
+            .setValue(CopperBulbBlock.LIT, true);
+    /** The physical backdrop behind each screen's text_display. */
+    private static final BlockState SCREEN_BLOCK = Blocks.CONCRETE.black().defaultBlockState();
+    /** The engine terminal: charges=0 by default; the engine handler raises it. */
+    private static final BlockState ENGINE_BLOCK = Blocks.RESPAWN_ANCHOR.defaultBlockState();
+    /** The commit lever base state; {@link #leverState} adds the wall-facing. */
+    private static final BlockState LEVER_OFF = Blocks.LEVER.defaultBlockState()
+            .setValue(LeverBlock.FACE, AttachFace.WALL);
+
     /**
      * Where the three selector doors stand along their wall: the 2-wide slot
      * itself ({@link RoomGeometry#DOOR_MIN}..{@code DOOR_MAX}) plus one block of
@@ -489,6 +508,125 @@ final class RoomTemplateGenerator {
      */
     static void placeWallLodestone(ServerLevel level, BlockPos o) {
         RoomBuilder.set(level, o.offset(1, 2, 0), Blocks.LODESTONE.defaultBlockState());
+    }
+
+    /**
+     * M19: stamps the room's physical door-selection furniture, relative to
+     * {@code wall}, the wall the selector doors stand on: four copper bulbs at
+     * Y=4 in the door row (one above each selector door, one above the lever),
+     * the commit lever at Y=2 beside the third door, the black concrete door
+     * screen set into the selector wall above the door row, and on the wall to
+     * the left ({@link RoomGeometry#leftOf}) the respawn-anchor engine block
+     * with its own screen above it. The positions must stay in lockstep with
+     * {@link RoomProtection#isFurniture} and {@link #clearFurniture};
+     * {@code RoomFurnitureTest} pins them.
+     *
+     * <p>Called after {@link #placeSelectorDoors} and
+     * {@link #placeWallLodestone} by every path that arms a lobby: stampLobby,
+     * createVisitInstance, and completeDungeon's room relocation.
+     */
+    static void placeFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int along = 7; along <= 10; along++) {
+            RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), BULB);
+        }
+        RoomBuilder.set(level, doorPlanePos(o, wall, 10, 2), leverState(wall));
+        for (int y = 4; y <= 5; y++) {
+            for (int along = 4; along <= 11; along++) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
+            }
+        }
+        DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
+        RoomBuilder.set(level, wallRingPos(o, engineWall, 7, 2), ENGINE_BLOCK);
+        for (int y = 4; y <= 5; y++) {
+            for (int along = 5; along <= 9; along++) {
+                RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), SCREEN_BLOCK);
+            }
+        }
+    }
+
+    /**
+     * Removes every M19 furniture block, restoring the room to its captured
+     * shape: the bulbs and the lever were interior air, the door screen, the
+     * engine block and the engine screen sat in the wall ring, so each clears
+     * back to the block it displaced. Capture hygiene (trap 17 in
+     * {@code DISCOVERIES.md}): none of it may bake into the owner's blob.
+     */
+    static void clearFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int along = 7; along <= 10; along++) {
+            RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), RoomBuilder.AIR);
+        }
+        RoomBuilder.set(level, doorPlanePos(o, wall, 10, 2), RoomBuilder.AIR);
+        for (int y = 4; y <= 5; y++) {
+            for (int along = 4; along <= 11; along++) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
+            }
+        }
+        DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
+        RoomBuilder.set(level, wallRingPos(o, engineWall, 7, 2), RoomBuilder.WALL);
+        for (int y = 4; y <= 5; y++) {
+            for (int along = 5; along <= 9; along++) {
+                RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), RoomBuilder.WALL);
+            }
+        }
+    }
+
+    /** Lights or darkens one bulb in the door row (along 7..10), for selection. */
+    static void setBulb(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, boolean lit) {
+        RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), lit ? BULB_LIT : BULB);
+    }
+
+    /** Sets every bulb in the row at once, for the run-start reset. */
+    static void setAllBulbs(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean lit) {
+        for (int along = 7; along <= 10; along++) {
+            setBulb(level, o, wall, along, lit);
+        }
+    }
+
+    /** The commit lever's position, for click detection ({@code Instances.isCommitLever}). */
+    static BlockPos leverPos(BlockPos o, DoorMask.Direction wall) {
+        return doorPlanePos(o, wall, 10, 2);
+    }
+
+    /** The engine block's position, for click detection ({@code Instances.engineTerminalAt}). */
+    static BlockPos enginePos(BlockPos o, DoorMask.Direction selectorWall) {
+        return wallRingPos(o, RoomGeometry.leftOf(selectorWall), 7, 2);
+    }
+
+    /** Position one block inside the room from {@code wall}, in the door row. */
+    private static BlockPos doorPlanePos(BlockPos o, DoorMask.Direction wall, int along, int y) {
+        return switch (wall) {
+            case NORTH -> o.offset(along, y, 1);
+            case SOUTH -> o.offset(along, y, RoomGeometry.CELL - 2);
+            case EAST -> o.offset(RoomGeometry.CELL - 2, y, along);
+            case WEST -> o.offset(1, y, along);
+        };
+    }
+
+    /** Position in the wall ring itself, on {@code wall}. */
+    private static BlockPos wallRingPos(BlockPos o, DoorMask.Direction wall, int along, int y) {
+        return switch (wall) {
+            case NORTH -> o.offset(along, y, 0);
+            case SOUTH -> o.offset(along, y, RoomGeometry.CELL - 1);
+            case EAST -> o.offset(RoomGeometry.CELL - 1, y, along);
+            case WEST -> o.offset(0, y, along);
+        };
+    }
+
+    /**
+     * A wall-attached lever whose base sits against {@code wall}: the FACING
+     * property points at the wall it is attached to (verified in
+     * {@code FaceAttachedHorizontalDirectionalBlock}'s placement: FACING is the
+     * clicked face's opposite), which for the selector wall is the wall
+     * direction itself.
+     */
+    private static BlockState leverState(DoorMask.Direction wall) {
+        Direction facing = switch (wall) {
+            case NORTH -> Direction.NORTH;
+            case SOUTH -> Direction.SOUTH;
+            case EAST -> Direction.EAST;
+            case WEST -> Direction.WEST;
+        };
+        return LEVER_OFF.setValue(LeverBlock.FACING, facing);
     }
 
     // ---- spec ---------------------------------------------------------------

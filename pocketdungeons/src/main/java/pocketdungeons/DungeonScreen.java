@@ -80,8 +80,16 @@ final class DungeonScreen {
         if (record.roomCellOrigin == null) {
             return;
         }
-        DoorMask.Direction wall = record.roomDungeonDoor;
-        show(level, record.roomCellOrigin, wall, 7.5, DOOR_SCALE, yawFor(wall), content);
+        summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+    }
+
+    /**
+     * Summons the door screen for a room stamp, where no {@link InstanceRecord}
+     * exists yet (stampLobby, createVisitInstance, completeDungeon all call
+     * this with an origin and wall before or instead of a record).
+     */
+    static void summonDoor(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall, Component content) {
+        show(level, roomOrigin, wall, 7.5, DOOR_SCALE, yawFor(wall), content);
     }
 
     /**
@@ -95,8 +103,14 @@ final class DungeonScreen {
             return;
         }
         Component content = engineContent(viewer);
-        DoorMask.Direction engineWall = RoomGeometry.leftOf(record.roomDungeonDoor);
-        show(level, record.roomCellOrigin, engineWall, 7.0, ENGINE_SCALE, yawFor(engineWall), content);
+        summonEngine(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+    }
+
+    /** Summons the engine screen for a room stamp; see {@link #updateEngine}. */
+    static void summonEngine(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
+                             Component content) {
+        DoorMask.Direction engineWall = RoomGeometry.leftOf(selectorWall);
+        show(level, roomOrigin, engineWall, 7.0, ENGINE_SCALE, yawFor(engineWall), content);
     }
 
     // ---- the five door-screen contexts (plan 19.1) ---------------------------

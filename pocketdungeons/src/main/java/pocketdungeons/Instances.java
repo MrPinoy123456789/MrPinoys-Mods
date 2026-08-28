@@ -402,6 +402,10 @@ final class Instances {
             admit(server, record, companion);
         }
 
+        // The engine screen was summoned at stamp time without a viewer; now
+        // that the owner is standing here, show their actual fuel count.
+        DungeonScreen.updateEngine(level, record, player);
+
         player.sendSystemMessage(Component.literal(
                 "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
         return true;
@@ -451,6 +455,13 @@ final class Instances {
             // instead, and the two must not drift apart.
             RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
             RoomTemplateGenerator.placeWallLodestone(level, origin);
+            // M19: the physical selection furniture (bulbs, lever, screens) and
+            // the two text_display entities, summoned fresh at every stamp and
+            // never captured with the room.
+            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH);
+            DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH, DungeonScreen.idleContent());
+            DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
+                    DungeonScreen.engineContent(null));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -658,6 +669,14 @@ final class Instances {
                             PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength());
             record.timer = new RunTimer(layout.keystoneLevel(), seconds, layout.roomCount());
         }
+
+        // M19: the run is underway, so the pending door selection is over.
+        // The bulbs go dark and the door screen switches to the run context
+        // (level, theme, affixes, clock); selectedStep stays 0 until the next
+        // lobby re-arms the room.
+        record.selectedStep = 0;
+        RoomTemplateGenerator.setAllBulbs(level, record.roomCellOrigin, record.roomDungeonDoor, false);
+        DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(record));
 
         // Everything admit() hands a player off the record's layout has to be
         // handed out again here, and this is the only place it can be.
