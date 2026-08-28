@@ -593,3 +593,79 @@ exercised as the primary path.
   so not opting in preserves existing behaviour exactly. Opting in later is a
   one-line addition in each mod's own `onInitialize`, whenever that mod
   decides it wants the guard.
+
+---
+
+## 9. Phase 6/7: `VirtualEntity`, additive rather than a rewrite
+
+Phase 6's three "critical design questions" (the `BY_PLAYER` invariant across
+a disagreement, shutdown ordering, where owner-relative metadata lives) are
+all already answered by Phase 0's `BossRecords` design, by construction, not
+by anything added in this phase:
+
+- `BY_PLAYER` never has a second source to disagree with `BY_ENTITY`:
+  `onEntityLoad`'s reattach path (Phase 0) populates both maps together from
+  the one `BossRecord`, in the same method call. There is no code path where
+  `BY_ENTITY` is restored without `BY_PLAYER`, so the question "which side
+  wins" never arises.
+- Shutdown was already ordered correctly before this phase:
+  `despawnAndRefundAll` (which calls `despawnFor`, which calls `forgetRecord`)
+  runs before `save()`, so a clean stop never leaves a stale record behind.
+- `FREE_CLAIMS` and `SIGIL_COUNTERS` were already outside the entity record,
+  in `boss_state.json`, since Phase 0.
+
+Given that, PLAN.md's own words about Phase 0 ("shaped as the format Thingy's
+`VirtualEntity` persistence will later adopt verbatim... Phase 7 absorbs it
+by reference, not by migration") describe exactly what happened: this phase
+adds a generic interface and exposes the existing, unmodified `BossRecords`
+and `BossHost` tracking through it. It does not rewrite them. Asked and
+decided with the user (2026-08-28): build the abstraction now rather than
+deferring it (unlike Phase 3's `VirtualBlock`), on the understanding that the
+safe version of "building" it here is additive, not a rewrite of already-
+tested crash-recovery code.
+
+### `VirtualEntity` / `VirtualEntities`: shaped like `VirtualTag`, not `VirtualItems`
+
+`VirtualItems` has exactly one implementation: Thingy's own `ItemRegistry`
+owns every item across every namespace. A virtual entity has no equivalent
+single owner; a kamutotems boss is tracked and persisted entirely by
+kamutotems, not by Thingy. So `VirtualEntities` is shaped like `VirtualTag`'s
+namespace registry instead: each owning mod registers its own `Lookup`
+(`Optional<VirtualEntity> byEntity(UUID)`) under its own namespace, and
+`VirtualEntities.byEntity` asks every registered lookup in turn. A duplicate
+namespace registration fails fast, matching `VirtualTag.register` and the
+plan's namespace rule.
+
+`VirtualEntity` itself answers only three questions every caller needs
+regardless of kind: `kind()` (namespaced, `"kamutotems:boss"`), `entityId()`,
+`owner()`. It does not generalize kind-specific state (a boss's tier, roll,
+kamu, aura), the same restraint `VirtualItem` shows toward decoration and
+lore. A caller that wants boss-specific fields still goes through
+`BossHost.byEntity`, exactly as `AuraHost` already did before this phase; that
+call site was not changed.
+
+### What changed in kamutotems, precisely
+
+- `Boss implements VirtualEntity`: three new methods (`kind()`, `entityId()`,
+  and `owner()` retargeted with `@Override`), no field added, no constructor
+  changed.
+- `BossHost.register()` calls `VirtualEntities.register("kamutotems", entityId
+  -> Optional.ofNullable(byEntity(entityId)))` once. `byEntity` itself is
+  untouched.
+- Nothing else. `BossRecords`, its codec, its `SavedDataType` id, `onEntityLoad`'s
+  reattach path, the tick sweep, `onDeath`, `despawnFor`, `/boss cleanup`: byte-
+  for-byte what Phase 0 left them, confirmed by `BossRecordsRegressionTest`
+  still passing unchanged.
+
+### Exit criteria
+
+- A virtual entity survives crash restart with identity and state intact:
+  unchanged since Phase 0, still true, still not exercised on a live server
+  (same caveat as everywhere else in this document).
+- The `BY_PLAYER` invariant is preserved across restart: true by construction,
+  reasoned above; not a new mechanism added this phase.
+- Phase 0's record format is absorbed without migration: literally true, the
+  format was never touched.
+- `BossHost.onEntityLoad` no longer strips tags: true since Phase 0.
+- The in-memory `BY_ENTITY` and `BY_PLAYER` maps are backed by persistence:
+  true since Phase 0.

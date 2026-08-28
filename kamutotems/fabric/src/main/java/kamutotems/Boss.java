@@ -20,6 +20,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
+import thingy.api.VirtualEntity;
 
 import java.util.List;
 import java.util.Objects;
@@ -27,8 +28,14 @@ import java.util.UUID;
 
 /**
  * A summoned boss: a vanilla mob carrying a rolled construct of kamu and a boss bar.
+ *
+ * <p>Implements {@link VirtualEntity} so other Thingy-aware mods can identify
+ * a boss entity generically (PLAN.md Phase 7); {@code kind()}, {@code
+ * entityId()}, and {@code owner()} answer only what any caller needs
+ * regardless of kind. {@link BossHost#byEntity} stays the path for callers
+ * (like {@code AuraHost}) that need the boss-specific fields below.
  */
-public final class Boss {
+public final class Boss implements VirtualEntity {
 
     final UUID owner;
     final int tier;
@@ -56,8 +63,19 @@ public final class Boss {
         this.seed = seed;
     }
 
+    @Override
     public UUID owner() {
         return owner;
+    }
+
+    @Override
+    public String kind() {
+        return "kamutotems:boss";
+    }
+
+    @Override
+    public UUID entityId() {
+        return entity.getUUID();
     }
 
     public int tier() {

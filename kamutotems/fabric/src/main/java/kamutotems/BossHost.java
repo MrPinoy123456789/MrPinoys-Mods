@@ -55,7 +55,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import thingy.api.VirtualEntities;
 
 /**
  * Host for bosses: daily free tier-I, sigil-summoned tiers II-IV, and cleanup.
@@ -78,6 +80,13 @@ public final class BossHost {
 
     public static void register() {
         CATALOG = KamuData.catalog();
+
+        // Exposes the already-tracked BY_ENTITY map to other Thingy-aware mods
+        // (PLAN.md Phase 7). Nothing about tracking, persistence, or
+        // reattachment changes: this only publishes what byEntity already
+        // answers, the same way AuraHost already reads it from inside kamutotems.
+        VirtualEntities.register("kamutotems", entityId ->
+                Optional.ofNullable(byEntity(entityId)));
 
         ServerLifecycleEvents.SERVER_STARTED.register(BossHost::onServerStarted);
         ServerLifecycleEvents.SERVER_STOPPING.register(BossHost::onShutdown);
