@@ -212,18 +212,29 @@ public final class DialogRouter {
     /**
      * A lobby-directory button was clicked: visit the listed room's owner.
      *
-     * <p>The target is re-read as a UUID and the visit re-resolved against live
-     * state, never trusted from the snapshot the screen was built from (the
-     * stale-state guard, same shape as the whitelist actions): an owner who
-     * logged off, went private, or started a run while the screen sat open
-     * must not receive a visitor on stale faith. {@link VisitService#visit}
-     * already says why in chat when it refuses; the directory is re-shown with
-     * a reason line so a rejected click still ends on a screen the player can
-     * act from, per DIALOGS_SPEC section 7.
+     * <p>The target is re-read as a UUID and the visit re-validated against
+     * live state, never trusted from the snapshot the screen was built from
+     * (the stale-state guard, same shape as the whitelist actions). A room
+     * that went private, or an owner who logged off, while the screen sat
+     * open is refused here, before {@link VisitService#visit} is reached. A
+     * room still listed and an owner still online go on to
+     * {@link VisitService#visit}, which re-resolves the instance (the owner's
+     * live room, an existing visit copy, or a fresh read-only stamp) and says
+     * why in chat when it refuses. Either way a rejected click ends on a
+     * re-shown directory with a reason line, so the player can act from it,
+     * per DIALOGS_SPEC section 7.
      */
     private static void visitRoom(ServerPlayer clicker, MinecraftServer server, UUID target) {
         if (target == null) {
             reshowLobby(clicker, server, "That room could not be read.");
+            return;
+        }
+        if (!DungeonLog.forServer(server).get(target).publicListed()) {
+            reshowLobby(clicker, server, "That room is no longer public.");
+            return;
+        }
+        if (server.getPlayerList().getPlayer(target) == null) {
+            reshowLobby(clicker, server, "The room owner is offline.");
             return;
         }
         if (VisitService.visit(clicker, target)) {
