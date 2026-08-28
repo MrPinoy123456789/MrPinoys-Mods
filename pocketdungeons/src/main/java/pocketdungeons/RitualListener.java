@@ -60,7 +60,6 @@ final class RitualListener {
         // nothing happen.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             Keystone.warmUp();
-            CallingCard.warmUp();
             TrialContent.warmUp();
             Fuel.warmUp();
             RerollStation.warmUp();
@@ -124,9 +123,9 @@ final class RitualListener {
         }
 
         // M14: the reroll station. A positive test on the held item, same as
-        // the calling-card and keystone branches below -- anything that is not
-        // tagged tiered gear falls straight through to whatever this block
-        // would otherwise do (by default a plain vanilla smithing table).
+        // the keystone branch below -- anything that is not tagged tiered gear
+        // falls straight through to whatever this block would otherwise do (by
+        // default a plain vanilla smithing table).
         if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
             return InteractionResult.SUCCESS_SERVER;
         }
@@ -134,8 +133,7 @@ final class RitualListener {
         // M16: the gamble station. Unlike the reroll station above, there is
         // nothing to check about what is held -- a gamble draw has no target
         // item -- so the configured block is fully claimed the moment it
-        // matches, the same way a selector door or a calling-card lodestone
-        // claims theirs.
+        // matches, the same way a selector door claims its click.
         if (GambleStation.onUse(serverPlayer, level.getBlockState(pos))) {
             return InteractionResult.SUCCESS_SERVER;
         }
@@ -211,16 +209,17 @@ final class RitualListener {
         // item nobody has written yet.
         ItemStack held = player.getItemInHand(hand);
 
-        // M3 T3.2: calling card -- positive test, falls through to the keystone
-        // branch if it is not a card, and foreign items still PASS cleanly.
-        java.util.Optional<java.util.UUID> cardOwner = CallingCard.ownerOf(held);
-        if (cardOwner.isPresent()) {
-            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                    SoundSource.BLOCKS, 1.0f, 1.0f);
-            if (VisitService.visit(serverPlayer, cardOwner.get())) {
-                return InteractionResult.SUCCESS_SERVER;
-            }
-            return InteractionResult.PASS;
+        // M20: the lobby directory, opened from the room's wall lodestone. A
+        // keystone right-click still starts a dungeon: this branch excludes
+        // keystones, so they fall through to the keystone branch below. The
+        // wall lodestone is the only lodestone inside a room cell, so "a
+        // lodestone in the player's own room" is exactly "the wall lodestone".
+        // M21: replace this with lodestoneMenu.
+        if (serverPlayer.getUUID().equals(Instances.roomOwnerAt(pos))
+                && !Keystone.isKeystone(held)) {
+            DialogKit.show(serverPlayer, DialogScreens.lobbyBrowser(
+                    serverPlayer.level().getServer(), serverPlayer.getUUID()));
+            return InteractionResult.SUCCESS_SERVER;
         }
 
         if (!Keystone.isKeystone(held)) {
