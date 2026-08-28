@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -57,7 +58,7 @@ final class DungeonCommands {
                             // Read-only companion to the lore tooltip and /dungeon log,
                             // in one screen. A chat trigger rather than a sneak-right-click
                             // because RitualListener's use handler is already carrying the
-                            // ritual, the calling card and the exit pad, and it does not
+                            // ritual and the exit pad, and it does not
                             // need a fourth meaning for the same gesture.
                             .then(Commands.literal("info")
                                     .executes(ctx -> keyInfo(ctx.getSource().getPlayerOrException()))))
@@ -114,10 +115,18 @@ final class DungeonCommands {
                                             EntityArgument.getPlayer(ctx, "leader")))))
 
                     // M2 T2.2: an owner's own guest list for their room.
-                    // M3 T3.1: mint a calling card for this owner.
+                    // M20: the lobby directory replaces the calling card, so the
+                    // room subtree gains the visibility toggle and the display
+                    // name, and loses the card-minting command.
                     .then(Commands.literal("room")
-                            .then(Commands.literal("card")
-                                    .executes(ctx -> roomCard(ctx.getSource().getPlayerOrException())))
+                            .then(Commands.literal("public")
+                                    .executes(ctx -> roomPublic(ctx.getSource().getPlayerOrException())))
+                            .then(Commands.literal("private")
+                                    .executes(ctx -> roomPrivate(ctx.getSource().getPlayerOrException())))
+                            .then(Commands.literal("name")
+                                    .then(Commands.argument("text", StringArgumentType.greedyString())
+                                            .executes(ctx -> roomName(ctx.getSource().getPlayerOrException(),
+                                                    StringArgumentType.getString(ctx, "text")))))
                             .then(Commands.literal("whitelist")
                                     // Bare form opens the manager; add/remove/list keep
                                     // working exactly as they did, for console and for
@@ -555,10 +564,43 @@ final class DungeonCommands {
         return 1;
     }
 
-    private static int roomCard(ServerPlayer owner) {
-        Payout.deliver(owner, CallingCard.mint(owner.getUUID()));
-        owner.sendSystemMessage(Component.literal("You mint a calling card for your room.")
-                .withStyle(ChatFormatting.GOLD));
+    /**
+     * {@code /dungeon room public}: lists this player's room in the lobby
+     * directory. Visibility, not permission: the whitelist still gates what a
+     * visitor can do once inside.
+     */
+    private static int roomPublic(ServerPlayer owner) {
+        DungeonLog.forServer(owner.level().getServer()).setPublicListed(owner.getUUID(), true);
+        owner.sendSystemMessage(Component.literal(
+                "Your room is now listed in the lobby directory.")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    /**
+     * {@code /dungeon room private}: unlists this player's room. The default;
+     * a room never appears in the directory until its owner opts in.
+     */
+    private static int roomPrivate(ServerPlayer owner) {
+        DungeonLog.forServer(owner.level().getServer()).setPublicListed(owner.getUUID(), false);
+        owner.sendSystemMessage(Component.literal("Your room is no longer listed.")
+                .withStyle(ChatFormatting.GRAY));
+        return 1;
+    }
+
+    /**
+     * {@code /dungeon room name <text>}: the display name shown in the lobby
+     * directory. Capped at 16 characters, the same cap the whitelist-name
+     * dialog's text input enforces; a longer string is trimmed, not refused.
+     */
+    private static int roomName(ServerPlayer owner, String text) {
+        String name = text.trim();
+        if (name.length() > 16) {
+            name = name.substring(0, 16);
+        }
+        DungeonLog.forServer(owner.level().getServer()).setRoomName(owner.getUUID(), name);
+        owner.sendSystemMessage(Component.literal(
+                "Room name set to " + name + ".").withStyle(ChatFormatting.GREEN));
         return 1;
     }
 
