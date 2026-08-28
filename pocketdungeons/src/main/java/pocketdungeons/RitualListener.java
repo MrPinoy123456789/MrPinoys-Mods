@@ -120,7 +120,7 @@ final class RitualListener {
         }
 
         // M14: the reroll station. A positive test on the held item, same as
-        // the keystone branch below -- anything that is not tagged tiered gear
+        // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by
         // default a plain vanilla smithing table).
         if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
