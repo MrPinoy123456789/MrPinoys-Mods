@@ -394,6 +394,22 @@ templates, and the protection guards), so they landed together.
 
 ---
 
+## M19: Physical door selection
+
+Second of the Room UX pass. The dialog-based door offer is replaced by a
+physical UI on the selector wall: three copper bulbs above the doors signal
+the selection, a black concrete screen with a server-side `text_display`
+entity above them shows the offer or the run context, and a lever beside the
+third door commits the choice through `RunLifecycle.chooseOffer`. A separate
+engine terminal, a respawn anchor on the wall to the left, shows fuel and
+accepts echo shards, keeping "which fight" and "can I afford it" on two
+surfaces. The screen entities are summoned at every room stamp and never
+captured with the room; `isFurniture` protects all of it from the player.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

@@ -193,7 +193,11 @@ the walk between doors is the browse, the lever is the commit.
 - The screen shows five contexts: idle prompt, door preview (level,
   theme, affixes), run in progress (level, theme, affixes, spawner
   count or timer), post-completion (room name, visibility, visitor
-  count), and "Select a door first" refusal.
+  count), and "Select a door first" refusal. The post-completion
+  context's room-name and visibility lines depend on M20's fields
+  (host-set name, `publicListed`); M19 ships the room-mode machinery
+  with the owner, visitor count and whitelist size, and M20 fills in
+  the name and visibility.
 - The screen is re-summoned after each room placement with fresh
   content, never captured with the room. Purged by the existing entity
   sweep on teardown.
@@ -225,10 +229,11 @@ the walk between doors is the browse, the lever is the commit.
 - `RitualListener.sendDoorOffer`: replaced with a selection-state
   update (bulb toggle + screen update).
 - "Take this key" button: replaced by lever pull.
-- What stays: `Instances.chooseOffer` (called from the lever),
+- What stays: `RunLifecycle.chooseOffer` (called from the lever),
   `Keystone.offers` (still generates three offers),
   `placeSelectorDoors` (still places three door blocks),
-  `selectorDoorStep` (still detects which door was right-clicked).
+  `selectorDoorStep` (still detects which door was right-clicked),
+  and the `/dungeon choose <step>` command as a power-user shortcut.
 
 ### 19.6 The engine terminal: fuel as a separate surface (10.7)
 
@@ -260,10 +265,12 @@ the walk between doors is the browse, the lever is the commit.
   handler.
 - `Instances.stampLobby`: place bulbs, lever, screen blocks, engine
   block, summon screen `text_display`.
-- `Instances.chooseOffer`: read `selectedStep` instead of dialog
+- `RunLifecycle.chooseOffer`: read `selectedStep` instead of dialog
   payload.
 - `DialogScreens.doorOffer`: deleted.
-- `DialogRouter`: remove `doorOffer` dispatch.
+- `DialogRouter`: nothing to remove here; the dialog used a command
+  button (`/dungeon choose <step>`), not a `CustomAll` payload, so
+  there was never a `doorOffer` dispatch case.
 - New class: `DungeonScreen` (text_display management, following
   Hearsay's `Bubbles.java` pattern).
 

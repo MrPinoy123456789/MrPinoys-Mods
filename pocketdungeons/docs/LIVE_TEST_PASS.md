@@ -1033,3 +1033,104 @@ the high end), not a code defect; record what you find here either way.
 3. Complete a run so the room relocates, then enter again.
 4. **Expected:** the new ceiling and fixtures are preserved, and the stair
    orientation stays correct at whatever rotation the room landed at.
+
+## 23. Physical door selection (M19)
+
+Everything in M19 is client-interactive; none of it has been verified
+headless. The screen text, the bulb blockstates, and the lever/engine
+interactions all need a live client.
+
+### 23.1 The furniture is there and unbreakable
+
+1. Enter a fresh lobby. **Expected:** on the selector wall (the wall the
+   doors face away from the room), reading left to right: three selector
+   doors; a copper bulb above each and a fourth above where the lever sits;
+   a lever beside the third door; a black concrete screen (8 wide, 2 tall)
+   set into the wall above the door row. On the wall to the left of the
+   doors (facing them): a respawn anchor at eye height with a small black
+   concrete screen above it.
+2. Try to break each copper bulb, the lever, the door screen blocks, the
+   engine block, and the engine screen blocks.
+3. **Expected:** every break is refused, the same as the shell.
+4. Try to place a block onto a bulb or lever position.
+5. **Expected:** placement is refused.
+
+### 23.2 The door screen renders
+
+1. Look at the door screen from inside the room.
+2. **Expected:** black concrete backdrop with readable text: "POCKET
+   DUNGEONS", "Right-click a door to preview", "Pull the lever to start".
+   The text must read normally (not mirrored), sit within the 8x2 backdrop,
+   and stay visible from across the room. If it renders too small, too large,
+   offset, or mirrored, tune the transformation scale and the anchor
+   y-offset in `DungeonScreen.show` and the yaw in `DungeonScreen.yawFor`
+   (the shipped values are derived from the 26.2 renderer but unverified).
+
+### 23.3 Selecting a door
+
+1. Right-click door 1.
+2. **Expected:** door 1's bulb lights, the ready bulb above the lever
+   lights, and the door screen switches to door 1's offer (keystone level,
+   theme, affixes). No dialog opens anywhere.
+3. Right-click door 2.
+4. **Expected:** door 1's bulb goes dark, door 2's bulb lights, and the
+   screen shows door 2's offer.
+5. Right-click door 1 again.
+6. **Expected:** the selection stays on door 1; the screen re-renders door
+   1's offer.
+
+### 23.4 The lever
+
+1. Pull the lever (right-click it) without selecting a door.
+2. **Expected:** the door screen shows "Select a door first" in red; nothing
+   else happens; the lever does not visibly toggle.
+3. Select a door, then pull the lever.
+4. **Expected:** the dungeon generates behind the lobby, the timer starts,
+   the bulbs go dark, and the door screen switches to the run context
+   (keystone level, theme, affixes, clock).
+5. During the run, walk back to the room.
+6. **Expected:** the door screen still shows the run context; the engine
+   screen shows the viewer's fuel count and "Cost per premium door: 3".
+
+### 23.5 The engine terminal
+
+1. Right-click the engine block holding an echo shard.
+2. **Expected:** one shard is consumed from your inventory, the anchor's
+   charge level rises by one (cap 4), and the engine screen updates. No
+   vanilla respawn-charging happens (you are not in the Nether anyway).
+3. Right-click the engine holding anything else.
+4. **Expected:** nothing is consumed; the engine screen refreshes with the
+   current fuel count and cost.
+
+### 23.6 Fuel refusal
+
+1. Complete a run so the room re-arms behind the terminal cell; select door
+   2 or 3 (a greater door) with fewer than 3 echo shards in your inventory.
+2. Pull the lever.
+3. **Expected:** the door screen shows "Not enough fuel" and the run does
+   not start.
+4. Feed shards to the engine, then pull the lever again.
+5. **Expected:** the run starts and the shards are spent.
+
+### 23.7 Level gate refusal
+
+1. Select a greater door at a keystone level below `greaterDoorMinLevel`.
+2. Pull the lever.
+3. **Expected:** the door screen shows the level-gate refusal and the run
+   does not start.
+
+### 23.8 Visiting a room
+
+1. Have a second player use a calling card for your room while you are away.
+2. **Expected:** the visit copy shows the door screen in room mode (your
+   name, the visitor count, the whitelist size) and the engine screen with
+   the cost line and no fuel count.
+
+### 23.9 Teardown hygiene
+
+1. Start a run, then have the instance tear down (timeout or admin purge).
+2. **Expected:** no `text_display` entities are left in the room cell or the
+   dungeon; a `text_display` with tag `pocketdungeons_screen` should not
+   exist anywhere in the slot after teardown (check with
+   `/execute in pocketdungeons:void run data get entity @e[tag=pocketdungeons_screen,limit=1]`
+   or similar).

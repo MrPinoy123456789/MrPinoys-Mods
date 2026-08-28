@@ -913,3 +913,82 @@ lodestone baked into the `.nbt` files.
 interior block (works), opening the double doors, standing in front of the
 wall lodestone, and looking up at the ceiling; recorded as section 22 in
 `LIVE_TEST_PASS.md`.
+
+## M19: Physical door selection
+
+**Goal:** the three selector doors, a `text_display` screen above them, copper
+bulbs as selection indicators, and a lever as the commit replace the
+dialog-based door offer, and a separate engine terminal (a respawn anchor)
+manages fuel. No popups: the walk between doors is the browse, the lever pull
+is the commit. Second milestone of `docs/ROOM_UX_PLAN.md`'s Room UX pass.
+
+- **`selectedStep` on `InstanceRecord`:** 0 = no selection, 1/2/3 = the
+  selector door the owner last right-clicked. In-memory like every other
+  field on the record (no codec, no migration); reset the moment a run starts
+  (`Instances.generateBehindLobby`) and when the room is re-armed behind the
+  terminal cell (`RunLifecycle.completeDungeon`); a fresh lobby always news a
+  record, so the default never carries over.
+- **`isFurniture` protection:** a wall-relative coordinate test alongside
+  `isShell`, covering the four copper bulbs and the commit lever in the row
+  in front of the selector wall, the black concrete door screen set into that
+  wall, and the engine block with its own screen on the wall to the left
+  (`RoomGeometry.leftOf`). Wired into the break guard
+  (`RoomProtection.beforeBlockBreak`) and the placement guard
+  (`RitualListener.onUseBlock`); the mod itself writes through
+  `RoomBuilder.set`, which bypasses `RoomProtection` entirely.
+- **`DungeonScreen`:** the door screen and the engine screen are
+  `text_display` entities following Hearsay's `Bubbles` pattern, verified
+  against the 26.2 jar: `see_through=false` (MC-277982), forced brightness,
+  the `text` tag as an NBT object via `ComponentSerialization.CODEC` (the
+  shape since 1.21.5), billboard `fixed` with a wall-matching `Rotation`, a
+  transformation scale sized so the door screen fills its 8x2 backdrop at two
+  lines per block, and an entity tag for orphan cleanup. Five door contexts
+  (idle, preview, run in progress, room mode, refusal) plus the engine
+  screen's fuel/cost lines are built here; the room-mode context's name and
+  visibility lines wait on M20's fields. The screens are transient: summoned
+  at every stamp, re-summoned after every capture sweep that discards them,
+  and killed by the teardown entity sweep.
+- **Furniture placement and capture hygiene (trap 17):**
+  `placeFurniture`/`clearFurniture` on `RoomTemplateGenerator` stamp and
+  remove the bulbs, lever, screens and engine relative to the selector wall,
+  restoring wall-ring positions to wall and door-row positions to air. Every
+  `RoomStore.capture` (`RunLifecycle.saveRoom`, `completeDungeon`) clears the
+  furniture first so it never bakes into the owner's blob and leaks into the
+  entrance cell of a dungeon stamped from it; every stamp re-places it, and
+  `saveRoom` restores the selection state (bulb and preview) for an owner who
+  left mid-choice.
+- **Selection and commit:** right-clicking a door (`RitualListener.selectDoor`)
+  lights that door's copper bulb, darkens the previous selection, lights the
+  ready bulb above the lever, and puts the offer on the door screen. Pulling
+  the lever (`pullLever`) starts the run through `RunLifecycle.chooseOffer`
+  with `record.selectedStep`, or writes the refusal to the door screen
+  ("Select a door first", "Not enough fuel", the level gate) and consumes the
+  click so vanilla's lever toggle never runs.
+- **Engine terminal:** right-clicking the anchor with the fuel item spends
+  one shard and raises the anchor's charge level (purely visual: fuel is
+  inventory-based since M12), and every click refreshes the engine screen
+  with the viewer's fuel count and the per-door cost. The intercept fires
+  ahead of vanilla's Nether glowstone charge; a player's own anchor anywhere
+  else is untouched.
+- **The dialog path is deleted:** `DialogScreens.doorOffer` and
+  `RitualListener.sendDoorOffer` are gone, and with them the "Take this key"
+  button. There was never a `DialogRouter` dispatch for the offer: the dialog
+  used a command button, so nothing moved in `DialogRouter`. `/dungeon choose
+  <step>` stays as a power-user shortcut.
+- **New pure-Java test:** `RoomFurnitureTest` (`roomFurnitureTest` Gradle
+  task, wired into `tasks.test`) pins the `isFurniture` coordinates per
+  selector wall: the bulb row and lever, the door screen, the engine block
+  and screen on the left wall, the interior-never-furniture rule, the
+  outside-the-box rule, the selector-wall dependence of the same world
+  position, and a non-zero room origin.
+
+**Headless-verified:** `./gradlew build` green, `RoomFurnitureTest` passing,
+`selectedStep` as a plain in-memory field (no `DungeonLog.Entry` codec change,
+so no migration), and the lever/engine call paths compiling against the live
+`RunLifecycle.chooseOffer`.
+
+**Live-only, not yet verified:** bulb toggling, the screens' rendering and
+positioning (the fixed-billboard yaw and the transformation scale are derived
+from the 26.2 renderer bytecode but need a client to confirm), the lever pull
+flow, the engine feed flow, and breaking each furniture block (refused);
+recorded as section 23 in `LIVE_TEST_PASS.md`.
