@@ -42,6 +42,36 @@ public class DungeonLogTest {
         log.clearPendingOffer(player);
         check(log.get(player).currentTheme(), "prismarine", "pending-offer round trip preserves currentTheme");
 
+        // M20: publicListed and roomName round trip through the codec, and a
+        // save written before M20 (missing both fields) loads with the safe
+        // defaults. The codec is exercised through the whole DungeonLog CODEC
+        // because ENTRY_CODEC itself is private.
+        DungeonLog listed = new DungeonLog();
+        listed.setPublicListed(player, true);
+        listed.setRoomName(player, "The Vault");
+        com.google.gson.JsonElement encoded = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, listed).result().orElseThrow();
+        DungeonLog decoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, encoded).result().orElseThrow().getFirst();
+        check(decoded.get(player).publicListed(), true, "publicListed round trips");
+        check(decoded.get(player).roomName(), "The Vault", "roomName round trips");
+
+        com.google.gson.JsonObject old = new com.google.gson.JsonObject();
+        com.google.gson.JsonArray players = new com.google.gson.JsonArray();
+        com.google.gson.JsonObject oldEntry = new com.google.gson.JsonObject();
+        oldEntry.addProperty("player", player.toString());
+        com.google.gson.JsonObject oldFields = new com.google.gson.JsonObject();
+        oldFields.addProperty("runs", 1);
+        oldFields.addProperty("best_path", 2);
+        oldEntry.add("entry", oldFields);
+        players.add(oldEntry);
+        old.add("players", players);
+        DungeonLog legacy = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, old).result().orElseThrow().getFirst();
+        check(legacy.get(player).publicListed(), false, "pre-M20 save defaults publicListed to false");
+        check(legacy.get(player).roomName(), "", "pre-M20 save defaults roomName to empty");
+        check(legacy.get(player).runsCompleted(), 1, "pre-M20 save still loads its runs");
+
         System.out.println("DungeonLogTest passed");
     }
 
