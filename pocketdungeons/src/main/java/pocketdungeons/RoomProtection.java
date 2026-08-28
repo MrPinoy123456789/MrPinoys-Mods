@@ -47,7 +47,7 @@ final class RoomProtection {
         }
         // M18 9.1: the shell is immutable to everyone, the owner included.
         // Checked ahead of the permission mask so a whitelisted guest cannot
-        // break the shell either -- the shell is not theirs to modify, full
+        // break the shell either: the shell is not theirs to modify, full
         // stop. Paintings, item frames, carpets, signs, buttons and torches
         // never reach this branch for the shell: they are entities or sit on
         // the face of a wall, not in the wall.

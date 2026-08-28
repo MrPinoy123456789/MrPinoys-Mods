@@ -874,7 +874,7 @@ final class RunLifecycle {
         // for the whole run, and this capture happens with the run just
         // finished. Clear them first (capture hygiene, trap 17) so they do not
         // bake into the blob and leak into some later placement of it; the room
-        // is moving anyway, so there is nothing to put back -- the old cell is
+        // is moving anyway, so there is nothing to put back. The old cell is
         // blanked below and the new one is re-armed by the caller.
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldRoomOrigin, record.roomDungeonDoor);
         RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);

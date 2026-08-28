@@ -438,7 +438,7 @@ final class RoomTemplateGenerator {
      * Restores the punched door slot to open air, removing the post-selection
      * double doors and their lintel. Capture hygiene (trap 17 in
      * {@code DISCOVERIES.md}): the doors are run-scoped mod furniture, not part
-     * of the room, so they must not bake into the owner's blob -- callers clear
+     * of the room, so they must not bake into the owner's blob. Callers clear
      * them before {@link RoomStore#capture} and put them straight back.
      */
     static void clearPostSelectionDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
