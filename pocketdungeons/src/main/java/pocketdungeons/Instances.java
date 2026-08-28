@@ -27,6 +27,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
+import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.LevelData;
@@ -972,6 +974,16 @@ final class Instances {
                 }
             }
 
+            // M22: the spawner-cleared cue. Watched here, once per cell per
+            // run: the moment every trial spawner in a cell sits at COOLDOWN,
+            // each member standing inside that cell hears it. A divergence
+            // from the plan's "one line per call site": there is no per-cell
+            // clear event to hook, so this is a small watcher on the same
+            // interval the rest of onTick uses.
+            if (record.isKeystoneRun() && record.completed.isEmpty()) {
+                watchSpawnerClears(server, record);
+            }
+
             for (UUID member : new ArrayList<>(record.members.keySet())) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
                 if (player == null) {
@@ -1040,6 +1052,56 @@ final class Instances {
                         // out because there is no room pad to use instead.
                         RunLifecycle.exit(player, RunLifecycle.ExitReason.EXIT_PAD);
                     }
+                }
+            }
+        }
+    }
+
+    // ---- teardown -----------------------------------------------------------
+
+    /**
+     * M22: fires the spawner-cleared cue for a run. A cell counts as cleared
+     * when every trial spawner in it sits at {@code COOLDOWN}, the same
+     * predicate {@code TrialContent.countCleared} uses; the cue goes to each
+     * member standing inside that cell the moment it first reaches that state.
+     * A deliberate small watcher: there is no per-cell clear event to hook,
+     * and {@code clearedCells} is the only new state, in-memory like every
+     * other field on the record.
+     */
+    private static void watchSpawnerClears(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null || record.layout.trialSpawners().isEmpty()) {
+            return;
+        }
+        Map<PlanCell, List<BlockPos>> byCell = new HashMap<>();
+        for (BlockPos pos : record.layout.trialSpawners()) {
+            PlanCell cell = record.layout.geometry().cellAt(pos);
+            if (cell != null) {
+                byCell.computeIfAbsent(cell, c -> new ArrayList<>()).add(pos);
+            }
+        }
+        for (Map.Entry<PlanCell, List<BlockPos>> e : byCell.entrySet()) {
+            PlanCell cell = e.getKey();
+            if (record.clearedCells.contains(cell)) {
+                continue;
+            }
+            boolean cleared = true;
+            for (BlockPos pos : e.getValue()) {
+                if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
+                        && spawner.getState() == TrialSpawnerState.COOLDOWN)) {
+                    cleared = false;
+                    break;
+                }
+            }
+            if (!cleared) {
+                continue;
+            }
+            record.clearedCells.add(cell);
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+                if (memberPlayer != null
+                        && cell.equals(record.layout.geometry().cellAt(memberPlayer.blockPosition()))) {
+                    Chime.spawnerCleared(memberPlayer);
                 }
             }
         }

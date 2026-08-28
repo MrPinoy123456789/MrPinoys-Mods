@@ -52,6 +52,15 @@ final class InstanceRecord {
     /** Cells any member has stood in, for the boss bar's room-visited counter. */
     final Set<PlanCell> visited = new HashSet<>();
 
+    /**
+     * M22: cells whose every trial spawner has been cleared (each at
+     * {@code COOLDOWN}), for the spawner-cleared cue. In-memory like every
+     * other field on the record; dies with the instance, never persisted.
+     * A cell is added exactly once, when it first reaches fully cleared, so
+     * the cue fires once per cell per run.
+     */
+    final Set<PlanCell> clearedCells = new HashSet<>();
+
     // ---- keystone run state --------------------------------------------------
     // All of it dies with the instance, which is the whole point: the keystone
     // itself lives in DungeonLog, so there is no run to persist and nothing here
