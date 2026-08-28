@@ -1,6 +1,7 @@
 package kamutotems;
 
 import kamutotems.core.BossRoll;
+import kamutotems.core.Kamu;
 import kamutotems.core.KamuCatalog;
 
 import com.google.gson.JsonElement;
@@ -31,6 +32,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.dispenser.DispenseItemBehavior;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -49,7 +52,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -80,6 +85,7 @@ public final class BossHost {
         ServerLivingEntityEvents.AFTER_DEATH.register(BossHost::onDeath);
         // ServerEntityEvents.ENTITY_LOAD is in the lifecycle package, not entity.event.
         ServerEntityEvents.ENTITY_LOAD.register(BossHost::onEntityLoad);
+        ServerPlayConnectionEvents.JOIN.register(BossHost::onJoin);
         ServerPlayConnectionEvents.DISCONNECT.register(BossHost::onDisconnect);
         UseItemCallback.EVENT.register((player, level, hand) -> {
             ItemStack stack = player.getItemInHand(hand);
@@ -179,6 +185,7 @@ public final class BossHost {
         BY_PLAYER.put(boss.owner(), boss.entity().getUUID());
         // Entity.addTag verified in 26.2.
         boss.entity().addTag(TAG);
+        writeRecord(boss);
     }
 
     public static java.util.Collection<Boss> activeBosses() {
@@ -205,7 +212,7 @@ public final class BossHost {
         if (data != null) {
             readState(data);
         }
-        LOG.info("Boss host ready — today is {}", todayKey());
+        LOG.info("Boss host ready: today is {}", todayKey());
     }
 
     /** Removes boss bars and persists claim state during orderly shutdown. */
@@ -228,6 +235,7 @@ public final class BossHost {
                 boss.removeBarAll();
                 it.remove();
                 BY_PLAYER.remove(boss.owner());
+                forgetRecord(boss.entity());
                 continue;
             }
             boss.updateBar();
@@ -242,6 +250,7 @@ public final class BossHost {
         }
         BY_PLAYER.remove(boss.owner());
         boss.removeBarAll();
+        forgetRecord(entity);
 
         ServerPlayer killer = source.getEntity() instanceof ServerPlayer p ? p : null;
         // ServerLevel.getRandom().nextLong() verified in 26.2.
@@ -263,12 +272,77 @@ public final class BossHost {
         }
     }
 
-    /** Returns an orphaned tagged boss to vanilla mob behavior after it loads. */
+    /** Reattaches a tagged boss to its persisted identity after it loads. */
     private static void onEntityLoad(Entity entity, ServerLevel level) {
-        // A boss not in our map is an orphan from a crash; leave it a vanilla mob.
         // Entity.entityTags() verified in 26.2 (renamed from getTags()).
-        if (entity.entityTags().contains(TAG) && !BY_ENTITY.containsKey(entity.getUUID())) {
-            entity.removeTag(TAG);
+        if (!entity.entityTags().contains(TAG) || BY_ENTITY.containsKey(entity.getUUID())) {
+            return;
+        }
+
+        BossRecords.BossRecord record = BossRecords.forLevel(level).get(entity.getUUID());
+        if (record == null) {
+            // Tagged with nothing behind it: either an orphan from before this
+            // store existed, or a record lost with a corrupt region file. The
+            // tag stays. Stripping it is exactly the silent demotion this fix
+            // removes, and a tagged mob with no record costs only a log line.
+            LOG.warn("Boss entity {} loaded with the {} tag but no saved record; left untracked",
+                    entity.getUUID(), TAG);
+            return;
+        }
+
+        Boss boss = reattach(entity, level, record);
+        BY_ENTITY.put(entity.getUUID(), boss);
+        BY_PLAYER.put(boss.owner(), entity.getUUID());
+        boss.updateBar();
+        LOG.info("Reattached tier-{} boss {} after restart", record.tier(), entity.getUUID());
+    }
+
+    /**
+     * Rebuilds a {@link Boss} around an already-loaded entity.
+     *
+     * <p>The bar is not serializable and is not stored: it is rebuilt from the
+     * entity's own custom name (set at spawn from {@link BossNames}) and falls
+     * back to a fresh build when that name is gone. An offline owner gets an
+     * empty bar, and {@link #onJoin} adds them when they next connect.
+     */
+    private static Boss reattach(Entity entity, ServerLevel level, BossRecords.BossRecord record) {
+        List<Kamu> carried = record.kamuIds().stream()
+                .map(CATALOG::get)
+                .filter(Objects::nonNull)
+                .toList();
+
+        Component barName = entity.getCustomName();
+        if (barName == null) {
+            barName = BossNames.build(record.tier(), entity.getType(), record.aura(), carried);
+        }
+
+        // 26.2 ServerBossEvent takes a UUID first. Verified against the merged jar.
+        ServerBossEvent bar = new ServerBossEvent(
+                record.owner(),
+                barName,
+                BossEvent.BossBarColor.PURPLE,
+                BossEvent.BossBarOverlay.PROGRESS);
+        ServerPlayer owner = level.getServer().getPlayerList().getPlayer(record.owner());
+        if (owner != null) {
+            bar.addPlayer(owner);
+        }
+
+        return new Boss(record.owner(), record.tier(), record.roll(), carried,
+                record.aura(), entity, bar, record.fromSigil(),
+                record.purchaseCounter(), record.seed());
+    }
+
+    /** Shows a reattached boss's bar to its owner when they reconnect. */
+    private static void onJoin(net.minecraft.server.network.ServerGamePacketListenerImpl handler,
+                               net.fabricmc.fabric.api.networking.v1.PacketSender sender,
+                               MinecraftServer server) {
+        ServerPlayer player = handler.getPlayer();
+        if (player == null) {
+            return;
+        }
+        Boss boss = getActive(player.getUUID());
+        if (boss != null) {
+            boss.bar().addPlayer(player);
         }
     }
 
@@ -403,6 +477,7 @@ public final class BossHost {
                 refund(boss, null);
             }
             boss.removeBarAll();
+            forgetRecord(boss.entity());
             boss.entity().discard();
         }
         BY_ENTITY.clear();
@@ -443,6 +518,7 @@ public final class BossHost {
             refund(boss, player);
         }
         boss.removeBarAll();
+        forgetRecord(boss.entity());
         boss.entity().discard();
         BY_ENTITY.remove(boss.entity().getUUID());
         BY_PLAYER.remove(player.getUUID());
@@ -457,6 +533,31 @@ public final class BossHost {
         if (!player.getInventory().add(sigil)) {
             player.drop(sigil, false);
             LOG.info("Refunded sigil for {} dropped at feet", player.getName().getString());
+        }
+    }
+
+    /** Persists a boss's identity so a crash restart can reattach it. */
+    private static void writeRecord(Boss boss) {
+        if (!(boss.entity().level() instanceof ServerLevel level)) {
+            return;
+        }
+        List<String> kamuIds = boss.kamu().stream().map(Kamu::id).toList();
+        BossRecords.forLevel(level).put(new BossRecords.BossRecord(
+                boss.entity().getUUID(),
+                boss.owner(),
+                boss.tier(),
+                boss.roll(),
+                kamuIds,
+                boss.aura(),
+                boss.fromSigil(),
+                boss.purchaseCounter(),
+                boss.seed()));
+    }
+
+    /** Drops the persisted identity of a boss that is dead, refunded, or gone. */
+    private static void forgetRecord(Entity entity) {
+        if (entity.level() instanceof ServerLevel level) {
+            BossRecords.forLevel(level).remove(entity.getUUID());
         }
     }
 

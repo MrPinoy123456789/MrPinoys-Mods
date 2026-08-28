@@ -58,8 +58,15 @@ tasks.register<JavaExec>("kamuDataRegressionTest") {
     classpath = sourceSets["test"].runtimeClasspath
 }
 
+tasks.register<JavaExec>("bossRecordsRegressionTest") {
+    group = "verification"
+    description = "Runs boss identity record codec round-trip coverage."
+    mainClass = "kamutotems.BossRecordsRegressionTest"
+    classpath = sourceSets["test"].runtimeClasspath
+}
+
 tasks.named("check") {
-    dependsOn("kamuDataRegressionTest")
+    dependsOn("kamuDataRegressionTest", "bossRecordsRegressionTest")
 }
 
 tasks.processResources {
