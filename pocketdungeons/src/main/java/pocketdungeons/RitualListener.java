@@ -95,12 +95,22 @@ final class RitualListener {
         // this mod's Fabric API surface, so this is the same trick as the
         // container check above -- deny the use-on-block interaction that a
         // placement begins from when the target face sits inside someone else's
-        // room and the held item would place something there.
-        UUID placementRoomOwner = Instances.roomOwnerAt(hit.getBlockPos().relative(hit.getDirection()));
+        // room and the held item would place something there. M18 9.1: the
+        // room's shell is immutable to everyone, the owner included, so a
+        // placement landing in the shell is denied even for a permitted player.
+        // Decorations are unaffected: a wall sign, torch or banner sits on the
+        // face of a wall (target x=1..14, interior), and a carpet lands on the
+        // floor's top face (target Y=1, interior), so their target positions
+        // are never shell.
+        BlockPos placementPos = hit.getBlockPos().relative(hit.getDirection());
+        UUID placementRoomOwner = Instances.roomOwnerAt(placementPos);
         if (placementRoomOwner != null
-                && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem
-                && !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
-            return InteractionResult.FAIL;
+                && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem) {
+            BlockPos placementRoomOrigin = Instances.roomOriginAt(placementPos);
+            if ((placementRoomOrigin != null && RoomProtection.isShell(placementPos, placementRoomOrigin))
+                    || !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
+                return InteractionResult.FAIL;
+            }
         }
 
         // M14: the reroll station. A positive test on the held item, same as

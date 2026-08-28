@@ -450,7 +450,7 @@ final class Instances {
             // the InstanceRecord exists, so that default is named directly here
             // instead, and the two must not drift apart.
             RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-            RoomTemplateGenerator.placeCornerLeavePad(level, origin);
+            RoomTemplateGenerator.placeWallLodestone(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -473,7 +473,10 @@ final class Instances {
     static InstanceLayout lobbyLayout(BlockPos origin) {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         BlockPos entrance = origin.offset(3, 1, 3);
-        BlockPos exitPad = origin.offset(2, 0, 1);
+        // M18: the leave pad marker tracks the stand spot in front of the wall
+        // lodestone (the lodestone itself is at origin + (1, 2, 0)); the field
+        // is for admin output only.
+        BlockPos exitPad = origin.offset(1, 1, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
                 0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of());
     }
@@ -593,6 +596,12 @@ final class Instances {
 
         RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(dungeonDoor));
         RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, dungeonDoor);
+        // M18 9.2: the punched doorway gets physical double doors (Y=1..2) with
+        // a wall lintel (Y=3), so mobs from the first dungeon cell cannot walk
+        // straight into the room. They are plain vanilla doors the player opens
+        // by hand; selectorDoorStep no longer claims clicks once the run is
+        // underway, so right-clicking falls through to vanilla.
+        RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, dungeonDoor);
 
         record.layout = layout;
         record.affixes = affixes;
@@ -959,7 +968,9 @@ final class Instances {
                 // An edge, not a state: without the onPad set a player standing
                 // still on the pad after completing would be ejected on the very
                 // next watcher tick, with no chance to open a vault.
-                boolean onPad = isOnExitPad(player, record);
+                // M18: the room's leave pad is now a wall lodestone, not a floor
+                // one, so the wall-adjacency test joins the floor test here.
+                boolean onPad = isOnExitPad(player, record) || isOnRoomLeavePad(player, record);
                 boolean stepped = onPad && record.onPad.add(member);
                 if (!onPad) {
                     record.onPad.remove(member);
@@ -1005,17 +1016,37 @@ final class Instances {
      * future room can put a lodestone anywhere and it just works.
      */
     /**
-     * Whether the player is standing on the pad in their <em>room</em>, as
+     * Whether the player is standing at the leave pad in their <em>room</em>, as
      * opposed to a dungeon cell's. Only the room's pad leaves the dungeon; the
      * terminal cell's marks the end of a run and moves nobody.
+     *
+     * <p>M18 moved the room's lodestone from the floor (NW corner) into the wall
+     * at eye height, so the pad is now the floor block directly in front of it:
+     * the check asks whether a lodestone sits in the wall one block up and one
+     * horizontal step from the player's feet, which is rotation-proof the same
+     * way the block-below test {@link #isOnExitPad} uses is. The old floor
+     * position is still honoured for a pre-M18 saved room blob that carries a
+     * floor lodestone, so a returning owner's room keeps working until the room
+     * is next captured. The stand-on trigger itself is M21's to replace.
      */
     private static boolean isOnRoomLeavePad(ServerPlayer player, InstanceRecord record) {
         if (record.roomCellOrigin == null) {
             return false;
         }
-        BlockPos below = player.blockPosition().below();
-        return player.level().getBlockState(below).is(Blocks.LODESTONE)
-                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
+        BlockPos feet = player.blockPosition();
+        if (!CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(feet))) {
+            return false;
+        }
+        if (player.level().getBlockState(feet.below()).is(Blocks.LODESTONE)) {
+            return true; // legacy: a pre-M18 room blob's floor lodestone
+        }
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            if (player.level().getBlockState(feet.offset(dir.getStepX(), 1, dir.getStepZ()))
+                    .is(Blocks.LODESTONE)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
@@ -1040,6 +1071,22 @@ final class Instances {
      * it stays in {@code InstanceRegistry.bySlot}.
      */
     static UUID roomOwnerAt(BlockPos pos) {
+        InstanceRecord record = roomRecordAt(pos);
+        return record == null ? null : record.owner;
+    }
+
+    /**
+     * The room cell origin of whichever live instance's room occupies {@code pos},
+     * or {@code null}. The origin half of {@link #roomOwnerAt}: the shell
+     * protection (M18 9.1) needs the origin to run its pure coordinate test, and
+     * the two lookups must always agree, so both share {@link #roomRecordAt}.
+     */
+    static BlockPos roomOriginAt(BlockPos pos) {
+        InstanceRecord record = roomRecordAt(pos);
+        return record == null ? null : record.roomCellOrigin;
+    }
+
+    private static InstanceRecord roomRecordAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             BlockPos roomOrigin = record.roomCellOrigin;
             if (roomOrigin == null) {
@@ -1049,7 +1096,7 @@ final class Instances {
                     && pos.getZ() >= roomOrigin.getZ() && pos.getZ() < roomOrigin.getZ() + RoomGeometry.CELL
                     && pos.getY() >= roomOrigin.getY()
                     && pos.getY() <= roomOrigin.getY() + RoomGeometry.CEILING_Y) {
-                return record.owner;
+                return record;
             }
         }
         return null;

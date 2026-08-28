@@ -5,7 +5,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
 
 import java.util.Set;
 
@@ -57,8 +60,13 @@ final class RoomBuilder {
     static final BlockState FLOOR = Blocks.POLISHED_ANDESITE.defaultBlockState();
     static final BlockState WALL = Blocks.STONE_BRICKS.defaultBlockState();
     static final BlockState CEILING = Blocks.STONE_BRICKS.defaultBlockState();
+    /** M18 9.4: interior ceiling positions are top-half slabs, half a block of headroom. */
+    static final BlockState CEILING_SLAB = Blocks.STONE_BRICK_SLAB.defaultBlockState()
+            .setValue(SlabBlock.TYPE, SlabType.TOP);
     static final BlockState LAMP = Blocks.SEA_LANTERN.defaultBlockState();
     static final BlockState AIR = Blocks.AIR.defaultBlockState();
+    /** The stair that frames each ceiling lamp (M18 9.4); derives from the wall material. */
+    private static final BlockState STAIR = Blocks.STONE_BRICK_STAIRS.defaultBlockState();
 
     private RoomBuilder() {}
 
@@ -87,19 +95,46 @@ final class RoomBuilder {
             for (int z = 0; z < CELL; z++) {
                 boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
                 set(level, o.offset(x, 0, z), floor);
-                set(level, o.offset(x, CEILING_Y, z), CEILING);
+                // M18 9.4: the edge ring stays full blocks to connect cleanly
+                // with the wall top; the interior ceiling is top-half slabs,
+                // which read as half a block taller from inside.
+                set(level, o.offset(x, CEILING_Y, z), edge ? CEILING : CEILING_SLAB);
                 for (int y = 1; y <= WALL_HEIGHT; y++) {
                     set(level, o.offset(x, y, z), edge ? WALL : AIR);
                 }
             }
         }
 
-        // Ceiling lamps, one per quadrant. Sealed boxes are otherwise pitch dark,
-        // and dark floors spawn their own mobs.
-        set(level, o.offset(4, CEILING_Y, 4), LAMP);
-        set(level, o.offset(4, CEILING_Y, CELL - 5), LAMP);
-        set(level, o.offset(CELL - 5, CEILING_Y, 4), LAMP);
-        set(level, o.offset(CELL - 5, CEILING_Y, CELL - 5), LAMP);
+        // Ceiling lamps, one per quadrant, each framed by four stairs. Sealed
+        // boxes are otherwise pitch dark, and dark floors spawn their own mobs.
+        placeFixture(level, o.offset(4, CEILING_Y, 4));
+        placeFixture(level, o.offset(4, CEILING_Y, CELL - 5));
+        placeFixture(level, o.offset(CELL - 5, CEILING_Y, 4));
+        placeFixture(level, o.offset(CELL - 5, CEILING_Y, CELL - 5));
+    }
+
+    /**
+     * A ceiling lamp in its stair cradle (M18 9.4): the sea lantern plus four
+     * stone-brick stairs at {@link #CEILING_Y} on its four sides, tall back
+     * against the lantern, short stepped side facing outward into the room.
+     * Stairs are transparent to light, so the lantern keeps lighting the room
+     * at full strength; the stairs are purely visual.
+     */
+    private static void placeFixture(ServerLevel level, BlockPos lantern) {
+        set(level, lantern, LAMP);
+        set(level, lantern.east(), stairFacing(Direction.EAST));
+        set(level, lantern.west(), stairFacing(Direction.WEST));
+        set(level, lantern.north(), stairFacing(Direction.NORTH));
+        set(level, lantern.south(), stairFacing(Direction.SOUTH));
+    }
+
+    /**
+     * A stair whose tall back touches the lantern: {@code FACING} points the way
+     * the stair descends, so it points outward, away from the lamp. The stair
+     * at {@code lantern.east()} faces east, and so on around the four sides.
+     */
+    private static BlockState stairFacing(Direction facing) {
+        return STAIR.setValue(StairBlock.FACING, facing);
     }
 
     /**

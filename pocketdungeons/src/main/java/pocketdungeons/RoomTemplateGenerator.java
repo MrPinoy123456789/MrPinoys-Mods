@@ -162,7 +162,7 @@ final class RoomTemplateGenerator {
         specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.SOUTH))
                 .decor((level, o) -> {
                     placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
-                    placeCornerLeavePad(level, o);
+                    placeWallLodestone(level, o);
                 }));
 
         specs.add(new RoomSpec("exit_hall", EnumSet.of(Direction.WEST)).exitPad());
@@ -338,7 +338,7 @@ final class RoomTemplateGenerator {
         specs.add(new RoomSpec("selector_room", Set.of())
                 .decor((level, o) -> {
                     placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
-                    placeCornerLeavePad(level, o);
+                    placeWallLodestone(level, o);
                 }));
 
         return specs;
@@ -383,7 +383,8 @@ final class RoomTemplateGenerator {
         };
         Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_GREATER_3};
         for (int i = 0; i < SELECTOR_DOORS.length; i++) {
-            placeDoor(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), blocks[i], facing);
+            placeDoor(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), blocks[i], facing,
+                    DoorHingeSide.LEFT);
         }
     }
 
@@ -393,6 +394,56 @@ final class RoomTemplateGenerator {
             BlockPos lower = selectorDoorPos(o, wall, pos);
             RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
             RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
+        }
+    }
+
+    /**
+     * The post-selection double doors (M18 9.2): two vanilla wooden doors side
+     * by side filling the freshly punched 2-wide doorway (Y=1..2), with a wall
+     * lintel sealing the top (Y=3) so nothing can shoot or climb over them.
+     * Placed by {@code Instances.generateBehindLobby} the moment a door is
+     * chosen; from then on they are plain vanilla doors the player opens by
+     * hand, since {@code Instances.selectorDoorStep} no longer claims clicks
+     * once the run is underway, and closed doors stop mobs walking into the
+     * room. The hinge side alternates so the two doors meet in the middle like
+     * a real double door.
+     */
+    static void placePostSelectionDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        net.minecraft.core.Direction facing = switch (wall) {
+            case NORTH -> Direction.SOUTH; // doors open into the room
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
+        };
+        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+            BlockPos lower = postSelectionDoorPos(o, wall, i);
+            DoorHingeSide hinge = i == RoomGeometry.DOOR_MIN
+                    ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
+            placeDoor(level, lower, DOOR_NONE, facing, hinge);
+            RoomBuilder.set(level, lower.offset(0, 2, 0), RoomBuilder.WALL); // lintel
+        }
+    }
+
+    /** The lower half of the post-selection door at {@code along}, in the wall itself. */
+    private static BlockPos postSelectionDoorPos(BlockPos o, DoorMask.Direction wall, int along) {
+        return switch (wall) {
+            case NORTH -> o.offset(along, 1, 0);
+            case SOUTH -> o.offset(along, 1, RoomGeometry.CELL - 1);
+            case EAST -> o.offset(RoomGeometry.CELL - 1, 1, along);
+            case WEST -> o.offset(0, 1, along);
+        };
+    }
+
+    /**
+     * Restores the punched door slot to open air, removing the post-selection
+     * double doors and their lintel. Capture hygiene (trap 17 in
+     * {@code DISCOVERIES.md}): the doors are run-scoped mod furniture, not part
+     * of the room, so they must not bake into the owner's blob -- callers clear
+     * them before {@link RoomStore#capture} and put them straight back.
+     */
+    static void clearPostSelectionDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (BlockPos pos : CellGeometry.doorSlotPositions(o, wall)) {
+            RoomBuilder.set(level, pos, Blocks.AIR.defaultBlockState());
         }
     }
 
@@ -413,35 +464,31 @@ final class RoomTemplateGenerator {
     /** A two-block-tall door, both halves matching. Facing is cosmetic only --
      *  every click here is intercepted before vanilla ever opens it. */
     private static void placeDoor(ServerLevel level, BlockPos lower, Identifier blockId,
-                                  net.minecraft.core.Direction facing) {
+                                  net.minecraft.core.Direction facing, DoorHingeSide hinge) {
         Block block = BuiltInRegistries.BLOCK.getValue(blockId);
         BlockState lowerState = block.defaultBlockState()
                 .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
                 .setValue(DoorBlock.FACING, facing)
-                .setValue(DoorBlock.HINGE, DoorHingeSide.LEFT)
+                .setValue(DoorBlock.HINGE, hinge)
                 .setValue(DoorBlock.OPEN, false);
         RoomBuilder.set(level, lower, lowerState);
         RoomBuilder.set(level, lower.above(), lowerState.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
     }
 
     /**
-     * The lobby's leave-pad: a single lodestone tucked into the corner nearest
-     * the entrance slot, with chiselled stone on the floor and wall face around
-     * it so it reads as a built alcove rather than a stray block. Authored at a
-     * fixed local position rather than the rotation-invariant centre
-     * {@link #placeExitPad} uses -- the lobby is never rotated, so nothing
-     * forces the pad to the centre square.
+     * The room's wall terminal: a single lodestone set into the north wall at
+     * eye height (local x=1, y=2, z=0), part of the immutable shell. M18 moved
+     * it there from the floor (NW corner): it is the terminal the player
+     * right-clicks to open the mod navigation menu (M21), not a pad to stand
+     * on, so it needs to be reachable at eye height. Authored at a fixed local
+     * position rather than the rotation-invariant centre {@link #placeExitPad}
+     * uses, exactly like the old pad: the blob carries it through capture and
+     * re-placement. The north wall is clear of the selector-door wall and of
+     * every door slot at every rotation of the template (see the M18 plan
+     * notes), so the lodestone never collides with a doorway.
      */
-    static void placeCornerLeavePad(ServerLevel level, BlockPos o) {
-        int lx = 2;
-        int lz = 1;
-        BlockState ring = Blocks.CHISELED_STONE_BRICKS.defaultBlockState();
-        RoomBuilder.set(level, o.offset(lx, 0, lz), Blocks.LODESTONE.defaultBlockState());
-        RoomBuilder.set(level, o.offset(lx - 1, 0, lz), ring);
-        RoomBuilder.set(level, o.offset(lx + 1, 0, lz), ring);
-        RoomBuilder.set(level, o.offset(lx, 0, lz + 1), ring);
-        RoomBuilder.set(level, o.offset(lx - 1, 0, lz + 1), ring);
-        RoomBuilder.set(level, o.offset(lx, 1, lz - 1), ring); // wall face behind the pad
+    static void placeWallLodestone(ServerLevel level, BlockPos o) {
+        RoomBuilder.set(level, o.offset(1, 2, 0), Blocks.LODESTONE.defaultBlockState());
     }
 
     // ---- spec ---------------------------------------------------------------

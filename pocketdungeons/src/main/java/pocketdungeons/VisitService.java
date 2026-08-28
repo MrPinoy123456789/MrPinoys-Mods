@@ -129,7 +129,7 @@ final class VisitService {
             // the InstanceRecord exists, so that default is named directly here
             // instead, and the two must not drift apart.
             RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-            RoomTemplateGenerator.placeCornerLeavePad(level, origin);
+            RoomTemplateGenerator.placeWallLodestone(level, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);

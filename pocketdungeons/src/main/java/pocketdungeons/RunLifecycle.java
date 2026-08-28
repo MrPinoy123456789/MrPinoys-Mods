@@ -477,12 +477,21 @@ final class RunLifecycle {
         // ones would leak into every dungeon run forever. Clear them out for the
         // capture and put them straight back, so the live room the owner is
         // standing in is undisturbed.
+        //
+        // M18: once a door is chosen, the post-selection double doors stand in
+        // the room's dungeon wall instead. Same capture hygiene, same reason:
+        // the doors are run-scoped mod furniture, not part of the room, and
+        // must not bake into the blob either.
         if (record.awaitingDoorChoice) {
             RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
+        } else {
+            RoomTemplateGenerator.clearPostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
         }
         RoomStore.capture(level, server, record.owner, record.roomCellOrigin, roomRotation);
         if (record.awaitingDoorChoice) {
             RoomTemplateGenerator.placeSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
+        } else {
+            RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
         }
     }
 
@@ -861,6 +870,13 @@ final class RunLifecycle {
         // already left standing, so the damage compounded floor over floor.
         BlockPos oldRoomOrigin = record.roomCellOrigin;
         int oldRoomRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, CellGeometry.opposite(record.roomDungeonDoor));
+        // M18: the post-selection double doors stand in the room's dungeon wall
+        // for the whole run, and this capture happens with the run just
+        // finished. Clear them first (capture hygiene, trap 17) so they do not
+        // bake into the blob and leak into some later placement of it; the room
+        // is moving anyway, so there is nothing to put back -- the old cell is
+        // blanked below and the new one is re-armed by the caller.
+        RoomTemplateGenerator.clearPostSelectionDoors(level, oldRoomOrigin, record.roomDungeonDoor);
         RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);
 
         // What the room leaves behind: a blank stone-brick room, not a hole.
