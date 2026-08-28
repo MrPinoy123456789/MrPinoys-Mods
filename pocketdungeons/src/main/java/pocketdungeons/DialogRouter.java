@@ -66,6 +66,8 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_SLOT, ""), tag.getIntOr(DialogScreens.KEY_TIER, 0));
             case DialogScreens.ACTION_IMBUE -> CubeStation.handleImbue(player,
                     tag.getStringOr(DialogScreens.KEY_POWER, ""));
+            case DialogScreens.ACTION_VISIT_ROOM -> visitRoom(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
         }
     }
@@ -122,6 +124,34 @@ public final class DialogRouter {
         List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(ownerId));
         entries.sort(Comparator.comparing(UUID::toString));
         DialogKit.show(owner, DialogScreens.whitelist(server, ownerId, entries, notice));
+    }
+
+    /**
+     * A lobby-directory button was clicked: visit the listed room's owner.
+     *
+     * <p>The target is re-read as a UUID and the visit re-resolved against live
+     * state, never trusted from the snapshot the screen was built from (the
+     * stale-state guard, same shape as the whitelist actions): an owner who
+     * logged off, went private, or started a run while the screen sat open
+     * must not receive a visitor on stale faith. {@link VisitService#visit}
+     * already says why in chat when it refuses; the directory is re-shown with
+     * a reason line so a rejected click still ends on a screen the player can
+     * act from, per DIALOGS_SPEC section 7.
+     */
+    private static void visitRoom(ServerPlayer clicker, MinecraftServer server, UUID target) {
+        if (target == null) {
+            reshowLobby(clicker, server, "That room could not be read.");
+            return;
+        }
+        if (VisitService.visit(clicker, target)) {
+            return; // teleported; the visit's own chat line is the confirmation
+        }
+        reshowLobby(clicker, server, "That room is not open any more.");
+    }
+
+    /** Rebuilds the lobby directory from current state and sends it back, with a reason line. */
+    private static void reshowLobby(ServerPlayer clicker, MinecraftServer server, String notice) {
+        DialogKit.show(clicker, DialogScreens.lobbyBrowser(server, clicker.getUUID(), notice));
     }
 
     private static UUID uuid(String raw) {
