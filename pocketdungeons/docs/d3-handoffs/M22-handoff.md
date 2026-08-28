@@ -112,6 +112,150 @@ A `Chime.java` class with one static method per event, each sending a
   `Chime.runStarts` if M19's lever becomes the commit. If M19 has not
   landed, leave them in place and add the other cues.
 
+## Detailed implementation plan
+
+Build in this order. Each step is one commit. Run `./gradlew build`
+after each.
+
+### Step 1: Verify the jar, then write `Chime.java`
+
+1. Verify `ClientboundSoundPacket`'s constructor against the 26.2 jar.
+   The spiritwolves `Chime.java` (line 73) uses:
+   `new ClientboundSoundPacket(Holder<SoundEvent>, SoundSource, double x, double y, double z, float volume, float pitch, long seed)`.
+   Confirm this signature still matches 26.2. If the constructor takes
+   a `Holder<SoundEvent>` rather than a raw `SoundEvent`, the
+   `SoundEvents` constants (which are `Holder<SoundEvent>` in modern
+   MC) plug in directly.
+2. Verify every `SoundEvents` constant the cue table names exists as a
+   static field on `net.minecraft.sounds.SoundEvents` in 26.2:
+   `NOTE_BLOCK_BELL`, `NOTE_BLOCK_BASS`, `NOTE_BLOCK_CHIME`,
+   `NOTE_BLOCK_HAT`, `NOTE_BLOCK_DIDGERIDOO`,
+   `RESPAWN_ANCHOR_CHARGE`, `ENDERMAN_TELEPORT`, `PISTON_EXTEND`,
+   `STONE_PLACE`. If any has been renamed or removed, pick the
+   closest vanilla equivalent and note the substitution in the
+   completion report.
+3. Create `pocketdungeons/src/main/java/pocketdungeons/Chime.java`
+   following the spiritwolves pattern exactly:
+   - `public final class Chime` with a private constructor.
+   - One `private static void play(ServerPlayer, Holder<SoundEvent>,
+     float volume, float pitch)` helper that builds a
+     `ClientboundSoundPacket` with `SoundSource.RECORDS` and sends it
+     via `player.connection.send(...)`. Position is
+     `player.getX/Y/Z()`. Seed is `player.getRandom().nextLong()`.
+   - One `public static void <cue>(ServerPlayer)` method per event in
+     the cue table, each a one-line call to `play` with hardcoded
+     volume and pitch. No state, no config, no persistence.
+
+### Step 2: Door-selection cues (M19)
+
+Add these only if M19 has landed (the lever, bulbs, and screen exist).
+Otherwise leave a `// M22: add when M19 lands` comment at the call
+site and ship the run-lifecycle cues only.
+
+1. `doorSelected(ServerPlayer)`: `NOTE_BLOCK_BELL`, volume 0.3, pitch
+   1.0. Called at the end of M19's `selectDoor` (the selector-door
+   right-click handler in `RitualListener`), after the bulb toggle
+   and screen update succeed.
+2. `noSelection(ServerPlayer)`: `NOTE_BLOCK_BASS`, volume 0.4, pitch
+   0.6. Called in the lever handler when `selectedStep == 0`, after
+   the screen shows "Select a door first."
+3. `runStarts(ServerPlayer)`: `RESPAWN_ANCHOR_CHARGE`, volume 0.5,
+   pitch 1.0. Called in the lever handler after
+   `RunLifecycle.chooseOffer` returns true. This is the migration
+   target for the two existing `RESPAWN_ANCHOR_CHARGE` calls (step 6).
+
+### Step 3: Run-lifecycle cues
+
+These fire on events that already exist (M0 to M17), so they ship
+regardless of M19/M21 status.
+
+1. `runComplete(ServerPlayer)`: `NOTE_BLOCK_BELL` then
+   `NOTE_BLOCK_CHIME`, rising. Two `play` calls back to back. Called
+   at the end of `RunLifecycle.completeRun` (line 709), after the
+   payout and offer banking succeed.
+2. `runTimedOut(ServerPlayer)`: `NOTE_BLOCK_DIDGERIDOO`, volume 0.5,
+   pitch 0.8, sustained (a single call; the "sustained" feel comes
+   from the didgeridoo sample's length). Called at the end of
+   `RunLifecycle.expireTimedOut` (line 1041).
+3. `keystoneLevelUp(ServerPlayer)`: `NOTE_BLOCK_CHIME`, volume 0.4,
+   pitch 0.8. Called in `Keystones.grantOffer` (line 98) after
+   `DungeonLog.setKeystone` writes the new level.
+4. `keystoneDepleted(ServerPlayer)`: `NOTE_BLOCK_BASS`, descending
+   two notes (two `play` calls, pitch 0.8 then 0.6). Called in
+   `Keystones.returnTo` (line 57) when the outcome is `TIMED_OUT` or
+   `LATE` and the keystone level drops.
+5. `spawnerCleared(ServerPlayer)`: `NOTE_BLOCK_HAT`, volume 0.12,
+   pitch 1.5. Called at the point where the last spawner in a cell is
+   cleared. Find the spawner-clear detection in `Instances.onTick` or
+   `RunLifecycle` (the cell-completion check) and add the call after
+   the state change.
+
+### Step 4: Room and menu cues (M20, M21)
+
+Add these only if M20/M21 have landed.
+
+1. `menuOpens(ServerPlayer)`: `NOTE_BLOCK_HAT`, volume 0.2, pitch
+   1.0. Called in `RitualListener.onUseBlock` after
+   `DialogKit.show(player, DialogScreens.lodestoneMenu(...))` (M21's
+   menu branch).
+2. `roomListed(ServerPlayer)`: `NOTE_BLOCK_CHIME`, volume 0.3, pitch
+   1.0. Called in `DungeonLog.setPublicListed(uuid, true)` (or in the
+   command/menu handler that calls it), sent to the host.
+3. `roomUnlisted(ServerPlayer)`: `NOTE_BLOCK_HAT`, volume 0.2, pitch
+   1.0. Called in `DungeonLog.setPublicListed(uuid, false)`, sent to
+   the host.
+4. `visitorArrives(ServerPlayer owner)`: `NOTE_BLOCK_BELL`, two notes
+   (pitch 1.0 then 1.2). Called in `VisitService.createVisitInstance`
+   (line 99) after the visitor is admitted. **This is the one
+   exception to the per-player rule:** the cue is sent to the room
+   owner, not the visitor. Read the owner from the visit target UUID
+   and look up their `ServerPlayer`.
+5. `roomRelocated(ServerPlayer)`: `PISTON_EXTEND` or `STONE_PLACE`,
+   positional. Called in `Instances.stampLobby` (line 420) when a
+   room is re-stamped at a new origin. Sent to the owner.
+
+### Step 5: Lobby-visiting cues (M20)
+
+1. `lobbyOpens(ServerPlayer)`: `NOTE_BLOCK_HAT`, volume 0.2, pitch
+   1.0. Called after `DialogScreens.lobbyBrowser` is shown (from the
+   menu's "Browse Lobbies" dispatch or M20's transient lodestone
+   branch).
+2. `visitStarts(ServerPlayer)`: `ENDERMAN_TELEPORT`, volume 0.3, pitch
+   1.0. Called in `VisitService.visit` (line 38) after the visit
+   instance is created and the player is admitted. Sent to the
+   visitor.
+3. `visitEnds(ServerPlayer)`: `ENDERMAN_TELEPORT`, volume 0.3, pitch
+   0.7 (lower pitch than start). Called in `RunLifecycle.exit` (line
+   620) when a visitor leaves a visit instance. Sent to the visitor.
+
+### Step 6: Migrate the existing `RESPAWN_ANCHOR_CHARGE` calls
+
+The two existing calls in `RitualListener` (lines 175 and 199) are
+`level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, ...)`,
+which broadcasts to everyone nearby. If M19 has landed (the lever is
+the commit):
+
+1. Remove both `level.playSound` calls.
+2. Add `Chime.runStarts(player)` at the lever's successful commit
+   point (M19 step 6, after `chooseOffer` returns true).
+3. The sound now plays only for the player who pulled the lever, not
+   the whole room. This is the intended per-player behaviour.
+4. If M19 has not landed, leave the two `level.playSound` calls in
+   place and add the other cues. Add `Chime.runStarts` at the
+   existing `/dungeon choose` success path instead (so the cue fires
+   regardless of which commit path the player used).
+
+### Verification
+
+- `./gradlew build` green after each step.
+- Headless: `Chime.java` compiles, each method builds a valid
+  `ClientboundSoundPacket` (verified via jar inspection of the
+  constructor signature). No runtime test possible without a client.
+- Live: every cue in the table plays, heard only by the relevant
+  player (except `visitorArrives`, heard by the owner), at a sensible
+  volume. Tune volumes and pitches during live testing; the values
+  above are starting points. Record in `docs/LIVE_TEST_PASS.md`.
+
 ## What you must not do
 
 - **Do not add custom sound files.** No `assets/` directory, no

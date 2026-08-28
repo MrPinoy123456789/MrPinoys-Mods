@@ -1,0 +1,26 @@
+{
+  "name": "@mrpinoys/dsh-fabric-modding",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: Fabric modding domain knowledge, workspace pattern reuse, and scaffolding tools for Minecraft 26.x (unobfuscated Mojang mappings).",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=1.0.0",
+    "@deepseek-ai/dsh-tools": ">=1.0.0",
+    "@deepseek-ai/schemastery": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": ">=1.0.0",
+    "@deepseek-ai/dsh-tools": ">=1.0.0",
+    "@deepseek-ai/schemastery": ">=1.0.0",
+    "typescript": "^5.6.0"
+  }
+}

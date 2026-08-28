@@ -1,0 +1,13 @@
+# DeepSeek Harness overlay: load the fabric-modding plugin.
+#
+# The `name` is passed to ESM import(), so on Windows it MUST be a file:// URL
+# with spaces percent-encoded. A bare drive path like 'A:/...' is parsed as
+# protocol 'a:' and rejected. Start with:
+#
+#   dsh web --patch ./cordis.yml
+#
+# On Windows the file URL form is:
+#   name: 'file:///A:/MrPinoys%20Mods/dsh-fabric-modding/src/index.ts'
+- insert:
+    - id: fabric-modding
+      name: 'file:///A:/MrPinoys%20Mods/dsh-fabric-modding/src/index.ts'
