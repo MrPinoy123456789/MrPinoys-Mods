@@ -70,6 +70,15 @@ final class DialogScreens {
     /** M20: which public room the lobby browser's button chose to visit. */
     static final String ACTION_VISIT_ROOM = "pd_visit_room";
 
+    /** M21: which wall-lodestone menu option the button chose. */
+    static final String ACTION_START_DUNGEON = "start_dungeon";
+    static final String ACTION_BROWSE_LOBBIES = "browse_lobbies";
+    static final String ACTION_MANAGE_ROOM = "manage_room";
+    static final String ACTION_INSPECT_KEYSTONE = "inspect_keystone";
+    static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
+    static final String ACTION_SET_ROOM_NAME = "set_room_name";
+    static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
+
     // ---- section 2: party roster and kick confirmation ----------------------
 
     /**
@@ -179,6 +188,19 @@ final class DialogScreens {
                     + " rooms deep."));
         }
         return DialogKit.notice("Your keystone", body);
+    }
+
+    /**
+     * M21: the inspect-keystone screen shared by {@code /dungeon key info} and
+     * the wall-lodestone menu's Inspect Keystone option. The callers check the
+     * player is carrying a keystone and refuse in chat when they are not; this
+     * is the dialog itself, built from the live held stack and log entry.
+     */
+    static Dialog inspectKeystone(ServerPlayer player) {
+        ItemStack held = Keystone.findHeld(player);
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                .get(player.getUUID());
+        return keystoneInfo(held, entry);
     }
 
     // ---- section 5: the room whitelist manager ------------------------------
@@ -485,5 +507,144 @@ final class DialogScreens {
         body.add(DialogKit.text(rows.size() + " public room" + (rows.size() == 1 ? "" : "s")
                 + " right now."));
         return DialogKit.list("Lobby directory", body, buttons, "Close");
+    }
+
+    // ---- section 11: the wall-lodestone menu (M21) -------------------------
+
+    /** One row of the wall-lodestone menu before rendering, kept pure for the headless test. */
+    record MenuOption(String label, String tooltip, String action) {}
+
+    /**
+     * The wall-lodestone menu's button list for a context: the overworld menu
+     * (Start Dungeon, Browse Lobbies, Manage Room, Inspect Keystone) or the
+     * in-dungeon menu (Leave, plus Manage Room only when the player is their
+     * own room's owner, plus Inspect Keystone). Pure function of the context
+     * so the menu's shape is testable headless; the keystone is deliberately
+     * not checked here, because Start Dungeon checks it when clicked and a
+     * player who just wants to leave or browse never needs their compass
+     * first.
+     */
+    static List<MenuOption> menuOptions(boolean inDungeon, boolean roomOwner) {
+        if (inDungeon) {
+            List<MenuOption> options = new ArrayList<>();
+            options.add(new MenuOption("Leave", "Exit the dungeon", ACTION_LEAVE_DUNGEON));
+            if (roomOwner) {
+                options.add(new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM));
+            }
+            options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
+            return options;
+        }
+        return List.of(
+                new MenuOption("Start Dungeon", "Requires a keystone in your main hand",
+                        ACTION_START_DUNGEON),
+                new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
+                new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
+                new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
+    }
+
+    /**
+     * The wall-lodestone navigation menu, context-dependent: the overworld
+     * menu (Start, Browse, Manage, Inspect) or the in-dungeon menu (Leave,
+     * Manage for the room's own owner, Inspect). The keystone is checked by
+     * Start Dungeon's dispatch, never here, so the menu opens with any item
+     * or an empty hand. In the dungeon the menu is the room's wall terminal,
+     * not a stand-on pad; {@code RitualListener} enforces that position gate
+     * before this is ever called.
+     */
+    static Dialog lodestoneMenu(ServerPlayer player, boolean inDungeon) {
+        boolean roomOwner = false;
+        if (inDungeon) {
+            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+            roomOwner = record != null && record.owner.equals(player.getUUID());
+        }
+        return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner), player.getUUID(), inDungeon);
+    }
+
+    /**
+     * The menu dialog from prebuilt options plus the clicking player's UUID;
+     * the headless-testable half of {@link #lodestoneMenu}. Every button
+     * carries {@link #KEY_OWNER} so {@link DialogRouter}'s owner check passes.
+     */
+    static Dialog lodestoneMenuDialog(List<MenuOption> options, UUID owner, boolean inDungeon) {
+        List<DialogBody> body = new ArrayList<>();
+        body.add(DialogKit.text(inDungeon
+                ? "Leave the dungeon, manage your room, or inspect your keystone."
+                : "Start a dungeon, visit a lobby, or manage your room."));
+        List<ActionButton> buttons = new ArrayList<>();
+        for (MenuOption option : options) {
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, owner.toString());
+            buttons.add(DialogKit.button(option.label(), option.tooltip(),
+                    DialogKit.submit(option.action(), context)));
+        }
+        return DialogKit.list(inDungeon ? "Dungeon" : "Pocket Dungeons", body, buttons, "Close");
+    }
+
+    // ---- section 12: room management (M21) ---------------------------------
+
+    /**
+     * The room management screen behind the menu's Manage Room option: the
+     * whitelist's remove buttons, an add-a-player entry (reusing
+     * {@link #whitelistAdd}), a room-name entry, and the public/private toggle
+     * showing the current listing state. The name entry and the toggle
+     * dispatch through {@link DialogRouter} and re-show this screen, so a
+     * click never ends on a closed dialog with the change unmade.
+     */
+    static Dialog manageRoom(MinecraftServer server, UUID owner) {
+        List<DialogBody> body = new ArrayList<>();
+        DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
+        String name = entry.roomName().isBlank() ? "Unnamed" : entry.roomName();
+        body.add(DialogKit.text("Room " + name + " is "
+                + (entry.publicListed() ? "public" : "private") + "."));
+        List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(owner));
+        entries.sort(Comparator.comparing(UUID::toString));
+        body.add(DialogKit.text(entries.isEmpty()
+                ? "Nobody may enter your room but you."
+                : entries.size() + " player" + (entries.size() == 1 ? "" : "s")
+                        + " may enter your room."));
+
+        List<ActionButton> buttons = new ArrayList<>();
+        for (UUID id : entries) {
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, owner.toString());
+            context.putString(KEY_TARGET, id.toString());
+            buttons.add(DialogKit.button("Remove " + displayName(server, id), null,
+                    DialogKit.submit(ACTION_WHITELIST_REMOVE, context)));
+        }
+        buttons.add(showDialogButton("Add a player...", whitelistAdd(owner)));
+        buttons.add(showDialogButton("Set room name...", roomNameInput(owner)));
+        CompoundTag toggle = new CompoundTag();
+        toggle.putString(KEY_OWNER, owner.toString());
+        buttons.add(DialogKit.button(entry.publicListed() ? "Room is public" : "Room is private",
+                "Click to flip the lobby listing", DialogKit.submit(ACTION_TOGGLE_PUBLIC, toggle)));
+
+        return DialogKit.list("Manage room", body, buttons, "Close");
+    }
+
+    /**
+     * The room-name form behind Manage Room's Set room name: one text field,
+     * "Set" and "Cancel", the same shape as {@link #whitelistAdd}.
+     */
+    static Dialog roomNameInput(UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        Input name = new Input(KEY_NAME, new TextInput(
+                DialogKit.WIDE, Component.literal("Room name"), true, "", 16,
+                Optional.empty()));
+        return new net.minecraft.server.dialog.ConfirmationDialog(
+                DialogKit.common("Set room name",
+                        List.of(DialogKit.text("Shown in the lobby directory.")),
+                        List.of(name)),
+                DialogKit.button("Set", null, DialogKit.submit(ACTION_SET_ROOM_NAME, context)),
+                DialogKit.closeButton("Cancel"));
+    }
+
+    /** A button that swaps to another screen on the client, committing nothing. */
+    private static ActionButton showDialogButton(String label, Dialog dialog) {
+        return new ActionButton(
+                new net.minecraft.server.dialog.CommonButtonData(
+                        Component.literal(label), Optional.empty(), DialogKit.WIDE),
+                Optional.of(new StaticAction(
+                        new ClickEvent.ShowDialog(net.minecraft.core.Holder.direct(dialog)))));
     }
 }
