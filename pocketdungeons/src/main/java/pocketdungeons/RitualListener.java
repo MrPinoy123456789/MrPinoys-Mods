@@ -92,19 +92,21 @@ final class RitualListener {
         }
         // Placement: there is no generic "before a block is placed" event in
         // this mod's Fabric API surface, so this is the same trick as the
-        // container check above -- deny the use-on-block interaction that a
+        // container check above: deny the use-on-block interaction that a
         // placement begins from when the target face sits inside someone else's
-        // room and the held item would place something there. M18 9.1: the
+        // room and the held item would put something there. M18 9.1: the
         // room's shell is immutable to everyone, the owner included, so a
         // placement landing in the shell is denied even for a permitted player.
-        // Decorations are unaffected: a wall sign, torch or banner sits on the
-        // face of a wall (target x=1..14, interior), and a carpet lands on the
-        // floor's top face (target Y=1, interior), so their target positions
-        // are never shell.
+        // The gate covers fluid placement too (a bucket is not a BlockItem):
+        // a bucket aimed at a shell or furniture position is denied the same
+        // way, and a non-permitted player can no longer pour water or lava in
+        // a room they are only visiting. Decorations are unaffected: a wall
+        // sign, torch or banner sits on the face of a wall (target x=1..14,
+        // interior), and a carpet lands on the floor's top face (target Y=1,
+        // interior), so their target positions are never shell.
         BlockPos placementPos = hit.getBlockPos().relative(hit.getDirection());
         UUID placementRoomOwner = Instances.roomOwnerAt(placementPos);
-        if (placementRoomOwner != null
-                && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem) {
+        if (placementRoomOwner != null && isPlacementSource(player.getItemInHand(hand))) {
             BlockPos placementRoomOrigin = Instances.roomOriginAt(placementPos);
             // M19 19.7: furniture is protected from placement the same way the
             // shell is. The door screen blocks sit in the wall ring (already
@@ -297,5 +299,19 @@ final class RitualListener {
         RoomTemplateGenerator.setBulb(level, o, wall, 10, true); // ready to commit
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
         Chime.doorSelected(player);
+    }
+
+    /**
+     * Whether {@code stack} modifies the world when used on a block face, in
+     * a way the room's placement gate must answer for: a block item places a
+     * block, a bucket places or collects a fluid. The same gate applies to
+     * both, so a non-permitted player cannot pour water or lava in a room
+     * they are only visiting, and nobody, owner included, can aim either at
+     * the shell or the mod furniture.
+     */
+    private static boolean isPlacementSource(ItemStack stack) {
+        net.minecraft.world.item.Item item = stack.getItem();
+        return item instanceof net.minecraft.world.item.BlockItem
+                || item instanceof net.minecraft.world.item.BucketItem;
     }
 }
