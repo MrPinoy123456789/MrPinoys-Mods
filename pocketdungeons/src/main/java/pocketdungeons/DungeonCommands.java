@@ -568,6 +568,7 @@ final class DungeonCommands {
      */
     private static int roomPublic(ServerPlayer owner) {
         DungeonLog.forServer(owner.level().getServer()).setPublicListed(owner.getUUID(), true);
+        Chime.roomListed(owner);
         owner.sendSystemMessage(Component.literal(
                 "Your room is now listed in the lobby directory.")
                 .withStyle(ChatFormatting.GREEN));
@@ -580,6 +581,7 @@ final class DungeonCommands {
      */
     private static int roomPrivate(ServerPlayer owner) {
         DungeonLog.forServer(owner.level().getServer()).setPublicListed(owner.getUUID(), false);
+        Chime.roomUnlisted(owner);
         owner.sendSystemMessage(Component.literal("Your room is no longer listed.")
                 .withStyle(ChatFormatting.GRAY));
         return 1;

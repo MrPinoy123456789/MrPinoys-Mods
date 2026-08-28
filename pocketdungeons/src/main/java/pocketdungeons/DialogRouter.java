@@ -7,8 +7,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -157,8 +155,8 @@ public final class DialogRouter {
         }
         // Ahead of entry, so the player who is about to be teleported away is
         // still here to hear it, the same cue the old block-use ritual played.
-        player.level().playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+        // M22: now a per-player packet, not a room-wide broadcast.
+        Chime.runStarts(player);
         if (RunLifecycle.enterWithKeystone(player)) {
             player.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
@@ -168,6 +166,7 @@ public final class DialogRouter {
     /** The menu's Browse Lobbies option: M20's directory, invoked verbatim. */
     private static void browseLobbies(ServerPlayer player, MinecraftServer server) {
         DialogKit.show(player, DialogScreens.lobbyBrowser(server, player.getUUID()));
+        Chime.lobbyOpens(player);
     }
 
     /** The menu's Manage Room option: the whitelist plus name and visibility. */
@@ -200,7 +199,13 @@ public final class DialogRouter {
     /** The manage-room screen's visibility toggle; flips and re-shows. */
     private static void togglePublic(ServerPlayer owner, MinecraftServer server) {
         DungeonLog log = DungeonLog.forServer(server);
-        log.setPublicListed(owner.getUUID(), !log.get(owner.getUUID()).publicListed());
+        boolean listed = !log.get(owner.getUUID()).publicListed();
+        log.setPublicListed(owner.getUUID(), listed);
+        if (listed) {
+            Chime.roomListed(owner);
+        } else {
+            Chime.roomUnlisted(owner);
+        }
         DialogKit.show(owner, DialogScreens.manageRoom(server, owner.getUUID()));
     }
 

@@ -62,6 +62,7 @@ final class VisitService {
         InstanceRecord owned = findOwnedLiveRoom(owner);
         if (owned != null) {
             Instances.admit(server, owned, visitor);
+            Chime.visitStarts(visitor);
             ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
             String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
             visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
@@ -72,6 +73,7 @@ final class VisitService {
         InstanceRecord existingVisit = findVisitInstance(owner);
         if (existingVisit != null) {
             Instances.admit(server, existingVisit, visitor);
+            Chime.visitStarts(visitor);
             return true;
         }
 
@@ -148,6 +150,7 @@ final class VisitService {
         InstanceRegistry.bySlot.put(slot, record);
 
         Instances.admit(server, record, visitor);
+        Chime.visitStarts(visitor);
 
         // M19: a visit copy gets the physical UI too. The door screen shows the
         // room as a place (who it belongs to, its visitors and whitelist) since
@@ -160,6 +163,11 @@ final class VisitService {
                 DungeonScreen.engineContent(null));
 
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
+        if (ownerPlayer != null) {
+            // M22: the one cue that goes to the owner, not the visitor: someone
+            // is standing in your room.
+            Chime.visitorArrives(ownerPlayer);
+        }
         String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
         visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
                 .withStyle(ChatFormatting.GOLD));
