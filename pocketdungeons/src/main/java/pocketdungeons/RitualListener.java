@@ -2,13 +2,9 @@ package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -22,8 +18,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import java.util.UUID;
 
 /**
- * The lodestone ritual: right-click a lodestone holding the keystone and the
- * dungeon opens, with no command typed.
+ * The lodestone terminal (M21): right-click a lodestone opens the mod
+ * navigation menu, with any item or an empty hand. The keystone is checked
+ * on the menu's Start Dungeon button, not at the block.
  *
  * <h2>U7 inverts the key rule</h2>
  *
@@ -202,54 +199,21 @@ final class RitualListener {
             return InteractionResult.PASS;
         }
 
-        // The positive test that replaced U4's "no custom_data at all". A
-        // kamutotems sigil is not a keystone, so it PASSes here and the event
-        // chain continues to kamutotems' own use handler untouched -- the exact
-        // outcome U4 wanted, reached by a rule that cannot be wrong about a tagged
-        // item nobody has written yet.
-        ItemStack held = player.getItemInHand(hand);
-
-        // M20: the lobby directory, opened from the room's wall lodestone. A
-        // keystone right-click still starts a dungeon: this branch excludes
-        // keystones, so they fall through to the keystone branch below. The
-        // wall lodestone is the only lodestone inside a room cell, so "a
-        // lodestone in the player's own room" is exactly "the wall lodestone".
-        // M21: replace this with lodestoneMenu.
-        if (serverPlayer.getUUID().equals(Instances.roomOwnerAt(pos))
-                && !Keystone.isKeystone(held)) {
-            DialogKit.show(serverPlayer, DialogScreens.lobbyBrowser(
-                    serverPlayer.level().getServer(), serverPlayer.getUUID()));
-            return InteractionResult.SUCCESS_SERVER;
-        }
-
-        if (!Keystone.isKeystone(held)) {
+        // M21: the wall lodestone is the navigation terminal. Any right-click
+        // with any item or an empty hand opens the menu; the keystone is
+        // checked on the menu's Start Dungeon button, never here, so a player
+        // who just wants to leave or browse never needs their compass first.
+        // The menu's context is the dimension: in the dungeon it is the
+        // in-dungeon menu (Leave, Manage Room, Inspect Keystone), and it
+        // opens only on the room's wall terminal: the only lodestone inside
+        // a room cell. The terminal pad's lodestone at the dungeon's end is a
+        // stand-on completion trigger, not a navigation surface, so a
+        // right-click there falls through to the pad logic below.
+        boolean inDungeon = serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (inDungeon && Instances.roomOriginAt(pos) == null) {
             return InteractionResult.PASS;
         }
-
-        // The exit pad is a lodestone too. Without this, standing on it and
-        // right-clicking it would eat a key to "enter" a dungeon you are already
-        // standing in. The dimension check covers a player who is in the void
-        // without a live record -- the orphan-recovery case. Free re-entry (T5)
-        // is handled by enterWithKeystone itself, ahead of any keystone spend.
-        if (InstanceRegistry.hasInstance(serverPlayer)
-                || serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-            return InteractionResult.PASS;
-        }
-
-        // Ahead of entry, so the player who is about to be teleported away is
-        // still here to hear it.
-        level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-
-        // The keystone is a remote, not a cost: it is not consumed on entry.
-        // enterWithKeystone() still has failure paths -- missing dimension, a stamp
-        // that could not be placed -- that leave the player exactly where they
-        // stood, so the sound and message below only fire on success.
-        if (!RunLifecycle.enterWithKeystone(serverPlayer)) {
-            return InteractionResult.PASS;
-        }
-        serverPlayer.sendSystemMessage(Component.literal("The lodestone pulls you under.")
-                .withStyle(ChatFormatting.DARK_PURPLE));
+        DialogKit.show(serverPlayer, DialogScreens.lodestoneMenu(serverPlayer, inDungeon));
         return InteractionResult.SUCCESS_SERVER;
     }
 
