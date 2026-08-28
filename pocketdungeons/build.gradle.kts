@@ -116,6 +116,13 @@ tasks.register<JavaExec>("lobbyBrowserTest") {
     mainClass = "pocketdungeons.LobbyBrowserTest"
 }
 
+tasks.register<JavaExec>("lodestoneMenuTest") {
+    group = "verification"
+    description = "Runs the pure-Java lodestone menu construction regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.LodestoneMenuTest"
+}
+
 for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
@@ -151,6 +158,7 @@ tasks.test {
     dependsOn("roomShellTest")
     dependsOn("roomFurnitureTest")
     dependsOn("lobbyBrowserTest")
+    dependsOn("lodestoneMenuTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false
