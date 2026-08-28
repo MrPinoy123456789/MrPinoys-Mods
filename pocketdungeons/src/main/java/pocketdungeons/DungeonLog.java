@@ -90,21 +90,36 @@ final class DungeonLog extends SavedData {
      *                           configuration; a server that turns reversibility
      *                           on is trusting whatever undo ritual removes an
      *                           entry to do so deliberately.
+     * @param publicListed      (M20) whether this player's room appears in the
+     *                           lobby directory ({@link DialogScreens#lobbyBrowser}).
+     *                           Defaults to {@code false}: a room is listed only
+     *                           when its owner opts in, the toggle that replaced
+     *                           the hand-traded calling card. Visibility, not
+     *                           permission: {@link RoomWhitelist} still gates
+     *                           what a visitor can do once inside.
+     * @param roomName          (M20) the host-set display name shown in the
+     *                           lobby directory. Empty means the directory shows
+     *                           the owner's player name instead. A label, not an
+     *                           address: the directory routes on the owner UUID
+     *                           carried in the button payload, never on this.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
                  List<String> recentThemes, Map<String, Integer> completedThemes,
-                 String currentTheme, int depth, Set<String> extractedPowers) {
+                 String currentTheme, int depth, Set<String> extractedPowers,
+                 boolean publicListed, String roomName) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
             currentTheme = currentTheme == null ? "" : currentTheme;
             depth = Math.max(0, depth);
             extractedPowers = Set.copyOf(extractedPowers);
+            roomName = roomName == null ? "" : roomName;
         }
     }
 
-    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of());
+    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
+            false, "");
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -134,7 +149,12 @@ final class DungeonLog extends SavedData {
             Codec.STRING.optionalFieldOf("current_theme", "").forGetter(Entry::currentTheme),
             Codec.INT.optionalFieldOf("depth", 0).forGetter(Entry::depth),
             Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
-                    .optionalFieldOf("extracted_powers", Set.of()).forGetter(Entry::extractedPowers)
+                    .optionalFieldOf("extracted_powers", Set.of()).forGetter(Entry::extractedPowers),
+            // M20: room listing is an opt-in toggle, not a token. Both default
+            // safe, so a save written before M20 (or after M21 retires the
+            // fields) loads unchanged.
+            Codec.BOOL.optionalFieldOf("public_listed", false).forGetter(Entry::publicListed),
+            Codec.STRING.optionalFieldOf("room_name", "").forGetter(Entry::roomName)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -189,7 +209,8 @@ final class DungeonLog extends SavedData {
                 previous.keystoneLevel(),
                 previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers());
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName());
         entries.put(player, next);
         setDirty();
         return next;
@@ -219,7 +240,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), Math.max(0, level),
                 AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
                 previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName()));
         setDirty();
     }
 
@@ -233,7 +255,8 @@ final class DungeonLog extends SavedData {
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName()));
         setDirty();
     }
 
@@ -245,7 +268,42 @@ final class DungeonLog extends SavedData {
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
                 previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName()));
+        setDirty();
+    }
+
+    /**
+     * (M20) Whether this player's room appears in the lobby directory.
+     *
+     * <p>Listing is an opt-in toggle, the replacement for the hand-traded
+     * calling card: a room is visible only while its owner has set this true.
+     * It is visibility, not permission: {@link RoomWhitelist} still gates what
+     * a visitor can do once inside, untouched.
+     */
+    void setPublicListed(UUID player, boolean listed) {
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                listed, previous.roomName()));
+        setDirty();
+    }
+
+    /**
+     * (M20) The display name this player's room shows in the lobby directory.
+     * A label, not an address: the directory routes on the owner UUID in the
+     * button payload, never on this string. Blank clears the name back to
+     * "show the owner's player name".
+     */
+    void setRoomName(UUID player, String name) {
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), name == null ? "" : name));
         setDirty();
     }
 
@@ -290,7 +348,7 @@ final class DungeonLog extends SavedData {
         Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
-                previous.extractedPowers());
+                previous.extractedPowers(), previous.publicListed(), previous.roomName());
         entries.put(player, next);
         setDirty();
         return next;
@@ -313,7 +371,8 @@ final class DungeonLog extends SavedData {
         Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), powers);
+                previous.currentTheme(), previous.depth(), powers,
+                previous.publicListed(), previous.roomName());
         entries.put(player, next);
         setDirty();
         return next;
