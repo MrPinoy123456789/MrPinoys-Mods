@@ -381,3 +381,67 @@ none of it moved. Same for `SuiteItems`: it reads `data/*/suite_items` as a
 generic vanilla datapack merge, unaware of which mod's jar the files came
 from, so Phase 1's switch from hand-authored to generated `suite_items` JSON
 is invisible to it.
+
+---
+
+## 6. Phase 3: satisfied without new code; the `VirtualBlock` abstraction is deferred
+
+PLAN.md's Phase 3 names two things: a world-data migration risk, and a
+`VirtualBlock`/`VirtualStation` API layer. Only the first has a concrete shape
+in the plan text; the second is named in the phase title with no methods, no
+fields, and (as of Phase 3) no second namespace anywhere to design it
+against.
+
+### The migration risk: already closed, by a Phase 1 decision
+
+PLAN.md calls this "the largest concrete gap in the plan": if a new
+`ThingyState` used a different `SavedDataType` id than `WondrousState`'s
+`wondrous:wondrous_state`, archiving wondrous would silently orphan every
+placed station, sprinkler, and link, since nothing would read the old file
+anymore. The stated exit criterion is a migration step, dry-run against a
+copy of the production world.
+
+That gap does not exist here. Phase 1 kept `WondrousState`'s class name and
+its `wondrous:wondrous_state` id verbatim in `thingy.WondrousState`
+(documented in §4 above), specifically so both jars read the same file. There
+is no format change, so there is nothing to migrate and nothing to dry-run.
+This was a Phase 1 decision made for the swap test's sake, and it happens to
+close Phase 3's stated risk as a side effect.
+
+### The `VirtualBlock`/`VirtualStation` abstraction: deferred to Phase 5
+
+Asked and decided with the user (2026-08-27): **do not invent this interface
+now.** Reasoning, in order:
+
+- The plan gives `VirtualItem` a full spec in Phase 1 (four methods, a
+  registry contract, a namespace-reader strategy). It gives `VirtualBlock`
+  none of that; the phase heading is the only place it is named.
+- The only three consumers that would use it (`CraftStation`,
+  `LazySprinkler`, `LinkWand`) are already fully working in `thingy.fabric`
+  from Phase 1, built directly against `WondrousState`. Nothing is broken or
+  blocked by their not going through an abstraction.
+- There is no second namespace yet to shape the interface against. PLAN.md's
+  own "What we are not building" section cuts `VirtualProjectile` for exactly
+  this reason ("generalizing from n=1"), and separately warns against
+  building "a 'dynamic virtual block' concept for one tool" right inside
+  Phase 3's own implementation notes. An invented `VirtualBlock` today would
+  be shaped by guesswork, not by a real second consumer, and Phase 5
+  (spiritwolves and kamutotems item migration) is the first point such a
+  consumer actually exists.
+
+Phase 5 is where this interface should be designed, against spiritwolves'
+and kamutotems' real block-backed items, not before. Until then,
+`CraftStation`, `LazySprinkler`, and `LinkWand` stay exactly as Phase 1 left
+them.
+
+### Exit criteria, revisited
+
+- Migration step run against a copy of the production world: **not
+  applicable.** No migration exists because no format changed.
+- `ThingyState` compiles and persists across restart: satisfied by
+  `thingy.WondrousState`, unchanged since Phase 1, already exercised by the
+  Phase 1 build.
+- Chunk-aware sweep functional: `WondrousState.sweep`'s `hasChunkAt` checks
+  were ported verbatim in Phase 1 and have not been touched since. (`hasChunkAt`
+  is deprecated in the 26.2 jar and produces a compiler note; that note is
+  pre-existing in wondrous itself, not something this port introduced.)
