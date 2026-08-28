@@ -40,16 +40,18 @@ record DifficultyProfile(int pathLength, int keystoneLevel) {
 
     /**
      * M10: mob strength scaling for the run's keystone level, as a multiplier
-     * over a mob's base attribute value. {@code +1% per level} by default (a
-     * level-100 run's mobs land at roughly {@code 2x}), config-driven via
+     * over a mob's base attribute value. {@code base + 1% per level} by default
+     * (a level-0 run's mobs land at {@code 0.75x}, a level-25 run at {@code 1.0x},
+     * a level-100 run at {@code 1.75x}), config-driven via
+     * {@link PocketDungeonsConfig#mobScaleBase()} and
      * {@link PocketDungeonsConfig#mobScalePerLevel()}.
      *
      * <p>A level-{@code 0} run (no keystone, {@code /dungeon admin build}) scales
-     * to exactly {@code 1.0}: nothing paid for the difficulty, so nothing is
-     * added to it.
+     * to exactly {@code base}: nothing paid for the difficulty, so nothing is
+     * added to it beyond the configured floor.
      */
-    static double mobScale(int level, double perLevel) {
-        return 1.0 + Math.max(0, level) * Math.max(0, perLevel);
+    static double mobScale(int level, double perLevel, double base) {
+        return Math.max(0, base) + Math.max(0, level) * Math.max(0, perLevel);
     }
 
     /**

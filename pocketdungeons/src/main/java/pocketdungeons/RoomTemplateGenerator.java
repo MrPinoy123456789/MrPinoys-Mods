@@ -10,12 +10,14 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
@@ -23,12 +25,17 @@ import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.JigsawBlockEntity;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.storage.TagValueInput;
@@ -371,9 +378,33 @@ final class RoomTemplateGenerator {
     private static final BlockState SCREEN_BLOCK = Blocks.CONCRETE.black().defaultBlockState();
     /** The engine terminal: charges=0 by default; the engine handler raises it. */
     private static final BlockState ENGINE_BLOCK = Blocks.RESPAWN_ANCHOR.defaultBlockState();
+    /**
+     * The engine screen's bezel. Polished blackstone stairs above and below,
+     * the lower course flipped so the two mirror each other and their solid
+     * halves hug the screen row, with a crying obsidian block capping each end.
+     * The screen used to be two bare rows of black concrete in a stone wall,
+     * which read as a hole rather than as a machine.
+     */
+    private static final BlockState FRAME = Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState();
+    private static final BlockState FRAME_END = Blocks.CRYING_OBSIDIAN.defaultBlockState();
     /** The commit lever base state; {@link #leverState} adds the wall-facing. */
     private static final BlockState LEVER_OFF = Blocks.LEVER.defaultBlockState()
             .setValue(LeverBlock.FACE, AttachFace.WALL);
+    /** The label above the lever; {@link #signState} adds the wall-facing. */
+    private static final BlockState LEVER_SIGN = Blocks.OAK_WALL_SIGN.defaultBlockState();
+    /**
+     * What the lever's sign says. One word, because the sign is read at a
+     * glance from across the room while the player is deciding, and because
+     * the door screen two rows up already carries the sentences.
+     */
+    private static final String LEVER_SIGN_WORD = "DESCEND";
+    /**
+     * Which of a sign's four lines the word goes on. Vanilla centers each line
+     * horizontally on its own, so this is the whole of the centering: line 1 is
+     * the upper of the two middle lines, which reads as centered with the other
+     * three left empty.
+     */
+    private static final int LEVER_SIGN_LINE = 1;
 
     /**
      * Where the three selector doors stand along their wall: the 2-wide slot
@@ -381,6 +412,46 @@ final class RoomTemplateGenerator {
      * plain wall beside it, so the strip is contiguous.
      */
     private static final int[] SELECTOR_DOORS = {7, 8, 9};
+
+    /**
+     * The bulb row's height, in the wall ring rather than in the door row in
+     * front of it: the selector doors fill Y=1..2 of the door row, so Y=3 of
+     * the wall behind them is the course directly on top, and the door screen
+     * starts at Y=4 right above that. Set into the wall, the bulbs are also
+     * exactly the course the punched doorway's lintel occupies, which is why
+     * {@link #clearBulbs} can hand them back to plain stone brick the moment
+     * a door is chosen.
+     */
+    private static final int BULB_Y = 3;
+
+    /** Where the commit lever stands, just past the third door, and its sign above it. */
+    private static final int LEVER_ALONG = 10;
+    private static final int SIGN_Y = 3;
+
+    /**
+     * The engine bay on the wall to the left of the selector wall, bottom up:
+     * the respawn anchor at Y=2, the flipped lower bezel course at Y=3, the
+     * screen row at Y=4 with a crying obsidian block at each end, and the upper
+     * bezel course at Y=5. Y=6 is the ceiling, so Y=5 is as high as the bay can
+     * reach and the screen is one row rather than the two it used to be; the
+     * text was never taller than a block at this scale anyway.
+     */
+    private static final int ENGINE_ANCHOR_Y = 2;
+    private static final int ENGINE_FRAME_LOW_Y = 3;
+    private static final int ENGINE_SCREEN_Y = 4;
+    private static final int ENGINE_FRAME_HIGH_Y = 5;
+    private static final int ENGINE_ALONG_MIN = 5;
+    private static final int ENGINE_ALONG_MAX = 9;
+    private static final int ENGINE_ANCHOR_ALONG = 7;
+
+    /**
+     * The bulb sitting over selector door {@code step} (1, 2 or 3). Callers
+     * hold a step, not a position along the wall, and the two are not the same
+     * number: {@link #setBulb} wants the latter.
+     */
+    static int bulbAlongForStep(int step) {
+        return SELECTOR_DOORS[Math.clamp(step, 1, SELECTOR_DOORS.length) - 1];
+    }
 
     static void placeSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         // Three doors standing one block in front of the wall that will become the
@@ -512,84 +583,150 @@ final class RoomTemplateGenerator {
 
     /**
      * M19: stamps the room's physical door-selection furniture, relative to
-     * {@code wall}, the wall the selector doors stand on: four copper bulbs at
-     * Y=4 in the door row (one above each selector door, one above the lever),
-     * the commit lever at Y=2 beside the third door, the black concrete door
-     * screen set into the selector wall above the door row, and on the wall to
-     * the left ({@link RoomGeometry#leftOf}) the respawn-anchor engine block
-     * with its own screen above it. The positions must stay in lockstep with
-     * {@link RoomProtection#isFurniture} and {@link #clearFurniture};
-     * {@code RoomFurnitureTest} pins them.
+     * {@code wall}, the wall the selector doors stand on: one copper bulb set
+     * into the wall at Y=3 above each of the three selector doors, the commit
+     * lever at Y=2 beside the third door with its label sign at Y=3 above it,
+     * the black concrete door screen set into the selector wall above all of
+     * that, and on the wall to the left ({@link RoomGeometry#leftOf}) the
+     * respawn-anchor engine block with its own screen above it. The positions
+     * must stay in lockstep with {@link RoomProtection#isFurniture} and
+     * {@link #clearFurniture}; {@code RoomFurnitureTest} pins them.
+     *
+     * <p>{@code selectorDoorsStanding} is what decides whether the bulbs go in
+     * at all. They share the wall course the punched doorway uses for its
+     * lintel, so on a room whose door has already been chosen they would stamp
+     * a copper bulb into the middle of the finished doorway. There is nothing
+     * for them to indicate on such a room either: the choosing is over.
      *
      * <p>Called after {@link #placeSelectorDoors} and
      * {@link #placeWallLodestone} by every path that arms a lobby: stampLobby,
      * createVisitInstance, and completeDungeon's room relocation.
      */
-    static void placeFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        for (int along = 7; along <= 10; along++) {
-            RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), BULB);
+    static void placeFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall,
+                               boolean selectorDoorsStanding) {
+        if (selectorDoorsStanding) {
+            for (int along : SELECTOR_DOORS) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), BULB);
+            }
         }
-        RoomBuilder.set(level, doorPlanePos(o, wall, 10, 2), leverState(wall));
+        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, 2), leverState(wall));
+        placeLeverSign(level, o, wall);
         for (int y = 4; y <= 5; y++) {
             for (int along = 4; along <= 11; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
             }
         }
-        DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
-        RoomBuilder.set(level, wallRingPos(o, engineWall, 7, 2), ENGINE_BLOCK);
-        for (int y = 4; y <= 5; y++) {
-            for (int along = 5; along <= 9; along++) {
-                RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), SCREEN_BLOCK);
-            }
+        placeEngineBay(level, o, RoomGeometry.leftOf(wall));
+    }
+
+    /**
+     * The engine bay: the anchor, its framed screen row, and the bezel. See
+     * {@link #ENGINE_ANCHOR_Y} for the elevation of each course.
+     */
+    private static void placeEngineBay(ServerLevel level, BlockPos o, DoorMask.Direction engineWall) {
+        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y),
+                ENGINE_BLOCK);
+        for (int along = ENGINE_ALONG_MIN; along <= ENGINE_ALONG_MAX; along++) {
+            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_SCREEN_Y), SCREEN_BLOCK);
+            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_FRAME_HIGH_Y),
+                    frameState(engineWall, Half.BOTTOM));
+            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_FRAME_LOW_Y),
+                    frameState(engineWall, Half.TOP));
         }
+        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ALONG_MIN - 1, ENGINE_SCREEN_Y),
+                FRAME_END);
+        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ALONG_MAX + 1, ENGINE_SCREEN_Y),
+                FRAME_END);
     }
 
     /**
      * Removes every M19 furniture block, restoring the room to its captured
-     * shape: the bulbs and the lever were interior air, the door screen, the
-     * engine block and the engine screen sat in the wall ring, so each clears
-     * back to the block it displaced. Capture hygiene (trap 17 in
+     * shape: the lever and its sign were interior air, the bulbs, the door
+     * screen, the engine block and the engine screen sat in the wall ring, so
+     * each clears back to the block it displaced. Capture hygiene (trap 17 in
      * {@code DISCOVERIES.md}): none of it may bake into the owner's blob.
+     *
+     * <p>Unconditional where {@link #placeFurniture} is not: writing plain wall
+     * over the bulb course is right whether a bulb or a doorway lintel is
+     * standing there, since the lintel is that same stone brick.
      */
     static void clearFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        for (int along = 7; along <= 10; along++) {
-            RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), RoomBuilder.AIR);
-        }
-        RoomBuilder.set(level, doorPlanePos(o, wall, 10, 2), RoomBuilder.AIR);
+        clearBulbs(level, o, wall);
+        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, 2), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y), RoomBuilder.AIR);
         for (int y = 4; y <= 5; y++) {
             for (int along = 4; along <= 11; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
             }
         }
         DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
-        RoomBuilder.set(level, wallRingPos(o, engineWall, 7, 2), RoomBuilder.WALL);
-        for (int y = 4; y <= 5; y++) {
-            for (int along = 5; along <= 9; along++) {
+        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y),
+                RoomBuilder.WALL);
+        for (int y = ENGINE_FRAME_LOW_Y; y <= ENGINE_FRAME_HIGH_Y; y++) {
+            for (int along = ENGINE_ALONG_MIN - 1; along <= ENGINE_ALONG_MAX + 1; along++) {
                 RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), RoomBuilder.WALL);
             }
         }
     }
 
-    /** Lights or darkens one bulb in the door row (along 7..10), for selection. */
+    /**
+     * Lights or darkens one bulb in the wall above a selector door.
+     * {@code along} is a position on the wall (7, 8 or 9), not a door step;
+     * see {@link #bulbAlongForStep}.
+     */
     static void setBulb(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, boolean lit) {
-        RoomBuilder.set(level, doorPlanePos(o, wall, along, 4), lit ? BULB_LIT : BULB);
+        RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), lit ? BULB_LIT : BULB);
     }
 
-    /** Sets every bulb in the row at once, for the run-start reset. */
-    static void setAllBulbs(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean lit) {
-        for (int along = 7; along <= 10; along++) {
-            setBulb(level, o, wall, along, lit);
+    /**
+     * Hands the whole bulb course back to plain wall, for the moment a door is
+     * chosen and the doorway is punched. The choosing is over, so the
+     * indicators come out rather than going dark: two of the three positions
+     * are about to become the new doorway's lintel, and the third is the wall
+     * beside it.
+     */
+    static void clearBulbs(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int along : SELECTOR_DOORS) {
+            RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), RoomBuilder.WALL);
         }
+    }
+
+    /**
+     * The commit lever's label: a waxed wall sign one course above the lever,
+     * facing into the room. Waxed so a right-click cannot open the text editor
+     * on it, which is the only interaction {@code RoomProtection} does not
+     * already refuse (it guards breaking and placing, not editing).
+     *
+     * <p>The word is written to line {@link #LEVER_SIGN_LINE} of the front
+     * text and nothing else, which is what centers it: vanilla renders every
+     * sign line centered horizontally, so the only choice left is which of the
+     * four rows it sits on.
+     */
+    private static void placeLeverSign(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        BlockPos pos = doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y);
+        RoomBuilder.set(level, pos, signState(wall));
+        if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign)) {
+            PocketDungeonsMod.LOG.warn("The lever sign at {} did not come with a block entity", pos);
+            return;
+        }
+        SignText text = new SignText()
+                .setMessage(LEVER_SIGN_LINE, Component.literal(LEVER_SIGN_WORD))
+                .setColor(DyeColor.WHITE)
+                .setHasGlowingText(true);
+        sign.setText(text, true);
+        sign.setWaxed(true);
+        sign.setChanged();
     }
 
     /** The commit lever's position, for click detection ({@code Instances.isCommitLever}). */
     static BlockPos leverPos(BlockPos o, DoorMask.Direction wall) {
-        return doorPlanePos(o, wall, 10, 2);
+        return doorPlanePos(o, wall, LEVER_ALONG, 2);
     }
 
     /** The engine block's position, for click detection ({@code Instances.engineTerminalAt}). */
     static BlockPos enginePos(BlockPos o, DoorMask.Direction selectorWall) {
-        return wallRingPos(o, RoomGeometry.leftOf(selectorWall), 7, 2);
+        return wallRingPos(o, RoomGeometry.leftOf(selectorWall),
+                ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y);
     }
 
     /** Position one block inside the room from {@code wall}, in the door row. */
@@ -614,19 +751,53 @@ final class RoomTemplateGenerator {
 
     /**
      * A wall-attached lever whose base sits against {@code wall}: the FACING
-     * property points at the wall it is attached to (verified in
-     * {@code FaceAttachedHorizontalDirectionalBlock}'s placement: FACING is the
-     * clicked face's opposite), which for the selector wall is the wall
-     * direction itself.
+     * property is the direction the lever's handle points, away from the wall
+     * it is attached to and into the room. Verified in
+     * {@code FaceAttachedHorizontalDirectionalBlock}'s placement: it stores
+     * {@code direction.getOpposite()} of the look ray that hit the block, and
+     * that ray runs from the room toward the wall, so FACING comes back out
+     * again. The selector wall is behind the lever, so the handle faces the
+     * opposite direction.
      */
     private static BlockState leverState(DoorMask.Direction wall) {
         Direction facing = switch (wall) {
-            case NORTH -> Direction.NORTH;
-            case SOUTH -> Direction.SOUTH;
-            case EAST -> Direction.EAST;
-            case WEST -> Direction.WEST;
+            case NORTH -> Direction.SOUTH;
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
         };
         return LEVER_OFF.setValue(LeverBlock.FACING, facing);
+    }
+
+    /**
+     * The lever's sign, hung on {@code wall} and facing into the room. A wall
+     * sign's FACING is the direction its face points, away from the block it
+     * is attached to, so it reads the same way {@link #leverState} does.
+     */
+    private static BlockState signState(DoorMask.Direction wall) {
+        Direction facing = switch (wall) {
+            case NORTH -> Direction.SOUTH;
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
+        };
+        return LEVER_SIGN.setValue(WallSignBlock.FACING, facing);
+    }
+
+    /**
+     * One bezel course, facing into the room from {@code wall}. {@code half}
+     * is what mirrors the two courses: BOTTOM above the screen, TOP below it,
+     * so each one's solid half meets the screen row and its step turns away
+     * from it.
+     */
+    private static BlockState frameState(DoorMask.Direction wall, Half half) {
+        Direction facing = switch (wall) {
+            case NORTH -> Direction.SOUTH;
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
+        };
+        return FRAME.setValue(StairBlock.FACING, facing).setValue(StairBlock.HALF, half);
     }
 
     // ---- spec ---------------------------------------------------------------

@@ -16,14 +16,42 @@ public final class Chime {
 
     private Chime() {}
 
-    /** A selector door was right-clicked (M19). */
-    public static void doorSelected(ServerPlayer player) {
-        play(player, SoundEvents.NOTE_BLOCK_BELL, 0.3f, 1.0f);
+    /**
+     * One note per selector door, two semitones apart, so which of the three
+     * is lit is audible without reading the screen. Vanilla note-block pitch
+     * is {@code 2^((n - 12) / 12)} for semitone {@code n}, which puts the
+     * three doors on 0, 2 and 4.
+     */
+    private static final float[] DOOR_PITCHES = {1.0f, 1.122f, 1.26f};
+
+    /** A selector door was right-clicked (M19). {@code step} is 1, 2 or 3. */
+    public static void doorSelected(ServerPlayer player, int step) {
+        play(player, SoundEvents.NOTE_BLOCK_BELL, 0.3f,
+                DOOR_PITCHES[Math.clamp(step, 1, DOOR_PITCHES.length) - 1]);
+    }
+
+    /**
+     * A door was previewed that this player cannot commit to yet: the level
+     * gate or the fuel cost on a premium door. Lands under
+     * {@link #doorSelected}'s note rather than replacing it, so a door that
+     * selects but will not open still says so on the click, before the lever.
+     */
+    public static void doorLocked(ServerPlayer player) {
+        play(player, SoundEvents.NOTE_BLOCK_BASS, 0.3f, 0.8f);
     }
 
     /** The lever was pulled with no door selected (M19). */
     public static void noSelection(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.6f);
+    }
+
+    /**
+     * The general refusal: a click the mod turned down for a reason the player
+     * can act on. Lower than {@link #noSelection} and used everywhere a screen
+     * or a chat line says no, so a rejection is never silent.
+     */
+    public static void refused(ServerPlayer player) {
+        play(player, SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.5f);
     }
 
     /** A run started from the lever or the lodestone menu. */
@@ -56,6 +84,11 @@ public final class Chime {
     /** The last trial spawner in a cell was cleared (M10). */
     public static void spawnerCleared(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_HAT, 0.12f, 1.5f);
+    }
+
+    /** A fuel item went into the engine terminal and onto the player's balance. */
+    public static void engineFed(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.RESPAWN_ANCHOR_CHARGE), 0.4f, 1.2f);
     }
 
     /** The lodestone navigation menu opened (M21). */

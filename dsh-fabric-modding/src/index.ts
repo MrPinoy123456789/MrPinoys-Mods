@@ -9,9 +9,15 @@
  * - a dynamic prompt context (`ctx.systemPrompt.context`) that scans the
  *   workspace each assembly and reports the mods, versions, and entrypoints
  *   already in use;
- * - five tools (`ctx.tools.register`): `scaffold_fabric_mod`,
- *   `scaffold_mixin`, `scaffold_registry`, `scaffold_entrypoint`, and
- *   `read_mod_reference`.
+ * - six tools (`ctx.tools.register`): `scaffold_fabric_mod`,
+ *   `scaffold_mixin`, `scaffold_registry`, `scaffold_entrypoint`,
+ *   `read_mod_reference`, and `build_mod`.
+ *
+ * Situational depth ships as bundled SKILL.md files under `skills/`, surfaced
+ * through the `skill-filesystem` row's `customSkillDirs` config (set in the
+ * overlay, not here, since this module cannot mount other packages). The skills
+ * cover mixin development, compatibility troubleshooting, the mod ecosystem,
+ * and Stonecutter multi version builds.
  * @module @mrpinoys/dsh-fabric-modding
  */
 
@@ -20,6 +26,7 @@ import z from '@deepseek-ai/schemastery'
 import { buildDomainSection, buildWorkspaceContext } from './prompt.ts'
 import { registerScaffoldTools } from './scaffold.ts'
 import { registerReferenceTool } from './reference.ts'
+import { registerBuildTool } from './build.ts'
 
 export const name = 'fabric-modding'
 export const inject = ['tools', 'systemPrompt']
@@ -30,6 +37,8 @@ export interface Config {
   workspaceRoot: string
   /** Lets scaffolding tools write files directly. Default true. */
   enableFileWrites: boolean
+  /** Lets the build_mod tool run gradle. Default true. */
+  enableBuildRuns: boolean
   /** Sort order for the domain-knowledge system-prompt section. */
   domainSectionOrder: number
   /** Sort order for the dynamic workspace-pattern context. */
@@ -40,6 +49,7 @@ export interface Config {
 export const Config: z<Config> = z.object({
   workspaceRoot: z.string().default('').description('Workspace root the scanner walks and writes are confined to. Defaults to process.cwd().'),
   enableFileWrites: z.boolean().default(true).description('Let scaffolding tools write files directly. Set false to route writes through the approved file path.'),
+  enableBuildRuns: z.boolean().default(true).description('Let the build_mod tool run gradle. Set false to disable builds entirely.'),
   domainSectionOrder: z.number().default(8800).description('Sort order for the domain-knowledge system-prompt section.'),
   workspaceContextOrder: z.number().default(8900).description('Sort order for the dynamic workspace-pattern context.'),
 })
@@ -73,6 +83,7 @@ export function apply(ctx: Context, config: Config): void {
 
   registerScaffoldTools(ctx, { workspaceRoot, enableFileWrites: (resolved.enableFileWrites as boolean) ?? true })
   registerReferenceTool(ctx, { workspaceRoot })
+  registerBuildTool(ctx, { workspaceRoot, enableBuildRuns: (resolved.enableBuildRuns as boolean) ?? true })
 }
 
 /**

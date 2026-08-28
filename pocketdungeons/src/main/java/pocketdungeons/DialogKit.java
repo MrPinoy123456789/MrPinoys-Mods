@@ -183,7 +183,17 @@ final class DialogKit {
      */
     static MultiActionDialog list(String title, List<DialogBody> body,
                                   List<ActionButton> actions, String exitLabel) {
-        return new MultiActionDialog(common(title, body), actions,
-                Optional.of(closeButton(exitLabel)), 1);
+        return list(title, body, actions, closeButton(exitLabel));
+    }
+
+    /**
+     * The same list with the exit button supplied, for a screen that was opened
+     * from another screen: its way out is a Back button that rebuilds the parent
+     * rather than one that closes and strands the player. See
+     * {@code DialogScreens}' note on there being no history stack in this API.
+     */
+    static MultiActionDialog list(String title, List<DialogBody> body,
+                                  List<ActionButton> actions, ActionButton exit) {
+        return new MultiActionDialog(common(title, body), actions, Optional.of(exit), 1);
     }
 }

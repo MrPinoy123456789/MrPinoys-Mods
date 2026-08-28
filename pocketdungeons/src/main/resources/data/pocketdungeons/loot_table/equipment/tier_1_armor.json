@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:equipment",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:empty",
+          "weight": 70
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:leather_helmet",
+          "weight": 30
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:empty",
+          "weight": 80
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:leather_chestplate",
+          "weight": 20
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:equipment/tier_1_armor"
+}

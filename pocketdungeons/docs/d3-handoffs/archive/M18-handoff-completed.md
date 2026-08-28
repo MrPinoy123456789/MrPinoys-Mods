@@ -11,16 +11,16 @@ Read, in order, before writing anything:
 
 1. `A:\MrPinoys Mods\CLAUDE.md`: the punctuation rule. It is enforced, and it
    applies to every line you write, including javadoc and commit messages.
-2. `pocketdungeons/docs/ROOM_UX_PLAN.md`'s `## M18: Room shell pass`
+2. `pocketdungeons/docs/reference/ROOM_UX_PLAN.md`'s `## M18: Room shell pass`
    section: **the authoritative scope.** Goal, dependencies, scope, touch
    points, done-when, and verification notes all live there. This handoff
    does not repeat them.
-3. `pocketdungeons/docs/D3_PROGRESSION_PLAN.md`'s "Implementation context"
+3. `pocketdungeons/docs/reference/D3_PROGRESSION_PLAN.md`'s "Implementation context"
    section (read once; it is not milestone-specific): toolchain, commands,
    the one-mixin budget, conventions, and the resource-directory layout.
 4. `pocketdungeons/docs/DISCOVERIES.md`: verified 26.2 API findings. Do not
    rediscover these the hard way.
-5. `pocketdungeons/docs/DOOR_LADDER_BRAINSTORM.md` sections 9.1-9.4: the
+5. `pocketdungeons/docs/reference/DOOR_LADDER_BRAINSTORM.md` sections 9.1-9.4: the
    design rationale for each change in this milestone.
 6. `pocketdungeons/plans/COMPLETED-MILESTONES.md`: what M0-M17 actually
    built, for context on what this milestone extends.
@@ -62,7 +62,7 @@ touch the same code paths and should land together.
    the Fabric-event or datapack-recipe route first (trap 9, and traps 14/15
    in `DISCOVERIES.md` are a worked example of that search paying off).
 6. **Status lives in `plans/COMPLETED-MILESTONES.md` and
-   `docs/LIVE_TEST_PASS.md` now, not a `PROGRESS.md` file.** That file and the
+   `docs/reference/LIVE_TEST_PASS.md` now, not a `PROGRESS.md` file.** That file and the
    `handoffs/` folder were retired once M0-M9 went code-complete. Do not
    recreate either.
 7. **One commit per logical change, message explains why, not just what.**
@@ -137,7 +137,7 @@ protection checks, moved positions. No classes or methods are removed.
 
 **Live-only:** breaking a wall block (refused), breaking an interior
 block (works), opening the double doors, looking up at the ceiling.
-Record in `docs/LIVE_TEST_PASS.md`.
+Record in `docs/reference/LIVE_TEST_PASS.md`.
 
 **Headless-verifiable:** `isShell` coordinate logic (pure Java test),
 `buildCell` output (no compile error, template stamps without crash).
@@ -146,11 +146,11 @@ Record in `docs/LIVE_TEST_PASS.md`.
 
 1. `plans/COMPLETED-MILESTONES.md`: add this milestone's summary in its
    place, in the same architectural-summary style as M0-M17's entries.
-2. `docs/LIVE_TEST_PASS.md`: add a numbered section for whatever in this
+2. `docs/reference/LIVE_TEST_PASS.md`: add a numbered section for whatever in this
    milestone is client-interactive and cannot be verified headless.
-3. `docs/ROADMAP.md`: this milestone's entry, in order. No checkboxes; the
+3. `docs/reference/ROADMAP.md`: this milestone's entry, in order. No checkboxes; the
    roadmap carries order, not status.
-4. `docs/ROOM_UX_PLAN.md`: if you diverge from the plan's scope for this
+4. `docs/reference/ROOM_UX_PLAN.md`: if you diverge from the plan's scope for this
    milestone, **fix the plan first and say so.** Never silently diverge.
 5. Rename this file `M18-handoff-completed.md` once the milestone is
    actually landed and its `COMPLETED-MILESTONES.md` entry exists.

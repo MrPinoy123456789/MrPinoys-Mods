@@ -132,7 +132,7 @@ final class VisitService {
             // instead, and the two must not drift apart.
             RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
             RoomTemplateGenerator.placeWallLodestone(level, origin);
-            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH);
+            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);

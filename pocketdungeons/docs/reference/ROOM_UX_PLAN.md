@@ -49,10 +49,12 @@ M24  Room shells & prestige   -- depends on M18
 M25  Pocket2 Dungeon          -- depends on M11
 M26  Lore delivery            -- mostly content, M26.4 needs jar verification
 M27  Extra features           -- experimental dungeon, visitor log, death checkpoint
+
+M28  Themed mob spawners      -- independent, ships anytime
 ```
 
 M18-M22 are the core Room UX pass. They have a strict dependency chain
-and should land in order. M23-M27 are independent of each other and of
+and should land in order. M23-M28 are independent of each other and of
 the UX chain, except where noted.
 
 ---
@@ -735,6 +737,49 @@ being load-bearing.
 
 ---
 
+## M28: Themed mob spawners
+
+**Goal:** dungeon themes control which mobs spawn from trial spawners, not
+just wall blocks. A `spawner_prefix` field on `DungeonThemeMeta` selects
+themed spawner configs (`{prefix}_tier_{n}/{normal,ominous}.json`) instead
+of the default `tier_{n}` files. Two proof-of-concept themes: Crypt
+(zombies+skeletons only) and Infestation (spiders only).
+
+**Depends on:** nothing (M1's theme system and M10's trial spawner configs
+are the foundation).
+
+**Scope:**
+
+### 28.1 `spawner_prefix` on `DungeonThemeMeta`
+
+- Optional field, parallel to `lootSuffix`. Null = default tier configs.
+- `TrialContent.configId` gains prefix param: null/empty produces
+  `pocketdungeons:tier_{n}/...`, non-null produces
+  `pocketdungeons:{prefix}_tier_{n}/...`.
+- Theme string threaded from `LayoutStamper.stamp` through `RoomContent.apply`
+  to `TrialContent.applyEncounter`.
+- Swarming `writeInlineConfig` path uses prefix too.
+
+### 28.2 Themed spawner configs
+
+- 6 JSON files per theme (tier 1-3, normal + ominous).
+- Copy counts/ticks/eject from existing `tier_{n}` files. Only
+  `spawn_potentials` changes.
+- Crypt: zombie (weight 5) + skeleton (weight 4). Equipment: reuse
+  `pocketdungeons:equipment/tier_{n}_melee` and `_ranged`.
+- Infestation: spider (weight 3) + cave spider (weight 2). No equipment.
+  New `dungeon_theme/infestation.json`, reuses deepslate processors.
+
+**Done when:** each theme with `spawner_prefix` spawns only its themed mobs;
+themes without prefix behave as before.
+
+**Touch points:** `DungeonThemeMeta`, `RoomContent.apply`,
+`TrialContent.applyEncounter`, `TrialContent.configId`,
+`TrialContent.writeInlineConfig`, `LayoutStamper.stamp`, theme JSONs, new
+spawner config JSONs.
+
+---
+
 ## Open decisions to settle before each milestone
 
 | Milestone | Decision | Brainstorm question |
@@ -769,6 +814,8 @@ M19 ──> M27.1
 M20 ──> M27.2
 M21 ──> M27.2
 M10 ──> M27.3 (deferred)
+
+M28 (independent)
 ```
 
 ---
@@ -787,6 +834,7 @@ M10 ──> M27.3 (deferred)
 | M25 | Large | Child instance lifecycle, nested tick watcher, new room spec |
 | M26 | Medium | Book loot, compass pointing, jar verification |
 | M27 | Small each | Three independent features |
+| M28 | Small | New field on theme meta, configId prefix logic, 12 JSON files |
 
 ---
 

@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
@@ -9,6 +10,15 @@ import net.minecraft.world.item.ItemStack;
  * M12's Greater-door currency: what door 1 pays out and doors 2/3 cost.
  * Configured, not hardcoded, following the {@link ConfiguredItem} pattern
  * {@link Keystone} and {@link TrialContent} already use.
+ *
+ * <p><strong>The engine terminal is the only wallet.</strong> A Greater door
+ * is paid from {@link #banked}, the per-player balance in {@link DungeonLog},
+ * never from what a player happens to be carrying. Fuel items are how fuel
+ * travels: door 1 pays them out, the player carries them to a room's
+ * respawn-anchor engine and feeds them in, and only then can a Greater door
+ * spend them. Before this the engine consumed a shard and wrote a respawn
+ * anchor charge that nothing in the mod ever read, while the doors charged
+ * against the inventory, so feeding the engine destroyed fuel outright.
  *
  * <p><strong>Door 1 is the only source.</strong> Nothing else in this mod's
  * loot tables grants {@link PocketDungeonsConfig#fuelItem()} (echo shards by
@@ -55,6 +65,38 @@ final class Fuel {
     static int count(ServerPlayer player) {
         Item item = FUEL_ITEM.get();
         return item == null ? 0 : player.getInventory().countItem(item);
+    }
+
+    /**
+     * How much fuel {@code player} has banked in an engine terminal. This, not
+     * {@link #count}, is what a Greater door can spend.
+     */
+    static int banked(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        return server == null ? 0 : DungeonLog.forServer(server).get(player.getUUID()).fuel();
+    }
+
+    /**
+     * Moves {@code amount} units out of {@code player}'s inventory and into
+     * their banked balance: what the engine terminal does with a fed stack. The
+     * caller has already checked that this much is actually carried.
+     */
+    static void bank(ServerPlayer player, int amount) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null || amount <= 0) {
+            return;
+        }
+        spend(player, amount);
+        DungeonLog.forServer(server).addFuel(player.getUUID(), amount);
+    }
+
+    /** Debits {@code amount} from the banked balance, for a Greater door's cost. */
+    static void spendBanked(ServerPlayer player, int amount) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null || amount <= 0) {
+            return;
+        }
+        DungeonLog.forServer(server).addFuel(player.getUUID(), -amount);
     }
 
     /**

@@ -29,6 +29,8 @@ export interface ModSummary {
   mappings: 'mojang' | 'yarn' | 'unknown'
   /** For multi-module projects: the subproject dir holding fabric.mod.json. */
   subproject?: string
+  /** True when a CONVENTIONS.md file exists at the mod root. */
+  hasConventions: boolean
 }
 
 /** The subset of fabric.mod.json this plugin cares about. */
@@ -198,8 +200,9 @@ async function scanMod(dir: string, root: string): Promise<ModSummary | null> {
   const mappings = detectMappings(buildText, gradle)
   const fmjText = await readText(fmjPath)
   const fabricMod = fmjText ? parseFabricMod(fmjText) : null
+  const hasConventions = await exists(path.join(modRoot, 'CONVENTIONS.md'))
 
-  return { dir, root: modRoot, buildFile, gradle, fabricMod, javaRelease, mappings, subproject }
+  return { dir, root: modRoot, buildFile, gradle, fabricMod, javaRelease, mappings, subproject, hasConventions }
 }
 
 /**
@@ -241,7 +244,9 @@ function pickDefaults(mods: ModSummary[]): ScaffoldDefaults | null {
   }
 }
 
-/** Render a scan as concise prose for the dynamic prompt context. */
+/** Render a scan as concise prose for the dynamic prompt context. Collapses
+ * shared version pins into one header line so 15 mods with the same pins don't
+ * produce 15 identical version lines. */
 export function renderScan(scan: WorkspaceScan): string {
   if (scan.mods.length === 0) {
     return 'No gradle Fabric mod projects detected at the workspace root.'
@@ -249,18 +254,37 @@ export function renderScan(scan: WorkspaceScan): string {
   const lines: string[] = []
   lines.push(`Workspace root: ${scan.root}`)
   lines.push(`Detected ${scan.mods.length} mod project(s):`)
+
+  // Detect whether all mods share the same version pins; if so, emit once.
+  const pins = new Set<string>()
+  for (const m of scan.mods) {
+    if (m.gradle.minecraft_version) {
+      pins.add(`mc=${m.gradle.minecraft_version} loader=${m.gradle.loader_version ?? '?'} fabric-api=${m.gradle.fabric_api_version ?? '?'}`)
+    }
+  }
+  const allSamePins = pins.size === 1
+  if (allSamePins) {
+    lines.push(`All mods share: ${[...pins][0]}`)
+  }
+
   for (const m of scan.mods) {
     const fmj = m.fabricMod
     const sub = m.subproject ? `:${m.subproject}` : ''
-    lines.push(`- ${m.dir}${sub} (${m.buildFile}, mappings ${m.mappings}${m.javaRelease ? `, java ${m.javaRelease}` : ''})`)
-    if (m.gradle.minecraft_version) lines.push(`    minecraft=${m.gradle.minecraft_version} loader=${m.gradle.loader_version ?? '?'} fabric-api=${m.gradle.fabric_api_version ?? '?'}`)
+    const meta = `${m.buildFile}, ${m.mappings}${m.javaRelease ? `, java ${m.javaRelease}` : ''}`
+    const conv = m.hasConventions ? ' CONVENTIONS.md' : ''
     if (fmj) {
-      lines.push(`    fabric.mod.json: id=${fmj.id} env=${fmj.environment} entrypoints={${Object.keys(fmj.entrypoints).join(', ') || 'none'}} mixins=[${fmj.mixins.join(', ')}]`)
+      lines.push(`- ${m.dir}${sub}: id=${fmj.id} env=${fmj.environment} mixins=[${fmj.mixins.join(', ')}]${conv} (${meta})`)
+    } else {
+      lines.push(`- ${m.dir}${sub}${conv ? ' ' + conv.trim() : ''} (${meta})`)
+    }
+    // Only emit per-mod pins when they differ across mods.
+    if (!allSamePins && m.gradle.minecraft_version) {
+      lines.push(`    mc=${m.gradle.minecraft_version} loader=${m.gradle.loader_version ?? '?'} fabric-api=${m.gradle.fabric_api_version ?? '?'}`)
     }
   }
   if (scan.defaults) {
     const d = scan.defaults
-    lines.push(`Scaffolding defaults (from first pinned mod): minecraft=${d.minecraftVersion} loader=${d.loaderVersion} fabric-api=${d.fabricApiVersion} loom=${d.loomVersion} java=${d.javaRelease} mappings=${d.mappings} build=${d.buildFile}`)
+    lines.push(`Scaffolding defaults: loom=${d.loomVersion} java=${d.javaRelease} mappings=${d.mappings} build=${d.buildFile}`)
   }
   return lines.join('\n')
 }

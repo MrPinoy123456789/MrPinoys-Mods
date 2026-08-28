@@ -78,6 +78,16 @@ final class DialogScreens {
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
     static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
+    /**
+     * The Back buttons. This API has no history stack, so going back is the
+     * parent screen rebuilt from live state, which means a round trip through
+     * {@link DialogRouter} rather than a client-side screen swap. Manage Room
+     * and the lobby directory are their own parents already
+     * ({@link #ACTION_MANAGE_ROOM}, {@link #ACTION_BROWSE_LOBBIES}); these two
+     * cover the parents that had no action of their own.
+     */
+    static final String ACTION_BACK_MENU = "back_menu";
+    static final String ACTION_BACK_WHITELIST = "back_whitelist";
 
     // ---- section 2: party roster and kick confirmation ----------------------
 
@@ -160,6 +170,11 @@ final class DialogScreens {
      * convenience pass over lore plus a command, not a new source of truth.
      */
     static Dialog keystoneInfo(ItemStack held, DungeonLog.Entry entry) {
+        return keystoneInfo(held, entry, DialogKit.closeButton("Close"));
+    }
+
+    /** The same screen with its one button supplied, so the menu can send a Back. */
+    static Dialog keystoneInfo(ItemStack held, DungeonLog.Entry entry, ActionButton exit) {
         List<DialogBody> body = new ArrayList<>();
         int level = Keystone.levelOf(held).orElse(0);
         java.util.EnumSet<Affix> affixes = Keystone.affixOf(held);
@@ -187,7 +202,7 @@ final class DialogScreens {
             body.add(DialogKit.text("Longest dungeon cleared " + entry.bestPathLength()
                     + " rooms deep."));
         }
-        return DialogKit.notice("Your keystone", body);
+        return DialogKit.notice("Your keystone", body, exit);
     }
 
     /**
@@ -197,10 +212,20 @@ final class DialogScreens {
      * is the dialog itself, built from the live held stack and log entry.
      */
     static Dialog inspectKeystone(ServerPlayer player) {
+        return inspectKeystone(player, DialogKit.closeButton("Close"));
+    }
+
+    /** The same screen with its one button supplied, so the menu can send a Back. */
+    static Dialog inspectKeystone(ServerPlayer player, ActionButton exit) {
         ItemStack held = Keystone.findHeld(player);
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
                 .get(player.getUUID());
-        return keystoneInfo(held, entry);
+        return keystoneInfo(held, entry, exit);
+    }
+
+    /** The Back-to-the-menu button, for the screens the menu itself opens. */
+    static ActionButton backToMenuButton(UUID owner) {
+        return backButton("Back", ACTION_BACK_MENU, owner);
     }
 
     // ---- section 5: the room whitelist manager ------------------------------
@@ -243,7 +268,7 @@ final class DialogScreens {
                         Component.literal("Add a player..."), Optional.empty(), DialogKit.WIDE),
                 Optional.of(new StaticAction(
                         new ClickEvent.ShowDialog(net.minecraft.core.Holder.direct(
-                                whitelistAdd(owner)))))));
+                                whitelistAdd(owner, ACTION_BACK_WHITELIST)))))));
 
         return DialogKit.list("Room whitelist", body, buttons, "Close");
     }
@@ -254,8 +279,13 @@ final class DialogScreens {
      * <p>A {@code ConfirmationDialog} and not a {@code NoticeDialog} because a
      * notice has exactly one button, which would leave Escape as the only way to
      * back out of a form somebody opened by accident.
+     *
+     * <p>{@code backAction} names the screen Cancel returns to, because this
+     * form is reachable from two: the standalone whitelist manager and Manage
+     * Room. Cancelling a form should undo the step that opened it, not close
+     * everything the player had walked through to get here.
      */
-    static Dialog whitelistAdd(UUID owner) {
+    static Dialog whitelistAdd(UUID owner, String backAction) {
         CompoundTag context = new CompoundTag();
         context.putString(KEY_OWNER, owner.toString());
         Input name = new Input(KEY_NAME, new TextInput(
@@ -267,7 +297,7 @@ final class DialogScreens {
                                 + "/dungeon room whitelist add requires.")),
                         List.of(name)),
                 DialogKit.button("Add", null, DialogKit.submit(ACTION_WHITELIST_ADD, context)),
-                DialogKit.closeButton("Cancel"));
+                backButton("Cancel", backAction, owner));
     }
 
     /**
@@ -494,7 +524,7 @@ final class DialogScreens {
             body.add(DialogKit.text(Component.literal(
                     "List your room with /dungeon room public.")
                     .withStyle(ChatFormatting.GRAY)));
-            return DialogKit.notice("Lobby directory", body);
+            return DialogKit.notice("Lobby directory", body, backToMenuButton(clicker));
         }
         List<ActionButton> buttons = new ArrayList<>();
         for (LobbyRow row : rows) {
@@ -506,7 +536,7 @@ final class DialogScreens {
         }
         body.add(DialogKit.text(rows.size() + " public room" + (rows.size() == 1 ? "" : "s")
                 + " right now."));
-        return DialogKit.list("Lobby directory", body, buttons, "Close");
+        return DialogKit.list("Lobby directory", body, buttons, backToMenuButton(clicker));
     }
 
     // ---- section 11: the wall-lodestone menu (M21) -------------------------
@@ -580,6 +610,23 @@ final class DialogScreens {
         return DialogKit.list(inDungeon ? "Dungeon" : "Pocket Dungeons", body, buttons, "Close");
     }
 
+    /**
+     * What Start Dungeon and Inspect Keystone show a player carrying no
+     * keystone. The refusal used to be a chat line naming {@code /dungeon key},
+     * which a player reads after the screen has already closed and then has to
+     * retype; here the command is the button, and Back returns to the menu they
+     * came from. {@code /dungeon key} mints a free level 1 keystone for anyone
+     * holding none, so the button needs no permission and cannot be farmed.
+     */
+    static Dialog noKeystone(UUID owner) {
+        return DialogKit.list("No keystone",
+                List.of(DialogKit.text("You are not carrying a keystone."),
+                        DialogKit.text("Your first one is free, and a lost one is replaced "
+                                + "at the level you had earned.")),
+                List.of(DialogKit.command("Get a keystone", "Runs /dungeon key", "/dungeon key")),
+                backToMenuButton(owner));
+    }
+
     // ---- section 12: room management (M21) ---------------------------------
 
     /**
@@ -611,14 +658,14 @@ final class DialogScreens {
             buttons.add(DialogKit.button("Remove " + displayName(server, id), null,
                     DialogKit.submit(ACTION_WHITELIST_REMOVE, context)));
         }
-        buttons.add(showDialogButton("Add a player...", whitelistAdd(owner)));
+        buttons.add(showDialogButton("Add a player...", whitelistAdd(owner, ACTION_MANAGE_ROOM)));
         buttons.add(showDialogButton("Set room name...", roomNameInput(owner)));
         CompoundTag toggle = new CompoundTag();
         toggle.putString(KEY_OWNER, owner.toString());
         buttons.add(DialogKit.button(entry.publicListed() ? "Room is public" : "Room is private",
                 "Click to flip the lobby listing", DialogKit.submit(ACTION_TOGGLE_PUBLIC, toggle)));
 
-        return DialogKit.list("Manage room", body, buttons, "Close");
+        return DialogKit.list("Manage room", body, buttons, backToMenuButton(owner));
     }
 
     /**
@@ -636,7 +683,19 @@ final class DialogScreens {
                         List.of(DialogKit.text("Shown in the lobby directory.")),
                         List.of(name)),
                 DialogKit.button("Set", null, DialogKit.submit(ACTION_SET_ROOM_NAME, context)),
-                DialogKit.closeButton("Cancel"));
+                backButton("Cancel", ACTION_MANAGE_ROOM, owner));
+    }
+
+    /**
+     * A screen's way back to the one that opened it: a button that asks
+     * {@link DialogRouter} to rebuild the parent from current state. Carries
+     * {@link #KEY_OWNER} like every other routed button, so the router's owner
+     * check passes.
+     */
+    private static ActionButton backButton(String label, String action, UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        return DialogKit.button(label, null, DialogKit.submit(action, context));
     }
 
     /** A button that swaps to another screen on the client, committing nothing. */

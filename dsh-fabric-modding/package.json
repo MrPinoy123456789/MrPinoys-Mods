@@ -1,7 +1,7 @@
 {
   "name": "@mrpinoys/dsh-fabric-modding",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness plugin: Fabric modding domain knowledge, workspace pattern reuse, and scaffolding tools for Minecraft 26.x (unobfuscated Mojang mappings).",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness plugin: Fabric modding domain knowledge, workspace pattern reuse, scaffolding tools, build verification, and bundled skills for Minecraft 26.x (unobfuscated Mojang mappings).",
   "private": true,
   "type": "module",
   "main": "src/index.ts",

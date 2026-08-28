@@ -102,12 +102,19 @@ final class DungeonLog extends SavedData {
      *                           the owner's player name instead. A label, not an
      *                           address: the directory routes on the owner UUID
      *                           carried in the button payload, never on this.
+     * @param fuel               the Greater-door fuel this player has banked in
+     *                           an engine terminal. The engine is the only thing
+     *                           that pays a Greater door: loose fuel items in an
+     *                           inventory buy nothing until they have been fed
+     *                           in. Held per player rather than per room because
+     *                           the door being bought is the owner's, the same
+     *                           as the keystone that gates it.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
                  List<String> recentThemes, Map<String, Integer> completedThemes,
                  String currentTheme, int depth, Set<String> extractedPowers,
-                 boolean publicListed, String roomName) {
+                 boolean publicListed, String roomName, int fuel) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -115,11 +122,12 @@ final class DungeonLog extends SavedData {
             depth = Math.max(0, depth);
             extractedPowers = Set.copyOf(extractedPowers);
             roomName = roomName == null ? "" : roomName;
+            fuel = Math.max(0, fuel);
         }
     }
 
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "");
+            false, "", 0);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -154,7 +162,8 @@ final class DungeonLog extends SavedData {
             // safe, so a save written before M20 (or after M21 retires the
             // fields) loads unchanged.
             Codec.BOOL.optionalFieldOf("public_listed", false).forGetter(Entry::publicListed),
-            Codec.STRING.optionalFieldOf("room_name", "").forGetter(Entry::roomName)
+            Codec.STRING.optionalFieldOf("room_name", "").forGetter(Entry::roomName),
+            Codec.INT.optionalFieldOf("fuel", 0).forGetter(Entry::fuel)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -210,7 +219,7 @@ final class DungeonLog extends SavedData {
                 previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName());
+                previous.publicListed(), previous.roomName(), previous.fuel());
         entries.put(player, next);
         setDirty();
         return next;
@@ -241,7 +250,7 @@ final class DungeonLog extends SavedData {
                 AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName()));
+                previous.publicListed(), previous.roomName(), previous.fuel()));
         setDirty();
     }
 
@@ -256,7 +265,7 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName()));
+                previous.publicListed(), previous.roomName(), previous.fuel()));
         setDirty();
     }
 
@@ -269,7 +278,7 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName()));
+                previous.publicListed(), previous.roomName(), previous.fuel()));
         setDirty();
     }
 
@@ -287,7 +296,27 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                listed, previous.roomName()));
+                listed, previous.roomName(), previous.fuel()));
+        setDirty();
+    }
+
+    /**
+     * Banks {@code amount} fuel for this player, or spends it when negative.
+     * A spend larger than the balance empties it rather than going negative,
+     * because {@link Entry}'s compact constructor clamps at zero; callers check
+     * {@link Fuel#banked} first regardless, and the two that matter (the commit
+     * lever's gate and {@code RunLifecycle.chooseOffer}) both do.
+     */
+    void addFuel(UUID player, int amount) {
+        if (amount == 0) {
+            return;
+        }
+        Entry previous = get(player);
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel() + amount));
         setDirty();
     }
 
@@ -303,7 +332,7 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), name == null ? "" : name));
+                previous.publicListed(), name == null ? "" : name, previous.fuel()));
         setDirty();
     }
 
@@ -348,7 +377,7 @@ final class DungeonLog extends SavedData {
         Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
-                previous.extractedPowers(), previous.publicListed(), previous.roomName());
+                previous.extractedPowers(), previous.publicListed(), previous.roomName(), previous.fuel());
         entries.put(player, next);
         setDirty();
         return next;
@@ -372,7 +401,7 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), powers,
-                previous.publicListed(), previous.roomName());
+                previous.publicListed(), previous.roomName(), previous.fuel());
         entries.put(player, next);
         setDirty();
         return next;

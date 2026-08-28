@@ -61,8 +61,9 @@ final class BossContent {
         boss.addTag(BOSS_TAG);
         boss.setCustomName(Component.literal("The Drowned Warden").withStyle(ChatFormatting.DARK_PURPLE));
         boss.setCustomNameVisible(true);
-        double bonus = (DifficultyProfile.mobScale(keystoneLevel, PocketDungeonsConfig.mobScalePerLevel()) - 1.0)
-                * BOSS_SCALE_FACTOR;
+        double bonus = Math.max(0.0, (DifficultyProfile.mobScale(keystoneLevel,
+                PocketDungeonsConfig.mobScalePerLevel(), PocketDungeonsConfig.mobScaleBase()) - 1.0)
+                * BOSS_SCALE_FACTOR);
         Instances.applyMobScaleBonus(boss, bonus);
     }
 

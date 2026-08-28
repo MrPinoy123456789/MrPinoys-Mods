@@ -97,11 +97,16 @@ final class RoomProtection {
      * M19 19.7: whether {@code pos} is mod-placed room furniture, relative to
      * {@code roomOrigin} and the wall the selector doors stand on
      * ({@code selectorWall}). A pure coordinate test, the same shape as
-     * {@link #isShell}, covering different positions: the four copper bulbs
-     * and the commit lever in the row in front of the selector wall, the black
-     * concrete screen blocks set into that wall, and on the adjacent wall to
-     * the left ({@link RoomGeometry#leftOf}) the respawn-anchor engine block
-     * with its own screen blocks above it. None of it can be broken or
+     * {@link #isShell}, covering different positions: the commit lever and its
+     * sign in the row in front of the selector wall, the three copper bulbs
+     * and the black concrete screen blocks set into that wall, and on the
+     * adjacent wall to the left ({@link RoomGeometry#leftOf}) the
+     * respawn-anchor engine block with its own screen blocks above it. Every
+     * one of them stands whether or not a door has been chosen, except the
+     * bulbs, which {@code clearBulbs} hands back to plain wall the moment one
+     * is: protecting that course either way is correct, since the block it
+     * then holds is the doorway lintel, already shell. None of it can be
+     * broken or
      * replaced by a player; {@code RoomTemplateGenerator.placeFurniture} is
      * the only writer and it bypasses {@code RoomProtection} entirely.
      *
@@ -126,10 +131,10 @@ final class RoomProtection {
     }
 
     /**
-     * The selector-wall half of {@link #isFurniture}: bulbs above each door
-     * and above the lever at Y=4 on the row in front of the wall, the lever
-     * itself at Y=2 beside the third door, and the 8x2 black concrete screen
-     * set into the wall above them.
+     * The selector-wall half of {@link #isFurniture}: the lever at Y=2 on the
+     * row in front of the wall beside the third door with its sign at Y=3
+     * above it, and set into the wall itself a bulb at Y=3 over each of the
+     * three doors plus the 8x2 black concrete screen above that.
      */
     private static boolean selectorWallFurniture(int x, int y, int z, DoorMask.Direction wall) {
         int along;
@@ -165,24 +170,25 @@ final class RoomProtection {
                 return false;
             }
         }
-        if (perp == doorPlane) {
-            if (y == 4 && along >= 7 && along <= 10) {
-                return true; // the four copper bulbs
-            }
-            if (y == 2 && along == 10) {
-                return true; // the commit lever
-            }
+        if (perp == doorPlane && along == 10 && (y == 2 || y == 3)) {
+            return true; // the commit lever and the sign above it
         }
-        if (perp == wallPlane && y >= 4 && y <= 5 && along >= 4 && along <= 11) {
-            return true; // the door screen blocks
+        if (perp == wallPlane) {
+            if (y == 3 && along >= 7 && along <= 9) {
+                return true; // the three copper bulbs, one over each door
+            }
+            if (y >= 4 && y <= 5 && along >= 4 && along <= 11) {
+                return true; // the door screen blocks
+            }
         }
         return false;
     }
 
     /**
-     * The engine-wall half of {@link #isFurniture}: the respawn anchor at
-     * Y=2 on the wall to the left of the selector wall, and its 5x2 black
-     * concrete screen above it.
+     * The engine-wall half of {@link #isFurniture}: on the wall to the left of
+     * the selector wall, the respawn anchor at Y=2 and the engine bay above it,
+     * which is the screen row at Y=4 with a crying obsidian end block at each
+     * side and a course of polished blackstone bezel at Y=3 and Y=5.
      */
     private static boolean engineWallFurniture(int x, int y, int z, DoorMask.Direction selectorWall) {
         DoorMask.Direction engineWall = RoomGeometry.leftOf(selectorWall);
@@ -219,7 +225,10 @@ final class RoomProtection {
         if (y == 2 && along == 7) {
             return true; // the engine block
         }
-        return y >= 4 && y <= 5 && along >= 5 && along <= 9; // the engine screen blocks
+        if (y == 4 && along >= 4 && along <= 10) {
+            return true; // the screen row and its two crying obsidian end blocks
+        }
+        return (y == 3 || y == 5) && along >= 5 && along <= 9; // the bezel courses
     }
 
     /**

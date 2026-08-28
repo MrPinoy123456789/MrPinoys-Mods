@@ -62,12 +62,26 @@ final class DungeonScreen {
     /** Text renders at 0.025x GUI size per unit of transformation scale. */
     private static final float RENDER_SCALE = 0.025f;
 
-    /** The door screen's 8x2 backdrop spans Y=4..5; the text centers on Y=5. */
+    /**
+     * Where each screen's text centers vertically. The door screen's backdrop
+     * is the two rows Y=4..5, so the seam between them is at 5.0; the engine
+     * screen's is the single row Y=4, whose middle is 4.5.
+     */
+    private static final double DOOR_CENTER_Y = 5.0;
+    private static final double ENGINE_CENTER_Y = 4.5;
     private static final float DOOR_SCALE = 2.0f;
     private static final float ENGINE_SCALE = 1.0f;
 
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
+    /**
+     * Where each screen's text centers along its wall. The door screen's
+     * backdrop covers blocks 4..11, whose midpoint is the block boundary at
+     * 8.0; the engine screen's covers 5..9, whose midpoint is the middle of
+     * block 7 at 7.5.
+     */
+    private static final double DOOR_SCREEN_ALONG = 8.0;
+    private static final double ENGINE_SCREEN_ALONG = 7.5;
     private static final int LINE_WIDTH = 200;
     private static final boolean SEE_THROUGH = false;
 
@@ -89,7 +103,8 @@ final class DungeonScreen {
      * this with an origin and wall before or instead of a record).
      */
     static void summonDoor(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall, Component content) {
-        show(level, roomOrigin, wall, 7.5, DOOR_SCALE, yawFor(wall), content);
+        show(level, roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y, DOOR_SCALE,
+                yawFor(wall), content);
     }
 
     /**
@@ -110,7 +125,8 @@ final class DungeonScreen {
     static void summonEngine(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
                              Component content) {
         DoorMask.Direction engineWall = RoomGeometry.leftOf(selectorWall);
-        show(level, roomOrigin, engineWall, 7.0, ENGINE_SCALE, yawFor(engineWall), content);
+        show(level, roomOrigin, engineWall, ENGINE_SCREEN_ALONG, ENGINE_CENTER_Y, ENGINE_SCALE,
+                yawFor(engineWall), content);
     }
 
     // ---- the five door-screen contexts (plan 19.1) ---------------------------
@@ -173,18 +189,28 @@ final class DungeonScreen {
     // ---- engine screen content ----------------------------------------------
 
     /**
-     * The engine screen's two lines: the viewer's fuel count (when there is a
-     * viewer) and the per-premium-door cost. Fuel lives in the player's
-     * inventory (M12), so the terminal is a view and a sink, never a store.
+     * The engine screen: a title, the viewer's banked balance (when there is a
+     * viewer) and the per-premium-door cost.
+     *
+     * <p>The balance, not what the viewer is carrying. Fuel items are how fuel
+     * travels; {@link Fuel#banked} is what a Greater door can actually spend,
+     * and a screen that counted the stack in your pocket instead was reporting
+     * the wrong number at exactly the moment you fed one in, when the two move
+     * in opposite directions.
+     *
+     * <p>The title line is the other half of that: an unlabelled black panel
+     * over a respawn anchor does not announce itself as the engine, so it says
+     * so, in the same gold the door screen's idle title uses.
      */
     static Component engineContent(ServerPlayer viewer) {
         Item fuel = Fuel.item();
         String fuelName = fuel == null ? "fuel" : fuel.getName(ItemStack.EMPTY).getString();
-        String first = viewer != null
-                ? "FUEL: " + Fuel.count(viewer) + " " + fuelName
-                : "Engine: " + fuelName;
-        return Component.literal(first + "\nCost per premium door: "
-                + PocketDungeonsConfig.fuelCostPerGreaterDoor());
+        String balance = viewer != null
+                ? "Stored: " + Fuel.banked(viewer) + " " + fuelName
+                : "Accepts " + fuelName;
+        return Component.literal("ENGINE").withStyle(ChatFormatting.GOLD)
+                .append(Component.literal("\n" + balance + "\nPer premium door: "
+                        + PocketDungeonsConfig.fuelCostPerGreaterDoor()));
     }
 
     // ---- summon / update / clear --------------------------------------------
@@ -196,13 +222,18 @@ final class DungeonScreen {
     }
 
     private static void show(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall,
-                             double along, float scale, float yaw, Component content) {
+                             double along, double centerY, float scale, float yaw,
+                             Component content) {
         int lines = lines(content);
-        // The text block's center sits (0.025 * scale * (5 * lines - 1)) blocks
-        // below the entity position, and its top at (0.025 * scale) above it
-        // (verified in TextDisplayRenderer's quad layout). Lifting the anchor
-        // by that center offset centers the block on the screen's Y=5 row.
-        double y = 5.0 + RENDER_SCALE * scale * (5 * lines - 1);
+        // The text block hangs upward from the entity position, not downward:
+        // the renderer scales by -0.025 (so its local +Y runs down the world)
+        // and then translates the block by -(10 * lines - 1) before drawing
+        // (verified in DisplayRenderer.TextDisplayRenderer's quad layout). Its
+        // bottom edge lands 0.025 * scale below the anchor and its top edge
+        // 0.025 * scale * (10 * lines - 1) above, so the center sits
+        // 0.025 * scale * (5 * lines - 1) above. Dropping the anchor by that
+        // much is what centers the block on the backdrop.
+        double y = centerY - RENDER_SCALE * scale * (5 * lines - 1);
         update(level, wallAnchor(roomOrigin, wall, along, y), yaw, scale, content);
     }
 
@@ -311,16 +342,19 @@ final class DungeonScreen {
 
     /**
      * The yaw that turns a fixed-billboard text plane to face into the room
-     * from {@code wall}. The renderer builds the plane normal from the yaw via
-     * {@code rotationYXZ(-deg2rad(yaw))}: yaw 0 faces +Z, so the wall on the
-     * +Z side (SOUTH) needs 180, the +X side (EAST) needs -90, and so on.
+     * from {@code wall}. The plane's readable normal is the entity's own
+     * facing, so this is plain vanilla yaw: 0 faces +Z (south), 90 faces -X
+     * (west), 180 faces -Z (north), 270 faces +X (east). A screen on the wall
+     * at the +Z side of the room (SOUTH) has to face north, one on the +X side
+     * (EAST) has to face west, and so on: each is the opposite of the wall it
+     * hangs on.
      */
     private static float yawFor(DoorMask.Direction wall) {
         return switch (wall) {
             case NORTH -> 0.0f;
             case SOUTH -> 180.0f;
-            case EAST -> -90.0f;
-            case WEST -> 90.0f;
+            case EAST -> 90.0f;
+            case WEST -> 270.0f;
         };
     }
 

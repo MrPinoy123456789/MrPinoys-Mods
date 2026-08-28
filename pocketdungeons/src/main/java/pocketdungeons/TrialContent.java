@@ -338,8 +338,12 @@ final class TrialContent {
 
         BlockPos vaultPos = containers.get(0);
         Direction facing = facingOf(level, vaultPos);
+        // The vault table, not the chest table the reward and completion chests
+        // draw from: a vault ejects everything it rolls onto the floor instead
+        // of holding it in 27 slots, so it wants a short table. See
+        // LootTables.vaultTable.
         placeVault(level, vaultPos, facing, ominous,
-                resolveLootTable(level, LootTables.tierTable(tier, ominous), lootSuffix),
+                resolveLootTable(level, LootTables.vaultTable(tier, ominous), lootSuffix),
                 keyStack(ominous), ItemStack.EMPTY);
 
         // Everything else in the cell stays a chest, retargeted to the supply

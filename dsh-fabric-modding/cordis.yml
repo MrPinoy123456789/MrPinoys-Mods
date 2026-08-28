@@ -1,4 +1,5 @@
-# DeepSeek Harness overlay: load the fabric-modding plugin.
+# DeepSeek Harness overlay: load the fabric-modding plugin and surface its
+# bundled SKILL.md skills.
 #
 # The `name` is passed to ESM import(), so on Windows it MUST be a file:// URL
 # with spaces percent-encoded. A bare drive path like 'A:/...' is parsed as
@@ -8,6 +9,23 @@
 #
 # On Windows the file URL form is:
 #   name: 'file:///A:/MrPinoys%20Mods/dsh-fabric-modding/src/index.ts'
+#
+# Skills: the web profile disables the host `skill-filesystem` row (presets own
+# local discovery). This overlay re-enables it as a deployment-level provider
+# that contributes ONLY the plugin's bundled skills (includeDefaultRoots: false,
+# so it never double-discovers project/user roots the preset already scans).
+# The preset's own skill-filesystem keeps doing local discovery; the agent reads
+# the merged catalog, so these four skills appear alongside whatever the preset
+# already loads. A distinct providerName avoids any provider-name collision.
 - insert:
     - id: fabric-modding
       name: 'file:///A:/MrPinoys%20Mods/dsh-fabric-modding/src/index.ts'
+      config:
+        workspaceRoot: 'A:/MrPinoys Mods'
+- id: skill-filesystem
+  disabled: false
+  config:
+    providerName: fabric-modding-skills
+    includeDefaultRoots: false
+    customSkillDirs:
+      - 'A:/MrPinoys Mods/dsh-fabric-modding/skills'

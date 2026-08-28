@@ -2,11 +2,13 @@
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that makes `dsh` faster and more accurate at writing Minecraft Fabric mods in this workspace.
 
-It does three things, mapped to the goals you picked:
+It does five things, mapped to the goals you picked:
 
 1. **Better domain knowledge**: registers a system-prompt section with Fabric modding essentials tuned to this workspace's stack: Minecraft 26.x unobfuscated (Mojang/official mappings, no Yarn), Java 25, Fabric Loom, Kotlin DSL gradle, server-side mods.
 2. **Less rework**: registers a dynamic prompt context that scans the workspace at assembly time, detects every gradle mod, and reports the versions, mappings, entrypoints, and mixin packages already in use, so the model reuses your conventions instead of inventing new ones. A `read_mod_reference` tool pulls real snippets from your existing mods on demand.
 3. **Faster scaffolding**: registers tools that generate boilerplate matching the detected versions: `scaffold_fabric_mod`, `scaffold_mixin`, `scaffold_registry`, `scaffold_entrypoint`.
+4. **Verification loop**: a `build_mod` tool runs gradle tasks inside a workspace mod and returns structured compile errors (file, line, column, message), failed tasks, and a log tail, so the model can verify a change compiles and tests pass before declaring it done. Long builds can run in the background.
+5. **Situational skills**: ships four `SKILL.md` files under `skills/` that the model loads on demand for deep knowledge: mixin development, compatibility troubleshooting, the mod ecosystem, and Stonecutter multi version builds.
 
 ## Tools
 
@@ -17,8 +19,20 @@ It does three things, mapped to the goals you picked:
 | `scaffold_registry` | A registry helper (`<Mod>Registries`) plus one stub for `item`, `block`, or `command`. |
 | `scaffold_entrypoint` | A `ModInitializer` or `ClientModInitializer`. |
 | `read_mod_reference` | Searches the workspace's Java sources for a query and returns the best matching snippets, so the model copies your own patterns. |
+| `build_mod` | Runs a gradle task (default `build`) inside a workspace mod project and returns a structured result: exit code, parsed compile errors and warnings (file, line, column, message), failed gradle tasks, and a log tail. Confined to the workspace root. Supports `run_in_background: true` for long builds (poll with `job_output`, stop with `job_kill`). |
 
 Every scaffolding tool takes a `write` flag (default `true`). When `true` it writes files directly under the resolved base directory (confined to the workspace root for safety) and returns the list of paths. When `false` it returns the file contents instead, and the model writes them through the normal approved file path.
+
+## Skills
+
+Four `SKILL.md` files under `skills/`, surfaced through the `skill-filesystem` provider configured in the overlay. The model loads them on demand.
+
+| Skill | When to load |
+|---|---|
+| `mixin-development` | Before writing or modifying any mixin. Injection point selection, compatibility safe practices, mixin config files, crash fixes. |
+| `compat-troubleshooting` | When investigating a crash or behavior that may involve another mod. Locating the conflict point, reading sibling mod source, verifying a fix. |
+| `mod-ecosystem-overview` | Before deciding how to ship a mod. Loader choice, publishing platforms, CI publishing, docs, license. |
+| `stonecutter-multiversion` | When a mod must support more than one Minecraft version from one source tree. Stonecutter conditional compilation, version switching, multi version builds. |
 
 ## Install and run
 
@@ -36,22 +50,38 @@ This plugin is loaded as TypeScript source by the harness loader, so it needs th
    New-Item -ItemType Directory $plugin -Force
    foreach ($p in 'cordis','dsh-tools','schemastery') { cmd /c mklink /J "$plugin\$p" "$harness\$p" }
    ```
-4. **For DSH Desktop (persistent, automatic):** Add the plugin to the web profile's patch layer so it loads every time DSH Desktop starts, with no command line flags needed. DSH Desktop uses its own `DSH_HOME` at `C:\Users\Kriss\AppData\Roaming\dsh-desktop\harness`, which is separate from the CLI's `C:\Users\Kriss\.dsh`. Edit `C:\Users\Kriss\AppData\Roaming\dsh-desktop\harness\profiles\web\cordis.patch.yml` and replace the empty `[]` with:
+   For typechecking only, also junction `@types/node`:
+   ```powershell
+   $types = "A:\MrPinoys Mods\dsh-fabric-modding\node_modules\@types"
+   $nodeTypes = "A:\dev\dsh\npm-prefix\node_modules\@deepseek-ai\dsh\node_modules\@types\node"
+   New-Item -ItemType Directory $types -Force
+   if (-not (Test-Path "$types\node")) { cmd /c mklink /J "$types\node" $nodeTypes }
+   ```
+4. **For DSH Desktop (persistent, automatic):** Add the plugin and skills to the web profile's patch layer so they load every time DSH Desktop starts, with no command line flags needed. DSH Desktop uses its own `DSH_HOME` at `C:\Users\Kriss\AppData\Roaming\dsh-desktop\harness`, which is separate from the CLI's `C:\Users\Kriss\.dsh`. Edit `C:\Users\Kriss\AppData\Roaming\dsh-desktop\harness\profiles\web\cordis.patch.yml`:
    ```yaml
    - insert:
        - id: fabric-modding
          name: 'file:///A:/MrPinoys%20Mods/dsh-fabric-modding/src/index.ts'
+         config:
+           workspaceRoot: 'A:/MrPinoys Mods'
+   - id: skill-filesystem
+     disabled: false
+     config:
+       providerName: fabric-modding-skills
+       includeDefaultRoots: false
+       customSkillDirs:
+         - 'A:/MrPinoys Mods/dsh-fabric-modding/skills'
    ```
-   Then restart DSH Desktop and start a new conversation.
+   `workspaceRoot` MUST be set explicitly when running under DSH Desktop, because the process cwd is the desktop launch root (`C:\Users\Kriss\AppData\Roaming\dsh-desktop\launch-root`), not your mods workspace. Without it, `build_mod` and the scaffolding tools resolve mod paths against the wrong root and fail with "path escapes workspace root" or "no gradle wrapper". The `skill-filesystem` override re-enables the host row (disabled by the web profile) as a deployment-level provider that contributes ONLY the plugin's bundled skills, without double-discovering project/user roots the active preset already scans. Then restart DSH Desktop and start a new conversation.
 
-5. **For CLI `dsh web` (persistent, automatic):** Same idea, but the CLI uses `C:\Users\Kriss\.dsh` as `DSH_HOME`. Edit `C:\Users\Kriss\.dsh\profiles\web\cordis.patch.yml` with the same YAML.
+5. **For CLI `dsh web` (persistent, automatic):** Same idea, but the CLI uses `C:\Users\Kriss\.dsh` as `DSH_HOME`. Edit `C:\Users\Kriss\.dsh\profiles\web\cordis.patch.yml` with the same YAML (including `workspaceRoot`).
 
 6. **For command line (ad hoc):** Start the Web UI with the overlay, using this mods workspace as the working directory:
    ```sh
    cd "A:/MrPinoys Mods"
    dsh web --patch "A:/MrPinoys Mods/dsh-fabric-modding/cordis.yml"
    ```
-   The process working directory becomes the workspace root the plugin scans and confines writes to.
+   The `cordis.yml` in this folder already includes the plugin insert (with `workspaceRoot`), and the `skill-filesystem` override. When launched with `cd "A:/MrPinoys Mods"` first, the process cwd matches `workspaceRoot`, so the explicit config is redundant but harmless for the CLI path; it is required for DSH Desktop.
 
 ## Configuration
 
@@ -61,6 +91,7 @@ The plugin accepts a Schemastery `Config` (set in a preset's `agent.cordis.yml` 
 |---|---|---|
 | `workspaceRoot` | `process.cwd()` | Root the pattern scanner walks and writes are confined to. |
 | `enableFileWrites` | `true` | Lets scaffolding tools write files directly. Set `false` to force `write: false` behavior and route all writes through the approved file path. |
+| `enableBuildRuns` | `true` | Lets the `build_mod` tool run gradle. Set `false` to disable builds entirely. |
 | `domainSectionOrder` | `8800` | Sort order for the domain-knowledge system-prompt section. |
 | `workspaceContextOrder` | `8900` | Sort order for the dynamic workspace-pattern context. |
 
@@ -73,7 +104,13 @@ src/
   patterns.ts    workspace scanner (mods, versions, mappings, entrypoints)
   scaffold.ts    scaffolding tools and file templates
   reference.ts   read_mod_reference tool
+  build.ts       build_mod tool: runs gradle, parses diagnostics
   fsutil.ts      path-confined file IO helpers
+skills/
+  mixin-development/SKILL.md          injection points, compat, crash fixes
+  compat-troubleshooting/SKILL.md     locating conflicts, verifying fixes
+  mod-ecosystem-overview/SKILL.md     loader, publishing, CI, license
+  stonecutter-multiversion/SKILL.md   multi version conditional compilation
 ```
 
 ## Notes

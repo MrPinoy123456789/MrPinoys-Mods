@@ -81,6 +81,8 @@ public final class DialogRouter {
             case DialogScreens.ACTION_SET_ROOM_NAME -> setRoomName(player, server,
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_TOGGLE_PUBLIC -> togglePublic(player, server);
+            case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
+            case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
         }
     }
@@ -134,6 +136,9 @@ public final class DialogRouter {
      */
     private static void reshow(ServerPlayer owner, MinecraftServer server, UUID ownerId,
                                String notice) {
+        if (notice != null) {
+            Chime.refused(owner); // a notice line on this screen is always a refusal
+        }
         List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(ownerId));
         entries.sort(Comparator.comparing(UUID::toString));
         DialogKit.show(owner, DialogScreens.whitelist(server, ownerId, entries, notice));
@@ -149,13 +154,26 @@ public final class DialogRouter {
      * keystone check, so a returning owner is never asked to hold their key.
      */
     private static void startDungeon(ServerPlayer player) {
-        // Ahead of entry, so the player who is about to be teleported away is
-        // still here to hear it, the same cue the old block-use ritual played.
-        // M22: now a per-player packet, not a room-wide broadcast.
-        Chime.runStarts(player);
         if (RunLifecycle.enterWithKeystone(player)) {
+            // After the entry, not before it. Played up front, the cue fired
+            // on refusals too, so a run that never opened sounded exactly like
+            // one that did. Sending it across the teleport is the pattern
+            // VisitService already uses for visitStarts, and it carries.
+            // M22: a per-player packet, not a room-wide broadcast.
+            Chime.runStarts(player);
             player.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
+            return;
+        }
+        Chime.refused(player);
+        // enterWithKeystone shrinks the stack only after the run has actually
+        // opened, so a player still holding nothing is one it turned away for
+        // want of a keystone rather than for a full server or a failed stamp.
+        // Those refusals say their own piece in chat; this one gets a screen
+        // with the command on it, because the alternative is a closed dialog
+        // and a line telling the player to go type something.
+        if (Keystone.findHeld(player) == null) {
+            DialogKit.show(player, DialogScreens.noKeystone(player.getUUID()));
         }
     }
 
@@ -175,12 +193,24 @@ public final class DialogRouter {
      * {@code /dungeon key info} opens.
      */
     private static void inspectKeystone(ServerPlayer player) {
-        if (Keystone.findHeld(player).isEmpty()) {
-            player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
-                    .withStyle(ChatFormatting.RED));
+        if (Keystone.findHeld(player) == null) {
+            Chime.refused(player);
+            DialogKit.show(player, DialogScreens.noKeystone(player.getUUID()));
             return;
         }
-        DialogKit.show(player, DialogScreens.inspectKeystone(player));
+        DialogKit.show(player, DialogScreens.inspectKeystone(player,
+                DialogScreens.backToMenuButton(player.getUUID())));
+    }
+
+    /**
+     * Every Back button in the menu's tree. There is no history stack in this
+     * API, so back is the menu rebuilt from live context rather than a screen
+     * popped off a stack: the player's dimension decides which menu they get,
+     * exactly as it does when they right-click the wall lodestone.
+     */
+    private static void backToMenu(ServerPlayer player) {
+        boolean inDungeon = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        DialogKit.show(player, DialogScreens.lodestoneMenu(player, inDungeon));
     }
 
     /** The manage-room screen's name entry; caps at 16 like the command. */
@@ -241,6 +271,9 @@ public final class DialogRouter {
 
     /** Rebuilds the lobby directory from current state and sends it back, with a reason line. */
     private static void reshowLobby(ServerPlayer clicker, MinecraftServer server, String notice) {
+        if (notice != null) {
+            Chime.refused(clicker); // as in reshow: a notice here is a room that said no
+        }
         DialogKit.show(clicker, DialogScreens.lobbyBrowser(server, clicker.getUUID(), notice));
     }
 

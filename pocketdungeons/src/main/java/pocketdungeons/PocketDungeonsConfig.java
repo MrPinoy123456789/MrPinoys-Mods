@@ -72,6 +72,17 @@ public final class PocketDungeonsConfig {
 
     // ---- U8: the run outlives the player, the reward room, the three doors ---
     private static int rewardRoomGraceSeconds = 600;
+    /**
+     * How long a player in a finished dungeon may do nothing at all before the
+     * reward-room grace window stops treating them as a reason to keep the slot
+     * open. Measured against vanilla's own idle clock
+     * ({@code ServerPlayer.getLastActionTime}), which any movement, click,
+     * container interaction or chat line resets, so it is the same notion of
+     * "away" the {@code player-idle-timeout} server property already uses.
+     * {@code 0} disables the check: presence alone holds the slot then, however
+     * long the player stands still.
+     */
+    private static int afkSeconds = 300;
     private static int threeChestPercent = 60;
     private static int twoChestPercent = 80;
     /** The clock ran out before the run was completed. The harshest depletion. */
@@ -94,6 +105,8 @@ public final class PocketDungeonsConfig {
     // ---- ladder reframe (M10) -------------------------------------------------
     /** +1% mob strength (max health, attack damage, movement speed) per keystone level. */
     private static double mobScalePerLevel = 0.01;
+    /** Base mob strength multiplier at level 0. Below 1.0 makes low-level mobs weaker than vanilla. */
+    private static double mobScaleBase = 0.75;
     /**
      * Fraction of a run's trial spawners that must reach {@code COOLDOWN} before
      * a pad contact completes the run. An untouched spawner sits at
@@ -378,6 +391,10 @@ public final class PocketDungeonsConfig {
         return mobScalePerLevel;
     }
 
+    public static double mobScaleBase() {
+        return mobScaleBase;
+    }
+
     public static double spawnerClearThreshold() {
         return spawnerClearThreshold;
     }
@@ -483,6 +500,10 @@ public final class PocketDungeonsConfig {
         return rewardRoomGraceSeconds;
     }
 
+    public static int afkSeconds() {
+        return afkSeconds;
+    }
+
     public static int threeChestPercent() {
         return threeChestPercent;
     }
@@ -529,6 +550,7 @@ public final class PocketDungeonsConfig {
         timerPerRoomSeconds = 60;
 
         rewardRoomGraceSeconds = 600;
+        afkSeconds = 300;
         threeChestPercent = 60;
         twoChestPercent = 80;
         timedOutDepletion = 2;
@@ -614,6 +636,7 @@ public final class PocketDungeonsConfig {
 
         rewardRoomGraceSeconds = readInt(root, "rewardRoomGraceSeconds", 600,
                 v -> v >= 0, "must be >= 0");
+        afkSeconds = readInt(root, "afkSeconds", 300, v -> v >= 0, "must be >= 0");
         threeChestPercent = readInt(root, "threeChestPercent", 60,
                 v -> v >= 1 && v <= 100, "must be between 1 and 100");
         twoChestPercent = readInt(root, "twoChestPercent", 80,
@@ -638,6 +661,7 @@ public final class PocketDungeonsConfig {
         feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
 
         mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.01, v -> v >= 0, "must be >= 0");
+        mobScaleBase = readDouble(root, "mobScaleBase", 0.75, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
         spawnerClearThreshold = readDouble(root, "spawnerClearThreshold", 0.75,
                 v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
 
@@ -852,6 +876,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("timerPerRoomSeconds", 60);
 
         root.addProperty("rewardRoomGraceSeconds", 600);
+        root.addProperty("afkSeconds", 300);
         root.addProperty("threeChestPercent", 60);
         root.addProperty("twoChestPercent", 80);
         root.addProperty("timedOutDepletion", 2);

@@ -1,0 +1,46 @@
+{
+  "type": "minecraft:equipment",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:empty",
+          "weight": 45
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_helmet",
+          "weight": 30
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:chainmail_helmet",
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:empty",
+          "weight": 55
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_chestplate",
+          "weight": 25
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:chainmail_chestplate",
+          "weight": 20
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:equipment/tier_2_armor"
+}

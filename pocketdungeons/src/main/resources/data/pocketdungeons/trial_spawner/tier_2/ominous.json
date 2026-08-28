@@ -12,7 +12,7 @@
           "id": "minecraft:zombie"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_melee",
+          "loot_table": "pocketdungeons:equipment/tier_2_melee",
           "slot_drop_chances": 0.0
         }
       },
@@ -24,7 +24,7 @@
           "id": "minecraft:skeleton"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_ranged",
+          "loot_table": "pocketdungeons:equipment/tier_2_ranged",
           "slot_drop_chances": 0.0
         }
       },
@@ -36,7 +36,7 @@
           "id": "minecraft:husk"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_melee",
+          "loot_table": "pocketdungeons:equipment/tier_2_melee",
           "slot_drop_chances": 0.0
         }
       },
@@ -48,7 +48,7 @@
           "id": "minecraft:stray"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_ranged",
+          "loot_table": "pocketdungeons:equipment/tier_2_ranged",
           "slot_drop_chances": 0.0
         }
       },

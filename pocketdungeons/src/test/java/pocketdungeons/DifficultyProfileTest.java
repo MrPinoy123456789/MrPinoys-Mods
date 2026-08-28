@@ -26,17 +26,18 @@ public class DifficultyProfileTest {
         }
     }
 
-    /** M10: +1% per level by default, 1.0 at level 0, monotonic across the ladder. */
+    /** M10: base + 1% per level by default, 0.75 at level 0, monotonic across the ladder. */
     private static void testMobScale() {
-        checkDouble(DifficultyProfile.mobScale(0, 0.01), 1.0);
-        checkDouble(DifficultyProfile.mobScale(1, 0.01), 1.01);
-        checkDouble(DifficultyProfile.mobScale(100, 0.01), 2.0);
+        checkDouble(DifficultyProfile.mobScale(0, 0.01, 0.75), 0.75);
+        checkDouble(DifficultyProfile.mobScale(1, 0.01, 0.75), 0.76);
+        checkDouble(DifficultyProfile.mobScale(25, 0.01, 0.75), 1.0);
+        checkDouble(DifficultyProfile.mobScale(100, 0.01, 0.75), 1.75);
         // Negative inputs never invert the scale.
-        checkDouble(DifficultyProfile.mobScale(-5, 0.01), 1.0);
-        checkDouble(DifficultyProfile.mobScale(10, -0.5), 1.0);
+        checkDouble(DifficultyProfile.mobScale(-5, 0.01, 0.75), 0.75);
+        checkDouble(DifficultyProfile.mobScale(10, -0.5, 0.75), 0.75);
         double previous = 0.0;
         for (int level = 0; level <= 100; level++) {
-            double scale = DifficultyProfile.mobScale(level, 0.01);
+            double scale = DifficultyProfile.mobScale(level, 0.01, 0.75);
             if (scale < previous) {
                 throw new AssertionError("mobScale dipped at level " + level);
             }

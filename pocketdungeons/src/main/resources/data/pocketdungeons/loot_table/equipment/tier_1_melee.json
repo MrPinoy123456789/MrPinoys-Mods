@@ -1,0 +1,42 @@
+{
+  "type": "minecraft:equipment",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:equipment/tier_1_armor"
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:stone_sword",
+          "weight": 40
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:wooden_sword",
+          "weight": 30
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:wooden_axe",
+          "weight": 20
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "weight": 10
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:equipment/tier_1_melee"
+}

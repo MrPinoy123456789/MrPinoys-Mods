@@ -2,7 +2,9 @@ package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -80,8 +82,13 @@ final class RunLifecycle {
         ItemStack keystone = Keystone.findHeld(player);
         if (keystone == null) {
             player.sendSystemMessage(Component.literal(
-                    "You need a keystone to open a dungeon. Run /dungeon key for your first one.")
-                    .withStyle(ChatFormatting.RED));
+                    "You need a keystone to open a dungeon. ")
+                    .withStyle(ChatFormatting.RED)
+                    .append(Component.literal("[Get one]").withStyle(style -> style
+                            .withColor(ChatFormatting.AQUA)
+                            .withClickEvent(new ClickEvent.RunCommand("/dungeon key"))
+                            .withHoverEvent(new HoverEvent.ShowText(
+                                    Component.literal("Runs /dungeon key"))))));
             return false;
         }
         int level = Keystone.levelOf(keystone).orElse(1);
@@ -414,9 +421,10 @@ final class RunLifecycle {
                 return false;
             }
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
-            if (Fuel.count(player) < cost) {
+            if (Fuel.banked(player) < cost) {
                 player.sendSystemMessage(Component.literal(
-                        "Door " + step + " costs " + cost + " fuel; you do not have enough.")
+                        "Door " + step + " costs " + cost + " fuel; the engine holds "
+                                + Fuel.banked(player) + ". Feed it echo shards first.")
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
@@ -433,7 +441,7 @@ final class RunLifecycle {
         // The spend happens only once the choice has actually succeeded, so a
         // failed stamp (the branch above) never costs fuel for nothing.
         if (!offer.free()) {
-            Fuel.spend(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
+            Fuel.spendBanked(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }
 
         EnumSet<Affix> granted = AffixMath.effective(player.getUUID(), offer.level(),
@@ -498,7 +506,8 @@ final class RunLifecycle {
         } else {
             RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
         }
-        RoomTemplateGenerator.placeFurniture(level, record.roomCellOrigin, record.roomDungeonDoor);
+        RoomTemplateGenerator.placeFurniture(level, record.roomCellOrigin, record.roomDungeonDoor,
+                record.awaitingDoorChoice);
 
         // The capture swept every non-frame/armour-stand entity out of the
         // cell, the door screen's text_display included. Bring it back so the
@@ -509,8 +518,7 @@ final class RunLifecycle {
         if (record.awaitingDoorChoice) {
             if (record.selectedStep > 0) {
                 RoomTemplateGenerator.setBulb(level, record.roomCellOrigin, record.roomDungeonDoor,
-                        record.selectedStep, true);
-                RoomTemplateGenerator.setBulb(level, record.roomCellOrigin, record.roomDungeonDoor, 10, true);
+                        RoomTemplateGenerator.bulbAlongForStep(record.selectedStep), true);
                 DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
                         DungeonScreen.previewContent(level, record.owner, record.selectedStep));
             } else {
@@ -973,7 +981,7 @@ final class RunLifecycle {
         // M19: re-arm the physical selection furniture and both screens against
         // the room's new orientation, and clear the previous run's selection.
         record.selectedStep = 0;
-        RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall);
+        RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall, true);
         DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent());
         DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
         record.awaitingDoorChoice = true;

@@ -19,10 +19,11 @@ import java.util.List;
  * resolved to anything. A typo or a deleted table surfaced as a silently
  * empty chest at play time, with no log line anywhere pointing at the cause
  * (plans/COMPLETED-MILESTONES.md M9 C4). The themed {@code lootSuffix} variant
- * ({@code chests/tier_1_drowned} and its kin) is deliberately not in
- * {@link #ALL}: it is optional by design -- {@link TrialContent#applyLoot}'s
+ * ({@code chests/tier_1_drowned} and its kin, and the matching
+ * {@code vaults/tier_1_drowned}) is deliberately not in {@link #ALL}: it is
+ * optional by design: {@link TrialContent#applyLoot}'s
  * {@code resolveLootTable} already falls back to the base table when a
- * themed one is not loaded -- so a missing suffixed table is not a bug.
+ * themed one is not loaded, so a missing suffixed table is not a bug.
  */
 final class LootTables {
 
@@ -35,6 +36,12 @@ final class LootTables {
     static final String SUPPLY_TIER_1 = "chests/supply_tier_1";
     static final String SUPPLY_TIER_2 = "chests/supply_tier_2";
     static final String SUPPLY_TIER_3 = "chests/supply_tier_3";
+    static final String VAULT_TIER_1 = "vaults/tier_1";
+    static final String VAULT_TIER_2 = "vaults/tier_2";
+    static final String VAULT_TIER_3 = "vaults/tier_3";
+    static final String VAULT_TIER_1_OMINOUS = "vaults/tier_1_ominous";
+    static final String VAULT_TIER_2_OMINOUS = "vaults/tier_2_ominous";
+    static final String VAULT_TIER_3_OMINOUS = "vaults/tier_3_ominous";
 
     /**
      * The equipment slots M13's gear pool is keyed by, and therefore the slots
@@ -51,7 +58,9 @@ final class LootTables {
         List<String> all = new java.util.ArrayList<>(List.of(
                 TIER_1, TIER_2, TIER_3,
                 TIER_1_OMINOUS, TIER_2_OMINOUS, TIER_3_OMINOUS,
-                SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3));
+                SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3,
+                VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3,
+                VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS));
         for (int tier = 1; tier <= 3; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));
@@ -76,12 +85,42 @@ final class LootTables {
         return "gear/" + slot + "_" + clamp(tier);
     }
 
-    /** The vault/reward-chest table for this tier (clamped to 1-3) and ominous flag. */
+    /**
+     * The reward-chest table for this tier (clamped to 1-3) and ominous flag:
+     * the loot-cell supply chests' key-gated sibling and the terminal cell's
+     * three completion chests. Not the vault; see {@link #vaultTable}.
+     */
     static String tierTable(int tier, boolean ominous) {
         return switch (clamp(tier)) {
             case 1 -> ominous ? TIER_1_OMINOUS : TIER_1;
             case 2 -> ominous ? TIER_2_OMINOUS : TIER_2;
             default -> ominous ? TIER_3_OMINOUS : TIER_3;
+        };
+    }
+
+    /**
+     * The vault table for this tier (clamped to 1-3) and ominous flag.
+     *
+     * <p>Deliberately not {@link #tierTable}, for the same reason
+     * {@link #gearTable} is not: a vault is not a chest. A chest holds its roll
+     * across 27 slots and the player takes what they want out of it; a vault
+     * ejects every stack it rolls onto the floor as a separate item entity. The
+     * chest tables guarantee 13 to 22 rolls, which reads fine in a container and
+     * buries the room when it comes out of a vault, with the two stacks that
+     * mattered lost somewhere in the dirt and saplings.
+     *
+     * <p>The vault tables are the chest tables with the bulk taken out: the
+     * treasure, ore, gear, curio and trim pools, each clamped to one roll, and
+     * the gear pool made guaranteed because a vault costs a key. Roughly 2 to 6
+     * stacks rather than 13 to 22. They are generated from the chest tables by
+     * {@code tools/gen_vault_tables.py}, which has the full rule; rerun it after
+     * editing anything under {@code loot_table/chests}.
+     */
+    static String vaultTable(int tier, boolean ominous) {
+        return switch (clamp(tier)) {
+            case 1 -> ominous ? VAULT_TIER_1_OMINOUS : VAULT_TIER_1;
+            case 2 -> ominous ? VAULT_TIER_2_OMINOUS : VAULT_TIER_2;
+            default -> ominous ? VAULT_TIER_3_OMINOUS : VAULT_TIER_3;
         };
     }
 

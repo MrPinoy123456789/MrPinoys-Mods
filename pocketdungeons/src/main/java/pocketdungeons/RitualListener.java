@@ -154,13 +154,16 @@ final class RitualListener {
                 && level.getBlockState(pos).is(Blocks.RESPAWN_ANCHOR)) {
             ItemStack held = player.getItemInHand(hand);
             if (Fuel.isFuel(held)) {
-                Fuel.spend(serverPlayer, 1);
-                BlockState anchor = level.getBlockState(pos);
-                int charges = Math.min(anchor.getValue(RespawnAnchorBlock.CHARGE) + 1,
-                        RespawnAnchorBlock.MAX_CHARGES);
-                RoomBuilder.set((ServerLevel) level, pos,
-                        anchor.setValue(RespawnAnchorBlock.CHARGE, charges));
+                // Banked, not burned. The shard leaves the inventory and lands
+                // on the player's balance, which is the only thing a Greater
+                // door can spend; the anchor's own charge level is redrawn from
+                // that balance below purely so the block lights up as it fills.
+                Fuel.bank(serverPlayer, 1);
+                Chime.engineFed(serverPlayer);
+            } else {
+                Chime.refused(serverPlayer);
             }
+            setEngineCharge((ServerLevel) level, pos, Fuel.banked(serverPlayer));
             InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
             if (record != null) {
                 DungeonScreen.updateEngine((ServerLevel) level, record, serverPlayer);
@@ -224,12 +227,13 @@ final class RitualListener {
      * M19 19.3/19.6: pulling the commit lever. With a door selected, starts
      * the run through {@code RunLifecycle.chooseOffer}; with none selected,
      * or a greater door the player cannot afford, the refusal stays on the
-     * door screen rather than in a chat line. The greater-tier gates are
-     * pre-checked here so the screen can name the reason; {@code chooseOffer}
-     * re-checks them anyway, and its chat line is the fallback for anything
-     * this screen cannot know (a failed stamp). Always consumes the click so
-     * vanilla's lever toggle never runs: the lever stays visually up, ready
-     * for the next pull.
+     * door screen rather than in a chat line, and now carries a cue as well:
+     * a screen two blocks up is easy to miss when the click was a reflex. The
+     * greater-tier gates are pre-checked in {@link #doorRefusal} so the screen
+     * can name the reason; {@code chooseOffer} re-checks them anyway, and its
+     * chat line is the fallback for anything this screen cannot know (a failed
+     * stamp). Always consumes the click so vanilla's lever toggle never runs:
+     * the lever stays visually up, ready for the next pull.
      */
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -240,25 +244,12 @@ final class RitualListener {
                         DungeonScreen.refusalContent("Select a door first"));
                 return InteractionResult.SUCCESS_SERVER;
             }
-            DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
-                    .get(player.getUUID());
-            int offerLevel = Math.max(1, entry.keystoneLevel());
-            Keystone.Offer[] offers = Keystone.offers(player.getUUID(), offerLevel,
-                    entry.currentTheme(), entry.depth());
-            Keystone.Offer offer = offers[Math.min(record.selectedStep - 1, offers.length - 1)];
-            if (!offer.free()) {
-                int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
-                if (entry.keystoneLevel() < minLevel) {
-                    DungeonScreen.updateDoor((ServerLevel) level, record,
-                            DungeonScreen.refusalContent("Door " + record.selectedStep
-                                    + " needs level " + minLevel));
-                    return InteractionResult.SUCCESS_SERVER;
-                }
-                if (Fuel.count(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
-                    DungeonScreen.updateDoor((ServerLevel) level, record,
-                            DungeonScreen.refusalContent("Not enough fuel"));
-                    return InteractionResult.SUCCESS_SERVER;
-                }
+            String refusal = doorRefusal(player, record.selectedStep);
+            if (refusal != null) {
+                Chime.refused(player);
+                DungeonScreen.updateDoor((ServerLevel) level, record,
+                        DungeonScreen.refusalContent(refusal));
+                return InteractionResult.SUCCESS_SERVER;
             }
             if (RunLifecycle.chooseOffer(player, record.selectedStep)) {
                 Chime.runStarts(player);
@@ -266,6 +257,7 @@ final class RitualListener {
                 // darkened the bulbs and switched the screen to the run.
                 return InteractionResult.SUCCESS_SERVER;
             }
+            Chime.refused(player);
             DungeonScreen.updateDoor((ServerLevel) level, record,
                     DungeonScreen.refusalContent("The door refuses"));
         }
@@ -274,10 +266,10 @@ final class RitualListener {
 
     /**
      * M19: the physical replacement for the door-offer dialog. Right-clicking
-     * a selector door lights that door's copper bulb, darkens the previous
-     * selection's bulb, lights the ready-to-commit bulb above the lever, and
-     * puts the chosen door's offer on the door screen. No dialog popup: the
-     * walk between doors is the browse, the lever pull is the commit.
+     * a selector door lights that door's copper bulb in the wall above it,
+     * darkens the previous selection's, and puts the chosen door's offer on
+     * the door screen. No dialog popup: the walk between doors is the browse,
+     * the lever pull is the commit, and the lever's own sign says so.
      */
     private static void selectDoor(ServerPlayer player, int step) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -291,14 +283,66 @@ final class RitualListener {
         BlockPos o = record.roomCellOrigin;
         DoorMask.Direction wall = record.roomDungeonDoor;
         if (previous >= 1 && previous <= 3 && previous != step) {
-            RoomTemplateGenerator.setBulb(level, o, wall, previous, false);
+            RoomTemplateGenerator.setBulb(level, o, wall,
+                    RoomTemplateGenerator.bulbAlongForStep(previous), false);
         }
         if (step != previous) {
-            RoomTemplateGenerator.setBulb(level, o, wall, step, true);
+            RoomTemplateGenerator.setBulb(level, o, wall,
+                    RoomTemplateGenerator.bulbAlongForStep(step), true);
         }
-        RoomTemplateGenerator.setBulb(level, o, wall, 10, true); // ready to commit
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
-        Chime.doorSelected(player);
+        Chime.doorSelected(player, step);
+        // A door the lever will refuse says so now, on the browse, rather than
+        // waiting for the pull: the walk between doors is the browse, so the
+        // answer to "can I afford this one" belongs to the same click.
+        if (doorRefusal(player, step) != null) {
+            Chime.doorLocked(player);
+        }
+    }
+
+    /**
+     * Redraws the engine anchor's vanilla charge level from {@code banked}, so
+     * an empty engine is dark and a stocked one glows. Cosmetic only: nothing
+     * reads {@code CHARGE} back, and it saturates at the block's four charges
+     * long before a serious balance does. It is the block telling you at a
+     * glance that it has something in it, which the screen then quantifies.
+     */
+    private static void setEngineCharge(ServerLevel level, BlockPos pos, int banked) {
+        BlockState anchor = level.getBlockState(pos);
+        if (!anchor.is(Blocks.RESPAWN_ANCHOR)) {
+            return;
+        }
+        int charges = Math.clamp(banked, 0, RespawnAnchorBlock.MAX_CHARGES);
+        RoomBuilder.set(level, pos, anchor.setValue(RespawnAnchorBlock.CHARGE, charges));
+    }
+
+    /**
+     * Why {@code player} cannot open selector door {@code step} yet, phrased
+     * for the door screen, or null if they can. The one place the premium-door
+     * gates are spelled out: {@link #pullLever} names the reason on the screen
+     * and {@link #selectDoor} sounds it on the preview click, so the two can
+     * never disagree about which doors are openable. A free door has no gate.
+     * {@code RunLifecycle.chooseOffer} re-checks all of this regardless; this
+     * is for the message and the cue, not for the rule.
+     */
+    private static String doorRefusal(ServerPlayer player, int step) {
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                .get(player.getUUID());
+        int offerLevel = Math.max(1, entry.keystoneLevel());
+        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), offerLevel,
+                entry.currentTheme(), entry.depth());
+        Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
+        if (offer.free()) {
+            return null;
+        }
+        int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+        if (entry.keystoneLevel() < minLevel) {
+            return "Door " + step + " needs level " + minLevel;
+        }
+        if (Fuel.banked(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
+            return "Feed the engine first";
+        }
+        return null;
     }
 
     /**

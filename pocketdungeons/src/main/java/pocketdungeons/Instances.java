@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
@@ -459,7 +460,7 @@ final class Instances {
             // M19: the physical selection furniture (bulbs, lever, screens) and
             // the two text_display entities, summoned fresh at every stamp and
             // never captured with the room.
-            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH);
+            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
             DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH, DungeonScreen.idleContent());
             DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
                     DungeonScreen.engineContent(null));
@@ -705,11 +706,14 @@ final class Instances {
         }
 
         // M19: the run is underway, so the pending door selection is over.
-        // The bulbs go dark and the door screen switches to the run context
-        // (level, theme, affixes, clock); selectedStep stays 0 until the next
-        // lobby re-arms the room.
+        // The bulbs come out of the wall rather than going dark, back to the
+        // plain stone brick they displaced: two of the three sat in the course
+        // the doorway punched just above now uses for its lintel, and there is
+        // nothing left for the third to indicate. The door screen switches to
+        // the run context (level, theme, affixes, clock); selectedStep stays 0
+        // until the next lobby re-arms the room.
         record.selectedStep = 0;
-        RoomTemplateGenerator.setAllBulbs(level, record.roomCellOrigin, record.roomDungeonDoor, false);
+        RoomTemplateGenerator.clearBulbs(level, record.roomCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(record));
 
         // Everything admit() hands a player off the record's layout has to be
@@ -834,6 +838,46 @@ final class Instances {
         } else {
             sendToWorldSpawn(server, player);
         }
+    }
+
+    /**
+     * Whether anybody on this record is online, standing in the dungeon
+     * dimension, and not away from the keyboard. Deliberately stricter than
+     * {@code members.isEmpty()} on all three counts: membership survives a
+     * disconnect until the sweep in {@link #onTick} notices, it survives an
+     * admin teleport out of the dimension until the same sweep does, and a
+     * player can sit in a finished dungeon indefinitely without using it.
+     */
+    private static boolean hasActiveMember(MinecraftServer server, InstanceRecord record) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null
+                    && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    && !isAway(player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether {@code player} has done nothing for {@code afkSeconds}.
+     *
+     * <p>Vanilla's own idle clock rather than a position check of this mod's
+     * own: {@code ServerPlayer.getLastActionTime} is reset by every packet
+     * handler that means the player is present at the keyboard, movement and
+     * container clicks included, which is exactly the case this has to get
+     * right. Somebody sorting the chests they just filled has not moved a
+     * block and is plainly not away. It is also what the vanilla
+     * {@code player-idle-timeout} property measures, so an operator who has
+     * tuned that already knows this number.
+     */
+    private static boolean isAway(ServerPlayer player) {
+        int afkSeconds = PocketDungeonsConfig.afkSeconds();
+        if (afkSeconds <= 0) {
+            return false; // the check is disabled; presence alone holds the slot
+        }
+        return Util.getMillis() - player.getLastActionTime() > afkSeconds * 1000L;
     }
 
     /**
@@ -969,6 +1013,23 @@ final class Instances {
                     record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
                 if (!record.completed.isEmpty() && record.expiresAtTick == 0) {
+                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
+                }
+                // The grace window counts idleness, not elapsed time since the
+                // run ended. Armed once at completion and left to run down, it
+                // was a wall clock deadline that fired on whoever was standing
+                // in the reward room at the time: finish a dungeon, spend ten
+                // minutes sorting the chests you just filled, and get ejected
+                // mid-sort with the run long over and nothing to warn you. What
+                // the window is actually for is stopping a finished run from
+                // holding its slot after everyone has gone, so it restarts for
+                // as long as anybody is still in there and only runs down once
+                // the instance is empty, or everyone left in it has gone away
+                // from the keyboard: standing in a finished dungeon is not the
+                // same as using it, and an idle client would otherwise hold the
+                // slot for as long as the connection lasted. A disconnect drops
+                // them through the member sweep below either way.
+                if (record.expiresAtTick != 0 && hasActiveMember(server, record)) {
                     record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
                 if (record.expiresAtTick != 0 && now >= record.expiresAtTick) {
@@ -1246,7 +1307,8 @@ final class Instances {
      */
     static void applyMobScale(Mob mob, int keystoneLevel) {
         applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
-                PocketDungeonsConfig.mobScalePerLevel()) - 1.0);
+                PocketDungeonsConfig.mobScalePerLevel(),
+                PocketDungeonsConfig.mobScaleBase()) - 1.0);
     }
 
     /**
@@ -1255,7 +1317,7 @@ final class Instances {
      * ordinary {@code mobScalePerLevel} curve, not the same one.
      */
     static void applyMobScaleBonus(Mob mob, double bonus) {
-        if (bonus <= 0.0) {
+        if (bonus == 0.0) {
             return;
         }
         boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();

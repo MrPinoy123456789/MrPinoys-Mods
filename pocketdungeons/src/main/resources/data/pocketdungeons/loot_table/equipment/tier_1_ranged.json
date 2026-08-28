@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:equipment",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:equipment/tier_1_armor"
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bow",
+          "weight": 60
+        },
+        {
+          "type": "minecraft:empty",
+          "weight": 25
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:crossbow",
+          "weight": 15
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:equipment/tier_1_ranged"
+}

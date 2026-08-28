@@ -11,16 +11,16 @@ Read, in order, before writing anything:
 
 1. `A:\MrPinoys Mods\CLAUDE.md`: the punctuation rule. It is enforced, and it
    applies to every line you write, including javadoc and commit messages.
-2. `pocketdungeons/docs/ROOM_UX_PLAN.md`'s `## M19: Physical door selection`
+2. `pocketdungeons/docs/reference/ROOM_UX_PLAN.md`'s `## M19: Physical door selection`
    section: **the authoritative scope.** Goal, dependencies, scope, touch
    points, done-when, and verification notes all live there. This handoff
    does not repeat them.
-3. `pocketdungeons/docs/D3_PROGRESSION_PLAN.md`'s "Implementation context"
+3. `pocketdungeons/docs/reference/D3_PROGRESSION_PLAN.md`'s "Implementation context"
    section (read once; it is not milestone-specific): toolchain, commands,
    the one-mixin budget, conventions, and the resource-directory layout.
 4. `pocketdungeons/docs/DISCOVERIES.md`: verified 26.2 API findings. Do not
    rediscover these the hard way.
-5. `pocketdungeons/docs/DOOR_LADDER_BRAINSTORM.md` section 10 (all
+5. `pocketdungeons/docs/reference/DOOR_LADDER_BRAINSTORM.md` section 10 (all
    subsections): the design rationale for the physical UI.
 6. `pocketdungeons/plans/COMPLETED-MILESTONES.md`: what M0-M17 actually
    built, for context on what this milestone extends.
@@ -74,7 +74,7 @@ lever is the commit.
    the Fabric-event or datapack-recipe route first (trap 9, and traps 14/15
    in `DISCOVERIES.md` are a worked example of that search paying off).
 6. **Status lives in `plans/COMPLETED-MILESTONES.md` and
-   `docs/LIVE_TEST_PASS.md` now, not a `PROGRESS.md` file.** That file and the
+   `docs/reference/LIVE_TEST_PASS.md` now, not a `PROGRESS.md` file.** That file and the
    `handoffs/` folder were retired once M0-M9 went code-complete. Do not
    recreate either.
 7. **One commit per logical change, message explains why, not just what.**
@@ -373,7 +373,7 @@ selector-door branch:
   first"), pull lever with selection (run starts), engine terminal
   accepts echo shards and shows fuel, lever on a greater door with no
   fuel ("Not enough fuel"), try to break each furniture block
-  (refused). Record in `docs/LIVE_TEST_PASS.md`.
+  (refused). Record in `docs/reference/LIVE_TEST_PASS.md`.
 
 ## What you must not do
 
@@ -444,7 +444,7 @@ summoning display entities server-side, `copper_bulb` blockstate
 properties (`lit`, `powered`).
 
 **Live-only:** all of it. The screen, bulbs, lever, and engine terminal
-are all client-interactive. Record in `docs/LIVE_TEST_PASS.md`.
+are all client-interactive. Record in `docs/reference/LIVE_TEST_PASS.md`.
 
 **Headless-verifiable:** `isFurniture` coordinate logic (pure Java
 test), `selectedStep` field codec round trip, `chooseOffer` call path
@@ -454,11 +454,11 @@ test), `selectedStep` field codec round trip, `chooseOffer` call path
 
 1. `plans/COMPLETED-MILESTONES.md`: add this milestone's summary in its
    place, in the same architectural-summary style as M0-M17's entries.
-2. `docs/LIVE_TEST_PASS.md`: add a numbered section for whatever in this
+2. `docs/reference/LIVE_TEST_PASS.md`: add a numbered section for whatever in this
    milestone is client-interactive and cannot be verified headless.
-3. `docs/ROADMAP.md`: this milestone's entry, in order. No checkboxes; the
+3. `docs/reference/ROADMAP.md`: this milestone's entry, in order. No checkboxes; the
    roadmap carries order, not status.
-4. `docs/ROOM_UX_PLAN.md`: if you diverge from the plan's scope for this
+4. `docs/reference/ROOM_UX_PLAN.md`: if you diverge from the plan's scope for this
    milestone, **fix the plan first and say so.** Never silently diverge.
 5. Any `DungeonLog.Entry` field this milestone supersedes gets a javadoc
    note saying so; its codec field stays until a migration confirms no

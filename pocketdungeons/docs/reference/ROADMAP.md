@@ -466,6 +466,20 @@ hook.
 
 ---
 
+## M28: Themed mob spawners
+
+Independent of the Room UX pass. Dungeon themes gain an optional
+`spawner_prefix` field: when set, trial spawners load themed configs from
+`data/pocketdungeons/trial_spawner/{prefix}_tier_{n}/{normal,ominous}.json`
+instead of the default `tier_{n}` files. Two proof-of-concept themes ship:
+Crypt (deepslate, zombies+skeletons only) and Infestation (spiders only).
+Null prefix = current behavior, so no existing theme breaks. Full scope in
+`docs/reference/ROOM_UX_PLAN.md`'s `## M28` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

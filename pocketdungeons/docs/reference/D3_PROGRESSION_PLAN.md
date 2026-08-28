@@ -230,7 +230,7 @@ no registry or world dependency, it does not import Minecraft.
   drops the field and the spawner silently keeps `FullConfig.DEFAULT`. Read
   ids back out (`/dungeon admin cellreport`) rather than trusting the write.
 - **Headless testing cannot right-click, open a chest, or click a GUI button**
-  (trap 10). Anything client-interactive goes in `docs/LIVE_TEST_PASS.md` as
+  (trap 10). Anything client-interactive goes in `docs/reference/LIVE_TEST_PASS.md` as
   unverified, not claimed working. Every milestone's "Done when" is a mix of
   headless-verifiable (commands, registry, save state) and live-only (dialogs,
   station right-clicks, trim bonus in combat).

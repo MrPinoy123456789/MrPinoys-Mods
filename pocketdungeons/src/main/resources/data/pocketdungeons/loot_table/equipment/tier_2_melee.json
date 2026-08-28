@@ -1,0 +1,53 @@
+{
+  "type": "minecraft:equipment",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:equipment/tier_2_armor"
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "weight": 40
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_axe",
+          "weight": 25
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:stone_sword",
+          "weight": 20
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 5.0,
+                "max": 10.0
+              },
+              "options": "#minecraft:on_random_loot"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "pocketdungeons:equipment/tier_2_melee"
+}
