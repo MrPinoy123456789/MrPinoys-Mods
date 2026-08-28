@@ -1070,3 +1070,87 @@ pre-M20 save format still decoding to the new defaults.
 room button and teleporting in, the `/dungeon room public|private|name`
 commands, the wall-lodestone right-click invocation, and confirming
 `/dungeon room card` is gone; recorded as section 24 in `LIVE_TEST_PASS.md`.
+
+## M21: UX consolidation: one lodestone, one menu
+
+**Goal:** five distinct lodestone interactions collapse into one right-click
+menu on the wall lodestone. The stand-on leave-pad is deleted. The
+`hasInstance` guard inverts: right-clicking while in a dungeon opens the
+in-dungeon menu instead of blocking. Fourth milestone of
+`docs/ROOM_UX_PLAN.md`'s Room UX pass.
+
+- **`DialogScreens.lodestoneMenu`:** a `MultiActionDialog` whose buttons
+  depend on context, the same shape as `partyRoster` and `lobbyBrowser`, with
+  a pure `menuOptions(inDungeon, roomOwner)` half for the headless test.
+  Overworld (not in the dungeon dimension): Start Dungeon, Browse Lobbies,
+  Manage Room, Inspect Keystone. In dungeon: Leave, Manage Room (only when
+  `InstanceRegistry.byMember`'s record owner is the player), Inspect
+  Keystone. Every button carries `KEY_OWNER` so `DialogRouter`'s owner check
+  applies unchanged.
+- **Context detection is the dimension, exactly as the plan's implementation
+  notes dictate:** `player.level().dimension().equals(PocketDungeonsMod
+  .DUNGEON_LEVEL)`, the same check `RoomProtection` uses. Note on the plan's
+  done-when wording: the room is stamped in the dungeon dimension, so the
+  wall lodestone lives there and "right-click the wall lodestone in the
+  overworld" reads as "right-click a lodestone while not in the dungeon":
+  the overworld menu opens on any lodestone outside the void, and the
+  in-dungeon menu opens on the room's wall terminal.
+- **Position check:** the in-dungeon menu opens only on the room's wall
+  terminal. Implemented as "the clicked lodestone sits inside a live room
+  cell" (`Instances.roomOriginAt(pos) != null`) rather than a literal
+  comparison against `origin + (1, 2, 0)`: `completeDungeon` relocates the
+  room at an arbitrary rotation (M2's closed loop), so the baked-in wall
+  lodestone lands at a rotated world position a fixed local-coordinate check
+  would miss. The wall lodestone is the only lodestone inside a room cell
+  (the same fact M20's transient branch comment relied on), and the terminal
+  pad's lodestone at the dungeon's end sits outside every room cell, so the
+  test distinguishes exactly the two surfaces the plan wants distinguished.
+- **The keystone is checked on the click, not on menu open.**
+  `ACTION_START_DUNGEON` verifies the main hand (`Keystone.isKeystone`) and
+  refuses with "Hold a keystone to start a dungeon." when it is missing,
+  then calls `RunLifecycle.enterWithKeystone` (which still handles free
+  re-entry). The `RESPAWN_ANCHOR_CHARGE` cue and the "The lodestone pulls
+  you under." line moved from the block-use handler onto this dispatch, so
+  the entry cue survives the two-step flow.
+- **`RitualListener` rewrite:** the keystone-only lodestone handler, M20's
+  transient lobby-browser branch (its `// M21: replace this with
+  lodestoneMenu` marker) and the `hasInstance` refusal are all gone. The
+  lodestone branch is now: ritual enabled, the block is a lodestone, not
+  sneaking, then the menu, with the in-dungeon position gate ahead of it.
+  The reroll, gamble, cube, engine, lever and selector-door branches stay
+  ahead of the lodestone check, untouched: door selection stays physical
+  (M19), never a menu option.
+- **`Instances.isOnRoomLeavePad` deleted** along with its watcher branch;
+  `onPad` now reads only `isOnExitPad`. The terminal pad's stand-on
+  completion (`completeRun`, the `completed.contains(member)` edge) and the
+  untimed/admin exit branch are unchanged; only the room's leave pad went.
+- **Manage Room sub-dialog (`DialogScreens.manageRoom`):** the whitelist's
+  remove buttons plus "Add a player..." (reusing `whitelistAdd`), a "Set
+  room name..." text-input form (`roomNameInput`, the `whitelistAdd` shape,
+  16-char cap matching `/dungeon room name`), and a "Room is public / Room
+  is private" toggle showing the current `publicListed` state.
+  `ACTION_SET_ROOM_NAME` and `ACTION_TOGGLE_PUBLIC` call
+  `DungeonLog.setRoomName` / `setPublicListed` and re-show the manager, so a
+  click never ends on a closed screen with the change unmade.
+  `/dungeon room public|private|name` stay as shortcuts and call the same
+  setters.
+- **Inspect Keystone shares one builder:** `DialogScreens.inspectKeystone`
+  backs both the menu option and `/dungeon key info`; the
+  "You are not carrying a keystone." refusal stays in the two call sites.
+- **Commands unchanged:** `/dungeon`, `/dungeon exit`, `/dungeon key`,
+  `/dungeon choose`, and the `/dungeon room ...` subtree all stay; the menu
+  calls the same underlying methods, per the plan's "commands stay as
+  power-user shortcuts".
+- **New pure-Java test:** `LodestoneMenuTest` (`lodestoneMenuTest` Gradle
+  task, wired into `tasks.test`) pins the option lists (4 overworld, 3
+  in-dungeon owner, 2 in-dungeon visitor), the action ids, and the
+  button payloads' `KEY_OWNER`.
+
+**Headless-verified:** `./gradlew build` green after every commit,
+`LodestoneMenuTest` passing, and the full dispatch chain compiling against
+the live `RunLifecycle.exit`/`enterWithKeystone` signatures.
+
+**Live-only, not yet verified:** the menu dialog itself, the four context
+button lists on a real client, clicking each option, the leave-pad deletion
+(walking over the old position does nothing), and the terminal pad still
+completing; recorded as section 25 in `LIVE_TEST_PASS.md`.

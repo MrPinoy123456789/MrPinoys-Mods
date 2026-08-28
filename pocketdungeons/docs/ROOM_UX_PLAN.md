@@ -427,8 +427,10 @@ menu does not need to duplicate door selection), M20 (visiting, so
 
 **Done when:**
 
-1. Right-click the wall lodestone in the overworld with an empty hand:
-   the menu opens with Start, Browse, Manage, Inspect options.
+1. Right-click a lodestone while not in the dungeon (the room is stamped in
+   the dungeon dimension, so "overworld" means any lodestone outside it)
+   with an empty hand: the menu opens with Start, Browse, Manage, Inspect
+   options.
 2. Right-click the wall lodestone in a dungeon: the menu opens with
    Leave, Manage, Inspect options.
 3. Clicking "Leave" exits the dungeon. No stand-on pad needed.

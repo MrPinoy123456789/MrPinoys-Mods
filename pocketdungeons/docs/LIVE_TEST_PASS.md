@@ -1197,3 +1197,84 @@ follows is the part only a player with a screen can confirm.
    calling-card item can be obtained anywhere, and any pre-M20 card in a
    chest behaves like a plain compass (its branch in `RitualListener` is
    deleted).
+
+## 25. UX consolidation: one lodestone, one menu (M21)
+
+Everything client-interactive in M21 needs a live client and has not been
+verified headless. The option lists and the button payloads are covered by
+`LodestoneMenuTest`; what follows is the part only a player with a screen
+can confirm. Remember the context rule: the room is stamped in the dungeon
+dimension, so "the overworld menu" means "right-click a lodestone while not
+in the dungeon", and the in-dungeon menu opens on the room's wall terminal.
+
+### 25.1 The overworld menu
+
+1. In the overworld, right-click any lodestone with an empty hand.
+2. **Expected:** the menu opens with four options: Start Dungeon, Browse
+   Lobbies, Manage Room, Inspect Keystone.
+3. Right-click a lodestone holding the keystone.
+4. **Expected:** the menu still opens; nothing is consumed and no dungeon
+   starts yet.
+5. Click "Start Dungeon" without a keystone in your main hand.
+6. **Expected:** chat refusal "Hold a keystone to start a dungeon." No
+   dungeon opens.
+7. Hold a keystone in your main hand and click "Start Dungeon".
+8. **Expected:** the entry cue plays, "The lodestone pulls you under."
+   appears, and you are teleported into your room lobby.
+9. Click "Browse Lobbies".
+10. **Expected:** M20's lobby directory dialog opens.
+11. Click "Manage Room".
+12. **Expected:** the manage-room dialog opens with the whitelist remove
+    buttons, "Add a player...", "Set room name...", and the public/private
+    toggle.
+13. Click "Inspect Keystone" while carrying a keystone.
+14. **Expected:** the `/dungeon key info` screen opens. Without a keystone:
+    chat refusal "You are not carrying a keystone."
+
+### 25.2 The in-dungeon menu
+
+1. Enter your room lobby (in the dungeon), then right-click the wall
+   lodestone with an empty hand.
+2. **Expected:** the in-dungeon menu opens with Leave, Manage Room, Inspect
+   Keystone.
+3. Click "Leave".
+4. **Expected:** you exit the dungeon with no stand-on pad needed, the same
+   as `/dungeon exit`.
+5. During a run, walk back to the room and right-click the wall lodestone.
+6. **Expected:** the in-dungeon menu opens with Leave, Manage Room, Inspect
+   Keystone.
+7. As a party member or visitor in someone else's room, right-click the wall
+   lodestone.
+8. **Expected:** the menu opens with Leave and Inspect Keystone only; no
+   Manage Room.
+
+### 25.3 The pads
+
+1. Complete a run; step on the terminal pad at the dungeon's end.
+2. **Expected:** completion still works exactly as before (spawner gate,
+   room relocation, reward chests).
+3. Walk over the old leave-pad position in the room (the floor in front of
+   the wall lodestone).
+4. **Expected:** nothing happens; you are not ejected.
+5. Right-click the terminal pad's lodestone instead of the wall lodestone.
+6. **Expected:** no menu opens; standing on it still completes the run.
+
+### 25.4 Room management
+
+1. From either menu, open Manage Room.
+2. Click "Room is private" (or "Room is public").
+3. **Expected:** the label flips and the manager re-shows; the lobby
+   directory lists or unlists the room accordingly.
+4. Click "Set room name...", type a name, click "Set".
+5. **Expected:** the manager re-shows with the new name in the body line;
+   the lobby directory shows it.
+6. Click "Add a player..." and add an online player.
+7. **Expected:** the add screen works exactly as it does from
+   `/dungeon room whitelist`.
+
+### 25.5 Commands still work
+
+1. Run `/dungeon`, `/dungeon exit`, `/dungeon key`, `/dungeon choose 1`,
+   `/dungeon room public`, `/dungeon room name X`, `/dungeon room whitelist`.
+2. **Expected:** all still function as before; the menu is an alternative
+   surface, not a replacement.

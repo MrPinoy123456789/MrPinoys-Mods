@@ -430,6 +430,24 @@ card` are deleted; `RoomWhitelist` and `RoomProtection` are unchanged
 
 ---
 
+## M21: UX consolidation: one lodestone, one menu
+
+Fourth of the Room UX pass. Five lodestone interactions collapse into one
+right-click menu on the wall lodestone: the menu's buttons depend on context
+(overworld, i.e. not in the dungeon dimension: Start Dungeon, Browse
+Lobbies, Manage Room, Inspect Keystone; in dungeon: Leave, Manage Room for
+the room's own owner, Inspect Keystone). The keystone is checked when Start
+Dungeon is clicked rather than when the menu opens; the `hasInstance` guard
+inverts to show the in-dungeon menu; and the stand-on leave-pad
+(`Instances.isOnRoomLeavePad`) is deleted, leaving the terminal pad at the
+dungeon's end as the only stand-on lodestone interaction. Manage Room gains
+the room name and public/private toggle next to the whitelist; `/dungeon`
+commands stay as shortcuts to the same methods.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.
