@@ -375,6 +375,25 @@ unlocked library grows. Full scope in `D3_PROGRESSION_PLAN.md`.
 
 ---
 
+## M18: Room shell pass
+
+First of the Room UX pass (`docs/ROOM_UX_PLAN.md`), and the milestone M24's
+room skins wait on. The room's shell (floor, walls, ceiling, lamps) becomes
+immutable to everyone, the owner included, via a pure coordinate test on
+`RoomProtection` with no block-state lookup, so a future skin swap changes
+block types without touching the protection. The lodestone moves from the
+floor to the north wall at eye height, ready to become the right-click
+navigation terminal in M21; the selector opening gets physical double doors
+(two oak doors plus a wall lintel) that block mobs and open by hand once a
+run is underway; and the interior ceiling becomes top slabs with
+stair-framed lanterns, gaining half a block of headroom. All four are
+geometry changes to the same code paths (`RoomBuilder.buildShell`, the room
+templates, and the protection guards), so they landed together.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

@@ -976,3 +976,60 @@ the high end), not a code defect; record what you find here either way.
    an unenchanted un-tiered sword, etc.).
 2. **Expected:** vanilla's own beacon screen opens, exactly as if this mod
    were not installed.
+
+---
+
+## 22. Room shell pass (M18)
+
+### 22.1 The shell is immutable
+
+1. As the room owner, try to break a wall block, a floor block, a ceiling
+   block, a ceiling lamp, or the wall lodestone.
+2. **Expected:** every break is refused; the block stays in place.
+3. Try to place a block into the shell (against a wall from inside, on the
+   floor, against the ceiling).
+4. **Expected:** placement is refused.
+5. Break and place blocks in the interior (x=1..14, z=1..14, Y=1..5).
+6. **Expected:** both still work for the owner; a visitor (not whitelisted)
+   is still refused, exactly as before M18.
+
+### 22.2 Decorations still work
+
+1. Place a torch, a wall sign, a banner, a button, an item frame and a
+   painting against the room's walls; place a carpet on the floor.
+2. **Expected:** all place and can be removed again. The shell check protects
+   the block in the shell, not the face, so face-hanging decoration is
+   unaffected.
+
+### 22.3 The wall lodestone
+
+1. Enter your room. **Expected:** a lodestone is set into the north wall at
+   eye height (local x=1, y=2, z=0), not standing on the floor.
+2. Stand on the floor block directly in front of it.
+3. **Expected:** the stand-on leave-pad still ejects you from the dungeon
+   (the mechanic stays until M21 replaces it).
+4. Try to break it. **Expected:** refused, it is part of the shell.
+
+### 22.4 Double doors after choosing a door
+
+1. Enter the lobby and choose a door.
+2. **Expected:** the three selector doors are gone; the punched doorway now
+   holds two wooden doors side by side (Y=1..2) with a wall lintel above
+   (Y=3).
+3. Right-click the doors. **Expected:** they open like normal vanilla doors
+   (the mod stops intercepting the click once a run is underway).
+4. Let mobs reach the doorway while the doors are closed.
+   **Expected:** they cannot walk through into the room.
+5. Complete the run and walk back to the old room cell.
+   **Expected:** it is a blank room cell; the doors did not bake into the
+   room blob.
+
+### 22.5 The ceiling
+
+1. Look up at the ceiling from inside the room.
+2. **Expected:** the interior ceiling reads as top-half slabs (half a block
+   of extra headroom); the edge ring is full blocks; the four sea lanterns
+   are each framed by four stairs, tall side against the lantern.
+3. Complete a run so the room relocates, then enter again.
+4. **Expected:** the new ceiling and fixtures are preserved, and the stair
+   orientation stays correct at whatever rotation the room landed at.

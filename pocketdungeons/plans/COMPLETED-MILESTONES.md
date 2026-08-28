@@ -1,4 +1,4 @@
-# Completed Milestones (M0–M7, M9–M17)
+# Completed Milestones (M0–M7, M9–M18)
 
 > **Status:** All milestones below are code-complete (`./gradlew build` green,
 > unit tests passing). Live multiplayer verification is deferred to a single
@@ -832,3 +832,84 @@ Warden's Ward drop's name/lore/marker; recorded as section 21 in
 (`powerEquipMathTest`), the extracted-power persistence (`DungeonLog`
 read/write round trip), and the reward-id reconciliation against the
 adventure graph (`AdventureGraph.nodeForReward`).
+
+---
+
+## M18: Room shell pass
+
+**Goal:** the room's shell (floor, walls, ceiling, lamps) becomes immutable to
+everyone, the owner included; the lodestone moves from the floor to the wall;
+the selector opening gets physical double doors; and the ceiling gets top
+slabs with stair-framed light fixtures. First milestone of
+`docs/ROOM_UX_PLAN.md`'s Room UX pass, and the prerequisite for M24's room
+skins: a shell no player can edit is one the mod is free to swap.
+
+- **Immutable shell:** `RoomProtection.isShell(pos, roomOrigin)` is a pure
+  coordinate test against the room origin: the floor row (Y=0), the wall ring
+  (x=0, x=15, z=0, z=15 at Y=1..5), the ceiling row (Y=6, which covers the
+  slabs, the stair fixtures and the lamps) and nothing else. The interior
+  (x=1..14, z=1..14, Y=1..5) stays the owner's build space. The break guard
+  (`RoomProtection.beforeBlockBreak`) and the placement guard
+  (`RitualListener.onUseBlock`, the existing use-on-block interception a
+  placement begins from) both deny shell positions ahead of the permission
+  mask, so the owner cannot modify the shell and a whitelisted guest cannot
+  either. Decorations are unaffected by construction: a wall sign, torch,
+  banner or button sits on the face of a wall (target x=1..14, interior), and
+  a carpet lands on the floor's top face (target Y=1, interior), so their
+  target positions are never shell.
+- **Wall lodestone:** the room's lodestone moved from the floor (NW corner,
+  with its chiselled ring) to a fixed position in the north wall at eye
+  height, local (1, 2, 0). That is the plan's own example position, chosen
+  because it is visible and reachable for right-click, sits behind a player
+  facing the selector doors, and at every rotation of the template lands on a
+  wall clear of the door slots and the selector-door strip (checked against
+  `TemplateStamper`'s rotation table). It sits in the wall ring, so it is
+  part of the immutable shell and cannot be broken. `placeCornerLeavePad`
+  became `placeWallLodestone`; `Instances.stampLobby`, `VisitService`, and
+  the `entrance_hall`/`selector_room` template decor all stamp it.
+  `Instances.isOnRoomLeavePad` now asks whether a lodestone sits in the wall
+  one block up and one horizontal step from the player's feet
+  (rotation-proof, the same shape as the block-below test
+  `isOnExitPad` uses), while still honouring a pre-M18 saved blob's floor
+  lodestone; the stand-on trigger itself stays until M21 replaces it.
+- **Double doors on the selector opening:** `Instances.generateBehindLobby`
+  places two vanilla oak doors side by side in the freshly punched doorway
+  (Y=1..2) with a wall lintel (Y=3) the moment a door is chosen, replacing
+  the bare 2x3 air hole. Opposite hinges make them meet in the middle like a
+  real double door. They are plain vanilla doors once the run is underway:
+  `selectorDoorStep` no longer claims clicks, so right-clicking opens them by
+  hand, and closed doors stop mobs walking into the room. They sit in the
+  wall ring, so the shell protection keeps them from being broken mid-run.
+- **Ceiling: top slabs and stair-framed fixtures:** `buildShell` now writes
+  `CEILING_SLAB` (stone-brick slab, `type=top`) on interior ceiling positions
+  and keeps full blocks on the edge ring, and `placeFixture` frames each of
+  the four sea lanterns with four stone-brick stairs at Y=6, tall back
+  against the lantern, short stepped side facing outward (the brainstorm's
+  code sketch had the facings backwards; the plan's own prose, "tall back
+  toward the lantern", is what shipped). Stairs are transparent to light, so
+  the room stays fully lit. Verified against the 26.2 jar that
+  `StructureTemplate.placeInWorld` applies `BlockState.mirror` and `rotate`
+  to every placed block, so stair `FACING` rotates with the template and a
+  captured and re-placed room keeps its fixtures at any rotation.
+- **Capture hygiene for the double doors (trap 17):** the post-selection
+  doors are run-scoped mod furniture, not part of the room, so
+  `RunLifecycle.saveRoom` and `completeDungeon` clear them (restoring the
+  punched slot to air) around every `RoomStore.capture`, and `saveRoom` puts
+  them straight back for a live room. Without this they would bake into the
+  owner's blob and leak into the entrance cell of any dungeon stamped from it
+  (`LayoutStamper`'s room overlay path).
+- **New pure-Java test:** `RoomShellTest` (`roomShellTest` Gradle task, wired
+  into `tasks.test`) sweeps every interior position (never shell), the full
+  floor and ceiling rows (always shell), the wall ring, the out-of-box
+  positions, and a non-zero room origin, so the coordinate logic is verified
+  headlessly.
+
+**Headless-verified:** `./gradlew build` green, `RoomShellTest` passing, and
+all seventeen room templates regenerated through the dev server
+(`/dungeon admin gentemplates`) with the new ceiling, fixtures and wall
+lodestone baked into the `.nbt` files.
+
+**Live-only, not yet verified:** breaking a wall block (refused), breaking an
+interior block (works), opening the double doors, standing in front of the
+wall lodestone, and looking up at the ceiling; recorded as section 22 in
+`LIVE_TEST_PASS.md`.
