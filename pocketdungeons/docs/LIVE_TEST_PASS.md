@@ -1134,3 +1134,66 @@ interactions all need a live client.
    exist anywhere in the slot after teardown (check with
    `/execute in pocketdungeons:void run data get entity @e[tag=pocketdungeons_screen,limit=1]`
    or similar).
+
+## 24. Visiting rework: lobby directory (M20)
+
+Everything client-interactive in M20 needs a live client and has not been
+verified headless. The codec round trip, the row filter, and the button
+payloads are covered by `LobbyBrowserTest` and `DungeonLogTest`; what
+follows is the part only a player with a screen can confirm.
+
+### 24.1 Listing a room
+
+1. With two players online, have player A run `/dungeon room public` in the
+   overworld.
+2. **Expected:** A gets "Your room is now listed in the lobby directory."
+3. Have A run `/dungeon room name Cozy Den`.
+4. **Expected:** A gets "Room name set to Cozy Den."
+
+### 24.2 Opening the lobby directory
+
+1. As player A, enter your own room (right-click the wall lodestone with a
+   keystone, or `/dungeon`), then right-click the wall lodestone with an
+   empty hand or a non-keystone item.
+2. **Expected:** the lobby directory dialog opens, listing B's room if B has
+   run `/dungeon room public`, with the room name and an occupancy count on
+   each button.
+3. Right-click the wall lodestone holding the keystone.
+4. **Expected:** the dungeon ritual still runs (or the re-entry path fires);
+   the directory does not open. The keystone branch stays ahead.
+5. As a player who has never listed their room, open the directory.
+6. **Expected:** their room does not appear (default private).
+
+### 24.3 Visiting a listed room
+
+1. Have B set their room public and be standing in it.
+2. As A, open the directory and click B's room button.
+3. **Expected:** A teleports into B's live room and gets the visit chat line.
+   B's room shows status "open" in the directory.
+4. Have B start a run; re-open the directory.
+5. **Expected:** B's room shows "run in progress"; clicking it still joins
+   the live room.
+6. Have B leave and go to the overworld (or log off), then re-open the
+   directory.
+7. **Expected:** B's room shows "away"; clicking it stamps a read-only visit
+   copy from B's saved blob (or joins an existing visit copy if another
+   visitor is already there).
+
+### 24.4 Unlisting and stale clicks
+
+1. Have B run `/dungeon room private`.
+2. Re-open the directory as A.
+3. **Expected:** B's room is gone from the list.
+4. With the directory open, have B unlist their room (or log off), then click
+   B's button.
+5. **Expected:** the visit is refused with a chat reason and the directory is
+   re-shown with a reason line ("That room is not open any more."), not
+   dropped to a closed screen.
+
+### 24.5 The calling card is gone
+
+1. Run `/dungeon room card`.
+2. **Expected:** the command no longer exists (unknown subcommand). No
+   calling-card item can be obtained anywhere, and any pre-M20 card in a
+   chest behaves like a plain compass (its branch in `RitualListener` is
+   deleted).

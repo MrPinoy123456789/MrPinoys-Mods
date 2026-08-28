@@ -410,6 +410,26 @@ captured with the room; `isFurniture` protects all of it from the player.
 
 ---
 
+## M20: Visiting rework: lobby directory, no calling card
+
+Third of the Room UX pass. The hand-traded calling card is replaced by a
+lobby directory opened from the room's wall lodestone: a `MultiActionDialog`
+listing every online player whose room is publicly listed, one button per
+room carrying the owner UUID, with the room name (or owner name) and
+occupancy on the label and the owner's live status (`open`, `run in
+progress`, `away`) in the body line. Privacy is a host-set `publicListed`
+toggle, not a token: `DungeonLog.Entry` gains `publicListed` and `roomName`
+as optional codec fields with safe defaults, `/dungeon room
+public|private|name` manage them, and clicking a listed room calls the
+existing `VisitService.visit` from a dialog button instead of card
+use-on-lodestone. `CallingCard.java`, its config field, and `/dungeon room
+card` are deleted; `RoomWhitelist` and `RoomProtection` are unchanged
+(public listing is visibility, not permission).
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

@@ -992,3 +992,81 @@ positioning (the fixed-billboard yaw and the transformation scale are derived
 from the 26.2 renderer bytecode but need a client to confirm), the lever pull
 flow, the engine feed flow, and breaking each furniture block (refused);
 recorded as section 23 in `LIVE_TEST_PASS.md`.
+
+## M20: Visiting rework: lobby directory, no calling card
+
+**Goal:** the hand-traded calling card is replaced by a lobby directory: a
+`MultiActionDialog` listing every online player whose room is publicly
+listed, with room name and occupancy, opened from the room's wall lodestone.
+Privacy becomes a host-set `publicListed` toggle, not a token. Third
+milestone of `docs/ROOM_UX_PLAN.md`'s Room UX pass.
+
+- **`publicListed` and `roomName` on `DungeonLog.Entry`:** two new record
+  components persisted via `optionalFieldOf` with safe defaults (`false`,
+  `""`), the same shape as `completedThemes`. No migration: a save written
+  before M20 loads unchanged and simply gets the defaults. New setters
+  `setPublicListed`/`setRoomName` on `DungeonLog` follow the
+  `setKeystone`/`clearPendingOffer` shape (live map write plus `setDirty`).
+- **The lobby directory (`DialogScreens.lobbyBrowser`):** a `MultiActionDialog`
+  with one button per online public-listed room, the same shape as
+  `partyRoster`. Each button's label is the room name (or the owner's name
+  when unset) plus the occupancy count; the body line shows the owner's name
+  and live status (`open`, `run in progress`, `away`). Each button carries the
+  owner UUID as `KEY_TARGET` and the clicker UUID as `KEY_OWNER`, the same
+  keys the whitelist dialog uses, so `DialogRouter`'s owner-check applies
+  unchanged. An empty directory shows a `NoticeDialog` ("No public rooms
+  right now.") rather than an empty button grid. The pure
+  `lobbyRows`/`lobbyBrowserDialog` half keeps the listing rule testable
+  headless. The pagination decision from `DIALOGS_SPEC.md` section 7
+  (`DialogListDialog` vs SGUI) stays open: this mod ships `MultiActionDialog`
+  and switches only if a live server's room count overflows it, per the
+  plan's own instruction.
+- **`VisitService.statusOf`/`occupancyOf`:** the live status read for the
+  directory, computed from the same instance state the visit routing uses
+  (`InstanceRegistry.byMember` for "run in progress", `findOwnedLiveRoom`
+  for "open", otherwise "away") so the directory can never show a room as
+  visitable that a click could not enter. Occupancy is the live room's
+  `members` size, or 0 when no live instance exists.
+- **`DialogRouter` dispatch (`pd_visit_room`):** parses `KEY_TARGET` as a
+  UUID, re-verifies `KEY_OWNER` against the clicking player (the same
+  owner-check the whitelist actions use), and calls `VisitService.visit`
+  (the unchanged M3 visit call, now invoked from a dialog button instead of
+  card use-on-lodestone). On failure the directory is re-shown from live
+  state with a reason line, per the stale-state guard in `DIALOGS_SPEC.md`
+  section 7: a rejected click still ends on a screen the player can act from.
+- **Room management commands:** `/dungeon room public`, `/dungeon room
+  private`, and `/dungeon room name <text>` (16-char cap, matching the
+  whitelist-name dialog) replace `/dungeon room card`. Player-only, not
+  op-gated, same as the old card command. If M21's menu lands later, its
+  Manage Room option calls the same setters; the commands stay as power-user
+  shortcuts either way.
+- **Invocation:** the browser opens on a right-click of the room's own wall
+  lodestone with anything but a keystone (a keystone still starts a dungeon,
+  so the keystone branch stays ahead). The branch carries the
+  `// M21: replace this with lodestoneMenu` marker; M21's menu will call the
+  same `lobbyBrowser` from its Browse Lobbies option.
+- **The calling card is deleted:** `CallingCard.java` entirely, the card
+  branch in `RitualListener.onUseBlock`, `CallingCard.warmUp()`, the
+  `callingCardItem` config field, the `/dungeon room card` command, and the
+  `Payout.deliver(owner, CallingCard.mint(...))` delivery. Doc references in
+  `RerollStation`, `GambleStation`, and `InstanceRecord` were updated. The
+  self-visit chat line in `VisitService.visit` no longer mentions the card.
+  What stays: `VisitService.visit`/`createVisitInstance`, `RoomWhitelist`,
+  and `RoomProtection` all unchanged; only the invocation path changed.
+- **New pure-Java tests:** `LobbyBrowserTest` (`lobbyBrowserTest` Gradle
+  task, wired into `tasks.test`) pins the row filter against a mock player
+  list: listed players appear, unlisted do not, an empty directory is a
+  notice, and each button's payload carries the owner and clicker UUIDs.
+  `DungeonLogTest` gains a `publicListed`/`roomName` codec round trip and a
+  pre-M20-save decode that gets the safe defaults. The dialog construction
+  needs `SharedConstants.setVersion` + `Bootstrap.bootStrap()` because the
+  dialog codecs resolve vanilla ids in static initializers, even headless.
+
+**Headless-verified:** `./gradlew build` green, `LobbyBrowserTest` and the
+extended `DungeonLogTest` passing, the codec round trip confirmed, and the
+pre-M20 save format still decoding to the new defaults.
+
+**Live-only, not yet verified:** the lobby browser dialog itself, clicking a
+room button and teleporting in, the `/dungeon room public|private|name`
+commands, the wall-lodestone right-click invocation, and confirming
+`/dungeon room card` is gone; recorded as section 24 in `LIVE_TEST_PASS.md`.
