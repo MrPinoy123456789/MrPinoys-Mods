@@ -11,6 +11,7 @@ base {
 }
 
 repositories {
+    mavenLocal()
     maven("https://maven.nucleoid.xyz/") { name = "Nucleoid" }
 }
 
@@ -30,6 +31,15 @@ dependencies {
     // The core, shaded into the jar. Server owners drop in one file.
     implementation(project(":core"))
     include(project(":core"))
+
+    // Hard dependency (Thingy PLAN.md Phase 5): Totem, QuestScroll, BossStone,
+    // and Sigil identify themselves through thingy.api.VirtualTag now, not
+    // their own duplicated tag-reading code, so this mod does not function
+    // without Thingy installed. fabric.mod.json's "depends" enforces that;
+    // compileOnly is enough here because the real classes come from Thingy's
+    // own jar at runtime, the same way cobbleeconomy's soft dependency on it
+    // works, just mandatory instead of optional.
+    compileOnly("thingy:thingy-api:0.1.0")
 }
 
 loom {

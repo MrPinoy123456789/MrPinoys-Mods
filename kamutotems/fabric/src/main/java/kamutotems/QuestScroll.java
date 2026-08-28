@@ -1,7 +1,6 @@
 package kamutotems;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -10,8 +9,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import kamutotems.core.AssignedQuests;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import thingy.api.VirtualTag;
 
 /**
  * A quest scroll is any vanilla item carrying {@code custom_data} that names a
@@ -33,12 +32,11 @@ public final class QuestScroll {
     private QuestScroll() {}
 
     public static boolean isScroll(ItemStack stack) {
-        String id = definitionId(stack);
-        return id != null && !id.isBlank();
+        return VirtualTag.is(stack, KEY, SCROLL_KEY);
     }
 
     public static String definitionId(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return null;
         }
@@ -74,16 +72,5 @@ public final class QuestScroll {
             player.setItemInHand(hand, ItemStack.EMPTY);
         }
         return InteractionResult.SUCCESS;
-    }
-
-    private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        return data.copyTag();
     }
 }

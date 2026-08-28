@@ -4,10 +4,15 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.nbt.CompoundTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import thingy.api.VirtualTag;
 
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Entrypoint. Loads config, then registers the three hosts.
@@ -24,6 +29,19 @@ public final class KamuTotemsMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // One outer custom_data key, "kamutotems", shared by four item kinds
+        // (Totem, QuestScroll, BossStone, Sigil), each identified by its own
+        // inner field rather than a common id field (Thingy PLAN.md Phase 5).
+        // Predicates mirror what Totem.is / QuestScroll.isScroll /
+        // BossStone.isBossStone / Sigil.isSigil checked directly before this
+        // migration, unchanged.
+        Map<String, Predicate<CompoundTag>> markers = new LinkedHashMap<>();
+        markers.put("totem", inner -> inner.getBooleanOr("totem", false));
+        markers.put("quest_scroll", inner -> !inner.getStringOr("quest_scroll", "").isBlank());
+        markers.put("boss_stone", inner -> inner.getIntOr("boss_stone", 0) > 0);
+        markers.put("sigil", inner -> inner.getIntOr("sigil", 0) > 0);
+        VirtualTag.register(KamuTag.KEY, VirtualTag.multiMarker(markers));
+
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
         KamuTotemsConfig.load(configDir);
         Persist.init(configDir);

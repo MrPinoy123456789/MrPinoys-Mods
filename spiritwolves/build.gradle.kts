@@ -24,6 +24,14 @@ dependencies {
     // Server-side GUIs for the verb panel. Vanilla clients see a normal chest.
     implementation("eu.pb4:sgui:2.1.0+26.2")
     include("eu.pb4:sgui:2.1.0+26.2")
+
+    // Hard dependency (Thingy PLAN.md Phase 5): SpiritStone identifies the
+    // Spirit Stone through thingy.api.VirtualTag now, not its own
+    // getCompound(KEY).orElse(null) workaround, so this mod does not function
+    // without Thingy installed. fabric.mod.json's "depends" enforces that;
+    // compileOnly is enough because the real classes come from Thingy's own
+    // jar at runtime.
+    compileOnly("thingy:thingy-api:0.1.0")
 }
 
 java {

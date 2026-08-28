@@ -485,3 +485,111 @@ something in the live run needs a source fix.
 **Next step, when ready:** run the swap in `thingy/docs/OPERATOR-MIGRATION.md`
 against a copy of the production world, confirm every item in its "How to do
 the swap" checklist, and only then move `wondrous/` into `archived/`.
+
+---
+
+## 8. Phase 5: kamutotems and spiritwolves adopt `VirtualItem.is()`
+
+The real second and third consumers. Two new `VirtualTag` reader shapes were
+needed, neither of which fit the two named in Phase 1's comment, because the
+real kamutotems shape is more specific than that comment described.
+
+### kamutotems: `multiMarker`, not "a compound with an id field"
+
+Four item kinds (`Totem`, `QuestScroll`, `BossStone`, `Sigil`) share one outer
+`custom_data` key, `"kamutotems"`, but there is no common `id` field. Each
+kind is identified by its own inner field instead:
+
+| Kind | Inner field | Shape |
+|---|---|---|
+| Totem | `totem` | boolean, `true` |
+| QuestScroll | `quest_scroll` | non-blank string (the quest id itself) |
+| BossStone | `boss_stone` | int `> 0` (the tier itself) |
+| Sigil | `sigil` | int `> 0` (the tier itself) |
+
+`VirtualTag.multiMarker(Map<String, Predicate<CompoundTag>>)` checks each
+registered marker in order and returns the first whose predicate matches the
+inner compound, as the discriminator id. `KamuTotemsMod.onInitialize`
+registers all four against `KamuTag.KEY` ("kamutotems") in one call, with the
+predicates copied verbatim from what each class's own identity check used to
+test directly.
+
+The identity checks now read:
+
+```java
+// Totem.is
+return VirtualTag.is(stack, KEY, TOTEM_KEY);
+// QuestScroll.isScroll
+return VirtualTag.is(stack, KEY, SCROLL_KEY);
+// BossStone.isBossStone
+return VirtualTag.is(stack, KEY, STONE_KEY);
+// Sigil.isSigil
+return VirtualTag.is(stack, KEY, "sigil");
+```
+
+`Reader.stamp` is unsupported for `multiMarker`. Each kamutotems item type
+still writes its own fields directly (`Totem.create`, `Sigil.roll`, ...)
+because the payload isn't a bare id; `VirtualTag` only ever answered the
+identity question here, never the write side.
+
+### The duplicated `tag()` helper: deleted, not consolidated
+
+PLAN.md called for deleting the identical private `tag(ItemStack)` method
+that appeared in all four files. It is gone from all four; what replaced it
+is `KamuTag.root(ItemStack)`, one shared implementation instead of four
+copies, used only by the payload getters (`tier()`, `kamuId()`, `seed()`,
+`counter()`, ...) that still need the raw compound. Identity checks no longer
+call it at all, they call `VirtualTag.is` directly.
+
+### spiritwolves: `presenceOnly`, and the false-positive workaround it replaces
+
+`SpiritStone` has exactly one item kind. Its identity marker is the mere
+presence of the outer `"spiritwolves"` key; the only field inside it,
+`bound`, is mutable state, not an id. `VirtualTag.presenceOnly(String id)`
+returns `id` whenever the namespace's key is present at all, using
+`CompoundTag.getCompound(key)` (an `Optional`, empty when the key is absent)
+rather than `getCompoundOrEmpty(key)` (which fabricates an empty compound for
+*any* stack, including a wondrous item that merely has some other
+`custom_data`). That distinction is exactly what `SpiritStone`'s own private
+`tag()` method used to hand-roll, with a comment explaining the same
+false-positive risk this reader now closes generically. That method is
+deleted; `SpiritStone.is` is now `VirtualTag.is(stack, KEY, "spirit_stone")`.
+
+`isBound` was the one caller of the deleted `tag()` besides `is` itself. It
+now reads `getCompoundOrEmpty` directly and inline, which is safe specifically
+*because* `is` no longer depends on it: a non-stone stack reporting
+`isBound() == false` is a harmless default, not a false identity claim, so the
+distinction `presenceOnly` exists to make for `is` does not matter for
+`isBound`.
+
+### Both mods now hard-depend on Thingy
+
+Decided with the user (2026-08-28), matching PLAN.md literally rather than
+softening it: `kamutotems` and `spiritwolves` both gained
+`"thingy": "*"` under `fabric.mod.json`'s `"depends"` (not `"suggests"`), and
+`compileOnly("thingy:thingy-api:0.1.0")` in their Gradle files. Neither mod
+functions without Thingy installed anymore, because their own identity-check
+logic was deleted, not supplemented. This is a heavier commitment than
+cobbleeconomy's soft Phase 2 dependency, and it was made deliberately: Phase 5
+is the point PLAN.md itself calls "where the abstraction actually gets
+tested," and a soft dependency here would mean it never actually gets
+exercised as the primary path.
+
+### Exit criteria
+
+- Every existing kamutotems and spiritwolves item in the world is recognized
+  by `VirtualItem.is()` without a re-stamp: true by construction, since every
+  predicate above reproduces the exact field and value the old direct check
+  read, not a new shape. Not yet exercised against a live world with real
+  player-owned items, same caveat as every other live-server claim in this
+  document.
+- The `tag()` helpers are deleted, not just unused: confirmed, all four
+  kamutotems copies and the one spiritwolves copy are gone from the source.
+- RecipeGuard opt-in decisions are explicit per namespace: kamutotems and
+  spiritwolves neither one call `thingy.RecipeGuard.optIn`, so neither
+  participates in the crafting guard. This is a decision by omission, not
+  oversight: PLAN.md's own instruction is "each decide for themselves," and
+  neither mod's items were craftable-as-ingredient guarded before this phase,
+  so not opting in preserves existing behaviour exactly. Opting in later is a
+  one-line addition in each mod's own `onInitialize`, whenever that mod
+  decides it wants the guard.

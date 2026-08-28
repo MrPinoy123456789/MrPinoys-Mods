@@ -21,6 +21,7 @@ import net.minecraft.world.item.enchantment.Repairable;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
+import thingy.api.VirtualTag;
 
 import kamutotems.core.Construct;
 import kamutotems.core.HostType;
@@ -54,16 +55,11 @@ public final class Totem {
     private Totem() {}
 
     public static boolean is(ItemStack stack) {
-        CompoundTag root = tag(stack);
-        if (root == null) {
-            return false;
-        }
-        CompoundTag inner = root.getCompoundOrEmpty(KEY);
-        return inner.getBooleanOr(TOTEM_KEY, false);
+        return VirtualTag.is(stack, KEY, TOTEM_KEY);
     }
 
     public static boolean isKamu(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return false;
         }
@@ -72,7 +68,7 @@ public final class Totem {
     }
 
     public static String kamuId(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return null;
         }
@@ -80,7 +76,7 @@ public final class Totem {
     }
 
     public static int kamuTier(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return 1;
         }
@@ -176,7 +172,7 @@ public final class Totem {
 
     /** Read the aura face from the totem. Fails open to no aura. */
     public static AuraSpec auraSpec(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return AuraSpec.none();
         }
@@ -221,7 +217,7 @@ public final class Totem {
 
     public static List<Slot> readSlots(ItemStack stack) {
         List<Slot> out = new ArrayList<>();
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             for (int i = 0; i < Construct.SLOT_COUNT; i++) {
                 out.add(null);
@@ -366,14 +362,4 @@ public final class Totem {
         refreshLore(found, kamuy);
     }
 
-    private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        return data.copyTag();
-    }
 }

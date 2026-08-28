@@ -11,6 +11,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.enchantment.Repairable;
+import thingy.api.VirtualTag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,31 +55,28 @@ public final class SpiritStone {
 
     /** True if this stack is a Spirit Stone (bound or not). */
     public static boolean is(ItemStack stack) {
-        return tag(stack) != null;
+        return VirtualTag.is(stack, KEY, "spirit_stone");
     }
 
+    /**
+     * True if this is a bound stone. Reads {@code getCompoundOrEmpty} directly
+     * (unlike {@link #is}, which must tell a real stone apart from any other
+     * item's {@code custom_data}) because a non-stone stack correctly reporting
+     * "not bound" is a harmless default, not a false positive.
+     */
     public static boolean isBound(ItemStack stack) {
-        CompoundTag tag = tag(stack);
-        return tag != null && tag.getBooleanOr("bound", false);
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        return data.copyTag().getCompoundOrEmpty(KEY).getBooleanOr("bound", false);
     }
 
     public static boolean isUnbound(ItemStack stack) {
         return is(stack) && !isBound(stack);
-    }
-
-    /** Reads the inner {@code spiritwolves} compound, or null if this is not a stone. */
-    private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        // getCompoundOrEmpty would hand back an empty compound for any stack that
-        // merely has custom_data (e.g. wondrous items), making every one of them
-        // look like an unbound stone. Only a real spiritwolves compound counts.
-        return data.copyTag().getCompound(KEY).orElse(null);
     }
 
     /**

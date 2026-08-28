@@ -3,7 +3,6 @@ package kamutotems;
 import kamutotems.core.BossRoll;
 import kamutotems.core.KamuCatalog;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -12,8 +11,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import thingy.api.VirtualTag;
 
 /**
  * A boss stone is any vanilla item carrying {@code custom_data} with a tier.
@@ -37,11 +36,11 @@ public final class BossStone {
     private BossStone() {}
 
     public static boolean isBossStone(ItemStack stack) {
-        return tier(stack) > 0;
+        return VirtualTag.is(stack, KEY, STONE_KEY);
     }
 
     public static int tier(ItemStack stack) {
-        CompoundTag root = tag(stack);
+        CompoundTag root = KamuTag.root(stack);
         if (root == null) {
             return 0;
         }
@@ -104,16 +103,5 @@ public final class BossStone {
             player.setItemInHand(hand, ItemStack.EMPTY);
         }
         return InteractionResult.SUCCESS;
-    }
-
-    private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        return data.copyTag();
     }
 }

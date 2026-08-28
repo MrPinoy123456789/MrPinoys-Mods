@@ -34,6 +34,7 @@ import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import thingy.api.VirtualTag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,11 +61,11 @@ public final class Sigil {
     }
 
     public static boolean isSigil(ItemStack stack) {
-        return tier(stack) > 0;
+        return VirtualTag.is(stack, KEY, "sigil");
     }
 
     public static boolean isRolled(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return false;
         }
@@ -76,7 +77,7 @@ public final class Sigil {
     }
 
     public static boolean needsRoll(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return false;
         }
@@ -87,7 +88,7 @@ public final class Sigil {
     }
 
     public static int tier(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return 0;
         }
@@ -95,7 +96,7 @@ public final class Sigil {
     }
 
     public static long seed(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return 0;
         }
@@ -103,7 +104,7 @@ public final class Sigil {
     }
 
     public static int counter(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return 0;
         }
@@ -260,7 +261,7 @@ public final class Sigil {
     }
 
     public static int randomTier(ItemStack stack) {
-        CompoundTag tag = tag(stack);
+        CompoundTag tag = KamuTag.root(stack);
         if (tag == null) {
             return 0;
         }
@@ -425,16 +426,6 @@ public final class Sigil {
         return h;
     }
 
-    private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        return data.copyTag();
-    }
 
     static String roman(int tier) {
         return switch (tier) {

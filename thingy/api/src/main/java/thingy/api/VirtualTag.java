@@ -1,12 +1,15 @@
 package thingy.api;
 
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Reads and writes the {@code minecraft:custom_data} identity marker for every
@@ -22,10 +25,12 @@ import java.util.Optional;
  * <p>Phase 1 registers exactly one namespace, {@code wondrous}, with the
  * bare-string reader that reproduces {@code WondrousTag}'s exact shape: key
  * {@code "wondrous"}, value a bare string id. A live stack is byte-identical
- * before and after the swap (PLAN.md, "Shape preservation constraint"). Other
- * reader shapes ("value is a compound with an id field", "value is a compound,
- * presence alone means this single item") are deferred to Phase 5, against the
- * genuinely awkward shapes kamutotems and spiritwolves actually use.
+ * before and after the swap (PLAN.md, "Shape preservation constraint"). Phase
+ * 5 adds two more shapes, {@link #multiMarker} and {@link #presenceOnly},
+ * against the genuinely awkward shapes kamutotems and spiritwolves actually
+ * use: multiple item kinds sharing one outer key and distinguished by which
+ * inner field is set (kamutotems), and a compound whose mere presence, not any
+ * field inside it, is the identity (spiritwolves).
  *
  * <p>{@link #read} runs on every right-click and every block break in the
  * game. It must be cheap and it must never throw.
@@ -54,6 +59,76 @@ public final class VirtualTag {
             return data.copyTag().getString(key);
         }
     };
+
+    /**
+     * A namespace whose outer compound holds several item kinds, each
+     * identified by its own inner field rather than a shared {@code id} field:
+     * kamutotems' {@code {kamutotems: {totem: true}}} vs.
+     * {@code {kamutotems: {boss_stone: 2}}} vs. {@code {kamutotems: {sigil: 3}}}
+     * are three different items sharing one outer key. {@code markers} is
+     * checked in iteration order (a {@link LinkedHashMap} is recommended so
+     * that order is deterministic); the first marker whose predicate matches
+     * the inner compound gives its key as the id. {@link Reader#stamp} is
+     * unsupported: each item kind here writes its own fields directly (tier,
+     * seed, roll state, ...), so there is no single "write this id" shape for
+     * {@link #stamp} to perform on the namespace's behalf.
+     */
+    public static Reader multiMarker(Map<String, Predicate<CompoundTag>> markers) {
+        return new Reader() {
+            @Override
+            public void stamp(ItemStack stack, String key, String id) {
+                throw new UnsupportedOperationException(
+                        "multiMarker namespaces write their own tag shape directly; VirtualTag.stamp is not used for '"
+                                + key + "'");
+            }
+
+            @Override
+            public Optional<String> read(CustomData data, String key) {
+                CompoundTag inner = data.copyTag().getCompoundOrEmpty(key);
+                for (Map.Entry<String, Predicate<CompoundTag>> marker : markers.entrySet()) {
+                    if (marker.getValue().test(inner)) {
+                        return Optional.of(marker.getKey());
+                    }
+                }
+                return Optional.empty();
+            }
+        };
+    }
+
+    /**
+     * A namespace with exactly one item kind, identified by the mere presence
+     * of its outer compound key: spiritwolves' Spirit Stone is
+     * {@code {spiritwolves: {bound: false}}} unbound or
+     * {@code {spiritwolves: {bound: true}}} bound, and either way the stack is
+     * a Spirit Stone. {@code id} is the constant this reader returns whenever
+     * the key is present, regardless of what is inside it.
+     *
+     * <p>Uses {@code CompoundTag.getCompound(key)}, not
+     * {@code getCompoundOrEmpty(key)}: the latter hands back an empty compound
+     * for a stack that carries no {@code key} entry at all, which would make
+     * every stack with any {@code custom_data} at all (a wondrous item, say)
+     * read as present. This is the exact false-positive
+     * {@code SpiritStone.tag}'s own {@code getCompound(KEY).orElse(null)}
+     * workaround existed to avoid; this reader generalizes that fix instead of
+     * every presence-only namespace re-deriving it. {@link Reader#stamp} is
+     * unsupported for the same reason as {@link #multiMarker}: the value here
+     * carries mutable state (whether the stone is bound), not a bare id.
+     */
+    public static Reader presenceOnly(String id) {
+        return new Reader() {
+            @Override
+            public void stamp(ItemStack stack, String key, String stampedId) {
+                throw new UnsupportedOperationException(
+                        "presenceOnly namespaces write their own tag shape directly; VirtualTag.stamp is not used for '"
+                                + key + "'");
+            }
+
+            @Override
+            public Optional<String> read(CustomData data, String key) {
+                return data.copyTag().getCompound(key).isPresent() ? Optional.of(id) : Optional.empty();
+            }
+        };
+    }
 
     private static final Map<String, Reader> READERS = new HashMap<>();
 
