@@ -113,9 +113,13 @@ final class FeralContent {
      */
     static void apply(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
                       int lootTier, int keystoneLevel, long seed) {
-        int count = PocketDungeonsConfig.feralWolvesPerCell();
-        if (count <= 0) {
+        int configured = PocketDungeonsConfig.feralWolvesPerCell();
+        if (configured <= 0) {
             return;
+        }
+        int count = configured * 2 / 3;
+        if (count <= 0) {
+            count = 1;
         }
         BlockPos centre = cellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         List<BlockPos> anchors = spawns.isEmpty() ? List.of(centre) : spawns;
@@ -131,6 +135,7 @@ final class FeralContent {
             }
             // Pinned, never angered. See the class note: an angry wolf refuses the
             // bone outright, which would delete the affix's kiss.
+            wolf.stopBeingAngry();
             wolf.setHomeTo(centre, HOME_RADIUS);
             Instances.applyMobScale(wolf, keystoneLevel);
             Optional<Holder.Reference<WolfVariant>> coat =

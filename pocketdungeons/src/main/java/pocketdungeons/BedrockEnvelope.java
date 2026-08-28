@@ -90,21 +90,13 @@ final class BedrockEnvelope {
     }
 
     /**
-     * As {@link #apply}, for the M2/M3 lobby's initial one-cell stamp: no
-     * dungeon plan exists yet, so there is no {@link PlanGeometry} to compute
-     * neighbours from -- the caller instead names the one side that must be
-     * left open (wherever {@code reservedSide} will connect to once a door is
-     * chosen). The other three sides get the usual ring; when the real plan is
-     * stamped, the ordinary {@link #apply} runs again over the complete
-     * geometry and correctly leaves the (by then genuinely occupied)
-     * reserved side alone.
-     */
-    static void applyToLobbyCell(ServerLevel level, BlockPos o, DoorMask.Direction reservedSide) {
-        applyToCell(level, o, Set.of(reservedSide));
-    }
-
-    /**
-     * As {@link #applyToLobbyCell}, but reserving <em>several</em> sides at once.
+     * As {@link #apply}, for a cell that has no {@link PlanGeometry} yet (the
+     * M2/M3 lobby's initial one-cell stamp, or a room relocated behind a
+     * terminal cell). The caller instead names the sides that must be left
+     * open (wherever a real connection will exist once a door is chosen).
+     * The other sides get the usual ring; when the real plan is stamped, the
+     * ordinary {@link #apply} runs again over the complete geometry and
+     * correctly leaves the (by then genuinely occupied) reserved sides alone.
      *
      * <p>A room relocated behind a terminal cell (T2.4) has two sides that must
      * stay clear, not one: the wall a future dungeon will connect through, and
@@ -148,6 +140,37 @@ final class BedrockEnvelope {
                 for (int y = -1; y <= CEILING_Y + 1; y++) {
                     set(level, o.offset(CELL, y, z));
                 }
+            }
+        }
+    }
+
+    /**
+     * Clears the bedrock ring on one face of a cell, so a dungeon
+     * connection can pass through. Called when a door is chosen and
+     * the dungeon is about to be stamped behind the lobby.
+     */
+    static void clearFace(ServerLevel level, BlockPos o, DoorMask.Direction face) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        switch (face) {
+            case NORTH -> {
+                for (int x = 0; x < CELL; x++)
+                    for (int y = -1; y <= CEILING_Y + 1; y++)
+                        level.setBlock(o.offset(x, y, -1), air, STAMP_FLAGS);
+            }
+            case SOUTH -> {
+                for (int x = 0; x < CELL; x++)
+                    for (int y = -1; y <= CEILING_Y + 1; y++)
+                        level.setBlock(o.offset(x, y, CELL), air, STAMP_FLAGS);
+            }
+            case WEST -> {
+                for (int z = 0; z < CELL; z++)
+                    for (int y = -1; y <= CEILING_Y + 1; y++)
+                        level.setBlock(o.offset(-1, y, z), air, STAMP_FLAGS);
+            }
+            case EAST -> {
+                for (int z = 0; z < CELL; z++)
+                    for (int y = -1; y <= CEILING_Y + 1; y++)
+                        level.setBlock(o.offset(CELL, y, z), air, STAMP_FLAGS);
             }
         }
     }

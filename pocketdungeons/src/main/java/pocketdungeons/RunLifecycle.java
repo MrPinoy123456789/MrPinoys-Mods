@@ -709,6 +709,9 @@ final class RunLifecycle {
         record.completed.add(player.getUUID());
 
         if (firstCompletion) {
+            if (record.timer != null) {
+                record.timer.markCompleted();
+            }
             completeDungeon(server, record);
         }
 
@@ -730,8 +733,18 @@ final class RunLifecycle {
             // M12: door 1 never depletes, full stop, so a late free-door finish
             // settles as NO_CHANGE instead, the same exemption expireTimedOut
             // applies to a free door that runs out the clock entirely.
-            returnKeystone(server, record, player.getUUID(), player,
-                    record.freeDoor ? Keystones.Outcome.NO_CHANGE : Keystones.Outcome.LATE);
+            //
+            // PD-7: a timeout already depleted the keystone once for this run
+            // (record.timedOutPenaltyApplied). Applying LATE on top of that
+            // would double penalize a player who finishes in overtime after
+            // the timeout already fired, so it settles as NO_CHANGE instead.
+            Keystones.Outcome outcome;
+            if (record.freeDoor || record.timedOutPenaltyApplied) {
+                outcome = Keystones.Outcome.NO_CHANGE;
+            } else {
+                outcome = Keystones.Outcome.LATE;
+            }
+            returnKeystone(server, record, player.getUUID(), player, outcome);
         }
         // M2/M3: the door choice already happened, at the lobby, before this
         // run started -- record.chosenStep is which of Keystone.offers this
@@ -883,7 +896,7 @@ final class RunLifecycle {
         RoomTemplateGenerator.placeSelectorDoors(level, newRoomOrigin, farWall);
         record.awaitingDoorChoice = true;
 
-        // The bedrock envelope, same as stampLobby's applyToLobbyCell: nothing
+        // The bedrock envelope, same as stampLobby's applyToCell: nothing
         // else stamps one for this cell until a door is chosen and
         // LayoutStamper.stampBehindLobby's full BedrockEnvelope.apply runs over
         // the next plan's whole geometry. Left alone, the relocated room is

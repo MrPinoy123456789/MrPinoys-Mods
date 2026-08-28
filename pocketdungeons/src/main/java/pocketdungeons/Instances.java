@@ -428,23 +428,19 @@ final class Instances {
                         TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
             }
             RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
-            // reservedSide is the wall a real connection will exist behind once a
-            // door is chosen -- the dungeon wall (SOUTH), not the entrance wall
-            // lobbyDoorDirection() returns. Getting this backwards leaves the
-            // entrance-wall gap bedrock-free (harmless -- sealDoor already fills
-            // it with wall) and puts bedrock in the one-block gap the chosen
-            // dungeon needs to connect through -- BedrockEnvelope.apply(), run
-            // once a door is chosen, only ever *adds* bedrock for the finished
-            // geometry, it never removes what a wrong reservedSide left behind.
-            BedrockEnvelope.applyToLobbyCell(level, origin, DoorMask.Direction.SOUTH);
+            // All four sides get bedrock here, including the SOUTH dungeon wall:
+            // before a door is chosen there is nothing behind that wall but void,
+            // so leaving it open let a player who broke through the sealed door
+            // fall out. The SOUTH face is cleared in generateBehindLobby, right
+            // before the dungeon is actually stamped behind it.
+            BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
             // The MM slot itself has to be sealed explicitly, the same as ee just
             // above -- RoomStore.place stamps the owner's blob exactly as it was
             // captured, and a room saved mid-run (saveRoom on disconnect, or any
             // other leave path while a dungeon was generated behind it) captures
             // that wall genuinely open. Without this, a returning owner's very
             // first lobby stamp would carry that hole straight through: no wall,
-            // and no bedrock backstop either, since the envelope above
-            // deliberately leaves this same side clear for a real connection.
+            // though now with a bedrock backstop behind it either way.
             RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
             // The selector doors and MM slot sit on the room's *dungeon* wall,
             // not its entrance wall -- lobbyDoorDirection() is the latter (it is
@@ -574,6 +570,10 @@ final class Instances {
             BlockPos planOrigin = record.roomCellOrigin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
             PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
+            // The lobby was bedrocked on all four sides so a player could not fall
+            // into the void before choosing a door. Now that a dungeon is actually
+            // about to exist behind it, clear that face so the two connect.
+            BedrockEnvelope.clearFace(level, record.roomCellOrigin, dungeonDoor);
             try {
                 layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
                         record.owner, offer.theme());
@@ -894,9 +894,17 @@ final class Instances {
 
             // U8 Stage 1: the two end conditions, both independent of membership.
             if (record.isKeystoneRun()) {
-                if (record.timer != null && record.timer.overTime() && record.completed.isEmpty()) {
+                if (record.timer != null && record.timer.overTime() && record.completed.isEmpty()
+                        && !record.timedOutPenaltyApplied) {
                     RunLifecycle.expireTimedOut(server, record);
-                    continue;
+                }
+                // PD-7: timeout no longer closes the dungeon, so a timed out but
+                // never completed run still needs a grace window or the slot is
+                // held forever. Reuses the same grace config as the post
+                // completion window.
+                if (record.timedOutPenaltyApplied && record.completed.isEmpty()
+                        && record.expiresAtTick == 0) {
+                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
                 if (!record.completed.isEmpty() && record.expiresAtTick == 0) {
                     record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
@@ -1209,6 +1217,11 @@ final class Instances {
         for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
             if (owner.equals(record.owner)) {
                 InstanceTeardown.purge(server, record, "room reset by an operator");
+                // PD-5: prevent the deferred saveRoom queued by purge from
+                // overwriting the file reset is about to delete. saveRoom
+                // checks roomCellOrigin == null at execution time and returns
+                // early, so no capture runs after the reset.
+                record.roomCellOrigin = null;
                 purged++;
             }
         }

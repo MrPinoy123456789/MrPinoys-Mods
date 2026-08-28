@@ -29,6 +29,7 @@ final class RunTimer {
     private int elapsedTicks;
     private int roomsSeen;
     private boolean overTime;
+    private boolean completed;
 
     RunTimer(int keystoneLevel, int totalSeconds, int roomCount) {
         this.keystoneLevel = keystoneLevel;
@@ -80,6 +81,9 @@ final class RunTimer {
      * the second and the watcher runs at 20 ticks by default.
      */
     void tick(int ticks) {
+        if (completed) {
+            return;
+        }
         elapsedTicks += Math.max(0, ticks);
         if (!overTime && secondsRemaining() <= 0) {
             overTime = true;
@@ -87,7 +91,22 @@ final class RunTimer {
         refresh();
     }
 
+    /** Freezes the clock at its last reading once the run has been completed. */
+    void markCompleted() {
+        completed = true;
+        refresh();
+    }
+
     private void refresh() {
+        if (completed) {
+            bar.setName(Component.literal(
+                    "Keystone [" + keystoneLevel + "] - COMPLETE"
+                    + " - " + roomsSeen + "/" + roomCount + " rooms")
+                    .withStyle(ChatFormatting.GREEN));
+            bar.setProgress(1.0f);
+            bar.setColor(BossEvent.BossBarColor.GREEN);
+            return;
+        }
         int remaining = secondsRemaining();
         String title = "Keystone [" + keystoneLevel + "] - "
                 + (overTime ? "OVER TIME" : KeystoneMath.formatClock(remaining))

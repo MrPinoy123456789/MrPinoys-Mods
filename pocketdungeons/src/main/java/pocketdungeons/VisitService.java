@@ -110,23 +110,16 @@ final class VisitService {
                         TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
             }
             RoomBuilder.sealDoor(level, origin, Instances.mcDirection(Instances.lobbyDoorDirection()));
-            // reservedSide is the wall a real connection will exist behind once a
-            // door is chosen -- the dungeon wall (SOUTH), not the entrance wall
-            // lobbyDoorDirection() returns. Getting this backwards leaves the
-            // entrance-wall gap bedrock-free (harmless -- sealDoor already fills
-            // it with wall) and puts bedrock in the one-block gap the chosen
-            // dungeon needs to connect through -- BedrockEnvelope.apply(), run
-            // once a door is chosen, only ever *adds* bedrock for the finished
-            // geometry, it never removes what a wrong reservedSide left behind.
-            BedrockEnvelope.applyToLobbyCell(level, origin, DoorMask.Direction.SOUTH);
+            // A visit room never generates a dungeon behind it, so all four sides
+            // get bedrock and stay that way: the room is sealed permanently.
+            BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
             // The MM slot itself has to be sealed explicitly, the same as ee just
             // above -- RoomStore.place stamps the owner's blob exactly as it was
             // captured, and a room saved mid-run (saveRoom on disconnect, or any
             // other leave path while a dungeon was generated behind it) captures
             // that wall genuinely open. Without this, a returning owner's very
             // first lobby stamp would carry that hole straight through: no wall,
-            // and no bedrock backstop either, since the envelope above
-            // deliberately leaves this same side clear for a real connection.
+            // though now with a bedrock backstop behind it either way.
             RoomBuilder.sealDoor(level, origin, Instances.mcDirection(DoorMask.Direction.SOUTH));
             // The selector doors and MM slot sit on the room's *dungeon* wall,
             // not its entrance wall -- lobbyDoorDirection() is the latter (it is

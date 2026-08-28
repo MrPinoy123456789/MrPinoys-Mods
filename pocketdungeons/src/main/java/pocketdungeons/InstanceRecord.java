@@ -58,10 +58,9 @@ final class InstanceRecord {
     // has to survive a restart.
 
     /**
-     * The affixes riding on this run -- the elective one the door bought plus
-     * whatever the key's level seeded. {@code FRAGILE} doubles every depletion;
-     * the rest bend the run itself. Not {@code final} for the same reason
-     * {@link #layout} is not: unknown until a door is chosen out of the lobby.
+     * The affixes riding on this run: whatever the key's level seeded.
+     * Not {@code final} for the same reason {@link #layout} is not:
+     * unknown until a door is chosen out of the lobby.
      */
     Set<Affix> affixes;
 
@@ -101,6 +100,14 @@ final class InstanceRecord {
      * door is actually chosen; the lobby itself is neither tier.
      */
     boolean freeDoor;
+
+    /**
+     * True once the timeout depletion has been applied to the owner's
+     * keystone. Prevents repeated depletion on every watcher tick while
+     * the run continues in overtime (PD-7: timeout no longer closes the
+     * dungeon).
+     */
+    boolean timedOutPenaltyApplied;
 
     /**
      * The clock. Null only when nobody paid a keystone, or for an operator's

@@ -354,7 +354,7 @@ final class RoomTemplateGenerator {
      */
     private static final Identifier DOOR_NONE = Identifier.parse("minecraft:oak_door");
     private static final Identifier DOOR_OMINOUS = Identifier.parse("minecraft:crimson_door");
-    private static final Identifier DOOR_FRAGILE = Identifier.parse("minecraft:exposed_copper_door");
+    private static final Identifier DOOR_GREATER_3 = Identifier.parse("minecraft:exposed_copper_door");
 
     /**
      * Where the three selector doors stand along their wall: the 2-wide slot
@@ -381,7 +381,7 @@ final class RoomTemplateGenerator {
             case EAST -> Direction.WEST;
             case WEST -> Direction.EAST;
         };
-        Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_FRAGILE};
+        Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_GREATER_3};
         for (int i = 0; i < SELECTOR_DOORS.length; i++) {
             placeDoor(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), blocks[i], facing);
         }

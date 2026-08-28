@@ -24,9 +24,8 @@ final class KeystoneMath {
     /**
      * The level a keystone comes back at after a failure.
      *
-     * <p>A fragile keystone doubles every figure, which is the entire cost of
-     * having taken the {@code +3}. The floor is 1, always: a keystone never
-     * disappears and never goes to zero.
+     * <p>The floor is 1, always: a keystone never disappears and never
+     * goes to zero.
      *
      * <p>{@code multiplier} arrives from {@link AffixMath#depletionMultiplier} --
      * the {@code max} across the run's whole affix set, never a product -- and is
