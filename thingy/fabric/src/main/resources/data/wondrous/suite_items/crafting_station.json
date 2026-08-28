@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:crafting_table",
+  "name": "Left It Out Crafter",
+  "tags": [
+    "tool",
+    "tier2",
+    "one_per_player"
+  ],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Left It Out Crafter",
+      "color": "gold"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "crafting_station"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:leather_helmet",
+  "name": "Owl Eye Goggles",
+  "tags": [
+    "trinket",
+    "tier3",
+    "one_per_player"
+  ],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Owl Eye Goggles",
+      "color": "yellow"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "owl_eye_goggles"
+    }
+  }
+}

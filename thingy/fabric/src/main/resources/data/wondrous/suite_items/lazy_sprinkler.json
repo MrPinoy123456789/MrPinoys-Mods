@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:oxidized_copper_grate",
+  "name": "Lazy Sprinkler",
+  "tags": [
+    "tool",
+    "tier3",
+    "one_per_player"
+  ],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Lazy Sprinkler",
+      "color": "aqua"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "lazy_sprinkler"
+    }
+  }
+}

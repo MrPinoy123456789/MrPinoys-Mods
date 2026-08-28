@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:diamond_shovel",
+  "name": "Big Hole Shovel",
+  "tags": [
+    "tool",
+    "tier3",
+    "one_per_player"
+  ],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Big Hole Shovel",
+      "color": "gold"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "big_hole_shovel"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:breeze_rod",
+  "name": "Put It There Wand",
+  "tags": [
+    "tool",
+    "tier3",
+    "one_per_player"
+  ],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Put It There Wand",
+      "color": "aqua"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "link_wand"
+    }
+  }
+}

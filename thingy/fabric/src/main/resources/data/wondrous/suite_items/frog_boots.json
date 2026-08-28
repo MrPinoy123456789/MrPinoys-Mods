@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:leather_boots",
+  "name": "Frog Boots",
+  "tags": [
+    "trinket",
+    "tier2",
+    "one_per_player"
+  ],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Frog Boots",
+      "color": "green"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "frog_boots"
+    }
+  }
+}

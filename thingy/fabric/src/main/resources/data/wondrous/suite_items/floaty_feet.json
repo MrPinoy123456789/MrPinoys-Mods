@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:leather_leggings",
+  "name": "Floaty Feet",
+  "tags": [
+    "trinket",
+    "tier3",
+    "one_per_player"
+  ],
+  "rarity": "rare",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Floaty Feet",
+      "color": "light_purple"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "floaty_feet"
+    }
+  }
+}

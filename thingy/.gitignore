@@ -1,0 +1,13 @@
+.gradle/
+build/
+*/build/
+run/
+
+# JavaExec tasks that touch Bootstrap.bootStrap() (SuiteItemsGenerator, any
+# future generator) write Log4j output relative to the working directory
+# rather than into run/.
+logs/
+
+.idea/
+*.iml
+.vscode/

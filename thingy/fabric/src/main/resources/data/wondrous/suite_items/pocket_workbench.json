@@ -1,0 +1,19 @@
+{
+  "item": "minecraft:crafting_table",
+  "name": "Pocket Crafter",
+  "tags": [
+    "tool",
+    "tier2",
+    "one_per_player"
+  ],
+  "rarity": "uncommon",
+  "components": {
+    "minecraft:item_name": {
+      "text": "Pocket Crafter",
+      "color": "gold"
+    },
+    "minecraft:custom_data": {
+      "wondrous": "pocket_workbench"
+    }
+  }
+}
