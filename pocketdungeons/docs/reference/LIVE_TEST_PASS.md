@@ -1351,3 +1351,28 @@ in the dungeon", and the in-dungeon menu opens on the room's wall terminal.
 5. Leave the visit (menu Leave, `/dungeon exit`, or disconnect).
 6. **Expected:** `ENDERMAN_TELEPORT` at the lower pitch (0.7) plays to you
    as you return.
+
+## 27. M18-M22 review fixes (live)
+
+Fixes 1 and 2 change click behavior that no headless test can exercise; the
+other three fixes are compile- and unit-test-verified.
+
+### 27.1 Stale directory click (fix 1)
+
+1. Owner A lists their room (`/dungeon room public`). Player B opens
+   Browse Lobbies and leaves the directory open.
+2. A sets the room private (or logs off).
+3. B clicks A's row.
+4. **Expected:** no teleport; the directory re-shows with a yellow line:
+   "That room is no longer public." (or "The room owner is offline." when
+   A logged off).
+5. Repeat with A still public and online; the click must visit as before.
+
+### 27.2 Free re-entry without the keystone in hand (fix 2)
+
+1. Owner starts a run, then leaves the dungeon mid-run (`/dungeon exit`),
+   with the keystone in inventory, not the main hand.
+2. Right-click a lodestone, choose Start Dungeon.
+3. **Expected:** the player is teleported straight back into the run for
+   free, with "You step back into your dungeon." and no "Hold a keystone"
+   refusal. `/dungeon` must behave identically.

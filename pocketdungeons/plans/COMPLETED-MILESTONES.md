@@ -1228,3 +1228,38 @@ live call sites. No runtime test is possible without a client.
 relevant player (except `visitorArrives`, heard by the owner), at a sensible
 volume; the volumes and pitches are starting points to tune during live
 testing; recorded as section 26 in `LIVE_TEST_PASS.md`.
+
+## M18-M22 review fixes
+
+Five findings from the M18-M22 review, one commit each, all green on
+`./gradlew build` (roomShellTest, roomFurnitureTest, lobbyBrowserTest and
+lodestoneMenuTest included).
+
+- **Stale directory clicks now refuse.** `DialogRouter.visitRoom` re-reads
+  the target's `publicListed` flag and the owner's online state before
+  routing to `VisitService.visit`; a room that went private, or an owner
+  who logged off, while the directory sat open gets a re-shown directory
+  with a reason line instead of a visit on stale faith.
+- **Lodestone-menu start now reaches free re-entry.** `startDungeon` no
+  longer gates on a keystone in the main hand; it routes straight into
+  `RunLifecycle.enterWithKeystone`, which re-enters a live owned instance
+  for free and reads the keystone from the inventory, matching `/dungeon`.
+- **Spawner-cleared watcher caches its grouping.** `InstanceRecord` now
+  carries the per-cell spawner grouping, rebuilt only when the layout
+  identity changes (a second run behind the same lobby reuses the record)
+  instead of on every watch tick. `clearedCells` is also cleared in
+  `generateBehindLobby`'s per-run reset block, so the once-per-cell-per-run
+  cue fires again for the next run.
+- **Fluid placement is gated like block placement.** The room-protection
+  placement gate now covers `BucketItem` as well as `BlockItem`
+  (`RitualListener.isPlacementSource`): a bucket aimed at the shell or the
+  furniture is denied to everyone, and a non-permitted player can no longer
+  pour water or lava in a room they are only visiting.
+- **One edited comment line lost its double hyphen** (the reroll-station
+  note in `RitualListener`), per house style.
+
+**Headless-verified:** `./gradlew build` green after each commit.
+
+**Live-only, not yet verified:** the stale-click refusals (fix 1) and free
+re-entry without a keystone in hand (fix 2); recorded as section 27 in
+`LIVE_TEST_PASS.md`.
