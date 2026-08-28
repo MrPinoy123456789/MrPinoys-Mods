@@ -66,60 +66,6 @@ final class DialogScreens {
     static final String KEY_POWER = "pd_power";
     static final String ACTION_IMBUE = "imbue";
 
-    // ---- section 1: the door offer ------------------------------------------
-
-    /**
-     * The offer behind one selector door. Deliberately per-door and never a
-     * combined three-door picker: {@code docs/VISION.md} section 1's hook is that you
-     * walk to a door and spend your keystone on it, and that walk is the mechanic,
-     * not a UI limitation waiting to be tidied away.
-     *
-     * <p>No stale-offer guard here, because there is already one that cannot be
-     * bypassed: {@code chooseOffer} re-validates against {@code DungeonLog}'s live
-     * pending offer, so a dialog left open across a state change fails exactly the
-     * way a stale chat link already does.
-     *
-     * <p>A {@code ConfirmationDialog} and not the {@code NoticeDialog} the spec
-     * asks for. The spec's reasoning was that a notice has exactly one button by
-     * construction, so the offer could not have a visible "no" -- but that is an
-     * argument for picking a different dialog type, not for leaving the player
-     * with one button and Escape. Every screen in this mod has a way out you can
-     * see and click, this one included; the door offer is the first screen a new
-     * player meets, and it is the worst possible place to require knowing that
-     * Escape closes a dialog.
-     */
-    static Dialog doorOffer(Keystone.Offer offer, int step, String heading) {
-        List<DialogBody> body = new ArrayList<>();
-        java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());
-        Affix doorAffix = ordered.isEmpty() ? null : ordered.get(0);
-        body.add(DialogKit.text(Component.literal(heading).withStyle(Keystone.colourOf(doorAffix))));
-        ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
-        if (theme != null) {
-            body.add(DialogKit.text(Component.literal("Theme: " + theme.meta().name)
-                    .withStyle(ChatFormatting.GRAY)));
-        }
-        if (doorAffix != null) {
-            body.add(DialogKit.text(Component.literal(doorAffix.blurb).withStyle(ChatFormatting.GRAY)));
-        }
-        // M12: the tier line. Door 1 never refuses; doors 2/3 might, at
-        // chooseOffer time, on either condition named here.
-        if (offer.free()) {
-            body.add(DialogKit.text(Component.literal("Free door. Pays out "
-                    + PocketDungeonsConfig.fuelPerFreeRun() + " fuel on completion. Never "
-                    + "depletes your keystone.").withStyle(ChatFormatting.GREEN)));
-        } else {
-            body.add(DialogKit.text(Component.literal("Costs " + PocketDungeonsConfig.fuelCostPerGreaterDoor()
-                    + " fuel. Requires keystone level " + PocketDungeonsConfig.greaterDoorMinLevel()
-                    + " or higher.").withStyle(ChatFormatting.YELLOW)));
-        }
-        // "Close" is a real no: nothing is spent until "Take this key" is pressed,
-        // and the door is still there to right-click again afterwards.
-        return DialogKit.confirm("Door " + step, body,
-                DialogKit.command("Take this key", "Spends your run on this door",
-                        "/dungeon choose " + step),
-                DialogKit.closeButton("Close"));
-    }
-
     // ---- section 2: party roster and kick confirmation ----------------------
 
     /**

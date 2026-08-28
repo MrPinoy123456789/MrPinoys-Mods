@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -148,9 +149,11 @@ final class RitualListener {
         // M2/M3: a door in the player's own lobby. Handled mod-side and ahead
         // of everything else -- vanilla's own door open/close must never run
         // for one of these, or a door that swings looks like it did something.
+        // M19: the right-click now lights that door's copper bulb and puts its
+        // offer on the door screen; the commit is the lever, not a dialog.
         Integer step = Instances.selectorDoorStep(serverPlayer, pos);
         if (step != null) {
-            sendDoorOffer(serverPlayer, step);
+            selectDoor(serverPlayer, step);
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -219,35 +222,30 @@ final class RitualListener {
     }
 
     /**
-     * The offer behind one door, as a dialog.
-     *
-     * <p>Was three chat lines and a {@code [ Take this key ]} link; it is now the
-     * same heading, the same affix warning and the same {@code /dungeon choose
-     * <step>} click, rendered as a vanilla {@code NoticeDialog}. Nothing about
-     * what a door does changed -- the button runs the command the link ran, and
-     * {@code /dungeon choose} still works typed. A dialog is a runtime value sent
-     * with {@code Holder.direct}, so this needs nothing installed client-side and
-     * leaves the server-only rule intact.
-     *
-     * <p>Pushed rather than hung off a chat message, unlike every other screen in
-     * this mod: the player right-clicked the door a tick ago, so the screen is the
-     * direct answer to an action they just took, not an interruption.
-     *
-     * <p>M2/M3: rendered from the player's <em>current</em> keystone level,
-     * not a banked "pending offer" -- the doors in the lobby are always live,
-     * every visit, not a one-time reward after a completed run.
+     * M19: the physical replacement for the door-offer dialog. Right-clicking
+     * a selector door lights that door's copper bulb, darkens the previous
+     * selection's bulb, lights the ready-to-commit bulb above the lever, and
+     * puts the chosen door's offer on the door screen. No dialog popup: the
+     * walk between doors is the browse, the lever pull is the commit.
      */
-    private static void sendDoorOffer(ServerPlayer player, int step) {
-        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
-        int level = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), level, entry.currentTheme(), entry.depth());
-        Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-
-        java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());
-        String doorAffix = ordered.isEmpty() ? "Oak" : ordered.get(0).label;
-        String heading = doorAffix + " Door - Keystone [" + offer.level() + "]"
-                + (ordered.isEmpty() ? "" : ", " + ordered.get(0).label.toLowerCase())
-                + ".";
-        DialogKit.show(player, DialogScreens.doorOffer(offer, step, heading));
+    private static void selectDoor(ServerPlayer player, int step) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
+                || record.roomCellOrigin == null) {
+            return;
+        }
+        int previous = record.selectedStep;
+        record.selectedStep = step;
+        ServerLevel level = (ServerLevel) player.level();
+        BlockPos o = record.roomCellOrigin;
+        DoorMask.Direction wall = record.roomDungeonDoor;
+        if (previous >= 1 && previous <= 3 && previous != step) {
+            RoomTemplateGenerator.setBulb(level, o, wall, previous, false);
+        }
+        if (step != previous) {
+            RoomTemplateGenerator.setBulb(level, o, wall, step, true);
+        }
+        RoomTemplateGenerator.setBulb(level, o, wall, 10, true); // ready to commit
+        DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
     }
 }
