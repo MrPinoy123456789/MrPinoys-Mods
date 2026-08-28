@@ -458,15 +458,12 @@ final class DungeonCommands {
 
     /** {@code /dungeon key info}: the held keystone plus this player's run statistics. */
     private static int keyInfo(ServerPlayer player) {
-        ItemStack held = Keystone.findHeld(player);
-        if (held.isEmpty()) {
+        if (Keystone.findHeld(player).isEmpty()) {
             player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
-                .get(player.getUUID());
-        DialogKit.show(player, DialogScreens.keystoneInfo(held, entry));
+        DialogKit.show(player, DialogScreens.inspectKeystone(player));
         return 1;
     }
 
