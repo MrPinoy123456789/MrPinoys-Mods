@@ -158,7 +158,9 @@ final class DungeonScreen {
         } else {
             title = "A Friend's Room";
         }
-        int visitors = Math.max(0, record.members.size() - 1);
+        int visitors = record.owner != null && record.members.containsKey(record.owner)
+                ? record.members.size() - 1
+                : record.members.size(); // a visit instance never holds the owner
         int whitelist = RoomWhitelist.forServer(server).get(record.owner).size();
         return Component.literal(title + "\nVisitors: " + visitors + "\nWhitelist: " + whitelist);
     }

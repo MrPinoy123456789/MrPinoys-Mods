@@ -147,16 +147,18 @@ final class VisitService {
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);
 
+        Instances.admit(server, record, visitor);
+
         // M19: a visit copy gets the physical UI too. The door screen shows the
-        // room as a place (the owner's room, its visitors and whitelist) since
+        // room as a place (who it belongs to, its visitors and whitelist) since
         // a visitor never chooses doors; the engine screen shows the cost line
-        // without the owner's fuel count.
+        // without the owner's fuel count. Summoned after admit so the new
+        // visitor is already counted.
         DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.roomContent(server, record, visitor));
         DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.engineContent(null));
 
-        Instances.admit(server, record, visitor);
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
         String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
         visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
