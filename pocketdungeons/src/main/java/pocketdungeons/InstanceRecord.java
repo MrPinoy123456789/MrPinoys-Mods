@@ -205,6 +205,15 @@ final class InstanceRecord {
     final boolean untimed;
 
     /**
+     * True for an operator's {@code /dungeon admin buildroom} shell: one empty
+     * cell with no doors, no timer, no keystone, and no room to save. The
+     * record exists so the shell has an owner to find it by and a slot to tear
+     * down, and so {@code /dungeon admin saveroom} knows which cell to capture.
+     * One per player: opening another build room tears the old one down.
+     */
+    final boolean adminBuild;
+
+    /**
      * Floor corner of whichever cell currently holds this run's persistent room
      * (M2 T2.1/T2.4) -- the entrance cell until the run completes, the cell
      * behind the terminal cell after. {@code null} for a run with no room at all
@@ -238,6 +247,11 @@ final class InstanceRecord {
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
+        this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);
+    }
+
+    InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
+                   Set<Affix> affixes, UUID owner, boolean untimed, boolean adminBuild) {
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
@@ -245,6 +259,7 @@ final class InstanceRecord {
         this.affixes = affixes == null ? EnumSet.noneOf(Affix.class) : affixes;
         this.owner = owner;
         this.untimed = untimed;
+        this.adminBuild = adminBuild;
     }
 
     /** Whether a keystone was spent to open this run. False for {@code /dungeon admin build}. */

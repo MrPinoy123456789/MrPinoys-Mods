@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -206,6 +207,14 @@ final class DungeonCommands {
 
                             .then(Commands.literal("gentemplates")
                                     .executes(ctx -> generateTemplates(ctx.getSource())))
+
+                            .then(Commands.literal("buildroom")
+                                    .executes(ctx -> buildRoom(ctx.getSource())))
+
+                            .then(Commands.literal("saveroom")
+                                    .then(Commands.argument("name", StringArgumentType.string())
+                                            .executes(ctx -> saveRoom(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "name")))))
 
                             .then(Commands.literal("stamptest")
                                     .executes(ctx -> stampTest(ctx.getSource())))
@@ -631,6 +640,59 @@ final class DungeonCommands {
         RoomTemplateGenerator.generate(level);
         source.sendSuccess(() -> Component.literal(
                 "Queued room template generation; files will be written next tick."), true);
+        return 1;
+    }
+
+    /**
+     * Opens an empty 16x16x6 shell in the dungeon dimension for hand-authoring
+     * a room template, marking the instance as an admin build room. One per
+     * player: an existing build room is torn down first.
+     */
+    private static int buildRoom(CommandSourceStack source) throws CommandSyntaxException {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            source.sendFailure(Component.literal(
+                    "buildroom is a development-only command."));
+            return 0;
+        }
+        ServerPlayer player = source.getPlayerOrException();
+        int slot = Instances.adminBuildRoom(source.getServer(), player);
+        if (slot == -2) {
+            source.sendFailure(Component.literal(
+                    "You are inside a live instance. Leave it before opening a build room."));
+            return 0;
+        }
+        if (slot < 0) {
+            source.sendFailure(Component.literal(
+                    "Could not open a build room: the dungeon dimension is missing or stamping failed."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Build room at " + InstanceRegistry.slotOrigin(slot).toShortString()
+                        + ". Build freely; save it with /dungeon admin saveroom <name>."), false);
+        return 1;
+    }
+
+    /**
+     * Captures the player's admin build room to
+     * {@code src/main/resources/data/pocketdungeons/structure/rooms/} as
+     * {@code <name>_<author>_<timestamp>.nbt}, sends them to the overworld
+     * spawn, and tears the room down.
+     */
+    private static int saveRoom(CommandSourceStack source, String name) throws CommandSyntaxException {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            source.sendFailure(Component.literal(
+                    "saveroom is a development-only command."));
+            return 0;
+        }
+        ServerPlayer player = source.getPlayerOrException();
+        String path = Instances.adminSaveRoom(source.getServer(), player, name);
+        if (path == null) {
+            source.sendFailure(Component.literal(
+                    "No build room is open for you. Open one with /dungeon admin buildroom."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Saved room " + name + " to " + path + "."), false);
         return 1;
     }
 

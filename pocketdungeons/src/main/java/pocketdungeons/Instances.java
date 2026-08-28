@@ -36,6 +36,7 @@ import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -1386,6 +1387,92 @@ final class Instances {
         return slot;
     }
 
+    /**
+     * Opens the operator's hand-authoring shell for {@code /dungeon admin
+     * buildroom}: one empty cell in the dungeon dimension, stamped with just
+     * {@link RoomBuilder#buildShell}: no doors, no timer, no keystone, no
+     * protection, and no room-store capture. The cell is a template under
+     * construction; {@link #adminSaveRoom} captures it out.
+     *
+     * <p>One build room per player: an existing one is torn down first,
+     * whatever state it is in.
+     *
+     * @return the slot, or -1 if the dimension is missing or stamping failed,
+     *         or -2 if the player is already inside a live instance
+     */
+    static int adminBuildRoom(MinecraftServer server, ServerPlayer player) {
+        if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
+            return -2;
+        }
+        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
+            if (record.adminBuild && player.getUUID().equals(record.owner)) {
+                InstanceTeardown.purge(server, record, "replaced by a fresh build room");
+            }
+        }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return -1;
+        }
+        int slot = InstanceRegistry.allocateSlot();
+        BlockPos origin = InstanceRegistry.originForSlot(slot);
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        try {
+            RoomBuilder.buildShell(level, origin, RoomBuilder.FLOOR);
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not stamp a build room for {}", player.getUUID(), e);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            InstanceRegistry.usedSlots.remove(slot);
+            return -1;
+        }
+        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), lobbyLayout(origin),
+                EnumSet.noneOf(Affix.class), player.getUUID(), false, true);
+        InstanceRegistry.bySlot.put(slot, record);
+        admit(server, record, player);
+        // admit lands on the lobby layout's corner entrance; centre the author.
+        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
+                Vec3.atBottomCenterOf(RoomBuilder.cellCentre(origin, 0, 0)), 0.0f, 0.0f);
+        return slot;
+    }
+
+    /**
+     * Captures the player's build room to a hand-authored template file for
+     * {@code /dungeon admin saveroom}, returns them to the overworld spawn,
+     * and tears the room down. The capture runs first, while the cell is still
+     * standing: the teardown queues a tick-spread clear that would otherwise
+     * race it (PD-8's shape).
+     *
+     * @return the path of the written file, or {@code null} if the player has
+     *         no build room open or the save failed
+     */
+    static String adminSaveRoom(MinecraftServer server, ServerPlayer player, String name) {
+        InstanceRecord record = null;
+        for (InstanceRecord r : InstanceRegistry.bySlot.values()) {
+            if (r.adminBuild && player.getUUID().equals(r.owner)) {
+                record = r;
+                break;
+            }
+        }
+        if (record == null) {
+            return null;
+        }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return null;
+        }
+        Path saved = RoomTemplateGenerator.captureRoomToFile(level, record.origin, name,
+                player.getName().getString(), player.getUUID());
+        if (saved == null) {
+            return null;
+        }
+        // Drop the member before purging so the teardown has nobody to eject
+        // (and therefore nothing to teleport back to the old return point),
+        // then put the author at world spawn and clear the slot.
+        RunLifecycle.dropMember(server, record, player.getUUID(), player, "build room saved");
+        sendToWorldSpawn(server, player);
+        InstanceTeardown.purge(server, record, "build room saved");
+        return saved.toString();
+    }
+
     /** The layout of a built slot, for admin reporting. Null if the slot is unknown. */
     static InstanceLayout adminLayout(int slot) {
         InstanceRecord record = InstanceRegistry.bySlot.get(slot);
@@ -1454,6 +1541,7 @@ final class Instances {
                     : String.join(", ", names) + " (" + names.size() + ")";
             lines.add("slot " + slot + " at " + origin.toShortString()
                     + (record.untimed ? " (UNTIMED, never expires)" : "")
+                    + (record.adminBuild ? " (BUILD ROOM)" : "")
                     + ": " + who + ", " + ageSeconds + "s old, "
                     + layout.roomCount() + " rooms, path " + layout.pathLength()
                     + ", tier " + layout.lootTier()

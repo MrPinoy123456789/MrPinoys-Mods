@@ -49,7 +49,9 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 /**
@@ -141,12 +143,8 @@ final class RoomTemplateGenerator {
     }
 
     static void generate(ServerLevel level) {
-        Path outDir = FabricLoader.getInstance().getGameDir().getParent().resolve(
-                "src/main/resources/data/" + PocketDungeonsMod.MOD_ID + "/structure/rooms");
-        try {
-            Files.createDirectories(outDir);
-        } catch (IOException e) {
-            PocketDungeonsMod.LOG.error("Could not create template output directory", e);
+        Path outDir = templateOutDir();
+        if (outDir == null) {
             return;
         }
 
@@ -156,6 +154,25 @@ final class RoomTemplateGenerator {
         }
 
         PocketDungeonsMod.LOG.info("Queued {} pocketdungeons room templates for capture", specs.size());
+    }
+
+    /**
+     * The resources directory room templates are written to, created on
+     * demand. Dev-environment only: the game dir's parent is the mod project,
+     * so this is the source tree itself.
+     *
+     * @return the directory, or {@code null} if it could not be created
+     */
+    static Path templateOutDir() {
+        Path outDir = FabricLoader.getInstance().getGameDir().getParent().resolve(
+                "src/main/resources/data/" + PocketDungeonsMod.MOD_ID + "/structure/rooms");
+        try {
+            Files.createDirectories(outDir);
+        } catch (IOException e) {
+            PocketDungeonsMod.LOG.error("Could not create template output directory", e);
+            return null;
+        }
+        return outDir;
     }
 
     // ---- the library --------------------------------------------------------
@@ -1064,6 +1081,48 @@ final class RoomTemplateGenerator {
         CompoundTag nbt = template.save(new CompoundTag());
         NbtIo.writeCompressed(nbt, outFile);
         PocketDungeonsMod.LOG.info("Saved room template to {}", outFile);
+    }
+
+    /**
+     * Captures the cell at {@code cellOrigin} into a hand-authored room
+     * template, for {@code /dungeon admin saveroom}: the same resources
+     * directory the generator writes to, named
+     * {@code <name>_<author>_<timestamp>.nbt}, with the author and save time
+     * riding on the blob as {@code pd_author} and {@code pd_saved_at} for the
+     * code generator to read back. Both are unknown to
+     * {@code StructureTemplate.load}, so the file stays loadable by the room
+     * manifest like any other template.
+     *
+     * @return the file written, or {@code null} if the directory could not be
+     *         created or the write failed
+     */
+    static Path captureRoomToFile(ServerLevel level, BlockPos cellOrigin, String name,
+                                  String authorName, UUID authorUuid) {
+        Path outDir = templateOutDir();
+        if (outDir == null) {
+            return null;
+        }
+        Path outFile = outDir.resolve(sanitizeName(name) + "_" + sanitizeName(authorName)
+                + "_" + System.currentTimeMillis() + ".nbt");
+        try {
+            StructureTemplate template = new StructureTemplate();
+            template.fillFromWorld(level, cellOrigin, TEMPLATE_SIZE, true, List.of());
+            CompoundTag nbt = template.save(new CompoundTag());
+            nbt.putString("pd_author", authorUuid.toString());
+            nbt.putLong("pd_saved_at", System.currentTimeMillis());
+            NbtIo.writeCompressed(nbt, outFile);
+            PocketDungeonsMod.LOG.info("Saved room template to {}", outFile);
+        } catch (IOException e) {
+            PocketDungeonsMod.LOG.error("Could not save room template '{}'", name, e);
+            return null;
+        }
+        return outFile;
+    }
+
+    /** {@code [a-z0-9_-]} only, so a command argument can never escape the rooms directory. */
+    private static String sanitizeName(String raw) {
+        String cleaned = raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "_");
+        return cleaned.isEmpty() ? "room" : cleaned;
     }
 
     private static void clear(ServerLevel level, BlockPos o) {
