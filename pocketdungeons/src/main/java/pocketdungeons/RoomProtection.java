@@ -181,7 +181,7 @@ final class RoomProtection {
 
     /**
      * The engine-wall half of {@link #isFurniture}: the respawn anchor at
-     * Y=2 on the wall to the left of the selector wall, and its 2x2 black
+     * Y=2 on the wall to the left of the selector wall, and its 5x2 black
      * concrete screen above it.
      */
     private static boolean engineWallFurniture(int x, int y, int z, DoorMask.Direction selectorWall) {
@@ -219,7 +219,7 @@ final class RoomProtection {
         if (y == 2 && along == 7) {
             return true; // the engine block
         }
-        return y >= 4 && y <= 5 && along >= 7 && along <= 8; // the engine screen blocks
+        return y >= 4 && y <= 5 && along >= 5 && along <= 9; // the engine screen blocks
     }
 
     /**

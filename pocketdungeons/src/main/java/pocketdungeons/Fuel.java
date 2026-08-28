@@ -32,6 +32,21 @@ final class Fuel {
     }
 
     /**
+     * The configured fuel item, or {@code null} if it does not resolve. The
+     * engine screen names it ({@code DungeonScreen.engineContent}); the
+     * engine handler tests held stacks against it ({@link #isFuel}).
+     */
+    static Item item() {
+        return FUEL_ITEM.get();
+    }
+
+    /** Whether {@code stack} is the configured fuel item. */
+    static boolean isFuel(ItemStack stack) {
+        Item item = FUEL_ITEM.get();
+        return item != null && !stack.isEmpty() && stack.is(item);
+    }
+
+    /**
      * How many units of fuel {@code player} is carrying. {@code 0} if the
      * configured item does not resolve to anything, rather than throwing: an
      * unresolvable fuel item should read as "can never afford it", the same

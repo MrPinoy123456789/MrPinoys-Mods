@@ -36,13 +36,13 @@ public class RoomFurnitureTest {
     /** The four bulbs at Y=4 and the lever at Y=2, one block in front of the wall. */
     private static void testBulbsAndLever(DoorMask.Direction wall) {
         for (int along = 7; along <= 10; along++) {
-            check(isFurniture(doorPlane(wall, along, 4)), "bulb " + wall + " " + along);
+            check(isFurniture(doorPlane(wall, along, 4), wall), "bulb " + wall + " " + along);
         }
-        check(isFurniture(doorPlane(wall, 10, 2)), "lever " + wall);
+        check(isFurniture(doorPlane(wall, 10, 2), wall), "lever " + wall);
         // The door row itself (Y=1..2, along 7..9) is a door, not furniture.
         for (int along = 7; along <= 9; along++) {
-            check(!isFurniture(doorPlane(wall, along, 1)), "door " + wall + " " + along);
-            check(!isFurniture(doorPlane(wall, along, 2)), "door " + wall + " " + along);
+            check(!isFurniture(doorPlane(wall, along, 1), wall), "door " + wall + " " + along);
+            check(!isFurniture(doorPlane(wall, along, 2), wall), "door " + wall + " " + along);
         }
     }
 
@@ -50,22 +50,24 @@ public class RoomFurnitureTest {
     private static void testDoorScreenBlocks(DoorMask.Direction wall) {
         for (int along = 4; along <= 11; along++) {
             for (int y = 4; y <= 5; y++) {
-                check(isFurniture(wallRing(wall, along, y)), "screen " + wall + " " + along + " " + y);
+                check(isFurniture(wallRing(wall, along, y), wall), "screen " + wall + " " + along + " " + y);
             }
         }
         // The screen stops at 11; 12 is plain protected wall, not furniture.
-        check(!isFurniture(wallRing(wall, 12, 4)), "screen edge " + wall);
+        check(!isFurniture(wallRing(wall, 12, 4), wall), "screen edge " + wall);
     }
 
     /** The engine anchor and its screen sit on the wall to the left of the selector wall. */
     private static void testEngineOnLeftWall(DoorMask.Direction wall) {
         DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
-        check(isFurniture(wallRing(engineWall, 7, 2)), "engine " + wall);
-        for (int along = 7; along <= 8; along++) {
+        check(isFurniture(wallRing(engineWall, 7, 2), wall), "engine " + wall);
+        for (int along = 5; along <= 9; along++) {
             for (int y = 4; y <= 5; y++) {
-                check(isFurniture(wallRing(engineWall, along, y)), "engine screen " + wall);
+                check(isFurniture(wallRing(engineWall, along, y), wall), "engine screen " + wall);
             }
         }
+        // The engine screen stops at 9; 10 is plain protected wall, not furniture.
+        check(!isFurniture(wallRing(engineWall, 10, 4), wall), "engine screen edge " + wall);
     }
 
     /** Interior build space is never furniture, whatever the selector wall. */
@@ -127,6 +129,11 @@ public class RoomFurnitureTest {
         return RoomProtection.isFurniture(pos, origin, wall);
     }
 
+    /** The wall-relative overload used by the per-wall geometry helpers below. */
+    private static boolean isFurniture(BlockPos pos, DoorMask.Direction wall) {
+        return RoomProtection.isFurniture(pos, ORIGIN, wall);
+    }
+
     // ---- geometry mirrors of the protected positions -------------------------
 
     private static int doorPlaneOf(DoorMask.Direction wall) {
@@ -144,20 +151,22 @@ public class RoomFurnitureTest {
     }
 
     private static BlockPos doorPlane(DoorMask.Direction wall, int along, int y) {
+        // ORIGIN is already at Y=64, so the offsets here are relative to it:
+        // the door row sits at local Y, and the room-local y is origin.y + y.
         return switch (wall) {
-            case NORTH -> ORIGIN.offset(along, 64 + y, 1);
-            case SOUTH -> ORIGIN.offset(along, 64 + y, RoomGeometry.CELL - 2);
-            case EAST -> ORIGIN.offset(RoomGeometry.CELL - 2, 64 + y, along);
-            case WEST -> ORIGIN.offset(1, 64 + y, along);
+            case NORTH -> ORIGIN.offset(along, y, 1);
+            case SOUTH -> ORIGIN.offset(along, y, RoomGeometry.CELL - 2);
+            case EAST -> ORIGIN.offset(RoomGeometry.CELL - 2, y, along);
+            case WEST -> ORIGIN.offset(1, y, along);
         };
     }
 
     private static BlockPos wallRing(DoorMask.Direction wall, int along, int y) {
         return switch (wall) {
-            case NORTH -> ORIGIN.offset(along, 64 + y, 0);
-            case SOUTH -> ORIGIN.offset(along, 64 + y, RoomGeometry.CELL - 1);
-            case EAST -> ORIGIN.offset(RoomGeometry.CELL - 1, 64 + y, along);
-            case WEST -> ORIGIN.offset(0, 64 + y, along);
+            case NORTH -> ORIGIN.offset(along, y, 0);
+            case SOUTH -> ORIGIN.offset(along, y, RoomGeometry.CELL - 1);
+            case EAST -> ORIGIN.offset(RoomGeometry.CELL - 1, y, along);
+            case WEST -> ORIGIN.offset(0, y, along);
         };
     }
 
@@ -165,5 +174,9 @@ public class RoomFurnitureTest {
         if (!condition) {
             throw new AssertionError("Expected furniture at " + what);
         }
+    }
+
+    private static void check(boolean condition) {
+        check(condition, "the position under test");
     }
 }
