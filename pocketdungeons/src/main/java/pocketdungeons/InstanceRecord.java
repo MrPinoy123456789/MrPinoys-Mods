@@ -91,6 +91,18 @@ final class InstanceRecord {
     int chosenStep;
 
     /**
+     * M19: which selector door (1, 2 or 3) the owner last right-clicked while
+     * this lobby was {@link #awaitingDoorChoice}, or {@code 0} for no selection.
+     * The physical door screen and the copper bulbs render this; pulling the
+     * room's commit lever starts the run for this step. Reset to 0 the moment
+     * a run starts (see {@code Instances.generateBehindLobby}) and when the
+     * room is re-armed behind the terminal cell (see
+     * {@code RunLifecycle.completeDungeon}); a fresh lobby gets a fresh
+     * record, so its default of 0 is never carried over.
+     */
+    int selectedStep;
+
+    /**
      * True when {@link #chosenStep} was door 1, the free tier (M12). Read by
      * {@code RunLifecycle.returnKeystone}/{@code expireTimedOut} to exempt a
      * free-door run from every depletion outcome: door 1 never costs fuel and
