@@ -12,7 +12,7 @@ import java.util.EnumSet;
 import java.util.UUID;
 
 /**
- * Routes a calling-card visit to the right instance: the owner's own live
+ * Routes a lobby-directory visit to the right instance: the owner's own live
  * room if they are home, an existing read-only copy if someone else is
  * already visiting, or a freshly stamped one from the owner's saved room
  * blob otherwise. Fifth of {@code Instances}' six M9 C3 extractions.
@@ -37,7 +37,7 @@ final class VisitService {
      */
     static boolean visit(ServerPlayer visitor, UUID owner) {
         if (visitor.getUUID().equals(owner)) {
-            visitor.sendSystemMessage(Component.literal("You don't need a card to enter your own room. Use /dungeon.")
+            visitor.sendSystemMessage(Component.literal("That's your own room. Use /dungeon to enter it.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -166,5 +166,36 @@ final class VisitService {
         PocketDungeonsMod.LOG.info("{} visited {}'s room in slot {}",
                 visitor.getName().getString(), owner, slot);
         return true;
+    }
+
+    // ---- the lobby directory's live read (M20) ------------------------------
+
+    /**
+     * The room's live status for the lobby directory: "open" while the owner
+     * stands in their own live room, "run in progress" while they are inside
+     * an active keystone run, "away" otherwise (a visit then stamps a
+     * read-only copy via {@link #createVisitInstance}). Read from the same
+     * instance state the visit routing above uses, so the directory can never
+     * disagree with what a click will do.
+     */
+    static String statusOf(UUID owner) {
+        InstanceRecord current = InstanceRegistry.byMember.get(owner);
+        if (current != null && owner.equals(current.owner) && !current.visitInstance
+                && !current.lingering && !current.awaitingDoorChoice) {
+            return "run in progress";
+        }
+        return findOwnedLiveRoom(owner) != null ? "open" : "away";
+    }
+
+    /**
+     * How many people are in the owner's live room right now (the owner plus
+     * any visitors or companions), or {@code 0} when no live room exists.
+     * The same count {@code visit}'s {@link #findOwnedLiveRoom} decision
+     * leans on: a non-zero room is one the directory can send a visitor to
+     * directly.
+     */
+    static int occupancyOf(UUID owner) {
+        InstanceRecord owned = findOwnedLiveRoom(owner);
+        return owned == null ? 0 : owned.members.size();
     }
 }

@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -65,6 +66,9 @@ final class DialogScreens {
     /** M17: which extracted power the Cube's imbue picker's button chose. */
     static final String KEY_POWER = "pd_power";
     static final String ACTION_IMBUE = "imbue";
+
+    /** M20: which public room the lobby browser's button chose to visit. */
+    static final String ACTION_VISIT_ROOM = "pd_visit_room";
 
     // ---- section 2: party roster and kick confirmation ----------------------
 
@@ -387,5 +391,99 @@ final class DialogScreens {
             return DialogKit.notice("Herobrine Cube", body);
         }
         return DialogKit.list("Herobrine Cube", body, buttons, "Close");
+    }
+
+    // ---- section 10: the lobby directory (M20) ------------------------------
+
+    /** One row of the lobby directory before rendering, kept pure for the headless test. */
+    record LobbyRow(UUID owner, String ownerName, String roomName, String status, int occupancy) {
+        /** The button label: room name (or owner name when unset) plus occupancy. */
+        String label() {
+            String name = roomName.isBlank() ? ownerName : roomName;
+            return name + " (" + occupancy + ")";
+        }
+
+        /** The button's body line: the owner's player name and their live status. */
+        String body() {
+            return ownerName + ": " + status;
+        }
+    }
+
+    /** An online player reduced to identity, so {@link #lobbyRows} needs no server. */
+    record OnlinePlayer(UUID id, String name) {}
+
+    /**
+     * The rows the lobby directory shows right now: every online player whose
+     * entry opts in ({@code publicListed}). Pure function of the log and the
+     * online set, so the listing rule is testable headless; status and
+     * occupancy read the same live state {@link VisitService} routes visits by,
+     * so the directory can never show a room as visitable that a click could
+     * not enter.
+     */
+    static List<LobbyRow> lobbyRows(DungeonLog log, List<OnlinePlayer> online) {
+        List<LobbyRow> rows = new ArrayList<>();
+        for (OnlinePlayer player : online) {
+            DungeonLog.Entry entry = log.get(player.id());
+            if (!entry.publicListed()) {
+                continue;
+            }
+            rows.add(new LobbyRow(player.id(), player.name(), entry.roomName(),
+                    VisitService.statusOf(player.id()), VisitService.occupancyOf(player.id())));
+        }
+        rows.sort(Comparator.comparing(LobbyRow::label));
+        return rows;
+    }
+
+    /**
+     * The lobby directory: one button per public room, each carrying the
+     * owner's UUID in its payload. Same shape as {@link #partyRoster}: build a
+     * list of buttons from live state, send it as one dialog, and let
+     * {@link DialogRouter} re-read the live room before acting, so a room that
+     * went private (or an owner who logged off) while the screen sat open
+     * degrades to a re-shown directory, never to a wrong entry.
+     */
+    static Dialog lobbyBrowser(MinecraftServer server, UUID clicker) {
+        return lobbyBrowser(server, clicker, null);
+    }
+
+    /** Same as the two-arg form, with a yellow reason line for a stale-click re-show. */
+    static Dialog lobbyBrowser(MinecraftServer server, UUID clicker, String notice) {
+        List<OnlinePlayer> online = server.getPlayerList().getPlayers().stream()
+                .map(p -> new OnlinePlayer(p.getUUID(), p.getName().getString()))
+                .toList();
+        return lobbyBrowserDialog(lobbyRows(DungeonLog.forServer(server), online), clicker, notice);
+    }
+
+    /**
+     * The dialog from prebuilt rows plus an optional reason line; the
+     * headless-testable half of {@link #lobbyBrowser}. {@code notice} is the
+     * yellow line the router shows when a stale click re-opens the directory
+     * ("That room is not open any more."); {@code null} for a fresh open.
+     */
+    static Dialog lobbyBrowserDialog(List<LobbyRow> rows, UUID clicker, String notice) {
+        List<DialogBody> body = new ArrayList<>();
+        if (notice != null) {
+            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
+        }
+        if (rows.isEmpty()) {
+            // Never build a zero-button MultiActionDialog; a fresh server with
+            // nobody opted in deserves a sentence, not an empty grid.
+            body.add(DialogKit.text("No public rooms right now."));
+            body.add(DialogKit.text(Component.literal(
+                    "List your room with /dungeon room public.")
+                    .withStyle(ChatFormatting.GRAY)));
+            return DialogKit.notice("Lobby directory", body);
+        }
+        List<ActionButton> buttons = new ArrayList<>();
+        for (LobbyRow row : rows) {
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, clicker.toString());
+            context.putString(KEY_TARGET, row.owner().toString());
+            buttons.add(DialogKit.button(row.label(), row.body(),
+                    DialogKit.submit(ACTION_VISIT_ROOM, context)));
+        }
+        body.add(DialogKit.text(rows.size() + " public room" + (rows.size() == 1 ? "" : "s")
+                + " right now."));
+        return DialogKit.list("Lobby directory", body, buttons, "Close");
     }
 }
