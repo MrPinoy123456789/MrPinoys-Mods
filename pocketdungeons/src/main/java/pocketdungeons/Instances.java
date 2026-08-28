@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -1017,19 +1016,15 @@ final class Instances {
                 // An edge, not a state: without the onPad set a player standing
                 // still on the pad after completing would be ejected on the very
                 // next watcher tick, with no chance to open a vault.
-                // M18: the room's leave pad is now a wall lodestone, not a floor
-                // one, so the wall-adjacency test joins the floor test here.
-                boolean onPad = isOnExitPad(player, record) || isOnRoomLeavePad(player, record);
+                // M21: the room's leave pad is gone; only the terminal pad's
+                // stand-on check remains.
+                boolean onPad = isOnExitPad(player, record);
                 boolean stepped = onPad && record.onPad.add(member);
                 if (!onPad) {
                     record.onPad.remove(member);
                 }
                 if (stepped) {
-                    if (isOnRoomLeavePad(player, record)) {
-                        // The room's own pad -- the only lodestone that moves
-                        // anyone, and it moves them out of the dungeon entirely.
-                        RunLifecycle.exit(player, RunLifecycle.ExitReason.EXIT_PAD);
-                    } else if (record.isKeystoneRun()) {
+                    if (record.isKeystoneRun()) {
                         // A dungeon pad: the terminal cell's. First contact ends
                         // the run; every contact after that does nothing at all.
                         // It used to fall through to RunLifecycle.exit() once completed was
@@ -1064,40 +1059,6 @@ final class Instances {
      * run. Testing the block itself is rotation-proof and template-agnostic: a
      * future room can put a lodestone anywhere and it just works.
      */
-    /**
-     * Whether the player is standing at the leave pad in their <em>room</em>, as
-     * opposed to a dungeon cell's. Only the room's pad leaves the dungeon; the
-     * terminal cell's marks the end of a run and moves nobody.
-     *
-     * <p>M18 moved the room's lodestone from the floor (NW corner) into the wall
-     * at eye height, so the pad is now the floor block directly in front of it:
-     * the check asks whether a lodestone sits in the wall one block up and one
-     * horizontal step from the player's feet, which is rotation-proof the same
-     * way the block-below test {@link #isOnExitPad} uses is. The old floor
-     * position is still honoured for a pre-M18 saved room blob that carries a
-     * floor lodestone, so a returning owner's room keeps working until the room
-     * is next captured. The stand-on trigger itself is M21's to replace.
-     */
-    private static boolean isOnRoomLeavePad(ServerPlayer player, InstanceRecord record) {
-        if (record.roomCellOrigin == null) {
-            return false;
-        }
-        BlockPos feet = player.blockPosition();
-        if (!CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(feet))) {
-            return false;
-        }
-        if (player.level().getBlockState(feet.below()).is(Blocks.LODESTONE)) {
-            return true; // legacy: a pre-M18 room blob's floor lodestone
-        }
-        for (Direction dir : Direction.Plane.HORIZONTAL) {
-            if (player.level().getBlockState(feet.offset(dir.getStepX(), 1, dir.getStepZ()))
-                    .is(Blocks.LODESTONE)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
         BlockPos below = player.blockPosition().below();
         if (!player.level().getBlockState(below).is(Blocks.LODESTONE)) {
