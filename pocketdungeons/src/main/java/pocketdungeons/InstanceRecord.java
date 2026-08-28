@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -57,9 +58,25 @@ final class InstanceRecord {
      * {@code COOLDOWN}), for the spawner-cleared cue. In-memory like every
      * other field on the record; dies with the instance, never persisted.
      * A cell is added exactly once, when it first reaches fully cleared, so
-     * the cue fires once per cell per run.
+     * the cue fires once per cell per run. Cleared alongside the other
+     * per-run state in {@code Instances.generateBehindLobby}, so a second
+     * run behind the same lobby cues its cells fresh.
      */
     final Set<PlanCell> clearedCells = new HashSet<>();
+
+    /**
+     * M18-M22 review fix: the run's trial spawners grouped by cell, for the
+     * spawner-cleared watcher ({@code Instances.watchSpawnerClears}). Built
+     * once per layout instead of every watch tick;
+     * {@link #spawnerCellsLayout} records which layout it was built from, so
+     * a second run behind the same lobby (which reuses this record with a
+     * fresh layout) rebuilds the grouping rather than re-scanning stale
+     * cells. In-memory like every other field; dies with the instance.
+     */
+    Map<PlanCell, List<BlockPos>> spawnerCellsByCell;
+
+    /** The layout {@link #spawnerCellsByCell} was built from; {@code null} when never built. */
+    InstanceLayout spawnerCellsLayout;
 
     // ---- keystone run state --------------------------------------------------
     // All of it dies with the instance, which is the whole point: the keystone

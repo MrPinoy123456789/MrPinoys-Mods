@@ -679,6 +679,9 @@ final class Instances {
         record.keystoneReturned.clear();
         record.onPad.clear();
         record.visited.clear();
+        // The spawner-cleared cue is per-run state too (M22): a cell added in
+        // the run that just ended must cue again in the next one.
+        record.clearedCells.clear();
         record.rewardChests = -1;
         record.expiresAtTick = 0;
 
@@ -1073,14 +1076,22 @@ final class Instances {
         if (level == null || record.layout.trialSpawners().isEmpty()) {
             return;
         }
-        Map<PlanCell, List<BlockPos>> byCell = new HashMap<>();
-        for (BlockPos pos : record.layout.trialSpawners()) {
-            PlanCell cell = record.layout.geometry().cellAt(pos);
-            if (cell != null) {
-                byCell.computeIfAbsent(cell, c -> new ArrayList<>()).add(pos);
+        // The per-cell grouping is built once per layout, not on every watch
+        // tick. The layout identity records which layout it came from: this
+        // record is reused for a second run behind the same lobby, so a fresh
+        // layout must rebuild the map rather than re-scan stale cells.
+        if (record.spawnerCellsLayout != record.layout) {
+            Map<PlanCell, List<BlockPos>> byCell = new HashMap<>();
+            for (BlockPos pos : record.layout.trialSpawners()) {
+                PlanCell cell = record.layout.geometry().cellAt(pos);
+                if (cell != null) {
+                    byCell.computeIfAbsent(cell, c -> new ArrayList<>()).add(pos);
+                }
             }
+            record.spawnerCellsByCell = byCell;
+            record.spawnerCellsLayout = record.layout;
         }
-        for (Map.Entry<PlanCell, List<BlockPos>> e : byCell.entrySet()) {
+        for (Map.Entry<PlanCell, List<BlockPos>> e : record.spawnerCellsByCell.entrySet()) {
             PlanCell cell = e.getKey();
             if (record.clearedCells.contains(cell)) {
                 continue;
