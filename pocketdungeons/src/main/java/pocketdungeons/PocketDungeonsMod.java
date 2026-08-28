@@ -38,6 +38,8 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomTemplateGenerator.register();
         ThemeManifest.register();
         RoomManifest.register();
+        TrimListener.register();
+        PowerListener.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");
     }

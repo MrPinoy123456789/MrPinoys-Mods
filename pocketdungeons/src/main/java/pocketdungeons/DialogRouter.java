@@ -60,6 +60,12 @@ public final class DialogRouter {
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             case DialogScreens.ACTION_WHITELIST_ADD -> whitelistAdd(player, server, owner,
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
+            case DialogScreens.ACTION_REROLL -> RerollStation.handleReroll(player,
+                    tag.getStringOr(DialogScreens.KEY_ENCHANT, ""));
+            case DialogScreens.ACTION_GAMBLE -> GambleStation.handleGamble(player,
+                    tag.getStringOr(DialogScreens.KEY_SLOT, ""), tag.getIntOr(DialogScreens.KEY_TIER, 0));
+            case DialogScreens.ACTION_IMBUE -> CubeStation.handleImbue(player,
+                    tag.getStringOr(DialogScreens.KEY_POWER, ""));
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
         }
     }

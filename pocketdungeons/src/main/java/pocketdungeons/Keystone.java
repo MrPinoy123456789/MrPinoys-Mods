@@ -63,7 +63,6 @@ final class Keystone {
         }
         return switch (affix) {
             case OMINOUS -> ChatFormatting.LIGHT_PURPLE;
-            case FRAGILE -> ChatFormatting.RED;
             case FERAL -> ChatFormatting.WHITE;
             case SWARMING -> ChatFormatting.DARK_GREEN;
             case OVERCLOCKED -> ChatFormatting.YELLOW;
@@ -73,6 +72,14 @@ final class Keystone {
     }
 
     /**
+     * Which half of the ladder a door belongs to (M12). {@code FREE} is door 1:
+     * untimed cost, no depletion on failure, pays out fuel. {@code GREATER} is
+     * doors 2/3: costs fuel, keeps the clock and the depletion, and is refused
+     * below {@link PocketDungeonsConfig#greaterDoorMinLevel()}.
+     */
+    enum Tier { FREE, GREATER }
+
+    /**
      * One of the three offers a completed run puts in front of a player.
      *
      * <p>The affixes here are the <em>elective</em> ones only -- what the player
@@ -80,36 +87,49 @@ final class Keystone {
      * thresholds hand them on top is derived, never chosen and never stored
      * (see {@link AffixMath}).
      */
-    record Offer(int level, EnumSet<Affix> affixes, int step, String theme) {
+    record Offer(int level, EnumSet<Affix> affixes, int step, String theme, Tier tier) {
         boolean ominous() {
             return affixes.contains(Affix.OMINOUS);
+        }
+
+        boolean free() {
+            return tier == Tier.FREE;
         }
     }
 
     /**
      * The three offers for a run finished at {@code level}, in the order they are
-     * placed. Safe, ominous, fragile -- {@code +1}, {@code +2}, {@code +3}, with
-     * the extra levels paid for in stakes rather than given away.
+     * placed: {@code +1}, {@code +2}, {@code +3}.
+     *
+     * <p>M12: door 1 is {@link Tier#FREE}; doors 2 and 3 are {@link Tier#GREATER}.
+     * The tier only marks what a door <em>is</em>; the fuel spend and the
+     * level-gate refusal both happen at the point a door is actually chosen
+     * ({@link RunLifecycle#chooseOffer}), not here: this method is called to
+     * render a dialog as often as it is called to settle a choice, and a
+     * refusal has no business happening on every render.
+     *
+     * <p>Door 2 keeps {@code OMINOUS} on its {@code EnumSet} as a marker
+     * rendered by {@link Offer#ominous()}. It is a seeded affix now (M10), not
+     * a door pick, but the rendering still wants to know a door promises it.
+     *
+     * <p>M11: {@link AdventureGraph#pick} draws all three themes from
+     * {@code currentTheme}'s transition set (or the entry pool, for a player
+     * with none yet).
      */
     static Offer[] offers(java.util.UUID owner, int level) {
-        return offers(owner, level, List.of());
+        return offers(owner, level, "", 0);
     }
 
-    static Offer[] offers(java.util.UUID owner, int level, List<String> recentThemes) {
+    static Offer[] offers(java.util.UUID owner, int level, String currentTheme, int depth) {
         int max = PocketDungeonsConfig.keystoneMaxLevel();
-        List<String> themes = ThemeOfferMath.pick(owner, level,
-                ThemeManifest.current().discoverableIds());
-        String first = themes.isEmpty() ? null : themes.get(0);
-        String second = themes.isEmpty() ? null : themes.get(1);
-        String third = themes.isEmpty() ? null : themes.get(2);
-        String recipe = DungeonRecipes.current().match(recentThemes);
-        if (recipe != null) {
-            third = recipe;
-        }
+        List<String> themes = AdventureGraphs.current().graph().pick(owner, currentTheme, depth);
+        String first = themes.get(0).isEmpty() ? null : themes.get(0);
+        String second = themes.get(1).isEmpty() ? null : themes.get(1);
+        String third = themes.get(2).isEmpty() ? null : themes.get(2);
         return new Offer[] {
-                new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1, first),
-                new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2, second),
-                new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.of(Affix.FRAGILE), 3, third),
+                new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1, first, Tier.FREE),
+                new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2, second, Tier.GREATER),
+                new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.noneOf(Affix.class), 3, third, Tier.GREATER),
         };
     }
 

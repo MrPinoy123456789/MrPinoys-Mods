@@ -90,6 +90,11 @@ final class LayoutStamper {
         RoomManifest manifest = RoomManifest.current();
         DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
         PlanCell entranceCell = plan.entrance();
+        // M10: every trial spawner this stamp places, for the spawner-clear
+        // completion gate. Collected here rather than passed an InstanceRecord,
+        // since one does not exist yet this early; it travels on the returned
+        // layout instead, the way everything else about this run's shape does.
+        Set<BlockPos> trialSpawners = new LinkedHashSet<>();
 
         for (PlanCell cell : stampOrder(plan)) {
             if (entranceAlreadyStamped && cell.equals(entranceCell)) {
@@ -115,8 +120,11 @@ final class LayoutStamper {
 
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
-            RoomContent.apply(level, cellOrigin, plan.roles().get(cell), depth, profile, spawns,
-                    plan.seed(), affixes, lootSuffix);
+            BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
+                    depth, profile, spawns, plan.seed(), affixes, lootSuffix);
+            if (spawnerAnchor != null) {
+                trialSpawners.add(spawnerAnchor);
+            }
 
             // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
             // ordinary content pass rather than skipping it keeps RoomSelector's
@@ -151,7 +159,8 @@ final class LayoutStamper {
                 keystoneLevel,
                 geometry.cellOrigin(plan.terminal()),
                 plan.rooms().get(entranceCell).rotation(),
-                plan.rooms().get(plan.terminal()).rotation());
+                plan.rooms().get(plan.terminal()).rotation(),
+                Set.copyOf(trialSpawners));
     }
 
     /** Critical path first, then everything else in the geometry's stable order. */

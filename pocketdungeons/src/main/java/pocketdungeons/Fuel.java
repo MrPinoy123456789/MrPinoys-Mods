@@ -1,0 +1,77 @@
+package pocketdungeons;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+
+/**
+ * M12's Greater-door currency: what door 1 pays out and doors 2/3 cost.
+ * Configured, not hardcoded, following the {@link ConfiguredItem} pattern
+ * {@link Keystone} and {@link TrialContent} already use.
+ *
+ * <p><strong>Door 1 is the only source.</strong> Nothing else in this mod's
+ * loot tables grants {@link PocketDungeonsConfig#fuelItem()} (echo shards by
+ * default), by design: a Greater-tier room dropping fuel of its own would let
+ * the premium path fund itself, which is exactly the self-funding risk the
+ * M12 plan section warns against. {@link RunLifecycle#completeRun} grants
+ * {@link PocketDungeonsConfig#fuelPerFreeRun()} directly, guaranteed, on
+ * every completed free-door run; nothing here rolls a chance at it.
+ */
+final class Fuel {
+
+    private static final ConfiguredItem FUEL_ITEM = new ConfiguredItem("fuelItem",
+            PocketDungeonsConfig::fuelItem,
+            "the Greater doors will refuse every choice: nothing can ever pay their cost.");
+
+    private Fuel() {}
+
+    /** Resolves the configured item once, so a typo is a boot-time log line. */
+    static void warmUp() {
+        FUEL_ITEM.get();
+    }
+
+    /**
+     * How many units of fuel {@code player} is carrying. {@code 0} if the
+     * configured item does not resolve to anything, rather than throwing: an
+     * unresolvable fuel item should read as "can never afford it", the same
+     * as any other {@link ConfiguredItem} failure mode in this mod.
+     */
+    static int count(ServerPlayer player) {
+        Item item = FUEL_ITEM.get();
+        return item == null ? 0 : player.getInventory().countItem(item);
+    }
+
+    /**
+     * Removes {@code amount} units from {@code player}'s inventory. Caller's
+     * responsibility to have checked {@link #count} first; this does not
+     * refuse a short count; it just cannot remove more than exists.
+     *
+     * <p>{@code Inventory.clearOrCountMatchingItems}'s third parameter is an
+     * extra container it clears from as well as the inventory itself and
+     * whatever is on the cursor of an open menu (verified in bytecode: vanilla
+     * passes the crafting grid there, so an in-progress craft's ingredients
+     * count too). Nothing here should touch a crafting grid, so an empty,
+     * unrelated {@link SimpleContainer} stands in for "nothing else."
+     */
+    static void spend(ServerPlayer player, int amount) {
+        Item item = FUEL_ITEM.get();
+        if (item == null || amount <= 0) {
+            return;
+        }
+        player.getInventory().clearOrCountMatchingItems(stack -> stack.is(item), amount, new SimpleContainer(0));
+    }
+
+    /**
+     * Grants {@code amount} units, via {@link Payout#deliver} so a full
+     * inventory drops the overflow at the player's feet rather than voiding
+     * it.
+     */
+    static void grant(ServerPlayer player, int amount) {
+        Item item = FUEL_ITEM.get();
+        if (item == null || amount <= 0) {
+            return;
+        }
+        Payout.deliver(player, new ItemStack(item, amount));
+    }
+}

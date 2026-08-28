@@ -51,6 +51,217 @@ wait on `LORE.md`.
 
 ---
 
+## Implementation context (read this before touching any file)
+
+The rest of this plan names classes and fields freely. This section is the
+ground truth for an implementer who has never opened the repo: where things
+live, which patterns to copy, which traps already bit, and how to verify a
+change without a Minecraft client. Read it once; every milestone below assumes
+it.
+
+### Toolchain and commands
+
+- **Platform:** Minecraft `26.2`, Fabric Loader `0.19.3`, Fabric API
+  `0.156.0+26.2`, Java 25 (`sourceCompatibility`/`targetCompatibility` =
+  `VERSION_25`, `options.release = 25`). Minecraft ships unobfuscated since
+  26.1, so there are **no mappings**; do not add Yarn or Mojang mappings.
+- **Server-side only.** `fabric.mod.json` declares `"environment": "server"`
+  and there is no `src/main/resources/assets/` directory. Nothing in this plan
+  may introduce a client component. The vanilla dialog API
+  (`net.minecraft.server.dialog`) is the one exception that is already in use:
+  dialogs are sent as runtime `Holder.direct` values with no registry entry and
+  no client install. See `DialogKit` and the "Dialogs" note below.
+- **Build:** `./gradlew.bat build` (Windows) or `./gradlew build`. The mod
+  root is `A:\MrPinoys Mods\pocketdungeons`.
+- **Headless run:** `./gradlew.bat runServer --offline`. There is no client in
+  this environment. The dev-server harness is a Python driver that pipes timed
+  console commands into `runServer`'s stdin and reads stdout for the `Done (`
+  boot marker; see `docs/DISCOVERIES.md` "Operational notes" for the exact
+  shape and the two gotchas (native Windows Python, POSIX paths).
+- **Pure-Java unit tests:** `./gradlew.bat doorMaskTest` runs the
+  `DoorMaskTest` regression. The same `tasks.register<JavaExec>` shape is how
+  any new pure-Java maths (affix thresholds, intensifier bands, fuel curves)
+  should get a test task. Prefer adding a test over a live-only check.
+- **Verify against the 26.2 jar before using any Minecraft API shape.** This is
+  trap 1 in `DISCOVERIES.md` and it has shipped three bugs. The jar lives at
+  `C:\Users\Kriss\.gradle\caches\fabric-loom\minecraftMaven\net\minecraft\minecraft-merged-deobf\26.2\minecraft-merged-deobf-26.2.jar`
+  (POSIX form for Git Bash: `/c/Users/Kriss/.gradle/...`). Inspect with:
+  `javap -cp "$JAR" net.minecraft.some.Class` for signatures,
+  `javap -c -p -cp "$JAR" net.minecraft.some.Class` for bytecode when behaviour
+  matters. Checking a method exists is not the same as checking what it does.
+
+### The one-mixin budget
+
+This mod has exactly one mixin: `mixin/CustomClickMixin`, which catches dialog
+button payloads because Fabric API has no event for
+`ServerboundCustomClickActionPacket` and vanilla's own hook has already
+discarded which player clicked. **Everything else runs on stock Fabric API
+events.** If a milestone seems to need a second mixin, say so in the report and
+look for the Fabric event or the datapack route first; traps 14 and 15 in
+`DISCOVERIES.md` are a worked example of that search paying off. The milestones
+below flag the two places a mixin-shaped surface might tempt (M15 trim
+duplication recipe, M17 craft-result interception); both have a datapack or
+event alternative that should be exhausted first.
+
+### Package layout
+
+Every Java file lives in one package, `pocketdungeons`, with one sub-package
+`pocketdungeons.mixin` for the single mixin. There are no sub-packages per
+feature; do not introduce any. The full file list is under
+`src/main/java/pocketdungeons/`. Resources live under
+`src/main/resources/data/pocketdungeons/` with these subdirectories that the
+milestones touch:
+
+- `loot_table/chests/` : the tiered chest tables (`tier_1`, `tier_2`,
+  `tier_3`, their `_ominous` variants, `supply_tier_*`, and the optional
+  themed `_drowned` suffix tables). M13 authors gear here; M12 adds fuel
+  entries here.
+- `dungeon_theme/` : one JSON per theme (`name`, `processors`, optional
+  `discoverable`, optional `loot_suffix`). M11's adventure graph references
+  these ids.
+- `dungeon_recipe/` : the recipe files M11 deletes and replaces with the
+  adventure graph.
+- `dungeon_room/` : room template metadata JSON. M11's boss room adds one
+  here, plus a `.nbt` under `structures/`.
+- `trial_spawner/` : data-driven trial spawner configs keyed by id, written
+  from Java by `TrialContent`.
+
+### The pure-Java discipline (copy this shape for any new maths)
+
+`AffixMath`, `KeystoneMath`, `DoorMask`, `DifficultyProfile`, and `PayoutMath`
+carry **no Minecraft imports**. They are plain `javac` classes so the
+threshold/clamp/curve logic is trivial to test and impossible to get
+subtly wrong inside a Minecraft import tangle. Any new arithmetic this plan
+needs (fuel cost curves, reroll lapis curves, gamble emerald curves, equip-cap
+counts, intensifier bands past 25, spawner-clear percentages) belongs in a new
+or existing pure-Java class in this style, with a `doorMaskTest`-style task for
+verification. The rule is: if it is a pure function of its arguments and has
+no registry or world dependency, it does not import Minecraft.
+
+### Patterns to copy verbatim
+
+- **Config-named item:** `ConfiguredItem` wraps a config string id, resolves it
+  lazily against `BuiltInRegistries.ITEM`, caches against the string, and logs
+  once at first ask. Any new "what block/item does this feature use" field
+  (`fuelItem`, reroll station block, gamble station block) is a
+  `ConfiguredItem` resolved at `SERVER_STARTED` from a `warmUp()` call, the way
+  `Keystone.warmUp()`, `CallingCard.warmUp()`, and `TrialContent.warmUp()` are
+  registered in `RitualListener.register()`. The fallback convention is "X
+  will fall back to minecraft:Y" in the consequence string.
+- **Reloadable datapack resource:** `ThemeManifest`, `DungeonRecipes`, and
+  `RoomManifest` all follow one shape: a `volatile current` holder, a
+  `load(MinecraftServer)` that calls `server.getResourceManager()
+  .listResources("<path>", id -> id.getPath().endsWith(".json"))`, sorts
+  entries by id, parses each in a try/catch that collects rejections, and a
+  `SimpleSynchronousResourceReloadListener` registered via
+  `ResourceManagerHelper.get(PackType.SERVER_DATA)` that re-`load`s on
+  `/reload`. M11's `AdventureGraph` loader copies this shape exactly, under a
+  new resource path (`dungeon_adventure`).
+- **Block-use interception (a station):** `RitualListener` owns this mod's one
+  `UseBlockCallback.EVENT` registration. A new station (M14 reroll, M16
+  gamble) that intercepts a specific block's right-click should either branch
+  inside `RitualListener.onUseBlock` ahead of the lodestone check (the way the
+  selector-door and calling-card branches already do), or, if the question is
+  cleanly separable, register its own `UseBlockCallback` keyed on the
+  configured block. Study `RitualListener` before adding either; it already
+  handles the both-hands gate, the shift-to-place escape hatch, and the
+  `RoomProtection` container/placement denial that must stay ahead of any new
+  branch.
+- **Item-use interception:** `SilenceListener` owns the one
+  `UseItemCallback.EVENT` registration. M15's equip-time trim bonus is a
+  different hook (slot change, not item use); see the M15 notes.
+- **Dialog screen:** `DialogKit` is the narrowed vanilla-dialog API. Build a
+  screen with `DialogKit.confirm` / `DialogKit.list` / `DialogKit.notice`,
+  send it with `DialogKit.show(player, dialog)` only as the direct response to
+  a click or command (never unprompted; a dialog is modal and seizes the
+  screen). Buttons either run a fixed `/dungeon ...` command
+  (`DialogKit.command`, the "tier A" path, no round trip) or submit a
+  `CustomAll` payload to `DialogRouter` (`DialogKit.submit`, the "tier B" path,
+  for "which list entry was clicked"). Context keys are `pd_`-prefixed because
+  input keys overwrite context keys on collision. There is no dialog history
+  stack: every "back to the list" is the handler rebuilding the list from
+  current state. `DialogScreens` is where every screen lives; add new ones
+  there.
+- **Per-player persistent state:** `DungeonLog extends SavedData`, keyed by
+  UUID, stored in the overworld's data storage (not per-dimension). Its
+  `Entry` record is the schema. **Codec migration discipline:** every new
+  field is added as an `optionalFieldOf` with a sane default, so an old save
+  loads unchanged. When a field is retired, mark it superseded in the
+  javadoc and keep the codec field; do not delete it on the first pass. This
+  plan retires `keystoneAffix` (elective storage) and `recentThemes` (theme
+  history) that way. The save file lives at
+  `run/world/dimensions/minecraft/overworld/data/pocketdungeons/dungeon_log.dat`
+  (trap 8 in `DISCOVERIES.md`); "no file in `world/data`" is normal, not a
+  failure.
+- **Loot table registry access:** `LootTables` holds the named table path
+  constants and `validateAtStartup` confirms each one resolves. A table is
+  resolved through `level.registryAccess().lookupOrThrow(Registries.LOOT_TABLE)`
+  and `registry.getValue(Identifier)`. `TrialContent.applyLoot` and
+  `placeCompletionChests` are the call sites to copy for "draw from a table by
+  key". M13's new gear tables and M16's slot-keyed gamble tables register
+  their path constants here and add them to the `ALL` startup check.
+- **The keystone is a remote, not a save file.** `DungeonLog` is the
+  authority for level and affix; the item stack renders that state and is
+  never the source of truth. `Keystone.reconcile(player, level, affixes)`
+  rewrites every stale remote in a player's inventory and ender chest on the
+  instance watcher's interval. **The keystone name must stay a pure function
+  of `(level, affixSet)`** (`AffixMath.name`); any new label that rolled
+  randomness would churn on every reconciliation. This is why intensifier
+  bands and affix thresholds are deterministic functions of level.
+
+### Conventions that will bite if ignored
+
+- **Punctuation:** no em dash and no double hyphen as punctuation, anywhere a
+  person reads (chat, dialogs, item lore, command output, log lines, markdown,
+  javadoc, commits). Use `:`, `;`, `,`, `()`, or two sentences. Command-line
+  flags (`--offline`) and code operators (`i--`) are not punctuation and stay
+  as they are. See `A:\MrPinoys Mods\CLAUDE.md`.
+- **`Inventory.add(ItemStack)` returns "did I move any" and mutates the stack
+  down to the remainder** (trap 3). Use `Payout.deliver` for any item grant;
+  never the bare `if (!inv.add(stack))` idiom.
+- **Container block replacement needs both `UPDATE_SUPPRESS_DROPS` and
+  `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`** (trap 4). Use `TrialContent.FLAGS`
+  / `RoomContent.FLAGS`.
+- **`ClickEvent` is a sealed interface in 26.2** (trap 5). Use
+  `new ClickEvent.RunCommand("/dungeon choose 1")` and
+  `new ClickEvent.ShowDialog(Holder.direct(dialog))`; the old
+  `new ClickEvent(Action.RUN_COMMAND, ...)` form will not compile.
+- **A misspelt trial-spawner config id does not throw** (trap 6); the codec
+  drops the field and the spawner silently keeps `FullConfig.DEFAULT`. Read
+  ids back out (`/dungeon admin cellreport`) rather than trusting the write.
+- **Headless testing cannot right-click, open a chest, or click a GUI button**
+  (trap 10). Anything client-interactive goes in `docs/LIVE_TEST_PASS.md` as
+  unverified, not claimed working. Every milestone's "Done when" is a mix of
+  headless-verifiable (commands, registry, save state) and live-only (dialogs,
+  station right-clicks, trim bonus in combat).
+- **Check generated data, not just that generation ran** (carried lesson):
+  user-reported bugs survived passes that confirmed a table parsed and the
+  right item type appeared, but never inspected an enchantment component or
+  compared a roll's size to the plan. For M13 specifically, inspect a drawn
+  stack's `DataComponents.ENCHANTMENTS`, not just that a chestplate appeared.
+
+### Key files map
+
+| File | Role |
+|---|---|
+| `PocketDungeonsMod` | Entrypoint; registers every listener; `DUNGEON_LEVEL` key |
+| `PocketDungeonsConfig` | All config fields, `apply`/`applyDefaults`, `readInt`/`readDouble`/`readString` helpers |
+| `Instances` | Slot/party tick watcher, pad-contact detection, `completeRun` call site, `affixesFor`, `roomOwnerAt` |
+| `RunLifecycle` | Entry, `chooseOffer`, `completeRun`, `exit`, `dropMember`; the game loop |
+| `InstanceRecord` | One live instance's state (affixes, theme, timer, `chosenStep`, `completed`) |
+| `Keystone` / `Keystones` | The remote item; `offers`, `mint`, `reconcile`; `grantOffer`/`returnTo` settlement |
+| `Affix` / `AffixMath` | The affix enum, thresholds, intensifier bands, naming, depletion |
+| `DungeonLog` | Per-player `SavedData`; `Entry` record and codec |
+| `DungeonRecipes` / `RecipeMatcher` / `DungeonRecipe` / `ThemeHistory` | The recipe system M11 deletes |
+| `ThemeManifest` / `ThemeOfferMath` | Theme registry and the deterministic three-theme deal |
+| `TrialContent` / `LootTables` | Trial spawner + vault stamping, and the named loot-table constants |
+| `RitualListener` / `SilenceListener` / `RoomProtection` | The block-use, item-use, and break/place hooks |
+| `DialogKit` / `DialogScreens` / `DialogRouter` | The dialog API, the screens, and the `CustomAll` payload router |
+| `ConfiguredItem` | Config-named item resolution pattern |
+| `RoomStore` / `RoomBuilder` / `LayoutStamper` | Room capture, sealing, and stamping (M11 boss room, M12 door plumbing) |
+
+---
+
 ## The dependency graph
 
 ```
@@ -160,6 +371,106 @@ after-spawn hook that can mutate attributes before the mob ticks); the
 have been activated, or does an untouched spawner sit at `INACTIVE` and need
 excluding from the count?).
 
+**Implementation notes:**
+
+- **Cap bump is one line and one default.** `PocketDungeonsConfig.keystoneMaxLevel`
+  is `25` in both the field initialiser and `applyDefaults`; `apply` reads it
+  with `readInt(root, "keystoneMaxLevel", 25, v -> v >= 1, ...)`. Change both
+  `25`s to `100`. `KeystoneMath.clampLevel(level, maxLevel)` already takes the
+  cap as a parameter, so no other clamp site needs editing; grep
+  `keystoneMaxLevel()` to confirm no caller hardcodes 25.
+- **Mob scaling is a new listener, not a per-spawner NBT write.** The clean
+  shape is one Fabric event hook that mutates attributes on spawn, reading the
+  level off the instance the mob is inside. `Instances.java:3` already imports
+  `ServerLivingEntityEvents`; the existing registration is
+  `ServerLivingEntityEvents.ALLOW_DEATH.register(...)` in `Instances.register`.
+  Verify against the jar which `ServerLivingEntityEvents` callback fires
+  after a mob is placed but before it first ticks (the candidate is
+  `AFTER_LIVING_DEATH`/`MOB_SPAWN`-shaped; confirm the exact method name and
+  whether it gives a `ServerLevel` you can map back to an `InstanceRecord` via
+  `InstanceRegistry.bySlot`/origin bounds). The scale is a pure function:
+  put `+1% per level` as `static double mobScale(int level)` in a new pure-Java
+  class (e.g. `DifficultyProfile` already exists; extend it or add a sibling),
+  with a `doorMaskTest`-style task. Apply it as
+  `MutableAttributeInstance` modifiers on `max_health`, `attack_damage`, and
+  `movement_speed` via `net.minecraft.world.entity.ai.attributes`
+  (`Attributes.MAX_HEALTH` etc.); verify the modifier UUID and operation
+  against the jar. The listener must no-op outside
+  `PocketDungeonsMod.DUNGEON_LEVEL` and must read the level from the instance
+  (the mob's chunk sits inside one slot's origin bounds; use
+  `InstanceRegistry.bySlot` and `InstanceRecord.layout.keystoneLevel()`), never
+  from a global.
+- **Affix thresholds: prefer the percentage system, but keep it deterministic.**
+  `AffixMath.seededCount(int level)` is the function to change. The fixed
+  thresholds are `FIRST=5, SECOND=11, THIRD=17` (private static finals). A
+  percentage form `min(level / 20, cap)` keeps the function pure and
+  watcher-stable. Whichever is chosen, `AffixMath.seededFor(UUID, int)` calls
+  `seededCount` and shuffles the `Kind.SEEDED` pool with
+  `AffixMath.seed(owner, level)`; that shuffle must keep using the same
+  `(owner, level)` seed so a given key's affixes stay stable across
+  reconciliations. Add a test that asserts `seededCount` is monotonic and
+  caps at the pool size.
+- **Intensifier bands: extend `AffixMath.intensifier`.** Today it returns
+  `"Baby"` (1-5), `"Lowkey"` (6-10), `"Highkey"` (11-15), `"Menace"` (16-20),
+  `"Unhinged"` (21+). Extend the `21+` branch into named bands across 21-100.
+  The function is pure and feeds `AffixMath.name`, which the watcher renders;
+  keep it a pure function of `level` with no randomness. Add a test covering
+  every band boundary.
+- **Drop `FRAGILE`, migrate `OMINOUS`, remove `Kind.ELECTIVE`:** this touches
+  three files in order.
+  1. `Affix.java`: delete the `FRAGILE(...)` enum entry; change `OMINOUS`'s
+     `Kind.ELECTIVE` to `Kind.SEEDED`; delete `ELECTIVE` from the `Kind` enum.
+     `OMINOUS`'s `depletionMultiplier` stays `1` (it was never the depleting
+     one; `FRAGILE` was). `Keystone.colourOf` has a `case FRAGILE ->` arm that
+     must go, and the `switch` must stay exhaustive; verify the compiler
+     catches any other `case FRAGILE` (grep `FRAGILE` across the tree).
+  2. `AffixMath.java`: `elective(Set)` becomes a function that always returns
+     an empty set (it filters on `Kind.ELECTIVE`, which no longer exists).
+     `effective(UUID, level, elective)` still works because the elective
+     argument is now always empty. Mark `elective` `@Deprecated` rather than
+     deleting on the first pass.
+  3. `DungeonLog.java`: `Entry.keystoneAffix` and its codec field
+     `Codec.STRING.optionalFieldOf("keystone_affix", "")` stay (save-format
+     safety); the `setKeystone` write still calls `AffixMath.join(AffixMath
+     .elective(affixes))`, which now writes `""` always. Mark the field
+     superseded in its javadoc. Do not remove the codec field until a migration
+     confirms no live save carries elective data.
+  `Keystones.grantOffer` and `Keystones.returnTo` both call
+  `AffixMath.elective`; they keep compiling and now pass empty sets through.
+  `Keystone.offers` builds `EnumSet.of(Affix.OMINOUS)` and
+  `EnumSet.of(Affix.FRAGILE)` for doors 2 and 3; the `FRAGILE` line must go
+  and the door-2/3 offer shape changes again in M12, so for M10 just make it
+  compile (door 2 keeps `OMINOUS` as a seeded-style marker; door 3 becomes a
+  plain `EnumSet.noneOf(Affix.class)` until M12 rewrites the offer shape).
+- **Spawner-gated completion: the gate goes in `completeRun`, not the pad
+  check.** `Instances`'s watcher calls `RunLifecycle.completeRun(server,
+  record, player)` on first pad contact when `record.isKeystoneRun()` and the
+  member is not already in `record.completed` (see the `stepped` block in
+  `Instances`). The gate is: before `completeRun` does its work, check the
+  spawner-clear fraction and refuse with a chat message if it is below
+  threshold. Two pieces of state are needed:
+  1. **Spawner positions, collected at stamp time.** `TrialContent
+     .applyEncounter` places each trial spawner; it already knows `anchor`.
+     Collect these positions onto `InstanceRecord` (a new `final
+     Set<BlockPos> trialSpawners` field, populated by `TrialContent` as it
+     stamps). Verify against the jar that
+     `TrialSpawnerBlockEntity` exposes `getState()` returning
+     `TrialSpawnerState` and that `TrialSpawnerState.COOLDOWN` is the
+     "cleared" state (the plan's 26.2 note says it does; re-confirm, and
+     confirm whether an untouched spawner sits at `INACTIVE` and must be
+     excluded from the denominator, or counts as "not cleared").
+  2. **The fraction check.** A new pure-Java helper
+     `static boolean spawnersCleared(int cleared, int total, double
+     threshold)` (or extend `DifficultyProfile`), with a test. The threshold
+     (0.7-0.8) is a config field (`spawnerClearThreshold`, a `readDouble`).
+     A seeded affix that raises the threshold to 100% is a new `Affix` member
+     of `Kind.SEEDED`; its kiss is open (Q5). If it ships, its
+     `depletionMultiplier` is `1` and it joins the `seededFor` pool.
+  The refusal message goes to the player via `sendSystemMessage`; the run
+  stays live and the pad stays contactable, so the player can go clear more
+  spawners and step back on. This is live-only verification (a pad contact);
+  record it in `LIVE_TEST_PASS.md`.
+
 ---
 
 ## M11 - Adventures: the recipe system becomes a descent graph
@@ -221,6 +532,86 @@ is a single proof or a small set.
 
 **Verify against the 26.2 jar:** nothing new; the graph is pure JDK and the
 loading path mirrors the existing one.
+
+**Implementation notes:**
+
+- **`AdventureGraph` is a new pure-Java class plus a new reloadable loader.**
+  The graph itself is pure JDK (a `Map<String, List<Transition>>` where
+  `Transition(String theme, int weight)` is a record), so put the graph model
+  and the weighted-pick arithmetic in a no-Minecraft class in the
+  `AffixMath`/`KeystoneMath` style, with a `doorMaskTest`-style task. The
+  loader (`AdventureGraphs` or similar) copies `DungeonRecipes.load` exactly:
+  `volatile current` holder, `load(MinecraftServer)` calling
+  `server.getResourceManager().listResources("dungeon_adventure", id ->
+  id.getPath().endsWith(".json"))`, sorted entries, try/catch rejection
+  collection, and a `SimpleSynchronousResourceReloadListener` registered via
+  `ResourceManagerHelper.get(PackType.SERVER_DATA)` (mirror
+  `ThemeManifest.register`). Validate every transition's theme id against
+  `ThemeManifest.current().byId(...)` the way `DungeonRecipes.validateThemes`
+  does. Register the load in `Instances.register`'s `SERVER_STARTED` block
+  alongside `DungeonRecipes.load(server)` (which itself goes away), and in
+  the reload listener alongside `DungeonRecipes.load(value)`.
+- **Three node kinds are fields on the transition record, not separate
+  classes.** A node is `entry`, `descent`, or `boss`. The graph JSON is one
+  file per theme: `{ "kind": "descent", "next": [ {"theme": "prismarine",
+  "weight": 3}, ... ] }`. Entry nodes have `next` but no boss; boss nodes
+  have no `next` and instead reset `currentTheme` to a weighted entry set.
+  Depth-based rare-node weighting is a property of the pick function: the
+  deeper the current descent chain, the lower the weight on further descent
+  and the higher on a boss. Keep the pick deterministic from
+  `(owner, currentTheme, depth)` using `AffixMath.seed` so a given player's
+  offered doors are stable across the watcher interval (the same
+  watcher-stability rule that governs the keystone name).
+- **`currentTheme` replaces `recentThemes` on `DungeonLog.Entry`.** Add a new
+  `String currentTheme` field to the `Entry` record with
+  `Codec.STRING.optionalFieldOf("current_theme", "")`. Keep the existing
+  `recentThemes` field and its codec (`optionalFieldOf("recent_themes",
+  List.of())`) marked superseded; do not delete on the first pass. The
+  `recordTheme(player, theme)` method currently calls
+  `ThemeHistory.push(previous.recentThemes(), theme)`; replace its body with
+  a write of the new `currentTheme` (and, on a boss node, the reset to the
+  chosen entry theme). `ThemeHistory` becomes dead; mark it superseded, do
+  not delete yet.
+- **The door-offer selection path is `Keystone.offers`.** Today it calls
+  `ThemeOfferMath.pick(owner, level, discoverableIds())` for the three themes
+  and `DungeonRecipes.current().match(recentThemes)` to override the third.
+  Replace the `match` call with `AdventureGraphs.current().pick(owner,
+  currentTheme, depth)` returning three next-themes from the current theme's
+  transition set. `ThemeOfferMath.pick` may stay as the fallback for entry
+  nodes (the "deal three discoverable themes" shape) or be folded into the
+  graph; either way the three offers come from the graph once a
+  `currentTheme` is set. `Keystone.offers`'s `recentThemes` parameter becomes
+  `currentTheme`; update the two call sites (`Keystones.grantOffer` via
+  `completeRun`, and `RunLifecycle.chooseOffer`).
+- **Delete the recipe system only after the graph is wired and verified.**
+  `DungeonRecipes`, `RecipeMatcher`, `DungeonRecipe`, and `ThemeHistory` are
+  the four files to delete. Delete the `dungeon_recipe/` resource directory
+  and its one shipped file (`drowned_vault.json`). Do this in the same
+  milestone once the adventure graph produces correct door offers, not before;
+  the recipe system is the only thing keeping door offers working while the
+  graph is half-built.
+- **Landed divergence: the boss lives in the terminal cell, not a new
+  authored room.** This plan originally called for one hand-authored `.nbt`
+  plus one `dungeon_room/*.json` entry (copying `encounter_zombie.json`'s
+  shape). The implementing session had no live Minecraft client and no way to
+  open a structure block to author or capture a new structure, so
+  `BossContent.spawn` places the boss directly into the terminal cell's
+  existing `exit_hall` template instead, the one room every procedural
+  dungeon already stamps at a single fixed rotation (the same fact
+  `TrialContent`'s reward-chest placement leans on). Everything else shipped
+  as written: the boss entity is a tagged vanilla mob (`minecraft:ravager`)
+  with scaled attributes reusing M10's `Instances.applyMobScale` machinery
+  (a steeper multiplier, `BossContent.BOSS_SCALE_FACTOR`), not a custom
+  entity, and the completion condition ties into M10's spawner gate exactly
+  as specified: reaching the terminal pad on a boss-themed run with the boss
+  alive refuses completion the same way an uncleared spawner does
+  (`RunLifecycle.completeRun`). A bespoke boss arena, and a `dungeon_room`
+  entry of its own, remain future work for whoever next has a client
+  attached to author or capture one. The boss room is still live-only
+  verification.
+- **Keep the graph hidden.** No "you are here", no node list, no depth
+  counter in any dialog or chat. `DialogScreens.doorOffer` already shows only
+  the one door's theme and affix; it stays that way.
 
 ---
 
@@ -306,6 +697,89 @@ own timer and how long.
 **Verify against the 26.2 jar:** nothing new; the `ConfiguredItem` pattern and
 the door-offer plumbing already exist.
 
+**Implementation notes:**
+
+- **The offer shape changes here, not in M10.** M10 left `Keystone.offers`
+  returning three offers with `OMINOUS` on door 2 and a plain set on door 3.
+  M12 rewrites `Keystone.offers` so door 1 is the free/fuel-source tier and
+  doors 2/3 are the Greater tier. The `Offer` record (`int level, EnumSet<Affix>
+  affixes, int step, String theme`) gains the tier distinction; the clean way
+  is a new field (`boolean free` or an `enum Tier { FREE, GREATER }`) rather
+  than overloading `step`. `Keystone.Offer.ominous()` stays (ominous is now a
+  map property from M10, but the offer still carries it for rendering).
+- **Door-offer plumbing to edit, in call order:**
+  1. `Keystone.offers(UUID, int, ...)` builds the three offers; this is where
+     door 1 is marked free and doors 2/3 are marked Greater, level-gated, and
+     fuel-costed.
+  2. `DialogScreens.doorOffer(Offer, step, heading)` renders one door; add the
+     tier, the fuel cost, and the level gate to the body text. Door 1's dialog
+     says "free, pays fuel"; doors 2/3 say "costs N fuel, level-gated at L".
+  3. `RitualListener.sendDoorOffer` is the entry from the lobby selector
+     door; it stays the same shape, just passes the new `Offer`.
+  4. `RunLifecycle.chooseOffer(player, step)` settles the choice. This is
+     where the fuel spend and the level-gate refusal happen: before
+     `Keystones.grantOffer`, check the player's fuel inventory (count of
+     `fuelItem`) and refuse with a message if doors 2/3 are chosen without
+     enough; check the keystone level against the door's threshold and refuse
+     if the level is too low. Door 1 never refuses on fuel.
+  5. `Keystones.grantOffer` writes the chosen level/affix; it does not need
+     the tier, but the fuel spend must happen here (or in `chooseOffer`
+     immediately before it) so a successful choice is atomic with the spend.
+     Use `Payout.deliver`'s inverse (a stack shrink) for the spend, not bare
+     `inventory.add`.
+- **`KeystoneMath.deplete` already encodes "a keystone never goes to zero".**
+  Door 1's non-depleting property is the same principle applied to fuel: a
+  door-1 run never costs fuel, and a failed door-1 run never depletes the
+  keystone. The existing `Keystones.Outcome` enum (`TIMED_OUT`, `LATE`,
+  `NO_CHANGE`) drives `Keystones.returnTo`; door 1's runs should settle as
+  `NO_CHANGE` always (no depletion, no fuel cost), which may mean carrying the
+  tier onto `InstanceRecord` so `returnTo` can skip depletion for free-door
+  runs. Add a `boolean freeDoor` (or the tier enum) to `InstanceRecord`,
+  set at `chooseOffer` time.
+- **Fuel currency is a `ConfiguredItem`, config-selected.** Add
+  `fuelItem` to `PocketDungeonsConfig` (string id, default
+  `minecraft:echo_shard` or `minecraft:diamond`), a `ConfiguredItem` for it
+  resolved in a new `warmUp()` registered from `RitualListener.register` (or
+  wherever the door plumbing lives). Add `door1TimerSeconds`,
+  `fuelCostPerGreaterDoor`, `fuelPerFreeRun` (or a small curve) as config
+  fields with `readInt`/`readDouble`. The fuel count check reads the
+  resolved item and counts it in the player's inventory via
+  `player.getInventory().countItem(...)`.
+- **Loot-table edits are JSON only.** Add the fuel currency to the free
+  door's payout table (the `supply_tier_*` tables are the natural home, or a
+  new `chests/fuel_payout.json`) at a low weight. If echo shards are chosen,
+  add them to `tier_2`/`tier_3` and their `_ominous` variants. Ensure
+  premium (Greater) rooms drop *different* loot (decoratives, theme blocks,
+  provenance materials), not more fuel, so the loop does not feed itself;
+  this is an edit to the `tier_*` tables' pool composition. All new table
+  path constants go in `LootTables` and its `ALL` startup check.
+- **Landed decision: door 1's payout is a guaranteed direct grant
+  (`Fuel.grant`), not a weighted loot-table entry.** This is a mechanism
+  choice within the currency decision this bullet already delegates to
+  implementation, not a scope cut: the plan's currency table lists
+  self-funding as the risk to design around, and a guaranteed grant closes it
+  completely rather than mitigating it with weight tuning. It also keeps
+  `fuelPerFreeRun` an actual, load-bearing config field: a JSON `set_count`
+  cannot read `PocketDungeonsConfig` at runtime, so a config-driven amount
+  needs the grant to happen in Java regardless of loot weight. Consequence:
+  echo shards were never added to any loot table, tier 2/3 included, since
+  door 1 is the currency's only source by construction. If the fuel
+  production rate ever needs to feel less like a fixed allowance and more
+  like a drop, revisit this as a loot-table change rather than assuming the
+  code path stays a flat grant forever.
+- **Pacing the free door is config tuning, not code.** `door1TimerSeconds`
+  (if door 1 gets its own shorter clock) and the `fuelPerFreeRun` /
+  `fuelCostPerGreaterDoor` ratio are settled in-milestone by playtesting.
+  Start with a ratio where roughly N free runs fund one Greater run, and
+  adjust. The free door's timer, if separate, is a new branch in
+  `KeystoneMath.timerSeconds` or a second config field read at
+  `RunLifecycle.enter` time based on the chosen tier.
+- **The deferred fourth door is out of scope; do not build it here.** Its
+  design (a crafted, marked vanilla door, placed at a fourth selector
+  position, read by `RitualListener` before placement consumes the marker)
+  is recorded above and in `DISCOVERIES.md` traps 13-17. It depends on M10
+  and M11 settling first. If picked up later, it gates `lootTier` itself.
+
 ---
 
 ## M13 - Gear loot pool (content, no Java)
@@ -346,6 +820,82 @@ tables to read from.
 **Open (tuning, in-milestone):** the exact item and enchantment distribution per
 tier; whether the gamble draws from the chest tables or its own slot-keyed
 tables; enchantment weighting curves.
+
+**Implementation notes:**
+
+- **This milestone writes zero Java.** It is JSON authoring under
+  `src/main/resources/data/pocketdungeons/loot_table/`. The only Java-adjacent
+  touch is registering any new table path constants in `LootTables` and its
+  `ALL` startup check, so a missing table is a boot-time error rather than a
+  silently empty chest (trap 6's cousin).
+- **Copy the existing table shape.** `tier_1.json` is the template: a
+  `minecraft:chest` table with `pools` of `entries`, each entry a
+  `minecraft:item` with `weight` and `functions` (`minecraft:set_count`,
+  `minecraft:set_enchantments`). Author gear entries the same way: a
+  `minecraft:item` entry for `minecraft:iron_chestplate` etc., with a
+  `minecraft:set_enchantments` function carrying weighted enchantment levels.
+  Verify the `set_enchantments` function shape against the jar (the
+  `enchantments` map and the `levels` provider form) before authoring; a
+  misspelt enchantment id in a loot function is silently dropped, the same
+  way a misspelt trial-spawner config id is (trap 6).
+- **Per-slot, per-tier pools.** Decide early whether the gamble (M16) draws
+  from the chest tables or its own slot-keyed tables, because it changes what
+  to author. The cleaner answer for the gamble is separate slot-keyed tables
+  (`loot_table/gear/<slot>_<tier>.json`, e.g. `gear/chestplate_1.json`), so a
+  gamble draw cannot out-produce a run's chests and the chest tables stay
+  general. If so, author both: gear entries folded into the existing
+  `chests/tier_*` tables (so runs drop gear), and the slot-keyed
+  `gear/*` tables (so the gamble has a clean draw source). The slot-keyed
+  tables can `extend` or simply duplicate the relevant entries; vanilla loot
+  tables have no inheritance, so duplication is the mechanism.
+- **Provenance and the tier palette.** `VISION.md` §3.6.1 fixes the palette:
+  tier 1 is stone/wood/iron/moss, tier 2 is deepslate/copper/prismarine/crying
+  obsidian, tier 3 is end stone/ancient-city materials. Gear follows the same
+  tiering: tier 1 iron-grade, tier 2 iron/diamond-grade with copper accents,
+  tier 3 diamond/netherite. A piece's tier must be readable off the table it
+  came from, because M14 (reroll cost) and M16 (gamble cost) scale with tier.
+  The clean signal is "which table did this drop from"; carry that as a
+  `custom_data` tag on the gear (`pocketdungeons.tier = N`) written by a
+  `minecraft:set_components`-style function, so the reroll and gamble stations
+  can read it off the stack without a registry lookup. Verify the
+  `set_components`/`custom_data` loot function shape against the jar.
+- **Self-sufficiency (§3.7): pre-rolled enchantments are the supply.** Do not
+  assume an enchanting table exists outside the dungeon. The gear ships with
+  its enchantments already rolled; the reroll station (M14) is the player's
+  lever over them. Author enchantment weighting per tier: tier 1 low rolls
+  (level 1-2 single enchantments), tier 3 higher rolls (level 3-4, multiple).
+  Use vanilla's enchantment ids (`minecraft:sharpness`, `minecraft:protection`,
+  etc.); verify any id against the jar before using it.
+- **Landed correction: the enchanting mechanism is `enchant_with_levels`, not
+  `set_enchantments`.** The bullets above assumed `set_enchantments` could
+  carry "weighted enchantment levels". Verified against the 26.2 jar, it
+  cannot: `SetEnchantmentsFunction` holds a
+  `Map<Holder<Enchantment>, NumberProvider>` and its `run` applies **every**
+  entry in that map through `EnchantmentHelper.updateEnchantments`. The levels
+  can be ranges, but the *set* of enchantments is fixed, so every tier-3
+  chestplate would have come out with an identical enchantment list. Three
+  problems with that, which is why the tables ship on
+  `minecraft:enchant_with_levels` with `options: "#minecraft:on_random_loot"`
+  (the shape vanilla's own `chests/trial_chambers/*` tables use) instead:
+  1. It would have made M14's reroll station pointless. Rerolling is only a
+     decision if you do not already know what every drop of that item carries.
+  2. `set_enchantments` does not check what the item supports, so keeping a
+     bow from rolling Protection would have meant hand-partitioning the
+     enchantment pool per slot and never making a mistake in it.
+     `enchant_with_levels` is slot-correct by construction.
+  3. The plan's own stated intent ("tier 1 low rolls, tier 3 higher rolls,
+     multiple") is exactly what an enchanting-level curve expresses natively:
+     tiers ship as uniform level ranges 5-15, 15-25 and 25-35 against vanilla's
+     1-30 enchanting scale.
+  The `tier` provenance marker is still written with `set_components`, which
+  was verified to work as the plan assumed.
+- **Verification is data inspection, not just "it parsed".** After a headless
+  run that loots a chest, inspect a drawn stack's `DataComponents
+  .ENCHANTMENTS` and `CUSTOM_DATA` (via a `/dungeon admin cellreport`-style
+  command or a temporary debug command), not just that a chestplate appeared.
+  This is the carried lesson in `DISCOVERIES.md`: bugs survived passes that
+  confirmed the item type but never inspected the components. Add a temporary
+  command that dumps a stack's components if one does not exist.
 
 ---
 
@@ -402,6 +952,67 @@ self-funding warning as fuel).
 **Verify against the 26.2 jar:** the enchantment pool lookup for an item type
 (how vanilla's own table avoids offering a duplicate; the data structure behind
 valid-enchantments-per-item); reading and writing `DataComponents.ENCHANTMENTS`.
+
+**Implementation notes:**
+
+- **The station is a `UseBlockCallback` branch, study `RitualListener` first.**
+  A new station class (e.g. `RerollStation`) intercepts right-click on a
+  configured block. The cleanest path that respects the one-`UseBlockCallback`
+  ownership in `RitualListener` is to add a branch in
+  `RitualListener.onUseBlock` ahead of the lodestone check (the way the
+  selector-door and calling-card branches already do), keyed on the configured
+  reroll block id. If the question is cleanly separable, a second
+  `UseBlockCallback.EVENT.register(...)` in `RerollStation.register` is also
+  acceptable; either way, the both-hands gate, the shift-to-place escape, and
+  the `RoomProtection` denial order in `RitualListener` are the pattern to
+  preserve. Add `RerollStation.register()` to `PocketDungeonsMod.onInitialize`.
+- **The block is a `ConfiguredItem`-resolved block id.** Add `rerollBlock`
+  (string id, default e.g. `minecraft:smithing_table` or a themed block) to
+  `PocketDungeonsConfig`, resolve it via a `ConfiguredItem` in a
+  `RerollStation.warmUp()` registered from `RitualListener.register`. The
+  station must not intercept a vanilla smithing table's normal behaviour for
+  non-gear clicks; the branch fires only when the held item carries the
+  `pocketdungeons.tier` custom_data tag from M13 (the positive test, the way
+  `Keystone.isKeystone` is a positive test).
+- **The dialog is a `DialogScreens` screen built with `DialogKit`.** List the
+  held item's current enchantments (read from `DataComponents.ENCHANTMENTS`,
+  which is an `ItemEnchantments` component; verify its accessor shape against
+  the jar). Each enchantment is a button that submits a `CustomAll` payload to
+  `DialogRouter` (the "tier B" path, because the click carries "which
+  enchantment") with the slot index in a `pd_`-prefixed context key. The
+  router dispatches to a `RerollStation` handler that performs the reroll.
+  Use `DialogKit.list` for the enchantment list and `DialogKit.closeButton`
+  for the exit.
+- **One enchantment at a time, never a full reroll.** The handler: read the
+  item's `ENCHANTMENTS`, remove the chosen enchantment, pick a different one
+  from the valid pool for that item type (verify the
+  valid-enchantments-per-item data structure against the jar; vanilla's
+  `Enchantment` has item-type predicates), excluding the one just removed and
+  any already on the item, at a random level within that enchantment's normal
+  range. Write the modified `ItemEnchantments` back via
+  `stack.set(DataComponents.ENCHANTMENTS, ...)`. Use `Payout.deliver` to
+  return the modified stack (it replaces the held stack). The "never strictly
+  worse" property is a test: add a pure-Java helper that, given the current
+  set and the replacement, asserts the new set is not a subset of the old.
+- **Cost scales with the item's tier, read off the `pocketdungeons.tier`
+  custom_data tag** (set by M13). A new pure-Java helper
+  `static int rerollCost(int tier)` (or extend `PayoutMath`), with a test.
+  The config field is `rerollLapisPerTier` (a `readInt` curve or a small
+  list). Spend lapis by counting `minecraft:lapis_lazuli` in the inventory
+  and shrinking via the `Payout.deliver` inverse; refuse with a message if
+  the count is short. Add lapis entries to the `chests/tier_*` tables if they
+  are not already present (check first; the supply tables may already carry
+  some).
+- **Gating is open; if gated, gate on keystone level.** The fuel-gated-door
+  precedent argues for a gate so an ungated sink stops sinking once lapis
+  overflows. If gated, the gate is a keystone-level threshold (read from
+  `DungeonLog.get(player).keystoneLevel()`), config-fielded as
+  `rerollUnlockLevel`. An ungated station is also acceptable for the first
+  pass; the gate can be added in-milestone.
+- **Live-only verification.** The station right-click, the dialog, and the
+  returned stack are all client-interactive; record them in
+  `LIVE_TEST_PASS.md`. Headless-verifiable parts: the cost helper, the
+  "never strictly worse" assertion, and the lapis-count arithmetic.
 
 ---
 
@@ -471,6 +1082,102 @@ template is identical and the removal has to be global. This was flagged in the
 brainstorm and is the one jar-verification task that can change the milestone's
 shape rather than just its tuning.
 
+**Implementation notes:**
+
+- **Blocking jar work first; it changes the shape.** Before any code, run
+  `javap` against the jar to answer the duplication-recipe question: is
+  `minecraft:smithing_trim` (or the template-duplication recipe) a
+  data-driven recipe type that can be overridden by a datapack recipe
+  returning air/no-result, and does a `TrimTemplate` item carry any
+  distinguishing component (`custom_data`, a tag) once it leaves the loot
+  table? If every copy of a template is identical, the removal has to be
+  global (override the duplication recipe for that template id in a
+  datapack recipe JSON, not Java). If a dungeon-found template can carry a
+  `pocketdungeons` custom_data tag, the removal can be conditional. The
+  datapack-recipe route is strongly preferred (trap 14: crafting recipe
+  results support arbitrary `components`, and a datapack recipe can produce a
+  marked item with no Java); reach for a mixin only if the datapack route is
+  provably insufficient, and say so in the report.
+- **Templates and materials are M13 loot-table entries.** Add trim template
+  entries (`minecraft:bolt_armor_trim_smithing_template` etc.) and trim
+  material entries (`minecraft:diamond`, `minecraft:netherite_ingot`,
+  `minecraft:lapis_lazuli`, `minecraft:gold_ingot`, etc.) to the
+  `chests/tier_*` tables, weighted by tier. The template's `custom_data`
+  tag (if the jar work says one survives) marks it dungeon-found; otherwise
+  the duplication recipe is removed globally for the relevant template ids.
+- **Material decides the bonus; pattern stays cosmetic.** Author a
+  material-to-attribute table in `PocketDungeonsConfig` (a config-driven map
+  from trim material id to an attribute modifier: diamond -> toughness,
+  netherite -> knockback resistance, gold -> small speed, lapis -> XP gain,
+  etc.). The clean shape is a config list of entries
+  `{material: "minecraft:diamond", attribute: "minecraft:armor_toughness",
+  amount: 1.0, operation: "add_value"}`, parsed in `apply` and exposed via a
+  lookup accessor. Ten materials, tuned once, not 170 pattern x material
+  cells. The pattern is cosmetic and a rarity signal only.
+- **Equip-time attribute plumbing is the load-bearing new code, and M17
+  reuses it.** This is a new listener keyed on armour slot changes, not item
+  use (`SilenceListener`'s hook) and not block use (`RitualListener`'s hook).
+  Verify against the jar the Fabric event for "an armour slot's contents
+  changed" (the candidate is a tick-based check in the existing instance
+  watcher, or a `ServerPlayerEvents`-shaped hook; if none exists, the
+  fallback is a per-tick scan of the four armour slots in the watcher, which
+  is cheap and already runs every `watchIntervalTicks`). On a slot change,
+  read `DataComponents.TRIM` off the worn piece (verified: it is
+  `DataComponentType<ArmorTrim>`, `ArmorTrim.material()` returns
+  `Holder<TrimMaterial>`), look up the material in the config table, and
+  apply/remove an `AttributeModifier` on the player for that attribute. The
+  modifier UUID must be stable per (player, material, slot) so removing and
+  re-adding is idempotent. **Generalise this plumbing:** the listener should
+  be written as "read a worn-piece signal, apply a configured attribute
+  modifier," so M17 generalises it from "what trim is on this piece" to
+  "which extracted power am I slotting" by swapping the signal source. Do
+  not hardcode the trim read inside the modifier-application loop; keep the
+  signal read and the modifier application as two steps.
+- **Dungeon-only vs global bonus is a config flag.** `RoomProtection` already
+  reads the player's dimension for the dungeon guard; the same check
+  (`player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)`)
+  gates a dungeon-only bonus. Add `trimBonusDungeonOnly` (boolean) to
+  `PocketDungeonsConfig`. If true, the modifier applies only inside the
+  dungeon dimension; if false, it applies globally (the bigger commitment
+  §3.7 permits by its letter). Settled in-milestone.
+- **Live-only verification.** The smithing-table apply, the worn bonus in
+  combat, and the duplication refusal are all client-interactive; record
+  them in `LIVE_TEST_PASS.md`. Headless-verifiable: the
+  material-to-attribute config parse, the modifier UUID stability, and the
+  equip-time signal read against a synthetic worn stack.
+- **Landed answer to the blocking jar question: removal is global, not
+  conditional.** `Ingredient` (verified in the 26.2 jar) matches only by item
+  id or tag, with no data-component predicate; a datapack recipe cannot
+  require "this exact dungeon-found copy," so the duplication recipe
+  (a separate `minecraft:crafting_shaped` recipe per pattern, not the
+  `minecraft:smithing_trim` recipe that applies the trim) is overridden for
+  every copy of a given template id. This is the plan's own named fallback,
+  not a new decision.
+- **Landed correction: eighteen patterns, not "roughly seventeen," and eleven
+  materials, not "roughly ten."** The 26.2 jar's `TrimMaterials` includes
+  `RESIN` alongside the plan's assumed ten; immaterial to scope, corrected
+  here for accuracy.
+- **Landed correction: lapis is `safe_fall_distance`, not "XP gain."** There
+  is no vanilla player attribute for experience gain rate, and the milestone
+  commits every material to the same `AttributeModifier` shape (the plumbing
+  M17 reuses); an XP-gain bonus would need a different mechanism entirely.
+  `PocketDungeonsConfig.trimBonuses` is a config list, so this is retunable
+  without touching code.
+- **Landed correction: trim templates and materials carry no
+  `pocketdungeons.tier` custom_data tag**, contrary to this section's own
+  "Implementation notes" above. `RerollStation` (M14) reads exactly that tag
+  off the *held* item to decide whether a smithing-table right-click opens
+  the reroll picker instead of vanilla's own screen; tagging a template or a
+  stack of trim material the same way would have misrouted a player simply
+  trying to open the smithing table with one in hand. Found and fixed during
+  M15's own implementation, before it shipped as a live bug.
+- **Landed scope decision: the `_drowned` table variants are not touched.**
+  M13 added its gear pool to all nine chest tables (base, `_ominous`, and
+  `_drowned`) because gear is required-path loot under `VISION.md` §3.7.
+  Trims are an overworld-facing bonus layer on top of that, not something a
+  run needs to stay self-sufficient, so M15's pools were added only to the
+  six base and `_ominous` tables.
+
 ---
 
 ## M16 - Kadala gamble (3.4): emeralds for a random piece in a chosen slot
@@ -521,6 +1228,53 @@ Kadala pulls differently); whether the gear pool is a subset of the chest tables
 or its own thing so a lucky gamble cannot out-produce opening the run's chests.
 
 **Verify against the 26.2 jar:** nothing new beyond M13's pool work.
+
+**Implementation notes:**
+
+- **Same house pattern as M14: a block interception plus a `DialogScreens`
+  screen.** A `GambleStation` class intercepts right-click on a configured
+  block (the `RitualListener` branch pattern or its own
+  `UseBlockCallback`), opens a dialog offering the eight equipment slots
+  (helmet, chestplate, leggings, boots, sword, pickaxe, bow, shield; or
+  whichever set M13 authored) and the tiers the player's keystone level has
+  unlocked. The slot-and-tier picker is a `DialogKit.list` of buttons, each
+  submitting a `CustomAll` payload to `DialogRouter` with `pd_slot` and
+  `pd_tier` context keys. The router dispatches to a `GambleStation` handler.
+  Add `GambleStation.register()` to `PocketDungeonsMod.onInitialize`.
+- **The block is a `ConfiguredItem`-resolved block id** (`gambleBlock`,
+  default a themed block), resolved in a `GambleStation.warmUp()` registered
+  from `RitualListener.register`.
+- **The draw is a `ResourceKey<LootTable>` lookup, keyed by slot and tier.**
+  This is the `TrialContent`/`LootTables` mechanism: build the table id from
+  the slot and tier (e.g. `chests/gear/<slot>_<tier>` or whatever M13
+  authored), resolve it through
+  `level.registryAccess().lookupOrThrow(Registries.LOOT_TABLE)`, and roll
+  one item. If M13 folded gear into the chest tables, the gamble reads a
+  subset (a dedicated pool within the table, or a separate slot-keyed table
+  that duplicates the relevant entries). The gamble must not out-produce
+  opening the run's chests, so a dedicated slot-keyed table with a single
+  roll is the cleaner shape. Add the gamble table path constants to
+  `LootTables.ALL` so a missing one is a boot-time error.
+- **Cost scales with tier, emeralds only.** A new pure-Java helper
+  `static int gambleCost(int tier, String slot)` (or extend `PayoutMath`),
+  with a test. Config fields: `gambleEmeraldsPerTier` (the base curve) and
+  optionally `gambleSlotMultiplier` (whether weapon slots cost more, the D3
+  weighting). Spend `minecraft:emerald` by counting and shrinking via the
+  `Payout.deliver` inverse; refuse with a message if short. The output is
+  gear, not currency, so there is no self-funding loop; emeralds get a
+  second job (currency here, material elsewhere) without the trap.
+- **Tier unlock gates which tiers the dialog offers.** Read the player's
+  keystone level from `DungeonLog.get(player).keystoneLevel()` and offer
+  only the tiers whose threshold the level clears (the same level-gates-
+  access principle from M10/M12). A low-level player sees only tier-1
+  gambles; a high-level player sees all three.
+- **Deliver the drawn item via `Payout.deliver`** (trap 3), never bare
+  `inventory.add`. The drawn item carries the `pocketdungeons.tier`
+  custom_data tag from M13 so its tier is readable downstream.
+- **Live-only verification.** The station right-click, the slot/tier dialog,
+  and the delivered item are client-interactive; record in
+  `LIVE_TEST_PASS.md`. Headless-verifiable: the cost helper, the tier-unlock
+  gate, and the table-id resolution against the registry.
 
 ---
 
@@ -594,6 +1348,112 @@ intercept a `CraftingMenu`/`ResultContainer` craft. Confirm the Fabric API or
 mixin surface that lets a server-side mod substitute a craft result before it
 reaches the player, without a client mod. This is the second jar-verification
 task that can change the milestone's shape.
+
+**Answered, and it changed the shape:** `Ingredient` has no component-value
+match, so a datapack recipe cannot express "any item, plus my chosen one of an
+open-ended power library." The Cube shipped as a block-use ritual station
+instead (`RitualListener`-adjacent, like `RerollStation`/`GambleStation`), not
+a crafting-grid interception at all, no mixin, second or otherwise. See the
+implementation notes below and `plans/COMPLETED-MILESTONES.md`'s M17 entry.
+
+**Implementation notes:**
+
+- **Landed divergence, recorded here per house rule 6 rather than silently
+  changed: no crafting-grid interception, no second mixin.** This section
+  originally called for a crafting-table ritual. Verified against the 26.2
+  jar: `net.minecraft.world.item.crafting.Ingredient` (what every crafting
+  recipe's grid slots match against) is a plain item/tag predicate with no
+  component-value matching at all; `DataComponentMatchers` exists only on
+  `ItemPredicate` (loot and advancement conditions, never a crafting grid).
+  Imbue needs "any weapon or armour piece, plus whichever one of an
+  open-ended power library the player chooses"; a datapack recipe cannot
+  express that without one recipe per (item type x power) pair, which is
+  unbounded since the power library "grows arbitrarily" by design. The named
+  mixin candidate, `CraftingMenu.slotChangedCraftingGrid`, was confirmed
+  `protected static` (would need injecting into) but landed unnecessary: a
+  block-use ritual station, the same `RitualListener`-adjacent shape M14's
+  `RerollStation` and M16's `GambleStation` already use: it reads and writes
+  the held stack directly in Java, so item identity and an arbitrary chosen
+  power both fall out for free, with no interception of any kind. This is
+  the milestone's blocking jar-verification answer: not "which mixin," but
+  "no crafting-grid mechanism at all, and therefore no second mixin either."
+  See `plans/COMPLETED-MILESTONES.md`'s M17 entry for the shipped shape
+  (`CubeStation`, `PowerListener`, `PowerEquipMath`).
+- **Superseded below, kept for the historical reasoning:** the original
+  blocking-jar-work note assumed a crafting-table ritual and is left as
+  written rather than rewritten, since the note above already explains why
+  the assumption did not survive verification.
+- Before any code, exhaust the datapack-recipe route (traps 14 and 15 in
+  `DISCOVERIES.md`): a crafting recipe with the right combination can produce
+  a marked result item with arbitrary `components` and no Java, and a recipe
+  with no unlock advancement is craftable but invisible (a hidden-recipe
+  discovery mechanic for free). The Cube's extract and imbue are recognisable
+  ritual combinations; the question is whether a datapack recipe alone can
+  "consume the input and produce a marked output" the way the extract needs
+  (consume the rare item, produce nothing but a player-state write), or
+  whether that requires a server-side hook. A datapack recipe produces an
+  item result; it cannot directly write player state. So the likely shape
+  is: a datapack recipe produces a "extracted power token" item (the rare
+  item consumed, a token emitted), and a Java listener on the craft-pickup
+  (or a `CustomAll` dialog confirmation) writes the power to the player's
+  permanent set. Verify against the jar the exact server-side hook: the
+  candidate is `CraftingMenu.slotChangedCraftingGrid(...)` (trap 14 names
+  it), injected only when vanilla produced no result, so a real recipe is
+  never shadowed. **This is the one milestone where a second mixin is
+  plausible;** exhaust the datapack + event route first, and if a mixin is
+  truly required, say so in the report and justify it against the one-mixin
+  budget. The existing `CustomClickMixin` is the model for "a mixin that does
+  one thing nothing else can."
+- **Extract and imbue as two datapack recipes plus one Java listener.**
+  Author two hidden (no-unlock-advancement) recipes under
+  `data/pocketdungeons/recipe/`: one for extract (rare item + a marker
+  component -> an "extracted power" token item), one for imbue (ordinary
+  item + material + token -> imbued item). The Java listener intercepts the
+  craft result, performs the player-state write (extract: add the power to
+  the permanent set; imbue: apply the chosen power to the output item), and
+  consumes the inputs. The "eight around one" vanilla shape (golden apple)
+  is the recipe form to copy.
+- **Permanent extracted-power set is a new `DungeonLog.Entry` field.** Add
+  `Set<String> extractedPowers` (or a list of power ids) to the `Entry`
+  record with an `optionalFieldOf` codec and a sane default (`List.of()`),
+  the same shape as `completedThemes`. Persisted per-player, never
+  truncated, the way `completedThemes` is. The power id is a stable string
+  keyed off the rare item's source (the M11 rare-node reward list).
+- **Reconcile the rare-item source lists into one authored list.** M11's
+  rare-node reward list, M16's gear pool, and any shell-token list should be
+  one authored list, not three. The extractable items are a strict subset of
+  M11's rare adventure-graph nodes (a "pharaoh's chamber" drop), not
+  ordinary tier loot and not gamble/reroll output. This gives M11's rare
+  nodes a concrete reason to matter. The reconciliation is content work
+  (JSON), done here in coordination with M11's rare-node authoring.
+- **Equip cap reuses M15's equip-time plumbing, generalised.** M15's
+  listener is "read a worn-piece signal, apply a configured attribute
+  modifier." M17 generalises the signal source from "what trim is on this
+  piece" to "which extracted power am I slotting" (read off the item's
+  `custom_data` tag, written by the imbue recipe). The equip cap is a
+  count: at most N extracted powers active at once (D3 caps three). The
+  listener counts the active powers across the player's equipped items and
+  refuses (or silently disables) the excess. Config fields: `imbueCost`,
+  `imbueMaterial` (the imbue currency item, a `ConfiguredItem`), `equipCap`
+  (the active-power limit), `extractionReversible` (boolean, whether a
+  mis-click can be undone; D3 says no, a server with genuinely rare drops
+  may say yes).
+- **Reversibility is a config flag, settled in-milestone.** If reversible,
+  the extract writes the power and keeps a reference to the consumed item's
+  identity so an undo can restore it (costly, probably another ritual). If
+  irreversible, the extract is a hard sink: the rare item is gone for good,
+  in exchange for never needing another like it. Default to irreversible
+  (D3's shape); make it configurable.
+- **The name is lore-flavoured but the mechanic is self-contained (VISION §9).**
+  If §9's "not a lore project" line stands, ship the Cube under a neutral
+  name (e.g. "the Cube" or "the Extractor"); if §9 is revised, keep
+  "Herobrine Cube." Nothing else changes either way. Do not block on
+  `LORE.md`.
+- **Live-only verification.** The crafting-grid ritual, the imbued item in
+  combat, and the equip-cap enforcement are client-interactive; record in
+  `LIVE_TEST_PASS.md`. Headless-verifiable: the extracted-power persistence
+  (write and read back from `DungeonLog`), the equip-cap count, and the
+  power-id reconciliation against the rare-node list.
 
 ---
 

@@ -104,9 +104,15 @@ final class FeralContent {
      * and are kept clear by construction, so the centre is always standable. Without
      * the fallback the affix would produce nothing on some templates and everything
      * on others, which reads as a bug rather than as variance.
+     *
+     * <p>M10: scaled directly here through {@link Instances#applyMobScale}, not
+     * left to the {@code ENTITY_LOAD} listener. These wolves spawn synchronously
+     * at stamp time, before the run's {@link InstanceRecord} carries anything but
+     * the lobby's placeholder layout, so the listener's registry lookup would
+     * find nothing and every wolf would spawn unscaled.
      */
     static void apply(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                      int lootTier, long seed) {
+                      int lootTier, int keystoneLevel, long seed) {
         int count = PocketDungeonsConfig.feralWolvesPerCell();
         if (count <= 0) {
             return;
@@ -126,6 +132,7 @@ final class FeralContent {
             // Pinned, never angered. See the class note: an angry wolf refuses the
             // bone outright, which would delete the affix's kiss.
             wolf.setHomeTo(centre, HOME_RADIUS);
+            Instances.applyMobScale(wolf, keystoneLevel);
             Optional<Holder.Reference<WolfVariant>> coat =
                     variants.get(coats.get(coatRandom.nextInt(coats.size())));
             coat.ifPresent(holder -> wolf.setComponent(DataComponents.WOLF_VARIANT, holder));

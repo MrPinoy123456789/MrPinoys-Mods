@@ -1,12 +1,15 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.network.chat.Component;
@@ -16,6 +19,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -107,6 +115,25 @@ final class Instances {
             return false;
         });
 
+        // M10: mob strength scales with the run's keystone level. ENTITY_LOAD
+        // fires when an entity is added to a server level's entity manager,
+        // ahead of its first tick. The plan guessed ServerLivingEntityEvents
+        // would carry an after-spawn hook; verified against fabric-entity-events-v1
+        // it does not (ALLOW_DAMAGE/AFTER_DAMAGE/ALLOW_DEATH/AFTER_DEATH/
+        // MOB_CONVERSION only), so this uses fabric-lifecycle-events-v1's
+        // ServerEntityEvents.ENTITY_LOAD instead, a module this mod already
+        // depends on for ThemeManifest/RoomManifest's own SERVER_STARTED hook.
+        ServerEntityEvents.ENTITY_LOAD.register((entity, entityLevel) -> {
+            if (!(entity instanceof Mob mob)
+                    || !entityLevel.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                return;
+            }
+            InstanceRecord record = instanceAt(mob.blockPosition());
+            if (record != null) {
+                applyMobScale(mob, record.layout.keystoneLevel());
+            }
+        });
+
         // Leaving the world drops you from the party. The return point is kept so
         // the next login puts you back where you started, and the instance itself
         // survives for whoever is still inside it.
@@ -154,7 +181,7 @@ final class Instances {
         // that listener sees a null server and defers to this call instead.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             ThemeManifest.load(server);
-            DungeonRecipes.load(server);
+            AdventureGraphs.load(server);
             RoomManifest manifest = RoomManifest.load(server);
             if (!manifest.rejections().isEmpty()) {
                 PocketDungeonsMod.LOG.error("{} dungeon room(s) were rejected at startup; "
@@ -452,7 +479,7 @@ final class Instances {
         BlockPos entrance = origin.offset(3, 1, 3);
         BlockPos exitPad = origin.offset(2, 0, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0);
+                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of());
     }
 
     /**
@@ -572,6 +599,15 @@ final class Instances {
         record.theme = offer.theme();
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
+        record.freeDoor = offer.free();
+
+        // M11: a boss-themed run gets its one proof encounter, spawned now so
+        // it is already standing in the terminal cell the first time anyone
+        // can reach it, never spawned reactively on pad contact.
+        AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(offer.theme());
+        if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS) {
+            BossContent.spawn(level, layout.terminal(), offer.level());
+        }
 
         // This InstanceRecord is being reused for a second run behind the same
         // lobby (M3: finish a dungeon, choose again without ever leaving), not
@@ -605,10 +641,13 @@ final class Instances {
             record.timer = null;
         }
         if (!record.untimed) {
-            record.timer = new RunTimer(layout.keystoneLevel(),
-                    KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
-                            PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength()),
-                    layout.roomCount());
+            // M12: door 1 gets its own flat, generous clock instead of the
+            // room-count formula doors 2/3 use. "Farming" should not feel
+            // like racing.
+            int seconds = record.freeDoor ? PocketDungeonsConfig.door1TimerSeconds()
+                    : KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
+                            PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength());
+            record.timer = new RunTimer(layout.keystoneLevel(), seconds, layout.roomCount());
         }
 
         // Everything admit() hands a player off the record's layout has to be
@@ -1006,6 +1045,85 @@ final class Instances {
             }
         }
         return null;
+    }
+
+    // ---- mob scaling (M10) ---------------------------------------------------
+
+    /** The one shown by {@code AttributeInstance}'s modifier map, stable across reapplications. */
+    private static final Identifier MOB_SCALE_ID = Identifier.fromNamespaceAndPath(
+            PocketDungeonsMod.MOD_ID, "difficulty_scale");
+
+    /**
+     * The live instance whose bounds contain {@code pos}, or {@code null}. Used
+     * for mob scaling rather than a cell/chunk lookup because a mob's spawn
+     * position is arbitrary within its cell and every live layout's
+     * {@link InstanceLayout#bounds()} is already the exact box teardown itself
+     * trusts.
+     */
+    private static InstanceRecord instanceAt(BlockPos pos) {
+        Vec3 centre = Vec3.atCenterOf(pos);
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            if (record.layout.bounds().contains(centre)) {
+                return record;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * +1% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
+     * level, on max health, attack damage and movement speed: a level-100 run's
+     * mobs land at roughly twice strength. {@code ADD_MULTIPLIED_TOTAL} so the
+     * bonus scales whatever base value the mob already has rather than adding a
+     * flat number that means nothing on a skeleton and everything on a bee.
+     *
+     * <p>Package-visible rather than {@code private}: {@link FeralContent}'s
+     * wolves are spawned directly at stamp time, before {@code ENTITY_LOAD} would
+     * ever find an {@link InstanceRecord} whose layout matches (the record still
+     * carries the lobby's tiny one-cell layout at that point), so they cannot
+     * rely on the listener below and call this straight from the spawn callback
+     * where the run's keystone level is already known.
+     *
+     * <p>Idempotent under the same modifier id: a repeat call for the same
+     * entity (a chunk reload's {@code ENTITY_LOAD} firing again, or the listener
+     * and a direct caller both reaching the same mob) replaces the modifier
+     * rather than stacking it. Health is topped up only when the mob was at full
+     * health <em>before</em> this ran: a fresh spawn always is, and topping it
+     * up is what keeps it from reading as already-damaged the instant it
+     * appears. A mob re-entering tracking mid-fight is not, and must keep
+     * whatever damage it already has.
+     */
+    static void applyMobScale(Mob mob, int keystoneLevel) {
+        applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
+                PocketDungeonsConfig.mobScalePerLevel()) - 1.0);
+    }
+
+    /**
+     * The bonus-taking half of {@link #applyMobScale}, exposed separately for
+     * {@link BossContent}: a boss run's mob wants a steeper bonus than the
+     * ordinary {@code mobScalePerLevel} curve, not the same one.
+     */
+    static void applyMobScaleBonus(Mob mob, double bonus) {
+        if (bonus <= 0.0) {
+            return;
+        }
+        boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
+        boolean scaledHealth = scaleAttribute(mob, Attributes.MAX_HEALTH, bonus);
+        scaleAttribute(mob, Attributes.ATTACK_DAMAGE, bonus);
+        scaleAttribute(mob, Attributes.MOVEMENT_SPEED, bonus);
+        if (scaledHealth && wasFullHealth) {
+            mob.setHealth(mob.getMaxHealth());
+        }
+    }
+
+    private static boolean scaleAttribute(Mob mob, Holder<Attribute> attribute, double bonus) {
+        AttributeInstance instance = mob.getAttribute(attribute);
+        if (instance == null) {
+            return false;
+        }
+        instance.addOrUpdateTransientModifier(new AttributeModifier(
+                MOB_SCALE_ID, bonus, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        return true;
     }
 
     // ---- admin (spec section 10) --------------------------------------------

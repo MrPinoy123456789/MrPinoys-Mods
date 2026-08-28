@@ -241,6 +241,140 @@ have to ask what they did.
 
 ---
 
+## M9: Refactor and cleanup
+
+Landed between M7 and the D3 progression plan below. See
+`../plans/COMPLETED-MILESTONES.md` for what it built; this roadmap otherwise
+stopped tracking individual milestones once `D3_PROGRESSION_PLAN.md` became
+the sequenced source for everything after M9.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M10: Ladder reframe
+
+First of the D3 progression plan's milestones (M10-M17), full scope and
+sequencing in `D3_PROGRESSION_PLAN.md`. Raises the keystone cap to 100, scales
+mob strength with level, spreads affix thresholds and intensifier bands across
+the wider range, retires `Affix.Kind.ELECTIVE`, and gates run completion on
+clearing a fraction of the run's trial spawners.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M11: Adventures
+
+Second of the D3 progression plan's milestones. Replaces the recipe system's
+backward-looking tail match with a forward-looking descent graph
+(`AdventureGraph`): a theme's transitions decide what doors offer next, and a
+boss-kind theme ends the adventure with a fight instead of a walk to the pad.
+Full scope in `D3_PROGRESSION_PLAN.md`; the boss room shipped as a landed
+scope divergence (reusing the terminal cell rather than a hand-authored
+structure, recorded there and in `COMPLETED-MILESTONES.md`) since no live
+client was available in the implementing session to author or capture one.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M12: Two-tier doors and fuel
+
+Third of the D3 progression plan's milestones. Door 1 becomes the free,
+non-depleting, fuel-paying tier; doors 2 and 3 become the fuel-costed,
+level-gated Greater tier, making M10's level gate concrete: a low key cannot
+take a door-2/3 offer a high key can. Fuel is echo shards, paid out only by
+door 1 (a deliberate landed decision against a loot-table entry, recorded in
+`D3_PROGRESSION_PLAN.md`'s M12 section, to close off any self-funding risk
+rather than merely mitigate it). Full scope in `D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M13: Gear loot pool
+
+Content only, and the long pole for every gear-touching sink: M14, M16 and
+M17's extraction source all had nothing to operate on until this landed, since
+the existing chest tables carried zero wearable or wieldable items. Adds 15
+slot-keyed `gear/<slot>_<tier>` tables for the gamble to draw from, and folds
+a gear pool into all nine chest tables so runs themselves drop gear. Every
+piece carries a `custom_data` tier marker the cost curves downstream key off.
+Enchanting uses `enchant_with_levels` rather than the plan's assumed
+`set_enchantments`, a landed correction recorded in `D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M14: Gear reroll station
+
+Fourth of the D3 progression plan's milestones to land (depends on M13's gear
+loot pool). A room station rerolls one enchantment on a piece of gear, the
+player's choice of which, at a lapis cost that scales with the item's tier
+(read off the `pocketdungeons.tier` custom_data tag M13's loot writes).
+The gear-scale sink, paired with M12's fuel as the ladder-scale sink: fuel is
+why level 100 is worth reaching, lapis is why the gear it drops is worth
+using. Full scope in `D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M15: Armor trims
+
+Fifth of the D3 progression plan's milestones to land (depends on M13's gear
+loot pool for a place to put templates and materials; is itself the code
+dependency M17 needs, since the Herobrine Cube's equipped-power check reuses
+this milestone's equip-time attribute plumbing). Trim templates and materials
+drop as dungeon loot; applying one at a smithing table still works exactly
+like vanilla, but the template-duplication crafting recipe is disabled
+globally (verified: `Ingredient` matches only by item/tag, with no way to
+require specific item components, so a dungeon-found template cannot be
+told apart from an ordinary one at the recipe level) and the trim material
+grants the worn piece a real attribute bonus, not just a colour. Full scope
+in `D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M16: Gear gamble station
+
+Sixth of the D3 progression plan's milestones to land (depends on M13's gear
+loot pool). A room station spends emeralds for one random piece of gear in a
+chosen slot and tier, with no guarantee of quality within the slot: the
+volume-over-certainty sink that sits next to M14's targeted, guaranteed
+reroll. Draws directly off M13's slot-keyed `gear/<slot>_<tier>` tables (a
+`LootTable` roll, not a chest) so a lucky draw cannot out-produce opening the
+run's own chests. Which tiers a player can gamble at is read off the same
+level-to-tier mapping (`KeystoneMath.lootTier`) a run's own loot already
+uses, rather than a separate unlock threshold. Full scope in
+`D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M17: The Herobrine Cube
+
+Seventh and last of the D3 progression plan's milestones to land (depends on
+M15's equip-time attribute plumbing and M11's adventure-graph rare-node
+rewards). A crafting-table ritual in the original plan; landed as a block-use
+ritual station instead once the jar confirmed `Ingredient` cannot match by
+component value, which rules out a datapack recipe expressing "any weapon or
+armour piece, plus whichever of an open-ended power library the player
+chooses." Extract consumes a rare adventure-node drop and permanently unlocks
+its one power; imbue applies a previously extracted power to an ordinary
+piece of tiered gear for a small material cost. An equip cap (three active
+powers, counted by distinct id) keeps the choice live no matter how large the
+unlocked library grows. Full scope in `D3_PROGRESSION_PLAN.md`.
+
+→→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

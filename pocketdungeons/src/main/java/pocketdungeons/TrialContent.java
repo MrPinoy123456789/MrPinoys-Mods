@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.VaultBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
+import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState;
 import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
 import net.minecraft.world.level.block.entity.vault.VaultConfig;
 import net.minecraft.world.level.block.state.BlockState;
@@ -129,9 +130,10 @@ final class TrialContent {
      * the room's spawn jigsaws. A room with neither cannot host an encounter and
      * says so in the log rather than silently producing a fight-free "encounter".
      *
-     * @return true if a spawner was placed
+     * @return the anchor a trial spawner was placed at, or {@code null} if none
+     *         was (M10: {@link InstanceRecord#trialSpawners} collects this)
      */
-    static boolean applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
+    static BlockPos applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
                                   int tier, Set<Affix> affixes) {
         boolean ominous = affixes.contains(Affix.OMINOUS);
         boolean swarming = affixes.contains(Affix.SWARMING);
@@ -142,7 +144,7 @@ final class TrialContent {
             PocketDungeonsMod.LOG.warn(
                     "Encounter cell at {} has no spawner anchor; no trial spawner placed",
                     cellOrigin.toShortString());
-            return false;
+            return null;
         }
 
         // Any classic spawner in the cell is replaced, not left running beside a
@@ -157,7 +159,7 @@ final class TrialContent {
         if (!(be instanceof TrialSpawnerBlockEntity spawner)) {
             PocketDungeonsMod.LOG.warn("Trial spawner at {} has no block entity",
                     anchor.toShortString());
-            return false;
+            return null;
         }
 
         // minecraft:trial_spawner is a data-driven registry: the block stores a
@@ -197,7 +199,31 @@ final class TrialContent {
         spawner.getTrialSpawner().load(input);
         spawner.setChanged();
         spawner.markUpdated();
-        return true;
+        return anchor;
+    }
+
+    /**
+     * How many of these trial spawners have reached {@code COOLDOWN}, the
+     * "cleared" state confirmed against the 26.2 jar (a spawner that ejects its
+     * reward transitions {@code WAITING_FOR_REWARD_EJECTION -> EJECTING_REWARD
+     * -> COOLDOWN}). An untouched spawner sits at {@code INACTIVE}: it never
+     * activated because nobody came near it, and that counts as
+     * <strong>not</strong> cleared. Excluding it from the denominator would let a
+     * run skip every spawner and still pass the M10 completion gate, which is
+     * exactly the sprint this gate exists to refuse.
+     *
+     * <p>A position with no trial spawner block entity any more (broken, somehow)
+     * also counts as not cleared, for the same reason.
+     */
+    static int countCleared(ServerLevel level, Set<BlockPos> spawners) {
+        int cleared = 0;
+        for (BlockPos pos : spawners) {
+            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
+                    && spawner.getState() == TrialSpawnerState.COOLDOWN) {
+                cleared++;
+            }
+        }
+        return cleared;
     }
 
     private static String configId(int tier, boolean ominous) {
@@ -452,10 +478,10 @@ final class TrialContent {
     private static ResourceKey<LootTable> resolveLootTable(ServerLevel level, String basePath,
                                                             String suffix) {
         if (suffix != null && !suffix.isBlank()) {
-            Identifier candidate = Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID,
-                    basePath + suffix);
-            if (level.registryAccess().lookupOrThrow(Registries.LOOT_TABLE).getValue(candidate) != null) {
-                return ResourceKey.create(Registries.LOOT_TABLE, candidate);
+            ResourceKey<LootTable> candidate = ResourceKey.create(Registries.LOOT_TABLE,
+                    Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, basePath + suffix));
+            if (LootTables.exists(level.getServer(), candidate)) {
+                return candidate;
             }
         }
         return lootTable(basePath);

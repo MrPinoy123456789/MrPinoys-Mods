@@ -399,8 +399,28 @@ final class RunLifecycle {
         DungeonLog log = DungeonLog.forServer(server);
         DungeonLog.Entry entry = log.get(player.getUUID());
         Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
-                entry.recentThemes());
+                entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[step - 1];
+
+        // M12: the Greater tier's two refusals, checked ahead of spending
+        // anything or generating anything. Door 1 never refuses on either.
+        if (!offer.free()) {
+            int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+            if (entry.keystoneLevel() < minLevel) {
+                player.sendSystemMessage(Component.literal(
+                        "Door " + step + " needs keystone level " + minLevel + " or higher; yours is ["
+                                + entry.keystoneLevel() + "].")
+                        .withStyle(ChatFormatting.RED));
+                return false;
+            }
+            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
+            if (Fuel.count(player) < cost) {
+                player.sendSystemMessage(Component.literal(
+                        "Door " + step + " costs " + cost + " fuel; you do not have enough.")
+                        .withStyle(ChatFormatting.RED));
+                return false;
+            }
+        }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null || !Instances.generateBehindLobby(server, level, record, offer, step)) {
@@ -408,6 +428,12 @@ final class RunLifecycle {
                     "The dungeon failed to build. Try another door.")
                     .withStyle(ChatFormatting.RED));
             return false;
+        }
+
+        // The spend happens only once the choice has actually succeeded, so a
+        // failed stamp (the branch above) never costs fuel for nothing.
+        if (!offer.free()) {
+            Fuel.spend(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }
 
         EnumSet<Affix> granted = AffixMath.effective(player.getUUID(), offer.level(),
@@ -646,9 +672,39 @@ final class RunLifecycle {
      * teleport the player in. Deliberately <strong>does not eject</strong> --
      * the reward room's own lodestone is the second contact that leaves (U8
      * Stage 2).
+     *
+     * <p>M10: refused outright, with a chat message and no state change at all,
+     * if this run has not cleared its spawner-clear threshold yet. The run stays
+     * live and the pad stays contactable, since {@code onPad} in
+     * {@code Instances}' watcher is an edge, so stepping off and back on tries
+     * again once more spawners are down.
      */
     static void completeRun(MinecraftServer server, InstanceRecord record,
                                     ServerPlayer player) {
+        if (record.isKeystoneRun()) {
+            Set<BlockPos> spawners = record.layout.trialSpawners();
+            int cleared = TrialContent.countCleared(player.level(), spawners);
+            if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
+                    PocketDungeonsConfig.spawnerClearThreshold())) {
+                player.sendSystemMessage(Component.literal(
+                        "Not yet: " + cleared + "/" + spawners.size()
+                                + " trial spawners cleared. Go finish the rest.")
+                        .withStyle(ChatFormatting.YELLOW));
+                return;
+            }
+            // M11: the boss is the ultimate gated completion for its one theme,
+            // the same shape as the spawner gate above but for a single mob
+            // instead of a fraction of many.
+            AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(record.theme);
+            if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS
+                    && BossContent.bossAlive(player.level(), record.layout.terminal())) {
+                player.sendSystemMessage(Component.literal(
+                        "The Drowned Warden still stands. Finish it first.")
+                        .withStyle(ChatFormatting.YELLOW));
+                return;
+            }
+        }
+
         boolean firstCompletion = record.completed.isEmpty();
         record.completed.add(player.getUUID());
 
@@ -670,7 +726,12 @@ final class RunLifecycle {
             // path every other depletion is (Keystones.Outcome.LATE), so the
             // keystoneReturned guard it sets stops a later exit() from
             // overwriting this back to the pre-run level.
-            returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.LATE);
+            //
+            // M12: door 1 never depletes, full stop, so a late free-door finish
+            // settles as NO_CHANGE instead, the same exemption expireTimedOut
+            // applies to a free door that runs out the clock entirely.
+            returnKeystone(server, record, player.getUUID(), player,
+                    record.freeDoor ? Keystones.Outcome.NO_CHANGE : Keystones.Outcome.LATE);
         }
         // M2/M3: the door choice already happened, at the lobby, before this
         // run started -- record.chosenStep is which of Keystone.offers this
@@ -683,12 +744,20 @@ final class RunLifecycle {
         if (record.chosenStep > 0) {
             DungeonLog.Entry memberEntry = log.get(player.getUUID());
             Keystone.Offer[] offers = Keystone.offers(player.getUUID(), memberEntry.keystoneLevel(),
-                    memberEntry.recentThemes());
+                    memberEntry.currentTheme(), memberEntry.depth());
             Keystone.Offer banked = offers[record.chosenStep - 1];
             Keystones.grantOffer(server, player.getUUID(), player, banked);
             // Guards a later exit() from settling the keystone again now that
             // it has already been replaced with the banked offer.
             record.keystoneReturned.add(player.getUUID());
+        }
+
+        // M12: door 1's second job. Granted guaranteed, not a loot roll, and
+        // regardless of lateness: a late free-door finish already lost its
+        // chests, and costing it the fuel too would be a second, undocumented
+        // penalty for a tier that is supposed to never deplete anything.
+        if (record.freeDoor) {
+            Fuel.grant(player, PocketDungeonsConfig.fuelPerFreeRun());
         }
 
         Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
@@ -916,10 +985,16 @@ final class RunLifecycle {
      * lose a keystone level (U8 Stage 1). Depletes the owner alone -- a party
      * member riding along never had a key at stake -- messages them wherever
      * they are, ejects anyone still inside, and tears the instance down.
+     *
+     * <p>M12: a free-door run settles as {@code NO_CHANGE} instead. Door 1
+     * never depletes, and a generous flat clock ({@code door1TimerSeconds})
+     * running out is not a different kind of failure than any other way a
+     * free door ends.
      */
     static void expireTimedOut(MinecraftServer server, InstanceRecord record) {
         ServerPlayer owner = record.owner != null ? server.getPlayerList().getPlayer(record.owner) : null;
-        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.TIMED_OUT);
+        returnKeystone(server, record, record.owner, owner,
+                record.freeDoor ? Keystones.Outcome.NO_CHANGE : Keystones.Outcome.TIMED_OUT);
         if (owner == null) {
             PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
         }

@@ -48,7 +48,7 @@ final class ThemeManifest {
                         MinecraftServer value = server;
                         if (value != null) {
                             load(value);
-                            DungeonRecipes.load(value);
+                            AdventureGraphs.load(value);
                         }
                     }
                 });

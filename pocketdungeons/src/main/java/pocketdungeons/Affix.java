@@ -29,13 +29,16 @@ package pocketdungeons;
  */
 enum Affix {
 
-    /** The whole run stamps ominous, and the payout is worth more. */
-    OMINOUS("Cooked", Kind.ELECTIVE, 1,
+    /**
+     * The whole run stamps ominous, and the payout is worth more.
+     *
+     * <p>M10 migrates this off {@code Kind.ELECTIVE} (the reframe makes ominous a
+     * map property, not a door pick) onto {@code Kind.SEEDED}. Its
+     * {@code depletionMultiplier} stays {@code 1}: it was never the depleting one,
+     * {@code FRAGILE} was, and {@code FRAGILE} is gone with M10's reframe.
+     */
+    OMINOUS("Cooked", Kind.SEEDED, 1,
             "Cooked: the whole run runs ominous, and pays out ominous."),
-
-    /** Depletes double on a failure. The whole cost of having taken the +3. */
-    FRAGILE("Big L", Kind.ELECTIVE, 2,
-            "Big L: every failure costs double. The extra levels were the gift."),
 
     /**
      * Wolves in the halls. The curse is that they are there at all and they are
@@ -71,10 +74,15 @@ enum Affix {
     SILENCED("Silenced", Kind.SEEDED, 1,
             "Silenced: no consumables, and they cannot hear you coming.");
 
-    /** How an affix gets onto a key. */
+    /**
+     * How an affix gets onto a key.
+     *
+     * <p>M10 deletes {@code ELECTIVE}: the door-picked affixes ({@code FRAGILE}
+     * for the stakes, {@code OMINOUS} for the payout) are gone with the reframe
+     * that makes ominous a map property instead of something a door sells. Every
+     * affix left is handed out by the level thresholds.
+     */
     enum Kind {
-        /** Taken deliberately at a door, in exchange for extra levels. */
-        ELECTIVE,
         /** Handed out by the level thresholds, picked by the key itself. */
         SEEDED
     }

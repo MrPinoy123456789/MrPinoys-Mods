@@ -1003,8 +1003,8 @@ final class DungeonCommands {
         for (String rejection : manifest.rejections()) {
             source.sendFailure(Component.literal("  rejected: " + rejection));
         }
-        for (String rejection : DungeonRecipes.current().rejections()) {
-            source.sendFailure(Component.literal("  recipe rejected: " + rejection));
+        for (String rejection : AdventureGraphs.current().rejections()) {
+            source.sendFailure(Component.literal("  adventure node rejected: " + rejection));
         }
         return manifest.themes().size();
     }

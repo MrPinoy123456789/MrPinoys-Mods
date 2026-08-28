@@ -10,6 +10,23 @@
 > **Setup:** Load the mod on a server or integrated client. Ensure the
 > `pocketdungeons:void` dimension datapack is enabled. Have a second player
 > available for party and visiting tests.
+>
+> **Fixed boot crash (found and fixed during M11's build verification, and
+> independently reproduced on a real 169-mod production server):**
+> `LootTables.validateAtStartup` used to call `level.registryAccess()
+> .lookupOrThrow(Registries.LOOT_TABLE)`, which throws
+> `IllegalStateException: Missing registry` unconditionally: loot tables are a
+> reloadable, datapack-driven registry held on
+> `MinecraftServer.reloadableRegistries()`, not on a `ServerLevel`'s frozen
+> dynamic registry access. This crashed every server on boot, before this
+> file's checks could ever run, and also broke `TrialContent.resolveLootTable`
+> at runtime for any themed loot suffix (`drowned_vault`'s `_drowned` tables).
+> Both now go through the corrected `LootTables.exists(MinecraftServer,
+> ResourceKey)`. Confirmed against this session's own dev harness: the server
+> now boots clean (`All 9 core loot tables verified present`), and
+> `/dungeon admin build <seed> 60` and `/dungeon admin list` both work headlessly.
+> This was pre-existing and unrelated to M10/M11's own changes, not a
+> regression either introduced.
 
 ---
 
@@ -490,3 +507,472 @@
 2. **Expected:** the second run's room layout looks consistent with the first
    (same templates, same door positions — placement is deterministic per
    seed).
+
+---
+
+## 14. Ladder reframe (M10)
+
+> M10 raises the keystone cap to 100, scales mob strength with level, drops
+> `FRAGILE`/`Affix.Kind.ELECTIVE`, migrates `OMINOUS` to seeded, and gates run
+> completion on clearing a fraction of the run's trial spawners. The cap
+> bump, the affix threshold and intensifier math, and the enum change are
+> already covered by `affixMathTest` and `difficultyProfileTest`, which run
+> headlessly. Everything below needs a live client.
+
+### 14.1 Mob strength scaling
+
+1. Use `/dungeon admin build <seed> 80` (or any high level) and let a skeleton
+   or zombie in an encounter room engage you.
+2. **Expected:** noticeably tougher than a level-1 run: more hits to kill, and
+   harder-hitting attacks. A `/dungeon admin build <seed> 1` mob should feel
+   close to vanilla.
+3. Check the mob does not spawn already damaged: at full health the moment it
+   is first visible.
+4. Build a Feral run at a high level and let a wolf engage a hostile mob, or
+   check its attributes directly. **Expected:** wolves are scaled the same as
+   trial-spawner mobs; they spawn synchronously at stamp time, on a different
+   code path, and are worth checking separately.
+5. Fight through a full run without disconnecting, then reconnect mid-fight
+   against an already-damaged mob (or otherwise force a chunk reload while a
+   mob is below full health). **Expected:** the mob keeps its current damage;
+   it does not heal back to its scaled max on the reload.
+
+### 14.2 Spawner-clear completion gate
+
+1. Enter a keystone run, skip past every encounter room without engaging a
+   trial spawner, and step onto the terminal pad.
+2. **Expected:** the run refuses to complete. A chat message states how many
+   spawners are cleared out of the total, and the player is not teleported
+   anywhere. The clock keeps running.
+3. Go back and clear enough spawners to reach the configured threshold
+   (`spawnerClearThreshold`, default 0.75), then step onto the pad again.
+4. **Expected:** the run completes normally this time: reward chests, the
+   door to the room, the usual completion message.
+
+### 14.3 Level-100 keystone name
+
+1. Mint or admin-build a level-100 key and read its item name.
+2. **Expected:** an intensifier band appropriate to 91-100 (`Transcendent`) and
+   up to five affix words in enum order, none of them `Cooked`'s old `Fragile`
+   sibling (it no longer exists).
+
+### 14.4 High-level affix stacking (playtest, not a pass/fail check)
+
+A level-85+ run can carry all five non-`OMINOUS` seeded affixes at once
+(Swarming, Overclocked, Molten, Silenced, Feral) on top of ~2x mob strength.
+This combination has never been played. Run one and note whether it reads as
+"hard" or "unfair": a Silenced (no consumables) Swarming (more mobs) Molten
+(lava underfoot) run with Overclocked spawners leaves very little room to
+recover from a mistake. If it plays as unfair rather than hard, the fix is
+tuning (a cap on simultaneous seeded affixes, or softer per-affix numbers at
+the high end), not a code defect; record what you find here either way.
+
+---
+
+## 15. Adventures (M11)
+
+> M11 replaces the recipe system with `AdventureGraph`: doors draw their
+> three themes from the current theme's transition set, and a boss-themed run
+> ends with a fight instead of a walk to the pad. The graph's own arithmetic
+> (`pick`, `resetTheme`, node validation) is covered headlessly by
+> `AdventureGraphTest` and `KeystoneOfferTest`; everything below needs a live
+> client, and none of it can be checked until the boot-time blocker noted at
+> the top of this file is fixed.
+
+### 15.1 Descent offers follow the graph
+
+1. Complete a run themed `deepslate` and read the three door offers.
+2. **Expected:** the three themes come from `deepslate.json`'s `next` list
+   (`prismarine` weighted 3, `blackstone` weighted 2, so `prismarine` should
+   turn up more often across repeated runs, not enforced on any one roll).
+3. Complete a run themed `blackstone` (reachable from either entry theme).
+4. **Expected:** doors can include `drowned_vault`, the boss theme, alongside
+   `deepslate`/`prismarine`.
+
+### 15.2 The graph stays hidden
+
+1. Look at every door-offer dialog and chat line across a full run.
+2. **Expected:** no "you are here," no node list, no depth counter, anywhere.
+   A door shows only its own theme and affix, same as before this milestone.
+
+### 15.3 The boss encounter
+
+1. Take a door offering `drowned_vault` and walk the run to its terminal
+   cell.
+2. **Expected:** a mob named "The Drowned Warden" (a scaled
+   `minecraft:ravager`) is standing in the terminal cell from the moment you
+   arrive, not spawned when you step on the pad.
+3. Step on the terminal pad while the boss is still alive.
+4. **Expected:** the run refuses to complete, with a chat message naming the
+   boss. The pad stays contactable; killing the boss and stepping on the pad
+   again should complete the run normally.
+5. Kill the boss first, then step on the pad.
+6. **Expected:** the run completes immediately, same as any other run once
+   its spawners are cleared.
+
+### 15.4 Boss run's theme reset
+
+1. Complete a `drowned_vault` (boss) run and check the next door offers.
+2. **Expected:** the offers come from an entry theme's transition set
+   (`deepslate` or `prismarine`), not from `drowned_vault`'s own (a boss node
+   has none) and not stuck on the boss theme.
+
+---
+
+## 16. Two-tier doors and fuel (M12)
+
+> M12 splits the three doors into a free, non-depleting, fuel-paying tier
+> (door 1) and a fuel-costed, level-gated Greater tier (doors 2/3, drawn from
+> the adventure graph same as before). Everything below needs a live client;
+> there is no headless way to right-click a door or read a dialog's body text
+> (`DISCOVERIES.md` trap 10).
+
+### 16.1 Door 1 reads as free and pays out
+
+1. Open a lobby and read door 1's dialog.
+2. **Expected:** it says it is free and names the fuel amount it pays out
+   (`fuelPerFreeRun`, default 1 echo shard), and says it never depletes the
+   keystone.
+3. Take door 1, let its clock run out without reaching the pad (or reach the
+   pad late).
+4. **Expected:** the keystone comes back at the same level it went in at, no
+   `"Your keystone is depleted"` message, regardless of how the run ended.
+5. Complete door 1 on time.
+6. **Expected:** you receive `fuelPerFreeRun` echo shards (or whatever
+   `fuelItem` is configured to) on completion, every time, not occasionally.
+
+### 16.2 Doors 2/3 read as costed and gated
+
+1. Open a lobby and read door 2 and door 3's dialogs.
+2. **Expected:** both name a fuel cost (`fuelCostPerGreaterDoor`, default 3)
+   and a minimum keystone level (`greaterDoorMinLevel`, default 15).
+
+### 16.3 The level gate actually refuses
+
+1. With a keystone below `greaterDoorMinLevel` (a fresh level-1 key, by
+   default), take door 2 or door 3.
+2. **Expected:** refused with a chat message naming the required level. No
+   fuel is spent, no dungeon is generated, and the door is still there to
+   try again (or to pick a different door).
+
+### 16.4 The fuel gate actually refuses
+
+1. With a keystone at or above `greaterDoorMinLevel` but fewer than
+   `fuelCostPerGreaterDoor` echo shards in inventory, take door 2 or door 3.
+2. **Expected:** refused with a chat message naming the cost. No echo shards
+   are spent.
+3. Farm door 1 until you have enough fuel, then retake the same door.
+4. **Expected:** the door opens, exactly `fuelCostPerGreaterDoor` echo shards
+   are removed from your inventory, and not before the dungeon actually
+   finishes generating (check inventory count right after taking the door: a
+   failed generation attempt should refund rather than eat the cost, since
+   the spend happens after `generateBehindLobby` succeeds).
+
+### 16.5 Door 1's own clock
+
+1. Take door 1 and watch the boss bar's timer.
+2. **Expected:** `door1TimerSeconds` (default 300s = 5:00) flat, not the
+   usual base-plus-per-room formula doors 2/3 use.
+
+---
+
+## 17. Gear reroll station (M14)
+
+> M14 depends on M13's tiered gear loot and its `pocketdungeons.tier`
+> custom_data tag. Everything below needs a live client; there is no headless
+> way to right-click a station or read a dialog (`DISCOVERIES.md` trap 10).
+> The cost curve (`RerollMath.cost`) and the "never strictly worse" set-swap
+> property (`RerollMath.isValidReroll`) are headless-verified by
+> `rerollMathTest`; this section is only the parts that are not.
+
+### 17.1 The station opens only for tagged gear
+
+1. Right-click the configured `rerollBlock` (default `minecraft:smithing_table`)
+   holding an item with no `pocketdungeons.tier` tag (a plain vanilla item, or
+   a vanilla armor piece bought/crafted, not looted from a run).
+2. **Expected:** vanilla's own smithing table screen opens, unchanged. The mod
+   never intercepts.
+3. Right-click the same block holding a piece of gear looted from a run (tier
+   1-3, tagged by M13's loot functions).
+4. **Expected:** the reroll picker dialog opens instead of the vanilla
+   smithing screen, listing the item's current enchantments.
+
+### 17.2 The level gate
+
+1. With a keystone below `rerollUnlockLevel` (default 5), right-click the
+   station holding tagged gear.
+2. **Expected:** refused with a chat message naming the required level. No
+   dialog opens, and the click does not fall through to vanilla's smithing
+   screen either.
+
+### 17.3 One enchantment at a time, cost scales with tier
+
+1. Pick an enchantment to reroll on a tier-1 item.
+2. **Expected:** the dialog names a lapis cost of `rerollLapisPerTier` (default
+   4); a tier-2 item names double that, tier-3 triple.
+3. With fewer lapis lazuli than the cost, pick an enchantment.
+4. **Expected:** refused with a chat message naming the cost; nothing is
+   spent, nothing on the item changes, and the picker reopens so another
+   enchantment (or the same one, once more lapis is on hand) can still be
+   tried.
+5. With enough lapis, pick an enchantment.
+6. **Expected:** exactly the cost in lapis lazuli is removed; the chosen
+   enchantment is gone from the item; every other enchantment that was on the
+   item before is still there, unchanged; and exactly one new enchantment
+   (not the one just removed, not one already on the item) has appeared, at a
+   level within its own normal range. Inspect the returned stack's
+   `DataComponents.ENCHANTMENTS` directly, not just that the dialog claims
+   success (`DISCOVERIES.md`'s carried lesson: check generated data, not that
+   the action ran).
+7. Repeat on an item with only one enchantment slotted for a while, or on a
+   tier whose registry pool is nearly exhausted, to see the "nothing else
+   fits this item" refusal path (`RerollStation.handleReroll`'s empty-pool
+   case) at least once.
+
+---
+
+## 18. Gear loot pool (M13)
+
+> **Mostly already verified headlessly, unlike every other section in this
+> file.** M13 is content, and `/loot insert` plus `/data get block` can draw a
+> real stack and read its actual components with no client attached, which is
+> exactly the inspection `DISCOVERIES.md`'s carried lesson asks for ("check the
+> generated data, not just that generation ran"). What was confirmed against a
+> running server, drawing from the real tables:
+>
+> - `gear/helmet_1` gave `minecraft:iron_helmet` carrying
+>   `enchantments {unbreaking 1, protection 2}` and
+>   `custom_data {pocketdungeons: {tier: 1b}}`
+> - `gear/chestplate_3` gave `minecraft:diamond_chestplate`,
+>   `{protection 3}`, `tier 3b`
+> - `gear/weapon_2` gave `minecraft:iron_sword`, `{knockback 1}`, `tier 2b`
+> - `gear/boots_3` gave `minecraft:diamond_boots`, `{fire_protection 3}`,
+>   `tier 3b`
+> - `chests/tier_3` rolled a `minecraft:diamond_axe` with
+>   `{efficiency 4, unbreaking 3}` and `tier 3b` alongside its ordinary loot,
+>   confirming runs drop gear and not only the gamble tables do
+>
+> Note the tier marker serialises as an NBT **byte** (`tier: 3b`), not an int,
+> because the value fits in one. This is harmless to an int read:
+> `CompoundTag.getIntOr` tests `instanceof NumericTag` and calls
+> `intValue()`, and `ByteTag` is a `NumericTag` (verified in bytecode). Do not
+> "fix" it by widening the JSON, and do not read it with anything that demands
+> an `IntTag` specifically.
+
+### 18.1 Gear actually reaches a player's hands
+
+1. Run a real tier-1 dungeon and open the reward chests and vaults.
+2. **Expected:** iron-grade gear turns up sometimes but not in every chest
+   (the gear pool sits behind a `random_chance` of 0.35 at tier 1, 0.45 at
+   tier 2, 0.55 at tier 3, plus 0.15 on the ominous variants). Leather and
+   chainmail appear as the lesser rolls.
+3. Run a tier-3 dungeon. **Expected:** diamond-grade gear, occasionally
+   netherite, with visibly better enchantments than the tier-1 run's.
+
+### 18.2 Enchantments are slot-correct
+
+1. Collect a spread of gear drops across several runs, including at least one
+   bow or crossbow.
+2. **Expected:** no nonsense pairings. A bow never carries Protection, a
+   helmet never carries Power. This is structural rather than authored (see
+   the plan's landed correction: `enchant_with_levels` only picks what the
+   item supports), so a violation here means the mechanism regressed, not
+   that one table has a typo.
+
+### 18.3 Ominous runs pay better
+
+1. Run the same tier ominous and non-ominous.
+2. **Expected:** gear shows up noticeably more often on the ominous run.
+
+### 18.4 Themed runs still drop gear
+
+1. Complete a `drowned_vault` run, which resolves to the `_drowned` loot
+   tables rather than the base ones.
+2. **Expected:** gear still drops. The gear pool was added to all nine chest
+   tables (base, `_ominous` and `_drowned` at each tier), not just the six
+   registered in `LootTables.ALL`. The `_drowned` variants are optional by
+   design and unregistered, so it would have been easy to leave the boss
+   theme as the one path in the game that drops no gear at all.
+
+---
+
+## 19. Armor trims (M15)
+
+> The recipe-level mechanics (the duplication override loading and replacing
+> its vanilla original, the loot pools drawing real templates and materials
+> with no stray `custom_data`) are confirmed headlessly, the same way M13's
+> loot content was: `/loot insert` into a real chest plus `/data get block`
+> on the result. What is not headlessly checkable is anything that needs a
+> GUI or a worn item's live effect (`DISCOVERIES.md` trap 10). That is this
+> section.
+
+### 19.1 Applying a trim still works, and consumes the template as vanilla always did
+
+1. Find a dungeon-dropped trim template and material (or `/give` them for the
+   test). Apply the trim to an armour piece at a smithing table.
+2. **Expected:** works exactly like vanilla: the piece is trimmed, the
+   material is consumed, and so is the template (this milestone changes
+   nothing about the `minecraft:smithing_trim` recipe itself, only the
+   separate duplication recipe below).
+
+### 19.2 The duplication recipe actually refuses
+
+1. With a trim template, its pattern's original block (e.g. a copper block
+   for `bolt`), and a diamond, attempt the vanilla duplication recipe (template
+   in the shaped 3x3, per `data/minecraft/recipe/<pattern>_armor_trim_
+   smithing_template.json` in the 26.2 jar) in a crafting table.
+2. **Expected:** no result. The override recipe requires `minecraft:barrier`
+   in the block's position instead of the original material, and a survival
+   player cannot obtain barriers, so a real crafting-grid attempt never
+   completes it, permanently, for a template found anywhere (not only a
+   dungeon-found one, since removal landed as global; see
+   `COMPLETED-MILESTONES.md`'s M15 entry for why).
+3. Confirm the recipe still shows in the recipe book (or `/recipe give` if
+   testing as an op) so the "recipe not craftable" reading is because the
+   ingredient is unobtainable, not because the recipe failed to register.
+
+### 19.3 The worn bonus applies in combat
+
+1. Wear a piece trimmed with a diamond-material trim (armour toughness
+   bonus) and check the attribute value (F3 or an attribute-inspecting
+   command) with the piece on versus off.
+2. **Expected:** the configured bonus (`PocketDungeonsConfig.trimBonuses`,
+   default `+1.0 armor_toughness` for diamond) is present only while worn,
+   and disappears within one `watchIntervalTicks` window of removing the
+   piece.
+3. Swap the same slot to a different trim material (e.g. netherite,
+   knockback resistance) without removing the piece from that slot in
+   between (trim it fresh, or swap to another already-trimmed piece).
+   **Expected:** the old attribute's bonus is gone and the new attribute's
+   bonus is present; no slot ever carries two stacked bonuses from a
+   material swap.
+4. Take noticeably reduced knockback wearing a netherite-trimmed piece, or
+   the analogous effect for whichever material is easiest to test live.
+
+### 19.4 The dungeon-only flag, if flipped
+
+1. With `trimBonusDungeonOnly` set to `true` in `pocketdungeons.json`, wear a
+   trimmed piece outside the dungeon dimension.
+2. **Expected:** no bonus applied. Enter `pocketdungeons:void`.
+   **Expected:** the bonus appears within one watch-tick window, with no
+   need to re-equip the piece.
+3. Revert to the shipped default (`false`) and confirm the bonus applies
+   everywhere again.
+
+---
+
+## 20. Gear gamble station (M16)
+
+> The cost curve, the weighted-slot multiplier, and the tier-unlock gate are
+> confirmed headlessly (`gambleMathTest`, and `KeystoneMath.lootTier` is the
+> same function a run's own loot already resolves against). What is not
+> headlessly checkable is the station right-click, the picker dialog, and
+> the delivered item's live components (`DISCOVERIES.md` trap 10). That is
+> this section.
+
+### 20.1 The station always claims its block
+
+1. Right-click the configured `gambleBlock` (default `minecraft:emerald_block`)
+   with an empty hand, then again holding an arbitrary item.
+2. **Expected:** both clicks open the gamble picker, unlike the reroll
+   station (M14), which only opens for tiered gear. Nothing about the click
+   is gated on what is held.
+
+### 20.2 The picker offers only unlocked tiers
+
+1. At a low keystone level (below the tier-2 threshold in
+   `KeystoneMath.lootTier`), open the picker.
+2. **Expected:** only tier-1 buttons for each of the five slots (helmet,
+   chestplate, leggings, boots, weapon).
+3. Raise the keystone level (complete runs, or `/dungeon admin` if such a
+   command exists for testing) past the tier-3 threshold and reopen.
+   **Expected:** tier-1, tier-2 and tier-3 buttons for every slot now
+   appear.
+
+### 20.3 The weapon slot costs more
+
+1. Compare the emerald cost shown on a `weapon` button against a
+   `chestplate` button at the same tier.
+2. **Expected:** the weapon button's cost is `gambleSlotMultiplier` (default
+   1.5x) the other slot's cost at that tier, per `GambleMath.cost`.
+
+### 20.4 A gamble spends emeralds and delivers real gear
+
+1. With enough emeralds, click a slot/tier button.
+2. **Expected:** the shown cost in emeralds is removed from the inventory,
+   and one item matching the slot (a helmet-type item for `helmet`, a
+   weapon-type item for `weapon`, etc.) at roughly the tier's material and
+   enchantment level (per M13's authored tables) is delivered, with the
+   `pocketdungeons.tier` custom_data tag set. Inspect the delivered stack's
+   components (`/data get entity <player> Inventory` or similar), not just
+   that an item appeared (the carried lesson from M13's own verification).
+
+### 20.5 A short emerald count refuses cleanly
+
+1. With fewer emeralds than a button's shown cost, click it.
+2. **Expected:** a chat message names the required amount, nothing is
+   spent, and the picker reopens with the notice shown.
+
+### 20.6 A gamble never out-produces a run's own chests
+
+1. Compare a handful of gamble draws at tier 3 against opening several
+   tier-3 chests in a real run.
+2. **Expected:** qualitatively the same rate and spread of gear; the gamble
+   draws from the same `gear/<slot>_<tier>` tables the chests fold in, not a
+   richer or more generous pool.
+
+## 21. The Herobrine Cube (M17)
+
+### 21.1 Getting the extractable item
+
+1. Complete a `drowned_vault` (boss-themed) run enough times, or use
+   `/loot insert`/`/give` in a dev session, to obtain a "Warden's Ward"
+   (`minecraft:heart_of_the_sea`, 5% chance in `tier_3_drowned.json`).
+2. **Expected:** the item shows the light-purple custom name and the
+   "Extract at the Herobrine Cube." lore line.
+
+### 21.2 Extract
+
+1. Place a `cubeBlock` (default `minecraft:beacon`) somewhere reachable.
+2. Hold the Warden's Ward and right-click the block.
+3. **Expected:** the item is consumed one for one, a chat message confirms
+   the extraction, and re-checking (`/dungeon log` or similar, if such a
+   command surfaces it) shows `warden_ward` in the player's permanent set.
+4. Right-click again holding a second Warden's Ward (if available).
+   **Expected:** a "you have already extracted this power" message; the
+   item is not consumed.
+
+### 21.3 Imbue
+
+1. Hold a piece of tiered gear (any `pocketdungeons.tier`-tagged item, M13's
+   loot) with no power yet, and right-click the Cube block.
+2. **Expected:** the imbue picker opens, listing "Imbue warden_ward" and the
+   iron ingot cost.
+3. With enough iron ingots, click it.
+4. **Expected:** the ingots are spent, the held item is now marked
+   `custom_data.pocketdungeons.power = "warden_ward"`, and the picker
+   reopens confirming the imbue. A short ingot count refuses cleanly with a
+   chat message naming the required amount, and nothing is spent.
+5. Right-click the Cube again holding the now-imbued item.
+   **Expected:** falls straight through to vanilla's own beacon screen (not
+   tiered-and-unpowered any more, so neither positive test fires).
+
+### 21.4 The equip cap in combat
+
+1. Extract and imbue enough powers to exceed `equipCap` (default 3) across
+   armour and main hand.
+2. **Expected:** only the first three distinct powers encountered in slot
+   order (head, chest, legs, feet, main hand) actually apply their
+   attribute bonus (check the relevant vanilla stat, e.g. knockback
+   resistance for `warden_ward`); the excess imbued item still functions as
+   an ordinary piece of gear, just with no bonus active.
+3. Unequip one of the active three.
+   **Expected:** the previously-excess power's bonus now applies on the
+   next watch tick.
+
+### 21.5 A non-qualifying item at the Cube block does nothing special
+
+1. Right-click the Cube block holding an untagged vanilla item (plain dirt,
+   an unenchanted un-tiered sword, etc.).
+2. **Expected:** vanilla's own beacon screen opens, exactly as if this mod
+   were not installed.

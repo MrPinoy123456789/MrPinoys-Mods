@@ -2,9 +2,13 @@ package pocketdungeons;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.DoublePredicate;
 import java.util.function.IntPredicate;
 import java.io.Writer;
@@ -62,7 +66,7 @@ public final class PocketDungeonsConfig {
     // this mod's own spawners eject for its own vaults, and a recovery compass
     // has no such collision with anything else in the suite.
     private static String keystoneItem = "minecraft:recovery_compass";
-    private static int keystoneMaxLevel = 25;
+    private static int keystoneMaxLevel = 100;
     private static String callingCardItem = "minecraft:compass";
     private static int timerBaseSeconds = 180;
     private static int timerPerRoomSeconds = 60;
@@ -87,6 +91,166 @@ public final class PocketDungeonsConfig {
     private static int moltenHazardsPerCell = 4;
     /** Feral wolves spawned per non-encounter cell. Zero disables the affix's spawns. */
     private static int feralWolvesPerCell = 2;
+
+    // ---- ladder reframe (M10) -------------------------------------------------
+    /** +1% mob strength (max health, attack damage, movement speed) per keystone level. */
+    private static double mobScalePerLevel = 0.01;
+    /**
+     * Fraction of a run's trial spawners that must reach {@code COOLDOWN} before
+     * a pad contact completes the run. An untouched spawner sits at
+     * {@code INACTIVE}, not {@code COOLDOWN}, and counts against this same
+     * denominator: sprinting past every spawner is exactly what this gate
+     * exists to refuse.
+     */
+    private static double spawnerClearThreshold = 0.75;
+
+    // ---- two-tier doors and fuel (M12) ----------------------------------------
+    /**
+     * The currency doors 2/3 cost and door 1 pays out. Echo shards, not
+     * diamonds: diegetically the keystone (a recovery compass) is crafted from
+     * echo shards, and nothing else in the mod's loot tables grants any, so
+     * door 1's guaranteed payout is the only source. That is deliberate (see
+     * "Fuel currency" in the M12 plan section): a Greater room dropping fuel
+     * of its own would let the premium tier fund itself.
+     */
+    private static String fuelItem = "minecraft:echo_shard";
+    /** Door 1's own flat clock, generous rather than tied to room count. */
+    private static int door1TimerSeconds = 300;
+    /** What a door 2/3 choice costs, spent atomically with the level upgrade. */
+    private static int fuelCostPerGreaterDoor = 3;
+    /** What a completed door-1 run pays out, guaranteed, every time. */
+    private static int fuelPerFreeRun = 1;
+    /**
+     * The keystone level a door 2/3 offer requires before it can be taken.
+     * Applies to the <em>current</em> level being upgraded, not the offer's
+     * resulting level: the whole point is that a low key cannot reach the
+     * premium path at all, not that it reaches a worse version of it.
+     */
+    private static int greaterDoorMinLevel = 15;
+
+    // ---- gear reroll station (M14) --------------------------------------------
+    /** The block a reroll station is; right-clicking it with tiered gear opens the picker. */
+    private static String rerollBlock = "minecraft:smithing_table";
+    /** Lapis cost per tier step; a tier-N reroll costs this times N. */
+    private static int rerollLapisPerTier = 4;
+    /**
+     * Keystone level required before the station will open for a player. The
+     * fuel-gated-door precedent (M12) argues an ungated lapis sink stops
+     * sinking once lapis overflows; this is deliberately low (matches
+     * {@code AffixMath}'s first seeded-affix threshold) rather than gated
+     * behind Greater-door access, since the sink should be available well
+     * before a player has fuel to spend on doors 2/3.
+     */
+    private static int rerollUnlockLevel = 5;
+
+    // ---- armor trims (M15) -----------------------------------------------------
+    /**
+     * Material decides the bonus; pattern stays cosmetic. Ten materials, tuned
+     * once here, rather than authoring a cell per material/pattern combination.
+     * {@code attribute} is a registry id resolved against {@code BuiltInRegistries
+     * .ATTRIBUTE} at the use site; {@code operation} is an
+     * {@code AttributeModifier.Operation}'s serialized name
+     * ({@code add_value}, {@code add_multiplied_base}, {@code add_multiplied_total}).
+     */
+    private static List<TrimBonusEntry> trimBonuses = defaultTrimBonuses();
+    /**
+     * If true, a worn trim's bonus applies only while the wearer is in the
+     * dungeon dimension; if false, it applies everywhere the armour is worn.
+     * {@code VISION.md} section 3.7 permits the global reading by its letter
+     * (the template and material are both dungeon-loot-gated), so the
+     * milestone default is global; an operator who wants the narrower
+     * reading can flip this.
+     */
+    private static boolean trimBonusDungeonOnly = false;
+
+    /** One material's equip-time attribute bonus. See {@link #trimBonuses}. */
+    public record TrimBonusEntry(String material, String attribute, double amount, String operation) {}
+
+    /** One extracted power's equip-time attribute bonus. See {@link #powerBonuses}. */
+    public record PowerBonusEntry(String id, String attribute, double amount, String operation) {}
+
+    private static List<PowerBonusEntry> defaultPowerBonuses() {
+        // One proof pairing, matching the one proof reward this milestone wires
+        // end to end (drowned_vault's boss node). More powers are content work,
+        // authored the same way once M11 names more rare-node rewards.
+        return List.of(new PowerBonusEntry("warden_ward", "minecraft:knockback_resistance", 0.2, "add_value"));
+    }
+
+    private static List<TrimBonusEntry> defaultTrimBonuses() {
+        return List.of(
+                new TrimBonusEntry("minecraft:diamond", "minecraft:armor_toughness", 1.0, "add_value"),
+                new TrimBonusEntry("minecraft:netherite", "minecraft:knockback_resistance", 0.1, "add_value"),
+                new TrimBonusEntry("minecraft:gold", "minecraft:movement_speed", 0.02, "add_value"),
+                new TrimBonusEntry("minecraft:iron", "minecraft:armor", 1.0, "add_value"),
+                new TrimBonusEntry("minecraft:copper", "minecraft:mining_efficiency", 0.5, "add_value"),
+                new TrimBonusEntry("minecraft:redstone", "minecraft:attack_speed", 0.1, "add_value"),
+                new TrimBonusEntry("minecraft:emerald", "minecraft:luck", 1.0, "add_value"),
+                new TrimBonusEntry("minecraft:lapis", "minecraft:safe_fall_distance", 3.0, "add_value"),
+                new TrimBonusEntry("minecraft:amethyst", "minecraft:entity_interaction_range", 1.0, "add_value"),
+                new TrimBonusEntry("minecraft:quartz", "minecraft:max_health", 2.0, "add_value"),
+                new TrimBonusEntry("minecraft:resin", "minecraft:fall_damage_multiplier", -0.1, "add_value")
+        );
+    }
+
+    // ---- gamble station (M16) ---------------------------------------------------
+    /** The block a gamble station is; right-clicking it opens the slot/tier picker. */
+    private static String gambleBlock = "minecraft:emerald_block";
+    /** Emerald cost per tier step for an unweighted slot; a tier-N gamble costs this times N. */
+    private static int gambleEmeraldsPerTier = 6;
+    /**
+     * D3's own Kadala menu prices weapon pulls above armour pulls; this is the
+     * multiplier {@link #gambleWeightedSlot()}'s slot gets on top of the plain
+     * tier cost.
+     */
+    private static double gambleSlotMultiplier = 1.5;
+    /**
+     * Which of {@link LootTables#GEAR_SLOTS} is the weighted one. A slot name,
+     * not an index, so a reordering of {@code GEAR_SLOTS} cannot silently
+     * repoint the weighting at the wrong slot.
+     */
+    private static String gambleWeightedSlot = "weapon";
+
+    // ---- Herobrine Cube (M17) -----------------------------------------------
+    /**
+     * The block the Cube ritual is. Right-clicking it holding a rare item
+     * extracts; right-clicking it holding an ordinary weapon or armour piece
+     * opens the imbue picker. A configured block, not a mixin-intercepted
+     * crafting table: {@code Ingredient} (verified against the 26.2 jar) has no
+     * component-value predicate, so "any item, plus my chosen one of an
+     * open-ended power library" cannot be expressed as a datapack crafting
+     * recipe without one recipe per (item type x power) pair. A block-use
+     * ritual sidesteps that limit entirely and needs no second mixin; see
+     * {@code D3_PROGRESSION_PLAN.md}'s M17 section for the full reasoning.
+     */
+    private static String cubeBlock = "minecraft:beacon";
+    /**
+     * One extracted power's equip-time attribute bonus, read by
+     * {@code PowerListener} the same way {@link TrimBonusEntry} feeds
+     * {@code TrimListener}: {@code id} is the power id an extract ritual wrote
+     * ({@link AdventureGraph.Node#reward}), matched against
+     * {@code custom_data.pocketdungeons.power} on an imbued item.
+     */
+    private static List<PowerBonusEntry> powerBonuses = defaultPowerBonuses();
+    /** The material an imbue ritual spends alongside the extracted-power token. Cheap and repeatable by design. */
+    private static String imbueMaterial = "minecraft:iron_ingot";
+    /** How much {@link #imbueMaterial} an imbue ritual costs. */
+    private static int imbueCost = 4;
+    /**
+     * How many extracted powers can be active on a player at once, across every
+     * worn/held slot the Cube reads. A pool, not a per-piece allowance: three
+     * powers spread across five imbuable slots is still "at most three," not
+     * "at most three per slot." D3's own count.
+     */
+    private static int equipCap = 3;
+    /**
+     * Whether an extraction can be undone. D3's own answer is no: a hard sink,
+     * the rare item gone for good in exchange for never needing another like
+     * it. {@code false} by default; an operator running a server where a
+     * mis-click destroys a genuinely rare drop forever may want {@code true}.
+     * There is no undo ritual yet either way (see {@code D3_PROGRESSION_PLAN.md}'s
+     * M17 section); this flag only gates whether one could exist.
+     */
+    private static boolean extractionReversible = false;
 
     private PocketDungeonsConfig() {}
 
@@ -211,6 +375,94 @@ public final class PocketDungeonsConfig {
         return feralWolvesPerCell;
     }
 
+    public static double mobScalePerLevel() {
+        return mobScalePerLevel;
+    }
+
+    public static double spawnerClearThreshold() {
+        return spawnerClearThreshold;
+    }
+
+    public static String fuelItem() {
+        return fuelItem;
+    }
+
+    public static int door1TimerSeconds() {
+        return door1TimerSeconds;
+    }
+
+    public static int fuelCostPerGreaterDoor() {
+        return fuelCostPerGreaterDoor;
+    }
+
+    public static int fuelPerFreeRun() {
+        return fuelPerFreeRun;
+    }
+
+    public static int greaterDoorMinLevel() {
+        return greaterDoorMinLevel;
+    }
+
+    public static String rerollBlock() {
+        return rerollBlock;
+    }
+
+    public static int rerollLapisPerTier() {
+        return rerollLapisPerTier;
+    }
+
+    public static int rerollUnlockLevel() {
+        return rerollUnlockLevel;
+    }
+
+    public static String gambleBlock() {
+        return gambleBlock;
+    }
+
+    public static int gambleEmeraldsPerTier() {
+        return gambleEmeraldsPerTier;
+    }
+
+    public static double gambleSlotMultiplier() {
+        return gambleSlotMultiplier;
+    }
+
+    public static String gambleWeightedSlot() {
+        return gambleWeightedSlot;
+    }
+
+    public static String cubeBlock() {
+        return cubeBlock;
+    }
+
+    public static List<PowerBonusEntry> powerBonuses() {
+        return powerBonuses;
+    }
+
+    public static String imbueMaterial() {
+        return imbueMaterial;
+    }
+
+    public static int imbueCost() {
+        return imbueCost;
+    }
+
+    public static int equipCap() {
+        return equipCap;
+    }
+
+    public static boolean extractionReversible() {
+        return extractionReversible;
+    }
+
+    public static List<TrimBonusEntry> trimBonuses() {
+        return trimBonuses;
+    }
+
+    public static boolean trimBonusDungeonOnly() {
+        return trimBonusDungeonOnly;
+    }
+
     public static String keystoneItem() {
         return keystoneItem;
     }
@@ -277,7 +529,7 @@ public final class PocketDungeonsConfig {
         trialSpawnerCooldownTicks = 36000;
 
         keystoneItem = "minecraft:recovery_compass";
-        keystoneMaxLevel = 25;
+        keystoneMaxLevel = 100;
         callingCardItem = "minecraft:compass";
         timerBaseSeconds = 180;
         timerPerRoomSeconds = 60;
@@ -293,6 +545,34 @@ public final class PocketDungeonsConfig {
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
         feralWolvesPerCell = 2;
+
+        mobScalePerLevel = 0.01;
+        spawnerClearThreshold = 0.75;
+
+        fuelItem = "minecraft:echo_shard";
+        door1TimerSeconds = 300;
+        fuelCostPerGreaterDoor = 3;
+        fuelPerFreeRun = 1;
+        greaterDoorMinLevel = 15;
+
+        rerollBlock = "minecraft:smithing_table";
+        rerollLapisPerTier = 4;
+        rerollUnlockLevel = 5;
+
+        trimBonuses = defaultTrimBonuses();
+        trimBonusDungeonOnly = false;
+
+        gambleBlock = "minecraft:emerald_block";
+        gambleEmeraldsPerTier = 6;
+        gambleSlotMultiplier = 1.5;
+        gambleWeightedSlot = "weapon";
+
+        cubeBlock = "minecraft:beacon";
+        powerBonuses = defaultPowerBonuses();
+        imbueMaterial = "minecraft:iron_ingot";
+        imbueCost = 4;
+        equipCap = 3;
+        extractionReversible = false;
     }
 
     private static void apply(JsonObject root) {
@@ -334,7 +614,7 @@ public final class PocketDungeonsConfig {
                 v -> v >= 0, "must be >= 0");
 
         keystoneItem = readString(root, "keystoneItem", "minecraft:recovery_compass", false);
-        keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 25, v -> v >= 1, "must be >= 1");
+        keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 100, v -> v >= 1, "must be >= 1");
         callingCardItem = readString(root, "callingCardItem", "minecraft:compass", false);
         timerBaseSeconds = readInt(root, "timerBaseSeconds", 180, v -> v >= 0, "must be >= 0");
         timerPerRoomSeconds = readInt(root, "timerPerRoomSeconds", 60, v -> v >= 0, "must be >= 0");
@@ -363,6 +643,100 @@ public final class PocketDungeonsConfig {
         silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
         feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
+
+        mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.01, v -> v >= 0, "must be >= 0");
+        spawnerClearThreshold = readDouble(root, "spawnerClearThreshold", 0.75,
+                v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
+
+        fuelItem = readString(root, "fuelItem", "minecraft:echo_shard", false);
+        door1TimerSeconds = readInt(root, "door1TimerSeconds", 300, v -> v >= 0, "must be >= 0");
+        fuelCostPerGreaterDoor = readInt(root, "fuelCostPerGreaterDoor", 3, v -> v >= 0, "must be >= 0");
+        fuelPerFreeRun = readInt(root, "fuelPerFreeRun", 1, v -> v >= 0, "must be >= 0");
+        greaterDoorMinLevel = readInt(root, "greaterDoorMinLevel", 15, v -> v >= 1, "must be >= 1");
+
+        rerollBlock = readString(root, "rerollBlock", "minecraft:smithing_table", false);
+        rerollLapisPerTier = readInt(root, "rerollLapisPerTier", 4, v -> v >= 0, "must be >= 0");
+        rerollUnlockLevel = readInt(root, "rerollUnlockLevel", 5, v -> v >= 1, "must be >= 1");
+
+        trimBonuses = readTrimBonuses(root);
+        trimBonusDungeonOnly = readBoolean(root, "trimBonusDungeonOnly", false);
+
+        gambleBlock = readString(root, "gambleBlock", "minecraft:emerald_block", false);
+        gambleEmeraldsPerTier = readInt(root, "gambleEmeraldsPerTier", 6, v -> v >= 0, "must be >= 0");
+        gambleSlotMultiplier = readDouble(root, "gambleSlotMultiplier", 1.5, v -> v >= 1.0,
+                "must be >= 1.0");
+        gambleWeightedSlot = readString(root, "gambleWeightedSlot", "weapon", false);
+
+        cubeBlock = readString(root, "cubeBlock", "minecraft:beacon", false);
+        powerBonuses = readPowerBonuses(root);
+        imbueMaterial = readString(root, "imbueMaterial", "minecraft:iron_ingot", false);
+        imbueCost = readInt(root, "imbueCost", 4, v -> v >= 0, "must be >= 0");
+        equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
+        extractionReversible = readBoolean(root, "extractionReversible", false);
+    }
+
+    private static List<PowerBonusEntry> readPowerBonuses(JsonObject root) {
+        if (!root.has("powerBonuses") || !root.get("powerBonuses").isJsonArray()) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults");
+            return defaultPowerBonuses();
+        }
+        JsonArray array = root.getAsJsonArray("powerBonuses");
+        List<PowerBonusEntry> parsed = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            try {
+                JsonObject entry = array.get(i).getAsJsonObject();
+                String id = entry.get("id").getAsString();
+                String attribute = entry.get("attribute").getAsString();
+                double amount = entry.get("amount").getAsDouble();
+                String operation = entry.get("operation").getAsString();
+                if (id.isBlank() || attribute.isBlank() || operation.isBlank()) {
+                    throw new IllegalArgumentException("id, attribute, and operation must not be blank");
+                }
+                parsed.add(new PowerBonusEntry(id, attribute, amount, operation));
+            } catch (Exception e) {
+                PocketDungeonsMod.LOG.error(
+                        "pocketdungeons.json field 'powerBonuses[{}]' is malformed and was skipped", i, e);
+            }
+        }
+        if (parsed.isEmpty()) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json field 'powerBonuses' has no valid entries; using defaults");
+            return defaultPowerBonuses();
+        }
+        return Collections.unmodifiableList(parsed);
+    }
+
+    private static List<TrimBonusEntry> readTrimBonuses(JsonObject root) {
+        if (!root.has("trimBonuses") || !root.get("trimBonuses").isJsonArray()) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults");
+            return defaultTrimBonuses();
+        }
+        JsonArray array = root.getAsJsonArray("trimBonuses");
+        List<TrimBonusEntry> parsed = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            try {
+                JsonObject entry = array.get(i).getAsJsonObject();
+                String material = entry.get("material").getAsString();
+                String attribute = entry.get("attribute").getAsString();
+                double amount = entry.get("amount").getAsDouble();
+                String operation = entry.get("operation").getAsString();
+                if (material.isBlank() || attribute.isBlank() || operation.isBlank()) {
+                    throw new IllegalArgumentException("material, attribute, and operation must not be blank");
+                }
+                parsed.add(new TrimBonusEntry(material, attribute, amount, operation));
+            } catch (Exception e) {
+                PocketDungeonsMod.LOG.error(
+                        "pocketdungeons.json field 'trimBonuses[{}]' is malformed and was skipped", i, e);
+            }
+        }
+        if (parsed.isEmpty()) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json field 'trimBonuses' has no valid entries; using defaults");
+            return defaultTrimBonuses();
+        }
+        return Collections.unmodifiableList(parsed);
     }
 
     private static int readInt(JsonObject root, String key, int defaultValue,
@@ -480,7 +854,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("trialSpawnerCooldownTicks", 36000);
 
         root.addProperty("keystoneItem", "minecraft:recovery_compass");
-        root.addProperty("keystoneMaxLevel", 25);
+        root.addProperty("keystoneMaxLevel", 100);
         root.addProperty("callingCardItem", "minecraft:compass");
         root.addProperty("timerBaseSeconds", 180);
         root.addProperty("timerPerRoomSeconds", 60);
@@ -496,6 +870,52 @@ public final class PocketDungeonsConfig {
         root.addProperty("silencedPlayerRange", 6);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);
+
+        root.addProperty("mobScalePerLevel", 0.01);
+        root.addProperty("spawnerClearThreshold", 0.75);
+
+        root.addProperty("fuelItem", "minecraft:echo_shard");
+        root.addProperty("door1TimerSeconds", 300);
+        root.addProperty("fuelCostPerGreaterDoor", 3);
+        root.addProperty("fuelPerFreeRun", 1);
+        root.addProperty("greaterDoorMinLevel", 15);
+
+        root.addProperty("rerollBlock", "minecraft:smithing_table");
+        root.addProperty("rerollLapisPerTier", 4);
+        root.addProperty("rerollUnlockLevel", 5);
+
+        JsonArray trimBonusesJson = new JsonArray();
+        for (TrimBonusEntry entry : defaultTrimBonuses()) {
+            JsonObject entryJson = new JsonObject();
+            entryJson.addProperty("material", entry.material());
+            entryJson.addProperty("attribute", entry.attribute());
+            entryJson.addProperty("amount", entry.amount());
+            entryJson.addProperty("operation", entry.operation());
+            trimBonusesJson.add(entryJson);
+        }
+        root.add("trimBonuses", trimBonusesJson);
+        root.addProperty("trimBonusDungeonOnly", false);
+
+        root.addProperty("gambleBlock", "minecraft:emerald_block");
+        root.addProperty("gambleEmeraldsPerTier", 6);
+        root.addProperty("gambleSlotMultiplier", 1.5);
+        root.addProperty("gambleWeightedSlot", "weapon");
+
+        root.addProperty("cubeBlock", "minecraft:beacon");
+        JsonArray powerBonusesJson = new JsonArray();
+        for (PowerBonusEntry entry : defaultPowerBonuses()) {
+            JsonObject entryJson = new JsonObject();
+            entryJson.addProperty("id", entry.id());
+            entryJson.addProperty("attribute", entry.attribute());
+            entryJson.addProperty("amount", entry.amount());
+            entryJson.addProperty("operation", entry.operation());
+            powerBonusesJson.add(entryJson);
+        }
+        root.add("powerBonuses", powerBonusesJson);
+        root.addProperty("imbueMaterial", "minecraft:iron_ingot");
+        root.addProperty("imbueCost", 4);
+        root.addProperty("equipCap", 3);
+        root.addProperty("extractionReversible", false);
         return root;
     }
 }

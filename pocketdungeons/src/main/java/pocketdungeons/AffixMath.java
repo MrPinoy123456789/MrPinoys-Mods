@@ -17,10 +17,11 @@ import java.util.UUID;
  *
  * <h2>Two questions, one mechanism</h2>
  *
- * <p><em>How many</em> affixes a key carries is the level thresholds
- * {@code 5 / 11 / 17} ({@link #seededCount}). <em>Which</em> ones fill those slots
- * is seeded from the key itself ({@link #seededFor}). A door choice adds one more
- * on top of both, electively, at any level.
+ * <p><em>How many</em> affixes a key carries is one every 20 levels past a
+ * level-5 start ({@link #seededCount}). <em>Which</em> ones fill those slots is seeded from
+ * the key itself ({@link #seededFor}). M10 removes the third piece this section
+ * used to describe: a door choice no longer adds an elective affix on top.
+ * {@code Affix.Kind.ELECTIVE} is gone, and every affix left is seeded.
  *
  * <p>There is deliberately <strong>no weekly rotation</strong>
  * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed would make
@@ -37,10 +38,21 @@ import java.util.UUID;
  */
 final class AffixMath {
 
-    /** Levels at which the first, second and third seeded affix arrive. */
-    private static final int FIRST = 5;
-    private static final int SECOND = 11;
-    private static final int THIRD = 17;
+    /**
+     * M10: one more seeded affix every 20 levels, replacing the fixed
+     * {@code 5 / 11 / 17} thresholds. Those three left 83 of the cap-100 ladder
+     * flat past level 17; a percentage curve keeps the count meaningful across
+     * whatever the cap grows to next, and stays a pure, watcher-stable function
+     * of level either way.
+     *
+     * <p>The offset keeps the old system's first threshold: a bare
+     * {@code level / 20} would leave levels 1-19 with zero seeded affixes,
+     * turning the entire early ladder featureless. {@code (level + 15) / 20}
+     * lands the first affix at level 5, same as the old {@code FIRST}
+     * threshold, then one more every 20 levels after that (25, 45, 65, 85).
+     */
+    private static final int LEVELS_PER_AFFIX = 20;
+    private static final int FIRST_AFFIX_LEVEL = 5;
 
     private AffixMath() {}
 
@@ -104,21 +116,16 @@ final class AffixMath {
     // ---- thresholds ---------------------------------------------------------
 
     /**
-     * How many seeded affixes a key of this level carries: {@code 5 / 11 / 17}.
+     * How many seeded affixes a key of this level carries: {@code 0} below 5,
+     * {@code 1} at 5-24, {@code 2} at 25-44, and one more every 20 levels after
+     * that, reaching {@code 5} out of the {@code Kind.SEEDED} pool at level 85.
      *
-     * <p>Not {@code 5 / 10 / 15}. That leaves levels 15-25 flat -- ten levels in
-     * which nothing about a run changes, sitting exactly where the most invested
-     * players live. These three spread the changes across the whole ladder, with a
-     * largest gap of six.
+     * <p>Monotonic and uncapped here: {@link #seededFor} already clamps to the
+     * pool's own size, so a cap raised past what the pool can fill just means
+     * every seeded affix is in play, never an exception thrown.
      */
     static int seededCount(int level) {
-        if (level >= THIRD) {
-            return 3;
-        }
-        if (level >= SECOND) {
-            return 2;
-        }
-        return level >= FIRST ? 1 : 0;
+        return (Math.max(0, level) + (LEVELS_PER_AFFIX - FIRST_AFFIX_LEVEL)) / LEVELS_PER_AFFIX;
     }
 
     /**
@@ -159,17 +166,19 @@ final class AffixMath {
         return set;
     }
 
-    /** Only the affixes a player chose, which is all {@link DungeonLog} stores. */
+    /**
+     * Only the affixes a player chose, which is all {@link DungeonLog} stores.
+     *
+     * @deprecated M10 removes {@code Affix.Kind.ELECTIVE}: nothing is chosen at a
+     * door any more, so this always returns the empty set. Kept, rather than
+     * deleted or inlined, because every call site ({@link DungeonLog#setKeystone},
+     * {@code Keystones.grantOffer}, {@code Keystones.returnTo}) still reads as "the
+     * part of the set that gets persisted", and a future elective affix (if one
+     * ever ships again) has exactly one method to change back.
+     */
+    @Deprecated
     static EnumSet<Affix> elective(Set<Affix> affixes) {
-        EnumSet<Affix> set = EnumSet.noneOf(Affix.class);
-        if (affixes != null) {
-            for (Affix affix : affixes) {
-                if (affix.kind == Affix.Kind.ELECTIVE) {
-                    set.add(affix);
-                }
-            }
-        }
-        return set;
+        return EnumSet.noneOf(Affix.class);
     }
 
     /**
@@ -214,7 +223,9 @@ final class AffixMath {
 
     /**
      * The intensifier band for a level: Baby 1-5, Lowkey 6-10, Highkey 11-15,
-     * Menace 16-20, Unhinged 21 and up.
+     * Menace 16-20, then eight ten-level bands from Unhinged (21-30) up to
+     * Transcendent (91-100), M10's extension of the ladder past the old cap of
+     * 25.
      *
      * <p>Kamu Totems' <em>convention</em>, with entirely separate words -- same
      * machinery, no shared code and no shared vocabulary, per
@@ -230,7 +241,31 @@ final class AffixMath {
         if (level <= 15) {
             return "Highkey";
         }
-        return level <= 20 ? "Menace" : "Unhinged";
+        if (level <= 20) {
+            return "Menace";
+        }
+        if (level <= 30) {
+            return "Unhinged";
+        }
+        if (level <= 40) {
+            return "Deranged";
+        }
+        if (level <= 50) {
+            return "Unholy";
+        }
+        if (level <= 60) {
+            return "Cursed";
+        }
+        if (level <= 70) {
+            return "Forsaken";
+        }
+        if (level <= 80) {
+            return "Abyssal";
+        }
+        if (level <= 90) {
+            return "Apocalyptic";
+        }
+        return "Transcendent";
     }
 
     /**

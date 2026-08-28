@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -13,10 +14,12 @@ import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.dialog.input.TextInput;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -49,6 +52,19 @@ final class DialogScreens {
 
     static final String ACTION_WHITELIST_ADD = "room_whitelist_add";
     static final String ACTION_WHITELIST_REMOVE = "room_whitelist_remove";
+
+    /** M14: which enchantment (a namespaced id) the reroll picker's button chose. */
+    static final String KEY_ENCHANT = "pd_enchant";
+    static final String ACTION_REROLL = "reroll";
+
+    /** M16: which slot and tier the gamble picker's button chose. */
+    static final String KEY_SLOT = "pd_slot";
+    static final String KEY_TIER = "pd_tier";
+    static final String ACTION_GAMBLE = "gamble";
+
+    /** M17: which extracted power the Cube's imbue picker's button chose. */
+    static final String KEY_POWER = "pd_power";
+    static final String ACTION_IMBUE = "imbue";
 
     // ---- section 1: the door offer ------------------------------------------
 
@@ -84,6 +100,17 @@ final class DialogScreens {
         }
         if (doorAffix != null) {
             body.add(DialogKit.text(Component.literal(doorAffix.blurb).withStyle(ChatFormatting.GRAY)));
+        }
+        // M12: the tier line. Door 1 never refuses; doors 2/3 might, at
+        // chooseOffer time, on either condition named here.
+        if (offer.free()) {
+            body.add(DialogKit.text(Component.literal("Free door. Pays out "
+                    + PocketDungeonsConfig.fuelPerFreeRun() + " fuel on completion. Never "
+                    + "depletes your keystone.").withStyle(ChatFormatting.GREEN)));
+        } else {
+            body.add(DialogKit.text(Component.literal("Costs " + PocketDungeonsConfig.fuelCostPerGreaterDoor()
+                    + " fuel. Requires keystone level " + PocketDungeonsConfig.greaterDoorMinLevel()
+                    + " or higher.").withStyle(ChatFormatting.YELLOW)));
         }
         // "Close" is a real no: nothing is spent until "Take this key" is pressed,
         // and the door is still there to right-click again afterwards.
@@ -298,5 +325,121 @@ final class DialogScreens {
                 DialogKit.command("Restore", null,
                         "/dungeon admin baserestore " + targetName + " confirm"),
                 DialogKit.closeButton("Cancel"));
+    }
+
+    // ---- section 7: the gear reroll station (M14) ---------------------------
+
+    /**
+     * The held item's current enchantments, one "Reroll" button each.
+     *
+     * <p>Tier B, like {@link #whitelist}: which enchantment was clicked cannot
+     * be a fixed command string, so the button carries the enchantment's
+     * registered id and {@link RerollStation#handleReroll} re-reads the
+     * player's live main-hand item rather than trusting this screen's
+     * snapshot: the item, and the lapis to pay for the swap, can both change
+     * while the screen sits open.
+     */
+    static Dialog rerollPicker(UUID player, ItemStack held, String notice) {
+        List<DialogBody> body = new ArrayList<>();
+        if (notice != null) {
+            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
+        }
+        int tier = RerollStation.tierOf(held);
+        int cost = PocketDungeonsConfig.rerollLapisPerTier() * Math.max(1, tier);
+        body.add(DialogKit.text("Tier " + tier + " gear. One reroll costs " + cost + " lapis lazuli."));
+
+        List<ActionButton> buttons = new ArrayList<>();
+        net.minecraft.world.item.enchantment.ItemEnchantments enchantments = held.getEnchantments();
+        for (Holder<Enchantment> holder : enchantments.keySet()) {
+            int level = enchantments.getLevel(holder);
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, player.toString());
+            context.putString(KEY_ENCHANT, holder.getRegisteredName());
+            buttons.add(DialogKit.button("Reroll " + Enchantment.getFullname(holder, level).getString(),
+                    "Replaces just this one enchantment", DialogKit.submit(ACTION_REROLL, context)));
+        }
+        if (buttons.isEmpty()) {
+            body.add(DialogKit.text("This item has no enchantments to reroll."));
+            return DialogKit.notice("Reroll station", body);
+        }
+        return DialogKit.list("Reroll station", body, buttons, "Close");
+    }
+
+    // ---- section 8: the gear gamble station (M16) ---------------------------
+
+    /**
+     * Every unlocked slot/tier combination, one "Gamble" button each. Tier B,
+     * like {@link #rerollPicker}: the button carries the slot name and tier
+     * so {@link GambleStation#handleGamble} can re-validate both (and the
+     * emerald count) against the player's live state, since the keystone
+     * level that unlocked a tier and the emeralds to pay for it can both
+     * change while the screen sits open.
+     *
+     * <p>{@code maxTier} is read off {@link KeystoneMath#lootTier}, the same
+     * level-to-tier mapping a run's own loot already uses: a low-level
+     * player sees only tier-1 gambles, the same "level gates access" rule
+     * M10/M12/M14 already use.
+     */
+    static Dialog gamblePicker(UUID player, int maxTier, String notice) {
+        List<DialogBody> body = new ArrayList<>();
+        if (notice != null) {
+            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
+        }
+        body.add(DialogKit.text("Pick a slot and a tier. No guarantee of quality, just of fit."));
+
+        List<ActionButton> buttons = new ArrayList<>();
+        for (String slot : LootTables.GEAR_SLOTS) {
+            for (int tier = 1; tier <= maxTier; tier++) {
+                int cost = GambleMath.cost(tier, slot, PocketDungeonsConfig.gambleEmeraldsPerTier(),
+                        PocketDungeonsConfig.gambleSlotMultiplier(), PocketDungeonsConfig.gambleWeightedSlot());
+                CompoundTag context = new CompoundTag();
+                context.putString(KEY_OWNER, player.toString());
+                context.putString(KEY_SLOT, slot);
+                context.putInt(KEY_TIER, tier);
+                buttons.add(DialogKit.button(capitalize(slot) + ", tier " + tier + " (" + cost + " emeralds)",
+                        null, DialogKit.submit(ACTION_GAMBLE, context)));
+            }
+        }
+        if (buttons.isEmpty()) {
+            body.add(DialogKit.text("Your keystone does not clear tier 1 yet."));
+            return DialogKit.notice("Gamble station", body);
+        }
+        return DialogKit.list("Gamble station", body, buttons, "Close");
+    }
+
+    private static String capitalize(String word) {
+        return word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1);
+    }
+
+    // ---- section 9: the Herobrine Cube's imbue picker (M17) -----------------
+
+    /**
+     * Every power the player has extracted, one "Imbue" button each. Tier B,
+     * like {@link #rerollPicker}: the button carries the power id so
+     * {@link CubeStation#handleImbue} can re-validate the held item, the
+     * player's live extracted-power set, and the material cost, since all
+     * three can change while the picker sits open.
+     */
+    static Dialog imbuePicker(UUID player, ItemStack held, Set<String> extractedPowers, String notice) {
+        List<DialogBody> body = new ArrayList<>();
+        if (notice != null) {
+            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
+        }
+        int cost = PocketDungeonsConfig.imbueCost();
+        body.add(DialogKit.text("Imbuing " + held.getHoverName().getString() + ". Costs "
+                + cost + " " + PocketDungeonsConfig.imbueMaterial() + "."));
+
+        List<ActionButton> buttons = new ArrayList<>();
+        for (String power : CubeStation.sortedUnlocked(extractedPowers)) {
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, player.toString());
+            context.putString(KEY_POWER, power);
+            buttons.add(DialogKit.button("Imbue " + power, null, DialogKit.submit(ACTION_IMBUE, context)));
+        }
+        if (buttons.isEmpty()) {
+            body.add(DialogKit.text("You have not extracted any powers yet."));
+            return DialogKit.notice("Herobrine Cube", body);
+        }
+        return DialogKit.list("Herobrine Cube", body, buttons, "Close");
     }
 }

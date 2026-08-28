@@ -76,21 +76,27 @@ final class RoomContent {
 
     private RoomContent() {}
 
-    static void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+    /**
+     * @return the trial spawner anchor placed for an {@code encounter} cell, or
+     *         {@code null} for every other role (M10: the caller collects these
+     *         into the run's layout for the spawner-clear completion gate)
+     */
+    static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
                       Set<Affix> affixes, String lootSuffix) {
-        if (role == null) {
-            return;
-        }
-        switch (role) {
-            case "encounter" -> {
-                removeChests(level, cellOrigin);
-                TrialContent.applyEncounter(level, cellOrigin, spawns, profile.lootTier(), affixes);
+        BlockPos spawnerAnchor = null;
+        if (role != null) {
+            switch (role) {
+                case "encounter" -> {
+                    removeChests(level, cellOrigin);
+                    spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
+                            profile.lootTier(), affixes);
+                }
+                case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
+                        affixes.contains(Affix.OMINOUS), seed, lootSuffix);
+                case "corridor" -> removeChests(level, cellOrigin);
+                default -> { /* entrance and exit carry no chest and no spawn points */ }
             }
-            case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
-                    affixes.contains(Affix.OMINOUS), seed, lootSuffix);
-            case "corridor" -> removeChests(level, cellOrigin);
-            default -> { /* entrance and exit carry no chest and no spawn points */ }
         }
         // Molten (M4 T4.5): lava underfoot, and the only source of lava in the
         // game -- a sealed dungeon has none otherwise, and it gates furnace fuel
@@ -109,8 +115,9 @@ final class RoomContent {
         // the same reason Molten excludes them: one is the player's own room, the
         // other the lodestone pad and the reward chests.
         if (affixes.contains(Affix.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
-            FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), seed);
+            FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), profile.keystoneLevel(), seed);
         }
+        return spawnerAnchor;
     }
 
     /**

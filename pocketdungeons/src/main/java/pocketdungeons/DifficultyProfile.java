@@ -37,4 +37,31 @@ record DifficultyProfile(int pathLength, int keystoneLevel) {
         }
         return pathLength <= 7 ? 2 : 3;
     }
+
+    /**
+     * M10: mob strength scaling for the run's keystone level, as a multiplier
+     * over a mob's base attribute value. {@code +1% per level} by default (a
+     * level-100 run's mobs land at roughly {@code 2x}), config-driven via
+     * {@link PocketDungeonsConfig#mobScalePerLevel()}.
+     *
+     * <p>A level-{@code 0} run (no keystone, {@code /dungeon admin build}) scales
+     * to exactly {@code 1.0}: nothing paid for the difficulty, so nothing is
+     * added to it.
+     */
+    static double mobScale(int level, double perLevel) {
+        return 1.0 + Math.max(0, level) * Math.max(0, perLevel);
+    }
+
+    /**
+     * M10's spawner-clear gate: whether enough of the run's trial spawners have
+     * reached {@code TrialSpawnerState.COOLDOWN} to let a pad contact complete
+     * the run. {@code total == 0} (a run with no spawner-bearing cell) always
+     * passes, since there is nothing to gate on.
+     */
+    static boolean spawnersCleared(int cleared, int total, double threshold) {
+        if (total <= 0) {
+            return true;
+        }
+        return (double) Math.max(0, cleared) / total >= threshold;
+    }
 }

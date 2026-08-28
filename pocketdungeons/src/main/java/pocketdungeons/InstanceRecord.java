@@ -92,6 +92,17 @@ final class InstanceRecord {
     int chosenStep;
 
     /**
+     * True when {@link #chosenStep} was door 1, the free tier (M12). Read by
+     * {@code RunLifecycle.returnKeystone}/{@code expireTimedOut} to exempt a
+     * free-door run from every depletion outcome: door 1 never costs fuel and
+     * a failed door-1 run never costs a level either, so this is checked ahead
+     * of translating a timeout or a late finish into a {@code Keystones
+     * .Outcome}. Meaningless (and left at its default {@code false}) until a
+     * door is actually chosen; the lobby itself is neither tier.
+     */
+    boolean freeDoor;
+
+    /**
      * The clock. Null only when nobody paid a keystone, or for an operator's
      * {@code /dungeon admin untimed} run -- see {@link #untimed}.
      *

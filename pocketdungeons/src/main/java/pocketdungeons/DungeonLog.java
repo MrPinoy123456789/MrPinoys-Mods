@@ -10,6 +10,7 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,32 +35,76 @@ final class DungeonLog extends SavedData {
      *                           remote that displays this number, not the number
      *                           itself. See {@link Keystone} for why that
      *                           inverted.
-     * @param keystoneAffix      the <em>elective</em> affixes riding on that
-     *                           keystone: lowercase names, comma-joined in enum
-     *                           order, or empty for none. Persisted alongside the
-     *                           level because picking the ominous or fragile door
-     *                           has to survive until the run that pays for it.
-     *                           The affixes the level's thresholds seed are not
-     *                           here -- they follow from the level and are derived
-     *                           on read ({@link AffixMath#effective}), which is why
-     *                           M4 needed no codec migration.
+     * @param keystoneAffix      superseded (M10): the <em>elective</em> affixes a
+     *                           door choice used to add on top of the seeded ones.
+     *                           {@code Affix.Kind.ELECTIVE} no longer exists, so
+     *                           {@link AffixMath#elective} always returns the empty
+     *                           set and every write here is {@code ""} from here
+     *                           on. The field and its codec entry stay for
+     *                           save-format safety: a pre-M10 save can still
+     *                           carry {@code "ominous"} or {@code "fragile"} in it,
+     *                           and both are removed only once a migration
+     *                           confirms no live save still does. Everything a key
+     *                           carries now follows from its level alone
+     *                           ({@link AffixMath#effective}).
      * @param pendingOfferLevel  the keystone level a completed run was finished
      *                           at, if a door choice from that completion is
      *                           still unmade. {@code 0} means no offer pending.
      *                           Persisted so it survives a logout, a restart, or
      *                           losing the compass -- the selector room is not
      *                           the authority, this is (U8 Stage 3).
+     * @param recentThemes       superseded (M11): the recipe system's 3-deep
+     *                           ordered window, replaced by {@code currentTheme}
+     *                           below. {@code RecipeMatcher}/{@code DungeonRecipes}
+     *                           are deleted, so nothing writes this any more;
+     *                           the field and its codec entry stay so a pre-M11
+     *                           save still loads, until a migration confirms no
+     *                           live save carries the old data.
+     * @param currentTheme       (M11) the theme this player's last completed run
+     *                           was themed as, the node {@link Keystone#offers}
+     *                           draws the next three door themes from via
+     *                           {@link AdventureGraph#pick}. Empty for a player
+     *                           who has never completed a themed run, which
+     *                           {@link AdventureGraph#pick} reads as "deal from
+     *                           the entry pool", the same shape
+     *                           {@code ThemeOfferMath.pick} used before the graph
+     *                           existed.
+     * @param depth              (M11) how many descent-kind themes deep from the
+     *                           last entry/boss reset {@code currentTheme} is.
+     *                           Feeds the graph pick's seed so a given
+     *                           {@code (owner, currentTheme, depth)} is stable
+     *                           across the instance watcher's reconciliations;
+     *                           does not yet reweight the pick itself (see
+     *                           {@link AdventureGraph}'s class note).
+     * @param extractedPowers    (M17) every power id the Herobrine Cube has
+     *                           permanently unlocked for this player, one entry
+     *                           per extraction, never truncated: the same
+     *                           never-shrinks shape as {@code completedThemes}.
+     *                           A power id names an {@link AdventureGraph.Node}
+     *                           reward ({@link AdventureGraph.Node#reward}), so
+     *                           it is stable across a reload as long as the node
+     *                           keeps the same reward id. Extraction is
+     *                           irreversible by default ({@code
+     *                           PocketDungeonsConfig.extractionReversible}), so
+     *                           this set only grows in the default
+     *                           configuration; a server that turns reversibility
+     *                           on is trusting whatever undo ritual removes an
+     *                           entry to do so deliberately.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
-                 List<String> recentThemes, Map<String, Integer> completedThemes) {
+                 List<String> recentThemes, Map<String, Integer> completedThemes,
+                 String currentTheme, int depth, Set<String> extractedPowers) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
+            currentTheme = currentTheme == null ? "" : currentTheme;
+            depth = Math.max(0, depth);
+            extractedPowers = Set.copyOf(extractedPowers);
         }
     }
 
-    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of());
+    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of());
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -85,7 +130,11 @@ final class DungeonLog extends SavedData {
             Codec.STRING.listOf().optionalFieldOf("recent_themes", List.of())
                     .forGetter(Entry::recentThemes),
             Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("completed_themes", Map.of())
-                    .forGetter(Entry::completedThemes)
+                    .forGetter(Entry::completedThemes),
+            Codec.STRING.optionalFieldOf("current_theme", "").forGetter(Entry::currentTheme),
+            Codec.INT.optionalFieldOf("depth", 0).forGetter(Entry::depth),
+            Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("extracted_powers", Set.of()).forGetter(Entry::extractedPowers)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -139,7 +188,8 @@ final class DungeonLog extends SavedData {
                 Math.max(previous.bestKeystoneLevel(), keystoneLevel),
                 previous.keystoneLevel(),
                 previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes());
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers());
         entries.put(player, next);
         setDirty();
         return next;
@@ -168,7 +218,8 @@ final class DungeonLog extends SavedData {
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), Math.max(0, level),
                 AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
-                previous.recentThemes(), previous.completedThemes()));
+                previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
         setDirty();
     }
 
@@ -181,7 +232,8 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                Math.max(0, level), previous.recentThemes(), previous.completedThemes()));
+                Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
         setDirty();
     }
 
@@ -192,10 +244,25 @@ final class DungeonLog extends SavedData {
         }
         entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
-                previous.recentThemes(), previous.completedThemes()));
+                previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers()));
         setDirty();
     }
 
+    /**
+     * Records a completed run's theme: bumps the {@code /dungeon log} completed
+     * count and advances {@code currentTheme}/{@code depth} for the next door
+     * offer's {@link AdventureGraph#pick}.
+     *
+     * <p>M11 replaces {@code ThemeHistory.push}'s 3-deep window with a single
+     * next-node advance. A boss-kind theme resets {@code currentTheme} to a
+     * weighted entry theme and {@code depth} to {@code 0} ({@link
+     * AdventureGraph#resetTheme}); an entry-kind theme restarts the descent
+     * count at {@code 1}; anything else (a descent theme, or a theme the loaded
+     * graph has no node for, which is graceful degradation rather than a stuck
+     * state) just advances {@code currentTheme} to it and increments
+     * {@code depth}.
+     */
     Entry recordTheme(UUID player, String theme) {
         if (theme == null || theme.isBlank()) {
             return get(player);
@@ -203,9 +270,50 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         Map<String, Integer> counts = new HashMap<>(previous.completedThemes());
         counts.merge(theme, 1, Integer::sum);
+
+        AdventureGraph graph = AdventureGraphs.current().graph();
+        AdventureGraph.Node node = graph.node(theme);
+        String nextTheme;
+        int nextDepth;
+        if (node != null && node.kind() == AdventureGraph.Kind.BOSS) {
+            String reset = graph.resetTheme(player, previous.depth());
+            nextTheme = reset == null ? "" : reset;
+            nextDepth = 0;
+        } else if (node != null && node.kind() == AdventureGraph.Kind.ENTRY) {
+            nextTheme = theme;
+            nextDepth = 1;
+        } else {
+            nextTheme = theme;
+            nextDepth = previous.depth() + 1;
+        }
+
         Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), ThemeHistory.push(previous.recentThemes(), theme), counts);
+                previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
+                previous.extractedPowers());
+        entries.put(player, next);
+        setDirty();
+        return next;
+    }
+
+    /**
+     * Records a Herobrine Cube extraction: {@code powerId} joins this player's
+     * permanent set. A no-op if the power is already unlocked, since a mis-fired
+     * duplicate scan (the tick listener that drives this is a reconciliation
+     * pass, not a one-shot event; see {@code CubeListener}) must not be
+     * observable as anything happening twice.
+     */
+    Entry addExtractedPower(UUID player, String powerId) {
+        Entry previous = get(player);
+        if (powerId == null || powerId.isBlank() || previous.extractedPowers().contains(powerId)) {
+            return previous;
+        }
+        Set<String> powers = new HashSet<>(previous.extractedPowers());
+        powers.add(powerId);
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), powers);
         entries.put(player, next);
         setDirty();
         return next;

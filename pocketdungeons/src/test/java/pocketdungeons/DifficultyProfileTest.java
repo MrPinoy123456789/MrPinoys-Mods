@@ -5,7 +5,49 @@ public class DifficultyProfileTest {
     public static void main(String[] args) {
         testTierBoundaries();
         testKeystoneRekey();
+        testMobScale();
+        testSpawnersCleared();
         System.out.println("DifficultyProfileTest passed");
+    }
+
+    private static void testSpawnersCleared() {
+        checkBool(DifficultyProfile.spawnersCleared(0, 0, 0.75), true);
+        checkBool(DifficultyProfile.spawnersCleared(3, 4, 0.75), true);
+        checkBool(DifficultyProfile.spawnersCleared(2, 4, 0.75), false);
+        checkBool(DifficultyProfile.spawnersCleared(4, 4, 0.75), true);
+        checkBool(DifficultyProfile.spawnersCleared(0, 4, 0.75), false);
+        // Negative "cleared" never reads as more cleared than none.
+        checkBool(DifficultyProfile.spawnersCleared(-1, 4, 0.75), false);
+    }
+
+    private static void checkBool(boolean actual, boolean expected) {
+        if (actual != expected) {
+            throw new AssertionError("Expected " + expected + " but got " + actual);
+        }
+    }
+
+    /** M10: +1% per level by default, 1.0 at level 0, monotonic across the ladder. */
+    private static void testMobScale() {
+        checkDouble(DifficultyProfile.mobScale(0, 0.01), 1.0);
+        checkDouble(DifficultyProfile.mobScale(1, 0.01), 1.01);
+        checkDouble(DifficultyProfile.mobScale(100, 0.01), 2.0);
+        // Negative inputs never invert the scale.
+        checkDouble(DifficultyProfile.mobScale(-5, 0.01), 1.0);
+        checkDouble(DifficultyProfile.mobScale(10, -0.5), 1.0);
+        double previous = 0.0;
+        for (int level = 0; level <= 100; level++) {
+            double scale = DifficultyProfile.mobScale(level, 0.01);
+            if (scale < previous) {
+                throw new AssertionError("mobScale dipped at level " + level);
+            }
+            previous = scale;
+        }
+    }
+
+    private static void checkDouble(double actual, double expected) {
+        if (Math.abs(actual - expected) > 1e-9) {
+            throw new AssertionError("Expected " + expected + " but got " + actual);
+        }
     }
 
     private static void testTierBoundaries() {

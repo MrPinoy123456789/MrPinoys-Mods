@@ -59,6 +59,12 @@ final class RitualListener {
             Keystone.warmUp();
             CallingCard.warmUp();
             TrialContent.warmUp();
+            Fuel.warmUp();
+            RerollStation.warmUp();
+            GambleStation.warmUp();
+            TrimListener.warmUp();
+            CubeStation.warmUp();
+            PowerListener.warmUp();
         });
     }
 
@@ -95,6 +101,31 @@ final class RitualListener {
                 && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem
                 && !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
             return InteractionResult.FAIL;
+        }
+
+        // M14: the reroll station. A positive test on the held item, same as
+        // the calling-card and keystone branches below -- anything that is not
+        // tagged tiered gear falls straight through to whatever this block
+        // would otherwise do (by default a plain vanilla smithing table).
+        if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // M16: the gamble station. Unlike the reroll station above, there is
+        // nothing to check about what is held -- a gamble draw has no target
+        // item -- so the configured block is fully claimed the moment it
+        // matches, the same way a selector door or a calling-card lodestone
+        // claims theirs.
+        if (GambleStation.onUse(serverPlayer, level.getBlockState(pos))) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // M17: the Herobrine Cube. Two positive tests on the held item (a rare
+        // reward to extract, or imbuable gear with no power yet), same shape as
+        // the reroll station above; anything else at the same block falls
+        // straight through to vanilla's own behaviour.
+        if (CubeStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
+            return InteractionResult.SUCCESS_SERVER;
         }
 
         // M2/M3: a door in the player's own lobby. Handled mod-side and ahead
@@ -192,7 +223,7 @@ final class RitualListener {
     private static void sendDoorOffer(ServerPlayer player, int step) {
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
         int level = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), level, entry.recentThemes());
+        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), level, entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
 
         java.util.List<Affix> ordered = AffixMath.ordered(offer.affixes());

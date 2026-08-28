@@ -42,6 +42,13 @@ import java.util.Set;
  * @param terminalRotation the quarter-turns the terminal cell's room was
  *                     actually stamped at -- what T2.4's closed loop re-stamps
  *                     the moved room at
+ * @param trialSpawners (M10) every trial spawner anchor this run's encounter
+ *                     cells stamped, for the spawner-clear completion gate.
+ *                     Empty for a layout with no encounter content at all (the
+ *                     {@link StaticLayout} fallback, {@link #forClearingOnly}, or
+ *                     the lobby's one-cell {@link Instances#lobbyLayout}), and an
+ *                     empty set reads as "nothing to gate on" wherever the clear
+ *                     fraction is checked, never as "gate refused".
  */
 record InstanceLayout(
         BlockPos origin,
@@ -59,7 +66,12 @@ record InstanceLayout(
         int keystoneLevel,
         BlockPos terminal,
         int entranceRotation,
-        int terminalRotation) {
+        int terminalRotation,
+        Set<BlockPos> trialSpawners) {
+
+    InstanceLayout {
+        trialSpawners = trialSpawners == null ? Set.of() : Set.copyOf(trialSpawners);
+    }
 
     /**
      * Whether the whole run is ominous.
@@ -98,6 +110,6 @@ record InstanceLayout(
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
                 geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false,
-                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0);
+                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of());
     }
 }

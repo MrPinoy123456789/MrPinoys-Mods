@@ -98,8 +98,11 @@ tasks.register<JavaExec>("cellGeometryTest") {
 for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
-    "recipeMatchTest" to "RecipeMatchTest",
-    "dungeonLogTest" to "DungeonLogTest"
+    "adventureGraphTest" to "AdventureGraphTest",
+    "dungeonLogTest" to "DungeonLogTest",
+    "rerollMathTest" to "RerollMathTest",
+    "gambleMathTest" to "GambleMathTest",
+    "powerEquipMathTest" to "PowerEquipMathTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -111,8 +114,11 @@ for ((taskName, testClass) in mapOf(
 tasks.test {
     dependsOn("dungeonThemeMetaTest")
     dependsOn("keystoneOfferTest")
-    dependsOn("recipeMatchTest")
+    dependsOn("adventureGraphTest")
     dependsOn("dungeonLogTest")
+    dependsOn("rerollMathTest")
+    dependsOn("gambleMathTest")
+    dependsOn("powerEquipMathTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
