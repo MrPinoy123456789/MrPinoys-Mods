@@ -140,19 +140,15 @@ public final class DialogRouter {
     }
 
     /**
-     * The menu's Start Dungeon option. The keystone is checked here, on the
-     * click, never when the menu opened: the menu opens with any item or an
-     * empty hand, so a player who just wants to leave or browse never needs
-     * their compass first. The main hand is the check, matching the chat
-     * refusal; {@link RunLifecycle#enterWithKeystone} re-reads the inventory
-     * and still handles free re-entry into a live instance.
+     * The menu's Start Dungeon option. The keystone is checked by
+     * {@link RunLifecycle#enterWithKeystone}, on the click, never when the
+     * menu opened: the menu opens with any item or an empty hand, so a player
+     * who just wants to leave or browse never needs their compass first.
+     * {@code enterWithKeystone} reads the keystone from the inventory, not the
+     * hand, and handles free re-entry into a live owned instance before any
+     * keystone check, so a returning owner is never asked to hold their key.
      */
     private static void startDungeon(ServerPlayer player) {
-        if (!Keystone.isKeystone(player.getMainHandItem())) {
-            player.sendSystemMessage(Component.literal("Hold a keystone to start a dungeon.")
-                    .withStyle(ChatFormatting.RED));
-            return;
-        }
         // Ahead of entry, so the player who is about to be teleported away is
         // still here to hear it, the same cue the old block-use ritual played.
         // M22: now a per-player packet, not a room-wide broadcast.
