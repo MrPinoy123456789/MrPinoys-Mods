@@ -132,6 +132,16 @@ public final class Chime {
         play(player, Holder.direct(SoundEvents.ENDERMAN_TELEPORT), 0.3f, 0.7f);
     }
 
+    /** M25: a Pocket2 door was opened and the player stepped into the pocket. */
+    public static void pocketOpens(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.ENDERMAN_TELEPORT), 0.4f, 1.2f);
+    }
+
+    /** M25: the pocket closed and its members were returned to the parent run. */
+    public static void pocketCloses(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.ENDERMAN_TELEPORT), 0.4f, 0.8f);
+    }
+
     private static void play(ServerPlayer player, Holder<SoundEvent> sound,
                              float volume, float pitch) {
         player.connection.send(new ClientboundSoundPacket(

@@ -8,8 +8,10 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -98,7 +100,20 @@ final class LayoutStamper {
         // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
         // in the first cleared encounter cell; carried on the layout so the
         // right-click handler can find it without scanning the world.
+        // Rolled once per run off the plan seed, and gated on the adventure
+        // graph: a theme that has no node in it (an unthemed run, or a datapack
+        // that never declared one) never hosts a pocket door.
+        boolean pocket2Rolled = theme != null
+                && AdventureGraphs.current().graph().node(theme) != null
+                && RandomSource.create(plan.seed()).nextDouble()
+                < PocketDungeonsConfig.pocket2DoorChance();
         BlockPos pocket2Door = null;
+
+        // Voided affix: select which cells get voided floor before stamping.
+        // Entrance and terminal cells always excluded: lobby door and
+        // lodestone pad need solid floor. Seeded from plan seed for
+        // reproducibility.
+        Set<PlanCell> voidedCells = computeVoidedCells(plan, affixes);
 
         for (PlanCell cell : stampOrder(plan)) {
             if (entranceAlreadyStamped && cell.equals(entranceCell)) {
@@ -125,9 +140,19 @@ final class LayoutStamper {
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                    depth, profile, spawns, plan.seed(), affixes, lootSuffix);
+                    depth, profile, spawns, plan.seed(), affixes, lootSuffix,
+                    voidedCells.contains(cell));
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);
+            }
+
+            // M25: the pocket door lives in the run's first cleared encounter
+            // cell. A cell with no sealed wall cannot host one (every wall
+            // leads to a neighbour), so the roll falls through to the next
+            // encounter cell rather than failing the run.
+            if (pocket2Rolled && pocket2Door == null
+                    && "encounter".equals(plan.roles().get(cell))) {
+                pocket2Door = Pocket2.placeDoor(level, cellOrigin, geometry);
             }
 
             // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
@@ -145,7 +170,7 @@ final class LayoutStamper {
             }
         }
 
-        BedrockEnvelope.apply(level, geometry);
+        BedrockEnvelope.apply(level, geometry, voidedCells);
 
         return new InstanceLayout(
                 origin,
@@ -166,6 +191,30 @@ final class LayoutStamper {
                 plan.rooms().get(plan.terminal()).rotation(),
                 Set.copyOf(trialSpawners),
                 pocket2Door);
+    }
+
+    /**
+     * Selects which cells get voided floor when the VOIDED affix is active.
+     * Entrance and terminal cells are always excluded. Each remaining cell
+     * is independently rolled against {@link PocketDungeonsConfig#voidedCellChance}.
+     */
+    private static Set<PlanCell> computeVoidedCells(DungeonPlan plan, Set<Affix> affixes) {
+        if (!affixes.contains(Affix.VOIDED)) {
+            return Set.of();
+        }
+        Random rng = new Random(plan.seed() ^ 0xB01DL);
+        Set<PlanCell> voided = new HashSet<>();
+        PlanCell entrance = plan.entrance();
+        PlanCell terminal = plan.terminal();
+        for (PlanCell cell : plan.cells()) {
+            if (cell.equals(entrance) || cell.equals(terminal)) {
+                continue;
+            }
+            if (rng.nextDouble() < PocketDungeonsConfig.voidedCellChance()) {
+                voided.add(cell);
+            }
+        }
+        return voided;
     }
 
     /** Critical path first, then everything else in the geometry's stable order. */

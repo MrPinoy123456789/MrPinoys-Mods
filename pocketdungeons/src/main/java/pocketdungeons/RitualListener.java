@@ -121,6 +121,13 @@ final class RitualListener {
             }
         }
 
+        // M25: the Pocket2 rare door. Claimed whenever the click lands on this
+        // player's run's pocket door; anything else falls through to the
+        // stations below.
+        if (Pocket2.tryEnter(serverPlayer, level, pos)) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // M14: the reroll station. A positive test on the held item, same as
         // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by

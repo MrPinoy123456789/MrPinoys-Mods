@@ -790,6 +790,11 @@ final class Instances {
      * Pulls a player out of an instance in place of killing them. Health and
      * status are reset first: cancelling the death leaves them standing at zero
      * hearts, which would just kill them again on the next tick of fire damage.
+     *
+     * <p>Teleports to the player's room inside the dungeon dimension, not their
+     * original entry point. The room is the safe base: the player can regroup
+     * and re-enter the dungeon from there. Falls back to {@link #eject} (return
+     * point) when the record has no room cell (admin/untimed runs).
      */
     private static void rescue(ServerPlayer player, InstanceRecord record) {
         MinecraftServer server = player.level().getServer();
@@ -803,7 +808,26 @@ final class Instances {
         player.resetFallDistance();
         player.setDeltaMovement(Vec3.ZERO);
 
-        eject(server, record, player);
+        if (record.roomCellOrigin != null && !record.visitInstance) {
+            // Teleport to the room's centre, standing on the floor. Same cleanup
+            // as eject (save room, drop from party, clear timer) but the
+            // destination is the room, not the original ReturnPoint.
+            RunLifecycle.saveRoomIfOwner(server, record, player.getUUID());
+            record.members.remove(player.getUUID());
+            InstanceRegistry.byMember.remove(player.getUUID());
+            record.onPad.remove(player.getUUID());
+            if (record.timer != null) {
+                record.timer.removePlayer(player);
+            }
+            clearTrialOmen(player);
+            BlockPos roomCentre = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+            teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
+                    Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+        } else {
+            // No room cell (admin build, untimed run, or visit instance): fall
+            // back to the original return-point eject.
+            eject(server, record, player);
+        }
         player.sendSystemMessage(Component.literal(
                 "The dungeon throws you out. You keep everything you were carrying.")
                 .withStyle(ChatFormatting.RED));
@@ -1558,7 +1582,7 @@ final class Instances {
      * chunk, so this is exact: a sprawling layout holding twelve rooms loads twelve
      * chunks, not its whole bounding box.
      */
-    private static void forceLoad(ServerLevel level, List<ChunkPos> chunks, boolean forced) {
+    static void forceLoad(ServerLevel level, List<ChunkPos> chunks, boolean forced) {
         for (ChunkPos chunk : chunks) {
             level.setChunkForced(chunk.x(), chunk.z(), forced);
         }

@@ -21,8 +21,8 @@ final class RunTimer {
 
     private final ServerBossEvent bar;
     private final int totalSeconds;
-    private final int keystoneLevel;
     private final int roomCount;
+    private final String prefix;
 
     private int elapsedTicks;
     private int roomsSeen;
@@ -30,7 +30,12 @@ final class RunTimer {
     private boolean completed;
 
     RunTimer(int keystoneLevel, int totalSeconds, int roomCount) {
-        this.keystoneLevel = keystoneLevel;
+        this("Keystone [" + keystoneLevel + "]", totalSeconds, roomCount);
+    }
+
+    /** M25: a countdown with a custom label, for a Pocket2 child's clock. */
+    RunTimer(String prefix, int totalSeconds, int roomCount) {
+        this.prefix = prefix;
         this.totalSeconds = Math.max(1, totalSeconds);
         this.roomCount = Math.max(1, roomCount);
         this.bar = new ServerBossEvent(UUID.randomUUID(), Component.empty(),
@@ -98,7 +103,7 @@ final class RunTimer {
     private void refresh() {
         if (completed) {
             bar.setName(Component.literal(
-                    "Keystone [" + keystoneLevel + "] - COMPLETE"
+                    prefix + " - COMPLETE"
                     + " - " + roomsSeen + "/" + roomCount + " rooms")
                     .withStyle(ChatFormatting.GREEN));
             bar.setProgress(1.0f);
@@ -106,7 +111,7 @@ final class RunTimer {
             return;
         }
         int remaining = secondsRemaining();
-        String title = "Keystone [" + keystoneLevel + "] - "
+        String title = prefix + " - "
                 + (overTime ? "OVER TIME" : KeystoneMath.formatClock(remaining))
                 + " - " + roomsSeen + "/" + roomCount + " rooms";
 
