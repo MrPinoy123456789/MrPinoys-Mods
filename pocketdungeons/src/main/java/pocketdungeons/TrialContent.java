@@ -178,11 +178,11 @@ final class TrialContent {
         // per affix per tier (M4 5.1/T4.5).
         CompoundTag tag = new CompoundTag();
         if (swarming) {
-            writeInlineConfig(level, tag, "normal_config", tier, false);
-            writeInlineConfig(level, tag, "ominous_config", tier, true);
+            writeInlineConfig(level, tag, "normal_config", spawnerPrefix, tier, false);
+            writeInlineConfig(level, tag, "ominous_config", spawnerPrefix, tier, true);
         } else {
-            tag.putString("normal_config", configId(tier, false));
-            tag.putString("ominous_config", configId(tier, true));
+            tag.putString("normal_config", configId(spawnerPrefix, tier, false));
+            tag.putString("ominous_config", configId(spawnerPrefix, tier, true));
         }
         // Overclocked: the waves come back fast, so a fast clear is faster still.
         int cooldown = PocketDungeonsConfig.trialSpawnerCooldownTicks();
@@ -228,9 +228,10 @@ final class TrialContent {
         return cleared;
     }
 
-    private static String configId(int tier, boolean ominous) {
-        return PocketDungeonsMod.MOD_ID + ":tier_" + Math.max(1, Math.min(3, tier))
-                + (ominous ? "/ominous" : "/normal");
+    static String configId(String prefix, int tier, boolean ominous) {
+        String clampedTier = "tier_" + Math.max(1, Math.min(3, tier));
+        String base = prefix == null || prefix.isBlank() ? clampedTier : prefix + "_" + clampedTier;
+        return PocketDungeonsMod.MOD_ID + ":" + base + (ominous ? "/ominous" : "/normal");
     }
 
     /**
@@ -244,8 +245,8 @@ final class TrialContent {
      * exactly what every other run already does and costs nothing extra.
      */
     private static void writeInlineConfig(ServerLevel level, CompoundTag tag, String key,
-                                          int tier, boolean ominous) {
-        Identifier id = Identifier.parse(configId(tier, ominous));
+                                          String prefix, int tier, boolean ominous) {
+        Identifier id = Identifier.parse(configId(prefix, tier, ominous));
         TrialSpawnerConfig base = level.registryAccess()
                 .lookupOrThrow(Registries.TRIAL_SPAWNER_CONFIG).getValue(id);
         if (base == null) {
