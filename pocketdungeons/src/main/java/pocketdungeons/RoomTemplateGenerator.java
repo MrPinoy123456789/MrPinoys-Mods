@@ -153,7 +153,13 @@ final class RoomTemplateGenerator {
             buildAndQueue(level, outDir, specs.get(i), i * SCRATCH_PITCH);
         }
 
-        PocketDungeonsMod.LOG.info("Queued {} pocketdungeons room templates for capture", specs.size());
+        List<RoomSpec> anomalySpecs = anomalySpecs();
+        for (int i = 0; i < anomalySpecs.size(); i++) {
+            buildAndQueue(level, outDir, anomalySpecs.get(i), (specs.size() + i) * SCRATCH_PITCH);
+        }
+
+        PocketDungeonsMod.LOG.info("Queued {} pocketdungeons room templates for capture ({} anomaly)",
+                specs.size() + anomalySpecs.size(), anomalySpecs.size());
     }
 
     /**
@@ -369,6 +375,48 @@ final class RoomTemplateGenerator {
                 }));
 
         return specs;
+    }
+
+    /**
+     * M35: the anomaly room set. Same coverage-floor shapes (dead end, straight,
+     * corner) so the injection roll in {@code RoomSelector} can satisfy whatever
+     * mask and role the swapped critical-path cell needs, but stamped in a shell
+     * palette ({@link RoomBuilder#SANDSTONE}, {@link RoomBuilder#DEEPSLATE},
+     * {@link RoomBuilder#ALEXS_ROOM}) foreign to every run theme rather than the
+     * usual stone brick, plus one wall torch at a height no other room in the
+     * set uses. The blocks are all real and already shipped for the M24 shell
+     * system; only their placement, here, is wrong.
+     */
+    private static List<RoomSpec> anomalySpecs() {
+        List<RoomSpec> specs = new ArrayList<>();
+
+        specs.add(new RoomSpec("anomaly_alex_room", EnumSet.of(Direction.NORTH))
+                .palette(RoomBuilder.ALEXS_ROOM)
+                .chests(new BlockPos(2, 1, 2))
+                .spawns(new BlockPos(4, 1, 11), new BlockPos(11, 1, 11))
+                .decor((level, o) -> placeWallTorch(level, o.offset(14, 2, 12), Direction.WEST)));
+
+        specs.add(new RoomSpec("anomaly_sandstone_corner", EnumSet.of(Direction.NORTH, Direction.EAST))
+                .palette(RoomBuilder.SANDSTONE)
+                .chests(new BlockPos(2, 1, 2))
+                .spawns(QUAD_SPAWNS)
+                .decor((level, o) -> placeWallTorch(level, o.offset(1, 1, 8), Direction.EAST)));
+
+        specs.add(new RoomSpec("anomaly_deepslate_straight", EnumSet.of(Direction.WEST, Direction.EAST))
+                .palette(RoomBuilder.DEEPSLATE)
+                .chests(new BlockPos(2, 1, 2))
+                .spawns(QUAD_SPAWNS)
+                .decor((level, o) -> placeWallTorch(level, o.offset(8, 4, 1), Direction.SOUTH)));
+
+        return specs;
+    }
+
+    /** A wall torch at a fixed position, for the anomaly set's one deliberately
+     *  misplaced fixture: every other light in a cell comes from the ceiling
+     *  lamps, so a torch on the wall itself has no reason to be there. */
+    private static void placeWallTorch(ServerLevel level, BlockPos pos, Direction facing) {
+        RoomBuilder.set(level, pos, Blocks.WALL_TORCH.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING, facing));
     }
 
     /**
@@ -827,6 +875,7 @@ final class RoomTemplateGenerator {
         BlockPos spawner;
         boolean exitPad;
         BiConsumer<ServerLevel, BlockPos> decor;
+        RoomBuilder.ShellPalette shellPalette;
 
         RoomSpec(String name, Set<Direction> doors) {
             this.name = name;
@@ -857,6 +906,11 @@ final class RoomTemplateGenerator {
             this.decor = decor;
             return this;
         }
+
+        RoomSpec palette(RoomBuilder.ShellPalette palette) {
+            this.shellPalette = palette;
+            return this;
+        }
     }
 
     private static BlockPos[] concat(BlockPos[] base, BlockPos... extra) {
@@ -871,7 +925,11 @@ final class RoomTemplateGenerator {
         BlockPos o = new BlockPos(SCRATCH_X, BASE_Y, SCRATCH_Z + zOffset);
         forceChunks(level, o, true);
 
-        buildCell(level, o, spec.doors);
+        if (spec.shellPalette != null) {
+            buildCellWithPalette(level, o, spec.doors, spec.shellPalette);
+        } else {
+            buildCell(level, o, spec.doors);
+        }
         if (spec.decor != null) {
             spec.decor.accept(level, o);
         }
@@ -911,6 +969,34 @@ final class RoomTemplateGenerator {
      */
     private static void buildCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
         RoomBuilder.buildShell(level, o, RoomBuilder.FLOOR);
+        for (int x = 0; x < CELL; x++) {
+            for (int z = 0; z < CELL; z++) {
+                boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
+                if (!edge) {
+                    continue;
+                }
+                Direction doorDir = RoomGeometry.wallDirection(x, z);
+                if (doorDir == null || !doors.contains(doorDir)) {
+                    continue;
+                }
+                for (int y = 1; y <= WALL_HEIGHT; y++) {
+                    if (isDoorSlot(x, y, z, doorDir)) {
+                        placeJigsaw(level, o.offset(x, y, z), DOOR, orientationFor(doorDir));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * M35: {@link #buildCell}'s shell built from {@code palette} instead of the
+     * fixed stone-brick shell, via {@link RoomBuilder#stampShell}. Door jigsaws
+     * are overlaid identically afterward -- the palette only changes what the
+     * jigsaw sits on top of, never where a door is.
+     */
+    private static void buildCellWithPalette(ServerLevel level, BlockPos o, Set<Direction> doors,
+                                             RoomBuilder.ShellPalette palette) {
+        RoomBuilder.stampShell(level, o, palette);
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;

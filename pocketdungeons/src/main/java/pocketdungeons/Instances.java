@@ -205,6 +205,12 @@ final class Instances {
                         + "run /dungeon admin manifest reload for the reasons",
                         manifest.rejections().size());
             }
+            RoomManifest anomalyManifest = RoomManifest.loadAnomaly(server);
+            if (!anomalyManifest.rejections().isEmpty()) {
+                PocketDungeonsMod.LOG.error("{} anomaly room(s) were rejected at startup; "
+                        + "run /dungeon admin manifest reload for the reasons",
+                        anomalyManifest.rejections().size());
+            }
             LootTables.validateAtStartup(server);
         });
 

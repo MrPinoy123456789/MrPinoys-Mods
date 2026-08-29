@@ -46,7 +46,19 @@ final class RoomManifest {
     private static final Identifier DOOR_NAME = Identifier.fromNamespaceAndPath(
             PocketDungeonsMod.MOD_ID, "door");
 
+    private static final String ROOM_PATH = "dungeon_room";
+    private static final String ANOMALY_PATH = "anomaly_room";
+
     private static volatile RoomManifest current = new RoomManifest(Map.of(), List.of());
+
+    /**
+     * M35: the anomaly room set, loaded separately from {@link #current} via the
+     * same loader shape and validation, indexed from {@code data/<namespace>/
+     * anomaly_room/*.json} instead. Kept as its own manifest rather than merged
+     * into {@link #current} so a themed query never accidentally surfaces a
+     * deliberately-wrong room.
+     */
+    private static volatile RoomManifest currentAnomaly = new RoomManifest(Map.of(), List.of());
 
     /**
      * Set once by {@link ServerLifecycleEvents#SERVER_STARTED} and cleared on
@@ -86,6 +98,7 @@ final class RoomManifest {
                             return;
                         }
                         load(s);
+                        loadAnomaly(s);
                     }
                 });
     }
@@ -101,19 +114,34 @@ final class RoomManifest {
     }
 
     static RoomManifest load(MinecraftServer server) {
+        RoomManifest loaded = loadFrom(server, ROOM_PATH);
+        current = loaded;
+        PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms ({} rejected)",
+                loaded.rooms.size(), loaded.rejections.size());
+        return loaded;
+    }
+
+    /** M35: loads the anomaly room set from {@code data/<namespace>/anomaly_room/*.json}. */
+    static RoomManifest loadAnomaly(MinecraftServer server) {
+        RoomManifest loaded = loadFrom(server, ANOMALY_PATH);
+        currentAnomaly = loaded;
+        PocketDungeonsMod.LOG.info("Loaded {} anomaly rooms ({} rejected)",
+                loaded.rooms.size(), loaded.rejections.size());
+        return loaded;
+    }
+
+    private static RoomManifest loadFrom(MinecraftServer server, String resourcePath) {
         List<Entry> entries = new ArrayList<>();
         List<String> rejections = new ArrayList<>();
         ServerLevel level = server.getLevel(Level.OVERWORLD);
         if (level == null) {
             rejections.add("overworld is not loaded");
-            RoomManifest empty = new RoomManifest(Map.of(), rejections);
-            current = empty;
-            return empty;
+            return new RoomManifest(Map.of(), rejections);
         }
         StructureTemplateManager manager = level.getStructureManager();
 
         Map<Identifier, Resource> resources = server.getResourceManager().listResources(
-                "dungeon_room", id -> id.getPath().endsWith(".json"));
+                resourcePath, id -> id.getPath().endsWith(".json"));
 
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
@@ -156,15 +184,16 @@ final class RoomManifest {
             byName.put(entry.name, entry);
         }
 
-        RoomManifest loaded = new RoomManifest(byName, rejections);
-        current = loaded;
-        PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms ({} rejected)",
-                loaded.rooms.size(), loaded.rejections.size());
-        return loaded;
+        return new RoomManifest(byName, rejections);
     }
 
     static RoomManifest current() {
         return current;
+    }
+
+    /** M35: the anomaly room manifest, loaded from {@code anomaly_room/*.json}. */
+    static RoomManifest currentAnomaly() {
+        return currentAnomaly;
     }
 
     List<Entry> rooms() {
