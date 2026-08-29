@@ -9,6 +9,8 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
+import java.util.UUID;
+
 /**
  * M33: the guided task line. Ten sequential tasks teaching the core loops
  * (selecting a door, descending, completing a run, feeding the engine,
@@ -67,31 +69,61 @@ final class TaskTracker {
     /**
      * The lowest task {@code player} has not finished, or {@code null} once
      * every task is done. A task whose {@link Task#minLevel} sits strictly
-     * below the player's current keystone level is skipped (and recorded as
-     * complete) on the way past it: a player already several levels beyond
-     * where a task would normally introduce them to it has plainly already
-     * learned that lesson, and gating them behind it retroactively would be
-     * busywork, not teaching. {@code minLevel == 0} opts a task out of that
-     * grandfather clause entirely.
+     * below {@code level} is skipped (and recorded as complete) on the way
+     * past it: a player already several levels beyond where a task would
+     * normally introduce them to it has plainly already learned that lesson,
+     * and gating them behind it retroactively would be busywork, not
+     * teaching. {@code minLevel == 0} opts a task out of that grandfather
+     * clause entirely.
+     *
+     * <p>Pure logic over {@code log}, no {@code ServerPlayer} or
+     * {@code MinecraftServer} needed, so {@code TaskTrackerTest} can exercise
+     * progression and level gating headlessly the same way
+     * {@code DungeonLogTest} exercises {@link DungeonLog} itself.
      */
+    static Task activeTask(DungeonLog log, UUID player, int level) {
+        for (Task task : ORDER) {
+            if (log.taskProgress(player, task.id) >= task.targetCount) {
+                continue;
+            }
+            if (task.minLevel > 0 && level > task.minLevel) {
+                log.setTaskProgress(player, task.id, task.targetCount);
+                continue;
+            }
+            return task;
+        }
+        return null;
+    }
+
+    /** {@link #activeTask(DungeonLog, UUID, int)} for a live player, reading their server and keystone level. */
     static Task activeTask(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return null;
         }
         DungeonLog log = DungeonLog.forServer(server);
-        int level = log.get(player.getUUID()).keystoneLevel();
-        for (Task task : ORDER) {
-            if (log.taskProgress(player.getUUID(), task.id) >= task.targetCount) {
-                continue;
-            }
-            if (task.minLevel > 0 && level > task.minLevel) {
-                log.setTaskProgress(player.getUUID(), task.id, task.targetCount);
-                continue;
-            }
-            return task;
+        return activeTask(log, player.getUUID(), log.get(player.getUUID()).keystoneLevel());
+    }
+
+    /**
+     * Advances {@code task} by {@code amount} in {@code log}, if it is
+     * {@code player}'s active task at {@code level} right now; otherwise a
+     * no-op. Returns whether the sidecar actually changed, for
+     * {@link #progress(ServerPlayer, Task, int)} to decide whether the
+     * completion messaging below is warranted. Package-visible (rather than
+     * private) so {@code TaskTrackerTest} can drive it directly.
+     */
+    static boolean progressCore(DungeonLog log, UUID player, int level, Task task, int amount) {
+        if (activeTask(log, player, level) != task) {
+            return false;
         }
-        return null;
+        int current = log.taskProgress(player, task.id);
+        int next = Math.min(task.targetCount, current + amount);
+        if (next == current) {
+            return false;
+        }
+        log.setTaskProgress(player, task.id, next);
+        return true;
     }
 
     /**
@@ -106,17 +138,13 @@ final class TaskTracker {
      */
     static void progress(ServerPlayer player, Task task, int amount) {
         MinecraftServer server = player.level().getServer();
-        if (server == null || activeTask(player) != task) {
+        if (server == null) {
             return;
         }
         DungeonLog log = DungeonLog.forServer(server);
-        int current = log.taskProgress(player.getUUID(), task.id);
-        int next = Math.min(task.targetCount, current + amount);
-        if (next == current) {
-            return;
-        }
-        log.setTaskProgress(player.getUUID(), task.id, next);
-        if (next < task.targetCount) {
+        UUID id = player.getUUID();
+        int level = log.get(id).keystoneLevel();
+        if (!progressCore(log, id, level, task, amount) || log.taskProgress(id, task.id) < task.targetCount) {
             return;
         }
 

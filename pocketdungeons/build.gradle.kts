@@ -109,6 +109,13 @@ tasks.register<JavaExec>("roomFurnitureTest") {
     mainClass = "pocketdungeons.RoomFurnitureTest"
 }
 
+tasks.register<JavaExec>("dungeonShellProtectionTest") {
+    group = "verification"
+    description = "Runs the pure-Java M31 dungeon-cell shell protection regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.DungeonShellProtectionTest"
+}
+
 tasks.register<JavaExec>("lobbyBrowserTest") {
     group = "verification"
     description = "Runs the pure-Java lobby directory regression test"
@@ -135,11 +142,13 @@ for ((taskName, testClass) in mapOf(
     "keystoneOfferTest" to "KeystoneOfferTest",
     "adventureGraphTest" to "AdventureGraphTest",
     "dungeonLogTest" to "DungeonLogTest",
+    "taskTrackerTest" to "TaskTrackerTest",
     "rerollMathTest" to "RerollMathTest",
     "gambleMathTest" to "GambleMathTest",
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
-    "trialContentConfigIdTest" to "TrialContentConfigIdTest"
+    "trialContentConfigIdTest" to "TrialContentConfigIdTest",
+    "connectorTest" to "ConnectorTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -153,11 +162,13 @@ tasks.test {
     dependsOn("keystoneOfferTest")
     dependsOn("adventureGraphTest")
     dependsOn("dungeonLogTest")
+    dependsOn("taskTrackerTest")
     dependsOn("rerollMathTest")
     dependsOn("gambleMathTest")
     dependsOn("powerEquipMathTest")
     dependsOn("pocket2Test")
     dependsOn("trialContentConfigIdTest")
+    dependsOn("connectorTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
@@ -168,6 +179,7 @@ tasks.test {
     dependsOn("cellGeometryTest")
     dependsOn("roomShellTest")
     dependsOn("roomFurnitureTest")
+    dependsOn("dungeonShellProtectionTest")
     dependsOn("lobbyBrowserTest")
     dependsOn("lodestoneMenuTest")
     dependsOn("shellPaletteTest")
