@@ -75,6 +75,11 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 0.8f);
     }
 
+    /** M31: the dungeon's shell protection lifted on first completion. */
+    public static void shellWeakened(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.STONE_BREAK), 0.4f, 1.1f);
+    }
+
     /** The keystone was depleted. Descending two notes. */
     public static void keystoneDepleted(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.8f);

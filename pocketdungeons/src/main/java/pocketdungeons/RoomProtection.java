@@ -19,12 +19,14 @@ import java.util.UUID;
  * immutable to everyone, the owner included.
  *
  * <p><strong>Positional, not global.</strong> There is no
- * {@code PlayerBlockBreakEvents} registration anywhere else in this mod --
- * the dungeon (the quarry, T2.5) is fully breakable by design, and that has
- * to stay true. So every check here starts with "is this position inside
- * anyone's room right now" ({@link Instances#roomOwnerAt}), which is one
- * bounds check per live instance and costs nothing when the answer is no --
- * the common case, since a room is exactly one cell out of a whole dungeon.
+ * {@code PlayerBlockBreakEvents} registration anywhere else in this mod. So
+ * every check here starts with "is this position inside anyone's room right
+ * now" ({@link Instances#roomOwnerAt}), which is one bounds check per live
+ * instance and costs nothing when the answer is no. M31 9.2 adds a second
+ * check on top: the dungeon cells (the quarry, T2.5) outside any room are
+ * shell-protected too, but only while the run is still active
+ * ({@link Instances#dungeonRecordAt}) -- they go back to being fully
+ * breakable the moment the first member completes it.
  *
  * <p>Container protection is a check inside {@link RitualListener#onUseBlock},
  * which already owns this mod's one {@code UseBlockCallback} registration and
@@ -43,7 +45,11 @@ final class RoomProtection {
                                              BlockState state, BlockEntity blockEntity) {
         UUID roomOwner = Instances.roomOwnerAt(pos);
         if (roomOwner == null) {
-            return true; // outside every room -- the common case, one bounds check
+            // M31 9.2: not in anyone's room, but still might be in an active
+            // run's dungeon cells -- those are shell-protected the same as a
+            // room's own shell while the run is live, and open up again the
+            // moment the first member completes it.
+            return Instances.dungeonRecordAt(pos) == null;
         }
         // M18 9.1: the shell is immutable to everyone, the owner included.
         // Checked ahead of the permission mask so a whitelisted guest cannot
