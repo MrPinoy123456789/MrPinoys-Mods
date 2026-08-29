@@ -45,9 +45,20 @@ import java.util.UUID;
  */
 final class Pocket2 {
 
-    /** How many cells a child dungeon is planned with: 3 to 5, per M25. */
-    private static final int MIN_PATH = 3;
+    /**
+     * How many cells a child dungeon is planned with. The low end of M25's
+     * "3-5 cells" is 4, not 3: a 3-cell path has a single interior cell, and
+     * the planner's role guarantee can only give that one cell to encounter or
+     * loot, never both -- a 3-cell pocket would be a spawner with no chests.
+     * A 4-5 path always carries both.
+     */
+    private static final int MIN_PATH = 4;
     private static final int MAX_PATH = 5;
+    /** Straight path, no branches or loops: the pocket is exactly 4-5 cells. */
+    private static final double BRANCH_PROBABILITY = 0.0;
+    private static final double LOOP_PROBABILITY = 0.0;
+    /** A straight 5-cell path spans 5; the span budget has to fit it. */
+    private static final int MAX_GRID_SPAN = 5;
 
     private Pocket2() {}
 
@@ -235,7 +246,7 @@ final class Pocket2 {
         long seed = level.getRandom().nextLong();
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
-                MIN_PATH, MAX_PATH, 0.1, 0.0, 3);
+                MIN_PATH, MAX_PATH, BRANCH_PROBABILITY, LOOP_PROBABILITY, MAX_GRID_SPAN);
         if (outcome.plan() == null) {
             player.sendSystemMessage(Component.literal(
                     "The door rattles but stays shut.")
