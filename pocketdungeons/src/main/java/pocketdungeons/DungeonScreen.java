@@ -162,6 +162,9 @@ final class DungeonScreen {
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             content.append(Component.literal("\nCAUTION: EXPERIMENTAL").withStyle(ChatFormatting.RED));
         }
+        if (offerLevel <= 1) {
+            content.append(Component.literal("\nPull the lever to descend!").withStyle(ChatFormatting.GREEN));
+        }
         return content;
     }
 
