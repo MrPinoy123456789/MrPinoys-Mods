@@ -91,6 +91,8 @@ final class RoomSelector {
             used.merge(pick.entry().name, 1, Integer::sum);
         }
 
+        PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths);
+
         DungeonPlan plan = new DungeonPlan(
                 shape.seed(),
                 Set.copyOf(shape.cells()),
@@ -100,8 +102,61 @@ final class RoomSelector {
                 Set.copyOf(shape.openEdges()),
                 shape.entrance(),
                 shape.terminal(),
-                List.copyOf(shape.criticalPath()));
+                List.copyOf(shape.criticalPath()),
+                anomalyCell);
         return new Result(plan, null);
+    }
+
+    /**
+     * M35: rarely swaps one non-entrance, non-terminal critical-path cell's
+     * room for one out of {@link RoomManifest#currentAnomaly()} satisfying the
+     * same mask and role, mutating {@code placed} in place. Gated on the run
+     * having an adventure-graph node for its theme, the same gate the Pocket2
+     * door uses -- an unthemed run never hosts an anomaly. Rolled off the plan
+     * seed rather than {@code rng}, which the main selection loop above has
+     * already consumed by an amount that depends on how many cells the shape
+     * has, and a roll whose outcome depends on room count would be a strange
+     * kind of not-quite-reproducible.
+     *
+     * @return the swapped cell, or {@code null} if the gate was closed, the
+     *         roll failed, no eligible cell existed, or no anomaly room
+     *         matched the chosen cell's mask and role
+     */
+    private static PlanCell rollAnomaly(DungeonShape shape, String theme,
+                                        Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                        Map<PlanCell, Integer> depths) {
+        if (theme == null || AdventureGraphs.current().graph().node(theme) == null) {
+            return null;
+        }
+        Random anomalyRng = new Random(shape.seed() * 47 + 91);
+        if (anomalyRng.nextDouble() >= PocketDungeonsConfig.anomalyRoomChance()) {
+            return null;
+        }
+
+        List<PlanCell> eligible = new ArrayList<>();
+        for (PlanCell cell : shape.criticalPath()) {
+            if (!cell.equals(shape.entrance()) && !cell.equals(shape.terminal())) {
+                eligible.add(cell);
+            }
+        }
+        if (eligible.isEmpty()) {
+            return null;
+        }
+
+        PlanCell candidate = eligible.get(anomalyRng.nextInt(eligible.size()));
+        int mask = requiredMask(shape, candidate);
+        String role = shape.roles().get(candidate);
+        List<RoomManifest.Match> matches = RoomManifest.currentAnomaly().queryAnyRotation(mask, role);
+        if (matches.isEmpty()) {
+            return null;
+        }
+        matches = new ArrayList<>(matches);
+        matches.sort(Comparator.comparing((RoomManifest.Match m) -> m.entry().name)
+                .thenComparingInt(RoomManifest.Match::rotation));
+
+        RoomManifest.Match pick = pick(matches, depths.getOrDefault(candidate, 0), new HashMap<>(), anomalyRng);
+        placed.put(candidate, new DungeonPlan.PlacedRoom(pick.entry().name, pick.rotation()));
+        return candidate;
     }
 
     /**

@@ -129,18 +129,23 @@ final class LayoutStamper {
             }
 
             BlockPos cellOrigin = geometry.cellOrigin(cell);
+            // M35: the anomaly cell keeps whatever processors and content its own
+            // room carries and never picks up the run theme's -- that is the whole
+            // point of the swap. A room whose own processors field is null simply
+            // stamps untinted rather than falling back to the theme around it.
+            boolean isAnomalyCell = cell.equals(plan.anomalyCell());
             ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
             String processors = entry.meta.processors != null ? entry.meta.processors
-                    : runTheme == null ? null : runTheme.meta().processors;
+                    : (isAnomalyCell || runTheme == null) ? null : runTheme.meta().processors;
             List<BlockPos> spawns = TemplateStamper.place(
                     level, manager, cellOrigin, Identifier.parse(entry.meta.template),
                     placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
                     processors == null ? null : Identifier.parse(processors));
 
             int depth = plan.depths().getOrDefault(cell, 0);
-            String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
+            String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
+                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
                     voidedCells.contains(cell));
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);

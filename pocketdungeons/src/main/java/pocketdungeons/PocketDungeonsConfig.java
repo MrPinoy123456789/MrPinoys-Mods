@@ -150,6 +150,10 @@ public final class PocketDungeonsConfig {
     /** Chance per run that a rare door to a Pocket2 appears in a cleared encounter room. */
     private static double pocket2DoorChance = 0.2;
 
+    // ---- anomaly rooms (M35) --------------------------------------------------
+    /** Chance per run that one critical-path cell is swapped for an anomaly room. */
+    private static double anomalyRoomChance = 0.08;
+
     // ---- gear reroll station (M14) --------------------------------------------
     /** The block a reroll station is; right-clicking it with tiered gear opens the picker. */
     private static String rerollBlock = "minecraft:smithing_table";
@@ -445,6 +449,10 @@ public final class PocketDungeonsConfig {
         return pocket2DoorChance;
     }
 
+    public static double anomalyRoomChance() {
+        return anomalyRoomChance;
+    }
+
     public static String rerollBlock() {
         return rerollBlock;
     }
@@ -602,6 +610,8 @@ public final class PocketDungeonsConfig {
         pocket2TimerSeconds = 60;
         pocket2DoorChance = 0.2;
 
+        anomalyRoomChance = 0.08;
+
         rerollBlock = "minecraft:smithing_table";
         rerollLapisPerTier = 4;
         rerollUnlockLevel = 5;
@@ -707,6 +717,9 @@ public final class PocketDungeonsConfig {
 
         pocket2TimerSeconds = readInt(root, "pocket2TimerSeconds", 60, v -> v >= 1, "must be >= 1");
         pocket2DoorChance = readDouble(root, "pocket2DoorChance", 0.2,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
+
+        anomalyRoomChance = readDouble(root, "anomalyRoomChance", 0.08,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
         rerollBlock = readString(root, "rerollBlock", "minecraft:smithing_table", false);
@@ -939,6 +952,8 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("pocket2TimerSeconds", 60);
         root.addProperty("pocket2DoorChance", 0.2);
+
+        root.addProperty("anomalyRoomChance", 0.08);
 
         root.addProperty("rerollBlock", "minecraft:smithing_table");
         root.addProperty("rerollLapisPerTier", 4);

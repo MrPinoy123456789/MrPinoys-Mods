@@ -14,6 +14,13 @@ import java.util.Set;
  * the plan rather than recomputed downstream: the difficulty curve reads it for
  * every encounter cell, and two BFS implementations that could disagree about
  * what "depth" means is exactly the kind of drift worth designing out.
+ *
+ * <p>{@code anomalyCell} is {@code null} on almost every plan: the one
+ * critical-path cell M35's rare anomaly roll swapped for a room out of the
+ * anomaly manifest instead of the themed one, or {@code null} if the roll
+ * failed, the gate was closed, or no anomaly room matched the cell.
+ * {@code LayoutStamper} and {@code RoomContent} read it to skip the run
+ * theme's skinning on that one cell.
  */
 record DungeonPlan(
         long seed,
@@ -24,7 +31,8 @@ record DungeonPlan(
         Set<PlanEdge> doors,
         PlanCell entrance,
         PlanCell terminal,
-        List<PlanCell> criticalPath) {
+        List<PlanCell> criticalPath,
+        PlanCell anomalyCell) {
 
     record PlacedRoom(String name, int rotation) {}
 }
