@@ -46,6 +46,9 @@ final class LootTables {
     /** M25: the Pocket2 child's loose-chest table: shell tokens, fuel, valuables. */
     static final String POCKET2 = "chests/pocket2";
 
+    /** M35: the anomaly room's loose-chest table: echo shards, shell tokens, rare materials. */
+    static final String ANOMALY = "chests/anomaly";
+
     /**
      * The equipment slots M13's gear pool is keyed by, and therefore the slots
      * M16's gamble can be asked to roll. {@code weapon} is one slot rather than
@@ -64,7 +67,7 @@ final class LootTables {
                 SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3,
                 VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3,
                 VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS,
-                POCKET2));
+                POCKET2, ANOMALY));
         for (int tier = 1; tier <= 3; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));

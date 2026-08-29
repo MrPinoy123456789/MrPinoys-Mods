@@ -146,7 +146,7 @@ final class LayoutStamper {
             String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
-                    voidedCells.contains(cell));
+                    voidedCells.contains(cell), isAnomalyCell);
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);
             }

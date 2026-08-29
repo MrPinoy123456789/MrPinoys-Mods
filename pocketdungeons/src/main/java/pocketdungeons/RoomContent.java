@@ -1,6 +1,9 @@
 package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
@@ -12,6 +15,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,9 +87,20 @@ final class RoomContent {
      */
     static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor) {
+                      Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
+                      boolean anomalyCell) {
         BlockPos spawnerAnchor = null;
-        if (role != null) {
+        if (anomalyCell) {
+            // M35: a loose chest off the anomaly table regardless of role -- never
+            // a vault, never a keystone or a completion pad. An encounter-role
+            // anomaly cell still gets its trial spawner (the fight is real; the
+            // room around it is what is wrong), themeless like the chest.
+            applyAnomalyChest(level, cellOrigin, seed);
+            if ("encounter".equals(role)) {
+                spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
+                        profile.lootTier(), affixes, null);
+            }
+        } else if (role != null) {
             switch (role) {
                 case "encounter" -> {
                     removeChests(level, cellOrigin);
@@ -370,6 +385,23 @@ final class RoomContent {
             }
         }
         return found;
+    }
+
+    /**
+     * Retargets every chest in the cell to {@link LootTables#ANOMALY}, loose --
+     * never a vault. An anomaly room's chest never draws from a themed or
+     * tiered table, so it never hands out gear that would tie it back to the
+     * run's theme.
+     */
+    private static void applyAnomalyChest(ServerLevel level, BlockPos cellOrigin, long seed) {
+        ResourceKey<LootTable> table = ResourceKey.create(Registries.LOOT_TABLE,
+                Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, LootTables.ANOMALY));
+        for (BlockPos pos : containers(level, cellOrigin)) {
+            if (level.getBlockEntity(pos) instanceof RandomizableContainer c) {
+                c.setLootTable(table);
+                c.setLootTableSeed(seed ^ pos.asLong());
+            }
+        }
     }
 
     private static void removeChests(ServerLevel level, BlockPos cellOrigin) {
