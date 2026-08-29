@@ -116,11 +116,22 @@ final class LayoutPlanner {
 
             List<String> shapeProblems = LayoutGraphGenerator.validate(shape);
             if (!shapeProblems.isEmpty()) {
-                // A shape that generates but fails its own validator is a generator
-                // bug, not bad luck -- surface it rather than burning the budget.
-                return new Outcome(null, attempt + 1, attemptSeed,
-                        "generated shape failed graph validation: "
-                                + String.join("; ", shapeProblems));
+                boolean onlyBackward = shapeProblems.stream()
+                        .allMatch(p -> p.contains(LayoutGraphGenerator.NO_BACKWARDS_MARKER));
+                if (!onlyBackward) {
+                    // A shape that generates but fails its own validator for any other
+                    // reason is a generator bug, not bad luck -- surface it rather than
+                    // burning the budget.
+                    return new Outcome(null, attempt + 1, attemptSeed,
+                            "generated shape failed graph validation: "
+                                    + String.join("; ", shapeProblems));
+                }
+                // Cells behind the entrance are an expected, unlucky outcome of the
+                // backtracker's free branch/loop placement, not a generator bug --
+                // burn a retry and try the next seed instead of hard-failing.
+                lastReason = "generated shape had cells behind the entrance: "
+                        + String.join("; ", shapeProblems);
+                continue;
             }
 
             RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme);

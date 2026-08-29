@@ -220,7 +220,38 @@ public final class LayoutGraphGenerator {
                     + " encounter cell(s); every vault needs a key");
         }
 
+        // A dungeon must never wrap around behind the player's entrance room --
+        // it reads as the entrance suddenly having rooms on both sides of a wall
+        // that was solid a moment ago. The entrance sits at the origin and the
+        // check runs pre-rotation, but DungeonShape.rotate is a rigid turn about
+        // that same origin, so a shape with nothing behind the entrance here has
+        // nothing behind it after rotation either.
+        DoorMask.Direction entranceDir = shape.entranceDirection();
+        if (entranceDir != null) {
+            for (PlanCell cell : cells) {
+                if (isBehindEntrance(cell, entranceDir)) {
+                    problems.add("cell " + cell + " " + NO_BACKWARDS_MARKER + " " + entranceDir + " axis");
+                }
+            }
+        }
+
         return problems;
+    }
+
+    /**
+     * Marks a no-backwards-propagation problem so callers (namely
+     * {@link LayoutPlanner}) can tell it apart from a genuine generator bug and
+     * retry instead of hard-failing.
+     */
+    static final String NO_BACKWARDS_MARKER = "is behind the entrance on the";
+
+    private static boolean isBehindEntrance(PlanCell cell, DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
+            case EAST -> cell.x() < 0;
+            case WEST -> cell.x() > 0;
+            case NORTH -> cell.z() > 0;
+            case SOUTH -> cell.z() < 0;
+        };
     }
 
     private static List<PlanCell> generateCriticalPath(Random rng, int targetLength) {
@@ -689,19 +720,42 @@ public final class LayoutGraphGenerator {
         System.out.println("\n=== Live-play profile sweep (5-8 path, 5000 seeds) ===");
 
         int valid = 0;
+        int unresolved = 0;
         int missingEncounter = 0;
         int missingLoot = 0;
         int maxSpan = 0;
         int cellTotal = 0;
 
-        for (long seed = 0; seed < 5000; seed++) {
-            DungeonShape shape = generate(seed, 5, 8, 0.35, 0.15);
-            if (shape == null) {
-                throw new AssertionError("seed " + seed + " failed to generate a shape");
+        // Each logical seed gets its own non-overlapping window of attemptBudget
+        // seeds to retry through, mirroring LayoutPlanner.plan's seed+attempt
+        // scheme -- a shape with cells behind the entrance is expected, unlucky
+        // output of the backtracker's free branch/loop placement, not a generator
+        // bug, so it burns a retry here exactly as it would in live play.
+        int attemptBudget = LayoutPlanner.DEFAULT_ATTEMPT_BUDGET;
+        for (long logicalSeed = 0; logicalSeed < 5000; logicalSeed++) {
+            long windowBase = logicalSeed * attemptBudget;
+            DungeonShape shape = null;
+
+            for (int attempt = 0; attempt < attemptBudget; attempt++) {
+                long attemptSeed = windowBase + attempt;
+                DungeonShape candidate = generate(attemptSeed, 5, 8, 0.35, 0.15);
+                if (candidate == null) {
+                    continue;
+                }
+                List<String> problems = validate(candidate);
+                if (problems.isEmpty()) {
+                    shape = candidate;
+                    break;
+                }
+                boolean onlyBackward = problems.stream().allMatch(p -> p.contains(NO_BACKWARDS_MARKER));
+                if (!onlyBackward) {
+                    throw new AssertionError("seed " + attemptSeed + " produced an invalid shape: " + problems);
+                }
             }
-            List<String> problems = validate(shape);
-            if (!problems.isEmpty()) {
-                throw new AssertionError("seed " + seed + " produced an invalid shape: " + problems);
+
+            if (shape == null) {
+                unresolved++;
+                continue;
             }
             valid++;
             cellTotal += shape.cells().size();
@@ -731,6 +785,14 @@ public final class LayoutGraphGenerator {
                 valid, cellTotal / (double) valid, maxSpan);
         System.out.println("paths missing an encounter: " + missingEncounter
                 + ", missing a loot: " + missingLoot);
+
+        double resolutionRate = valid / (double) (valid + unresolved);
+        System.out.printf("resolved %d/%d logical seeds (%.1f%%) within the %d-attempt budget%n",
+                valid, valid + unresolved, resolutionRate * 100.0, attemptBudget);
+        if (resolutionRate < 0.95) {
+            throw new AssertionError("plan resolution rate " + resolutionRate
+                    + " fell below the 95% budget after adding the no-backwards check");
+        }
 
         if (missingEncounter > 0 || missingLoot > 0) {
             throw new AssertionError("the critical-path role guarantee does not hold");
