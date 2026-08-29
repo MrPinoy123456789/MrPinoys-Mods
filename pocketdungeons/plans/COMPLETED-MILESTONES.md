@@ -1376,7 +1376,8 @@ door in a cleared encounter room leading to a short, intense sub-dungeon with
 a hard timer. Grab what you can before the clock runs out.
 
 - **Child instance records.** InstanceRecord gains parentSlot and
-  eturnPos (plus deadlineTick), so a child is linked to its parent and
+  
+eturnPos (plus deadlineTick), so a child is linked to its parent and
   knows exactly where to send its members back to. InstanceRegistry gains
   llocateSlotNear, which keeps the child's slot adjacent to the parent's on
   the grid. Children carry keystone level 0, no affixes and no owner room, so
@@ -1404,7 +1405,8 @@ a hard timer. Grab what you can before the clock runs out.
   Pocket2.tickChild, which ticks the child's own boss bar (RunTimer gains
   a title variant so it reads "Pocket - 0:45" instead of a keystone label)
   and expires on deadlineTick. Expiry returns every member to the parent at
-  the door (eturnPos) and purges the child. Death inside the pocket routes
+  the door (
+eturnPos) and purges the child. Death inside the pocket routes
   through Pocket2.dieInChild instead of a dungeon-wide rescue: same reset,
   but the destination is the parent at the door, and the parent's keystone is
   settled NO_CHANGE so the outer run's death penalty still applies. A parent
@@ -1832,3 +1834,81 @@ player actually plays through them; the wolf-taming reconciliation scan
 actually catching a taming in the dungeon dimension; task progress and
 the grandfather clause surviving a server restart. Not recorded in
 LIVE_TEST_PASS.md yet -- add a new numbered section there once verified.
+
+## M34: Weekly bounties for party leaders
+
+**Goal:** three weekly bounties per dungeon host (instance owner), seeded
+from the owner UUID and the ISO week key. Party members contribute
+progress; all online members get rewards on completion. Inspired by the
+archived dailyquests mod's turn-in pattern, adapted to dungeon activities
+and party play.
+
+- `BountyTracker` (new): the `Bounty` enum (id, label, targetCount) with
+  seven bounty types: Clear the Halls (20 spawners), Echo Harvester (9
+  shards banked), Speedrunner (3 timed runs), High Roller (32 emeralds
+  gambled), Spelunker (2 Greater-door runs), Pack Hunter (3 multi-member
+  runs), Keystone Climber (3 keystone levels gained). `weekKey()` returns
+  the ISO week as `"yyyy-Www"` using `WeekFields.ISO` over UTC real time,
+  resetting every Monday. `bountiesFor(owner, weekKey)` picks three
+  distinct bounties via a seeded shuffle of the seven, the seed derived
+  from `owner.hashCode() ^ weekKey.hashCode()` through the same
+  SplitMix64 finaliser `AffixMath.seed` uses, so the same owner in the
+  same week always gets the same three and a different owner or week
+  gets a different pick.
+- `BountyState` record (weekKey, bountyId, progress, completed) with its
+  own codec, stored as a `Map<UUID, List<BountyState>>` sidecar on
+  `DungeonLog` (codec key `bounties`, optional/empty-default), mirroring
+  the M33 task-progress sidecar: `Entry`'s codec is already split across
+  two 16-field groups, and bounty states are read and written on every
+  mechanic hook, so keeping them out of that record avoids a third split
+  for a value that has nothing in common with a player's campaign
+  history. A `dungeon_log.dat` written before M34 loads unchanged.
+- `currentBounties(DungeonLog, owner)` materialises fresh zero-progress
+  states when the sidecar is empty or stale: a state whose `weekKey`
+  does not match the current week is replaced with a fresh one for the
+  same bounty id, so a week rollover resets progress without losing the
+  pick. The materialised states are persisted back so the sidecar
+  carries this week's key rather than last week's stale one.
+- `progress(server, owner, bountyId, amount)` advances the owner's
+  bounty, capping at `targetCount`. On the call that reaches the target,
+  marks the bounty completed and delivers the reward (2 echo shards + 4
+  emeralds via `Payout.deliver`) to every online member of the owner's
+  party (`InstanceRegistry.byMember` for the roster), with the owner
+  getting one bonus shard. Offline members miss out, by design: the
+  bounty is a party activity, and the reward is for showing up. A green
+  "Bounty complete: <label>!" broadcast goes to every online member.
+- Scoreboard: one `pd_bounty` objective (`Criteria.DUMMY`,
+  `DisplaySlot.SIDEBAR`), created lazily on first use. Each bounty is
+  one scoreholder line (`"<ownerName>:<bountyId>"` via
+  `ScoreHolder.forNameOnly`, the 26.2 API that replaced the old
+  `String`-keyed scoreboard), with the score being the progress count.
+  `syncScoreboard` runs whenever the door screen recomputes its bounty
+  lines; `clearScoreboard` on logout removes the owner's lines and the
+  objective itself if nobody's lines remain.
+- Mechanic hooks (all progress the instance owner's bounty, found via
+  `InstanceRegistry.byMember`):
+  `RunLifecycle.completeRun` (CLEAR_HALLS by spawners cleared,
+  SPEEDRUNNER if timed and not late, SPELUNKER if `chosenStep >= 2`,
+  PACK_HUNTER if `members.size() >= 2`), `RitualListener` after
+  `Fuel.bank` (ECHO_HARVESTER), `GambleStation.handleGamble` after
+  emeralds are spent (HIGH_ROLLER by the emerald cost), and
+  `Keystones.grantOffer` (KEYSTONE_CLIMBER by the level delta, computed
+  as `offer.level() - previousLevel` read before `setKeystone` writes).
+- Door screen: `appendTaskLine` (M33's shared helper) now also appends
+  the bounty lines below the task line, one per weekly bounty, and
+  syncs the bounty scoreboard in the same call. The bounty lines show
+  label, progress and target (e.g. "Clear the Halls 12/20"), with
+  " (done)" appended on a completed bounty.
+
+**Headless-verified:** `./gradlew build` green, full existing suite
+passing. New `BountyTrackerTest` (`bountyTrackerTest` Gradle task, wired
+into `tasks.test`): week key format, seeded pick stability and
+no-dupes, different owner/week picks, fresh materialisation, stale-week
+reset, sidecar codec round trip, and legacy save defaults.
+
+**Live-only, not yet verified:** an owner seeing their three weekly
+bounties on the door screen and the sidebar; a party member's
+completion counting toward the owner's bounty; a bounty completing and
+all online members receiving the reward; the week rolling over and
+fresh bounties appearing. Not recorded in LIVE_TEST_PASS.md yet -- add
+a new numbered section there once verified.
