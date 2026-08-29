@@ -1425,6 +1425,97 @@ room, stepping through, watching the 60-second countdown, and being ejected
 back to the parent at the door when the clock hits zero; recorded as section
 30 in LIVE_TEST_PASS.md.
 
+## M26: Lore delivery
+
+**Goal:** the lore (Alex's diaries, Alex's Room, the keystone's own recovery-
+compass framing) lands as fragmentary, discoverable content, never touching
+mechanical naming. `VISION.md` section 9 and `docs/reference/LORE.md` were
+already updated to permit this before this milestone started; nothing
+further changed there.
+
+- **Diary storage and delivery.** `DungeonLog.Entry` gains `diaryBandsSeen`
+  (`Set<Integer>`, never-shrinks, same shape as `unlockedShells`). `Diaries`
+  loads `data/pocketdungeons/diary/*.json` the same way `AdventureGraphs`
+  loads adventure nodes: one file per entry, malformed or colliding files
+  rejected loudly rather than silently picked between. The seven already-
+  authored entries (`docs/reference/LORE-DIARIES.md`) ship as `entry_1.json`
+  through `entry_7.json`.
+- **Band-to-entry mapping.** Journals unlock in their own numeric order as
+  the ladder climbs (Entry 1 first, Entry 7 last) but spread across seven of
+  the twelve intensifier bands (Baby, Highkey, Unhinged, Unholy, Forsaken,
+  Apocalyptic, Transcendent) rather than packed into the first seven, so a
+  normal climb does not clear the whole set in one stretch. "Found out of
+  order" instead comes from the physical book: `DiaryDelivery` shuffles its
+  page order per drop, while the lodestone reader always shows the canonical
+  order from the same source data.
+- **Delivery mechanism.** `DiaryDelivery.deliverIfEligible`, called from
+  `RunLifecycle.completeRun` after every keystone-level change a run can
+  still make has settled, hands the book to the completing player directly
+  (`Payout.deliver`) rather than into the shared completion chest the
+  handoff described: that chest is instance-shared and lazily loot-table-
+  filled for the whole party, with no slot that belongs to one player's own
+  band crossing.
+- **Action-bar read-out.** `DiaryReading` scrolls a found diary's pages
+  across the action bar the way Hearsay's villagers speak over the same
+  line, one character-width step at a time. Same
+  `ServerTickEvents.END_SERVER_TICK` registration shape as `TrimListener`
+  and `PowerListener`. Purely ambient; the physical book and the lodestone
+  reader are unaffected.
+- **Diary reader.** A "Diaries" option on both the overworld and in-dungeon
+  lodestone menus (`ACTION_DIARIES`) opens a list of all seven entries: a
+  discovered one is a button into a reader screen; an undiscovered one is a
+  plain grey "Entry N: ???" line, the same locked-content shape
+  `shellPicker` already uses for an unfound shell rather than a clickable
+  dead end. The reader's Back button round-trips through `DialogRouter`
+  rather than holding a client-side reference to the list, so a diary found
+  mid-read shows up discovered the moment the player backs out.
+- **Alex's Room shell.** A new spruce `ShellPalette` (`RoomBuilder.ALEXS_ROOM`),
+  registered in both `SHELL_PALETTES` and the separate `shellOrder()` list
+  (missing it from the latter is what `ShellPaletteTest` caught). Its
+  `unlockHint` is `"???"` rather than a real hint, unlike every other locked
+  palette: the only path to it is `DiaryDelivery`'s Entry 6 trigger, never a
+  token or prestige, and the menu should not spell that out.
+- **Compass pointing, revised.** The handoff's original plan
+  (`LODESTONE_TRACKER`, updated live by `Instances.reconcileKeystones` as
+  the player moves through selector doors, the terminal pad, and the room
+  lodestone) turned out not to work for the actual keystone item.
+  `PocketDungeonsConfig.keystoneItem` defaults to `minecraft:recovery_compass`
+  deliberately (`VISION.md` section 3.1.1, `LORE.md` section 5's whole
+  narrative), and decompiling `CompassAngleState$CompassTarget` confirmed its
+  client model reads only `Player#lastDeathLocation`, never
+  `LODESTONE_TRACKER` -- that component only drives the plain
+  `minecraft:compass` model. `lastDeathLocation` itself only reaches the
+  client inside a login or respawn packet, which only fires on an actual
+  dimension change, never on a same-dimension teleport -- and every move
+  within a session (room, lobby, run, back) stays inside `DUNGEON_LEVEL`.
+  Matching the recovery-compass look to live re-pointing would need a
+  custom item-model resource pack (confirmed by comparing `compass.json`
+  and `recovery_compass.json`'s texture references), which `VISION.md`
+  section 9 rules out outright ("vanilla clients, no resource pack").
+  Resolution, decided explicitly rather than defaulted into:
+  `Instances.teleport` now sets `Player#lastDeathLocation` at the one moment
+  a fresh packet is guaranteed regardless -- crossing into or out of
+  `DUNGEON_LEVEL` -- pointing at wherever that teleport is taking the player
+  on the way in (their room, most of the time) and clearing back to
+  vanilla's own behaviour on the way out, so the compass still spins in the
+  overworld exactly as designed. No re-pointing through the selector doors,
+  mid-run terminal, or post-completion room individually.
+
+**Headless-verified:** `./gradlew build` green, including the full test
+suite (`LodestoneMenuTest` and `ShellPaletteTest` updated for the new menu
+option and fifth palette; `DungeonLogTest` covers the codec's
+`diary_bands_seen` field through the same `PartA`/`PartB` split M27's
+`recentVisitors` addition required).
+
+**Live-only, not yet verified:** entering a new band and finding a diary in
+the next completion chest (in practice, handed over directly -- see above);
+opening the lodestone menu's Diaries option and confirming discovered
+entries are readable and undiscovered ones show "???"; confirming the
+action-bar scroll plays on pickup; confirming Alex's Room appears in Change
+Shell only after Entry 6 is found; confirming the keystone compass points at
+the player's room on entering the dungeon dimension and spins in the
+overworld. Not yet recorded in `LIVE_TEST_PASS.md`.
+
 ## M27: Extra features
 
 **Goal:** three small features enhancing the existing loop without being
