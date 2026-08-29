@@ -472,7 +472,7 @@ final class RoomBuilder {
 
     /** The selectable palettes in menu order: the default first, then the unlocks. */
     static List<ShellPalette> shellOrder() {
-        return List.of(OAK, SANDSTONE, DEEPSLATE, NETHER_BRICK);
+        return List.of(OAK, SANDSTONE, DEEPSLATE, NETHER_BRICK, ALEXS_ROOM);
     }
 
     /** Whether {@code name} is the default palette, usable without any unlock. */

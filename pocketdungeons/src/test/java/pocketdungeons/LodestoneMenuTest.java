@@ -5,8 +5,8 @@ import java.util.UUID;
 
 /**
  * Regression for the wall-lodestone menu's pure halves (M21): the option
- * list per context (overworld has four options, in-dungeon owner has three,
- * in-dungeon visitor omits Manage Room) and the dialog construction from
+ * list per context (overworld has five options, in-dungeon owner has five,
+ * in-dungeon visitor omits Manage Room and Change Shell) and the dialog construction from
  * prebuilt options. No server is available in this headless test, so the
  * owner check (which reads a live {@code InstanceRecord}) is pinned at the
  * {@link DialogScreens#menuOptions} level; the resulting dialog is the same
@@ -23,9 +23,9 @@ public class LodestoneMenuTest {
 
         UUID player = UUID.fromString("00000000-0000-0000-0000-0000000000d4");
 
-        // Overworld menu: Start Dungeon, Browse Lobbies, Manage Room, Inspect Keystone.
+        // Overworld menu: Start Dungeon, Browse Lobbies, Manage Room, Inspect Keystone, Diaries.
         List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false);
-        check(overworld.size(), 4, "overworld menu has four options");
+        check(overworld.size(), 5, "overworld menu has five options");
         check(overworld.get(0).label(), "Start Dungeon", "overworld first is Start Dungeon");
         check(overworld.get(0).action(), DialogScreens.ACTION_START_DUNGEON,
                 "Start Dungeon carries its action id");
@@ -38,10 +38,13 @@ public class LodestoneMenuTest {
         check(overworld.get(3).label(), "Inspect Keystone", "overworld fourth is Inspect Keystone");
         check(overworld.get(3).action(), DialogScreens.ACTION_INSPECT_KEYSTONE,
                 "Inspect Keystone carries its action id");
+        check(overworld.get(4).label(), "Diaries", "overworld fifth is Diaries");
+        check(overworld.get(4).action(), DialogScreens.ACTION_DIARIES,
+                "Diaries carries its action id");
 
-        // In-dungeon owner: Leave, Manage Room, Change Shell, Inspect Keystone.
+        // In-dungeon owner: Leave, Manage Room, Change Shell, Inspect Keystone, Diaries.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true);
-        check(owner.size(), 4, "in-dungeon owner menu has four options");
+        check(owner.size(), 5, "in-dungeon owner menu has five options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON,
                 "Leave carries its action id");
@@ -49,13 +52,17 @@ public class LodestoneMenuTest {
         check(owner.get(2).label(), "Change Shell", "the room's own owner sees Change Shell");
         check(owner.get(2).action(), DialogScreens.ACTION_CHANGE_SHELL,
                 "Change Shell carries its action id");
-        check(owner.get(3).label(), "Inspect Keystone", "in-dungeon last is Inspect Keystone");
+        check(owner.get(3).label(), "Inspect Keystone", "in-dungeon fourth is Inspect Keystone");
+        check(owner.get(4).label(), "Diaries", "in-dungeon owner last is Diaries");
+        check(owner.get(4).action(), DialogScreens.ACTION_DIARIES,
+                "Diaries carries its action id");
 
-        // In-dungeon visitor: Leave, Inspect Keystone; no Manage Room.
+        // In-dungeon visitor: Leave, Inspect Keystone, Diaries; no Manage Room.
         List<DialogScreens.MenuOption> visitor = DialogScreens.menuOptions(true, false);
-        check(visitor.size(), 2, "in-dungeon visitor menu omits Manage Room");
+        check(visitor.size(), 3, "in-dungeon visitor menu omits Manage Room");
         check(visitor.get(0).label(), "Leave", "visitor sees Leave");
         check(visitor.get(1).label(), "Inspect Keystone", "visitor sees Inspect Keystone");
+        check(visitor.get(2).label(), "Diaries", "visitor sees Diaries");
 
         // The dialog is a MultiActionDialog with one button per option, each
         // carrying the owner UUID so DialogRouter's owner check passes.
@@ -64,7 +71,7 @@ public class LodestoneMenuTest {
                 "overworld menu is a MultiActionDialog");
         net.minecraft.server.dialog.MultiActionDialog list =
                 (net.minecraft.server.dialog.MultiActionDialog) dialog;
-        check(list.actions().size(), 4, "one button per overworld option");
+        check(list.actions().size(), 5, "one button per overworld option");
         net.minecraft.server.dialog.action.CustomAll action =
                 (net.minecraft.server.dialog.action.CustomAll) list.actions().get(0).action().orElseThrow();
         net.minecraft.nbt.CompoundTag payload = action.additions().orElseThrow();
@@ -74,7 +81,7 @@ public class LodestoneMenuTest {
         net.minecraft.server.dialog.Dialog dungeonDialog = DialogScreens.lodestoneMenuDialog(owner, player, true);
         check(dungeonDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
                 "in-dungeon menu is a MultiActionDialog");
-        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 4,
+        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 5,
                 "one button per in-dungeon owner option");
 
         System.out.println("LodestoneMenuTest passed");
