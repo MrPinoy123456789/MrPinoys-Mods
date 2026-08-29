@@ -13,14 +13,17 @@ public class DungeonThemeMetaTest {
         check(defaults.roomTheme, null, "default room theme");
         check(defaults.discoverable, true, "default discoverable");
         check(defaults.lootSuffix, null, "default loot suffix");
+        check(defaults.spawnerPrefix, null, "default spawner prefix");
 
         DungeonThemeMeta full = parse("""
                 {"name":"Vault","processors":"pocketdungeons:theme_vault",
-                 "room_theme":"crypt","discoverable":false,"loot_suffix":"_vault"}
+                 "room_theme":"crypt","discoverable":false,"loot_suffix":"_vault",
+                 "spawner_prefix":"crypt"}
                 """);
         check(full.roomTheme, "crypt", "room theme");
         check(full.discoverable, false, "discoverable");
         check(full.lootSuffix, "_vault", "loot suffix");
+        check(full.spawnerPrefix, "crypt", "spawner prefix");
         expectFailure("{\"name\":\"Broken\"}", "processors");
         System.out.println("DungeonThemeMetaTest passed");
     }
