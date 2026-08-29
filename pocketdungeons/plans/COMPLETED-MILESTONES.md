@@ -1612,3 +1612,48 @@ confirming its trial spawners eject only zombies and skeletons; running an
 Infestation-themed dungeon and confirming spiders and cave spiders only;
 confirming a Swarming-affix run on either theme still spawns only that
 theme's roster, scaled up; recorded as section 32 in LIVE_TEST_PASS.md.
+
+## M29: No-backwards propagation
+
+**Goal:** dungeons never wrap around behind the player's entrance room. If
+the entrance door opens SOUTH, no cell may exist at z < 0 relative to the
+entrance; likewise for the other three directions.
+
+- `LayoutGraphGenerator.validate` computes `shape.entranceDirection()` and,
+  for every cell in the shape, flags one that falls on the wrong side of
+  the entrance axis (`EAST`: `x < 0`; `WEST`: `x > 0`; `NORTH`: `z > 0`;
+  `SOUTH`: `z < 0`) with a problem string carrying the
+  `NO_BACKWARDS_MARKER` phrase. The check applies to every cell (critical
+  path, branches, loops), runs pre-rotation, and is rotation-invariant:
+  `DungeonShape.rotate` is a rigid turn about the entrance, which always
+  sits at the origin, so nothing behind the entrance before rotation can
+  end up behind it after.
+- A shape with cells behind the entrance is an expected, unlucky output of
+  the backtracker's free branch/loop placement, not a generator bug. The
+  handoff assumed `LayoutPlanner.plan`'s 16-attempt retry budget already
+  absorbed a `validate` failure this way; it did not; every `validate`
+  failure returned immediately as a hard "generator bug" outcome with zero
+  retries. `plan` now checks whether every problem in the list carries the
+  no-backwards marker: if so, it burns a retry and moves to the next seed,
+  exactly like a room-resolution miss; any other problem still hard-fails
+  the call immediately, unchanged from before.
+- No config toggle shipped (the handoff's step 3 was explicitly optional).
+  The check always applies; there was no case for skipping it once the
+  retry budget proved to absorb the failures cheaply.
+
+**Headless-verified:** `./gradlew build` green, all existing suites
+including `PipelineProofTest` (200/200 seeds, full-library planning
+through the same `LayoutPlanner.plan` retry path this milestone changed).
+`LayoutGraphGenerator.main`'s live-play-profile sweep now retries each of
+5000 logical seeds through the same 16-attempt budget as `LayoutPlanner`
+(non-overlapping seed windows, seed+attempt scheme) and asserts the
+resolution rate stays above 95%; it resolves at 100% on the 5-8 path /
+0.35 branch / 0.15 loop live-play profile. The heavier 8-12 path / 0.55 /
+0.30 survey profile shows a much higher per-attempt rejection rate (7/20
+valid on first try), which is expected and exactly what the retry budget
+exists to absorb.
+
+**Live-only, not yet verified:** entering a dungeon from each of the four
+door directions and confirming no rooms appear behind the player's
+entrance room on the reverse axis; recorded as section 33 in
+LIVE_TEST_PASS.md.

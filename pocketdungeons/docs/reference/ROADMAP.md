@@ -502,7 +502,11 @@ door opens SOUTH, no cell may exist at z < 0 relative to the entrance. A
 validation check in `LayoutGraphGenerator.validate` rejects shapes where
 any cell is behind the entrance on the entrance axis. The property is
 rotation-invariant, so the pre-rotation check guarantees the post-rotation
-constraint. Config toggle: `noBackwardsPropagation` (default true). Full
+constraint. A no-backwards-only failure is an expected, unlucky
+backtracker outcome rather than a generator bug, so `LayoutPlanner.plan`
+retries the next seed on one instead of hard-failing the whole call, same
+as a room-resolution miss. No config toggle shipped; the check always
+applies, headless sweep resolves at 100% on the live-play profile. Full
 scope in `docs/reference/ROOM_UX_PLAN.md`'s `## M29` section.
 
 → `../plans/COMPLETED-MILESTONES.md`

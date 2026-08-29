@@ -1611,3 +1611,29 @@ resolves that id to the right roster.
    Blackstone or Prismarine).
 2. Clear an encounter cell. **Expected:** the same default tier mob mix as
    before M28.
+
+## 33. No-backwards propagation (M29)
+
+Live verification that a dungeon never places a room behind the player's
+entrance room. Headless coverage (the `LayoutGraphGenerator` sweep) only
+proves the grid math; it cannot prove what the stamped rooms look like
+from inside the entrance.
+
+### 33.1 Each door direction
+
+1. Generate and enter a dungeon whose entrance door opens NORTH. **Expected:**
+   no room is ever reachable directly south of the entrance room; walking
+   the layout, every room lies north of (or level with) the entrance on
+   the door's axis.
+2. Repeat for SOUTH, EAST, and WEST entrance doors (reroll or use the
+   admin experiment command to force each orientation if available).
+   **Expected:** same result, mirrored to the matching reverse axis each
+   time (south-opening: nothing north; east-opening: nothing west;
+   west-opening: nothing east).
+
+### 33.2 Branchy layouts
+
+1. Generate several dungeons with branches and loops present (not just a
+   straight critical path). **Expected:** branch and loop rooms obey the
+   same rule as critical-path rooms; nothing wraps around to be reachable
+   from a wall that borders the entrance room's exterior.
