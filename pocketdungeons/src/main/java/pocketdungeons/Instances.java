@@ -196,6 +196,7 @@ final class Instances {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             ThemeManifest.load(server);
             AdventureGraphs.load(server);
+            Diaries.load(server);
             RoomManifest manifest = RoomManifest.load(server);
             if (!manifest.rejections().isEmpty()) {
                 PocketDungeonsMod.LOG.error("{} dungeon room(s) were rejected at startup; "

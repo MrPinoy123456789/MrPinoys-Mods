@@ -860,6 +860,11 @@ final class RunLifecycle {
 
         Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
 
+        // M26: reads log fresh, after every keystone-level change this run
+        // could still make (the late penalty above, the banked door offer
+        // below) has already settled, so the band it checks is final.
+        DiaryDelivery.deliverIfEligible(log, player);
+
         if (!late) {
             player.sendSystemMessage(Component.literal(
                     "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")

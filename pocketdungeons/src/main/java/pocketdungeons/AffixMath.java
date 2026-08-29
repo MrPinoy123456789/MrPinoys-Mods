@@ -269,6 +269,50 @@ final class AffixMath {
     }
 
     /**
+     * The 1-12 ordinal of {@link #intensifier}'s band for a level, Baby=1
+     * through Transcendent=12. Exists so callers that need to compare bands
+     * (M26's diary drop) do not have to parse the display word back apart;
+     * the thresholds are identical, just returned as a number instead of a
+     * name.
+     */
+    static int intensifierBandIndex(int level) {
+        if (level <= 5) {
+            return 1;
+        }
+        if (level <= 10) {
+            return 2;
+        }
+        if (level <= 15) {
+            return 3;
+        }
+        if (level <= 20) {
+            return 4;
+        }
+        if (level <= 30) {
+            return 5;
+        }
+        if (level <= 40) {
+            return 6;
+        }
+        if (level <= 50) {
+            return 7;
+        }
+        if (level <= 60) {
+            return 8;
+        }
+        if (level <= 70) {
+            return 9;
+        }
+        if (level <= 80) {
+            return 10;
+        }
+        if (level <= 90) {
+            return 11;
+        }
+        return 12;
+    }
+
+    /**
      * {@code <intensifier> <affix> Keystone [<level>]}, with any remaining affixes
      * in a bracketed subtitle -- the {@code <title> [<subtitle>]} shape
      * {@code BossNames.build} uses next door.
