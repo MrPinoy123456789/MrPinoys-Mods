@@ -170,6 +170,17 @@ final class DungeonLog extends SavedData {
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
+    /**
+     * (M33) Per-player, per-task progress counts for {@link TaskTracker}'s
+     * guided task line. A sidecar map rather than an {@link Entry} field:
+     * {@code Entry}'s codec is already split across two 16-field groups
+     * ({@link #PART_A_CODEC}, {@link #PART_B_CODEC}), and a task's count is
+     * read and written far more often than anything else on the entry, so
+     * keeping it out of that record avoids a third split for a value that has
+     * nothing else in common with a player's campaign history.
+     */
+    private final Map<UUID, Map<String, Integer>> taskProgress = new HashMap<>();
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -272,16 +283,36 @@ final class DungeonLog extends SavedData {
             ENTRY_CODEC.fieldOf("entry").forGetter(PlayerEntry::entry)
     ).apply(instance, PlayerEntry::new));
 
+    /** (M33) One player's task-progress sidecar, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerTaskProgress(UUID player, Map<String, Integer> progress) {}
+
+    private static final Codec<PlayerTaskProgress> PLAYER_TASK_PROGRESS_CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerTaskProgress::player),
+            Codec.unboundedMap(Codec.STRING, Codec.INT).fieldOf("progress")
+                    .forGetter(PlayerTaskProgress::progress)
+    ).apply(instance, PlayerTaskProgress::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
-                            .map(e -> new PlayerEntry(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerEntry(e.getKey(), e.getValue())).toList()),
+            // M33: optional so a dungeon_log.dat written before this milestone
+            // loads unchanged, every player simply starting with no task
+            // progress recorded.
+            PLAYER_TASK_PROGRESS_CODEC.listOf().optionalFieldOf("task_progress", List.of())
+                    .forGetter(log -> log.taskProgress.entrySet().stream()
+                            .map(e -> new PlayerTaskProgress(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
-    private static DungeonLog fromEntries(List<PlayerEntry> players) {
+    private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
+        }
+        for (PlayerTaskProgress progress : taskProgress) {
+            log.taskProgress.put(progress.player(), new HashMap<>(progress.progress()));
         }
         return log;
     }
@@ -646,5 +677,20 @@ final class DungeonLog extends SavedData {
         entries.put(player, next);
         setDirty();
         return next;
+    }
+
+    /** (M33) How far {@code player} has progressed on the guided task {@code taskId}, or {@code 0}. */
+    int taskProgress(UUID player, String taskId) {
+        return taskProgress.getOrDefault(player, Map.of()).getOrDefault(taskId, 0);
+    }
+
+    /** (M33) Sets {@code player}'s progress on {@code taskId}, for {@link TaskTracker}. */
+    void setTaskProgress(UUID player, String taskId, int count) {
+        Map<String, Integer> progress = taskProgress.computeIfAbsent(player, k -> new HashMap<>());
+        if (Integer.valueOf(count).equals(progress.get(taskId))) {
+            return;
+        }
+        progress.put(taskId, count);
+        setDirty();
     }
 }

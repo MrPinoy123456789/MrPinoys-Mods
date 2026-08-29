@@ -1637,3 +1637,27 @@ from inside the entrance.
    straight critical path). **Expected:** branch and loop rooms obey the
    same rule as critical-path rooms; nothing wraps around to be reachable
    from a wall that borders the entrance room's exterior.
+
+## 34. Tutorial screen and engine label (M32)
+
+Live verification that the door screen's first-time prompt and the
+engine screen's renamed title actually render for a real player.
+
+### 34.1 Engine screen label
+
+1. Stand at a room's engine screen (any keystone level). **Expected:**
+   the title line reads "ECHO SHARDS", not "ENGINE".
+
+### 34.2 Level-1 tutorial prompts
+
+1. As a player at keystone level 1 (no completed runs yet), look at the
+   idle door screen. **Expected:** "Select the Oak Door" instead of the
+   normal "Right-click a door to preview" text.
+2. Select a door. **Expected:** the preview screen shows the normal
+   KEYSTONE/theme/affix lines plus "Pull the lever to descend!" in green.
+
+### 34.3 Level 2+ unchanged
+
+1. As a player at keystone level 2 or higher, repeat 34.2. **Expected:**
+   the idle screen shows the normal "Right-click a door to preview" text
+   and the preview screen shows no added tutorial line.

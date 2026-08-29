@@ -1657,3 +1657,30 @@ exists to absorb.
 door directions and confirming no rooms appear behind the player's
 entrance room on the reverse axis; recorded as section 33 in
 LIVE_TEST_PASS.md.
+
+## M32: Tutorial screen and engine label
+
+**Goal:** the engine screen's title reads "ECHO SHARDS" instead of
+"ENGINE"; a first-time (keystone level 1) player sees tutorial prompts on
+the door screen instead of the normal idle/preview text.
+
+- `DungeonScreen.engineContent` title literal changed to "ECHO SHARDS".
+- `DungeonScreen.idleContent` gains nullable `ServerLevel level` and
+  `UUID owner` params; when both are present and
+  `DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1`,
+  it returns "Select the Oak Door / Then pull the lever to descend"
+  instead of the normal idle text. All four call sites (`Instances.stampLobby`,
+  `RunLifecycle` twice, `RoomBuilder`) pass through the `level`/`owner` (or
+  `record.owner`) already in scope.
+- `DungeonScreen.previewContent` appends "Pull the lever to descend!" in
+  green when `offerLevel <= 1`; no signature change, since it already
+  derives `offerLevel` from `DungeonLog`.
+
+**Headless-verified:** `./gradlew build` green, all existing suites
+passing. No new test added; `idleContent`/`previewContent` are simple
+enough that the existing `DungeonLogTest` coverage of `keystoneLevel()`
+is what would need to change to break this, and it didn't.
+
+**Live-only, not yet verified:** the engine screen title, and the
+level-1 tutorial prompts on the idle and preview door screens, both
+disappearing at level 2+; recorded as section 34 in LIVE_TEST_PASS.md.
