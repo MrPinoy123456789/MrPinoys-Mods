@@ -463,6 +463,9 @@ final class Pocket2 {
      * child is torn down either way, like the timer path.
      */
     static void dieInChild(MinecraftServer server, ServerPlayer player, InstanceRecord child) {
+        if (server == null) {
+            return;
+        }
         player.setHealth(player.getMaxHealth());
         player.removeAllEffects();
         player.clearFire();
