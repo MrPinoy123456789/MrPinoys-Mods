@@ -1415,3 +1415,62 @@ directory resolves `templateOutDir()` to the project.
    mask.
 5. Run `saveroom` with no build room open. **Expected:** a refusal: "No
    build room is open for you."
+
+## 29. Room shells and prestige (M24)
+
+Headless coverage is green (codec round trips, palette registry, menu
+construction), but the actual world swap needs a live client. The frame must
+swap while furniture, chests, stations and the leave pad stay exactly where
+they are.
+
+### 29.1 The menu option is the tutorial
+
+1. Enter your room (open a dungeon from the overworld lodestone).
+2. Right-click the wall lodestone (local x=1, y=2, north wall).
+3. **Expected:** the in-dungeon menu shows Leave, Manage Room, Change Shell,
+   Inspect Keystone.
+4. Click Change Shell. **Expected:** the picker shows "Current shell: the
+   default", an Apply Oak button, and grayed-out lines for Sandstone
+   ("Found in rare rooms"), Deepslate ("Found in rare rooms") and Nether
+   Brick ("Hold your room through 10 completions").
+5. Click Apply Oak. **Expected:** a chat line "Your room's frame is now
+   Oak.", the room's walls/floor/ceiling become oak planks, and everything
+   inside stays in place. The wall lodestone still opens the menu.
+6. Place a chest, a station and a piece of furniture first, then repeat the
+   swap. **Expected:** all of it survives, contents included.
+
+### 29.2 The rare-node token
+
+1. Reach a drowned vault run (deepslate entry, blackstone descent, drowned
+   vault boss) and complete it.
+2. Open the completion chests. **Expected:** with the 10% token chance one
+   chest holds a "Sandstone Shell" or "Deepslate Shell" (a renamed
+   sandstone/deepslate block, lore "Unlock it from your room's menu.").
+3. Hold the token and open Change Shell. **Expected:** an Unlock button for
+   that shell appears ("Consumes the token you are holding").
+4. Click it. **Expected:** the token is consumed, the chat confirms the
+   unlock, and the shell now has an Apply button in the picker.
+5. Leave the room and come back (or complete another run). **Expected:** the
+   unlock is still there: it is per-player and permanent.
+6. Apply the shell. **Expected:** walls/floor/ceiling swap to that material;
+   the interior is untouched.
+7. Hold an ordinary sandstone block (no token marker). **Expected:** no
+   Unlock button: the marker, not the item, is what the picker reads.
+
+### 29.3 Prestige
+
+1. Complete 10 runs while keeping the same room; never run resetroom.
+2. **Expected:** on the tenth completion a gold chat line announces the
+   Nether Brick shell, and Change Shell lists it.
+3. Apply it. **Expected:** the frame becomes nether bricks, interior intact.
+4. Run `/dungeon admin resetroom <you>`. **Expected:** the prestige count
+   restarts (the Nether Brick shell stays unlocked: unlocks are permanent,
+   the count is the streak).
+
+### 29.4 Constraints
+
+- Every swap preserves furniture, chests, stations and the leave pad.
+- A swap never drops items (drops are suppressed on every stamp).
+- A non-owner or a visit instance never sees Change Shell.
+- The swap works from a fresh lobby, mid-run, and in the post-completion
+  room (ee door open onto the terminal cell).

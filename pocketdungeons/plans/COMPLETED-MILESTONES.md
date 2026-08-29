@@ -1309,3 +1309,60 @@ under the op-gated `admin` literal and compile against the live call sites.
 
 **Live-only, not yet verified:** the full open/build/save loop; recorded as
 section 28 in `LIVE_TEST_PASS.md`.
+
+---
+
+## M24: Room shells and prestige
+
+**Goal:** players discover and unlock alternate shell materials (sandstone,
+deepslate, nether brick) from rare adventure nodes and long-term room
+ownership. A shell swap replaces only the immutable shell blocks; the
+interior stays untouched.
+
+- **Shell storage on `DungeonLog.Entry`.** `unlockedShells` (a never-shrinking
+  set of palette names, the same shape as `extractedPowers`) and
+  `roomCompletions` (the prestige count) persist with safe defaults, so a
+  pre-M24 save loads unchanged. Unlocks are per-player, not per-room, and
+  survive room resets; the prestige count is the one thing a reset wipes.
+- **`RoomBuilder.rebuildShell`.** The orchestration the handoff asked for,
+  with one real refinement. The handoff sketched "capture the interior,
+  stamp the new shell, re-place the interior"; the shipped sequence captures
+  the whole cell as the safety net (`RoomStore.capture`), stamps the new
+  shell (`stampShell`, interior becomes air), re-places the blob
+  (`RoomStore.place`), then re-stamps only the shell positions
+  (`stampShellBlocks`). The last pass is the refinement: the blob carries
+  the old frame, so re-placing it first would put the old material back, and
+  re-stamping the frame positions afterwards is what leaves the interior
+  restored and the frame in the new material. Run-scoped furniture and doors
+  get the same capture hygiene `saveRoom` applies (clear before capture,
+  re-arm after); the wall lodestone is re-placed (it is shell); and the
+  doorway slots are re-opened or re-sealed from the room's live state,
+  because the post-completion room's ee door stands open while a lobby's is
+  sealed and both carry `awaitingDoorChoice=true`, so the flag alone cannot
+  tell them apart.
+- **Four palettes, two unlock paths.** `oak` is the always-available default
+  (the menu option is the tutorial). `sandstone` and `deepslate` are rare
+  tokens: vanilla material blocks, renamed and marked with
+  `custom_data.pocketdungeons.shellUnlock`, added as a chance pool in the
+  drowned vault's themed completion chests
+  (`chests/tier_{1,2,3}_drowned.json`), the one rare node the loaded graph
+  has. `nether_brick` is the prestige reward: 10 completions while holding
+  the same room without a reset, counted in `RunLifecycle.completeRun` for
+  the owner and zeroed by `/dungeon admin resetroom`.
+- **The Change Shell screen.** The in-dungeon owner's wall-lodestone menu
+  gains a Change Shell option (in-dungeon only: the frame exists only while
+  the room is stamped). The picker shows the current frame, one Apply button
+  per usable palette (default plus unlocks), grayed-out hint lines for the
+  locked ones, and an Unlock button when the player is holding a token.
+  Apply dispatches `RoomBuilder.rebuildShell`; Unlock consumes the held
+  token one-for-one. Both re-validate against live state on the click,
+  the same staleness discipline as every other routed dialog action.
+
+**Headless-verified:** `./gradlew build` green after each commit;
+`unlockedShells`/`roomCompletions` codec round-trips and pre-M24 defaults in
+`DungeonLogTest`; the four-palette registry in `ShellPaletteTest`; the
+four-option in-dungeon owner menu in `LodestoneMenuTest`.
+
+**Live-only, not yet verified:** finding a token in a rare room's completion
+chest, unlocking it, and swapping a furnished room's frame with the interior
+intact; recorded as section 29 in `LIVE_TEST_PASS.md`.
