@@ -175,6 +175,8 @@ final class LayoutStamper {
             }
         }
 
+        applyConnectors(level, geometry, plan, entranceCell);
+
         BedrockEnvelope.apply(level, geometry, voidedCells);
 
         return new InstanceLayout(
@@ -231,6 +233,40 @@ final class LayoutStamper {
                 : Integer.compare(a.z(), b.z()));
         ordered.addAll(rest);
         return List.copyOf(ordered);
+    }
+
+    /**
+     * (M30) Overlays a randomized {@link ConnectorType} on every door edge
+     * except the entrance's: the entrance's canonical slot stays the default
+     * wide opening the jigsaw already resolved to air, since a fresh run must
+     * never gate the one door a player is guaranteed to reach behind a locked
+     * or narrowed connector. Both cells on an edge get the same roll, so the
+     * opening lines up across the two-block partition between them.
+     */
+    private static void applyConnectors(ServerLevel level, PlanGeometry geometry, DungeonPlan plan,
+                                        PlanCell entranceCell) {
+        for (PlanEdge edge : plan.doors()) {
+            if (edge.touches(entranceCell)) {
+                continue;
+            }
+            Random rng = ConnectorType.rngFor(plan.seed(), edge);
+            ConnectorType type = ConnectorType.pick(rng);
+            if (type == ConnectorType.DOOR_WIDE) {
+                continue;
+            }
+            boolean fillNearColumn = rng.nextBoolean();
+            applyConnectorToSide(level, geometry, edge.a(), edge, type, fillNearColumn);
+            applyConnectorToSide(level, geometry, edge.b(), edge, type, fillNearColumn);
+        }
+    }
+
+    private static void applyConnectorToSide(ServerLevel level, PlanGeometry geometry, PlanCell cell,
+                                             PlanEdge edge, ConnectorType type, boolean fillNearColumn) {
+        DoorMask.Direction wall = cell.directionTo(edge.other(cell));
+        if (wall == null) {
+            return;
+        }
+        ConnectorStamper.apply(level, geometry.cellOrigin(cell), wall, type, fillNearColumn);
     }
 
     /**

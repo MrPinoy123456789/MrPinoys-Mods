@@ -515,13 +515,16 @@ scope in `docs/reference/ROOM_UX_PLAN.md`'s `## M29` section.
 
 ## M30: Connector variations
 
-Independent. Replaces fixed centered 2x3 door carve with varied connector
-patterns: wide door, double door, single door, iron bars, open wall with
-2x2 corner pillars, arch with lintel. Random offset along wall, seeded.
-No manifest changes, no new class, no door_positions field. Room shape
-variety (corridors, T-shapes, subrooms, dividers) is content-only via
-`.nbt` templates. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
-`## M30` section.
+Independent. A post-placement pass in `LayoutStamper` overlays varied
+connector patterns at door openings after `TemplateStamper.place` has
+resolved door jigsaws to air: wide door (default), double door, single
+door, iron door, bars, open wall with 2x2 corner pillars, arch with
+lintel. Seeded per-edge from the plan seed. No offset: the door slot
+stays at the canonical position (7-8) the templates' doorway lane rule
+is authored against. No manifest changes, no template changes.
+`BedrockEnvelope` needs no changes (it already skips faces with
+neighbours). IRON_DOOR benefits from M31 (shell protection). Full scope
+in `docs/reference/ROOM_UX_PLAN.md`'s `## M30` section.
 
 → `../plans/COMPLETED-MILESTONES.md`
 

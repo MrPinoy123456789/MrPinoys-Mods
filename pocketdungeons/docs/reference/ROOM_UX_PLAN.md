@@ -818,45 +818,79 @@ resolution rate stays above 95%.
 
 ## M30: Connector variations
 
-**Goal:** replace fixed centered 2x3 door carve with varied connector
-patterns: wide door, double door, single door, bars, open wall with
-pillars, arch with lintel. Random offset along wall. Seeded. Visual
-variety without changing cell size or room template format. Room shape
-variety (corridors, T-shapes, subrooms, dividers) is content-only via
-`.nbt` templates; no code change needed.
+**Goal:** varied connector patterns at door openings: wide door
+(current default), double door, single door, iron door, bars, open
+wall with pillars, arch with lintel. Seeded per-edge. Visual variety
+without changing cell size, room template format, or the canonical
+door slot position. Room shape variety (corridors, T-shapes, subrooms,
+dividers) is content-only via `.nbt` templates; no code change needed.
 
-**Depends on:** nothing.
+**Depends on:** nothing. IRON_DOOR benefits from M31 (shell
+protection) so players cannot mine around gated doors.
 
 **Scope:**
 
-### 30.1 Connector types
+### 30.1 ConnectorType enum and per-edge dispatch
 
 - `ConnectorType` enum: `DOOR_WIDE` (2-wide, current default),
   `DOOR_DOUBLE` (4-wide), `DOOR_SINGLE` (1-wide), `IRON_DOOR`
-  (2-wide, requires redstone), `BARS` (iron bars), `OPEN` (full width,
-  2x2 pillars at corners), `ARCH` (full width, lintel).
-- `LayoutStamper.stamp`: replace centered carve with
-  `carveConnector(level, origin, face, type, offset)`.
-- Weighted: DOOR_WIDE 45, DOOR_SINGLE 15, DOOR_DOUBLE 10, IRON_DOOR 10,
-  OPEN 10, ARCH 5, BARS 5.
+  (2-wide, requires redstone), `BARS` (iron bars floor to ceiling),
+  `OPEN` (full width, 2x2 pillars at corners), `ARCH` (full width,
+  lintel).
+- `LayoutStamper.stamp`: after the per-cell stamp loop, before
+  `BedrockEnvelope.apply`, add a connector pass. Iterate
+  `plan.doors()` (`Set<PlanEdge>`). For each edge, compute the
+  connector type via seeded weighted random, then apply to both
+  cells' sides of the wall.
+- The connector pass overlays existing templates after
+  `TemplateStamper.place` has resolved door jigsaws to air. No
+  template changes, no manifest changes.
+- No offset: door slot stays at canonical position (`DOOR_MIN=7`,
+  `DOOR_MAX=8`). Templates' doorway lane rule is authored against
+  this position.
 
 ### 30.2 Weighted random selection
 
-- Per door edge: weighted random type (see 30.1 weights).
-- Random offset in [1, 14] for DOOR types. OPEN/ARCH ignore offset.
-- Entrance edge: always DOOR_WIDE offset 7.
-- Seeded from plan seed.
+- Per edge: weighted random type. Weights: DOOR_WIDE 45,
+  DOOR_SINGLE 15, DOOR_DOUBLE 10, IRON_DOOR 10, OPEN 10, ARCH 5,
+  BARS 5.
+- Seeded from plan seed and edge identity. Same seed = same
+  connectors.
+- Entrance edge: always DOOR_WIDE, no roll.
+- Per-edge, not per-cell: both sides of an edge get the same type.
 
-### 30.3 BedrockEnvelope and RoomBuilder
+### 30.3 Connector application
 
-- `BedrockEnvelope.applyToCell`: OPEN/ARCH faces skip bedrock.
-- `RoomBuilder.sealDoor`/`openDoor`: accept offset param.
+- `applyConnector(level, cellOrigin, wall, type)`: overlays the
+  connector pattern on the door slot and surrounding wall. Door
+  slot is already air (jigsaw resolved). Surrounding wall is solid
+  wall blocks from `RoomBuilder.buildShell`, possibly re-skinned by
+  theme processors. Connector pass runs after processors.
+- DOOR_WIDE: no-op (slot is already air).
+- DOOR_SINGLE: fill one column with wall block read from adjacent
+  position. Leave other column as air.
+- DOOR_DOUBLE: clear 2 additional wall columns to air (4-wide
+  total).
+- IRON_DOOR: place iron door blocks in the 2-wide slot. Requires
+  redstone. No source placed.
+- BARS: iron bars from floor to ceiling.
+- OPEN: clear entire wall, place 2x2 pillars at corners.
+- ARCH: clear wall below top 2 rows, leaving lintel.
 
-**Done when:** each connector type renders correctly, default templates
-unchanged, entrance edge always DOOR_WIDE.
+### 30.4 BedrockEnvelope
 
-**Touch points:** `LayoutStamper.stamp`, `BedrockEnvelope.applyToCell`,
-`RoomBuilder.sealDoor`/`openDoor`, new `ConnectorType` enum.
+- No change needed. `BedrockEnvelope.applyToCell` already skips
+  faces with occupied neighbours (the faces that have doors).
+  OPEN and ARCH remove wall blocks on faces that already have
+  neighbours, and BedrockEnvelope already leaves those faces alone.
+
+**Done when:** each connector type renders correctly on both sides
+of the edge, default templates unchanged, entrance edge always
+DOOR_WIDE, BedrockEnvelope needs no changes.
+
+**Touch points:** `LayoutStamper.stamp` (new connector pass),
+`DungeonPlan.doors()` (edge iteration), `CellGeometry
+.doorSlotPositions` (slot positions), new `ConnectorType` enum.
 
 ---
 
