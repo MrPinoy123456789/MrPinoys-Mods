@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -43,6 +44,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -1628,6 +1630,29 @@ final class Instances {
             sendHome(server, player);
             return;
         }
+
+        // M26 26.4: the keystone is a recovery compass by design (VISION.md
+        // section 3.1.1, LORE.md section 5), and a recovery compass only
+        // reads Player#lastDeathLocation -- it ignores LODESTONE_TRACKER
+        // entirely, and lastDeathLocation only reaches the client inside a
+        // login/respawn packet, which only fires on an actual dimension
+        // change. That rules out re-pointing it live while the player stays
+        // in one dimension (room, lobby, run and back are all
+        // DUNGEON_LEVEL), so this sets it only at the one moment a fresh
+        // packet is guaranteed anyway: crossing into or out of the dungeon
+        // dimension. Points at wherever this teleport is taking them on the
+        // way in; clears back to vanilla's own spin/last-real-death behaviour
+        // on the way out.
+        boolean crossingIn = dimension.equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                && !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean crossingOut = !dimension.equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (crossingIn) {
+            player.setLastDeathLocation(Optional.of(GlobalPos.of(dimension, BlockPos.containing(pos))));
+        } else if (crossingOut) {
+            player.setLastDeathLocation(Optional.empty());
+        }
+
         player.teleport(new TeleportTransition(target, pos, Vec3.ZERO, yaw, pitch,
                 TeleportTransition.DO_NOTHING));
     }
