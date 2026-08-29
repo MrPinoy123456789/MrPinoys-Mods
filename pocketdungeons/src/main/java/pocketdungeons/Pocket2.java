@@ -255,6 +255,8 @@ final class Pocket2 {
         InstanceRecord child = new InstanceRecord(childSlot, childOrigin, now, layout,
                 EnumSet.noneOf(Affix.class), null, false, false, parent.slot, returnPos(parent, door));
         child.deadlineTick = now + PocketDungeonsConfig.pocket2TimerSeconds() * 20L;
+        child.timer = new RunTimer("Pocket", PocketDungeonsConfig.pocket2TimerSeconds(),
+                layout.roomCount());
         InstanceRegistry.bySlot.put(childSlot, child);
 
         // The child's roster copies the member's original return point, so a
@@ -264,6 +266,7 @@ final class Pocket2 {
         ReturnPoint original = parent.members.get(player.getUUID());
         child.members.put(player.getUUID(), original);
         InstanceRegistry.byMember.put(player.getUUID(), child);
+        child.timer.addPlayer(player);
 
         Instances.teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                 Vec3.atBottomCenterOf(layout.entrance()), layout.entranceYaw(), 0.0f);
@@ -291,5 +294,129 @@ final class Pocket2 {
             case WEST -> cellOrigin.offset(2, 1, 8);
             case EAST -> cellOrigin.offset(RoomGeometry.CELL - 3, 1, 8);
         };
+    }
+
+    // ---- countdown and teardown ---------------------------------------------
+
+    /**
+     * The child's slice of the watcher: tick its own countdown bar, drop
+     * members who left the world or the dimension (the parent's sweep handles
+     * the parent side of the same people), and expire on the deadline. The
+     * outer run's clock is untouched: it ticks on the parent record, which is
+     * how time in the pocket counts against the outer run.
+     */
+    static void tickChild(MinecraftServer server, InstanceRecord child, long now, int interval) {
+        if (child.timer != null) {
+            child.timer.tick(interval);
+        }
+        for (UUID member : new ArrayList<>(child.members.keySet())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                child.members.remove(member);
+                if (child.timer != null && player != null) {
+                    child.timer.removePlayer(player);
+                }
+            }
+        }
+        if (child.deadlineTick != 0 && now >= child.deadlineTick) {
+            expireChild(server, child, "time ran out in the pocket",
+                    "The pocket closes; you are back at the door.");
+        }
+    }
+
+    /**
+     * Tears a child down: every member is returned to the parent at the door
+     * they entered from, then the child's blocks are cleared and its slot is
+     * released. The parent side of each member was never touched -- they stayed
+     * in the parent's roster the whole time -- so the return is a teleport and
+     * a {@code byMember} re-point, nothing more. When the parent is already
+     * gone, the member's copied return point (their original outside spot) is
+     * the fallback.
+     */
+    static void expireChild(MinecraftServer server, InstanceRecord child, String reason,
+                            String message) {
+        InstanceRecord parent = InstanceRegistry.bySlot.get(child.parentSlot);
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        for (UUID member : new ArrayList<>(child.members.keySet())) {
+            ReturnPoint original = child.members.get(member);
+            child.members.remove(member);
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player == null) {
+                InstanceRegistry.byMember.remove(member);
+                continue;
+            }
+            if (child.timer != null) {
+                child.timer.removePlayer(player);
+            }
+            if (parent != null && level != null && child.returnPos != null) {
+                InstanceRegistry.byMember.put(member, parent);
+                if (parent.timer != null) {
+                    parent.timer.addPlayer(player);
+                }
+                Instances.teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
+                        Vec3.atBottomCenterOf(child.returnPos), returnYaw(parent, child.returnPos), 0.0f);
+                player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.GRAY));
+                Chime.pocketCloses(player);
+            } else if (original != null) {
+                InstanceRegistry.byMember.remove(member);
+                Instances.teleport(server, player, original.dimension(), original.pos(),
+                        original.yaw(), original.pitch());
+                player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.GRAY));
+            } else {
+                InstanceRegistry.byMember.remove(member);
+                Instances.sendToWorldSpawn(server, player);
+                player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.GRAY));
+            }
+        }
+        InstanceTeardown.purge(server, child, reason);
+    }
+
+    /**
+     * M25 death handling: the same rescue treatment a dungeon death would give
+     * (no death screen, no dropped inventory, no lost XP), but the destination
+     * is the parent run at the door, not the overworld. The outer run's death
+     * penalty still applies: the parent's keystone is settled exactly as
+     * {@code Instances.rescue} would settle it (U8: {@code NO_CHANGE}). The
+     * child is torn down either way, like the timer path.
+     */
+    static void dieInChild(MinecraftServer server, ServerPlayer player, InstanceRecord child) {
+        player.setHealth(player.getMaxHealth());
+        player.removeAllEffects();
+        player.clearFire();
+        player.resetFallDistance();
+        player.setDeltaMovement(Vec3.ZERO);
+
+        InstanceRecord parent = InstanceRegistry.bySlot.get(child.parentSlot);
+        expireChild(server, child, "death in the pocket",
+                "The pocket throws you out; you are back at the door.");
+        if (parent != null) {
+            RunLifecycle.returnKeystone(server, parent, player.getUUID(), player,
+                    Keystones.Outcome.NO_CHANGE);
+            Instances.announce(server, parent,
+                    player.getName().getString() + " was hurled out of the pocket.",
+                    player.getUUID());
+        }
+        player.sendSystemMessage(Component.literal(
+                "The pocket throws you out. You keep everything you were carrying.")
+                .withStyle(ChatFormatting.RED));
+    }
+
+    /** Faces the player back into the parent room from the door stand spot. */
+    private static float returnYaw(InstanceRecord parent, BlockPos returnPos) {
+        PlanCell cell = parent.layout.geometry().cellAt(returnPos);
+        if (cell == null) {
+            return 0.0f;
+        }
+        BlockPos cellOrigin = parent.layout.geometry().cellOrigin(cell);
+        if (returnPos.getZ() == cellOrigin.getZ() + 2) {
+            return InstanceLayout.yawFor(DoorMask.Direction.SOUTH); // north-wall door
+        }
+        if (returnPos.getZ() == cellOrigin.getZ() + RoomGeometry.CELL - 3) {
+            return InstanceLayout.yawFor(DoorMask.Direction.NORTH); // south-wall door
+        }
+        if (returnPos.getX() == cellOrigin.getX() + 2) {
+            return InstanceLayout.yawFor(DoorMask.Direction.EAST); // west-wall door
+        }
+        return InstanceLayout.yawFor(DoorMask.Direction.WEST); // east-wall door
     }
 }

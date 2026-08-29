@@ -114,6 +114,13 @@ final class Instances {
             if (record == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return true;
             }
+            // M25: death inside a Pocket2 child ejects to the parent at the
+            // door, with the outer run's death penalty still applied. The child
+            // is torn down either way -- see Pocket2.dieInChild.
+            if (record.parentSlot >= 0) {
+                Pocket2.dieInChild(player.level().getServer(), player, record);
+                return false;
+            }
             rescue(player, record);
             return false;
         });
@@ -1017,6 +1024,14 @@ final class Instances {
             // members to watch for -- it is exempt from every check below until
             // RunLifecycle.enter() purges it as the next run's opening move.
             if (record.lingering) {
+                continue;
+            }
+            // M25: a Pocket2 child has its own countdown and none of the outer
+            // run's lifecycle -- no keystone expiry, no grace window, no
+            // spawner-clear gate, no completion pad. Everything about it lives
+            // in Pocket2.tickChild.
+            if (record.parentSlot >= 0) {
+                Pocket2.tickChild(server, record, now, interval);
                 continue;
             }
             if (record.timer != null) {

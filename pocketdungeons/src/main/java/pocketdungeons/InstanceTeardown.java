@@ -35,6 +35,20 @@ final class InstanceTeardown {
 
     private InstanceTeardown() {}
 
+    /**
+     * M25: tears down every live Pocket2 child of {@code record} before the
+     * parent itself is handled. A child never survives its parent: the pocket's
+     * door lives in the parent's geometry, so a parent teardown makes the
+     * return point meaningless and the child must close with it.
+     */
+    private static void purgeChildren(MinecraftServer server, InstanceRecord record, String reason) {
+        for (InstanceRecord child : new ArrayList<>(InstanceRegistry.bySlot.values())) {
+            if (child.parentSlot == record.slot) {
+                purge(server, child, "parent torn down: " + reason);
+            }
+        }
+    }
+
     static void purge(MinecraftServer server, InstanceRecord record, String reason) {
         purge(server, record, reason, null);
     }
@@ -53,6 +67,10 @@ final class InstanceTeardown {
      * bounding this at one lingering dungeon per owner.
      */
     static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
+        // M25: a Pocket2 child dies with its parent, whatever teardown form the
+        // parent takes. Purge the children first so their members are returned
+        // before the parent's own roster is emptied.
+        purgeChildren(server, record, reason);
         // Safety net: eject/dropMember have almost certainly saved already, but a
         // teardown is the last moment the room exists to be read. Synchronous
         // because purge (below) queues a PendingClear that can race a deferred
@@ -93,6 +111,10 @@ final class InstanceTeardown {
 
     static void purge(MinecraftServer server, InstanceRecord record,
                       String reason, UUID excludeFromStraySweep) {
+        // M25: a Pocket2 child dies with its parent. Purged first so the
+        // child's members are returned to the door while the parent still
+        // exists to receive them.
+        purgeChildren(server, record, reason);
         // Safety net, as in retireOrPurge: last chance to read the room.
         // Synchronous because teardown (below) queues a PendingClear that
         // will erase the room cell; a deferred save could race with it
