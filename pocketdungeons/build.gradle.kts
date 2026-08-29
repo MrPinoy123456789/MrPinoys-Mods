@@ -148,7 +148,8 @@ for ((taskName, testClass) in mapOf(
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
-    "connectorTest" to "ConnectorTest"
+    "connectorTest" to "ConnectorTest",
+    "bountyTrackerTest" to "BountyTrackerTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -169,6 +170,7 @@ tasks.test {
     dependsOn("pocket2Test")
     dependsOn("trialContentConfigIdTest")
     dependsOn("connectorTest")
+    dependsOn("bountyTrackerTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
