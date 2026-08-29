@@ -77,6 +77,7 @@ final class GambleStation {
             return false;
         }
         showPicker(player, null);
+        TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
         return true;
     }
 

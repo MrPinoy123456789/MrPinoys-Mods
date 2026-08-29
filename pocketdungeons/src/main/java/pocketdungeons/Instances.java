@@ -189,6 +189,20 @@ final class Instances {
                     player.getUUID(), point, JOIN_RECOVERY_DELAY_TICKS));
         });
 
+        // M33: every joining player gets their pd_task score repainted and a
+        // reminder of their active guided task, dimension-agnostic unlike the
+        // recovery handler above -- a player who logs in in the overworld
+        // still has a task waiting on their next visit to a dungeon.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            TaskTracker.syncScoreboard(server, player);
+            Component taskLine = TaskTracker.taskLine(player);
+            if (taskLine != null) {
+                player.sendSystemMessage(Component.literal("Active task: ").withStyle(ChatFormatting.AQUA)
+                        .append(taskLine));
+            }
+        });
+
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
         // freshly started server silently gets the static fallback. This is the
@@ -736,7 +750,7 @@ final class Instances {
         // until the next lobby re-arms the room.
         record.selectedStep = 0;
         RoomTemplateGenerator.clearBulbs(level, record.roomCellOrigin, record.roomDungeonDoor);
-        DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(record));
+        DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
         // Everything admit() hands a player off the record's layout has to be
         // handed out again here, and this is the only place it can be.
@@ -1143,6 +1157,24 @@ final class Instances {
                             entrance.getZ() + 0.5, Set.of(), record.layout.entranceYaw(), 0.0f, false);
                     continue;
                 }
+                // M33: the guided Tame a Wolf task has no Fabric event to hook
+                // (fabric-api ships none for TamableAnimal#tame, and the
+                // one-mixin budget is already spent on CustomClickMixin -- see
+                // CONVENTIONS.md), so it is a reconciliation scan like this
+                // watcher's other checks rather than an edge: any tick this
+                // member has that task active and a wolf they own is standing
+                // nearby, progress fires. progress() is idempotent past the
+                // task's target, so scanning every watch interval rather than
+                // only on a real taming edge costs nothing extra once done.
+                if (TaskTracker.activeTask(player) == TaskTracker.Task.TAME_WOLF
+                        && !player.level().getEntitiesOfClass(
+                                net.minecraft.world.entity.animal.wolf.Wolf.class,
+                                player.getBoundingBox().inflate(8),
+                                wolf -> wolf.isTame() && wolf.getOwnerReference() != null
+                                        && member.equals(wolf.getOwnerReference().getUUID())).isEmpty()) {
+                    TaskTracker.progress(player, TaskTracker.Task.TAME_WOLF, 1);
+                }
+
                 // An edge, not a state: without the onPad set a player standing
                 // still on the pad after completing would be ejected on the very
                 // next watcher tick, with no chance to open a vault.

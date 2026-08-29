@@ -118,6 +118,7 @@ final class RerollStation {
         }
 
         showPicker(player, held, null);
+        TaskTracker.progress(player, TaskTracker.Task.REROLL, 1);
         return true;
     }
 

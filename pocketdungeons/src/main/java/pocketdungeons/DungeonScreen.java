@@ -139,13 +139,16 @@ final class DungeonScreen {
      * screen instead shows the first-time-player prompt.
      */
     static Component idleContent(ServerLevel level, UUID owner) {
+        MutableComponent content;
         if (level != null && owner != null
                 && DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1) {
-            return Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
+            content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
                     .append(Component.literal("\nSelect the Oak Door\nThen pull the lever to descend"));
+        } else {
+            content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
         }
-        return Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
-                .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
+        return appendTaskLine(content, level, owner);
     }
 
     /** Context 2: a door is selected: offered level, theme, effective affixes. */
@@ -165,16 +168,37 @@ final class DungeonScreen {
         if (offerLevel <= 1) {
             content.append(Component.literal("\nPull the lever to descend!").withStyle(ChatFormatting.GREEN));
         }
-        return content;
+        return appendTaskLine(content, level, owner);
     }
 
     /** Context 3: a run is in progress: level, theme, affixes, and the clock. */
-    static Component runContent(InstanceRecord record) {
+    static Component runContent(ServerLevel level, InstanceRecord record) {
         String timeLine = record.timer == null
                 ? "Untimed"
                 : "Time: " + KeystoneMath.formatClock(record.timer.secondsRemaining());
-        return Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
+        MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
                 + themeName(record.theme) + "\n" + affixLine(record.affixes) + "\n" + timeLine);
+        return appendTaskLine(content, level, record.owner);
+    }
+
+    /**
+     * M33: appends the guided task line (e.g. "\nFeed the Engine 2/3") when
+     * {@code owner} is online and still has one, otherwise returns
+     * {@code content} unchanged. {@code level} is nullable the same way
+     * {@link #idleContent} already tolerates it (a visit copy, or a stamp
+     * with nobody standing there yet).
+     */
+    private static MutableComponent appendTaskLine(MutableComponent content, ServerLevel level, UUID owner) {
+        if (level == null || owner == null) {
+            return content;
+        }
+        ServerPlayer player = level.getServer().getPlayerList().getPlayer(owner);
+        if (player == null) {
+            return content;
+        }
+        TaskTracker.syncScoreboard(level.getServer(), player);
+        Component taskLine = TaskTracker.taskLine(player);
+        return taskLine == null ? content : content.append("\n").append(taskLine);
     }
 
     /**

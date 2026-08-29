@@ -183,6 +183,7 @@ final class VisitService {
     private static void recordVisit(MinecraftServer server, UUID owner, ServerPlayer visitor) {
         DungeonLog.forServer(server).addVisitor(owner, visitor.getName().getString(),
                 System.currentTimeMillis());
+        TaskTracker.progress(visitor, TaskTracker.Task.VISIT_FRIEND, 1);
     }
 
     /**

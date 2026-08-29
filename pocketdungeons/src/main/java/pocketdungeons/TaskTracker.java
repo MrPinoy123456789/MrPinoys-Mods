@@ -4,6 +4,10 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 /**
  * M33: the guided task line. Ten sequential tasks teaching the core loops
@@ -52,6 +56,15 @@ final class TaskTracker {
     private static final Task[] ORDER = Task.values();
 
     /**
+     * The one server-wide objective, shared by every player: {@link DisplaySlot#LIST}
+     * (the tab list) shows each player's score against it, and the score is that
+     * player's active task's position in {@link #ORDER} (1-based). The readable
+     * label lives on the door screen ({@link #taskLine}), not here -- a tab-list
+     * number is the compact, always-visible cue; the sentence is the room's job.
+     */
+    private static final String OBJECTIVE_NAME = "pd_task";
+
+    /**
      * The lowest task {@code player} has not finished, or {@code null} once
      * every task is done. A task whose {@link Task#minLevel} sits strictly
      * below the player's current keystone level is skipped (and recorded as
@@ -82,43 +95,71 @@ final class TaskTracker {
     }
 
     /**
-     * Advances the active task by {@code amount}, if this player has one.
-     * A no-op if {@code player} has already finished every task, or if the
-     * currently active task is not the one the caller thinks it is progressing
-     * (every hook names its own task implicitly by calling this at all, but
-     * the active task can only ever be advanced, never targeted directly, so
-     * a hook firing while a different task is active is simply ignored).
+     * Advances {@code task} by {@code amount}, if it is this player's active
+     * task right now. A no-op otherwise: a hook fires whenever its own
+     * mechanic happens (descending, feeding the engine, ...), regardless of
+     * what the player's actual active task is, so every call site names the
+     * task it means to progress and this checks that against
+     * {@link #activeTask} before touching anything -- a player who opens a
+     * door while GAMBLE happens to be active must not have that counted as
+     * gamble progress.
      */
-    static void progress(ServerPlayer player, int amount) {
+    static void progress(ServerPlayer player, Task task, int amount) {
         MinecraftServer server = player.level().getServer();
-        if (server == null) {
-            return;
-        }
-        Task active = activeTask(player);
-        if (active == null) {
+        if (server == null || activeTask(player) != task) {
             return;
         }
         DungeonLog log = DungeonLog.forServer(server);
-        int current = log.taskProgress(player.getUUID(), active.id);
-        int next = Math.min(active.targetCount, current + amount);
+        int current = log.taskProgress(player.getUUID(), task.id);
+        int next = Math.min(task.targetCount, current + amount);
         if (next == current) {
             return;
         }
-        log.setTaskProgress(player.getUUID(), active.id, next);
-        if (next < active.targetCount) {
+        log.setTaskProgress(player.getUUID(), task.id, next);
+        if (next < task.targetCount) {
             return;
         }
 
         Task upNext = activeTask(player);
         if (upNext != null) {
             player.sendSystemMessage(Component.literal(
-                    active.label + " complete. Next: " + upNext.label + ".")
+                    task.label + " complete. Next: " + upNext.label + ".")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
-                    active.label + " complete. That's every guided task done.")
+                    task.label + " complete. That's every guided task done.")
                     .withStyle(ChatFormatting.AQUA));
         }
+        syncScoreboard(server, player);
+    }
+
+    /**
+     * Sets this player's {@code pd_task} score to their active task's position
+     * (1-based), creating the shared objective on first use. Once this player
+     * has no active task left, their score is cleared instead; if that leaves
+     * nobody tracked on the objective at all, the objective itself is removed
+     * rather than sitting on the tab list empty forever.
+     */
+    static void syncScoreboard(MinecraftServer server, ServerPlayer player) {
+        Scoreboard scoreboard = server.getScoreboard();
+        Task active = activeTask(player);
+        Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
+        if (active == null) {
+            if (objective != null) {
+                scoreboard.resetSinglePlayerScore(player, objective);
+                if (scoreboard.listPlayerScores(objective).isEmpty()) {
+                    scoreboard.removeObjective(objective);
+                }
+            }
+            return;
+        }
+        if (objective == null) {
+            objective = scoreboard.addObjective(OBJECTIVE_NAME, ObjectiveCriteria.DUMMY,
+                    Component.literal("Pocket Dungeons"), ObjectiveCriteria.RenderType.INTEGER,
+                    false, null);
+            scoreboard.setDisplayObjective(DisplaySlot.LIST, objective);
+        }
+        scoreboard.getOrCreatePlayerScore(player, objective).set(active.ordinal() + 1);
     }
 
     /** The active task's line for the door screen, e.g. "Feed the Engine 2/3", or {@code null} once every task is done. */

@@ -144,6 +144,7 @@ final class CubeStation {
         log.addExtractedPower(owner, reward);
         player.sendSystemMessage(Component.literal("Extracted. That power is yours to imbue, permanently.")
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
+        TaskTracker.progress(player, TaskTracker.Task.EXTRACT_POWER, 1);
     }
 
     static void showPicker(ServerPlayer player, ItemStack held, String notice) {

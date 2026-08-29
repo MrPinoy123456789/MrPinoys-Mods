@@ -120,6 +120,13 @@ final class RitualListener {
                 return InteractionResult.FAIL;
             }
         }
+        // M31 9.2: the same denial for an active run's dungeon cells outside
+        // any room -- placement there is blocked while the run is live, and
+        // opens up again once the first member completes it.
+        if (Instances.dungeonRecordAt(placementPos) != null
+                && isPlacementSource(player.getItemInHand(hand))) {
+            return InteractionResult.FAIL;
+        }
 
         // M25: the Pocket2 rare door. Claimed whenever the click lands on this
         // player's run's pocket door; anything else falls through to the
@@ -167,6 +174,7 @@ final class RitualListener {
                 // that balance below purely so the block lights up as it fills.
                 Fuel.bank(serverPlayer, 1);
                 Chime.engineFed(serverPlayer);
+                TaskTracker.progress(serverPlayer, TaskTracker.Task.FEED_ENGINE, 1);
             } else {
                 Chime.refused(serverPlayer);
             }
@@ -299,6 +307,7 @@ final class RitualListener {
         }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
         Chime.doorSelected(player, step);
+        TaskTracker.progress(player, TaskTracker.Task.SELECT_DOOR, 1);
         // A door the lever will refuse says so now, on the browse, rather than
         // waiting for the pull: the walk between doors is the browse, so the
         // answer to "can I afford this one" belongs to the same click.

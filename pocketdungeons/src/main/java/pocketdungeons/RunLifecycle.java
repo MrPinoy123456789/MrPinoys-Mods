@@ -450,6 +450,10 @@ final class RunLifecycle {
                 AffixMath.name(offer.level(), granted) + ". The door opens.")
                 .withStyle(Keystone.colourOf(
                         AffixMath.ordered(granted).stream().findFirst().orElse(null))));
+        TaskTracker.progress(player, TaskTracker.Task.DESCEND, 1);
+        if (step >= 2) {
+            TaskTracker.progress(player, TaskTracker.Task.GREATER_DOOR, 1);
+        }
         return true;
     }
 
@@ -527,7 +531,7 @@ final class RunLifecycle {
             }
         } else {
             DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
-                    DungeonScreen.runContent(record));
+                    DungeonScreen.runContent(level, record));
         }
     }
 
@@ -775,12 +779,14 @@ final class RunLifecycle {
 
         boolean firstCompletion = record.completed.isEmpty();
         record.completed.add(player.getUUID());
+        TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
 
         if (firstCompletion) {
             if (record.timer != null) {
                 record.timer.markCompleted();
             }
             completeDungeon(server, record);
+            announceShellLift(server, record);
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -887,6 +893,30 @@ final class RunLifecycle {
      * persistent room is stamped behind the sealed far wall. The sealed door is
      * then opened so the player can walk into their room.
      */
+    /**
+     * M31 9.2: told once, at the moment the dungeon's shell protection lifts.
+     * Fired from {@link #completeRun}'s {@code firstCompletion} branch, so it
+     * runs exactly once per instance no matter how many members finish
+     * afterwards or how many times the dungeon is re-entered -- by then
+     * {@code record.completed} is already non-empty, so
+     * {@link Instances#dungeonRecordAt} has already stopped protecting
+     * anything for this run. Reaches every member currently standing in the
+     * dungeon dimension, not just the one who just finished: the whole party's
+     * cells opened up at once.
+     */
+    private static void announceShellLift(MinecraftServer server, InstanceRecord record) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer != null
+                    && memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                memberPlayer.sendSystemMessage(Component.literal(
+                                "The dungeon's shell has weakened. You can break blocks now.")
+                        .withStyle(ChatFormatting.GREEN));
+                Chime.shellWeakened(memberPlayer);
+            }
+        }
+    }
+
     private static void completeDungeon(MinecraftServer server, InstanceRecord record) {
         if (record.roomCellOrigin == null) {
             return;
