@@ -1474,3 +1474,61 @@ they are.
 - A non-owner or a visit instance never sees Change Shell.
 - The swap works from a fresh lobby, mid-run, and in the post-completion
   room (ee door open onto the terminal cell).
+
+## 30. Pocket2 Dungeon (M25)
+
+Live verification of the nested sub-dungeon. Headless coverage is green (child
+record linkage, slot allocation, full build), but finding the door, stepping
+through, and being returned on the clock need a live client.
+
+### 30.1 Find the door
+
+1. Open a keystone run from the overworld lodestone (any theme with an
+   adventure-graph node).
+2. Clear the first encounter room you reach (all trial spawners at COOLDOWN).
+3. **Expected:** with the ~20% per-run roll some runs have a 2-wide iron door
+   set into a sealed wall of that room. Runs that did not roll one simply have
+   no door (rare, not guaranteed).
+4. Right-click the door mid-fight (before clearing). **Expected:** a refusal:
+   "The door stays shut while the room still fights."
+5. Right-click after clearing. **Expected:** a gold line "A rare door opens
+   into a pocket of the dungeon. 60 seconds to grab what you can." and you are
+   teleported to the pocket's entrance.
+
+### 30.2 The pocket
+
+1. **Expected:** a second boss bar reads "Pocket - 1:00 - x/y rooms".
+2. Walk the pocket: 3-5 cells, loose chests drawing from
+   pocketdungeons:chests/pocket2, and 1-2 trial spawners. No vaults, no
+   completion pad, no keystone bar.
+3. Open a chest. **Expected:** with the table's roll, a "Sandstone Shell" or
+   "Deepslate Shell" token, echo shards, or valuables.
+4. Stand on any lodestone inside the pocket. **Expected:** nothing happens:
+   there is no completion pad.
+
+### 30.3 The clock
+
+1. Wait out the 60 seconds.
+2. **Expected:** "The pocket closes; you are back at the door.", a return
+   teleport to the stand spot just inside the door in the parent room, and the
+   pocket's boss bar disappears. The outer run's clock kept ticking the whole
+   time.
+3. Re-enter immediately. **Expected:** a refusal: "The door is already open
+   elsewhere." while the child still exists (or a fresh pocket once the old
+   one is gone).
+
+### 30.4 Death in the pocket
+
+1. Enter a pocket and take lethal damage inside it.
+2. **Expected:** no death screen, full reset, "The pocket throws you out; you
+   are back at the door." and you return to the parent at the door with your
+   inventory intact. The outer run's keystone settlement is NO_CHANGE, the
+   same as any dungeon death.
+
+### 30.5 Parent teardown
+
+1. Enter a pocket, then have the owner leave the party or purge the parent
+   slot with /dungeon admin purge <parent>.
+2. **Expected:** the pocket is torn down with the parent (its slot freed, no
+   orphaned blocks), and any member still inside is sent home to their
+   original return point.

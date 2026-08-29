@@ -1366,3 +1366,59 @@ four-option in-dungeon owner menu in `LodestoneMenuTest`.
 **Live-only, not yet verified:** finding a token in a rare room's completion
 chest, unlocking it, and swapping a furnished room's frame with the interior
 intact; recorded as section 29 in `LIVE_TEST_PASS.md`.
+
+---
+
+## M25: Pocket2 Dungeon
+
+**Goal:** a dungeon within a dungeon. During a run, the player finds a rare
+door in a cleared encounter room leading to a short, intense sub-dungeon with
+a hard timer. Grab what you can before the clock runs out.
+
+- **Child instance records.** InstanceRecord gains parentSlot and
+  eturnPos (plus deadlineTick), so a child is linked to its parent and
+  knows exactly where to send its members back to. InstanceRegistry gains
+  llocateSlotNear, which keeps the child's slot adjacent to the parent's on
+  the grid. Children carry keystone level 0, no affixes and no owner room, so
+  isKeystoneRun() is false for them: no spawner gate, no completion pad, no
+  keystone settlement, nothing to pay for entry.
+- **Rare door placement.** LayoutStamper rolls one door per run off the plan
+  seed, gated on the run's theme having an adventure-graph node (an unthemed
+  run, or one whose theme the datapack never declared, never hosts a door).
+  The first encounter cell with a sealed wall hosts a 2-wide iron door; the
+  position rides on InstanceLayout.pocket2Door so the right-click handler
+  never scans the world. Entry additionally requires the door's cell to be
+  fully cleared (all trial spawners at COOLDOWN), which is the M10 dependency
+  the milestone lists: the pocket cannot be used to dodge a fight.
+- **Door interaction.** RitualListener hands the click to
+  Pocket2.tryEnter, which enforces one child per parent (childFor), then
+  plans a 3-5 cell child (straight path, no loops), stamps it into the
+  adjacent slot, and teleports the player in. The player never leaves the
+  parent's roster: parent.members still holds them, so the outer run's
+  clock keeps ticking and the pocket's time counts against the outer run. The
+  child's own roster is a copy, kept so a teardown that outlives the parent
+  still knows where to send everyone home.
+- **Countdown and teardown.** Instances.onTick routes child records to
+  Pocket2.tickChild, which ticks the child's own boss bar (RunTimer gains
+  a title variant so it reads "Pocket - 0:45" instead of a keystone label)
+  and expires on deadlineTick. Expiry returns every member to the parent at
+  the door (eturnPos) and purges the child. Death inside the pocket routes
+  through Pocket2.dieInChild instead of a dungeon-wide rescue: same reset,
+  but the destination is the parent at the door, and the parent's keystone is
+  settled NO_CHANGE so the outer run's death penalty still applies. A parent
+  teardown now cascades to its children (purgeChildren in
+  InstanceTeardown), so the pocket never outlives the run it hangs off.
+- **Loose loot.** The child's content pass converts every vault to a plain
+  chest and points every chest at the new pocketdungeons:chests/pocket2
+  table: shell unlock tokens (M24), echo shards for fuel, and valuables. The
+  1-2 trial spawners the small plan naturally produces stay as the pocket's
+  loose drops.
+
+**Headless-verified:** ./gradlew build green after each of the four commits;
+Pocket2Test round-trips the child record, its parent linkage, its deadline
+and the near-parent slot allocation.
+
+**Live-only, not yet verified:** finding a rolled door in a cleared encounter
+room, stepping through, watching the 60-second countdown, and being ejected
+back to the parent at the door when the clock hits zero; recorded as section
+30 in LIVE_TEST_PASS.md.

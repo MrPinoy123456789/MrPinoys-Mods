@@ -116,7 +116,7 @@ final class Instances {
             }
             // M25: death inside a Pocket2 child ejects to the parent at the
             // door, with the outer run's death penalty still applied. The child
-            // is torn down either way -- see Pocket2.dieInChild.
+            // is torn down either way; see Pocket2.dieInChild.
             if (record.parentSlot >= 0) {
                 Pocket2.dieInChild(player.level().getServer(), player, record);
                 return false;
@@ -1027,7 +1027,7 @@ final class Instances {
                 continue;
             }
             // M25: a Pocket2 child has its own countdown and none of the outer
-            // run's lifecycle -- no keystone expiry, no grace window, no
+            // run's lifecycle: no keystone expiry, no grace window, no
             // spawner-clear gate, no completion pad. Everything about it lives
             // in Pocket2.tickChild.
             if (record.parentSlot >= 0) {

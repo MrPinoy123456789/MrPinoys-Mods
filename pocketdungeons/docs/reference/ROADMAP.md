@@ -466,6 +466,21 @@ hook.
 
 ---
 
+## M25: Pocket2 Dungeon
+
+Room UX pass. A rare door in a cleared encounter room of a keystone run opens
+a nested sub-dungeon: its own slot adjacent to the parent's, 3-5 cells, no
+keystone, no spawner gate, no completion pad, only a 60-second countdown bar.
+On zero or death the pocket tears down and its members return to the parent at
+the door; the outer run's clock keeps ticking the whole time. Door placement
+is rolled once per run off the plan seed and gated on the theme having an
+adventure-graph node (rare, not guaranteed). Full scope in
+`docs/reference/ROOM_UX_PLAN.md`'s `## M25` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M28: Themed mob spawners
 
 Independent of the Room UX pass. Dungeon themes gain an optional
@@ -475,6 +490,89 @@ instead of the default `tier_{n}` files. Two proof-of-concept themes ship:
 Crypt (deepslate, zombies+skeletons only) and Infestation (spiders only).
 Null prefix = current behavior, so no existing theme breaks. Full scope in
 `docs/reference/ROOM_UX_PLAN.md`'s `## M28` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M29: No-backwards propagation
+
+Independent. Dungeons never wrap behind the player room: if the dungeon
+door opens SOUTH, no cell may exist at z < 0 relative to the entrance. A
+validation check in `LayoutGraphGenerator.validate` rejects shapes where
+any cell is behind the entrance on the entrance axis. The property is
+rotation-invariant, so the pre-rotation check guarantees the post-rotation
+constraint. Config toggle: `noBackwardsPropagation` (default true). Full
+scope in `docs/reference/ROOM_UX_PLAN.md`'s `## M29` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M30: Connector variations
+
+Independent. Replaces fixed centered 2x3 door carve with varied connector
+patterns: wide door, double door, single door, iron bars, open wall with
+2x2 corner pillars, arch with lintel. Random offset along wall, seeded.
+No manifest changes, no new class, no door_positions field. Room shape
+variety (corridors, T-shapes, subrooms, dividers) is content-only via
+`.nbt` templates. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
+`## M30` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M31: Dungeon shell protection
+
+Independent. During active runs, all dungeon cells are block-break and
+block-place protected. Players cannot mine walls to bypass doors or
+shortcuts. After first completion, protection lifts on dungeon cells
+automatically (`record.completed.isEmpty()` check). Player room
+protection (M18) unchanged. Enables M30 `IRON_DOOR` connector as a real
+gate. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s `## M31` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M32: Tutorial screen and engine label
+
+Independent. Two DungeonScreen text changes. Engine screen title
+changes from "ENGINE" to "ECHO SHARDS". At keystone level 1, door
+screen shows tutorial prompts: "Select the Oak Door" when idle,
+"Pull the lever to descend!" when a door is selected. Tutorial
+disappears at level 2+. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
+`## M32` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M33: Guided tasks via scoreboard
+
+Independent. Sequential task system teaching core loops via
+Minecraft scoreboard objectives. Ten tasks from "Select a Door"
+to "Tame a Wolf", each level-gated, one active at a time.
+Progress shown on door screen. Inspired by archived dailyquests
+mod's turn-in pattern. Scoreboard objective `pd_task` tracks
+active task number. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
+`## M33` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M34: Weekly bounties for party leaders
+
+Independent. Three weekly bounties per dungeon host (instance
+owner), seeded from owner UUID and ISO week key. Party members
+contribute progress; all online members get rewards on
+completion. Seven-bounty pool includes spawner clears, echo
+shard banking, timed runs, gamble spending, Greater doors,
+multi-member runs, and keystone levels. Scoreboard tracks
+progress. Inspired by archived dailyquests mod. Full scope in
+`docs/reference/ROOM_UX_PLAN.md`'s `## M34` section.
 
 → `../plans/COMPLETED-MILESTONES.md`
 

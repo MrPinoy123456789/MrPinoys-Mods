@@ -42,15 +42,30 @@ Each step one commit. Run `build_mod` after each.
    place a special door block in cleared encounter rooms, gated by
    `AdventureGraph` transition logic. Rare, not guaranteed.
 2. Door interaction: right-click creates child instance, teleports player
-   in, records `returnPos` at door location.
+   in, records `returnPos` at door location. `Pocket2.openChild` is part
+   of this step: it is where `deadlineTick` is armed, so Step 3's watcher
+   is the missing half of the same path, not a separate concern.
 
 ### Step 3: Countdown timer
 
 1. Child `InstanceRecord`: add `deadlineTick` field.
 2. `Instances.onTick`: check child instances for deadline. On zero or
    player death: tear down child, teleport player to `returnPos` in parent
-   instance.
-3. Outer run clock keeps ticking. Time in Pocket2 is time the outer run
+   instance. The watcher must branch on `record.isChild()`; the existing
+   keystone-run expiry path skips children because `isKeystoneRun()` is
+   false, so without this branch a child's `deadlineTick` is armed but
+   never read and the player is never ejected.
+3. `Instances.rescue`/`eject`: branch on `record.isChild()` and teleport
+   to `returnPos` in the parent's dimension, not the member's original
+   `ReturnPoint` (which `openChild` stores on `child.members` and which
+   points at the overworld). The outer-run death penalty still applies to
+   the parent record.
+4. `InstanceTeardown`: when a parent is retired or purged, find and tear
+   down any child via `Pocket2.childFor(parent.slot)` before clearing the
+   parent slot. Without this, parent completion/expiry/purge orphans the
+   child: its slot stays allocated, its force-load tickets stay active,
+   and the player inside is stranded in a dead pocket.
+5. Outer run clock keeps ticking. Time in Pocket2 is time the outer run
    counts.
 
 ### Step 4: Loot and content

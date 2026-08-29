@@ -317,8 +317,8 @@ final class Pocket2 {
     /**
      * The pocket's loot is loose, not key-gated: every vault the stamp placed
      * becomes a plain chest, and every chest in the child draws from the
-     * {@code chests/pocket2} table. The trial spawners stay -- 1-2 of them is
-     * the M25 shape -- and their ejections are the pocket's "loose drops".
+     * {@code chests/pocket2} table. The trial spawners stay (1-2 of them is
+     * the M25 shape), and their ejections are the pocket's "loose drops".
      */
     private static void reworkContent(ServerLevel level, InstanceLayout layout) {
         ResourceKey<LootTable> pocket2 = ResourceKey.create(Registries.LOOT_TABLE,
@@ -399,8 +399,8 @@ final class Pocket2 {
     /**
      * Tears a child down: every member is returned to the parent at the door
      * they entered from, then the child's blocks are cleared and its slot is
-     * released. The parent side of each member was never touched -- they stayed
-     * in the parent's roster the whole time -- so the return is a teleport and
+     * released. The parent side of each member was never touched: they stayed
+     * in the parent's roster the whole time, so the return is a teleport and
      * a {@code byMember} re-point, nothing more. When the parent is already
      * gone, the member's copied return point (their original outside spot) is
      * the fallback.
