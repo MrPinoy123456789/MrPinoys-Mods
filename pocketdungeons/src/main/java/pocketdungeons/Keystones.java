@@ -103,7 +103,19 @@ final class Keystones {
         // Only the elective half is written. What the new level's thresholds hand
         // the player on top is derived on every read, so it cannot go stale and
         // needs no codec field of its own.
+        int previousLevel = DungeonLog.forServer(server).get(member).keystoneLevel();
         DungeonLog.forServer(server).setKeystone(member, offer.level(), offer.affixes());
+        // M34: a keystone level gain counts toward the owner's Keystone Climber
+        // bounty. The owner is the instance owner if the member is in one, or
+        // the member themselves otherwise (settling a pending offer outside an
+        // instance still counts toward their own bounty).
+        int delta = offer.level() - previousLevel;
+        if (delta > 0) {
+            InstanceRecord record = InstanceRegistry.byMember.get(member);
+            UUID owner = record != null ? record.owner : member;
+            BountyTracker.progress(server, owner,
+                    BountyTracker.Bounty.KEYSTONE_CLIMBER.id, delta);
+        }
         if (player == null) {
             PocketDungeonsMod.LOG.info("Offer for absent player {} settled at level {}",
                     member, offer.level());

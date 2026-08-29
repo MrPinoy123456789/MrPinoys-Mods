@@ -781,6 +781,32 @@ final class RunLifecycle {
         record.completed.add(player.getUUID());
         TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
 
+        // M34: weekly bounty hooks. Bounties belong to the owner; a party
+        // member's completion counts toward the owner's bounties, the same
+        // way it counts toward the owner's prestige (M24).
+        if (record.isKeystoneRun()) {
+            int chests = record.rewardChests;
+            boolean timed = record.timer != null && chests > 0;
+            Set<BlockPos> spawners = record.layout.trialSpawners();
+            if (!spawners.isEmpty()) {
+                int cleared = TrialContent.countCleared(player.level(), spawners);
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
+            }
+            if (timed) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.SPEEDRUNNER.id, 1);
+            }
+            if (record.chosenStep >= 2) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.SPELUNKER.id, 1);
+            }
+            if (record.members.size() >= 2) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.PACK_HUNTER.id, 1);
+            }
+        }
+
         if (firstCompletion) {
             if (record.timer != null) {
                 record.timer.markCompleted();

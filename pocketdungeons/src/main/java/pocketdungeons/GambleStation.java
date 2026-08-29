@@ -5,6 +5,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
@@ -127,6 +128,19 @@ final class GambleStation {
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.EMERALD), cost,
                 new SimpleContainer(0));
         Payout.deliver(player, drawn);
+
+        // M34: emeralds spent at the gamble count toward the owner's High
+        // Roller bounty. The owner is the instance owner, not necessarily the
+        // player pulling the lever: a party member's gamble spends toward the
+        // host's bounty, the same way their run completion does.
+        InstanceRecord bountyRecord = InstanceRegistry.byMember.get(player.getUUID());
+        if (bountyRecord != null) {
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                BountyTracker.progress(server, bountyRecord.owner,
+                        BountyTracker.Bounty.HIGH_ROLLER.id, cost);
+            }
+        }
 
         player.sendSystemMessage(Component.literal("Gambled into " + drawn.getHoverName().getString() + ".")
                 .withStyle(ChatFormatting.AQUA));

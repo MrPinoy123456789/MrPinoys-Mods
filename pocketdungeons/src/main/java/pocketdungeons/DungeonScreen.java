@@ -184,7 +184,8 @@ final class DungeonScreen {
     /**
      * M33: appends the guided task line (e.g. "\nFeed the Engine 2/3") when
      * {@code owner} is online and still has one, otherwise returns
-     * {@code content} unchanged. {@code level} is nullable the same way
+     * {@code content} unchanged. M34: appends the weekly bounty lines below
+     * the task line. {@code level} is nullable the same way
      * {@link #idleContent} already tolerates it (a visit copy, or a stamp
      * with nobody standing there yet).
      */
@@ -198,7 +199,18 @@ final class DungeonScreen {
         }
         TaskTracker.syncScoreboard(level.getServer(), player);
         Component taskLine = TaskTracker.taskLine(player);
-        return taskLine == null ? content : content.append("\n").append(taskLine);
+        if (taskLine != null) {
+            content = content.append("\n").append(taskLine);
+        }
+        // M34: bounty lines below the task line, one per weekly bounty.
+        BountyTracker.syncScoreboard(level.getServer(), player);
+        java.util.List<Component> bountyLines = BountyTracker.bountyLines(player);
+        if (bountyLines != null) {
+            for (Component line : bountyLines) {
+                content = content.append("\n").append(line);
+            }
+        }
+        return content;
     }
 
     /**
