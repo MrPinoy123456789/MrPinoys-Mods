@@ -43,6 +43,9 @@ final class LootTables {
     static final String VAULT_TIER_2_OMINOUS = "vaults/tier_2_ominous";
     static final String VAULT_TIER_3_OMINOUS = "vaults/tier_3_ominous";
 
+    /** M25: the Pocket2 child's loose-chest table: shell tokens, fuel, valuables. */
+    static final String POCKET2 = "chests/pocket2";
+
     /**
      * The equipment slots M13's gear pool is keyed by, and therefore the slots
      * M16's gamble can be asked to roll. {@code weapon} is one slot rather than
@@ -60,7 +63,8 @@ final class LootTables {
                 TIER_1_OMINOUS, TIER_2_OMINOUS, TIER_3_OMINOUS,
                 SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3,
                 VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3,
-                VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS));
+                VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS,
+                POCKET2));
         for (int tier = 1; tier <= 3; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));

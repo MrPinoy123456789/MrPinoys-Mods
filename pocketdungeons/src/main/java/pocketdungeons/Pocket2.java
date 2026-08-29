@@ -3,20 +3,33 @@ package pocketdungeons;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.VaultBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -250,6 +263,9 @@ final class Pocket2 {
                     .withStyle(ChatFormatting.GRAY));
             return;
         }
+        // The child's loot is loose, not key-gated: vaults become chests and
+        // every chest draws from the pocket2 table.
+        reworkContent(level, layout);
 
         long now = level.getGameTime();
         InstanceRecord child = new InstanceRecord(childSlot, childOrigin, now, layout,
@@ -294,6 +310,62 @@ final class Pocket2 {
             case WEST -> cellOrigin.offset(2, 1, 8);
             case EAST -> cellOrigin.offset(RoomGeometry.CELL - 3, 1, 8);
         };
+    }
+
+    // ---- content -------------------------------------------------------------
+
+    /**
+     * The pocket's loot is loose, not key-gated: every vault the stamp placed
+     * becomes a plain chest, and every chest in the child draws from the
+     * {@code chests/pocket2} table. The trial spawners stay -- 1-2 of them is
+     * the M25 shape -- and their ejections are the pocket's "loose drops".
+     */
+    private static void reworkContent(ServerLevel level, InstanceLayout layout) {
+        ResourceKey<LootTable> pocket2 = ResourceKey.create(Registries.LOOT_TABLE,
+                Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, LootTables.POCKET2));
+        for (BlockPos cellOrigin : layout.geometry().cellOrigins()) {
+            // Vaults are key-gated; the pocket's loot is loose. Replace each
+            // vault with a chest carrying the pocket2 table.
+            for (BlockPos pos : vaultsIn(level, cellOrigin)) {
+                Direction facing = level.getBlockState(pos).hasProperty(VaultBlock.FACING)
+                        ? level.getBlockState(pos).getValue(VaultBlock.FACING)
+                        : Direction.SOUTH;
+                RoomBuilder.set(level, pos, Blocks.CHEST.defaultBlockState()
+                        .setValue(ChestBlock.FACING, facing));
+            }
+            // Every chest in the pocket draws from the pocket2 table.
+            for (BlockPos pos : RoomContent.containers(level, cellOrigin)) {
+                if (level.getBlockEntity(pos) instanceof RandomizableContainer c) {
+                    c.setLootTable(pocket2);
+                    c.setLootTableSeed(layout.seed() ^ pos.asLong());
+                }
+            }
+        }
+    }
+
+    /** Every vault block entity position inside the cell. A cell is one chunk, so this is a map scan. */
+    private static java.util.List<BlockPos> vaultsIn(ServerLevel level, BlockPos cellOrigin) {
+        LevelChunk chunk = level.getChunkAt(cellOrigin);
+        java.util.List<BlockPos> found = new ArrayList<>();
+        for (Map.Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (!inCell(pos, cellOrigin)) {
+                continue;
+            }
+            if (entry.getValue() instanceof VaultBlockEntity) {
+                found.add(pos.immutable());
+            }
+        }
+        return found;
+    }
+
+    private static boolean inCell(BlockPos pos, BlockPos cellOrigin) {
+        int dx = pos.getX() - cellOrigin.getX();
+        int dy = pos.getY() - cellOrigin.getY();
+        int dz = pos.getZ() - cellOrigin.getZ();
+        return dx >= 0 && dx < RoomGeometry.CELL
+                && dz >= 0 && dz < RoomGeometry.CELL
+                && dy >= 0 && dy <= RoomGeometry.CEILING_Y;
     }
 
     // ---- countdown and teardown ---------------------------------------------
