@@ -89,6 +89,8 @@ final class DialogScreens {
     static final String ACTION_APPLY_SHELL = "apply_shell";
     /** M24: a picker Unlock button: consume the held token for {@link #KEY_SHELL}. */
     static final String ACTION_UNLOCK_SHELL = "unlock_shell";
+    /** (M26) The lodestone menu's Diaries option, and the reader's own Back button. */
+    static final String ACTION_DIARIES = "diaries";
     /**
      * The Back buttons. This API has no history stack, so going back is the
      * parent screen rebuilt from live state, which means a round trip through
@@ -578,6 +580,7 @@ final class DialogScreens {
                         ACTION_CHANGE_SHELL));
             }
             options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
+            options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
             return options;
         }
         return List.of(
@@ -585,7 +588,8 @@ final class DialogScreens {
                         ACTION_START_DUNGEON),
                 new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
-                new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
+                new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE),
+                new MenuOption("Diaries", null, ACTION_DIARIES));
     }
 
     /**
@@ -819,6 +823,51 @@ final class DialogScreens {
         CompoundTag context = new CompoundTag();
         context.putString(KEY_OWNER, owner.toString());
         return DialogKit.button(label, null, DialogKit.submit(action, context));
+    }
+
+    // ---- section 14: diaries (M26) -----------------------------------------
+
+    /**
+     * The lodestone menu's Diaries option: all seven of Alex's entries, in
+     * their canonical numeric order. A discovered entry is a button that
+     * opens {@link #diaryReader}; an undiscovered one is a plain grey
+     * "Entry N: ???" line, the same locked-content shape {@link
+     * #shellPicker} already uses for a shell the player has not unlocked --
+     * never a clickable dead end.
+     */
+    static Dialog diaryList(MinecraftServer server, UUID owner) {
+        Set<Integer> seen = DungeonLog.forServer(server).get(owner).diaryBandsSeen();
+        List<DialogBody> body = new ArrayList<>();
+        body.add(DialogKit.text("Alex's diaries. Found out of order, on purpose."));
+        List<ActionButton> buttons = new ArrayList<>();
+        for (Diaries.Entry diaryEntry : Diaries.current().entries()) {
+            if (seen.contains(diaryEntry.band())) {
+                buttons.add(showDialogButton("Entry " + diaryEntry.number() + ": " + diaryEntry.title(),
+                        diaryReader(diaryEntry, owner)));
+            } else {
+                body.add(DialogKit.text(Component.literal("Entry " + diaryEntry.number() + ": ???")
+                        .withStyle(ChatFormatting.GRAY)));
+            }
+        }
+        return DialogKit.list("Diaries", body, buttons, backToMenuButton(owner));
+    }
+
+    /**
+     * (M26) One diary's reader: its pages in their canonical, unshuffled
+     * order -- the source {@link DiaryDelivery} itself shuffles for the
+     * physical book, never this screen, so a player who lost the book can
+     * still read the real thing here. Back re-opens the list through
+     * {@link DialogRouter} rather than a stored reference to it, so a diary
+     * found while this screen was open shows up discovered the moment the
+     * player backs out.
+     */
+    static Dialog diaryReader(Diaries.Entry entry, UUID owner) {
+        List<DialogBody> body = new ArrayList<>();
+        for (String page : entry.pages()) {
+            body.add(DialogKit.text(page));
+        }
+        return DialogKit.notice("Entry " + entry.number() + ": " + entry.title(), body,
+                backButton("Back", ACTION_DIARIES, owner));
     }
 
     /** A button that swaps to another screen on the client, committing nothing. */

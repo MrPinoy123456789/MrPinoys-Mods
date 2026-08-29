@@ -87,6 +87,7 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_SHELL, ""));
             case DialogScreens.ACTION_UNLOCK_SHELL -> unlockShell(player,
                     tag.getStringOr(DialogScreens.KEY_SHELL, ""));
+            case DialogScreens.ACTION_DIARIES -> diaries(player, server);
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
@@ -192,6 +193,11 @@ public final class DialogRouter {
     /** The menu's Manage Room option: the whitelist plus name and visibility. */
     private static void manageRoom(ServerPlayer player, MinecraftServer server) {
         DialogKit.show(player, DialogScreens.manageRoom(server, player.getUUID()));
+    }
+
+    /** The menu's Diaries option, and the reader's own Back button (both re-open the same list). */
+    private static void diaries(ServerPlayer player, MinecraftServer server) {
+        DialogKit.show(player, DialogScreens.diaryList(server, player.getUUID()));
     }
 
     /**
