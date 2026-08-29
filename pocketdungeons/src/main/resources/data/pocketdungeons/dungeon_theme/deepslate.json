@@ -1,4 +1,5 @@
 {
   "name": "Deepslate",
-  "processors": "pocketdungeons:theme_deepslate"
+  "processors": "pocketdungeons:theme_deepslate",
+  "spawner_prefix": "crypt"
 }

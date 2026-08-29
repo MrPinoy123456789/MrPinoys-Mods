@@ -1,0 +1,6 @@
+{
+  "name": "Infestation",
+  "processors": "pocketdungeons:theme_deepslate",
+  "discoverable": true,
+  "spawner_prefix": "infestation"
+}
