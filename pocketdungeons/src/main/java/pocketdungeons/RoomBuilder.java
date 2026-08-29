@@ -120,6 +120,21 @@ final class RoomBuilder {
             "Hold your room through " + PRESTIGE_SHELL_THRESHOLD + " completions",
             Blocks.NETHER_BRICKS, Blocks.NETHER_BRICKS, Blocks.NETHER_BRICKS,
             Blocks.NETHER_BRICK_SLAB, Blocks.NETHER_BRICK_STAIRS);
+    /**
+     * (M26) Alex's remembered childhood home, unlocked only by discovering
+     * diary Entry 6 ("The Becoming") -- never a token, never prestige. See
+     * {@link DiaryDelivery}, the only caller of {@link
+     * DungeonLog#unlockShell} for this name. Spruce floor and walls read
+     * warmer and more domestic than every other palette here, which are all
+     * stone or nether materials; the ceiling stays spruce rather than the
+     * usual stone-brick default for the same reason -- this shell is meant
+     * to feel like the inside of a house, not a dungeon room wearing a
+     * different texture.
+     */
+    static final ShellPalette ALEXS_ROOM = palette("alexs_room", "Alex's Room",
+            "???",
+            Blocks.SPRUCE_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.SPRUCE_PLANKS,
+            Blocks.SPRUCE_SLAB, Blocks.SPRUCE_STAIRS);
 
     /**
      * (M24) The prestige shell {@link DungeonLog#addRoomCompletion} counts
@@ -133,7 +148,8 @@ final class RoomBuilder {
             OAK.name(), OAK,
             SANDSTONE.name(), SANDSTONE,
             DEEPSLATE.name(), DEEPSLATE,
-            NETHER_BRICK.name(), NETHER_BRICK);
+            NETHER_BRICK.name(), NETHER_BRICK,
+            ALEXS_ROOM.name(), ALEXS_ROOM);
 
     private static ShellPalette palette(String name, String displayName, String unlockHint,
                                         Block floor, Block wall, Block ceiling,
