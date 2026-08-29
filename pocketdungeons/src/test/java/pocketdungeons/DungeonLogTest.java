@@ -71,6 +71,36 @@ public class DungeonLogTest {
         check(legacy.get(player).publicListed(), false, "pre-M20 save defaults publicListed to false");
         check(legacy.get(player).roomName(), "", "pre-M20 save defaults roomName to empty");
         check(legacy.get(player).runsCompleted(), 1, "pre-M20 save still loads its runs");
+        check(legacy.get(player).unlockedShells().isEmpty(), true,
+                "pre-M24 save defaults unlockedShells to empty");
+        check(legacy.get(player).roomCompletions(), 0, "pre-M24 save defaults roomCompletions to 0");
+
+        // M24: unlockedShells and roomCompletions round trip through the codec.
+        // The unlock is a set that never shrinks: re-unlocking is a no-op.
+        DungeonLog shells = new DungeonLog();
+        shells.unlockShell(player, "sandstone");
+        shells.unlockShell(player, "sandstone");
+        shells.unlockShell(player, "");
+        shells.addRoomCompletion(player);
+        shells.addRoomCompletion(player);
+        com.google.gson.JsonElement shellJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, shells).result().orElseThrow();
+        DungeonLog shellDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, shellJson).result().orElseThrow().getFirst();
+        check(shellDecoded.get(player).unlockedShells(),
+                java.util.Set.of("sandstone"), "unlockedShells round trips");
+        check(shellDecoded.get(player).roomCompletions(), 2, "roomCompletions round trips");
+        check(shells.get(player).unlockedShells(),
+                java.util.Set.of("sandstone"), "duplicate unlock is a no-op");
+
+        // The prestige count resets with the room: setRoomCompletions zeroes it.
+        DungeonLog prestige = new DungeonLog();
+        prestige.addRoomCompletion(player);
+        prestige.addRoomCompletion(player);
+        prestige.setRoomCompletions(player, 0);
+        check(prestige.get(player).roomCompletions(), 0, "room reset zeroes prestige");
+        prestige.setRoomCompletions(player, -3);
+        check(prestige.get(player).roomCompletions(), 0, "negative prestige clamps at zero");
 
         System.out.println("DungeonLogTest passed");
     }

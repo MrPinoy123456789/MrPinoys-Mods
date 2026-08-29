@@ -1058,6 +1058,10 @@ final class DungeonCommands {
                         target.name() + " has no saved room and nothing open to reset."));
                 continue;
             }
+            // M24: wiping the room wipes the prestige streak. The count is
+            // "completions while holding the same room without resetting", and
+            // this command is the reset, so the two move together.
+            DungeonLog.forServer(server).setRoomCompletions(target.id(), 0);
             String detail = hadRoom
                     ? (purged > 0 ? "room and " + purged + " open instance(s)" : "room")
                     : purged + " open instance(s), no saved room";

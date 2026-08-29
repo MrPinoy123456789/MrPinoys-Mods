@@ -788,6 +788,23 @@ final class RunLifecycle {
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.theme);
 
+        // M24: prestige counts completions while the owner holds the same room
+        // without resetting it, so only the owner's completions move the count.
+        // A room reset (resetroom) zeroes it, which is what makes holding one
+        // room the achievement rather than raw completion volume.
+        if (player.getUUID().equals(record.owner)) {
+            DungeonLog.Entry prestige = log.addRoomCompletion(player.getUUID());
+            if (prestige.roomCompletions() >= RoomBuilder.PRESTIGE_SHELL_THRESHOLD
+                    && !prestige.unlockedShells().contains(RoomBuilder.PRESTIGE_SHELL)) {
+                log.unlockShell(player.getUUID(), RoomBuilder.PRESTIGE_SHELL);
+                player.sendSystemMessage(Component.literal(
+                        "Ten completions on the same room. The "
+                                + RoomBuilder.palette(RoomBuilder.PRESTIGE_SHELL).displayName()
+                                + " shell is yours; change it from your room's menu.")
+                        .withStyle(ChatFormatting.GOLD));
+            }
+        }
+
         int chests = record.rewardChests;
         boolean late = chests <= 0;
         if (late) {
