@@ -39,14 +39,17 @@ public class LodestoneMenuTest {
         check(overworld.get(3).action(), DialogScreens.ACTION_INSPECT_KEYSTONE,
                 "Inspect Keystone carries its action id");
 
-        // In-dungeon owner: Leave, Manage Room, Inspect Keystone.
+        // In-dungeon owner: Leave, Manage Room, Change Shell, Inspect Keystone.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true);
-        check(owner.size(), 3, "in-dungeon owner menu has three options");
+        check(owner.size(), 4, "in-dungeon owner menu has four options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON,
                 "Leave carries its action id");
         check(owner.get(1).label(), "Manage Room", "the room's own owner sees Manage Room");
-        check(owner.get(2).label(), "Inspect Keystone", "in-dungeon last is Inspect Keystone");
+        check(owner.get(2).label(), "Change Shell", "the room's own owner sees Change Shell");
+        check(owner.get(2).action(), DialogScreens.ACTION_CHANGE_SHELL,
+                "Change Shell carries its action id");
+        check(owner.get(3).label(), "Inspect Keystone", "in-dungeon last is Inspect Keystone");
 
         // In-dungeon visitor: Leave, Inspect Keystone; no Manage Room.
         List<DialogScreens.MenuOption> visitor = DialogScreens.menuOptions(true, false);
@@ -71,7 +74,7 @@ public class LodestoneMenuTest {
         net.minecraft.server.dialog.Dialog dungeonDialog = DialogScreens.lodestoneMenuDialog(owner, player, true);
         check(dungeonDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
                 "in-dungeon menu is a MultiActionDialog");
-        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 3,
+        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 4,
                 "one button per in-dungeon owner option");
 
         System.out.println("LodestoneMenuTest passed");

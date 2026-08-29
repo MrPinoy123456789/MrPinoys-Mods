@@ -6,6 +6,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -81,6 +82,11 @@ public final class DialogRouter {
             case DialogScreens.ACTION_SET_ROOM_NAME -> setRoomName(player, server,
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_TOGGLE_PUBLIC -> togglePublic(player, server);
+            case DialogScreens.ACTION_CHANGE_SHELL -> changeShellMenu(player);
+            case DialogScreens.ACTION_APPLY_SHELL -> applyShell(player,
+                    tag.getStringOr(DialogScreens.KEY_SHELL, ""));
+            case DialogScreens.ACTION_UNLOCK_SHELL -> unlockShell(player,
+                    tag.getStringOr(DialogScreens.KEY_SHELL, ""));
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
@@ -233,6 +239,107 @@ public final class DialogRouter {
             Chime.roomUnlisted(owner);
         }
         DialogKit.show(owner, DialogScreens.manageRoom(server, owner.getUUID()));
+    }
+
+    /**
+     * The in-dungeon menu's Change Shell option: opens the shell picker, which
+     * needs the player's live room record to know where the frame stands. The
+     * option is owner-only by construction (menuOptions), and this re-checks
+     * it against live state the same way every other routed action does.
+     */
+    private static void changeShellMenu(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !player.getUUID().equals(record.owner)
+                || record.roomCellOrigin == null || record.visitInstance) {
+            Chime.refused(player);
+            DialogKit.show(player, DialogScreens.lodestoneMenu(player, true));
+            return;
+        }
+        DialogKit.show(player, DialogScreens.shellPicker(player, record));
+    }
+
+    /**
+     * A Change Shell picker Apply click: re-validates the unlock against live
+     * state (the screen can sit open while things change, and the payload can
+     * be forged, so neither is trusted) and swaps the room's frame through
+     * {@code RoomBuilder.rebuildShell}, which is the whole of the mechanic:
+     * capture the interior as the safety net, stamp the new frame, re-place.
+     */
+    private static void applyShell(ServerPlayer player, String shellName) {
+        RoomBuilder.ShellPalette palette = RoomBuilder.palette(shellName);
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !player.getUUID().equals(record.owner)
+                || record.roomCellOrigin == null || record.visitInstance) {
+            Chime.refused(player);
+            backToMenu(player);
+            return;
+        }
+        DungeonLog log = DungeonLog.forServer(player.level().getServer());
+        if (!RoomBuilder.isDefaultShell(shellName)
+                && !log.get(player.getUUID()).unlockedShells().contains(shellName)) {
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal(
+                    "You have not unlocked the " + palette.displayName() + " shell.")
+                    .withStyle(ChatFormatting.YELLOW));
+            reshowShellPicker(player);
+            return;
+        }
+        MinecraftServer server = player.level().getServer();
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal("The dungeon dimension is not loaded.")
+                    .withStyle(ChatFormatting.RED));
+            reshowShellPicker(player);
+            return;
+        }
+        RoomBuilder.rebuildShell(level, server, record, palette);
+        player.sendSystemMessage(Component.literal(
+                "Your room's frame is now " + palette.displayName() + ".")
+                .withStyle(ChatFormatting.GOLD));
+        reshowShellPicker(player);
+    }
+
+    /**
+     * A Change Shell picker Unlock click: consumes the held shell token for
+     * {@code shellName} and adds the palette to the player's permanent set.
+     * The held stack is re-read on the click, so a screen that sat open while
+     * the player swapped hands degrades to a refusal, never a wrong unlock.
+     */
+    private static void unlockShell(ServerPlayer player, String shellName) {
+        RoomBuilder.ShellPalette palette = RoomBuilder.palette(shellName);
+        if (!shellName.equals(RoomBuilder.shellUnlockOf(player.getMainHandItem()))) {
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal(
+                    "Hold the " + palette.displayName() + " shell token to unlock it.")
+                    .withStyle(ChatFormatting.YELLOW));
+            reshowShellPicker(player);
+            return;
+        }
+        DungeonLog log = DungeonLog.forServer(player.level().getServer());
+        if (log.get(player.getUUID()).unlockedShells().contains(shellName)) {
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal("You have already unlocked that shell.")
+                    .withStyle(ChatFormatting.YELLOW));
+            reshowShellPicker(player);
+            return;
+        }
+        player.getMainHandItem().shrink(1);
+        log.unlockShell(player.getUUID(), shellName);
+        player.sendSystemMessage(Component.literal(
+                "Unlocked the " + palette.displayName() + " shell. It is yours permanently.")
+                .withStyle(ChatFormatting.GOLD));
+        reshowShellPicker(player);
+    }
+
+    /** Rebuilds the Change Shell picker from live state after a click. */
+    private static void reshowShellPicker(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || record.roomCellOrigin == null) {
+            backToMenu(player);
+            return;
+        }
+        DialogKit.show(player, DialogScreens.shellPicker(player, record));
     }
 
     /**

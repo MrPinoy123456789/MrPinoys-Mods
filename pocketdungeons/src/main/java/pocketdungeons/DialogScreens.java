@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.ClickEvent;
@@ -12,6 +13,7 @@ import net.minecraft.server.dialog.Input;
 import net.minecraft.server.dialog.action.StaticAction;
 import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.dialog.input.TextInput;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -78,6 +80,15 @@ final class DialogScreens {
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
     static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
+
+    /** M24: which shell palette a shell action's button chose. */
+    static final String KEY_SHELL = "pd_shell";
+    /** M24: the menu's Change Shell option opens the picker; the picker's Apply buttons dispatch this. */
+    static final String ACTION_CHANGE_SHELL = "change_shell";
+    /** M24: a picker Apply button: swap the room's frame to {@link #KEY_SHELL}. */
+    static final String ACTION_APPLY_SHELL = "apply_shell";
+    /** M24: a picker Unlock button: consume the held token for {@link #KEY_SHELL}. */
+    static final String ACTION_UNLOCK_SHELL = "unlock_shell";
     /**
      * The Back buttons. This API has no history stack, so going back is the
      * parent screen rebuilt from live state, which means a round trip through
@@ -560,6 +571,11 @@ final class DialogScreens {
             options.add(new MenuOption("Leave", "Exit the dungeon", ACTION_LEAVE_DUNGEON));
             if (roomOwner) {
                 options.add(new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM));
+                // M24: the shell swap needs the room's live cell, so it is an
+                // in-dungeon, owner-only option: the frame only exists while
+                // the room is stamped, and only its owner gets to reframe it.
+                options.add(new MenuOption("Change Shell", "Swap your room's frame",
+                        ACTION_CHANGE_SHELL));
             }
             options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
             return options;
@@ -684,6 +700,59 @@ final class DialogScreens {
                         List.of(name)),
                 DialogKit.button("Set", null, DialogKit.submit(ACTION_SET_ROOM_NAME, context)),
                 backButton("Cancel", ACTION_MANAGE_ROOM, owner));
+    }
+
+    /**
+     * (M24) The Change Shell screen behind the in-dungeon menu's option: the
+     * current frame, one Apply button per shell the player can use (the
+     * always-available default plus every unlock), grayed-out hint lines for
+     * the locked ones (the menu option is the tutorial: it names what there is
+     * to find), and, when the player is holding a shell token, an Unlock button
+     * that consumes it. Selecting an Apply dispatches
+     * {@code RoomBuilder.rebuildShell} through {@link DialogRouter}, which
+     * re-validates the unlock against live state: nothing here decides
+     * anything, the same shape as every other screen in this file.
+     */
+    static Dialog shellPicker(ServerPlayer player, InstanceRecord record) {
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                .get(player.getUUID());
+        Set<String> unlocked = entry.unlockedShells();
+        List<DialogBody> body = new ArrayList<>();
+        BlockPos o = record.roomCellOrigin;
+        RoomBuilder.ShellPalette current = o == null ? null
+                : RoomBuilder.shellAt((ServerLevel) player.level(), o);
+        body.add(DialogKit.text("Current shell: "
+                + (current == null ? "the default" : current.displayName()) + "."));
+        body.add(DialogKit.text("A swap replaces only the frame; everything inside stays."));
+
+        String heldUnlock = RoomBuilder.shellUnlockOf(player.getMainHandItem());
+        List<ActionButton> buttons = new ArrayList<>();
+        for (RoomBuilder.ShellPalette palette : RoomBuilder.shellOrder()) {
+            String name = palette.name();
+            if (RoomBuilder.isDefaultShell(name) || unlocked.contains(name)) {
+                buttons.add(shellButton(player.getUUID(), palette, "Apply ",
+                        "Swap your room's frame to " + palette.displayName(),
+                        ACTION_APPLY_SHELL));
+            } else if (name.equals(heldUnlock)) {
+                buttons.add(shellButton(player.getUUID(), palette, "Unlock ",
+                        "Consumes the token you are holding", ACTION_UNLOCK_SHELL));
+            } else {
+                body.add(DialogKit.text(Component.literal(
+                        palette.displayName() + ": " + palette.unlockHint())
+                        .withStyle(ChatFormatting.GRAY)));
+            }
+        }
+        return DialogKit.list("Change shell", body, buttons, backToMenuButton(player.getUUID()));
+    }
+
+    /** One shell button: Apply for an available palette, Unlock for a held token. */
+    private static ActionButton shellButton(UUID owner, RoomBuilder.ShellPalette palette,
+                                            String verb, String tooltip, String action) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        context.putString(KEY_SHELL, palette.name());
+        return DialogKit.button(verb + palette.displayName(), tooltip,
+                DialogKit.submit(action, context));
     }
 
     /**
