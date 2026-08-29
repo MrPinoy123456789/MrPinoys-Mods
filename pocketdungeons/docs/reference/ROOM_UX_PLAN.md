@@ -51,10 +51,13 @@ M26  Lore delivery            -- mostly content, M26.4 needs jar verification
 M27  Extra features           -- experimental dungeon, visitor log, death checkpoint
 
 M28  Themed mob spawners      -- independent, ships anytime
+M29  No-backwards propagation -- independent, ships anytime
+M30  Connector variations     -- independent
+M31  Dungeon shell protection -- independent, M30 IRON_DOOR benefits from it
 ```
 
 M18-M22 are the core Room UX pass. They have a strict dependency chain
-and should land in order. M23-M28 are independent of each other and of
+and should land in order. M23-M31 are independent of each other and of
 the UX chain, except where noted.
 
 ---
@@ -780,6 +783,402 @@ spawner config JSONs.
 
 ---
 
+## M29: No-backwards propagation
+
+**Goal:** dungeons never wrap behind the player room. If the dungeon door
+opens SOUTH, no cell may exist at z < 0 relative to the entrance. A
+validation check in `LayoutGraphGenerator.validate` rejects shapes where
+any cell is behind the entrance on the entrance axis. The retry budget
+handles rejected shapes.
+
+**Depends on:** nothing (existing layout pipeline is the foundation).
+
+**Scope:**
+
+### 29.1 Validation check
+
+- `LayoutGraphGenerator.validate`: compute `entranceDirection()`, check no
+  cell is behind (0,0) on that axis. Property is rotation-invariant.
+- `isBehind(PlanCell, Direction)`: EAST -> x < 0, WEST -> x > 0, NORTH ->
+  z > 0, SOUTH -> z < 0.
+- Applies to all cells: critical path, branches, loops.
+
+### 29.2 Config toggle
+
+- `PocketDungeonsConfig.noBackwardsPropagation` (boolean, default true).
+- Optional: skip check if false, for testing or exotic layouts.
+
+**Done when:** no valid shape has a cell behind the entrance; plan
+resolution rate stays above 95%.
+
+**Touch points:** `LayoutGraphGenerator.validate`, `LayoutPlanner.plan`,
+`PocketDungeonsConfig`.
+
+---
+
+## M30: Connector variations
+
+**Goal:** replace fixed centered 2x3 door carve with varied connector
+patterns: wide door, double door, single door, bars, open wall with
+pillars, arch with lintel. Random offset along wall. Seeded. Visual
+variety without changing cell size or room template format. Room shape
+variety (corridors, T-shapes, subrooms, dividers) is content-only via
+`.nbt` templates; no code change needed.
+
+**Depends on:** nothing.
+
+**Scope:**
+
+### 30.1 Connector types
+
+- `ConnectorType` enum: `DOOR_WIDE` (2-wide, current default),
+  `DOOR_DOUBLE` (4-wide), `DOOR_SINGLE` (1-wide), `IRON_DOOR`
+  (2-wide, requires redstone), `BARS` (iron bars), `OPEN` (full width,
+  2x2 pillars at corners), `ARCH` (full width, lintel).
+- `LayoutStamper.stamp`: replace centered carve with
+  `carveConnector(level, origin, face, type, offset)`.
+- Weighted: DOOR_WIDE 45, DOOR_SINGLE 15, DOOR_DOUBLE 10, IRON_DOOR 10,
+  OPEN 10, ARCH 5, BARS 5.
+
+### 30.2 Weighted random selection
+
+- Per door edge: weighted random type (see 30.1 weights).
+- Random offset in [1, 14] for DOOR types. OPEN/ARCH ignore offset.
+- Entrance edge: always DOOR_WIDE offset 7.
+- Seeded from plan seed.
+
+### 30.3 BedrockEnvelope and RoomBuilder
+
+- `BedrockEnvelope.applyToCell`: OPEN/ARCH faces skip bedrock.
+- `RoomBuilder.sealDoor`/`openDoor`: accept offset param.
+
+**Done when:** each connector type renders correctly, default templates
+unchanged, entrance edge always DOOR_WIDE.
+
+**Touch points:** `LayoutStamper.stamp`, `BedrockEnvelope.applyToCell`,
+`RoomBuilder.sealDoor`/`openDoor`, new `ConnectorType` enum.
+
+---
+
+## M31: Dungeon shell protection
+
+**Goal:** during active runs, all dungeon cells are block-break and
+block-place protected. Players cannot mine walls to bypass doors or
+shortcuts. After first completion, protection lifts on dungeon cells
+so players can mine the dungeon freely. Player room protection (M18)
+unchanged. Enables M30 `IRON_DOOR` connector as a real gate: without
+protection, players just mine around iron doors.
+
+**Depends on:** nothing. M30 `IRON_DOOR` benefits from this but M31
+can ship independently.
+
+**Scope:**
+
+### 31.1 `Instances.dungeonRecordAt`
+
+- New method: checks if `BlockPos` is inside any active run's dungeon
+  cells. Iterates `InstanceRegistry.bySlot`, checks
+  `record.layout.geometry().cells()`, skips room cell, skips completed
+  runs (`record.completed.isEmpty()`).
+
+### 31.2 `RoomProtection` dungeon check
+
+- `beforeBlockBreak`: after existing room check, call
+  `dungeonRecordAt`. If non-null: return false (deny break).
+- `RitualListener` placement: same check for `placementPos`. Deny
+  placement inside active dungeon cells. Allow chest open, lever/button
+  use, spawner interaction.
+
+### 31.3 Automatic lift on completion
+
+- `dungeonRecordAt` checks `record.completed.isEmpty()`. Once first
+  completion happens, method returns null, protection lifts. No
+  explicit removal call needed.
+
+### 31.4 Protection-lift indicator
+
+- On first completion (`completeRun`), send a green chat message to
+  all dungeon members: "The dungeon's shell has weakened. You can
+  break blocks now." Plus a short positive sound cue.
+- Sent once at the moment of first completion. Not repeated on
+  re-entry or subsequent completions.
+
+**Done when:** dungeon blocks unbreakable during active runs, breakable
+after completion, player room protection unchanged, players notified
+when protection lifts.
+
+**Touch points:** `Instances.dungeonRecordAt` (new),
+`RoomProtection.beforeBlockBreak`, `RitualListener` placement section,
+`RunLifecycle.completeRun` (protection-lift message).
+
+---
+
+## M32: Tutorial screen and engine label
+
+**Goal:** two `DungeonScreen` text changes. (1) Engine screen
+label says "ECHO SHARDS" not "ENGINE". (2) At keystone level 1,
+door screen shows tutorial prompts: "Select the Oak Door" when
+idle, "Pull the lever to descend!" when a door is selected.
+Tutorial disappears at level 2+.
+
+**Depends on:** nothing. M19 screens must exist (landed).
+
+**Scope:**
+
+### 32.1 Engine screen label
+
+- `DungeonScreen.engineContent` line 211: change
+  `Component.literal("ENGINE")` to
+  `Component.literal("ECHO SHARDS")`. One string literal.
+
+### 32.2 Door screen tutorial at level 1
+
+- `DungeonScreen.idleContent`: add `ServerLevel` and `UUID owner`
+  params (both nullable). When owner non-null and
+  `DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1`:
+  return "POCKET DUNGEONS\nSelect the Oak Door\nThen pull the lever to descend".
+  Else: current text.
+- `DungeonScreen.previewContent`: after existing content, if
+  `offerLevel <= 1`: append green
+  "\nPull the lever to descend!". No signature change.
+- Four `idleContent()` call sites updated to pass
+  `(level, owner)`: `Instances.stampLobby`, `RunLifecycle`
+  lines 525-526 and 1002, `RoomBuilder` line 415.
+
+**Done when:** engine screen reads "ECHO SHARDS", level-1 door
+screen shows tutorial prompts, level 2+ unchanged.
+
+**Touch points:** `DungeonScreen.idleContent`,
+`DungeonScreen.previewContent`, `DungeonScreen.engineContent`,
+`Instances.stampLobby`, `RunLifecycle` (two sites),
+`RoomBuilder` (one site).
+
+---
+
+## M33: Guided tasks via scoreboard
+
+**Goal:** sequential task system teaching core loops via
+Minecraft scoreboard objectives. Ten tasks, each level-gated,
+one active at a time (lowest incomplete). Progress shown on
+door screen. Inspired by archived dailyquests mod's turn-in
+pattern: visible objective, count, automatic detection.
+Scoreboard objective `pd_task` tracks active task number so
+vanilla sidebar works.
+
+**Depends on:** nothing. M19 screens and M32 tutorial text
+must exist (landed or planned).
+
+**Scope:**
+
+### 33.1 TaskTracker and DungeonLog sidecar
+
+- New `TaskTracker.java`: enum `Task(id, label, targetCount,
+  minLevel)`. `progress`, `activeTask`, `taskLine` methods.
+- `DungeonLog`: sidecar `Map<UUID, Map<String, Integer>>
+  taskProgress`, codec `task_progress`, default empty.
+- `progress`: increments sidecar, checks completion,
+  advances, chat on completion. Auto-completes tasks below
+  player's keystoneLevel.
+
+### 33.2 Scoreboard integration
+
+- `syncScoreboard(server, player)`: `Objective` `pd_task`,
+  `Criteria.DUMMY`, slot `LIST`. Score: active task number.
+  Display name: `"Pocket Dungeons"`.
+- On completion: remove, create next. All done: remove.
+
+### 33.3 Hook into existing events
+
+- `selectDoor`, `chooseOffer`, `completeRun`, `Fuel.bank`,
+  `GambleStation.onUse`, `RerollStation.onUse`,
+  `CubeStation.onUse` extract, `VisitService.visit`,
+  `EntityTameEvent` (wolf, dungeon dim).
+
+### 33.4 Door screen and login sync
+
+- `idleContent`, `previewContent`, `runContent`: append
+  `TaskTracker.taskLine(owner)`.
+- Player join: `syncScoreboard`, chat with active task.
+
+**Task list:**
+
+1. Select a Door (lvl 1, x1)
+2. Descend (lvl 1, x1)
+3. Complete a Run (lvl 1, x1)
+4. Feed the Engine (lvl 2, x3)
+5. Visit a Friend (lvl 5, x1)
+6. Open a Greater Door (lvl 15, x1)
+7. Spend Emeralds at Kadala (lvl 20, x16)
+8. Reroll an Enchantment (lvl 25, x1)
+9. Extract a Power (lvl 30, x1)
+10. Tame a Wolf (Feral, x1)
+
+**Done when:** tasks surface on door screen, progress via
+scoreboard, advance automatically, persist across restarts.
+
+**Touch points:** `TaskTracker` (new), `DungeonLog`
+(sidecar), `DungeonScreen` (three content methods),
+`RitualListener.selectDoor`, `RunLifecycle.chooseOffer`,
+`RunLifecycle.completeRun`, `GambleStation.onUse`,
+`RerollStation.onUse`, `CubeStation.onUse`,
+`VisitService.visit`, `EntityTameEvent` listener,
+`PocketDungeonsMod` join handler.
+
+---
+
+## M34: Weekly bounties for party leaders
+
+**Goal:** three weekly bounties per dungeon host (instance
+owner), seeded from owner UUID and ISO week key. Party members
+contribute progress; all online members get rewards on
+completion. Inspired by archived dailyquests mod's turn-in
+pattern, adapted to dungeon activities and party play.
+
+**Depends on:** nothing. M33 scoreboard pattern reusable.
+M19 screens must exist (landed).
+
+**Scope:**
+
+### 34.1 BountyTracker and DungeonLog sidecar
+
+- New `BountyTracker.java`: enum `Bounty(id, label,
+  targetCount)`. `weekKey()`: `YearWeek.now(UTC)`,
+  `"yyyy-Www"`. `bountiesFor(owner)`: three seeded from
+  `owner.hashCode() ^ weekKey`.
+- `BountyState(weekKey, bountyId, progress, completed)`.
+- `progress(server, owner, bountyId, amount, members)`:
+  increments, checks completion, `Payout.deliver` to online
+  members, owner +1 shard bonus.
+- `DungeonLog`: sidecar `Map<UUID, List<BountyState>>`,
+  codec `bounties`, default empty. Stale weekKey resets.
+
+### 34.2 Scoreboard
+
+- `syncScoreboard(server, owner)`: three objectives
+  `pd_bounty_0/1/2`, `Criteria.DUMMY`, slot `SIDEBAR`.
+  Score: progress. Display name: bounty label.
+- Created when owner online in dungeon. Removed on logout.
+
+### 34.3 Hook into events
+
+- `completeRun`: `CLEAR_HALLS` by spawners, `SPEEDRUNNER`
+  if timed, `SPELUNKER` if `step>=2`, `PACK_HUNTER` if
+  `members.size()>=2`.
+- RitualListener after `Fuel.bank`: `ECHO_HARVESTER`.
+- `GambleStation.onUse`: `HIGH_ROLLER` by emeralds.
+- `DungeonLog.setKeystone`: `KEYSTONE_CLIMBER` by delta.
+
+### 34.4 Door screen and login
+
+- `idleContent`, `previewContent`: append `bountyLine(owner)`
+  after task line (M33).
+- Join: sync scoreboard, chat with bounties.
+- Completion: broadcast to party in green.
+
+**Bounty pool (three per week per owner):**
+
+1. Clear the Halls: clear 20 spawners this week.
+2. Echo Harvester: bank 9 echo shards.
+3. Speedrunner: complete 3 timed runs.
+4. High Roller: spend 32 emeralds at gamble station.
+5. Spelunker: complete 2 runs via Greater door.
+6. Pack Hunter: complete 3 runs with 2+ members.
+7. Keystone Climber: gain 3 keystone levels.
+
+Reward: 2 echo shards + 4 emeralds per online member.
+Owner +1 shard bonus.
+
+**Done when:** three weekly bounties per owner, party
+contribution, shared rewards, scoreboard, door screen,
+week reset.
+
+**Touch points:** `BountyTracker` (new), `DungeonLog`
+(sidecar), `DungeonScreen` (two content methods),
+`RunLifecycle.completeRun`, `RitualListener` engine handler,
+`GambleStation.onUse`, `DungeonLog.setKeystone`,
+`PocketDungeonsMod` join handler.
+
+---
+
+## M35: Anomaly rooms
+
+**Goal:** rarely, a themed run contains one room that does not
+belong to its theme. A dedicated anomaly room set, loaded
+separately from the themed room manifest, supplies rooms whose
+palette and content are deliberately foreign. The player walks
+through a door and the room is wrong: blocks real, placement
+not, walls of a material that matches nothing around it. A
+"wrong room" beat, tied to Entry 2's tone, without any in-game
+text naming it.
+
+**Depends on:** M11 (adventure graph for rare-node gating).
+The room selection pipeline (`RoomSelector.resolveDetailed`)
+and manifest loader (`RoomManifest`) must exist, both landed
+early.
+
+**Scope:**
+
+### 35.1 Anomaly room manifest
+
+- New resource path: `data/pocketdungeons/anomaly_room/*.json`.
+  Same JSON shape as `dungeon_room/*.json`.
+- `RoomManifest.currentAnomaly()`: second manifest instance,
+  same loader, separate index, same validation.
+- Ship 2-3 anomaly room templates. Foreign palette, slightly
+  off geometry. No custom blocks or items: vanilla blocks
+  placed wrong.
+
+### 35.2 Anomaly injection in RoomSelector
+
+- `RoomSelector.resolveDetailed`: after normal resolution,
+  roll anomaly chance from plan seed. Gated on
+  `AdventureGraphs.current().graph().node(theme) != null`,
+  same gate as the Pocket2 door.
+- If the roll succeeds, pick one critical-path cell (non-
+  entrance, non-terminal) and swap its room for an anomaly
+  room satisfying the same mask and role. One per run.
+- If no anomaly room matches, silently skip: the run stays
+  normal. Anomaly is a bonus, never a requirement.
+- `DungeonPlan` carries `anomalyCell` so `LayoutStamper` and
+  `RoomContent` can skip theme-tied processors, loot suffix,
+  and themed spawners on that cell.
+
+### 35.3 Config and chance
+
+- `PocketDungeonsConfig.anomalyRoomChance` (double, default
+  0.08). Same pattern as `pocket2DoorChance`.
+
+### 35.4 Content and loot
+
+- Anomaly rooms carry own loose chests and 0-1 spawners, no
+  theme suffix. Loot table:
+  `pocketdungeons:chests/anomaly/`.
+- Loot: echo shards, shell unlock tokens, rare materials.
+  Not better than completion chest, not worse than loose
+  chest.
+- No keystone, no completion pad, no lodestone. Pass-through
+  cell on the critical path, not a destination.
+
+**Done when:**
+
+1. Anomaly rooms appear rarely in themed runs, on the
+   critical path, connecting to their neighbours.
+2. The room's palette and geometry read as wrong inside any
+   themed run.
+3. The run completes normally with an anomaly room in it.
+4. Unthemed runs and themes with no adventure-graph node never
+   host an anomaly.
+5. No lore text in the room itself; the link to Entry 2 is
+   tonal only.
+
+**Touch points:** `RoomManifest` (second instance),
+`RoomSelector.resolveDetailed`, `DungeonPlan` (new field),
+`LayoutStamper` (processor skip), `RoomContent` (theme skip),
+`PocketDungeonsConfig` (chance), new anomaly room templates
+and loot table.
+
+---
+
 ## Open decisions to settle before each milestone
 
 | Milestone | Decision | Brainstorm question |
@@ -816,6 +1215,20 @@ M21 ──> M27.2
 M10 ──> M27.3 (deferred)
 
 M28 (independent)
+
+M29 (independent)
+
+M30 (independent)
+
+M31 (independent, M30 IRON_DOOR benefits from it)
+
+M32 (independent, needs M19 screens)
+
+M33 (independent, needs M19 screens + M32 tutorial)
+
+M34 (independent, M33 scoreboard pattern reusable)
+
+M11 ──> M35
 ```
 
 ---
@@ -835,6 +1248,13 @@ M28 (independent)
 | M26 | Medium | Book loot, compass pointing, jar verification |
 | M27 | Small each | Three independent features |
 | M28 | Small | New field on theme meta, configId prefix logic, 12 JSON files |
+| M29 | Small | Validation check in LayoutGraphGenerator, config toggle |
+| M30 | Small | Connector carving in LayoutStamper, enum, BedrockEnvelope tweak |
+| M31 | Small | dungeonRecordAt in Instances, protection check in RoomProtection + RitualListener |
+| M32 | Small | Two string changes in DungeonScreen, idleContent gains owner param |
+| M33 | Medium | New TaskTracker class, DungeonLog sidecar, scoreboard, 9 hook points |
+| M34 | Medium | New BountyTracker class, DungeonLog sidecar, scoreboard, 4 hook points |
+| M35 | Medium | Second manifest loader, RoomSelector injection, DungeonPlan field, 2-3 templates + loot table |
 
 ---
 

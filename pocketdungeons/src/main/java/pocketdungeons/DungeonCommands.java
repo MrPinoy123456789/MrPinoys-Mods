@@ -291,7 +291,26 @@ final class DungeonCommands {
                             .then(manifestBranch())
                             .then(Commands.literal("theme")
                                     .then(Commands.literal("list")
-                                            .executes(ctx -> themeList(ctx.getSource()))))));
+                                            .executes(ctx -> themeList(ctx.getSource()))))
+
+                            // M27 27.1: the fixed test offer that stands in for door 3.
+                            .then(Commands.literal("experiment")
+                                    .then(Commands.literal("clear")
+                                            .executes(ctx -> experimentClear(ctx.getSource())))
+                                    .then(Commands.argument("theme", StringArgumentType.string())
+                                            .executes(ctx -> experimentSet(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "theme"), "", null))
+                                            .then(Commands.argument("affixes", StringArgumentType.string())
+                                                    .executes(ctx -> experimentSet(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "theme"),
+                                                            StringArgumentType.getString(ctx, "affixes"), null))
+                                                    .then(Commands.argument("lootOverride",
+                                                                    IntegerArgumentType.integer(1))
+                                                            .executes(ctx -> experimentSet(ctx.getSource(),
+                                                                    StringArgumentType.getString(ctx, "theme"),
+                                                                    StringArgumentType.getString(ctx, "affixes"),
+                                                                    IntegerArgumentType.getInteger(
+                                                                            ctx, "lootOverride")))))))));
         });
     }
 
@@ -1114,6 +1133,35 @@ final class DungeonCommands {
             source.sendFailure(Component.literal("  adventure node rejected: " + rejection));
         }
         return manifest.themes().size();
+    }
+
+    /**
+     * {@code /dungeon admin experiment <theme> [affixes] [lootOverride]}: sets
+     * the fixed offer door 3 shows to every player until cleared or the server
+     * restarts. {@code theme} is not validated against the loaded manifest here:
+     * an unresolvable theme falls back the same way any other offer's theme
+     * does when rendering ({@link DungeonScreen}'s {@code themeName}) or
+     * generating ({@code Instances.generateBehindLobby}'s null-safe
+     * {@code ThemeManifest.byId} lookup), so an operator sees the same
+     * failure mode a bad theme id would produce anywhere else in the mod.
+     */
+    private static int experimentSet(CommandSourceStack source, String theme, String affixes,
+                                     Integer lootOverride) {
+        ExperimentalDungeon.set(theme, AffixMath.parse(affixes), lootOverride);
+        source.sendSuccess(() -> Component.literal(
+                "Door 3 now offers the experimental dungeon: theme " + theme
+                        + (affixes.isEmpty() ? "" : ", affixes " + affixes)
+                        + (lootOverride == null ? "" : ", loot level " + lootOverride)
+                        + ". Clear with /dungeon admin experiment clear.")
+                .withStyle(ChatFormatting.YELLOW), true);
+        return 1;
+    }
+
+    private static int experimentClear(CommandSourceStack source) {
+        ExperimentalDungeon.clear();
+        source.sendSuccess(() -> Component.literal(
+                "Door 3 is back to its normal offer."), true);
+        return 1;
     }
 
     private static int manifestReload(CommandSourceStack source) {

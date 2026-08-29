@@ -1424,3 +1424,56 @@ and the near-parent slot allocation.
 room, stepping through, watching the 60-second countdown, and being ejected
 back to the parent at the door when the clock hits zero; recorded as section
 30 in LIVE_TEST_PASS.md.
+
+## M27: Extra features
+
+**Goal:** three small features enhancing the existing loop without being
+load-bearing. 27.1 and 27.2 ship; 27.3 is deferred.
+
+- **27.1 MrPinoy's Experimental Dungeon.** Rather than a physical fourth
+  door, door 3 gets a special state: ExperimentalDungeon holds an in-memory,
+  unpersisted offer (theme, elective affixes, an optional loot-level
+  override) set by `/dungeon admin experiment <theme> [affixes]
+  [lootOverride]` and cleared by `/dungeon admin experiment clear`. Keystone
+  gains an EXPERIMENTAL tier; `Keystone.offers` substitutes it for door 3's
+  normal Offer whenever one is active, so the preview screen, the commit
+  lever's gate, and `RunLifecycle.chooseOffer` all read the same
+  substitution without any of them needing to know about
+  ExperimentalDungeon directly. EXPERIMENTAL counts as free the same as
+  FREE, so an operator testing a fixed offer never needs to bank fuel or
+  hold a level first. `DungeonScreen.previewContent` adds a red "CAUTION:
+  EXPERIMENTAL" line to the door's text_display whenever the offer showing
+  is the experimental one. No per-player daily reward tracking rides on
+  this yet, matching the handoff's scope.
+- **27.2 Room visitor log.** `DungeonLog.Entry` gains `recentVisitors`, a
+  ring buffer of up to `MAX_RECENT_VISITORS` (10) `VisitorEntry(name,
+  timestamp)` records, newest first. `VisitService.visit` pushes one entry
+  on every path that actually lands a visitor in the owner's room (the
+  owner's own live room, an existing visit copy, or a freshly stamped one),
+  never on a bare lobby-directory browse. The wall terminal's Manage Room
+  screen gains a "Recent visitors..." option; the screen it opens shows
+  each entry's name, a rough "how long ago", and whether that visitor is
+  still online and standing in the room right now
+  (`VisitService.isStillInside`, resolved by name since the log stores no
+  UUID). Host-visible only: the screen is reachable only through the
+  owner-only Manage Room, and a visitor never sees who else has visited.
+- **27.3 Death checkpoint.** Deferred, as directed. A comment in
+  `Instances.register`'s death-rescue handler marks where it would hook in;
+  no checkpoint logic exists. Contingent on M25's Pocket2 or a future
+  extended-dungeon milestone making re-traversal after a death a real
+  frustration, which the current short layout does not.
+- **The 16-field codec limit.** `DungeonLog.Entry` crossed
+  `RecordCodecBuilder.group`'s 16-argument ceiling once `recentVisitors`
+  landed alongside M26's `diaryBandsSeen`. `ENTRY_CODEC` now splits the
+  record into two intermediate halves (`PartA`, `PartB`), each built with
+  its own `group`, and recombines them with `Codec.mapPair` so every field
+  still lands as a flat, top-level key: an old `dungeon_log.dat` reads
+  exactly as it did before the split.
+
+**Headless-verified:** `./gradlew build` green, including `DungeonLogTest`
+(the split-codec round trip) and every other existing suite.
+
+**Live-only, not yet verified:** setting an experimental offer and watching
+door 3 show the caution indicator and generate the fixed theme; visiting a
+room and confirming the visit shows up in Recent visitors with the right
+"still inside" state; recorded as section 31 in LIVE_TEST_PASS.md.

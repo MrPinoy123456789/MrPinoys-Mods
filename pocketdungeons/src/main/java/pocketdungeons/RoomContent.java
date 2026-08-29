@@ -83,7 +83,7 @@ final class RoomContent {
      */
     static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes, String lootSuffix) {
+                      Set<Affix> affixes, String lootSuffix, boolean voidedFloor) {
         BlockPos spawnerAnchor = null;
         if (role != null) {
             switch (role) {
@@ -107,6 +107,19 @@ final class RoomContent {
         if (affixes.contains(Affix.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
                 || "corridor".equals(role))) {
             placeMoltenHazards(level, cellOrigin, spawns, seed);
+        }
+        // Explosive: TNT underfoot with pressure pads on top. Same placement
+        // rules as Molten: encounter, loot, corridor only. Entrance and exit
+        // excluded to keep lodestone pad and lobby door passable.
+        if (affixes.contains(Affix.EXPLOSIVE) && ("encounter".equals(role) || "loot".equals(role)
+                || "corridor".equals(role))) {
+            placeExplosiveHazards(level, cellOrigin, spawns, seed);
+        }
+        // Voided: floor ripped open, bedrock gone below. Same cell eligibility
+        // as Molten/Explosive. The actual cell selection happens in
+        // LayoutStamper before the loop; here we just carve the floor.
+        if (voidedFloor) {
+            placeVoidedFloor(level, cellOrigin, spawns, seed);
         }
         // Feral (M5 T5.1/T5.2): wolves as a feature, not a fight. Encounter cells
         // are deliberately excluded -- TrialContent owns those, and a wolf pack
@@ -222,6 +235,116 @@ final class RoomContent {
             }
             level.setBlock(pos, Blocks.LAVA.defaultBlockState(), FLAGS);
             placed++;
+        }
+    }
+
+    /**
+     * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} TNT blocks
+     * across the cell's floor with stone pressure plates on top, seeded off
+     * the run so a given seed always stamps the same hazards.
+     *
+     * <p>Same interior margin (3..12) and spawn-anchor skip as
+     * {@link #placeMoltenHazards}. TNT sits at floor level (Y=0) with a
+     * stone pressure plate on top (Y=1). Stepping on the plate triggers
+     * the TNT. The TNT blocks are the reward: the only TNT source in the
+     * game, same way Molten is the only lava source.
+     */
+    private static void placeExplosiveHazards(ServerLevel level, BlockPos cellOrigin,
+                                             List<BlockPos> spawns, long seed) {
+        int count = PocketDungeonsConfig.explosiveHazardsPerCell();
+        if (count <= 0) {
+            return;
+        }
+        Random random = new Random(seed ^ cellOrigin.asLong() ^ 0x4578L);
+        int placed = 0;
+        int attempts = 0;
+        while (placed < count && attempts < count * 8) {
+            attempts++;
+            int x = 3 + random.nextInt(10);
+            int z = 3 + random.nextInt(10);
+            BlockPos floorPos = cellOrigin.offset(x, 0, z);
+            if (spawns.contains(floorPos)) {
+                continue;
+            }
+            level.setBlock(floorPos, Blocks.TNT.defaultBlockState(), FLAGS);
+            level.setBlock(floorPos.above(), Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
+            placed++;
+        }
+    }
+
+    /**
+     * Floor patterns for the Voided affix. Three variants, seeded per cell:
+     * <ul>
+     *   <li>BROKEN_CROSS (60%): "+" shaped bridge, void in corners, center
+     *       missing. Players walk the arms and jump the gap.</li>
+     *   <li>HOLES (35%): mostly intact floor with 2-3 random 3x3 gaps.</li>
+     *   <li>NO_FLOOR (5%): all interior floor removed, one-block perimeter
+     *       ring kept so players can shimmy along the walls.</li>
+     * </ul>
+     * Spawn anchors skipped on all patterns. Wall ring (x=0, x=15, z=0,
+     * z=15) never touched: walls stand on their own floor blocks.
+     */
+    private static void placeVoidedFloor(ServerLevel level, BlockPos cellOrigin,
+                                         List<BlockPos> spawns, long seed) {
+        Random random = new Random(seed ^ cellOrigin.asLong() ^ 0xB01DL);
+        double roll = random.nextDouble();
+        if (roll < 0.60) {
+            carveBrokenCross(level, cellOrigin, spawns, random);
+        } else if (roll < 0.95) {
+            carveHoles(level, cellOrigin, spawns, random);
+        } else {
+            carveNoFloor(level, cellOrigin, spawns);
+        }
+    }
+
+    private static void carveBrokenCross(ServerLevel level, BlockPos cellOrigin,
+                                         List<BlockPos> spawns, Random random) {
+        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+            for (int z = 1; z < RoomGeometry.CELL - 1; z++) {
+                boolean onVerticalArm = (x == 7 || x == 8) && (z <= 6 || z >= 9);
+                boolean onHorizontalArm = (z == 7 || z == 8) && (x <= 6 || x >= 9);
+                boolean onBridge = onVerticalArm || onHorizontalArm;
+                if (!onBridge) {
+                    BlockPos pos = cellOrigin.offset(x, 0, z);
+                    if (!spawns.contains(pos)) {
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void carveHoles(ServerLevel level, BlockPos cellOrigin,
+                                   List<BlockPos> spawns, Random random) {
+        int holeCount = 2 + random.nextInt(2);
+        for (int h = 0; h < holeCount; h++) {
+            int hx = 2 + random.nextInt(10);
+            int hz = 2 + random.nextInt(10);
+            for (int dx = 0; dx < 3; dx++) {
+                for (int dz = 0; dz < 3; dz++) {
+                    int x = hx + dx;
+                    int z = hz + dz;
+                    if (x < 1 || x >= RoomGeometry.CELL - 1 || z < 1 || z >= RoomGeometry.CELL - 1) {
+                        continue;
+                    }
+                    BlockPos pos = cellOrigin.offset(x, 0, z);
+                    if (!spawns.contains(pos)) {
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void carveNoFloor(ServerLevel level, BlockPos cellOrigin,
+                                     List<BlockPos> spawns) {
+        for (int x = 2; x < RoomGeometry.CELL - 2; x++) {
+            for (int z = 2; z < RoomGeometry.CELL - 2; z++) {
+                BlockPos pos = cellOrigin.offset(x, 0, z);
+                if (!spawns.contains(pos)) {
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
+                }
+            }
         }
     }
 

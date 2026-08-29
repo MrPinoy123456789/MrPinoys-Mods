@@ -578,6 +578,21 @@ progress. Inspired by archived dailyquests mod. Full scope in
 
 ---
 
+## M35: Anomaly rooms
+
+Rarely, a themed run contains one room that does not belong to its
+theme: a "wrong room" from a dedicated anomaly room set, loaded
+separately from the themed room manifest. The room is on the critical
+path, so the player walks through it; its palette and geometry are
+deliberately foreign. Tied tonally to Entry 2 (The Wrong Rooms) without
+any in-game text. Gated on the adventure-graph node, same as the
+Pocket2 door. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
+`## M35` section.
+
+→ `../plans/COMPLETED-MILESTONES.md`
+
+---
+
 ## M8 — Deferred
 
 Held deliberately. Each is a milestone wearing a feature's clothes.

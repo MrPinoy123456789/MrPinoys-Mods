@@ -121,6 +121,10 @@ final class Instances {
                 Pocket2.dieInChild(player.level().getServer(), player, record);
                 return false;
             }
+            // M27.3: deferred until extended dungeons. A checkpoint that
+            // respawns the player at the last cleared cell instead of the
+            // entrance is not worth building while the current layout is
+            // short enough that re-traversing it after a rescue is trivial.
             rescue(player, record);
             return false;
         });

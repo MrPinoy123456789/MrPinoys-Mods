@@ -680,8 +680,62 @@ final class DialogScreens {
         toggle.putString(KEY_OWNER, owner.toString());
         buttons.add(DialogKit.button(entry.publicListed() ? "Room is public" : "Room is private",
                 "Click to flip the lobby listing", DialogKit.submit(ACTION_TOGGLE_PUBLIC, toggle)));
+        // M27 27.2: host-visible only, so this lives behind Manage Room rather
+        // than the plain lodestone menu; a visitor never opens this screen at
+        // all, since Manage Room itself is owner-only.
+        buttons.add(showDialogButton("Recent visitors...", recentVisitors(server, owner)));
 
         return DialogKit.list("Manage room", body, buttons, backToMenuButton(owner));
+    }
+
+    /**
+     * (M27 27.2) The last {@link DungeonLog#MAX_RECENT_VISITORS} people who
+     * visited this room via the lobby directory, newest first: name, how long
+     * ago, and whether they are still inside right now. Host-visible only:
+     * reached only through the owner-only Manage Room screen, and read-only,
+     * since there is nothing on this screen to click but Back.
+     */
+    static Dialog recentVisitors(MinecraftServer server, UUID owner) {
+        List<DungeonLog.VisitorEntry> visitors = DungeonLog.forServer(server).get(owner).recentVisitors();
+        List<DialogBody> body = new ArrayList<>();
+        if (visitors.isEmpty()) {
+            body.add(DialogKit.text("Nobody has visited this room yet."));
+        } else {
+            long now = System.currentTimeMillis();
+            for (DungeonLog.VisitorEntry visitor : visitors) {
+                boolean stillInside = isVisitorStillInside(server, owner, visitor.name());
+                body.add(DialogKit.text(visitor.name() + " - " + agoText(now - visitor.timestamp())
+                        + (stillInside ? " (still inside)" : "")));
+            }
+        }
+        return DialogKit.notice("Recent visitors", body, backButton("Back", ACTION_MANAGE_ROOM, owner));
+    }
+
+    /**
+     * A logged visitor is only findable by name (the log stores no UUID; see
+     * {@link DungeonLog.VisitorEntry}), and "still inside" is only meaningful
+     * for someone online right now, so this resolves the name against the
+     * online player list before asking {@link VisitService#isStillInside}.
+     */
+    private static boolean isVisitorStillInside(MinecraftServer server, UUID owner, String visitorName) {
+        ServerPlayer online = server.getPlayerList().getPlayerByName(visitorName);
+        return online != null && VisitService.isStillInside(owner, online.getUUID());
+    }
+
+    /** A rough "how long ago" for the recent-visitors screen: minutes, hours or days. */
+    private static String agoText(long millisAgo) {
+        long minutes = millisAgo / 60_000L;
+        if (minutes < 1) {
+            return "just now";
+        }
+        if (minutes < 60) {
+            return minutes + "m ago";
+        }
+        long hours = minutes / 60;
+        if (hours < 24) {
+            return hours + "h ago";
+        }
+        return (hours / 24) + "d ago";
     }
 
     /**

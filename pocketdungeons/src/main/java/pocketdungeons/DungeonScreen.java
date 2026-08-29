@@ -12,6 +12,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -145,8 +146,13 @@ final class DungeonScreen {
         Keystone.Offer[] offers = Keystone.offers(owner, offerLevel, entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         EnumSet<Affix> effective = AffixMath.effective(owner, offer.level(), offer.affixes());
-        return Component.literal("KEYSTONE " + offer.level() + "\n"
+        MutableComponent content = Component.literal("KEYSTONE " + offer.level() + "\n"
                 + themeName(offer.theme()) + "\n" + affixLine(effective));
+        // M27 27.1: the caution indicator for an operator's fixed test offer.
+        if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
+            content.append(Component.literal("\nCAUTION: EXPERIMENTAL").withStyle(ChatFormatting.RED));
+        }
+        return content;
     }
 
     /** Context 3: a run is in progress: level, theme, affixes, and the clock. */
@@ -215,9 +221,17 @@ final class DungeonScreen {
 
     // ---- summon / update / clear --------------------------------------------
 
-    /** Clears any tagged screen near the anchor, then summons a fresh one. */
-    private static void update(ServerLevel level, double[] xyz, float yaw, float scale, Component text) {
-        clear(level, xyz);
+    /**
+     * Clears any tagged screen near {@code clearXyz}, then summons a fresh one
+     * at {@code xyz}. The two points differ because the summon anchor drifts
+     * with the new content's line count (see {@link #show}); clearing against
+     * the content-independent point instead of the drifted one means a screen
+     * left behind by some other content length is still found, not just the
+     * one this exact content would have produced.
+     */
+    private static void update(ServerLevel level, double[] clearXyz, double[] xyz,
+                               float yaw, float scale, Component text) {
+        clear(level, clearXyz);
         summon(level, xyz, yaw, scale, text);
     }
 
@@ -234,7 +248,9 @@ final class DungeonScreen {
         // 0.025 * scale * (5 * lines - 1) above. Dropping the anchor by that
         // much is what centers the block on the backdrop.
         double y = centerY - RENDER_SCALE * scale * (5 * lines - 1);
-        update(level, wallAnchor(roomOrigin, wall, along, y), yaw, scale, content);
+        double[] clearXyz = wallAnchor(roomOrigin, wall, along, centerY);
+        double[] xyz = wallAnchor(roomOrigin, wall, along, y);
+        update(level, clearXyz, xyz, yaw, scale, content);
     }
 
     private static void summon(ServerLevel level, double[] xyz, float yaw, float scale, Component text) {

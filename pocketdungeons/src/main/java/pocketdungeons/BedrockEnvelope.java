@@ -1,12 +1,12 @@
 package pocketdungeons;
 
+import java.util.Set;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-
-import java.util.Set;
 
 /**
  * M2 T2.3 / {@code docs/MYTHIC_PLUS_RECONCILIATION.md} §3.2.2: a one-block bedrock
@@ -37,17 +37,32 @@ final class BedrockEnvelope {
 
     /** Applies the envelope to every occupied cell of {@code geometry}. */
     static void apply(ServerLevel level, PlanGeometry geometry) {
+        apply(level, geometry, Set.of());
+    }
+
+    /**
+     * As {@link #apply(ServerLevel, PlanGeometry)}, but skips the sub-floor
+     * bedrock layer for cells in {@code voidedCells}. The Voided affix uses
+     * this so players who fall through carved floors reach the void instead
+     * of bedrock. Wall rings and ceiling layers are still applied normally.
+     */
+    static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells) {
         Set<PlanCell> occupied = Set.copyOf(geometry.cells());
         for (PlanCell cell : geometry.cells()) {
-            applyToCell(level, geometry.cellOrigin(cell), occupied, cell);
+            applyToCell(level, geometry.cellOrigin(cell), occupied, cell, voidedCells);
         }
     }
 
-    private static void applyToCell(ServerLevel level, BlockPos o, Set<PlanCell> occupied, PlanCell cell) {
-        // Sub-floor and over-ceiling: always, every cell.
+    private static void applyToCell(ServerLevel level, BlockPos o, Set<PlanCell> occupied,
+                                     PlanCell cell, Set<PlanCell> voidedCells) {
+        boolean voided = voidedCells.contains(cell);
+        // Sub-floor and over-ceiling: always, every cell. Except sub-floor
+        // for voided cells: no bedrock so fallen players reach the void.
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
-                set(level, o.offset(x, -1, z));
+                if (!voided) {
+                    set(level, o.offset(x, -1, z));
+                }
                 set(level, o.offset(x, CEILING_Y + 1, z));
             }
         }

@@ -1532,3 +1532,46 @@ through, and being returned on the clock need a live client.
 2. **Expected:** the pocket is torn down with the parent (its slot freed, no
    orphaned blocks), and any member still inside is sent home to their
    original return point.
+
+## 31. Extra features (M27)
+
+Live verification of 27.1's experimental door and 27.2's visitor log.
+Headless coverage is green (offer substitution, ring-buffer codec
+round-trip), but the caution indicator and the wall terminal screen need a
+live client.
+
+### 31.1 Experimental dungeon
+
+1. As an operator, run `/dungeon admin experiment <theme>` for a loaded
+   theme id.
+2. **Expected:** a chat line confirming door 3 now offers the experimental
+   dungeon.
+3. Open a run, reach the door selector, and right-click door 3. **Expected:**
+   the door screen shows the experimental theme and a red "CAUTION:
+   EXPERIMENTAL" line under the affixes.
+4. Pull the lever with door 3 selected. **Expected:** the run generates at
+   the experimental theme with no fuel spent and no level gate, even below
+   the Greater-door minimum level.
+5. Run `/dungeon admin experiment clear`. **Expected:** door 3 reverts to
+   its normal Greater offer for the next run.
+6. Repeat step 1 with an `affixes` argument and a `lootOverride` level.
+   **Expected:** the run generates with those affixes, and the loot/mob
+   difficulty matches the override level rather than the player's own
+   keystone level.
+
+### 31.2 Room visitor log
+
+1. As one player, visit another player's public room from the lobby
+   directory.
+2. As the room's owner, open the wall terminal, Manage Room, "Recent
+   visitors...". **Expected:** the visitor's name at the top of the list,
+   a "just now" or "Nm ago" timestamp, and "(still inside)" while they are
+   standing in the room.
+3. Have the visitor leave (or log off). **Expected:** the same entry no
+   longer shows "(still inside)".
+4. Visit the same room 11 times (from 11 different accounts, or the same
+   one repeatedly). **Expected:** the list never exceeds 10 entries; the
+   oldest visit drops off.
+5. As a visitor (not the owner), confirm there is no way to reach the
+   Recent visitors screen: Manage Room is not offered at all when you are
+   not the owner.

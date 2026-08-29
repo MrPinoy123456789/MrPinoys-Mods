@@ -123,13 +123,28 @@ final class DungeonLog extends SavedData {
      *                           a threshold of completions ({@code
      *                           RoomBuilder.PRESTIGE_SHELL_THRESHOLD}) unlocks
      *                           the prestige shell as a veteran reward.
+     * @param recentVisitors     (M27 27.2) the last 10 people who visited this
+     *                           player's room via the lobby directory, newest
+     *                           first. A ring buffer, not a log: the 11th visit
+     *                           drops the oldest entry. Host-visible only, from
+     *                           the wall terminal's Recent visitors option; a
+     *                           visitor never sees who else has been here.
+     * @param diaryBandsSeen     (M26) every intensifier band index ({@link
+     *                           AffixMath#intensifierBandIndex}) this player
+     *                           has already received a diary book for, one
+     *                           entry per band, never truncated: the same
+     *                           never-shrinks shape as {@code completedThemes}
+     *                           and {@code unlockedShells}. Guards the drop in
+     *                           {@code RunLifecycle.completeRun} against
+     *                           handing the same band's book out twice.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
                  List<String> recentThemes, Map<String, Integer> completedThemes,
                  String currentTheme, int depth, Set<String> extractedPowers,
                  boolean publicListed, String roomName, int fuel,
-                 Set<String> unlockedShells, int roomCompletions) {
+                 Set<String> unlockedShells, int roomCompletions,
+                 List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -140,11 +155,18 @@ final class DungeonLog extends SavedData {
             fuel = Math.max(0, fuel);
             unlockedShells = Set.copyOf(unlockedShells);
             roomCompletions = Math.max(0, roomCompletions);
+            recentVisitors = List.copyOf(recentVisitors);
+            diaryBandsSeen = Set.copyOf(diaryBandsSeen);
         }
     }
 
+    /** (M27 27.2) one ring-buffer entry: who visited, and when. */
+    record VisitorEntry(String name, long timestamp) {}
+
+    static final int MAX_RECENT_VISITORS = 10;
+
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0, Set.of(), 0);
+            false, "", 0, Set.of(), 0, List.of(), Set.of());
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -156,38 +178,93 @@ final class DungeonLog extends SavedData {
     // losing the whole file. WondrousState documents the same trap.
     private record PlayerEntry(UUID player, Entry entry) {}
 
-    private static final Codec<Entry> ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("runs").forGetter(Entry::runsCompleted),
-            Codec.INT.fieldOf("best_path").forGetter(Entry::bestPathLength),
+    private static final Codec<VisitorEntry> VISITOR_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.fieldOf("name").forGetter(VisitorEntry::name),
+            Codec.LONG.fieldOf("time").forGetter(VisitorEntry::timestamp)
+    ).apply(instance, VisitorEntry::new));
+
+    /**
+     * {@code Entry} carries more fields than {@code RecordCodecBuilder.group}
+     * accepts in one call (16). Splitting the group in two changes nothing
+     * about the saved shape: both halves' fields still land as flat, top-level
+     * keys via {@link Codec#mapPair}, so an old {@code dungeon_log.dat} reads
+     * exactly as it did before this split existed.
+     */
+    private record PartA(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
+                         int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
+                         List<String> recentThemes, Map<String, Integer> completedThemes,
+                         String currentTheme) {}
+
+    private record PartB(int depth, Set<String> extractedPowers, boolean publicListed,
+                         String roomName, int fuel, Set<String> unlockedShells, int roomCompletions,
+                         List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen) {}
+
+    private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
+            RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Codec.INT.fieldOf("runs").forGetter(PartA::runsCompleted),
+            Codec.INT.fieldOf("best_path").forGetter(PartA::bestPathLength),
             // Optional so a dungeon_log.dat written before U8 -- when this record
             // still carried a streak and a last-completed date -- loads unchanged.
             // Those two fields simply drop: the keystone level is the ladder now,
             // not a daily streak.
-            Codec.INT.optionalFieldOf("best_keystone", 0).forGetter(Entry::bestKeystoneLevel),
-            Codec.INT.optionalFieldOf("keystone", 0).forGetter(Entry::keystoneLevel),
-            Codec.STRING.optionalFieldOf("keystone_affix", "").forGetter(Entry::keystoneAffix),
-            Codec.INT.optionalFieldOf("pending_offer", 0).forGetter(Entry::pendingOfferLevel),
+            Codec.INT.optionalFieldOf("best_keystone", 0).forGetter(PartA::bestKeystoneLevel),
+            Codec.INT.optionalFieldOf("keystone", 0).forGetter(PartA::keystoneLevel),
+            Codec.STRING.optionalFieldOf("keystone_affix", "").forGetter(PartA::keystoneAffix),
+            Codec.INT.optionalFieldOf("pending_offer", 0).forGetter(PartA::pendingOfferLevel),
             Codec.STRING.listOf().optionalFieldOf("recent_themes", List.of())
-                    .forGetter(Entry::recentThemes),
+                    .forGetter(PartA::recentThemes),
             Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("completed_themes", Map.of())
-                    .forGetter(Entry::completedThemes),
-            Codec.STRING.optionalFieldOf("current_theme", "").forGetter(Entry::currentTheme),
-            Codec.INT.optionalFieldOf("depth", 0).forGetter(Entry::depth),
+                    .forGetter(PartA::completedThemes),
+            Codec.STRING.optionalFieldOf("current_theme", "").forGetter(PartA::currentTheme)
+    ).apply(instance, PartA::new));
+
+    private static final com.mojang.serialization.MapCodec<PartB> PART_B_CODEC =
+            RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Codec.INT.optionalFieldOf("depth", 0).forGetter(PartB::depth),
             Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
-                    .optionalFieldOf("extracted_powers", Set.of()).forGetter(Entry::extractedPowers),
+                    .optionalFieldOf("extracted_powers", Set.of()).forGetter(PartB::extractedPowers),
             // M20: room listing is an opt-in toggle, not a token. Both default
             // safe, so a save written before M20 (or after M21 retires the
             // fields) loads unchanged.
-            Codec.BOOL.optionalFieldOf("public_listed", false).forGetter(Entry::publicListed),
-            Codec.STRING.optionalFieldOf("room_name", "").forGetter(Entry::roomName),
-            Codec.INT.optionalFieldOf("fuel", 0).forGetter(Entry::fuel),
+            Codec.BOOL.optionalFieldOf("public_listed", false).forGetter(PartB::publicListed),
+            Codec.STRING.optionalFieldOf("room_name", "").forGetter(PartB::roomName),
+            Codec.INT.optionalFieldOf("fuel", 0).forGetter(PartB::fuel),
             // M24: shell unlocks and the prestige count. Both default safe, so
             // a save written before M24 loads unchanged: a player with neither
             // field simply has no alternate shells and zero prestige yet.
             Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
-                    .optionalFieldOf("unlocked_shells", Set.of()).forGetter(Entry::unlockedShells),
-            Codec.INT.optionalFieldOf("room_completions", 0).forGetter(Entry::roomCompletions)
-    ).apply(instance, Entry::new));
+                    .optionalFieldOf("unlocked_shells", Set.of()).forGetter(PartB::unlockedShells),
+            Codec.INT.optionalFieldOf("room_completions", 0).forGetter(PartB::roomCompletions),
+            // M27 27.2: the ring buffer. A save written before M27 has no field
+            // and loads with an empty visitor history, same as every other
+            // optional field here.
+            VISITOR_ENTRY_CODEC.listOf().optionalFieldOf("recent_visitors", List.of())
+                    .forGetter(PartB::recentVisitors),
+            // M26: diary bands already delivered. A save written before M26
+            // loads unchanged: a player with no field simply has every band's
+            // diary still to find.
+            Codec.INT.listOf().xmap(list -> (Set<Integer>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("diary_bands_seen", Set.of()).forGetter(PartB::diaryBandsSeen)
+    ).apply(instance, PartB::new));
+
+    private static final Codec<Entry> ENTRY_CODEC = Codec.mapPair(PART_A_CODEC, PART_B_CODEC).xmap(
+            pair -> {
+                PartA a = pair.getFirst();
+                PartB b = pair.getSecond();
+                return new Entry(a.runsCompleted(), a.bestPathLength(), a.bestKeystoneLevel(),
+                        a.keystoneLevel(), a.keystoneAffix(), a.pendingOfferLevel(), a.recentThemes(),
+                        a.completedThemes(), a.currentTheme(), b.depth(), b.extractedPowers(),
+                        b.publicListed(), b.roomName(), b.fuel(), b.unlockedShells(),
+                        b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen());
+            },
+            entry -> com.mojang.datafixers.util.Pair.of(
+                    new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),
+                            entry.keystoneLevel(), entry.keystoneAffix(), entry.pendingOfferLevel(),
+                            entry.recentThemes(), entry.completedThemes(), entry.currentTheme()),
+                    new PartB(entry.depth(), entry.extractedPowers(), entry.publicListed(),
+                            entry.roomName(), entry.fuel(), entry.unlockedShells(),
+                            entry.roomCompletions(), entry.recentVisitors(), entry.diaryBandsSeen()))
+    ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
@@ -243,7 +320,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions());
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen());
         entries.put(player, next);
         setDirty();
         return next;
@@ -275,7 +353,8 @@ final class DungeonLog extends SavedData {
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -291,7 +370,8 @@ final class DungeonLog extends SavedData {
                 Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -305,7 +385,8 @@ final class DungeonLog extends SavedData {
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -324,7 +405,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 listed, previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -345,7 +427,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel() + amount,
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -362,7 +445,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), name == null ? "" : name, previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions()));
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
     }
 
@@ -408,7 +492,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
                 previous.extractedPowers(), previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions());
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen());
         entries.put(player, next);
         setDirty();
         return next;
@@ -433,7 +518,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), powers,
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions());
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen());
         entries.put(player, next);
         setDirty();
         return next;
@@ -459,7 +545,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                shells, previous.roomCompletions());
+                shells, previous.roomCompletions(), previous.recentVisitors(),
+                previous.diaryBandsSeen());
         entries.put(player, next);
         setDirty();
         return next;
@@ -479,7 +566,8 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions() + 1);
+                previous.unlockedShells(), previous.roomCompletions() + 1, previous.recentVisitors(),
+                previous.diaryBandsSeen());
         entries.put(player, next);
         setDirty();
         return next;
@@ -501,7 +589,62 @@ final class DungeonLog extends SavedData {
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
                 previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), Math.max(0, count)));
+                previous.unlockedShells(), Math.max(0, count), previous.recentVisitors(),
+                previous.diaryBandsSeen()));
         setDirty();
+    }
+
+    /**
+     * (M27 27.2) Pushes one visit onto {@code owner}'s recent-visitors ring
+     * buffer, newest first, capped at {@link #MAX_RECENT_VISITORS}. Called from
+     * every path that actually lands a visitor in the owner's room
+     * ({@link VisitService#visit}), never from the lobby directory's own read
+     * of it, so browsing the directory never counts as a visit.
+     */
+    void addVisitor(UUID owner, String visitorName, long timestamp) {
+        Entry previous = get(owner);
+        List<VisitorEntry> visitors = new java.util.ArrayList<>(previous.recentVisitors());
+        visitors.add(0, new VisitorEntry(visitorName, timestamp));
+        if (visitors.size() > MAX_RECENT_VISITORS) {
+            visitors = visitors.subList(0, MAX_RECENT_VISITORS);
+        }
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions(), visitors,
+                previous.diaryBandsSeen());
+        entries.put(owner, next);
+        setDirty();
+    }
+
+    /**
+     * (M26) Records a diary book delivery: {@code band} (an {@link
+     * AffixMath#intensifierBandIndex} value) joins this player's
+     * never-shrinking set. A no-op if the band is already recorded, the same
+     * reconciliation discipline as {@link #unlockShell} and
+     * {@link #addExtractedPower}, so a duplicate call from
+     * {@code RunLifecycle.completeRun} (e.g. a party member re-triggering the
+     * same band across two runs before the first drop is processed) cannot
+     * hand out a second book.
+     */
+    Entry addDiaryBand(UUID player, int band) {
+        Entry previous = get(player);
+        if (previous.diaryBandsSeen().contains(band)) {
+            return previous;
+        }
+        Set<Integer> bands = new HashSet<>(previous.diaryBandsSeen());
+        bands.add(band);
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
+                bands);
+        entries.put(player, next);
+        setDirty();
+        return next;
     }
 }

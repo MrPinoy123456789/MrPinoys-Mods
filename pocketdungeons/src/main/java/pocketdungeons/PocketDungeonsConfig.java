@@ -101,6 +101,10 @@ public final class PocketDungeonsConfig {
     private static int moltenHazardsPerCell = 4;
     /** Feral wolves spawned per non-encounter cell. Zero disables the affix's spawns. */
     private static int feralWolvesPerCell = 2;
+    /** Explosive hazard blocks (TNT + pressure plate) placed per cell. */
+    private static int explosiveHazardsPerCell = 4;
+    /** Fraction of eligible cells that get voided floor when VOIDED affix active. */
+    private static double voidedCellChance = 0.3;
 
     // ---- ladder reframe (M10) -------------------------------------------------
     /** +1% mob strength (max health, attack damage, movement speed) per keystone level. */
@@ -393,6 +397,14 @@ public final class PocketDungeonsConfig {
         return feralWolvesPerCell;
     }
 
+    public static int explosiveHazardsPerCell() {
+        return explosiveHazardsPerCell;
+    }
+
+    public static double voidedCellChance() {
+        return voidedCellChance;
+    }
+
     public static double mobScalePerLevel() {
         return mobScalePerLevel;
     }
@@ -575,6 +587,8 @@ public final class PocketDungeonsConfig {
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
         feralWolvesPerCell = 2;
+        explosiveHazardsPerCell = 4;
+        voidedCellChance = 0.3;
 
         mobScalePerLevel = 0.01;
         spawnerClearThreshold = 0.75;
@@ -676,6 +690,9 @@ public final class PocketDungeonsConfig {
         silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
         feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
+        explosiveHazardsPerCell = readInt(root, "explosiveHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
+        voidedCellChance = readDouble(root, "voidedCellChance", 0.3,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
         mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.01, v -> v >= 0, "must be >= 0");
         mobScaleBase = readDouble(root, "mobScaleBase", 0.75, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
@@ -908,6 +925,8 @@ public final class PocketDungeonsConfig {
         root.addProperty("silencedPlayerRange", 6);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);
+        root.addProperty("explosiveHazardsPerCell", 4);
+        root.addProperty("voidedCellChance", 0.3);
 
         root.addProperty("mobScalePerLevel", 0.01);
         root.addProperty("spawnerClearThreshold", 0.75);

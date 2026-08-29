@@ -143,7 +143,7 @@ final class AffixMath {
         }
         List<Affix> pool = new ArrayList<>();
         for (Affix affix : Affix.values()) {
-            if (affix.kind == Affix.Kind.SEEDED) {
+            if (affix.kind == Affix.Kind.SEEDED && level >= affix.minLevel) {
                 pool.add(affix);
             }
         }

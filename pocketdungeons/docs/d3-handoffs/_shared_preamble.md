@@ -54,6 +54,9 @@ M25  Pocket2 Dungeon            (needs M11)
 M26  Lore delivery              (independent; 26.4 needs jar verification)
 M27  Extra features             (27.1 needs M19; 27.2 needs M20, M21; 27.3 deferred)
 M28  Themed mob spawners        (independent)
+M29  No-backwards propagation    (independent)
+M30  Connector variations       (independent)
+M31  Dungeon shell protection   (independent, M30 IRON_DOOR benefits from it)
 ```
 
 M18 is the foundation: the immutable shell, wall lodestone, and template

@@ -37,7 +37,7 @@ enum Affix {
      * {@code depletionMultiplier} stays {@code 1}: it was never the depleting one,
      * {@code FRAGILE} was, and {@code FRAGILE} is gone with M10's reframe.
      */
-    OMINOUS("Cooked", Kind.SEEDED, 1,
+    OMINOUS("Cooked", Kind.SEEDED, 1, 0,
             "Cooked: the whole run runs ominous, and pays out ominous."),
 
     /**
@@ -51,15 +51,15 @@ enum Affix {
      * nothing. The rule a player actually reads is "don't hit it, feed it", and
      * vanilla's anger-on-hit enforces it for free.
      */
-    FERAL("Feral", Kind.SEEDED, 1,
+    FERAL("Feral", Kind.SEEDED, 1, 0,
             "Feral: wolves in the halls. Swing and they are lost, feed them and they are yours."),
 
     /** More bodies per trial spawner. */
-    SWARMING("Swarming", Kind.SEEDED, 1,
+    SWARMING("Swarming", Kind.SEEDED, 1, 0,
             "Swarming: more of them, and more of them is more drops."),
 
     /** Trial spawners come back off cooldown far sooner. */
-    OVERCLOCKED("Overclocked", Kind.SEEDED, 1,
+    OVERCLOCKED("Overclocked", Kind.SEEDED, 1, 0,
             "Overclocked: the waves come back fast, so a fast clear is faster."),
 
     /**
@@ -67,12 +67,28 @@ enum Affix {
      * has none, and lava gates furnace fuel and, with water, obsidian. The hazard
      * blocks <em>are</em> the reward.
      */
-    MOLTEN("Molten", Kind.SEEDED, 1,
+    MOLTEN("Molten", Kind.SEEDED, 1, 0,
             "Molten: lava underfoot, and the only lava you will ever find."),
 
     /** No consumables. The mobs cannot hear you either. */
-    SILENCED("Silenced", Kind.SEEDED, 1,
-            "Silenced: no consumables, and they cannot hear you coming.");
+    SILENCED("Silenced", Kind.SEEDED, 1, 0,
+            "Silenced: no consumables, and they cannot hear you coming."),
+
+    /**
+     * TNT underfoot with pressure pads on top. The curse is the blast; the
+     * kiss is the TNT itself, the only source of it in the game.
+     */
+    EXPLOSIVE("Explosive", Kind.SEEDED, 1, 0,
+            "Explosive: TNT underfoot, and the only TNT you will ever find."),
+
+    /**
+     * Floor ripped open and bedrock gone below: void underfoot in scattered
+     * rooms. The curse is the fall; the kiss is the void itself, the only
+     * source of void access in the game. Late-game only: minLevel 45
+     * (Unholy tier onward).
+     */
+    VOIDED("Voided", Kind.SEEDED, 1, 45,
+            "Voided: the floor falls away, and the void stares back.");
 
     /**
      * How an affix gets onto a key.
@@ -103,10 +119,14 @@ enum Affix {
     /** Curse and kiss, one sentence, rendered as a lore line. */
     final String blurb;
 
-    Affix(String label, Kind kind, int depletionMultiplier, String blurb) {
+    /** Minimum keystone level for this affix to enter the seeded pool. */
+    final int minLevel;
+
+    Affix(String label, Kind kind, int depletionMultiplier, int minLevel, String blurb) {
         this.label = label;
         this.kind = kind;
         this.depletionMultiplier = depletionMultiplier;
+        this.minLevel = minLevel;
         this.blurb = blurb;
     }
 }

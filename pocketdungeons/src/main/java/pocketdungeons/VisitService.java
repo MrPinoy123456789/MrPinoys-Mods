@@ -63,6 +63,7 @@ final class VisitService {
         if (owned != null) {
             Instances.admit(server, owned, visitor);
             Chime.visitStarts(visitor);
+            recordVisit(server, owner, visitor);
             ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
             String name = ownerPlayer != null ? ownerPlayer.getName().getString() : "the owner";
             visitor.sendSystemMessage(Component.literal("You step into " + name + "'s room.")
@@ -74,6 +75,7 @@ final class VisitService {
         if (existingVisit != null) {
             Instances.admit(server, existingVisit, visitor);
             Chime.visitStarts(visitor);
+            recordVisit(server, owner, visitor);
             return true;
         }
 
@@ -173,7 +175,28 @@ final class VisitService {
                 .withStyle(ChatFormatting.GOLD));
         PocketDungeonsMod.LOG.info("{} visited {}'s room in slot {}",
                 visitor.getName().getString(), owner, slot);
+        recordVisit(server, owner, visitor);
         return true;
+    }
+
+    /** (M27 27.2) Pushes {@code visitor} onto {@code owner}'s recent-visitors ring buffer. */
+    private static void recordVisit(MinecraftServer server, UUID owner, ServerPlayer visitor) {
+        DungeonLog.forServer(server).addVisitor(owner, visitor.getName().getString(),
+                System.currentTimeMillis());
+    }
+
+    /**
+     * Whether {@code visitorId} is standing in {@code owner}'s room right now:
+     * either their live room (owner home) or its read-only visit copy. Used by
+     * the Recent visitors screen, which is the only reader that needs "still
+     * inside" rather than the visit history itself.
+     */
+    static boolean isStillInside(UUID owner, UUID visitorId) {
+        InstanceRecord room = findOwnedLiveRoom(owner);
+        if (room == null) {
+            room = findVisitInstance(owner);
+        }
+        return room != null && room.members.containsKey(visitorId);
     }
 
     // ---- the lobby directory's live read (M20) ------------------------------

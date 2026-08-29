@@ -68,6 +68,8 @@ final class Keystone {
             case OVERCLOCKED -> ChatFormatting.YELLOW;
             case MOLTEN -> ChatFormatting.GOLD;
             case SILENCED -> ChatFormatting.DARK_AQUA;
+            case EXPLOSIVE -> ChatFormatting.RED;
+            case VOIDED -> ChatFormatting.DARK_PURPLE;
         };
     }
 
@@ -77,7 +79,8 @@ final class Keystone {
      * doors 2/3: costs fuel, keeps the clock and the depletion, and is refused
      * below {@link PocketDungeonsConfig#greaterDoorMinLevel()}.
      */
-    enum Tier { FREE, GREATER }
+    /** M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is active. */
+    enum Tier { FREE, GREATER, EXPERIMENTAL }
 
     /**
      * One of the three offers a completed run puts in front of a player.
@@ -92,8 +95,13 @@ final class Keystone {
             return affixes.contains(Affix.OMINOUS);
         }
 
+        /**
+         * Free of the Greater-door gates. EXPERIMENTAL counts as free too: an
+         * operator testing a fixed offer should not have to bank fuel or hold
+         * a level first, the same way FREE always has.
+         */
         boolean free() {
-            return tier == Tier.FREE;
+            return tier == Tier.FREE || tier == Tier.EXPERIMENTAL;
         }
     }
 
@@ -126,10 +134,26 @@ final class Keystone {
         String first = themes.get(0).isEmpty() ? null : themes.get(0);
         String second = themes.get(1).isEmpty() ? null : themes.get(1);
         String third = themes.get(2).isEmpty() ? null : themes.get(2);
+
+        // M27 27.1: an operator's fixed offer stands in for door 3 while one is
+        // active. The other two doors are unaffected, and no per-player daily
+        // reward tracking rides on this yet.
+        ExperimentalDungeon.Offer experimental = ExperimentalDungeon.current();
+        Offer doorThree;
+        if (experimental != null) {
+            int expLevel = experimental.lootLevel() != null
+                    ? experimental.lootLevel() : KeystoneMath.upgrade(level, 3, max);
+            doorThree = new Offer(expLevel, experimental.affixes(), 3, experimental.theme(),
+                    Tier.EXPERIMENTAL);
+        } else {
+            doorThree = new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.noneOf(Affix.class),
+                    3, third, Tier.GREATER);
+        }
+
         return new Offer[] {
                 new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1, first, Tier.FREE),
                 new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2, second, Tier.GREATER),
-                new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.noneOf(Affix.class), 3, third, Tier.GREATER),
+                doorThree,
         };
     }
 
