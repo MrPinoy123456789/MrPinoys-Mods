@@ -428,7 +428,7 @@ final class RoomBuilder {
                 DungeonScreen.summonDoor(level, o, wall,
                         DungeonScreen.previewContent(level, record.owner, record.selectedStep));
             } else {
-                DungeonScreen.summonDoor(level, o, wall, DungeonScreen.idleContent());
+                DungeonScreen.summonDoor(level, o, wall, DungeonScreen.idleContent(level, record.owner));
             }
         } else {
             DungeonScreen.summonDoor(level, o, wall, DungeonScreen.runContent(record));

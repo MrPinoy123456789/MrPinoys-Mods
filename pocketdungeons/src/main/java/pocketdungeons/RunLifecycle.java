@@ -523,7 +523,7 @@ final class RunLifecycle {
                         DungeonScreen.previewContent(level, record.owner, record.selectedStep));
             } else {
                 DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
-                        DungeonScreen.idleContent());
+                        DungeonScreen.idleContent(level, record.owner));
             }
         } else {
             DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
@@ -1004,7 +1004,7 @@ final class RunLifecycle {
         // the room's new orientation, and clear the previous run's selection.
         record.selectedStep = 0;
         RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall, true);
-        DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent());
+        DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
         record.awaitingDoorChoice = true;
 

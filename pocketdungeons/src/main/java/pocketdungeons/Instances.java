@@ -476,7 +476,8 @@ final class Instances {
             // the two text_display entities, summoned fresh at every stamp and
             // never captured with the room.
             RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
-            DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH, DungeonScreen.idleContent());
+            DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
+                    DungeonScreen.idleContent(level, owner));
             DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
                     DungeonScreen.engineContent(null));
         } catch (RuntimeException e) {
@@ -1257,9 +1258,9 @@ final class Instances {
      * The owner of whichever live instance's room currently occupies {@code pos},
      * or {@code null} if {@code pos} is not inside anyone's room right now (M2
      * T2.2). Deliberately checks {@link InstanceRecord#roomCellOrigin} rather
-     * than any cell in the instance -- the quarry (every other cell) stays fully
-     * breakable by anyone, and a lingering instance is still checked here since
-     * it stays in {@code InstanceRegistry.bySlot}.
+     * than any cell in the instance -- the quarry cells are covered separately by
+     * {@link #dungeonRecordAt} (M31), and a lingering instance is still checked
+     * here since it stays in {@code InstanceRegistry.bySlot}.
      */
     static UUID roomOwnerAt(BlockPos pos) {
         InstanceRecord record = roomRecordAt(pos);
@@ -1302,6 +1303,41 @@ final class Instances {
                     && pos.getY() <= roomOrigin.getY() + RoomGeometry.CEILING_Y) {
                 return record;
             }
+        }
+        return null;
+    }
+
+    /**
+     * The instance whose dungeon cells (the quarry, everything but the room)
+     * currently occupy {@code pos} and whose run is still active, or
+     * {@code null} otherwise (M31 9.2). "Active" means {@code layout} exists
+     * and {@link InstanceRecord#completed} is still empty; once the first
+     * member completes, this returns {@code null} for every cell of that run
+     * and the quarry becomes breakable again, same as it always was. Skips
+     * {@link InstanceRecord#roomCellOrigin}: that cell is
+     * {@link #roomOwnerAt}'s job, and double-protecting it here would just
+     * make the two lookups redundant with each other.
+     */
+    static InstanceRecord dungeonRecordAt(BlockPos pos) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            InstanceLayout layout = record.layout;
+            if (layout == null || !record.completed.isEmpty()) {
+                continue;
+            }
+            PlanGeometry geometry = layout.geometry();
+            int y = pos.getY() - geometry.origin().getY();
+            if (y < 0 || y > RoomGeometry.CEILING_Y) {
+                continue;
+            }
+            PlanCell cell = geometry.cellAt(pos);
+            if (cell == null) {
+                continue;
+            }
+            if (record.roomCellOrigin != null
+                    && geometry.cellOrigin(cell).equals(record.roomCellOrigin)) {
+                continue; // the room cell -- roomOwnerAt's job, not this one's
+            }
+            return record;
         }
         return null;
     }

@@ -132,8 +132,18 @@ final class DungeonScreen {
 
     // ---- the five door-screen contexts (plan 19.1) ---------------------------
 
-    /** Context 1: no door selected. A tutorial that disappears on first interaction. */
-    static Component idleContent() {
+    /**
+     * Context 1: no door selected. A tutorial that disappears on first
+     * interaction. {@code level} and {@code owner} are nullable; when both
+     * are present and the owner is still at keystone level 1, the idle
+     * screen instead shows the first-time-player prompt.
+     */
+    static Component idleContent(ServerLevel level, UUID owner) {
+        if (level != null && owner != null
+                && DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1) {
+            return Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\nSelect the Oak Door\nThen pull the lever to descend"));
+        }
         return Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
     }
