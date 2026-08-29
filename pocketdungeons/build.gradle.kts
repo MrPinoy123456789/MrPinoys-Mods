@@ -123,6 +123,13 @@ tasks.register<JavaExec>("lodestoneMenuTest") {
     mainClass = "pocketdungeons.LodestoneMenuTest"
 }
 
+tasks.register<JavaExec>("shellPaletteTest") {
+    group = "verification"
+    description = "Runs the pure-Java M24 shell palette registry regression test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.ShellPaletteTest"
+}
+
 for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
@@ -159,6 +166,7 @@ tasks.test {
     dependsOn("roomFurnitureTest")
     dependsOn("lobbyBrowserTest")
     dependsOn("lodestoneMenuTest")
+    dependsOn("shellPaletteTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
     failOnNoDiscoveredTests = false
