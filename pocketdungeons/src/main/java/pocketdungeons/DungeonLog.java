@@ -109,12 +109,27 @@ final class DungeonLog extends SavedData {
      *                           in. Held per player rather than per room because
      *                           the door being bought is the owner's, the same
      *                           as the keystone that gates it.
+     * @param unlockedShells     (M24) every shell palette this player has
+     *                           permanently unlocked, one entry per unlock name
+     *                           (see {@code RoomBuilder.SHELL_PALETTES}),
+     *                           never truncated: the same never-shrinks shape
+     *                           as {@code completedThemes}. Held per player,
+     *                           not per room: the unlocks are the campaign, and
+     *                           a player carries them across room resets.
+     * @param roomCompletions    (M24) how many runs this player has completed
+     *                           while holding the same room without resetting
+     *                           it. The prestige count: holding one room is
+     *                           the achievement, so a resetroom zeroes it, and
+     *                           a threshold of completions ({@code
+     *                           RoomBuilder.PRESTIGE_SHELL_THRESHOLD}) unlocks
+     *                           the prestige shell as a veteran reward.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
                  List<String> recentThemes, Map<String, Integer> completedThemes,
                  String currentTheme, int depth, Set<String> extractedPowers,
-                 boolean publicListed, String roomName, int fuel) {
+                 boolean publicListed, String roomName, int fuel,
+                 Set<String> unlockedShells, int roomCompletions) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -123,11 +138,13 @@ final class DungeonLog extends SavedData {
             extractedPowers = Set.copyOf(extractedPowers);
             roomName = roomName == null ? "" : roomName;
             fuel = Math.max(0, fuel);
+            unlockedShells = Set.copyOf(unlockedShells);
+            roomCompletions = Math.max(0, roomCompletions);
         }
     }
 
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0);
+            false, "", 0, Set.of(), 0);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -163,7 +180,13 @@ final class DungeonLog extends SavedData {
             // fields) loads unchanged.
             Codec.BOOL.optionalFieldOf("public_listed", false).forGetter(Entry::publicListed),
             Codec.STRING.optionalFieldOf("room_name", "").forGetter(Entry::roomName),
-            Codec.INT.optionalFieldOf("fuel", 0).forGetter(Entry::fuel)
+            Codec.INT.optionalFieldOf("fuel", 0).forGetter(Entry::fuel),
+            // M24: shell unlocks and the prestige count. Both default safe, so
+            // a save written before M24 loads unchanged: a player with neither
+            // field simply has no alternate shells and zero prestige yet.
+            Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("unlocked_shells", Set.of()).forGetter(Entry::unlockedShells),
+            Codec.INT.optionalFieldOf("room_completions", 0).forGetter(Entry::roomCompletions)
     ).apply(instance, Entry::new));
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -219,7 +242,8 @@ final class DungeonLog extends SavedData {
                 previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel());
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions());
         entries.put(player, next);
         setDirty();
         return next;
@@ -250,7 +274,8 @@ final class DungeonLog extends SavedData {
                 AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel()));
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -265,7 +290,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel()));
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -278,7 +304,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
                 previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel()));
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -296,7 +323,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                listed, previous.roomName(), previous.fuel()));
+                listed, previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -316,7 +344,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel() + amount));
+                previous.publicListed(), previous.roomName(), previous.fuel() + amount,
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -332,7 +361,8 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), name == null ? "" : name, previous.fuel()));
+                previous.publicListed(), name == null ? "" : name, previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions()));
         setDirty();
     }
 
@@ -377,7 +407,8 @@ final class DungeonLog extends SavedData {
         Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
-                previous.extractedPowers(), previous.publicListed(), previous.roomName(), previous.fuel());
+                previous.extractedPowers(), previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions());
         entries.put(player, next);
         setDirty();
         return next;
@@ -401,9 +432,76 @@ final class DungeonLog extends SavedData {
                 previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
                 previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
                 previous.currentTheme(), previous.depth(), powers,
-                previous.publicListed(), previous.roomName(), previous.fuel());
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions());
         entries.put(player, next);
         setDirty();
         return next;
+    }
+
+    /**
+     * (M24) Permanently unlocks one shell palette for this player: {@code shell}
+     * (a key of {@code RoomBuilder.SHELL_PALETTES}) joins the never-shrinking
+     * set. A no-op if the shell is blank or already unlocked, so a mis-fired
+     * duplicate grant (the same reconciliation discipline as
+     * {@link #addExtractedPower}) must not be observable as anything happening
+     * twice. Held per player, not per room: the unlock survives a room reset.
+     */
+    Entry unlockShell(UUID player, String shell) {
+        Entry previous = get(player);
+        if (shell == null || shell.isBlank() || previous.unlockedShells().contains(shell)) {
+            return previous;
+        }
+        Set<String> shells = new HashSet<>(previous.unlockedShells());
+        shells.add(shell);
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                shells, previous.roomCompletions());
+        entries.put(player, next);
+        setDirty();
+        return next;
+    }
+
+    /**
+     * (M24) Records one more completion while this player holds the same room
+     * without resetting it: the prestige count behind the veteran shell reward
+     * ({@code RoomBuilder.PRESTIGE_SHELL}). The owner's count alone: a room is
+     * held by its owner, so a party member finishing a run in someone else's
+     * room earns the host's prestige, not their own.
+     */
+    Entry addRoomCompletion(UUID player) {
+        Entry previous = get(player);
+        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), previous.roomCompletions() + 1);
+        entries.put(player, next);
+        setDirty();
+        return next;
+    }
+
+    /**
+     * (M24) Sets the prestige count, clamped at zero. The room-reset path
+     * ({@code /dungeon admin resetroom}) calls this with {@code 0}: wiping the
+     * room wipes the "held the same room" streak, since holding the same room
+     * is the whole of the achievement.
+     */
+    void setRoomCompletions(UUID player, int count) {
+        Entry previous = get(player);
+        if (previous.roomCompletions() == count) {
+            return;
+        }
+        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
+                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
+                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
+                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
+                previous.publicListed(), previous.roomName(), previous.fuel(),
+                previous.unlockedShells(), Math.max(0, count)));
+        setDirty();
     }
 }
