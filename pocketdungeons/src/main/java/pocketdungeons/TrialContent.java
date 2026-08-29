@@ -134,11 +134,13 @@ final class TrialContent {
      *         was (M10: {@link InstanceRecord#trialSpawners} collects this)
      */
     static BlockPos applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                                  int tier, Set<Affix> affixes) {
+                                  int tier, Set<Affix> affixes, String theme) {
         boolean ominous = affixes.contains(Affix.OMINOUS);
         boolean swarming = affixes.contains(Affix.SWARMING);
         boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
         boolean silenced = affixes.contains(Affix.SILENCED);
+        ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
+        String spawnerPrefix = runTheme == null ? null : runTheme.meta().spawnerPrefix;
         BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
         if (anchor == null) {
             PocketDungeonsMod.LOG.warn(

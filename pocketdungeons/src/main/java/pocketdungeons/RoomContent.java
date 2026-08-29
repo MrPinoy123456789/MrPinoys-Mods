@@ -83,14 +83,14 @@ final class RoomContent {
      */
     static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes, String lootSuffix, boolean voidedFloor) {
+                      Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor) {
         BlockPos spawnerAnchor = null;
         if (role != null) {
             switch (role) {
                 case "encounter" -> {
                     removeChests(level, cellOrigin);
                     spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
-                            profile.lootTier(), affixes);
+                            profile.lootTier(), affixes, theme);
                 }
                 case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
                         affixes.contains(Affix.OMINOUS), seed, lootSuffix);

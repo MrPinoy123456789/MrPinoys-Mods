@@ -140,7 +140,7 @@ final class LayoutStamper {
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                    depth, profile, spawns, plan.seed(), affixes, lootSuffix,
+                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
                     voidedCells.contains(cell));
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);
