@@ -1498,7 +1498,7 @@ through, and being returned on the clock need a live client.
 ### 30.2 The pocket
 
 1. **Expected:** a second boss bar reads "Pocket - 1:00 - x/y rooms".
-2. Walk the pocket: 3-5 cells, loose chests drawing from
+2. Walk the pocket: 4-5 cells, loose chests drawing from
    pocketdungeons:chests/pocket2, and 1-2 trial spawners. No vaults, no
    completion pad, no keystone bar.
 3. Open a chest. **Expected:** with the table's roll, a "Sandstone Shell" or

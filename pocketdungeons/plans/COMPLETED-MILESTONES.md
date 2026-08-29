@@ -1392,12 +1392,14 @@ a hard timer. Grab what you can before the clock runs out.
   the milestone lists: the pocket cannot be used to dodge a fight.
 - **Door interaction.** RitualListener hands the click to
   Pocket2.tryEnter, which enforces one child per parent (childFor), then
-  plans a 3-5 cell child (straight path, no loops), stamps it into the
-  adjacent slot, and teleports the player in. The player never leaves the
-  parent's roster: parent.members still holds them, so the outer run's
-  clock keeps ticking and the pocket's time counts against the outer run. The
-  child's own roster is a copy, kept so a teardown that outlives the parent
-  still knows where to send everyone home.
+  plans a 4-5 cell child (straight path, no branches or loops: a 3-path has a
+  single interior cell that the role guarantee can only give to encounter or
+  loot, never both, so 4-5 is the low end that always yields a spawner and a
+  chest), stamps it into the adjacent slot, and teleports the player in. The
+  player never leaves the parent's roster: parent.members still holds them, so
+  the outer run's clock keeps ticking and the pocket's time counts against the
+  outer run. The child's own roster is a copy, kept so a teardown that
+  outlives the parent still knows where to send everyone home.
 - **Countdown and teardown.** Instances.onTick routes child records to
   Pocket2.tickChild, which ticks the child's own boss bar (RunTimer gains
   a title variant so it reads "Pocket - 0:45" instead of a keystone label)
