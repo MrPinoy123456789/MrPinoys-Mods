@@ -57,9 +57,11 @@ public class TaskTrackerTest {
         check(TaskTracker.activeTask(log, PLAYER, 2), TaskTracker.Task.FEED_ENGINE,
                 "level exactly at minLevel is not grandfathered away");
 
-        // A level-25 player has plainly already fed an engine, opened a Greater
-        // door, and visited a friend by that point; those all auto-complete.
-        TaskTracker.Task active = TaskTracker.activeTask(log, PLAYER, 25);
+        // A level-18 player has plainly already fed an engine, opened a Greater
+        // door, and visited a friend by that point (their minLevels are 2, 5,
+        // 15); GAMBLE's own minLevel (20) has not been passed yet, so it is
+        // reached normally rather than also grandfathered away.
+        TaskTracker.Task active = TaskTracker.activeTask(log, PLAYER, 18);
         check(active, TaskTracker.Task.GAMBLE, "well past several minLevels grandfathers straight to GAMBLE");
         check(log.taskProgress(PLAYER, TaskTracker.Task.FEED_ENGINE.id), 3,
                 "grandfathered FEED_ENGINE is recorded as fully complete");
@@ -95,7 +97,7 @@ public class TaskTrackerTest {
     private static void testCapsAtTarget() {
         DungeonLog log = new DungeonLog();
         for (TaskTracker.Task task : TaskTracker.Task.values()) {
-            if (task != TaskTracker.Task.GAMBLE) {
+            if (task.ordinal() < TaskTracker.Task.GAMBLE.ordinal()) {
                 log.setTaskProgress(PLAYER, task.id, task.targetCount);
             }
         }
