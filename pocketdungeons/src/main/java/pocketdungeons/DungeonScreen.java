@@ -214,7 +214,7 @@ final class DungeonScreen {
         String balance = viewer != null
                 ? "Stored: " + Fuel.banked(viewer) + " " + fuelName
                 : "Accepts " + fuelName;
-        return Component.literal("ENGINE").withStyle(ChatFormatting.GOLD)
+        return Component.literal("ECHO SHARDS").withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("\n" + balance + "\nPer premium door: "
                         + PocketDungeonsConfig.fuelCostPerGreaterDoor()));
     }
