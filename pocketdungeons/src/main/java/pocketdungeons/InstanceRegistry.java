@@ -54,6 +54,23 @@ final class InstanceRegistry {
         return slot;
     }
 
+    /**
+     * M25: allocates a child slot adjacent to {@code anchor} when one is free.
+     * The slot grid is linear (slot {@code n+1} sits one {@code slotPitch} east
+     * of slot {@code n}), so adjacency keeps a Pocket2 child's geometry next to
+     * its parent's. Falls back to the plain free-list when both neighbours are
+     * taken.
+     */
+    static int allocateSlotNear(int anchor) {
+        for (int candidate : new int[]{anchor + 1, anchor - 1}) {
+            if (candidate >= 0 && !usedSlots.contains(candidate)) {
+                usedSlots.add(candidate);
+                return candidate;
+            }
+        }
+        return allocateSlot();
+    }
+
     static BlockPos originForSlot(int slot) {
         int slotsPerRow = PocketDungeonsConfig.slotsPerRow();
         int slotPitch = PocketDungeonsConfig.slotPitch();

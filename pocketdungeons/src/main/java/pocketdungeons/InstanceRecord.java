@@ -245,6 +245,31 @@ final class InstanceRecord {
      */
     boolean visitInstance;
 
+    // ---- M25: Pocket2 child instance ----------------------------------------
+
+    /**
+     * The slot of the parent instance this Pocket2 child belongs to, or {@code -1}
+     * for a top-level run. A child is a nested sub-dungeon opened from a rare
+     * door in the parent's cleared encounter room: its own slot, its own cells,
+     * no keystone, no spawner gate, no completion pad. Only the countdown timer
+     * or a player death ends it, and its members are returned to the parent.
+     */
+    final int parentSlot;
+
+    /**
+     * Where a member of this Pocket2 child is returned on expiry or death: the
+     * standing spot just inside the parent's rare door. {@code null} for a
+     * top-level run.
+     */
+    final BlockPos returnPos;
+
+    /**
+     * M25: the game tick at which this Pocket2 child's countdown hits zero, or
+     * {@code 0} while no deadline is armed. Children are ticked by this, not by
+     * the outer run's clock: time in the pocket is time the outer run counts.
+     */
+    long deadlineTick;
+
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);
@@ -252,6 +277,12 @@ final class InstanceRecord {
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed, boolean adminBuild) {
+        this(slot, origin, createdAtTick, layout, affixes, owner, untimed, adminBuild, -1, null);
+    }
+
+    InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
+                   Set<Affix> affixes, UUID owner, boolean untimed, boolean adminBuild,
+                   int parentSlot, BlockPos returnPos) {
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
@@ -260,11 +291,18 @@ final class InstanceRecord {
         this.owner = owner;
         this.untimed = untimed;
         this.adminBuild = adminBuild;
+        this.parentSlot = parentSlot;
+        this.returnPos = returnPos;
     }
 
     /** Whether a keystone was spent to open this run. False for {@code /dungeon admin build}. */
     boolean isKeystoneRun() {
         return layout.keystoneLevel() > 0;
+    }
+
+    /** M25: whether this record is a Pocket2 child of a parent instance. */
+    boolean isChild() {
+        return parentSlot >= 0;
     }
 
     /** Whether the reward room has been stamped yet -- lazily, on first completion. */

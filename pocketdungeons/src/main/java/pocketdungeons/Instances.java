@@ -492,7 +492,7 @@ final class Instances {
         // is for admin output only.
         BlockPos exitPad = origin.offset(1, 1, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of());
+                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null);
     }
 
     /**

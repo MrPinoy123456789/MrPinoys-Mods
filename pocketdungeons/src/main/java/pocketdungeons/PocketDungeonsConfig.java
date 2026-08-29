@@ -140,6 +140,12 @@ public final class PocketDungeonsConfig {
      */
     private static int greaterDoorMinLevel = 15;
 
+    // ---- Pocket2 sub-dungeon (M25) -------------------------------------------
+    /** How long a Pocket2 child stays open once entered, in seconds. */
+    private static int pocket2TimerSeconds = 60;
+    /** Chance per run that a rare door to a Pocket2 appears in a cleared encounter room. */
+    private static double pocket2DoorChance = 0.2;
+
     // ---- gear reroll station (M14) --------------------------------------------
     /** The block a reroll station is; right-clicking it with tiered gear opens the picker. */
     private static String rerollBlock = "minecraft:smithing_table";
@@ -419,6 +425,14 @@ public final class PocketDungeonsConfig {
         return greaterDoorMinLevel;
     }
 
+    public static int pocket2TimerSeconds() {
+        return pocket2TimerSeconds;
+    }
+
+    public static double pocket2DoorChance() {
+        return pocket2DoorChance;
+    }
+
     public static String rerollBlock() {
         return rerollBlock;
     }
@@ -571,6 +585,9 @@ public final class PocketDungeonsConfig {
         fuelPerFreeRun = 1;
         greaterDoorMinLevel = 15;
 
+        pocket2TimerSeconds = 60;
+        pocket2DoorChance = 0.2;
+
         rerollBlock = "minecraft:smithing_table";
         rerollLapisPerTier = 4;
         rerollUnlockLevel = 5;
@@ -670,6 +687,10 @@ public final class PocketDungeonsConfig {
         fuelCostPerGreaterDoor = readInt(root, "fuelCostPerGreaterDoor", 3, v -> v >= 0, "must be >= 0");
         fuelPerFreeRun = readInt(root, "fuelPerFreeRun", 1, v -> v >= 0, "must be >= 0");
         greaterDoorMinLevel = readInt(root, "greaterDoorMinLevel", 15, v -> v >= 1, "must be >= 1");
+
+        pocket2TimerSeconds = readInt(root, "pocket2TimerSeconds", 60, v -> v >= 1, "must be >= 1");
+        pocket2DoorChance = readDouble(root, "pocket2DoorChance", 0.2,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
         rerollBlock = readString(root, "rerollBlock", "minecraft:smithing_table", false);
         rerollLapisPerTier = readInt(root, "rerollLapisPerTier", 4, v -> v >= 0, "must be >= 0");
@@ -896,6 +917,9 @@ public final class PocketDungeonsConfig {
         root.addProperty("fuelCostPerGreaterDoor", 3);
         root.addProperty("fuelPerFreeRun", 1);
         root.addProperty("greaterDoorMinLevel", 15);
+
+        root.addProperty("pocket2TimerSeconds", 60);
+        root.addProperty("pocket2DoorChance", 0.2);
 
         root.addProperty("rerollBlock", "minecraft:smithing_table");
         root.addProperty("rerollLapisPerTier", 4);

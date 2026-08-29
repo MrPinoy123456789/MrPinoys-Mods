@@ -49,6 +49,10 @@ import java.util.Set;
  *                     the lobby's one-cell {@link Instances#lobbyLayout}), and an
  *                     empty set reads as "nothing to gate on" wherever the clear
  *                     fraction is checked, never as "gate refused".
+ * @param pocket2Door (M25) the lower half of the rare door this run's first
+ *                     cleared encounter cell stamped, or {@code null} when the
+ *                     run rolled no Pocket2 door (or was never eligible).
+ *                     Right-clicking it opens the nested sub-dungeon.
  */
 record InstanceLayout(
         BlockPos origin,
@@ -67,7 +71,8 @@ record InstanceLayout(
         BlockPos terminal,
         int entranceRotation,
         int terminalRotation,
-        Set<BlockPos> trialSpawners) {
+        Set<BlockPos> trialSpawners,
+        BlockPos pocket2Door) {
 
     InstanceLayout {
         trialSpawners = trialSpawners == null ? Set.of() : Set.copyOf(trialSpawners);
@@ -110,6 +115,6 @@ record InstanceLayout(
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
                 geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false,
-                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of());
+                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null);
     }
 }

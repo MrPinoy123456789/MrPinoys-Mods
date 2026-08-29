@@ -137,7 +137,8 @@ for ((taskName, testClass) in mapOf(
     "dungeonLogTest" to "DungeonLogTest",
     "rerollMathTest" to "RerollMathTest",
     "gambleMathTest" to "GambleMathTest",
-    "powerEquipMathTest" to "PowerEquipMathTest"
+    "powerEquipMathTest" to "PowerEquipMathTest",
+    "pocket2Test" to "Pocket2Test"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -154,6 +155,7 @@ tasks.test {
     dependsOn("rerollMathTest")
     dependsOn("gambleMathTest")
     dependsOn("powerEquipMathTest")
+    dependsOn("pocket2Test")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")

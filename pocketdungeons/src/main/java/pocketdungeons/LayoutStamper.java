@@ -95,6 +95,10 @@ final class LayoutStamper {
         // since one does not exist yet this early; it travels on the returned
         // layout instead, the way everything else about this run's shape does.
         Set<BlockPos> trialSpawners = new LinkedHashSet<>();
+        // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
+        // in the first cleared encounter cell; carried on the layout so the
+        // right-click handler can find it without scanning the world.
+        BlockPos pocket2Door = null;
 
         for (PlanCell cell : stampOrder(plan)) {
             if (entranceAlreadyStamped && cell.equals(entranceCell)) {
@@ -160,7 +164,8 @@ final class LayoutStamper {
                 geometry.cellOrigin(plan.terminal()),
                 plan.rooms().get(entranceCell).rotation(),
                 plan.rooms().get(plan.terminal()).rotation(),
-                Set.copyOf(trialSpawners));
+                Set.copyOf(trialSpawners),
+                pocket2Door);
     }
 
     /** Critical path first, then everything else in the geometry's stable order. */
