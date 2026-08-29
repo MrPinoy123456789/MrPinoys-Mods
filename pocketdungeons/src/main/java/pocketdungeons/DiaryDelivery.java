@@ -58,6 +58,7 @@ final class DiaryDelivery {
         log.addDiaryBand(player.getUUID(), band);
         player.sendSystemMessage(Component.literal("A worn book slid free of the rubble: \""
                 + diary.title() + ".\"").withStyle(ChatFormatting.LIGHT_PURPLE));
+        DiaryReading.start(player, diary);
 
         if (!diary.unlockShell().isBlank()) {
             DungeonLog.Entry updated = log.unlockShell(player.getUUID(), diary.unlockShell());
