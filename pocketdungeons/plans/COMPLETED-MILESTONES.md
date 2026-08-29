@@ -1477,3 +1477,47 @@ load-bearing. 27.1 and 27.2 ship; 27.3 is deferred.
 door 3 show the caution indicator and generate the fixed theme; visiting a
 room and confirming the visit shows up in Recent visitors with the right
 "still inside" state; recorded as section 31 in LIVE_TEST_PASS.md.
+
+## M28: Themed mob spawners
+
+**Goal:** dungeon themes control which mobs their trial spawners roll, not
+just their wall blocks, with new themes added by JSON alone.
+
+- `DungeonThemeMeta` gains an optional `spawnerPrefix` field (`spawner_prefix`
+  in JSON), parsed the same way as `lootSuffix`. Null keeps a theme on the
+  default tier configs.
+- `TrialContent.applyEncounter` takes the run's theme, resolves it through
+  `ThemeManifest`, and reads `spawnerPrefix` off its meta before building the
+  spawner's config ids. `RoomContent.apply` and `LayoutStamper.stamp` thread
+  the theme through from the existing in-scope variable; no new plumbing.
+- `TrialContent.configId(prefix, tier, ominous)` (widened from private to
+  package-private for the test) produces
+  `pocketdungeons:tier_{n}/{normal,ominous}` for a null or blank prefix, and
+  `pocketdungeons:{prefix}_tier_{n}/{normal,ominous}` otherwise. The swarming
+  affix's inline-config path (`writeInlineConfig`) takes the same prefix, so
+  a swarming run on a themed encounter still scales the themed roster rather
+  than falling back to the default one.
+- Two themed spawner rosters ship as proof of concept, one config file per
+  tier per ominous state, six files each: **Crypt** (`spawner_prefix: "crypt"`
+  on `deepslate.json`) is zombie (weight 5) and skeleton (weight 4) only,
+  reusing each tier's own equipment loot table; **Infestation** (a new
+  `dungeon_theme/infestation.json`, discoverable, reusing deepslate's wall
+  processors) is spider (weight 3) and cave spider (weight 2) only, no
+  equipment. Every other field (counts, ticks, eject tables) is copied
+  verbatim from the matching default tier file; only `spawn_potentials`
+  changes.
+- No other theme sets `spawner_prefix`, so every run except Deepslate and
+  Infestation still resolves the pre-M28 default tier configs.
+
+**Headless-verified:** `./gradlew build` green (aside from two pre-existing
+failures in `lodestoneMenuTest` and `shellPaletteTest`, unrelated to this
+milestone and reproduced on the pre-M28 commit as well, from the in-flight
+M26 diary-reader menu work). `TrialContentConfigIdTest` covers a null
+prefix, a themed prefix, a blank prefix, and a second theme. Both themed
+JSON directories load without a `ThemeManifest`/config-registry rejection.
+
+**Live-only, not yet verified:** running a Deepslate-themed dungeon and
+confirming its trial spawners eject only zombies and skeletons; running an
+Infestation-themed dungeon and confirming spiders and cave spiders only;
+confirming a Swarming-affix run on either theme still spawns only that
+theme's roster, scaled up; recorded as section 32 in LIVE_TEST_PASS.md.

@@ -1575,3 +1575,39 @@ live client.
 5. As a visitor (not the owner), confirm there is no way to reach the
    Recent visitors screen: Manage Room is not offered at all when you are
    not the owner.
+
+## 32. Themed mob spawners (M28)
+
+Live verification that a theme's `spawner_prefix` actually changes which
+mobs a trial spawner rolls. Headless coverage (`TrialContentConfigIdTest`)
+only proves the id string is built correctly; it cannot prove the game
+resolves that id to the right roster.
+
+### 32.1 Deepslate (crypt roster)
+
+1. Start a Deepslate-themed dungeon (`/dungeon admin experiment deepslate`
+   or by keystone roll).
+2. Clear several encounter cells. **Expected:** every trial spawner ejects
+   only zombies and skeletons, never spiders or any other mob.
+3. Repeat with the run at tier 2 and tier 3. **Expected:** the mob mix
+   stays zombie/skeleton only; equipment on them still scales with tier.
+
+### 32.2 Infestation (spider roster)
+
+1. Start an Infestation-themed dungeon.
+2. Clear several encounter cells. **Expected:** every trial spawner ejects
+   only spiders and cave spiders, unequipped.
+
+### 32.3 Swarming on a themed run
+
+1. Start a Deepslate or Infestation run with the Swarming affix active.
+2. Clear an encounter cell. **Expected:** more bodies than the untouched
+   tier count, but still only that theme's mobs, not the default tier mix
+   sneaking back in.
+
+### 32.4 Unthemed run unchanged
+
+1. Start a run on a theme that does not set `spawner_prefix` (e.g.
+   Blackstone or Prismarine).
+2. Clear an encounter cell. **Expected:** the same default tier mob mix as
+   before M28.
