@@ -1684,3 +1684,151 @@ is what would need to change to break this, and it didn't.
 **Live-only, not yet verified:** the engine screen title, and the
 level-1 tutorial prompts on the idle and preview door screens, both
 disappearing at level 2+; recorded as section 34 in LIVE_TEST_PASS.md.
+
+## M30: Connector variations
+
+**Goal:** varied connector patterns at door openings (wide door, double
+door, single door, iron door, bars, open wall with pillars, arch with
+lintel), seeded per-edge, without changing cell size, room template
+format, or the canonical door slot position.
+
+- The handoff's first draft assumed a runtime door carve in
+  `LayoutStamper.stamp` that no longer exists: doors are baked into each
+  room's `.nbt` template as `pocketdungeons:door` jigsaws, resolved to
+  air by `JigsawReplacementProcessor` when `TemplateStamper.place` stamps
+  the room. The revised handoff (after this was surfaced) designed the
+  feature as a post-placement overlay instead, which is what shipped.
+- `ConnectorType` (new, pure JDK): the 7-value enum with the weighted
+  table (DOOR_WIDE 45, DOOR_SINGLE 15, DOOR_DOUBLE 10, IRON_DOOR 10,
+  OPEN 10, ARCH 5, BARS 5) and `pick(Random)`, cumulative-weight style
+  matching `LayoutGraphGenerator`'s role roll. `rngFor(seed, edge)` seeds
+  a `Random` from `planSeed ^ edge.hashCode()` -- `PlanEdge`'s canonical
+  `(a, b)` ordering makes this direction-independent, so both cells on an
+  edge can derive the same roll.
+- `ConnectorGeometry` (new, pure JDK): `rect(cellOrigin, wall, iFrom, iTo,
+  yFrom, yTo)`, the same (column index, height) convention as
+  `CellGeometry.doorSlotPositions` -- the pure math/level-write split
+  `CellGeometry` already keeps, extended to connector rectangles instead
+  of just the one canonical slot.
+- `ConnectorStamper` (new): applies each type on top of whatever
+  `TemplateStamper.place` already wrote. Reads the wall's live block
+  (5 columns outside the door slot) rather than hardcoding stone brick,
+  so a themed room's re-skin is respected. IRON_DOOR caps the door
+  slot's third (unused) row with that same live material rather than
+  leaving a gap above the 2-tall door. OPEN clears the middle 12 columns
+  and leaves a 2-wide pillar standing at each end of the 16-wide wall.
+- `LayoutStamper.stamp`: new `applyConnectors` pass runs after the
+  per-cell stamp loop, before `BedrockEnvelope.apply`. Skips the
+  entrance's edge entirely (always the default wide opening, no roll) so
+  a fresh run can never gate the one door a player is guaranteed to
+  reach. One `Random` per edge, reused for the connector-type roll and
+  (for DOOR_SINGLE) the left/right column choice, then applied to both
+  cells on the edge so the opening stays aligned across the two-block
+  partition between them.
+- No offset: the door slot stays at the canonical position (7-8) the
+  templates' doorway lane rule is authored against, per the handoff's
+  constraint.
+- `BedrockEnvelope` needed no change: `applyToCell`'s occupied-neighbour
+  check already skips every face with a live neighbour, which covers
+  OPEN and ARCH's wider clearing the same way it already covered the
+  original 2-wide door slot.
+
+**Headless-verified:** `./gradlew build` and `./gradlew test` green
+(including the full existing suite) in a clean build taken before an
+unrelated, concurrent M32 work-in-progress session temporarily broke
+compilation elsewhere in the tree (`RoomSelector.java` not yet updated
+for `DungeonPlan`'s new `anomalyCell` field -- unrelated to this
+milestone). New `ConnectorTest` (`connectorTest` Gradle task, wired into
+`tasks.test`): weight table sums to 100, `pick` is deterministic for a
+given seed and covers all seven types over a large sample, `rngFor` is
+edge-direction-independent and distinct per edge, `rect`'s bounds/count
+match `CellGeometryTest`'s door-slot pattern, and a both-sides test
+proving `rect` on cell A's SOUTH wall and cell B's NORTH wall (a
+north/south edge) return the same X columns one block apart in Z --
+the property `applyConnectors` relies on to keep an opening aligned
+across the partition.
+
+**Live-only, not yet verified:** `adminBuild` showing varied connectors
+across door edges; each connector type's actual block layout in-world
+(OPEN's pillars, DOOR_SINGLE's offset opening, ARCH's lintel, IRON_DOOR
+opening on redstone, BARS floor-to-wall-top, DOOR_DOUBLE's 4-wide
+opening); the entrance edge always rendering as DOOR_WIDE. Blocked at
+the time this milestone's code landed by an unrelated concurrent
+session leaving the tree mid-edit; not recorded in LIVE_TEST_PASS.md
+yet -- add a new numbered section there once verified.
+
+## M33: Guided tasks via scoreboard
+
+**Goal:** ten sequential guided tasks teaching the core loops (select a
+door, descend, complete a run, feed the engine, visit a friend, open a
+Greater door, the three stations, tame a wolf), one active at a time,
+surfaced on the door screen and the tab list.
+
+- `TaskTracker` (new): the `Task` enum (id, label, targetCount, minLevel)
+  in sequence order. `activeTask(DungeonLog, UUID, int)` is the pure
+  core -- the lowest task not yet at its target, skipping (and marking
+  complete) any task whose `minLevel` sits strictly below the player's
+  current keystone level, a grandfather clause for a player adopting the
+  feature well past where a task would normally introduce them to it.
+  `minLevel == 0` (TAME_WOLF) opts out of that clause entirely.
+  `activeTask(ServerPlayer)`/`progress(ServerPlayer, Task, int)`/
+  `taskLine(ServerPlayer)` are the live wrappers; `progress` only
+  advances `task` if it is actually this player's active task right
+  now, so a hook firing while a different task is active is a no-op.
+- `DungeonLog` gains a `Map<UUID, Map<String, Integer>> taskProgress`
+  sidecar (own codec entry, `task_progress`, optional/empty-default) and
+  `taskProgress`/`setTaskProgress` accessors, kept separate from `Entry`
+  since `Entry`'s codec is already split across two 16-field groups.
+- Scoreboard: one shared `pd_task` objective (`Criteria.DUMMY`,
+  `DisplaySlot.LIST`), created lazily on first use and removed once
+  nobody is tracked on it; each player's score is their active task's
+  1-based position in the sequence. `TaskTracker.syncScoreboard` also
+  runs whenever the door screen recomputes a task line.
+- Mechanic hooks (`TaskTracker.progress`, all naming their own task):
+  `RitualListener.selectDoor` (SELECT_DOOR), the engine terminal's
+  `Fuel.bank` branch (FEED_ENGINE), `RunLifecycle.chooseOffer`
+  (DESCEND, and GREATER_DOOR when `step >= 2`), `RunLifecycle.completeRun`
+  (COMPLETE_RUN), `VisitService.recordVisit` (VISIT_FRIEND, covering all
+  three of `visit`'s success paths), `GambleStation.onUse`/
+  `RerollStation.onUse` success paths (GAMBLE, REROLL), and
+  `CubeStation.extract` (EXTRACT_POWER). TAME_WOLF has no Fabric event to
+  hook (fabric-api ships none for `TamableAnimal#tame`, and the
+  one-mixin budget is already spent on `CustomClickMixin`) so it is a
+  reconciliation scan in `Instances.onTick`'s per-member loop instead: any
+  watch interval a member's active task is TAME_WOLF and a wolf they own
+  is within 8 blocks, `progress` fires. `progress` is idempotent past a
+  task's target, so scanning every interval rather than only on a real
+  taming edge costs nothing once the task is done.
+- Door screen: `idleContent`/`previewContent`/`runContent` all append
+  the active task's line (e.g. "Feed the Engine 2/3") through a shared
+  private `appendTaskLine` helper, which resolves the owner's online
+  `ServerPlayer` and syncs the scoreboard in the same call. `runContent`
+  gained a `ServerLevel level` parameter (its three call sites already
+  had one in scope) to resolve that player.
+- Login: a new `ServerPlayConnectionEvents.JOIN` handler (dimension-
+  agnostic, unlike the existing recovery handler) syncs the scoreboard
+  and chats the active task.
+- One deliberate reading worth flagging: GAMBLE/REROLL/EXTRACT_POWER
+  progress on interacting with their station (opening the picker, or
+  the extract branch completing directly) rather than on a confirmed
+  spend -- the handoff's hook references point at `onUse` specifically,
+  so e.g. "Spend Emeralds at Kadala x16" completes on 16 station
+  interactions, not 16 successful gambles.
+
+**Headless-verified:** `./gradlew build` green, full existing suite
+passing. New `TaskTrackerTest` (`taskTrackerTest` Gradle task, wired
+into `tasks.test`), exercising `TaskTracker`'s pure `DungeonLog`+`UUID`
+overloads the same way `DungeonLogTest` exercises `DungeonLog` itself:
+sequencing through the ungated tasks, the level-gate grandfather clause
+(including that TAME_WOLF's `minLevel == 0` is never grandfathered),
+an inactive-task hook being a no-op, progress capping at `targetCount`
+without overshooting, and the task-progress sidecar's codec round trip
+(including a pre-M33 save with no `task_progress` field defaulting
+every task to 0).
+
+**Live-only, not yet verified:** every task surfacing and advancing in
+order on the door screen and the `pd_task` tab-list column as a fresh
+player actually plays through them; the wolf-taming reconciliation scan
+actually catching a taming in the dungeon dimension; task progress and
+the grandfather clause surviving a server restart. Not recorded in
+LIVE_TEST_PASS.md yet -- add a new numbered section there once verified.
