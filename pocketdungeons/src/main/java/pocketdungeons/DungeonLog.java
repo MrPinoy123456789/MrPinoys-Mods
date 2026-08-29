@@ -9,6 +9,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -181,6 +182,15 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, Map<String, Integer>> taskProgress = new HashMap<>();
 
+    /**
+     * (M34) Per-owner, weekly bounty states for {@link BountyTracker}. A
+     * sidecar map for the same reason {@link #taskProgress} is one: the bounty
+     * states are read and written on every mechanic hook, have nothing in
+     * common with a player's campaign history, and would push {@link Entry}'s
+     * codec past its two-group split for no benefit.
+     */
+    private final Map<UUID, List<BountyTracker.BountyState>> bounties = new HashMap<>();
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -294,6 +304,17 @@ final class DungeonLog extends SavedData {
                     .forGetter(PlayerTaskProgress::progress)
     ).apply(instance, PlayerTaskProgress::new));
 
+    /** (M34) One owner's bounty states, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerBounties(UUID player, List<BountyTracker.BountyState> bounties) {}
+
+    private static final Codec<PlayerBounties> PLAYER_BOUNTIES_CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerBounties::player),
+            BountyTracker.BountyState.CODEC.listOf().fieldOf("bounties")
+                    .forGetter(PlayerBounties::bounties)
+    ).apply(instance, PlayerBounties::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
@@ -303,16 +324,26 @@ final class DungeonLog extends SavedData {
             // progress recorded.
             PLAYER_TASK_PROGRESS_CODEC.listOf().optionalFieldOf("task_progress", List.of())
                     .forGetter(log -> log.taskProgress.entrySet().stream()
-                            .map(e -> new PlayerTaskProgress(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerTaskProgress(e.getKey(), e.getValue())).toList()),
+            // M34: optional so a dungeon_log.dat written before this milestone
+            // loads unchanged, every player simply starting with no bounty
+            // progress recorded.
+            PLAYER_BOUNTIES_CODEC.listOf().optionalFieldOf("bounties", List.of())
+                    .forGetter(log -> log.bounties.entrySet().stream()
+                            .map(e -> new PlayerBounties(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
-    private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress) {
+    private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
+                                          List<PlayerBounties> bounties) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
         }
         for (PlayerTaskProgress progress : taskProgress) {
             log.taskProgress.put(progress.player(), new HashMap<>(progress.progress()));
+        }
+        for (PlayerBounties b : bounties) {
+            log.bounties.put(b.player(), new ArrayList<>(b.bounties()));
         }
         return log;
     }
@@ -691,6 +722,17 @@ final class DungeonLog extends SavedData {
             return;
         }
         progress.put(taskId, count);
+        setDirty();
+    }
+
+    /** (M34) The owner's stored bounty states, or an empty list if none recorded. */
+    List<BountyTracker.BountyState> bountiesOf(UUID owner) {
+        return bounties.getOrDefault(owner, List.of());
+    }
+
+    /** (M34) Replaces the owner's stored bounty states, for {@link BountyTracker}. */
+    void setBounties(UUID owner, List<BountyTracker.BountyState> states) {
+        bounties.put(owner, List.copyOf(states));
         setDirty();
     }
 }
