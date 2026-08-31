@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "commandsign.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "SignBlockEntityMixin",
+    "CustomClickMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

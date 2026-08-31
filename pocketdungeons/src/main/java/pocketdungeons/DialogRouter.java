@@ -65,8 +65,6 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_REROLL -> RerollStation.handleReroll(player,
                     tag.getStringOr(DialogScreens.KEY_ENCHANT, ""));
-            case DialogScreens.ACTION_GAMBLE -> GambleStation.handleGamble(player,
-                    tag.getStringOr(DialogScreens.KEY_SLOT, ""), tag.getIntOr(DialogScreens.KEY_TIER, 0));
             case DialogScreens.ACTION_IMBUE -> CubeStation.handleImbue(player,
                     tag.getStringOr(DialogScreens.KEY_POWER, ""));
             case DialogScreens.ACTION_VISIT_ROOM -> visitRoom(player, server,
@@ -88,6 +86,7 @@ public final class DialogRouter {
             case DialogScreens.ACTION_UNLOCK_SHELL -> unlockShell(player,
                     tag.getStringOr(DialogScreens.KEY_SHELL, ""));
             case DialogScreens.ACTION_DIARIES -> diaries(player, server);
+            case DialogScreens.ACTION_STATIONS -> StationPicker.open(player);
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);

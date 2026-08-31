@@ -21,7 +21,7 @@ public class ConnectorTest {
         System.out.println("ConnectorTest passed");
     }
 
-    /** The cumulative-weight roll assumes the table sums to exactly 100. */
+    /** The cumulative-weight roll assumes the table sums to exactly 95. */
     private static void testWeightsSumToOneHundred() {
         Map<ConnectorType, Integer> weights = Map.of(
                 ConnectorType.DOOR_WIDE, 45,
@@ -29,13 +29,12 @@ public class ConnectorTest {
                 ConnectorType.DOOR_DOUBLE, 10,
                 ConnectorType.IRON_DOOR, 10,
                 ConnectorType.OPEN, 10,
-                ConnectorType.ARCH, 5,
-                ConnectorType.BARS, 5);
+                ConnectorType.ARCH, 5);
         int total = 0;
         for (int w : weights.values()) {
             total += w;
         }
-        check(total, 100);
+        check(total, 95);
         // Every band boundary from the class doc, read off a fixed Random(0) sequence.
         for (int i = 0; i < 1000; i++) {
             ConnectorType.pick(new Random(i));

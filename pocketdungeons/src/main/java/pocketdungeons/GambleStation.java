@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import eu.pb4.sgui.api.gui.MerchantGui;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -8,10 +9,13 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.trading.ItemCost;
+import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,8 +24,13 @@ import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.component.DataComponents;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * M16: a room station that spends emeralds for one random piece of gear in a
@@ -35,20 +44,43 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  * block still gets vanilla's own screen; a gamble draw has nothing to check
  * about what is held, so the configured block is fully claimed the moment it
  * matches, the same way a selector door claims its click. The
- * default ({@code minecraft:emerald_block}) is picked so an operator is
- * unlikely to already be using it for its vanilla purpose somewhere the
- * gamble would surprise them.
+ * default ({@code minecraft:waxed_oxidized_copper_chest}) is picked so an
+ * operator is unlikely to already be using it for its vanilla purpose
+ * somewhere the gamble would surprise them.
  *
  * <p><b>The draw is a direct {@link LootTable} roll, not a chest.</b> M13's
  * gear pool is authored as {@code gear/<slot>_<tier>} tables specifically so
  * a gamble draw is one piece of one slot and cannot out-produce opening the
  * run's own chests (see {@link LootTables#gearTable}).
+ *
+ * <h2>SGUI merchant screen</h2>
+ *
+ * <p>The gamble uses SGUI's {@link MerchantGui} (the villager trading screen)
+ * because emeralds are the currency: the villager UI is the one vanilla screen
+ * where putting emeralds in and getting something out reads naturally. Each
+ * slot/tier combination is one trade, with the emerald cost as the trade's
+ * price and a placeholder item as the trade's displayed result.
+ *
+ * <p>The placeholder is not what the player receives. {@code onTrade}
+ * intercepts every trade attempt, runs the real random loot draw, deducts
+ * emeralds, delivers the rolled item, and returns {@code false} so vanilla's
+ * own trade completion never fires. The GUI closes immediately after, so the
+ * villager screen is purely a selection mechanism: pick a slot and tier, click
+ * the result, get a random item. The chat message confirms what rolled.
  */
 final class GambleStation {
 
     private static final ConfiguredItem GAMBLE_BLOCK_ITEM = new ConfiguredItem("gambleBlock",
             PocketDungeonsConfig::gambleBlock,
             "the gamble station will never open for anybody.");
+
+    /** The representative item shown for each slot in the trade list. */
+    private static final Map<String, Item> SLOT_ICONS = Map.of(
+            "helmet", Items.IRON_HELMET,
+            "chestplate", Items.IRON_CHESTPLATE,
+            "leggings", Items.IRON_LEGGINGS,
+            "boots", Items.IRON_BOOTS,
+            "weapon", Items.IRON_SWORD);
 
     private GambleStation() {}
 
@@ -77,56 +109,107 @@ final class GambleStation {
         if (!matchesStation(state)) {
             return false;
         }
-        showPicker(player, null);
+        openGui(player);
         TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
         return true;
     }
 
-    /** Rebuilds and sends the picker from the player's current keystone level. */
-    static void showPicker(ServerPlayer player, String notice) {
+    /**
+     * Opens the villager trading screen with one trade per unlocked
+     * slot/tier combination. Each trade's cost is the emerald price; each
+     * trade's displayed result is a placeholder item carrying the slot and
+     * tier in its {@code CUSTOM_DATA} so {@code onTrade} can identify which
+     * gamble the player chose.
+     */
+    private static void openGui(ServerPlayer player) {
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int maxTier = KeystoneMath.lootTier(Math.max(1, level));
-        DialogKit.show(player, DialogScreens.gamblePicker(player.getUUID(), maxTier, notice));
+
+        MerchantGui gui = new MerchantGui(player, false) {
+            @Override
+            public boolean onTrade(MerchantOffer offer) {
+                return handleTrade(player, offer);
+            }
+        };
+        gui.setTitle(Component.literal("Gamble Station"));
+        gui.setIsLeveled(false);
+
+        for (String slot : LootTables.GEAR_SLOTS) {
+            for (int tier = 1; tier <= maxTier; tier++) {
+                int cost = GambleMath.cost(tier, slot, PocketDungeonsConfig.gambleEmeraldsPerTier(),
+                        PocketDungeonsConfig.gambleSlotMultiplier(), PocketDungeonsConfig.gambleWeightedSlot());
+                ItemStack placeholder = placeholderItem(slot, tier, cost);
+                // maxUses is set high so the trade never stocks out; xp is 0
+                // so the trade gives no experience; priceMultiplier is 0 so
+                // the price never drifts with demand.
+                gui.addTrade(new MerchantOffer(
+                        new ItemCost(Items.EMERALD, cost),
+                        placeholder,
+                        Integer.MAX_VALUE, 0, 0f));
+            }
+        }
+
+        if (gui.getOfferIndex(gui.getSelectedTrade()) == -1
+                && !player.level().getServer().getPlayerList().getPlayer(player.getUUID()).equals(null)) {
+            // No trades at all: keystone level too low for even tier 1.
+            player.sendSystemMessage(Component.literal("Your keystone does not clear tier 1 yet.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
+
+        gui.open();
     }
 
     /**
-     * Performs one gamble draw, dispatched from {@link DialogRouter}.
-     * Re-validates the slot, the tier's unlock and the emerald count against
-     * the player's <em>current</em> state rather than trusting the screen's
-     * snapshot, the same staleness discipline {@link RerollStation
-     * #handleReroll} follows.
+     * The {@code onTrade} callback: identifies which slot/tier the player
+     * chose from the offer's placeholder, re-validates against the player's
+     * live state, runs the random draw, deducts emeralds, delivers the item,
+     * and returns {@code false} so vanilla's trade completion never fires.
+     * The GUI closes immediately after a successful draw.
      */
-    static void handleGamble(ServerPlayer player, String slot, int tier) {
+    private static boolean handleTrade(ServerPlayer player, MerchantOffer offer) {
+        ItemStack result = offer.getResult();
+        String slot = readMarker(result, "gambleSlot");
+        int tier = readIntMarker(result, "gambleTier");
+        if (slot.isEmpty() || tier < 1) {
+            PocketDungeonsMod.LOG.warn("Gamble trade had no slot/tier marker on its placeholder");
+            return false;
+        }
+
         if (!LootTables.GEAR_SLOTS.contains(slot)) {
-            showPicker(player, "That slot is no longer offered.");
-            return;
+            player.sendSystemMessage(Component.literal("That slot is no longer offered.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
         }
 
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int maxTier = KeystoneMath.lootTier(Math.max(1, level));
-        if (tier < 1 || tier > maxTier) {
-            showPicker(player, "Your keystone no longer clears that tier.");
-            return;
+        if (tier > maxTier) {
+            player.sendSystemMessage(Component.literal("Your keystone no longer clears that tier.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
         }
 
         int cost = GambleMath.cost(tier, slot, PocketDungeonsConfig.gambleEmeraldsPerTier(),
                 PocketDungeonsConfig.gambleSlotMultiplier(), PocketDungeonsConfig.gambleWeightedSlot());
         int emeralds = player.getInventory().countItem(Items.EMERALD);
         if (emeralds < cost) {
-            showPicker(player, "You need " + cost + " emeralds.");
-            return;
+            player.sendSystemMessage(Component.literal("You need " + cost + " emeralds.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
         }
 
         ItemStack drawn = draw(player.level(), player.position(), slot, tier);
         if (drawn.isEmpty()) {
             PocketDungeonsMod.LOG.error("Gamble draw for {} {} tier {} came up empty; refusing, nothing spent",
                     player.getName().getString(), slot, tier);
-            showPicker(player, "That draw did not work out. Nothing was spent.");
-            return;
+            player.sendSystemMessage(Component.literal("That draw did not work out. Nothing was spent.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
         }
 
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.EMERALD), cost,
-                new SimpleContainer(0));
+                new net.minecraft.world.SimpleContainer(0));
         Payout.deliver(player, drawn);
 
         // M34: emeralds spent at the gamble count toward the owner's High
@@ -144,7 +227,64 @@ final class GambleStation {
 
         player.sendSystemMessage(Component.literal("Gambled into " + drawn.getHoverName().getString() + ".")
                 .withStyle(ChatFormatting.AQUA));
-        showPicker(player, null);
+
+        // Close the GUI so the villager screen does not sit open after the
+        // trade was intercepted. The player can right-click the block again
+        // for another gamble.
+        player.closeContainer();
+        return false;
+    }
+
+    /**
+     * Builds the placeholder result item for one trade: the slot's
+     * representative armour/weapon piece, renamed to "? Helmet (Tier 1)" with
+     * lore explaining the gamble, and carrying the slot and tier in
+     * {@code CUSTOM_DATA} so {@code onTrade} can identify which gamble was
+     * chosen.
+     */
+    private static ItemStack placeholderItem(String slot, int tier, int cost) {
+        Item icon = SLOT_ICONS.getOrDefault(slot, Items.CHEST);
+        ItemStack stack = new ItemStack(icon);
+        String display = capitalize(slot) + ", Tier " + tier;
+        stack.set(DataComponents.CUSTOM_NAME,
+                Component.literal("? " + display).withStyle(ChatFormatting.LIGHT_PURPLE)
+                        .withStyle(s -> s.withItalic(false)));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("Random quality and material.")
+                        .withStyle(ChatFormatting.GRAY)
+                        .withStyle(s -> s.withItalic(false)),
+                Component.literal("Costs " + cost + " emeralds.")
+                        .withStyle(ChatFormatting.GRAY)
+                        .withStyle(s -> s.withItalic(false)))));
+
+        CompoundTag mine = new CompoundTag();
+        mine.putString("gambleSlot", slot);
+        mine.putInt("gambleTier", tier);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack,
+                tag -> tag.put(PocketDungeonsMod.MOD_ID, mine));
+        return stack;
+    }
+
+    private static String readMarker(ItemStack stack, String key) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return "";
+        }
+        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElseGet(CompoundTag::new);
+        return mine.getStringOr(key, "");
+    }
+
+    private static int readIntMarker(ItemStack stack, String key) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return 0;
+        }
+        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElseGet(CompoundTag::new);
+        return mine.getIntOr(key, 0);
+    }
+
+    private static String capitalize(String word) {
+        return word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1);
     }
 
     /**

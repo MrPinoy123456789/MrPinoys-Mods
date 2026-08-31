@@ -23,9 +23,9 @@ public class LodestoneMenuTest {
 
         UUID player = UUID.fromString("00000000-0000-0000-0000-0000000000d4");
 
-        // Overworld menu: Start Dungeon, Browse Lobbies, Manage Room, Inspect Keystone, Diaries.
+        // Overworld menu: Start Dungeon, Browse Lobbies, Manage Room, Stations, Inspect Keystone, Diaries.
         List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false);
-        check(overworld.size(), 5, "overworld menu has five options");
+        check(overworld.size(), 6, "overworld menu has six options");
         check(overworld.get(0).label(), "Start Dungeon", "overworld first is Start Dungeon");
         check(overworld.get(0).action(), DialogScreens.ACTION_START_DUNGEON,
                 "Start Dungeon carries its action id");
@@ -35,16 +35,19 @@ public class LodestoneMenuTest {
         check(overworld.get(2).label(), "Manage Room", "overworld third is Manage Room");
         check(overworld.get(2).action(), DialogScreens.ACTION_MANAGE_ROOM,
                 "Manage Room carries its action id");
-        check(overworld.get(3).label(), "Inspect Keystone", "overworld fourth is Inspect Keystone");
-        check(overworld.get(3).action(), DialogScreens.ACTION_INSPECT_KEYSTONE,
+        check(overworld.get(3).label(), "Stations", "overworld fourth is Stations");
+        check(overworld.get(3).action(), DialogScreens.ACTION_STATIONS,
+                "Stations carries its action id");
+        check(overworld.get(4).label(), "Inspect Keystone", "overworld fifth is Inspect Keystone");
+        check(overworld.get(4).action(), DialogScreens.ACTION_INSPECT_KEYSTONE,
                 "Inspect Keystone carries its action id");
-        check(overworld.get(4).label(), "Diaries", "overworld fifth is Diaries");
-        check(overworld.get(4).action(), DialogScreens.ACTION_DIARIES,
+        check(overworld.get(5).label(), "Diaries", "overworld sixth is Diaries");
+        check(overworld.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
-        // In-dungeon owner: Leave, Manage Room, Change Shell, Inspect Keystone, Diaries.
+        // In-dungeon owner: Leave, Manage Room, Change Shell, Stations, Inspect Keystone, Diaries.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true);
-        check(owner.size(), 5, "in-dungeon owner menu has five options");
+        check(owner.size(), 6, "in-dungeon owner menu has six options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON,
                 "Leave carries its action id");
@@ -52,9 +55,12 @@ public class LodestoneMenuTest {
         check(owner.get(2).label(), "Change Shell", "the room's own owner sees Change Shell");
         check(owner.get(2).action(), DialogScreens.ACTION_CHANGE_SHELL,
                 "Change Shell carries its action id");
-        check(owner.get(3).label(), "Inspect Keystone", "in-dungeon fourth is Inspect Keystone");
-        check(owner.get(4).label(), "Diaries", "in-dungeon owner last is Diaries");
-        check(owner.get(4).action(), DialogScreens.ACTION_DIARIES,
+        check(owner.get(3).label(), "Stations", "the room's own owner sees Stations");
+        check(owner.get(3).action(), DialogScreens.ACTION_STATIONS,
+                "Stations carries its action id");
+        check(owner.get(4).label(), "Inspect Keystone", "in-dungeon fifth is Inspect Keystone");
+        check(owner.get(5).label(), "Diaries", "in-dungeon owner last is Diaries");
+        check(owner.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
         // In-dungeon visitor: Leave, Inspect Keystone, Diaries; no Manage Room.
@@ -71,7 +77,7 @@ public class LodestoneMenuTest {
                 "overworld menu is a MultiActionDialog");
         net.minecraft.server.dialog.MultiActionDialog list =
                 (net.minecraft.server.dialog.MultiActionDialog) dialog;
-        check(list.actions().size(), 5, "one button per overworld option");
+        check(list.actions().size(), 6, "one button per overworld option");
         net.minecraft.server.dialog.action.CustomAll action =
                 (net.minecraft.server.dialog.action.CustomAll) list.actions().get(0).action().orElseThrow();
         net.minecraft.nbt.CompoundTag payload = action.additions().orElseThrow();
@@ -81,7 +87,7 @@ public class LodestoneMenuTest {
         net.minecraft.server.dialog.Dialog dungeonDialog = DialogScreens.lodestoneMenuDialog(owner, player, true);
         check(dungeonDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
                 "in-dungeon menu is a MultiActionDialog");
-        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 5,
+        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 6,
                 "one button per in-dungeon owner option");
 
         System.out.println("LodestoneMenuTest passed");

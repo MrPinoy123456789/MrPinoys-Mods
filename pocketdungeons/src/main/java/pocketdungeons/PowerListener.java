@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -41,6 +42,15 @@ import java.util.UUID;
  * order (armour head-to-feet, then main hand) decides which powers win a
  * contested cap, the same "first come" rule {@link PowerEquipMath}'s own
  * javadoc documents.
+ *
+ * <h2>Lore: the bonus line a player reads</h2>
+ *
+ * <p>The same scan also bakes a one-line description of the imbued power's
+ * bonus into each imbued item's {@link DataComponents#LORE} via {@link BonusLore},
+ * the same shape {@link TrimListener} uses for trim bonuses. Without this, an
+ * imbued item carries a {@code pocketdungeons.power} tag that {@link #reconcile}
+ * reads silently, and the player has no in-game way to learn what the power
+ * does. See {@link BonusLore}'s class note for why LORE and not a tooltip event.
  */
 final class PowerListener {
 
@@ -49,7 +59,8 @@ final class PowerListener {
             EquipmentSlot.MAINHAND,
     };
 
-    private record ResolvedBonus(String powerId, Holder<Attribute> attribute,
+    private record ResolvedBonus(String powerId, Identifier attributeKey,
+                                  Holder<Attribute> attribute,
                                   AttributeModifier.Operation operation, double amount) {}
 
     private static List<ResolvedBonus> resolved;
@@ -90,7 +101,7 @@ final class PowerListener {
                         + "add_multiplied_total; that entry is disabled", entry.id(), entry.operation());
                 continue;
             }
-            list.add(new ResolvedBonus(entry.id(), attribute, operation, entry.amount()));
+            list.add(new ResolvedBonus(entry.id(), attributeId, attribute, operation, entry.amount()));
         }
         resolved = list;
         return resolved;
@@ -111,6 +122,7 @@ final class PowerListener {
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             reconcile(player);
+            reconcileLore(player);
         }
     }
 
@@ -160,6 +172,35 @@ final class PowerListener {
 
     private static boolean isSameHolder(Holder<Attribute> a, Holder<Attribute> b) {
         return a.unwrapKey().equals(b.unwrapKey());
+    }
+
+    /**
+     * Bakes the power's bonus line into every imbued item in the player's
+     * inventory (not just worn/held slots), so the tooltip shows the bonus
+     * before the player decides to equip it. Idempotent via {@link
+     * BonusLore#ensure}: a stack whose lore already carries the exact line
+     * is not touched, so the scan produces no sync traffic after the first
+     * pass that finds each item.
+     */
+    private static void reconcileLore(ServerPlayer player) {
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            String power = CubeStation.powerOf(stack);
+            if (power.isBlank()) {
+                continue;
+            }
+            ResolvedBonus bonus = bonusFor(power);
+            if (bonus == null) {
+                continue;
+            }
+            BonusLore.ensure(stack, "Imbued power:",
+                    BonusLore.line("Imbued power:", bonus.amount(), bonus.operation(),
+                            bonus.attributeKey(), false));
+        }
     }
 
     private static Identifier modifierId(EquipmentSlot slot) {

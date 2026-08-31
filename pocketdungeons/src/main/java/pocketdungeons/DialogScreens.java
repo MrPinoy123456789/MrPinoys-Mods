@@ -60,11 +60,6 @@ final class DialogScreens {
     static final String KEY_ENCHANT = "pd_enchant";
     static final String ACTION_REROLL = "reroll";
 
-    /** M16: which slot and tier the gamble picker's button chose. */
-    static final String KEY_SLOT = "pd_slot";
-    static final String KEY_TIER = "pd_tier";
-    static final String ACTION_GAMBLE = "gamble";
-
     /** M17: which extracted power the Cube's imbue picker's button chose. */
     static final String KEY_POWER = "pd_power";
     static final String ACTION_IMBUE = "imbue";
@@ -91,6 +86,8 @@ final class DialogScreens {
     static final String ACTION_UNLOCK_SHELL = "unlock_shell";
     /** (M26) The lodestone menu's Diaries option, and the reader's own Back button. */
     static final String ACTION_DIARIES = "diaries";
+    /** The lodestone menu's Stations option: opens the SGUI station picker (owner-only). */
+    static final String ACTION_STATIONS = "stations";
     /**
      * The Back buttons. This API has no history stack, so going back is the
      * parent screen rebuilt from live state, which means a round trip through
@@ -381,50 +378,10 @@ final class DialogScreens {
     }
 
     // ---- section 8: the gear gamble station (M16) ---------------------------
-
-    /**
-     * Every unlocked slot/tier combination, one "Gamble" button each. Tier B,
-     * like {@link #rerollPicker}: the button carries the slot name and tier
-     * so {@link GambleStation#handleGamble} can re-validate both (and the
-     * emerald count) against the player's live state, since the keystone
-     * level that unlocked a tier and the emeralds to pay for it can both
-     * change while the screen sits open.
-     *
-     * <p>{@code maxTier} is read off {@link KeystoneMath#lootTier}, the same
-     * level-to-tier mapping a run's own loot already uses: a low-level
-     * player sees only tier-1 gambles, the same "level gates access" rule
-     * M10/M12/M14 already use.
-     */
-    static Dialog gamblePicker(UUID player, int maxTier, String notice) {
-        List<DialogBody> body = new ArrayList<>();
-        if (notice != null) {
-            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
-        }
-        body.add(DialogKit.text("Pick a slot and a tier. No guarantee of quality, just of fit."));
-
-        List<ActionButton> buttons = new ArrayList<>();
-        for (String slot : LootTables.GEAR_SLOTS) {
-            for (int tier = 1; tier <= maxTier; tier++) {
-                int cost = GambleMath.cost(tier, slot, PocketDungeonsConfig.gambleEmeraldsPerTier(),
-                        PocketDungeonsConfig.gambleSlotMultiplier(), PocketDungeonsConfig.gambleWeightedSlot());
-                CompoundTag context = new CompoundTag();
-                context.putString(KEY_OWNER, player.toString());
-                context.putString(KEY_SLOT, slot);
-                context.putInt(KEY_TIER, tier);
-                buttons.add(DialogKit.button(capitalize(slot) + ", tier " + tier + " (" + cost + " emeralds)",
-                        null, DialogKit.submit(ACTION_GAMBLE, context)));
-            }
-        }
-        if (buttons.isEmpty()) {
-            body.add(DialogKit.text("Your keystone does not clear tier 1 yet."));
-            return DialogKit.notice("Gamble station", body);
-        }
-        return DialogKit.list("Gamble station", body, buttons, "Close");
-    }
-
-    private static String capitalize(String word) {
-        return word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1);
-    }
+    // The gamble station now uses SGUI's MerchantGui (villager trading screen)
+    // rather than a vanilla dialog. The villager UI fits emerald-as-currency
+    // naturally, and onTrade intercepts each trade to run the real random loot
+    // draw. See GambleStation for the implementation.
 
     // ---- section 9: the Herobrine Cube's imbue picker (M17) -----------------
 
@@ -578,6 +535,10 @@ final class DialogScreens {
                 // the room is stamped, and only its owner gets to reframe it.
                 options.add(new MenuOption("Change Shell", "Swap your room's frame",
                         ACTION_CHANGE_SHELL));
+                // Stations: owner-only, same gate as Change Shell. A party
+                // member visiting another player's room does not see this.
+                options.add(new MenuOption("Stations", "Take a station block for your room",
+                        ACTION_STATIONS));
             }
             options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
             options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
@@ -588,6 +549,8 @@ final class DialogScreens {
                         ACTION_START_DUNGEON),
                 new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
+                new MenuOption("Stations", "Take a station block for your room",
+                        ACTION_STATIONS),
                 new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Diaries", null, ACTION_DIARIES));
     }
@@ -848,6 +811,13 @@ final class DialogScreens {
                 body.add(DialogKit.text(Component.literal("Entry " + diaryEntry.number() + ": ???")
                         .withStyle(ChatFormatting.GRAY)));
             }
+        }
+        // MultiActionDialog rejects an empty actions list ("List must have
+        // contents"), so before any entry is discovered the screen is a notice
+        // with the Back button as its one action, the same shape the lobby
+        // directory uses when nobody is listing a room.
+        if (buttons.isEmpty()) {
+            return DialogKit.notice("Diaries", body, backToMenuButton(owner));
         }
         return DialogKit.list("Diaries", body, buttons, backToMenuButton(owner));
     }

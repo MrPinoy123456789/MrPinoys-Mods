@@ -14,11 +14,11 @@ import java.util.UUID;
  * is decided.
  *
  * <p>Running out of time downgrades the keystone by 2 levels but does not
- * close the dungeon: the player can still finish in overtime, and a door 1
- * finish gives +1, so the net loss is only 1 level. A completion finished
- * after the clock adds no further penalty since the timeout already applied
- * it. Disconnecting, dying, running {@code /dungeon exit}, and a server
- * purge all cost nothing.
+ * close the dungeon: the player can still finish in overtime, though a late
+ * finish banks no door bonus, so the key stays at its depleted level. A
+ * completion finished after the clock adds no further penalty since the
+ * timeout already applied it. Disconnecting, dying, running
+ * {@code /dungeon exit}, and a server purge all cost nothing.
  */
 final class Keystones {
 
@@ -26,7 +26,7 @@ final class Keystones {
     enum Outcome {
         /** The clock ran out before the run was completed. The harshest way to lose ground. */
         TIMED_OUT,
-        /** Completed, but after the clock -- still counts, still offers a door, costs less. */
+        /** Completed, but after the clock. Still counts, but banks no door bonus and costs levels. */
         LATE,
         /** Anything else -- completed in time, left, died, disconnected, purged, restarted. */
         NO_CHANGE;

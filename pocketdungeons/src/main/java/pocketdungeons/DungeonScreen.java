@@ -70,8 +70,10 @@ final class DungeonScreen {
      */
     private static final double DOOR_CENTER_Y = 5.0;
     private static final double ENGINE_CENTER_Y = 4.5;
+    private static final double TRACKER_CENTER_Y = 4.5;
     private static final float DOOR_SCALE = 2.0f;
     private static final float ENGINE_SCALE = 1.0f;
+    private static final float TRACKER_SCALE = 1.0f;
 
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
@@ -83,6 +85,7 @@ final class DungeonScreen {
      */
     private static final double DOOR_SCREEN_ALONG = 8.0;
     private static final double ENGINE_SCREEN_ALONG = 7.5;
+    private static final double TRACKER_SCREEN_ALONG = 7.5;
     private static final int LINE_WIDTH = 200;
     private static final boolean SEE_THROUGH = false;
 
@@ -130,6 +133,51 @@ final class DungeonScreen {
                 yawFor(engineWall), content);
     }
 
+    /**
+     * Refreshes the tracker screen on the wall opposite the engine screen
+     * (the selector wall's right, the engine's left). Shows the owner's
+     * active guided task, or once the tutorial is done, the weekly bounties.
+     * Replaces the old scoreboard sidebar: instead of a global per-player
+     * sidebar, the progress is a third physical screen in the room, visible
+     * only to whoever is standing in it.
+     */
+    static void updateTracker(ServerLevel level, InstanceRecord record) {
+        if (record.roomCellOrigin == null) {
+            return;
+        }
+        Component content = trackerContent(level.getServer(), record.owner);
+        summonTracker(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+    }
+
+    /** Summons the tracker screen for a room stamp; see {@link #updateTracker}. */
+    static void summonTracker(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
+                              Component content) {
+        DoorMask.Direction trackerWall = RoomGeometry.rightOf(selectorWall);
+        show(level, roomOrigin, trackerWall, TRACKER_SCREEN_ALONG, TRACKER_CENTER_Y, TRACKER_SCALE,
+                yawFor(trackerWall), content);
+    }
+
+    /**
+     * Refreshes the tracker screen for {@code owner}'s room from anywhere
+     * with just a server (the task/bounty progress hooks, which fire without
+     * a level or record in hand). No-op if the owner is not currently in a
+     * dungeon instance, so progress earned outside a room does not summon a
+     * screen into nothing.
+     */
+    static void refreshTracker(MinecraftServer server, UUID owner) {
+        if (owner == null) {
+            return;
+        }
+        InstanceRecord record = InstanceRegistry.byMember.get(owner);
+        if (record == null || record.roomCellOrigin == null) {
+            return;
+        }
+        ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (dungeon != null) {
+            updateTracker(dungeon, record);
+        }
+    }
+
     // ---- the five door-screen contexts (plan 19.1) ---------------------------
 
     /**
@@ -148,7 +196,7 @@ final class DungeonScreen {
             content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
                     .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
         }
-        return appendTaskLine(content, level, owner);
+        return content;
     }
 
     /** Context 2: a door is selected: offered level, theme, effective affixes. */
@@ -168,7 +216,7 @@ final class DungeonScreen {
         if (offerLevel <= 1) {
             content.append(Component.literal("\nPull the lever to descend!").withStyle(ChatFormatting.GREEN));
         }
-        return appendTaskLine(content, level, owner);
+        return content;
     }
 
     /** Context 3: a run is in progress: level, theme, affixes, and the clock. */
@@ -178,38 +226,6 @@ final class DungeonScreen {
                 : "Time: " + KeystoneMath.formatClock(record.timer.secondsRemaining());
         MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
                 + themeName(record.theme) + "\n" + affixLine(record.affixes) + "\n" + timeLine);
-        return appendTaskLine(content, level, record.owner);
-    }
-
-    /**
-     * M33: appends the guided task line (e.g. "\nFeed the Engine 2/3") when
-     * {@code owner} is online and still has one, otherwise returns
-     * {@code content} unchanged. M34: appends the weekly bounty lines below
-     * the task line. {@code level} is nullable the same way
-     * {@link #idleContent} already tolerates it (a visit copy, or a stamp
-     * with nobody standing there yet).
-     */
-    private static MutableComponent appendTaskLine(MutableComponent content, ServerLevel level, UUID owner) {
-        if (level == null || owner == null) {
-            return content;
-        }
-        ServerPlayer player = level.getServer().getPlayerList().getPlayer(owner);
-        if (player == null) {
-            return content;
-        }
-        TaskTracker.syncScoreboard(level.getServer(), player);
-        Component taskLine = TaskTracker.taskLine(player);
-        if (taskLine != null) {
-            content = content.append("\n").append(taskLine);
-        }
-        // M34: bounty lines below the task line, one per weekly bounty.
-        BountyTracker.syncScoreboard(level.getServer(), player);
-        java.util.List<Component> bountyLines = BountyTracker.bountyLines(player);
-        if (bountyLines != null) {
-            for (Component line : bountyLines) {
-                content = content.append("\n").append(line);
-            }
-        }
         return content;
     }
 
@@ -266,6 +282,43 @@ final class DungeonScreen {
         return Component.literal("ECHO SHARDS").withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("\n" + balance + "\nPer premium door: "
                         + PocketDungeonsConfig.fuelCostPerGreaterDoor()));
+    }
+
+    // ---- tracker screen content ---------------------------------------------
+
+    /**
+     * The tracker screen: the owner's active guided task with its progress,
+     * or once the tutorial is done, the weekly bounties with their progress.
+     * Replaces the old scoreboard sidebar, which was global and per-player;
+     * this is a physical screen in the room, so it is visible only to whoever
+     * is standing in it, and it carries no state outside the room.
+     *
+     * <p>Keys off the owner, not a viewer: a stamp with nobody standing there
+     * still shows the owner's progress, the same way the engine screen's
+     * cost line shows without a viewer. {@code server} or {@code owner} may
+     * be null (a defensive caller), in which case just the title renders.
+     */
+    static Component trackerContent(MinecraftServer server, UUID owner) {
+        if (server == null || owner == null) {
+            return Component.literal("PROGRESS").withStyle(ChatFormatting.GOLD);
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        int level = log.get(owner).keystoneLevel();
+        Component taskLine = TaskTracker.taskLine(log, owner, level);
+        if (taskLine != null) {
+            return Component.literal("TASK").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\n").append(taskLine));
+        }
+        MutableComponent content = Component.literal("WEEKLY BOUNTIES").withStyle(ChatFormatting.GOLD);
+        List<Component> bountyLines = BountyTracker.bountyLines(log, owner);
+        if (bountyLines == null || bountyLines.isEmpty()) {
+            content.append(Component.literal("\nAll bounties done").withStyle(ChatFormatting.AQUA));
+        } else {
+            for (Component line : bountyLines) {
+                content.append(Component.literal("\n")).append(line);
+            }
+        }
+        return content;
     }
 
     // ---- summon / update / clear --------------------------------------------

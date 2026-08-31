@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "commandsign",
+  "version": "${version}",
+  "name": "Command Signs",
+  "description": "Turns vanilla signs into server-side command buttons. Op shift-right-clicks a sign to attach a command; players right-click to run it as the server.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "commandsign.CommandSignMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "commandsign.mixins.json"
+  ]
+}

@@ -575,7 +575,10 @@ final class RoomTemplateGenerator {
             DoorHingeSide hinge = i == RoomGeometry.DOOR_MIN
                     ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
             placeDoor(level, lower, DOOR_NONE, facing, hinge);
-            RoomBuilder.set(level, lower.offset(0, 2, 0), RoomBuilder.WALL); // lintel
+            // The lintel matches the room's current shell, not a hardcoded stone
+            // brick: a swapped shell (M24) would otherwise keep a stone-brick
+            // strip above the doors every time the doors are re-placed.
+            RoomBuilder.set(level, lower.offset(0, 2, 0), RoomBuilder.shellWallAt(level, o)); // lintel
         }
     }
 
@@ -748,11 +751,13 @@ final class RoomTemplateGenerator {
      * chosen and the doorway is punched. The choosing is over, so the
      * indicators come out rather than going dark: two of the three positions
      * are about to become the new doorway's lintel, and the third is the wall
-     * beside it.
+     * beside it. The wall block is the room's current shell, so a swapped
+     * shell (M24) does not keep a stone-brick patch where the bulbs were.
      */
     static void clearBulbs(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        BlockState wallBlock = RoomBuilder.shellWallAt(level, o);
         for (int along : SELECTOR_DOORS) {
-            RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), RoomBuilder.WALL);
+            RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), wallBlock);
         }
     }
 

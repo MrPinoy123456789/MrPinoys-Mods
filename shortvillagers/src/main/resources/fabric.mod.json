@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "shortvillagers",
+  "version": "${version}",
+  "name": "Short Villagers",
+  "description": "Shrinks villager collision height just enough (1.9 by default) that they can walk through carpeted doorways and under 2-block-high ceilings without getting stuck. The render model is untouched; only the hitbox changes.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "shortvillagers.ShortVillagersMod"
+    ]
+  },
+  "mixins": [
+    "shortvillagers.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

@@ -163,6 +163,8 @@ final class VisitService {
                 DungeonScreen.roomContent(server, record, visitor));
         DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, origin, DoorMask.Direction.SOUTH,
+                DungeonScreen.trackerContent(server, record.owner));
 
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
         if (ownerPlayer != null) {

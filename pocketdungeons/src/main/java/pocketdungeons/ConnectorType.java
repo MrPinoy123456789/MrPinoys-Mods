@@ -17,8 +17,7 @@ enum ConnectorType {
     DOOR_DOUBLE(10),
     IRON_DOOR(10),
     OPEN(10),
-    ARCH(5),
-    BARS(5);
+    ARCH(5);
 
     private final int weight;
 

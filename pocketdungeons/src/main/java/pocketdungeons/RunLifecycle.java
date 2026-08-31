@@ -735,7 +735,17 @@ final class RunLifecycle {
         if (!record.isKeystoneRun() || !record.keystoneReturned.add(member)) {
             return;
         }
-        Keystones.returnTo(server, member, player, record.layout.keystoneLevel(), record.affixes, outcome);
+        // Deplete from the member's own keystone level, not the run's layout
+        // level. The layout level is the offer level (key + door step), which
+        // is the difficulty the run was stamped at, not the level the member's
+        // key actually sits at. A +2 door from a 14 key runs at level 16, but
+        // the key is still 14 until a timed success banks the offer. Depleting
+        // from 16 would cost the member levels they never had, and a party
+        // member riding along at a lower level would deplete from a level
+        // above their own. Reading from DungeonLog gives each member their
+        // own true key level at the moment of failure.
+        int memberLevel = DungeonLog.forServer(server).get(member).keystoneLevel();
+        Keystones.returnTo(server, member, player, memberLevel, record.affixes, outcome);
     }
 
     /**
@@ -864,14 +874,15 @@ final class RunLifecycle {
             returnKeystone(server, record, player.getUUID(), player, outcome);
         }
         // M2/M3: the door choice already happened, at the lobby, before this
-        // run started -- record.chosenStep is which of Keystone.offers this
-        // player's own current level (the run's starting level normally, or
-        // the just-depleted one on a late finish) is banked at. Reaching a
-        // door at all is what mitigates the delevel: a +1 door nets only -1
-        // overall against a 2-level late penalty. Banked immediately rather
-        // than parked as a pending offer -- there is no later "go choose a
-        // door" step any more, so nothing is left to settle.
-        if (record.chosenStep > 0) {
+        // run started. On a timed success, record.chosenStep is which of
+        // Keystone.offers this player's own current level banks at: the key
+        // levels up by the door step, so a +2 door from 14 lands at 16. The
+        // door bonus is the reward for timing the run, not for reaching the
+        // pad at all. A late finish depletes from the member's own key level
+        // (above) and banks nothing, so failing to time never levels the key
+        // up. Banked immediately rather than parked as a pending offer, since
+        // there is no later "go choose a door" step any more.
+        if (!late && record.chosenStep > 0) {
             DungeonLog.Entry memberEntry = log.get(player.getUUID());
             Keystone.Offer[] offers = Keystone.offers(player.getUUID(), memberEntry.keystoneLevel(),
                     memberEntry.currentTheme(), memberEntry.depth());
@@ -1062,6 +1073,8 @@ final class RunLifecycle {
         RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall, true);
         DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, newRoomOrigin, farWall,
+                DungeonScreen.trackerContent(level.getServer(), record.owner));
         record.awaitingDoorChoice = true;
 
         // The bedrock envelope, same as stampLobby's applyToCell: nothing
@@ -1181,7 +1194,7 @@ final class RunLifecycle {
             owner.sendSystemMessage(Component.literal(
                     "The clock ran out. Your keystone is downgraded by "
                             + PocketDungeonsConfig.timedOutDepletion()
-                            + ", but the dungeon stays open. Finish it for a door.")
+                            + ", but the dungeon stays open if you want to finish.")
                     .withStyle(ChatFormatting.YELLOW));
             Chime.runTimedOut(owner);
         } else {

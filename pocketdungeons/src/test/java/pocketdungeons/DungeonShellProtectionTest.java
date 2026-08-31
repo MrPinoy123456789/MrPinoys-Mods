@@ -19,6 +19,7 @@ public class DungeonShellProtectionTest {
 
     public static void main(String[] args) {
         testInsideDungeonCellDuringActiveRun();
+        testShellProtectedInteriorOpen();
         testOutsideEveryDungeonCell();
         testRoomCellIsSkipped();
         testProtectionLiftsAfterCompletion();
@@ -27,7 +28,7 @@ public class DungeonShellProtectionTest {
         System.out.println("DungeonShellProtectionTest passed");
     }
 
-    /** A two-cell run, still active: both cells are protected. */
+    /** A two-cell run, still active: both cells' shells are protected. */
     private static void testInsideDungeonCellDuringActiveRun() {
         InstanceRegistry.bySlot.clear();
         BlockPos origin = new BlockPos(1000, 64, 2000);
@@ -40,6 +41,42 @@ public class DungeonShellProtectionTest {
 
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record);
         check(Instances.dungeonRecordAt(origin.offset(20, 2, 5)) == record);
+    }
+
+    /**
+     * The shell (floor, walls, ceiling) of an active dungeon cell is protected;
+     * the interior is not. Same coordinate test as the player room's
+     * {@link RoomProtection#isShell}.
+     */
+    private static void testShellProtectedInteriorOpen() {
+        InstanceRegistry.bySlot.clear();
+        BlockPos origin = new BlockPos(1000, 64, 2000);
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
+        InstanceRecord record = new InstanceRecord(95, origin, 0L,
+                InstanceLayout.forClearingOnly(origin, geometry),
+                EnumSet.noneOf(Affix.class), null, false);
+        InstanceRegistry.bySlot.put(95, record);
+
+        BlockPos cellOrigin = Instances.dungeonCellOriginAt(origin.offset(8, 3, 8));
+        check(cellOrigin != null, "interior position has a cell origin");
+
+        // Shell positions are protected.
+        check(RoomProtection.isShell(origin.offset(0, 3, 8), cellOrigin),
+                "wall at x=0 is shell");
+        check(RoomProtection.isShell(origin.offset(15, 3, 8), cellOrigin),
+                "wall at x=15 is shell");
+        check(RoomProtection.isShell(origin.offset(8, 0, 8), cellOrigin),
+                "floor at y=0 is shell");
+        check(RoomProtection.isShell(origin.offset(8, 6, 8), cellOrigin),
+                "ceiling at y=6 is shell");
+
+        // Interior positions are not protected.
+        check(!RoomProtection.isShell(origin.offset(8, 3, 8), cellOrigin),
+                "interior at 8,3,8 is not shell");
+        check(!RoomProtection.isShell(origin.offset(1, 1, 1), cellOrigin),
+                "interior at 1,1,1 is not shell");
+        check(!RoomProtection.isShell(origin.offset(14, 5, 14), cellOrigin),
+                "interior at 14,5,14 is not shell");
     }
 
     /** Outside every occupied cell, and above/below the 16x16x7 box, is never protected. */
@@ -98,14 +135,23 @@ public class DungeonShellProtectionTest {
                 EnumSet.noneOf(Affix.class), null, false);
         InstanceRegistry.bySlot.put(94, record);
 
-        check(Instances.dungeonRecordAt(origin.offset(8, 3, 8)) == record); // wall break denied
+        // Shell position is protected while the run is active.
+        check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) != null,
+                "shell position has a cell origin while active");
         record.completed.add(UUID.randomUUID());
-        check(Instances.dungeonRecordAt(origin.offset(8, 3, 8)) == null); // wall break allowed
+        check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) == null,
+                "shell position has no cell origin after completion");
     }
 
     private static void check(boolean condition) {
         if (!condition) {
             throw new AssertionError("Expected true");
+        }
+    }
+
+    private static void check(boolean condition, String what) {
+        if (!condition) {
+            throw new AssertionError(what);
         }
     }
 }

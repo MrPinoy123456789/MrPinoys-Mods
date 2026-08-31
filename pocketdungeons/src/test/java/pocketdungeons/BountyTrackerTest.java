@@ -27,6 +27,7 @@ public class BountyTrackerTest {
         testStaleWeekResets();
         testSidecarRoundTrip();
         testLegacySaveDefaults();
+        testBountiesLockedUntilTutorialDone();
         System.out.println("BountyTrackerTest passed");
     }
 
@@ -156,6 +157,23 @@ public class BountyTrackerTest {
         DungeonLog legacy = DungeonLog.CODEC.decode(
                 com.mojang.serialization.JsonOps.INSTANCE, old).result().orElseThrow().getFirst();
         check(legacy.bountiesOf(OWNER).isEmpty(), "pre-M34 save defaults bounties to empty");
+    }
+
+    /**
+     * Bounties are locked until every guided tutorial task is done: a fresh
+     * player has an active task and so is locked, and a player with every
+     * task at its target is unlocked.
+     */
+    private static void testBountiesLockedUntilTutorialDone() {
+        DungeonLog log = new DungeonLog();
+        check(BountyTracker.bountiesUnlocked(log, OWNER), false,
+                "a fresh player with unfinished tutorial tasks is bounty-locked");
+
+        for (TaskTracker.Task task : TaskTracker.Task.values()) {
+            log.setTaskProgress(OWNER, task.id, task.targetCount);
+        }
+        check(BountyTracker.bountiesUnlocked(log, OWNER), true,
+                "a player with every tutorial task done is bounty-unlocked");
     }
 
     private static void check(Object actual, Object expected, String what) {

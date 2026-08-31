@@ -57,6 +57,10 @@ public final class HearsayMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             config.reload();
             LOG.info("Hearsay config loaded");
+            // Bubble TextDisplays are saved entities and survive a restart; the
+            // in-memory bubble map does not. Purge orphans before any new speech
+            // can stack on top of them.
+            bubbles.purgeOrphans(server);
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {

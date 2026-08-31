@@ -18,15 +18,16 @@ import java.util.UUID;
  * the mask: the shell (floor, walls, ceiling, lamps; see {@link #isShell}) is
  * immutable to everyone, the owner included.
  *
- * <p><strong>Positional, not global.</strong> There is no
+ * * <p><strong>Positional, not global.</strong> There is no
  * {@code PlayerBlockBreakEvents} registration anywhere else in this mod. So
  * every check here starts with "is this position inside anyone's room right
  * now" ({@link Instances#roomOwnerAt}), which is one bounds check per live
  * instance and costs nothing when the answer is no. M31 9.2 adds a second
  * check on top: the dungeon cells (the quarry, T2.5) outside any room are
  * shell-protected too, but only while the run is still active
- * ({@link Instances#dungeonRecordAt}) -- they go back to being fully
- * breakable the moment the first member completes it.
+ * ({@link Instances#dungeonCellOriginAt}) -- the interior stays breakable and
+ * placeable, same as a player room's interior, and the whole thing opens up
+ * the moment the first member completes it.
  *
  * <p>Container protection is a check inside {@link RitualListener#onUseBlock},
  * which already owns this mod's one {@code UseBlockCallback} registration and
@@ -46,10 +47,15 @@ final class RoomProtection {
         UUID roomOwner = Instances.roomOwnerAt(pos);
         if (roomOwner == null) {
             // M31 9.2: not in anyone's room, but still might be in an active
-            // run's dungeon cells -- those are shell-protected the same as a
-            // room's own shell while the run is live, and open up again the
-            // moment the first member completes it.
-            return Instances.dungeonRecordAt(pos) == null;
+            // run's dungeon cells. Like the player room, only the shell
+            // (floor, walls, ceiling) is immutable; the interior stays
+            // breakable so a player can dig, loot and fight their way through.
+            // Protection lifts entirely the moment the first member completes.
+            BlockPos dungeonCellOrigin = Instances.dungeonCellOriginAt(pos);
+            if (dungeonCellOrigin == null) {
+                return true;
+            }
+            return !isShell(pos, dungeonCellOrigin);
         }
         // M18 9.1: the shell is immutable to everyone, the owner included.
         // Checked ahead of the permission mask so a whitelisted guest cannot

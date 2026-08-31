@@ -10,6 +10,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
@@ -57,6 +58,31 @@ public final class Bubbles {
 
     public Bubbles() {}
 
+    /**
+     * Kill any bubble entities left in the world from a previous run.
+     *
+     * <p>Bubble {@link Display.TextDisplay TextDisplays} are saved entities, so
+     * they survive a server restart. The in-memory {@link #speech} map does not,
+     * which means reloaded bubbles are orphans: nothing tracks them, their
+     * expiry is forgotten, and the next {@link #say} spawns a fresh bubble on
+     * top of them. That is the "two overlapping lines above one head" bug.
+     * Running this once on server start clears the slate.
+     */
+    public void purgeOrphans(MinecraftServer server) {
+        int killed = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity e : level.getAllEntities()) {
+                if (e instanceof Display.TextDisplay && e.entityTags().contains(TAG)) {
+                    e.discard();
+                    killed++;
+                }
+            }
+        }
+        if (killed > 0) {
+            HearsayMod.LOG.info("Hearsay discarded {} orphaned speech bubble(s) on server start", killed);
+        }
+    }
+
     /** Advances bubble dwell timers and replaces expired segments or removes orphans. */
     public void tick() {
         tick++;
@@ -70,6 +96,17 @@ public final class Bubbles {
         }
 
         clear(speaker.getUUID());
+        // Also discard any stale bubble entities riding the speaker that the
+        // in-memory map does not know about. After a server restart the map is
+        // empty but the saved TextDisplay entities reload from disk and keep
+        // riding their villagers; without this, the new bubble stacks on top
+        // of the orphan, producing two overlapping lines above one head.
+        for (Entity passenger : speaker.getPassengers()) {
+            if (passenger instanceof Display.TextDisplay
+                    && passenger.entityTags().contains(TAG)) {
+                passenger.discard();
+            }
+        }
 
         List<String> segments = splitLine(line.trim(), MAX_SPEECH_LENGTH);
         if (segments.isEmpty()) {

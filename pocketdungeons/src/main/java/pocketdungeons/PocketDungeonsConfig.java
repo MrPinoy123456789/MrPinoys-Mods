@@ -107,10 +107,17 @@ public final class PocketDungeonsConfig {
     private static double voidedCellChance = 0.3;
 
     // ---- ladder reframe (M10) -------------------------------------------------
-    /** +1% mob strength (max health, attack damage, movement speed) per keystone level. */
-    private static double mobScalePerLevel = 0.01;
+    /** +0.8% mob strength (max health, attack damage, movement speed) per keystone level. */
+    private static double mobScalePerLevel = 0.008;
     /** Base mob strength multiplier at level 0. Below 1.0 makes low-level mobs weaker than vanilla. */
-    private static double mobScaleBase = 0.75;
+    private static double mobScaleBase = 0.65;
+    /**
+     * Additional HP-only multiplier applied to Breezes after the level scaling,
+     * because their high mobility makes them disproportionately tedious to kill
+     * even at low levels. 0.5 halves their post-scaling HP; 1.0 disables the
+     * override entirely.
+     */
+    private static double breezeHpMultiplier = 0.5;
     /**
      * Fraction of a run's trial spawners that must reach {@code COOLDOWN} before
      * a pad contact completes the run. An untouched spawner sits at
@@ -220,7 +227,7 @@ public final class PocketDungeonsConfig {
 
     // ---- gamble station (M16) ---------------------------------------------------
     /** The block a gamble station is; right-clicking it opens the slot/tier picker. */
-    private static String gambleBlock = "minecraft:emerald_block";
+    private static String gambleBlock = "minecraft:waxed_oxidized_copper_chest";
     /** Emerald cost per tier step for an unweighted slot; a tier-N gamble costs this times N. */
     private static int gambleEmeraldsPerTier = 6;
     /**
@@ -235,6 +242,14 @@ public final class PocketDungeonsConfig {
      * repoint the weighting at the wrong slot.
      */
     private static String gambleWeightedSlot = "weapon";
+    /**
+     * Keystone level required before the gamble station will open for a
+     * player. Matches the {@code rerollUnlockLevel} shape: the sink should
+     * be available before a player has fuel to spend on doors 2/3, but not
+     * from run 1, since the gamble needs a gear pool (M13) and emeralds to
+     * accumulate first.
+     */
+    private static int gambleUnlockLevel = 10;
 
     // ---- Herobrine Cube (M17) -----------------------------------------------
     /**
@@ -249,6 +264,16 @@ public final class PocketDungeonsConfig {
      * {@code D3_PROGRESSION_PLAN.md}'s M17 section for the full reasoning.
      */
     private static String cubeBlock = "minecraft:beacon";
+    /**
+     * Keystone level required before the Cube station will open for a
+     * player. The Cube's extract source is rare adventure-node rewards
+     * (M11), which gate behind deeper keys; level 15 is the first station
+     * that needs real progression to be useful. Low-level extract recipes
+     * can be authored to give the Cube something to do before deep rare
+     * nodes, the same way the gear pool gives the gamble something to
+     * draw from.
+     */
+    private static int cubeUnlockLevel = 15;
     /**
      * One extracted power's equip-time attribute bonus, read by
      * {@code PowerListener} the same way {@link TrimBonusEntry} feeds
@@ -417,6 +442,10 @@ public final class PocketDungeonsConfig {
         return mobScaleBase;
     }
 
+    public static double breezeHpMultiplier() {
+        return breezeHpMultiplier;
+    }
+
     public static double spawnerClearThreshold() {
         return spawnerClearThreshold;
     }
@@ -481,8 +510,16 @@ public final class PocketDungeonsConfig {
         return gambleWeightedSlot;
     }
 
+    public static int gambleUnlockLevel() {
+        return gambleUnlockLevel;
+    }
+
     public static String cubeBlock() {
         return cubeBlock;
+    }
+
+    public static int cubeUnlockLevel() {
+        return cubeUnlockLevel;
     }
 
     public static List<PowerBonusEntry> powerBonuses() {
@@ -598,7 +635,9 @@ public final class PocketDungeonsConfig {
         explosiveHazardsPerCell = 4;
         voidedCellChance = 0.3;
 
-        mobScalePerLevel = 0.01;
+        mobScalePerLevel = 0.008;
+        mobScaleBase = 0.65;
+        breezeHpMultiplier = 0.5;
         spawnerClearThreshold = 0.75;
 
         fuelItem = "minecraft:echo_shard";
@@ -619,12 +658,14 @@ public final class PocketDungeonsConfig {
         trimBonuses = defaultTrimBonuses();
         trimBonusDungeonOnly = false;
 
-        gambleBlock = "minecraft:emerald_block";
+        gambleBlock = "minecraft:waxed_oxidized_copper_chest";
         gambleEmeraldsPerTier = 6;
         gambleSlotMultiplier = 1.5;
         gambleWeightedSlot = "weapon";
+        gambleUnlockLevel = 10;
 
         cubeBlock = "minecraft:beacon";
+        cubeUnlockLevel = 15;
         powerBonuses = defaultPowerBonuses();
         imbueMaterial = "minecraft:iron_ingot";
         imbueCost = 4;
@@ -704,8 +745,9 @@ public final class PocketDungeonsConfig {
         voidedCellChance = readDouble(root, "voidedCellChance", 0.3,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
-        mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.01, v -> v >= 0, "must be >= 0");
-        mobScaleBase = readDouble(root, "mobScaleBase", 0.75, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
+        mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.008, v -> v >= 0, "must be >= 0");
+        mobScaleBase = readDouble(root, "mobScaleBase", 0.65, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
+        breezeHpMultiplier = readDouble(root, "breezeHpMultiplier", 0.5, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
         spawnerClearThreshold = readDouble(root, "spawnerClearThreshold", 0.75,
                 v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
 
@@ -729,13 +771,15 @@ public final class PocketDungeonsConfig {
         trimBonuses = readTrimBonuses(root);
         trimBonusDungeonOnly = readBoolean(root, "trimBonusDungeonOnly", false);
 
-        gambleBlock = readString(root, "gambleBlock", "minecraft:emerald_block", false);
+        gambleBlock = readString(root, "gambleBlock", "minecraft:waxed_oxidized_copper_chest", false);
         gambleEmeraldsPerTier = readInt(root, "gambleEmeraldsPerTier", 6, v -> v >= 0, "must be >= 0");
         gambleSlotMultiplier = readDouble(root, "gambleSlotMultiplier", 1.5, v -> v >= 1.0,
                 "must be >= 1.0");
         gambleWeightedSlot = readString(root, "gambleWeightedSlot", "weapon", false);
+        gambleUnlockLevel = readInt(root, "gambleUnlockLevel", 10, v -> v >= 1, "must be >= 1");
 
         cubeBlock = readString(root, "cubeBlock", "minecraft:beacon", false);
+        cubeUnlockLevel = readInt(root, "cubeUnlockLevel", 15, v -> v >= 1, "must be >= 1");
         powerBonuses = readPowerBonuses(root);
         imbueMaterial = readString(root, "imbueMaterial", "minecraft:iron_ingot", false);
         imbueCost = readInt(root, "imbueCost", 4, v -> v >= 0, "must be >= 0");
@@ -941,7 +985,9 @@ public final class PocketDungeonsConfig {
         root.addProperty("explosiveHazardsPerCell", 4);
         root.addProperty("voidedCellChance", 0.3);
 
-        root.addProperty("mobScalePerLevel", 0.01);
+        root.addProperty("mobScalePerLevel", 0.008);
+        root.addProperty("mobScaleBase", 0.65);
+        root.addProperty("breezeHpMultiplier", 0.5);
         root.addProperty("spawnerClearThreshold", 0.75);
 
         root.addProperty("fuelItem", "minecraft:echo_shard");
@@ -971,12 +1017,14 @@ public final class PocketDungeonsConfig {
         root.add("trimBonuses", trimBonusesJson);
         root.addProperty("trimBonusDungeonOnly", false);
 
-        root.addProperty("gambleBlock", "minecraft:emerald_block");
+        root.addProperty("gambleBlock", "minecraft:waxed_oxidized_copper_chest");
         root.addProperty("gambleEmeraldsPerTier", 6);
         root.addProperty("gambleSlotMultiplier", 1.5);
         root.addProperty("gambleWeightedSlot", "weapon");
+        root.addProperty("gambleUnlockLevel", 10);
 
         root.addProperty("cubeBlock", "minecraft:beacon");
+        root.addProperty("cubeUnlockLevel", 15);
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {
             JsonObject entryJson = new JsonObject();

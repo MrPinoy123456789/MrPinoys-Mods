@@ -83,7 +83,11 @@ final class CellGeometry {
     }
 
     static void sealDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
-        doorSlot(level, cellOrigin, wall, RoomBuilder.WALL);
+        // The seal matches the cell's current shell: a swapped room (M24) keeps
+        // its shell material across the doorways this closes on relocation and
+        // re-lobby, instead of reverting to stone brick. A dungeon or liminal
+        // cell has no known shell floor, so shellWallAt falls back to WALL.
+        doorSlot(level, cellOrigin, wall, RoomBuilder.shellWallAt(level, cellOrigin));
     }
 
     static void openDoorOnWall(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {

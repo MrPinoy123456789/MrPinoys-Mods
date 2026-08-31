@@ -122,10 +122,14 @@ final class RitualListener {
             }
         }
         // M31 9.2: the same denial for an active run's dungeon cells outside
-        // any room -- placement there is blocked while the run is live, and
-        // opens up again once the first member completes it.
-        if (Instances.dungeonRecordAt(placementPos) != null
-                && isPlacementSource(player.getItemInHand(hand))) {
+        // any room -- but only the shell, the same as the player room. The
+        // interior stays open so a player can place torches, blocks and the
+        // like while fighting through. Protection lifts once the first member
+        // completes.
+        BlockPos dungeonPlacementOrigin = Instances.dungeonCellOriginAt(placementPos);
+        if (dungeonPlacementOrigin != null
+                && isPlacementSource(player.getItemInHand(hand))
+                && RoomProtection.isShell(placementPos, dungeonPlacementOrigin)) {
             return InteractionResult.FAIL;
         }
 
@@ -192,6 +196,7 @@ final class RitualListener {
             InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
             if (record != null) {
                 DungeonScreen.updateEngine((ServerLevel) level, record, serverPlayer);
+                DungeonScreen.updateTracker((ServerLevel) level, record);
             }
             return InteractionResult.SUCCESS_SERVER;
         }

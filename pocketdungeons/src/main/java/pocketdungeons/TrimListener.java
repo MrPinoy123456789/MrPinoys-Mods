@@ -11,6 +11,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.equipment.trim.ArmorTrim;
 
@@ -50,6 +51,16 @@ import java.util.UUID;
  * every watch tick is idempotent and self-healing, the same trust the keystone
  * remote's {@code reconcile} pattern already puts in a periodic pass instead of
  * needing to catch every mutation site.
+ *
+ * <h2>Lore: the bonus line a player reads</h2>
+ *
+ * <p>The same scan also bakes a one-line description of the bonus into each
+ * trimmed item's {@link DataComponents#LORE} via {@link BonusLore}, so a player
+ * sees what a material does in the hover tooltip without leaving the game. The
+ * attribute modifier is invisible without this: vanilla's attribute screen does
+ * not name the trim as the source, and the mod is server-side only so there is
+ * no client tooltip event to hook. LORE is the one component vanilla syncs and
+ * renders for free, the same shape {@link Keystone} uses for affix blurbs.
  */
 final class TrimListener {
 
@@ -58,7 +69,8 @@ final class TrimListener {
     };
 
     /** One resolved, ready-to-apply bonus: a trim material key paired with its attribute modifier shape. */
-    private record ResolvedBonus(Identifier materialKey, Holder<Attribute> attribute,
+    private record ResolvedBonus(Identifier materialKey, Identifier attributeKey,
+                                  Holder<Attribute> attribute,
                                   AttributeModifier.Operation operation, double amount) {}
 
     private static List<ResolvedBonus> resolved;
@@ -107,7 +119,7 @@ final class TrimListener {
                         + "add_multiplied_total; that entry is disabled", entry.material(), entry.operation());
                 continue;
             }
-            list.add(new ResolvedBonus(materialKey, attribute, operation, entry.amount()));
+            list.add(new ResolvedBonus(materialKey, attributeId, attribute, operation, entry.amount()));
         }
         resolved = list;
         return resolved;
@@ -128,6 +140,7 @@ final class TrimListener {
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             reconcile(player);
+            reconcileLore(player);
         }
     }
 
@@ -163,6 +176,31 @@ final class TrimListener {
 
     private static boolean isSameHolder(Holder<Attribute> a, Holder<Attribute> b) {
         return a.unwrapKey().equals(b.unwrapKey());
+    }
+
+    /**
+     * Bakes the bonus line into every trimmed item in the player's inventory
+     * (not just worn slots), so the tooltip shows the bonus before the player
+     * decides to wear it. Idempotent via {@link BonusLore#ensure}: a stack
+     * whose lore already carries the exact line is not touched, so the scan
+     * produces no sync traffic after the first pass that finds each item.
+     */
+    private static void reconcileLore(ServerPlayer player) {
+        boolean dungeonOnly = PocketDungeonsConfig.trimBonusDungeonOnly();
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            ResolvedBonus bonus = trimMaterialOf(stack);
+            if (bonus == null) {
+                continue;
+            }
+            BonusLore.ensure(stack, "Trim bonus:",
+                    BonusLore.line("Trim bonus:", bonus.amount(), bonus.operation(),
+                            bonus.attributeKey(), dungeonOnly));
+        }
     }
 
     /** The worn-piece signal: which configured bonus (if any) this stack's trim material grants. */

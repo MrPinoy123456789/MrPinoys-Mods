@@ -6,11 +6,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.scores.DisplaySlot;
-import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.ScoreHolder;
-import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -107,7 +102,16 @@ final class BountyTracker {
     /** The owner's bonus on top of the per-member reward. */
     static final int OWNER_BONUS_SHARDS = 1;
 
-    private static final String SIDEBAR_OBJECTIVE = "pd_bounty";
+    /**
+     * Whether {@code owner} has finished every guided tutorial task and so
+     * has weekly bounties unlocked. Pure logic over {@code log}, no
+     * {@code ServerPlayer} or {@code MinecraftServer} needed, so the test
+     * can exercise the gate headlessly the same way {@code TaskTrackerTest}
+     * exercises {@link TaskTracker#activeTask}.
+     */
+    static boolean bountiesUnlocked(DungeonLog log, UUID owner) {
+        return TaskTracker.activeTask(log, owner, log.get(owner).keystoneLevel()) == null;
+    }
 
     /**
      * The current ISO week key, e.g. {@code "2026-W35"}. ISO weeks start on
@@ -176,14 +180,17 @@ final class BountyTracker {
      * completed. On the call that reaches the target, marks the bounty
      * completed and delivers the reward to every online member of the owner's
      * party (owner included, with the owner bonus). Returns whether the
-     * sidecar actually changed, for callers that want to skip the scoreboard
-     * sync on a no-op.
+     * sidecar actually changed, for callers that want to skip the tracker
+     * screen refresh on a no-op.
      */
     static boolean progress(MinecraftServer server, UUID owner, String bountyId, int amount) {
         if (owner == null || amount <= 0) {
             return false;
         }
         DungeonLog log = DungeonLog.forServer(server);
+        if (!bountiesUnlocked(log, owner)) {
+            return false;
+        }
         String week = weekKey();
         List<BountyState> states = currentBounties(log, owner);
         for (int i = 0; i < states.size(); i++) {
@@ -208,6 +215,10 @@ final class BountyTracker {
                 deliverRewards(server, owner);
                 announceCompletion(server, owner, bounty);
             }
+            // The tracker screen replaces the old scoreboard sidebar; refresh
+            // the owner's room screen so the new progress shows up. Works
+            // whether the owner or a party member triggered the progress.
+            DungeonScreen.refreshTracker(server, owner);
             return true;
         }
         return false;
@@ -249,16 +260,16 @@ final class BountyTracker {
     }
 
     /**
-     * The bounty lines for the door screen, e.g. "Clear the Halls 12/20", one
-     * per line, in pick order. {@code null} if {@code owner} is not online (the
-     * door screen only shows for a live owner).
+     * The bounty lines, e.g. "Clear the Halls 12/20", one per line, in pick
+     * order. {@code null} if {@code owner} has not yet finished the tutorial
+     * (bounties are locked until then). Pure over {@code log} so the tracker
+     * screen can render them for an offline owner.
      */
-    static List<Component> bountyLines(ServerPlayer owner) {
-        MinecraftServer server = owner.level().getServer();
-        if (server == null) {
+    static List<Component> bountyLines(DungeonLog log, UUID owner) {
+        if (!bountiesUnlocked(log, owner)) {
             return null;
         }
-        List<BountyState> states = currentBounties(DungeonLog.forServer(server), owner.getUUID());
+        List<BountyState> states = currentBounties(log, owner);
         List<Component> lines = new ArrayList<>();
         for (BountyState state : states) {
             Bounty bounty = Bounty.byId(state.bountyId());
@@ -272,57 +283,12 @@ final class BountyTracker {
         return lines;
     }
 
-    /**
-     * Sets the owner's three bounty progress scores on the sidebar objective,
-     * creating it on first use. Each bounty is one scoreholder line (the bounty
-     * label), with the score being the progress count. Once the owner is
-     * offline or has no bounties, their lines are cleared; if that leaves the
-     * objective empty, it is removed.
-     */
-    static void syncScoreboard(MinecraftServer server, ServerPlayer owner) {
-        Scoreboard scoreboard = server.getScoreboard();
-        List<BountyState> states = currentBounties(DungeonLog.forServer(server), owner.getUUID());
-        Objective objective = scoreboard.getObjective(SIDEBAR_OBJECTIVE);
-        // Clear any previous lines for this owner before re-setting, so a
-        // changed bounty pick does not leave a stale line behind.
-        if (objective != null) {
-            for (Bounty bounty : Bounty.values()) {
-                scoreboard.resetSinglePlayerScore(
-                        ScoreHolder.forNameOnly(owner.getName().getString() + ":" + bounty.id), objective);
-            }
+    /** {@link #bountyLines(DungeonLog, UUID)} for a live owner. */
+    static List<Component> bountyLines(ServerPlayer owner) {
+        MinecraftServer server = owner.level().getServer();
+        if (server == null) {
+            return null;
         }
-        if (objective == null) {
-            objective = scoreboard.addObjective(SIDEBAR_OBJECTIVE, ObjectiveCriteria.DUMMY,
-                    Component.literal("Weekly Bounties"), ObjectiveCriteria.RenderType.INTEGER,
-                    false, null);
-            scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
-        }
-        for (BountyState state : states) {
-            Bounty bounty = Bounty.byId(state.bountyId());
-            if (bounty == null) {
-                continue;
-            }
-            ScoreHolder holder = ScoreHolder.forNameOnly(owner.getName().getString() + ":" + bounty.id);
-            scoreboard.getOrCreatePlayerScore(holder, objective).set(state.progress());
-        }
-    }
-
-    /**
-     * Removes the owner's bounty lines from the sidebar, and the objective
-     * itself if nobody's lines remain. Called on logout.
-     */
-    static void clearScoreboard(MinecraftServer server, ServerPlayer owner) {
-        Scoreboard scoreboard = server.getScoreboard();
-        Objective objective = scoreboard.getObjective(SIDEBAR_OBJECTIVE);
-        if (objective == null) {
-            return;
-        }
-        for (Bounty bounty : Bounty.values()) {
-            scoreboard.resetSinglePlayerScore(
-                    ScoreHolder.forNameOnly(owner.getName().getString() + ":" + bounty.id), objective);
-        }
-        if (scoreboard.listPlayerScores(objective).isEmpty()) {
-            scoreboard.removeObjective(objective);
-        }
+        return bountyLines(DungeonLog.forServer(server), owner.getUUID());
     }
 }

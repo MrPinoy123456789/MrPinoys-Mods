@@ -19,6 +19,7 @@
     "fabricloader": ">=0.19.3",
     "minecraft": "~26.2",
     "java": ">=25",
-    "fabric-api": "*"
+    "fabric-api": "*",
+    "sgui": ">=2.1.0"
   }
 }

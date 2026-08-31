@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -189,17 +190,20 @@ final class Instances {
                     player.getUUID(), point, JOIN_RECOVERY_DELAY_TICKS));
         });
 
-        // M33: every joining player gets their pd_task score repainted and a
-        // reminder of their active guided task, dimension-agnostic unlike the
-        // recovery handler above -- a player who logs in in the overworld
-        // still has a task waiting on their next visit to a dungeon.
+        // M33: every joining player gets a reminder of their active guided
+        // task, and if they are logging back into a dungeon room, the tracker
+        // screen is repainted to match. The screen is in-world, not a global
+        // sidebar, so a player who logs in in the overworld simply has a task
+        // waiting on their next visit to a dungeon.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
-            TaskTracker.syncScoreboard(server, player);
             Component taskLine = TaskTracker.taskLine(player);
             if (taskLine != null) {
                 player.sendSystemMessage(Component.literal("Active task: ").withStyle(ChatFormatting.AQUA)
                         .append(taskLine));
+            }
+            if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                DungeonScreen.refreshTracker(server, player.getUUID());
             }
         });
 
@@ -442,6 +446,7 @@ final class Instances {
         // The engine screen was summoned at stamp time without a viewer; now
         // that the owner is standing here, show their actual fuel count.
         DungeonScreen.updateEngine(level, record, player);
+        DungeonScreen.updateTracker(level, record);
 
         player.sendSystemMessage(Component.literal(
                 "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
@@ -500,6 +505,8 @@ final class Instances {
                     DungeonScreen.idleContent(level, owner));
             DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
                     DungeonScreen.engineContent(null));
+            DungeonScreen.summonTracker(level, origin, DoorMask.Direction.SOUTH,
+                    DungeonScreen.trackerContent(level.getServer(), owner));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
@@ -1357,6 +1364,31 @@ final class Instances {
      * make the two lookups redundant with each other.
      */
     static InstanceRecord dungeonRecordAt(BlockPos pos) {
+        InstanceRecord record = dungeonRecordAndCellAt(pos);
+        return record == null ? null : record;
+    }
+
+    /**
+     * The cell origin of the active dungeon cell occupying {@code pos}, or
+     * {@code null} if {@code pos} is not in an active run's dungeon cells
+     * (M31 9.2). The origin half of {@link #dungeonRecordAt}: the shell
+     * protection needs the origin to run its pure coordinate test against
+     * {@link RoomProtection#isShell}, the same way {@link #roomOriginAt}
+     * feeds the player room's own shell check.
+     */
+    static BlockPos dungeonCellOriginAt(BlockPos pos) {
+        DungeonCellLookup lookup = dungeonCellLookupAt(pos);
+        return lookup == null ? null : lookup.cellOrigin;
+    }
+
+    private static InstanceRecord dungeonRecordAndCellAt(BlockPos pos) {
+        DungeonCellLookup lookup = dungeonCellLookupAt(pos);
+        return lookup == null ? null : lookup.record;
+    }
+
+    private record DungeonCellLookup(InstanceRecord record, BlockPos cellOrigin) {}
+
+    private static DungeonCellLookup dungeonCellLookupAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             InstanceLayout layout = record.layout;
             if (layout == null || !record.completed.isEmpty()) {
@@ -1375,7 +1407,7 @@ final class Instances {
                     && geometry.cellOrigin(cell).equals(record.roomCellOrigin)) {
                 continue; // the room cell -- roomOwnerAt's job, not this one's
             }
-            return record;
+            return new DungeonCellLookup(record, geometry.cellOrigin(cell));
         }
         return null;
     }
@@ -1385,6 +1417,10 @@ final class Instances {
     /** The one shown by {@code AttributeInstance}'s modifier map, stable across reapplications. */
     private static final Identifier MOB_SCALE_ID = Identifier.fromNamespaceAndPath(
             PocketDungeonsMod.MOD_ID, "difficulty_scale");
+
+    /** Separate modifier id for the Breeze HP override, so it does not collide with the level scaler. */
+    private static final Identifier BREEZE_HP_ID = Identifier.fromNamespaceAndPath(
+            PocketDungeonsMod.MOD_ID, "breeze_hp_override");
 
     /**
      * The live instance whose bounds contain {@code pos}, or {@code null}. Used
@@ -1404,9 +1440,9 @@ final class Instances {
     }
 
     /**
-     * +1% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
+     * +0.8% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
      * level, on max health, attack damage and movement speed: a level-100 run's
-     * mobs land at roughly twice strength. {@code ADD_MULTIPLIED_TOTAL} so the
+     * mobs land at roughly 1.45x strength. {@code ADD_MULTIPLIED_TOTAL} so the
      * bonus scales whatever base value the mob already has rather than adding a
      * flat number that means nothing on a skeleton and everything on a bee.
      *
@@ -1430,6 +1466,24 @@ final class Instances {
         applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
                 PocketDungeonsConfig.mobScalePerLevel(),
                 PocketDungeonsConfig.mobScaleBase()) - 1.0);
+        // Breezes are disproportionately tedious to kill for their threat level:
+        // high HP plus high mobility means a player spends most of the fight
+        // chasing, not hitting. An additional HP-only cut on top of the level
+        // scaling brings them in line with everything else on the spawner roster.
+        if (mob.getType() == EntityTypes.BREEZE) {
+            double multiplier = PocketDungeonsConfig.breezeHpMultiplier();
+            if (multiplier > 0.0 && multiplier != 1.0) {
+                boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
+                AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
+                if (health != null) {
+                    health.addOrUpdateTransientModifier(new AttributeModifier(
+                            BREEZE_HP_ID, multiplier - 1.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+                    if (wasFullHealth) {
+                        mob.setHealth(mob.getMaxHealth());
+                    }
+                }
+            }
+        }
     }
 
     /**

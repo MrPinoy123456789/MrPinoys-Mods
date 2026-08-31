@@ -31,7 +31,6 @@ final class ConnectorStamper {
             | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
-    private static final BlockState IRON_BARS = Blocks.IRON_BARS.defaultBlockState();
 
     private ConnectorStamper() {}
 
@@ -56,7 +55,6 @@ final class ConnectorStamper {
                 fill(level, ConnectorGeometry.rect(cellOrigin, wall, DOOR_MAX + 1, DOOR_MAX + 1, 1, DOOR_HEIGHT), AIR);
             }
             case IRON_DOOR -> applyIronDoor(level, cellOrigin, wall);
-            case BARS -> fill(level, ConnectorGeometry.rect(cellOrigin, wall, DOOR_MIN, DOOR_MAX, 1, WALL_HEIGHT), IRON_BARS);
             case OPEN -> applyOpen(level, cellOrigin, wall);
             case ARCH -> fill(level, ConnectorGeometry.rect(cellOrigin, wall, 0, CELL - 1, 1, WALL_HEIGHT - 2), AIR);
         }
@@ -67,7 +65,9 @@ final class ConnectorStamper {
      * behind a redstone signal the stamper does not provide (room content or
      * the player supplies it). The door slot is 3 tall but a door is only 2,
      * so the top row is capped with the wall's own material rather than left
-     * open above a closed door.
+     * open above a closed door. Only one side of the edge stamps this: the
+     * other cell's wall stays as the air the jigsaw resolved, so there is
+     * one door to open, not two sets with a trapped gap between them.
      */
     private static void applyIronDoor(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
         Direction facing = Instances.mcDirection(wall);

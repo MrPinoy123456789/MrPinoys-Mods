@@ -255,9 +255,40 @@ final class LayoutStamper {
                 continue;
             }
             boolean fillNearColumn = rng.nextBoolean();
-            applyConnectorToSide(level, geometry, edge.a(), edge, type, fillNearColumn);
-            applyConnectorToSide(level, geometry, edge.b(), edge, type, fillNearColumn);
+            // IRON_DOOR: only one side gets the door. Both sides stamping
+            // their own wall creates two closed door sets 1 block apart, and
+            // a player who opens one side is trapped in the gap between them
+            // with no room to place a block or reach the other door's
+            // redstone. One side places the door; the other stays as the air
+            // the jigsaw already resolved.
+            //
+            // The door goes on the cell closer to the entrance (smaller
+            // depth). The player arrives from the entrance, so the near cell
+            // is the one they are standing in when they reach the door; its
+            // interior is theirs to build in, so a lever or redstone on that
+            // side can power the door. Placing on the far cell's wall leaves
+            // the door's near face behind the shell-protected partition gap,
+            // out of reach of any signal the player can place.
+            if (type == ConnectorType.IRON_DOOR) {
+                applyConnectorToSide(level, geometry, nearerToEntrance(plan, edge.a(), edge.b()),
+                        edge, type, fillNearColumn);
+            } else {
+                applyConnectorToSide(level, geometry, edge.a(), edge, type, fillNearColumn);
+                applyConnectorToSide(level, geometry, edge.b(), edge, type, fillNearColumn);
+            }
         }
+    }
+
+    /**
+     * Of two edge cells, the one with the smaller entrance hop count, falling back
+     * to {@code a} on a tie. Used to pick which side of an iron door edge
+     * carries the door so the player, arriving from the entrance, always
+     * reaches the door's near face first.
+     */
+    private static PlanCell nearerToEntrance(DungeonPlan plan, PlanCell a, PlanCell b) {
+        int da = plan.depths().getOrDefault(a, 0);
+        int db = plan.depths().getOrDefault(b, 0);
+        return db < da ? b : a;
     }
 
     private static void applyConnectorToSide(ServerLevel level, PlanGeometry geometry, PlanCell cell,

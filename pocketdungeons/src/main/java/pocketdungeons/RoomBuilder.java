@@ -156,7 +156,8 @@ final class RoomBuilder {
                                         Block ceilingSlab, Block stair) {
         return new ShellPalette(name, displayName, unlockHint,
                 floor.defaultBlockState(), wall.defaultBlockState(), ceiling.defaultBlockState(),
-                ceilingSlab.defaultBlockState(), stair.defaultBlockState());
+                ceilingSlab.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP),
+                stair.defaultBlockState());
     }
 
     private RoomBuilder() {}
@@ -434,6 +435,7 @@ final class RoomBuilder {
             DungeonScreen.summonDoor(level, o, wall, DungeonScreen.runContent(level, record));
         }
         DungeonScreen.summonEngine(level, o, wall, DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, o, wall, DungeonScreen.trackerContent(level.getServer(), record.owner));
     }
 
     /** Whether {@code wall}'s door slot of the room at {@code o} currently stands open. */
@@ -468,6 +470,20 @@ final class RoomBuilder {
             }
         }
         return null;
+    }
+
+    /**
+     * The wall block the room at {@code o} currently wears, or {@link #WALL}
+     * when its floor is not a known shell's: the pre-skin default room, a
+     * dungeon cell and a liminal blank all read as stone brick, so the fallback
+     * keeps the seal and lintel they always had. This is what lets a doorway
+     * lintel, the bulb course beside it, and a sealed doorway match a swapped
+     * shell without each caller threading the palette: read the floor, which
+     * the swap already re-stamped, and take that shell's wall.
+     */
+    static BlockState shellWallAt(ServerLevel level, BlockPos o) {
+        ShellPalette palette = shellAt(level, o);
+        return palette == null ? WALL : palette.wall();
     }
 
     /** The selectable palettes in menu order: the default first, then the unlocks. */
