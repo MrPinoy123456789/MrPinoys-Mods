@@ -38,6 +38,33 @@ final class ConnectorStamper {
     private ConnectorStamper() {}
 
     /**
+     * M45B: whether {@code type} leaves the window band's two outer columns
+     * ({@link RoomGeometry#WINDOW_MIN} and {@link RoomGeometry#WINDOW_MAX} at
+     * {@link RoomGeometry#WINDOW_Y}) as solid wall, so a band cut there reads
+     * as a window rather than as an obstruction.
+     *
+     * <p>Three connectors already open those exact columns and must never be
+     * given a band on top. {@code DOOR_DOUBLE} clears both of them floor to
+     * door height, turning them into walkable passage; {@code OPEN} clears
+     * everything from column 2 to column 13; {@code ARCH} clears the full
+     * width. Filling the band into any of those would put bars at eye height
+     * in the middle of an opening a player is meant to walk through, which is
+     * the same mistake {@link RoomBuilder#windowBand} avoids inside the
+     * doorway lane, one step further out.
+     *
+     * <p>The three that do leave it solid are {@code DOOR_WIDE} (the jigsaw's
+     * plain 2 by 3 slot), {@code DOOR_SINGLE} (which narrows that slot rather
+     * than widening it) and {@code IRON_DOOR}, where a band beside a closed
+     * door is exactly the readable-from-the-doorway case the band exists for.
+     */
+    static boolean leavesWindowBandSolid(ConnectorType type) {
+        return switch (type) {
+            case DOOR_WIDE, DOOR_SINGLE, IRON_DOOR -> true;
+            case DOOR_DOUBLE, OPEN, ARCH -> false;
+        };
+    }
+
+    /**
      * Applies {@code type} to one cell's side of a door edge. {@code fillNearColumn}
      * decides which door-slot column {@link ConnectorType#DOOR_SINGLE} keeps
      * solid; the caller rolls it once per edge and passes the same value to

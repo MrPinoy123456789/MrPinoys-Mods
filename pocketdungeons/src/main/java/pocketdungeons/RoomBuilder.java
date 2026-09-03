@@ -373,10 +373,11 @@ final class RoomBuilder {
      * <p>The neighbour punches its own facing wall at the same coordinates and
      * the two line up, exactly as {@link #openDoor} already relies on.
      *
-     * <p><strong>Nothing calls this yet.</strong> The one call site that can is
-     * the pass that already knows an edge is open and which two cells share it,
-     * which is where {@code ConnectorStamper} is driven from; wiring it is the
-     * template milestone's job, not this seam's.
+     * <p>M45B wired this to {@code LayoutStamper}'s per-edge connector pass,
+     * which is the one place that knows an edge is open, knows both cells that
+     * share it, and has already rolled the connector. That pass decides which
+     * edges get a band and with what; this method only cuts one side of one
+     * edge and asks no questions about the other.
      *
      * @param material the fill, from {@link #windowMaterial}; {@code null}
      *                 leaves the wall solid
