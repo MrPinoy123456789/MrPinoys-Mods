@@ -8,7 +8,8 @@
   "environment": "server",
   "entrypoints": {
     "fabric-gametest": [
-      "pocketdungeons.gametest.HarnessGameTest"
+      "pocketdungeons.gametest.HarnessGameTest",
+      "pocketdungeons.gametest.InventorySwapGameTest"
     ]
   },
   "depends": {

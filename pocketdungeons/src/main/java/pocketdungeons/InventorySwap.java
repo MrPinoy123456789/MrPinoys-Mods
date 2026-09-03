@@ -6,11 +6,13 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,9 +62,96 @@ import java.util.function.Predicate;
  * {@code InventorySwapTest} can exercise them headlessly. {@link PlayerSlots}
  * is the one adapter that puts a real {@link ServerPlayer} behind that window.
  */
-final class InventorySwap {
+public final class InventorySwap {
 
     private InventorySwap() {}
+
+    /**
+     * The gametest seam.
+     *
+     * <p>Everything else in this class is package-private, as the rest of the
+     * mod is. The gametests live in {@code pocketdungeons.gametest}, a
+     * different package, and they need three things: to read the stash, to run
+     * a reconciliation pass on demand rather than waiting for a tick, and to
+     * build a deliberately desynced state that no legitimate code path can
+     * produce.
+     *
+     * <p>That last one is the point. Spec 11.7's issue #22 row is "the
+     * dimension-change event did not fire at all", and the only honest way to
+     * test the layer that catches it is to construct the state the event would
+     * have prevented. There is no other caller and no reason for one.
+     */
+    public static final class Probe {
+
+        private Probe() {}
+
+        /** {@link InventorySwap#SLOTS}, reachable from outside the package. */
+        public static final int SLOTS = InventorySwap.SLOTS;
+
+        /**
+         * Points the invariant at a different dimension for the duration of a
+         * test, and back at {@code pocketdungeons:void} when given
+         * {@code null}.
+         *
+         * <p>This exists because of a hard limit in the harness, not because
+         * the production key wanted to be configurable. Verified in the 26.2
+         * jar: {@code GameTestServer.create} bakes an <em>empty</em>
+         * {@code LEVEL_STEM} registry against the flat world preset, so a
+         * gametest server has exactly the overworld, the nether and the end,
+         * and a datapack dimension such as {@code pocketdungeons:void} is never
+         * created. Adding one would take a mixin into world creation, and this
+         * mod's mixin budget is spent.
+         *
+         * <p>So the gametests point the invariant at the nether and exercise
+         * every other part of the mechanism for real: the snapshot, the
+         * dimension-change event, the tick sweep, the restore, the cursor slot
+         * and the deduplication. What they do not prove is the identity of the
+         * dimension, which is one {@code equals} call and is covered by the
+         * live checklist in {@code LIVE_TEST_PASS.md}.
+         */
+        public static void useDimensionForTesting(ResourceKey<Level> level) {
+            dungeonLevel = level == null ? PocketDungeonsMod.DUNGEON_LEVEL : level;
+        }
+
+        /** Whether this player's survival inventory is currently held. */
+        public static boolean isStashed(ServerPlayer player) {
+            MinecraftServer server = player.level().getServer();
+            return server != null && DungeonLog.forServer(server).stashOf(player.getUUID()).stashed();
+        }
+
+        /** The stacks held for this player, in snapshot order, or an empty list. */
+        public static List<ItemStack> backupOf(ServerPlayer player) {
+            MinecraftServer server = player.level().getServer();
+            if (server == null) {
+                return List.of();
+            }
+            return DungeonLog.forServer(server).stashOf(player.getUUID()).backup();
+        }
+
+        /**
+         * Writes a stash record directly, bypassing the swap. Only a test has
+         * any business calling this: it is how the issue #22 scenario is set
+         * up, and using it anywhere else would break the invariant it exists to
+         * verify.
+         */
+        public static void forceStash(ServerPlayer player, boolean stashed, List<ItemStack> backup) {
+            MinecraftServer server = player.level().getServer();
+            if (server == null) {
+                return;
+            }
+            DungeonLog.forServer(server).setStash(player.getUUID(), new StashRecord(stashed, backup));
+        }
+
+        /** Runs one reconciliation pass for this player, the same one the tick hook runs. */
+        public static void reconcileNow(ServerPlayer player) {
+            reconcile(player);
+        }
+
+        /** Runs the whole-server sweep, the same one the end-of-tick hook runs. */
+        public static void reconcileAllNow(MinecraftServer server) {
+            reconcileAll(server);
+        }
+    }
 
     // ---- the 42 slot snapshot ----------------------------------------------
 
@@ -107,6 +196,17 @@ final class InventorySwap {
      * are left alone rather than cleared.
      */
     static final int LIVE_SLOTS = 41;
+
+    /**
+     * The dimension the invariant is stated against.
+     *
+     * <p>Always {@code pocketdungeons:void} in production. It is a field rather
+     * than a constant for exactly one reason, spelled out on
+     * {@link Probe#useDimensionForTesting}: a gametest server has no datapack
+     * dimensions at all, so the scenarios point the invariant at the nether in
+     * order to exercise everything else. Nothing but {@code Probe} writes it.
+     */
+    private static ResourceKey<Level> dungeonLevel = PocketDungeonsMod.DUNGEON_LEVEL;
 
     /**
      * One player's stashed survival inventory, held in {@link DungeonLog}'s
@@ -350,7 +450,7 @@ final class InventorySwap {
         if (server == null) {
             return;
         }
-        boolean inVoid = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean inVoid = player.level().dimension().equals(dungeonLevel);
         DungeonLog log = DungeonLog.forServer(server);
         StashRecord stash = log.stashOf(player.getUUID());
         if (invariantHolds(inVoid, stash.stashed())) {
