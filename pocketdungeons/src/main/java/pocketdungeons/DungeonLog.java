@@ -274,6 +274,17 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, List<BountyTracker.BountyState>> bounties = new HashMap<>();
 
+    /**
+     * (M46) Per-player stashed survival inventories for {@link InventorySwap}.
+     * A sidecar map for the same reason {@link #taskProgress} and
+     * {@link #bounties} are ones, only more so: the value is a 42 stack list,
+     * and {@link Entry} is a record whose {@code withX} helpers copy every
+     * field on every fuel change. Spec 11.4 put these two values on
+     * {@code Entry}; {@code SITUATIONS_PLAN}'s M46 section overrides that in
+     * favour of this shape. Nothing about the invariant changes.
+     */
+    private final Map<UUID, InventorySwap.StashRecord> stashes = new HashMap<>();
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -398,6 +409,16 @@ final class DungeonLog extends SavedData {
                     .forGetter(PlayerBounties::bounties)
     ).apply(instance, PlayerBounties::new));
 
+    /** (M46) One player's stashed survival inventory, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerStash(UUID player, InventorySwap.StashRecord stash) {}
+
+    private static final Codec<PlayerStash> PLAYER_STASH_CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerStash::player),
+            InventorySwap.StashRecord.CODEC.fieldOf("stash").forGetter(PlayerStash::stash)
+    ).apply(instance, PlayerStash::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
@@ -413,11 +434,17 @@ final class DungeonLog extends SavedData {
             // progress recorded.
             PLAYER_BOUNTIES_CODEC.listOf().optionalFieldOf("bounties", List.of())
                     .forGetter(log -> log.bounties.entrySet().stream()
-                            .map(e -> new PlayerBounties(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerBounties(e.getKey(), e.getValue())).toList()),
+            // M46: optional so a dungeon_log.dat written before this milestone
+            // loads unchanged, every player simply starting unstashed, which is
+            // the correct reading of "this player is not inside a dungeon".
+            PLAYER_STASH_CODEC.listOf().optionalFieldOf("stashes", List.of())
+                    .forGetter(log -> log.stashes.entrySet().stream()
+                            .map(e -> new PlayerStash(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
-                                          List<PlayerBounties> bounties) {
+                                          List<PlayerBounties> bounties, List<PlayerStash> stashes) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -427,6 +454,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerBounties b : bounties) {
             log.bounties.put(b.player(), new ArrayList<>(b.bounties()));
+        }
+        for (PlayerStash s : stashes) {
+            log.stashes.put(s.player(), s.stash());
         }
         return log;
     }
@@ -735,6 +765,37 @@ final class DungeonLog extends SavedData {
     /** (M34) Replaces the owner's stored bounty states, for {@link BountyTracker}. */
     void setBounties(UUID owner, List<BountyTracker.BountyState> states) {
         bounties.put(owner, List.copyOf(states));
+        setDirty();
+    }
+
+    /**
+     * (M46) This player's stashed survival inventory, or
+     * {@link InventorySwap.StashRecord#NONE} if nothing is held.
+     *
+     * <p>A player with no record reads as "not stashed", which is the same
+     * answer a {@code dungeon_log.dat} written before M46 gives. That is
+     * deliberate: the invariant of spec 11.3 wants "no record" to mean "this
+     * player's survival inventory is the one they are holding".
+     */
+    InventorySwap.StashRecord stashOf(UUID player) {
+        return stashes.getOrDefault(player, InventorySwap.StashRecord.NONE);
+    }
+
+    /**
+     * (M46) Replaces this player's stash record, for {@link InventorySwap}.
+     *
+     * <p>An unstashed record is removed rather than stored, so the map holds
+     * only the players actually inside a dungeon and the saved file does not
+     * accumulate one empty entry per player who has ever played.
+     */
+    void setStash(UUID player, InventorySwap.StashRecord stash) {
+        if (!stash.stashed() && stash.backup().isEmpty()) {
+            if (stashes.remove(player) == null) {
+                return;
+            }
+        } else {
+            stashes.put(player, stash);
+        }
         setDirty();
     }
 }
