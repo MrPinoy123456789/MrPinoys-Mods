@@ -91,67 +91,17 @@ final class RoomSelector {
                                   Set<String> bagTags) {
         Map<PlanCell, Integer> depths = depths(shape);
         List<PlanCell> order = bfsOrder(shape.cells(), depths);
-        Map<PlanCell, DungeonPlan.PlacedRoom> placed = new LinkedHashMap<>();
 
-        List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
-        Set<PlanCell> onSpine = new HashSet<>(spine);
-        Map<PlanCell, Integer> branches = branchGroups(shape, onSpine);
-        PlanCell gateCell = designateGateCell(shape, spine, manifest, theme);
-
-        // Derived from the plan seed rather than reusing the shape generator's
-        // Random, which has already been consumed by the time resolution runs.
-        Random rng = new Random(shape.seed() * 31 + 17);
-        Map<String, Integer> used = new HashMap<>();
-
-        Set<String> available = new LinkedHashSet<>(bagTags == null ? Set.of() : bagTags);
-        // Provides picked at the depth being processed. They land in available
-        // only once the walk moves past that depth: 6.6's same-depth rule, and
-        // the reason this is two sets and not one.
-        Set<String> sameDepth = new LinkedHashSet<>();
-        int currentDepth = -1;
-
-        Set<PlanCell> fallbacks = new LinkedHashSet<>();
-        Set<Integer> gatedBranches = new HashSet<>();
-
-        for (PlanCell cell : order) {
-            int depth = depths.getOrDefault(cell, 0);
-            if (depth != currentDepth) {
-                available.addAll(sameDepth);
-                sameDepth.clear();
-                currentDepth = depth;
-            }
-
-            int mask = requiredMask(shape, cell);
-            String role = shape.roles().get(cell);
-            if (role == null) {
-                return new Result(null, new Failure(cell, mask, "missing role"));
-            }
-
-            List<RoomManifest.Match> matches = manifest.queryAnyRotation(mask, role, theme);
-            if (matches.isEmpty()) {
-                return new Result(null, new Failure(cell, mask, role));
-            }
-            // Stable order in, so the weighted draw is reproducible regardless of
-            // the order the manifest happens to hold its rooms in.
-            matches = sortedMatches(matches);
-
-            int branch = branches.getOrDefault(cell, SPINE_BRANCH);
-            List<RoomManifest.Match> pool = solvable(matches, available, onSpine.contains(cell),
-                    gatedBranches.contains(branch), cell.equals(gateCell));
-            if (pool.isEmpty()) {
-                pool = roleOnly(matches);
-                fallbacks.add(cell);
-            }
-
-            RoomManifest.Match pick = pick(pool, depth, used, rng);
-            placed.put(cell, new DungeonPlan.PlacedRoom(pick.entry().name, pick.rotation()));
-            used.merge(pick.entry().name, 1, Integer::sum);
-            sameDepth.addAll(pick.entry().meta.provides);
-            if (DungeonRoomMeta.ACCESS_GATED.equals(pick.entry().meta.access)) {
-                gatedBranches.add(branch);
-            }
+        Pass pass = new Pass(shape, manifest, theme, depths, order,
+                bagTags == null ? Set.of() : bagTags);
+        Failure failure = pass.prepare();
+        if (failure != null) {
+            return new Result(null, failure);
         }
+        pass.run();
 
+        Map<PlanCell, DungeonPlan.PlacedRoom> placed = pass.placed();
+        Set<PlanCell> fallbacks = pass.fallbacks();
         PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths);
 
         DungeonPlan plan = new DungeonPlan(
@@ -165,7 +115,7 @@ final class RoomSelector {
                 shape.terminal(),
                 List.copyOf(shape.criticalPath()),
                 anomalyCell);
-        return new Result(plan, null, Set.copyOf(fallbacks), 0);
+        return new Result(plan, null, Set.copyOf(fallbacks), pass.backtrackSteps());
     }
 
     /**
@@ -278,21 +228,7 @@ final class RoomSelector {
      */
     private static RoomManifest.Match pick(List<RoomManifest.Match> matches, int depth,
                                            Map<String, Integer> used, Random rng) {
-        List<RoomManifest.Match> eligible = new ArrayList<>(matches.size());
-        for (RoomManifest.Match match : matches) {
-            DungeonRoomMeta meta = match.entry().meta;
-            if (meta.minDepth > depth) {
-                continue;
-            }
-            if (meta.maxPerDungeon >= 0
-                    && used.getOrDefault(match.entry().name, 0) >= meta.maxPerDungeon) {
-                continue;
-            }
-            eligible.add(match);
-        }
-        if (eligible.isEmpty()) {
-            eligible = matches;
-        }
+        List<RoomManifest.Match> eligible = preferred(matches, depth, used);
 
         // A rotationally symmetric room yields several matches for the same entry
         // and so gets an extra roll. That is harmless, and picking a random
@@ -309,6 +245,29 @@ final class RoomSelector {
             }
         }
         return eligible.get(eligible.size() - 1);
+    }
+
+    /**
+     * The depth and repeat preferences {@link #pick} applies, as a fresh
+     * mutable list. Extracted from {@code pick} so M47's pass can draw from the
+     * same distribution more than once without re-deriving it, and it relaxes
+     * to the whole list the same way and for the same reason.
+     */
+    private static List<RoomManifest.Match> preferred(List<RoomManifest.Match> matches, int depth,
+                                                      Map<String, Integer> used) {
+        List<RoomManifest.Match> eligible = new ArrayList<>(matches.size());
+        for (RoomManifest.Match match : matches) {
+            DungeonRoomMeta meta = match.entry().meta;
+            if (meta.minDepth > depth) {
+                continue;
+            }
+            if (meta.maxPerDungeon >= 0
+                    && used.getOrDefault(match.entry().name, 0) >= meta.maxPerDungeon) {
+                continue;
+            }
+            eligible.add(match);
+        }
+        return eligible.isEmpty() ? new ArrayList<>(matches) : eligible;
     }
 
     // ---- M47: the root-distance solvability pass (SITUATIONS_SPEC 6.6) ----
@@ -333,6 +292,293 @@ final class RoomSelector {
 
     /** The branch id of every cell on the entrance-to-staging path. */
     private static final int SPINE_BRANCH = -1;
+
+    /**
+     * Safety cap on the backtracking search, mirroring the constant
+     * {@code LayoutGraphGenerator.generateCriticalPath} caps its own
+     * backtracker with (spec 6.6 step 5 names that one). It is private over
+     * there and M47 does not own that file, so the value is repeated here
+     * rather than shared; whoever next opens both should hoist it.
+     *
+     * <p>For twenty cells with five to ten candidates each it is never
+     * approached: the measured worst case over the Pilgrim sweep is three
+     * figures below it.
+     */
+    private static final int MAX_BACKTRACK_STEPS = 50000;
+
+    /**
+     * One run of the 6.6 pass over one shape.
+     *
+     * <p>State lives in an object rather than in locals because backtracking
+     * needs to undo, and undoing a cumulative {@code available} set built by
+     * addition is the kind of thing that works for a week. Everything derived
+     * is instead recomputed from the assignment prefix, which for twenty cells
+     * costs nothing and cannot drift: the tags a cell may draw on, how many
+     * times a room has been used already, and which branches have spent their
+     * one gate are all functions of the cells resolved before it.
+     */
+    private static final class Pass {
+
+        private final DungeonShape shape;
+        private final RoomManifest manifest;
+        private final String theme;
+        private final Map<PlanCell, Integer> depths;
+        private final List<PlanCell> order;
+        private final Set<String> bagTags;
+
+        private Set<PlanCell> onSpine = Set.of();
+        private Map<PlanCell, Integer> branches = Map.of();
+        private PlanCell gateCell;
+
+        /** Every mask-and-role match per cell, sorted, before any tag filtering. */
+        private final List<List<RoomManifest.Match>> matches = new ArrayList<>();
+
+        private RoomManifest.Match[] assignments;
+        private CellState[] states;
+
+        /** Cells whose {@code requires} filter could not be satisfied at all. */
+        private final Set<PlanCell> forced = new LinkedHashSet<>();
+
+        private int steps;
+
+        /** Deepest index handed an empty candidate pool during the round. */
+        private int deepestEmpty = -1;
+
+        Pass(DungeonShape shape, RoomManifest manifest, String theme,
+             Map<PlanCell, Integer> depths, List<PlanCell> order, Set<String> bagTags) {
+            this.shape = shape;
+            this.manifest = manifest;
+            this.theme = theme;
+            this.depths = depths;
+            this.order = order;
+            this.bagTags = bagTags;
+        }
+
+        /**
+         * Resolves each cell's mask and role once. Returns the legible failure
+         * the pre-M47 selector returned, unchanged: a cell with no role, or a
+         * mask and role the manifest has no room for at any rotation. Neither
+         * is a solvability problem and neither is worth backtracking over.
+         */
+        Failure prepare() {
+            List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
+            onSpine = new HashSet<>(spine);
+            branches = branchGroups(shape, onSpine);
+            gateCell = designateGateCell(shape, spine, manifest, theme);
+
+            for (PlanCell cell : order) {
+                int mask = requiredMask(shape, cell);
+                String role = shape.roles().get(cell);
+                if (role == null) {
+                    return new Failure(cell, mask, "missing role");
+                }
+                List<RoomManifest.Match> found = manifest.queryAnyRotation(mask, role, theme);
+                if (found.isEmpty()) {
+                    return new Failure(cell, mask, role);
+                }
+                // Stable order in, so the weighted draw is reproducible
+                // regardless of the order the manifest holds its rooms in.
+                matches.add(sortedMatches(found));
+            }
+            assignments = new RoomManifest.Match[order.size()];
+            states = new CellState[order.size()];
+            return null;
+        }
+
+        /**
+         * Runs the search, widening the forced-fallback set until it succeeds.
+         *
+         * <p>A round is a full backtracking search. If it exhausts, the cell
+         * that blocked it deepest is added to {@link #forced}, where it takes a
+         * role-only room with no {@code requires} at all (6.6 step 6), and the
+         * search runs again. Each round forces at least one more cell and a
+         * forced cell always has a candidate, so the loop terminates; in
+         * practice round one succeeds and this is one iteration.
+         */
+        void run() {
+            for (int round = 0; round <= order.size(); round++) {
+                if (search()) {
+                    return;
+                }
+                PlanCell blocker = blockingCell();
+                if (blocker == null || !forced.add(blocker)) {
+                    // Nothing new to give up on. Give up on everything: a floor
+                    // of plain corridors is dull, and a floor that fails to
+                    // resolve is a run the player does not get.
+                    forced.addAll(order);
+                }
+            }
+            throw new IllegalStateException("solvability pass did not terminate for seed "
+                    + shape.seed());
+        }
+
+        /**
+         * One backtracking search over the whole BFS order.
+         *
+         * @return whether every cell ended up with a room
+         */
+        private boolean search() {
+            java.util.Arrays.fill(assignments, null);
+            java.util.Arrays.fill(states, null);
+            deepestEmpty = -1;
+            int index = 0;
+            while (index < order.size()) {
+                if (states[index] == null) {
+                    states[index] = new CellState(index);
+                }
+                RoomManifest.Match pick = states[index].next();
+                if (pick != null) {
+                    assignments[index] = pick;
+                    index++;
+                    continue;
+                }
+                // Nothing left here. Hand the cell back and take the previous
+                // cell's next candidate, which is what makes this better than
+                // greedy: a shallow pick that stranded a deeper gate is undone
+                // rather than paid for with a boring room.
+                states[index] = null;
+                assignments[index] = null;
+                index--;
+                if (index < 0 || ++steps > MAX_BACKTRACK_STEPS) {
+                    return false;
+                }
+                assignments[index] = null;
+            }
+            return true;
+        }
+
+        /**
+         * The cell to give up on after a search exhausted: the deepest one that
+         * was ever handed an empty candidate pool, which is the cell the floor
+         * could not solve. If that one is already forced, any cell that is not
+         * will do, and the round after that forces the lot.
+         */
+        private PlanCell blockingCell() {
+            if (deepestEmpty >= 0 && !forced.contains(order.get(deepestEmpty))) {
+                return order.get(deepestEmpty);
+            }
+            for (int i = order.size() - 1; i >= 0; i--) {
+                if (!forced.contains(order.get(i))) {
+                    return order.get(i);
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 6.6 step 3: the bag's tags, plus the {@code provides} of every cell at
+         * a root distance strictly below this one. The order is depth-sorted, so
+         * that is a prefix scan that stops at the first cell of this cell's own
+         * depth: a same-depth neighbour's provides are deliberately not visible,
+         * because the player is not guaranteed to have visited it first.
+         */
+        private Set<String> availableFor(int index) {
+            Set<String> available = new LinkedHashSet<>(bagTags);
+            int depth = depths.getOrDefault(order.get(index), 0);
+            for (int i = 0; i < index; i++) {
+                if (depths.getOrDefault(order.get(i), 0) >= depth) {
+                    break;
+                }
+                if (assignments[i] != null) {
+                    available.addAll(assignments[i].entry().meta.provides);
+                }
+            }
+            return available;
+        }
+
+        Map<PlanCell, DungeonPlan.PlacedRoom> placed() {
+            Map<PlanCell, DungeonPlan.PlacedRoom> out = new LinkedHashMap<>();
+            for (int i = 0; i < order.size(); i++) {
+                RoomManifest.Match match = assignments[i];
+                out.put(order.get(i), new DungeonPlan.PlacedRoom(match.entry().name, match.rotation()));
+            }
+            return out;
+        }
+
+        Set<PlanCell> fallbacks() {
+            return Set.copyOf(forced);
+        }
+
+        int backtrackSteps() {
+            return steps;
+        }
+
+        /**
+         * One cell's remaining candidates, drawn from without replacement.
+         *
+         * <p>The first draw is the ordinary weighted pick the selector has
+         * always made. Later draws only happen when the cells after this one
+         * could not be solved, and they walk the same weighted distribution
+         * with the already-tried rooms removed.
+         */
+        private final class CellState {
+
+            private final List<RoomManifest.Match> remaining;
+            private final Random rng;
+
+            CellState(int index) {
+                PlanCell cell = order.get(index);
+                List<RoomManifest.Match> all = matches.get(index);
+                List<RoomManifest.Match> pool;
+                if (forced.contains(cell)) {
+                    pool = roleOnly(all);
+                } else {
+                    int branch = branches.getOrDefault(cell, SPINE_BRANCH);
+                    pool = solvable(all, availableFor(index), onSpine.contains(cell),
+                            gatedBefore(index).contains(branch), cell.equals(gateCell));
+                }
+                if (pool.isEmpty()) {
+                    deepestEmpty = Math.max(deepestEmpty, index);
+                }
+                this.remaining = preferred(pool, depths.getOrDefault(cell, 0), usedBefore(index));
+                // Seeded per cell rather than off one shared stream, so a cell
+                // re-entered after an upstream change draws the same order it
+                // would have drawn the first time.
+                this.rng = new Random(shape.seed() * 31 + 17 + 1013L * index);
+            }
+
+            RoomManifest.Match next() {
+                if (remaining.isEmpty()) {
+                    return null;
+                }
+                int total = 0;
+                for (RoomManifest.Match match : remaining) {
+                    total += Math.max(1, match.entry().meta.weight);
+                }
+                int roll = rng.nextInt(total);
+                for (int i = 0; i < remaining.size(); i++) {
+                    roll -= Math.max(1, remaining.get(i).entry().meta.weight);
+                    if (roll < 0) {
+                        return remaining.remove(i);
+                    }
+                }
+                return remaining.remove(remaining.size() - 1);
+            }
+        }
+
+        /** How many times each room is already placed at cells before this one. */
+        private Map<String, Integer> usedBefore(int index) {
+            Map<String, Integer> used = new HashMap<>();
+            for (int i = 0; i < index; i++) {
+                if (assignments[i] != null) {
+                    used.merge(assignments[i].entry().name, 1, Integer::sum);
+                }
+            }
+            return used;
+        }
+
+        /** Which branches have already spent their one gated cell (spec 6.1). */
+        private Set<Integer> gatedBefore(int index) {
+            Set<Integer> gated = new HashSet<>();
+            for (int i = 0; i < index; i++) {
+                if (assignments[i] != null
+                        && DungeonRoomMeta.ACCESS_GATED.equals(assignments[i].entry().meta.access)) {
+                    gated.add(branches.getOrDefault(order.get(i), SPINE_BRANCH));
+                }
+            }
+            return gated;
+        }
+    }
 
     /** Cells in BFS order: shallowest first, then by grid position for stability. */
     private static List<PlanCell> bfsOrder(Set<PlanCell> cells, Map<PlanCell, Integer> depths) {
