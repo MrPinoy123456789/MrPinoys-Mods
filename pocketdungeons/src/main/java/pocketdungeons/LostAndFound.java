@@ -121,9 +121,6 @@ final class LostAndFound {
             }
             out.append("--- END LOST+FOUND CONTENT ---\n");
 
-            // Millisecond stamps collide when a player crosses twice in the same
-            // tick, so the name carries a disambiguating counter and the sort is
-            // lexicographic over a fixed-width stamp.
             Path file = uniqueFile(folder);
             Files.writeString(file, out.toString(), StandardCharsets.UTF_8);
             trim(folder);
@@ -132,15 +129,29 @@ final class LostAndFound {
         }
     }
 
+    /**
+     * A name that sorts chronologically as plain text, and still reads as a
+     * date to whoever opens the folder.
+     *
+     * <p>Two traps are avoided here, both of which would make the ring buffer
+     * delete the wrong file. A bare {@link Instant} stamp does not sort
+     * correctly: {@code Instant.toString} omits the fraction on a whole second,
+     * so {@code 12:00:00Z} sorts after {@code 12:00:00.500Z}. And a bare
+     * counter does not either: {@code -10} sorts before {@code -2}. So the name
+     * leads with a fixed-width epoch-millisecond field and a zero-padded
+     * counter, and carries the readable stamp behind them.
+     */
     private static Path uniqueFile(Path folder) {
-        String stamp = Instant.now().toString().replace(':', '-');
+        Instant now = Instant.now();
+        String stamp = now.toString().replace(':', '-');
         for (int i = 0; i < 1000; i++) {
-            Path candidate = folder.resolve(stamp + (i == 0 ? "" : "-" + i) + ".log");
+            Path candidate = folder.resolve(
+                    String.format("%013d-%03d-%s.log", now.toEpochMilli(), i, stamp));
             if (!Files.exists(candidate)) {
                 return candidate;
             }
         }
-        return folder.resolve(stamp + "-overflow.log");
+        return folder.resolve(String.format("%013d-overflow-%s.log", now.toEpochMilli(), stamp));
     }
 
     /**

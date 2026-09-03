@@ -261,6 +261,17 @@ final class InventorySwap {
         return -1;
     }
 
+    /**
+     * Spec 11.3's invariant, on its own so it can be stated once and tested:
+     * {@code survivalStashed == (player is in pocketdungeons:void)}.
+     *
+     * <p>When this is true there is nothing to do. When it is false there is
+     * exactly one thing to do, and which one is decided by {@code inVoid}.
+     */
+    static boolean invariantHolds(boolean inVoid, boolean stashed) {
+        return inVoid == stashed;
+    }
+
     // ---- spec 11.9, belt and braces -----------------------------------------
 
     /**
@@ -342,9 +353,10 @@ final class InventorySwap {
         boolean inVoid = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
         DungeonLog log = DungeonLog.forServer(server);
         StashRecord stash = log.stashOf(player.getUUID());
-        if (inVoid == stash.stashed()) {
-            // The invariant holds. This is the common case and the only branch
-            // most ticks ever reach.
+        if (invariantHolds(inVoid, stash.stashed())) {
+            // This is the common case and the only branch most ticks ever
+            // reach, and it is also the deduplication: a second call for the
+            // same transition lands here.
             return;
         }
         try {
