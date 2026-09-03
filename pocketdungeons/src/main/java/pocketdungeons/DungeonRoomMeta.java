@@ -23,10 +23,11 @@ final class DungeonRoomMeta {
     final int maxPerDungeon;
     final String processors;
     final List<String> theme;
+    final String content;
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
                     int weight, int minDepth, int maxPerDungeon, String processors,
-                    List<String> theme) {
+                    List<String> theme, String content) {
         this.template = template;
         this.footprintX = footprintX;
         this.footprintZ = footprintZ;
@@ -36,12 +37,20 @@ final class DungeonRoomMeta {
         this.maxPerDungeon = maxPerDungeon;
         this.processors = processors;
         this.theme = theme;
+        this.content = content;
+    }
+
+    DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
+                    int weight, int minDepth, int maxPerDungeon, String processors,
+                    List<String> theme) {
+        this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon,
+                processors, theme, null);
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
                     int weight, int minDepth, int maxPerDungeon, String processors) {
         this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon,
-                processors, List.of());
+                processors, List.of(), null);
     }
 
     static DungeonRoomMeta fromJson(JsonObject obj) {
@@ -53,8 +62,9 @@ final class DungeonRoomMeta {
         int maxPerDungeon = intOr(obj.get("maxPerDungeon"), -1);
         String processors = stringOrNull(obj.get("processors"));
         List<String> theme = parseTheme(obj.get("theme"));
+        String content = stringOrNull(obj.get("content"));
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,
-                weight, minDepth, maxPerDungeon, processors, theme);
+                weight, minDepth, maxPerDungeon, processors, theme, content);
     }
 
     private static String requiredString(JsonObject obj, String key) {

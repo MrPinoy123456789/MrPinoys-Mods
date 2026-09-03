@@ -1,6 +1,12 @@
-# M33 - Guided tasks via scoreboard - Handoff
+# M33 - Guided tasks via tracker screen - Handoff
 
 > Paste this whole file into a fresh chat to start work on this milestone.
+>
+> **Note:** the scoreboard sidebar described below was replaced during
+> implementation by a physical tracker screen in the player's room
+> (`DungeonScreen.updateTracker`). The task logic, sidecar, and hooks
+> are unchanged; only the display surface differs. See
+> `plans/COMPLETED-MILESTONES.md` for the as-built description.
 
 ## Read before writing anything
 

@@ -44,7 +44,12 @@ final class RoomProtection {
 
     private static boolean beforeBlockBreak(Level level, Player player, BlockPos pos,
                                              BlockState state, BlockEntity blockEntity) {
-        UUID roomOwner = Instances.roomOwnerAt(pos);
+        // M43.4: one roomRecordAt scan instead of the three separate
+        // roomOwnerAt/roomOriginAt/roomDungeonDoorAt calls (each its own
+        // full scan of every live instance) this used to make for the same
+        // position.
+        InstanceRecord roomRecord = Instances.roomRecordAt(pos);
+        UUID roomOwner = roomRecord == null ? null : roomRecord.owner;
         if (roomOwner == null) {
             // M31 9.2: not in anyone's room, but still might be in an active
             // run's dungeon cells. Like the player room, only the shell
@@ -63,14 +68,14 @@ final class RoomProtection {
         // stop. Paintings, item frames, carpets, signs, buttons and torches
         // never reach this branch for the shell: they are entities or sit on
         // the face of a wall, not in the wall.
-        BlockPos roomOrigin = Instances.roomOriginAt(pos);
+        BlockPos roomOrigin = roomRecord.roomCellOrigin;
         if (roomOrigin != null) {
             // M19 19.7: mod-placed furniture (bulbs, lever, screen blocks,
             // engine block) is equally unbreakable. The shell check stays a
             // pure coordinate test; the furniture check needs to know which
             // wall the selector doors stand on, so it is direction-aware.
             if (isShell(pos, roomOrigin)
-                    || isFurniture(pos, roomOrigin, Instances.roomDungeonDoorAt(pos))) {
+                    || isFurniture(pos, roomOrigin, roomRecord.roomDungeonDoor)) {
                 return false;
             }
         }

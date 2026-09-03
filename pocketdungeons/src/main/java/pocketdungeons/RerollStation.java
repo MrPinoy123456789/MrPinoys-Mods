@@ -5,20 +5,16 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -64,12 +60,7 @@ final class RerollStation {
 
     /** Whether {@code state} is the configured reroll station block. */
     static boolean matchesStation(BlockState state) {
-        Item item = REROLL_BLOCK_ITEM.get();
-        if (item == null) {
-            return false;
-        }
-        Block block = Block.byItem(item);
-        return block != Blocks.AIR && state.is(block);
+        return StationSupport.matchesBlock(REROLL_BLOCK_ITEM, state);
     }
 
     /**
@@ -81,17 +72,12 @@ final class RerollStation {
      * tier 1.
      */
     static int tierOf(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return 0;
-        }
-        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
         // M13's loot writes this as an NBT byte (fits in one), not an int. getIntOr
         // still reads it correctly (it tests instanceof NumericTag, and ByteTag is
         // one), but a refactor onto anything that demands an IntTag specifically, or
         // a raw tag-type comparison, would silently start returning 0 for every
         // legitimate drop.
-        return mine == null ? 0 : mine.getIntOr("tier", 0);
+        return StationSupport.readIntMarker(stack, "tier");
     }
 
     /**
@@ -110,15 +96,11 @@ final class RerollStation {
 
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int unlock = PocketDungeonsConfig.rerollUnlockLevel();
-        if (level < unlock) {
-            player.sendSystemMessage(Component.literal(
-                    "The reroll station needs a keystone level " + unlock + " or higher.")
-                    .withStyle(ChatFormatting.YELLOW));
+        if (StationSupport.levelTooLow(player, level, unlock, "reroll station")) {
             return true;
         }
 
         showPicker(player, held, null);
-        TaskTracker.progress(player, TaskTracker.Task.REROLL, 1);
         return true;
     }
 
@@ -143,6 +125,17 @@ final class RerollStation {
             return;
         }
 
+        // PD-24: the dialog path is a second entry point into this action,
+        // with no station-proximity check at all (DialogRouter only verifies
+        // the owner key). onUse's unlock-level gate has to be re-checked
+        // here too, or a low-level player could reroll from a stale dialog
+        // with no station present, materials still spent.
+        int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
+        int unlock = PocketDungeonsConfig.rerollUnlockLevel();
+        if (StationSupport.levelTooLow(player, level, unlock, "reroll station")) {
+            return;
+        }
+
         Registry<Enchantment> registry = player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         Identifier chosenId = Identifier.tryParse(enchantId);
         Holder.Reference<Enchantment> chosen = chosenId == null ? null : registry.get(chosenId).orElse(null);
@@ -159,10 +152,31 @@ final class RerollStation {
             return;
         }
 
+        // PD-17: the pool used to be filtered on isSupportedItem alone, so a
+        // curse (every curse supports every item, or every armor piece for
+        // binding) could come up as a "reroll", and an enchantment exclusive
+        // with one already on the item (Silk Touch alongside Fortune, Sharpness
+        // alongside Smite) was never screened out. Both broke the class's own
+        // "never strictly worse" guarantee. Treasure-only enchantments
+        // (Mending, Soul Speed, Swift Sneak) are deliberately left reachable:
+        // that is a windfall, not the strictly-worse failure this fix closes.
         List<Holder.Reference<Enchantment>> pool = new ArrayList<>();
         for (Identifier id : registry.keySet()) {
             Holder.Reference<Enchantment> candidate = registry.get(id).orElse(null);
             if (candidate == null || candidate.equals(chosen) || current.getLevel(candidate) > 0) {
+                continue;
+            }
+            if (candidate.is(EnchantmentTags.CURSE)) {
+                continue;
+            }
+            boolean exclusiveConflict = false;
+            for (Holder<Enchantment> present : current.keySet()) {
+                if (!present.equals(chosen) && candidate.value().exclusiveSet().contains(present)) {
+                    exclusiveConflict = true;
+                    break;
+                }
+            }
+            if (exclusiveConflict) {
                 continue;
             }
             if (candidate.value().isSupportedItem(held)) {
@@ -201,6 +215,11 @@ final class RerollStation {
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.LAPIS_LAZULI), cost,
                 new SimpleContainer(0));
         held.set(DataComponents.ENCHANTMENTS, result);
+        // PD-25: this used to fire from onUse, on opening the picker, before
+        // anything was spent. Moved to the point the lapis is actually
+        // debited, so the task can no longer be completed by right-clicking
+        // the station repeatedly with an empty inventory.
+        TaskTracker.progress(player, TaskTracker.Task.REROLL, 1);
 
         player.sendSystemMessage(Component.literal("Rerolled into "
                 + Enchantment.getFullname(replacement, newLevel).getString() + ".")

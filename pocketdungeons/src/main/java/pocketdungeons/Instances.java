@@ -38,10 +38,13 @@ import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import it.unimi.dsi.fastutil.longs.LongSet;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +65,17 @@ final class Instances {
     // kick-confirmation state live on PartyService (M9 C3 #3).
 
     /** Return points for players who left the world while inside, keyed by UUID. */
-    private static final Map<UUID, ReturnPoint> pendingReturns = new HashMap<>();
+    private static final Map<UUID, PendingReturn> pendingReturns = new HashMap<>();
+
+    /**
+     * PD-44: a game-time expiry alongside the point itself, so a player who
+     * disconnects inside and never comes back does not leave an entry for
+     * the rest of the process. 24 in-game hours is generous to a genuinely
+     * late return while still bounding the map.
+     */
+    private static final long PENDING_RETURN_TTL_TICKS = 20L * 60 * 60 * 24;
+
+    private record PendingReturn(ReturnPoint point, long expiresAtTick) {}
 
     /**
      * Recovery teleports queued from the JOIN handler, delayed rather than
@@ -154,21 +167,18 @@ final class Instances {
         // Leaving the world drops you from the party. The return point is kept so
         // the next login puts you back where you started, and the instance itself
         // survives for whoever is still inside it.
+        //
+        // PD-12: DISCONNECT fires on Netty's IO thread, not the server thread,
+        // for an abrupt disconnect (RunLifecycle.saveRoomIfOwner's javadoc has
+        // the full story). The whole body below mutates InstanceRegistry.byMember,
+        // pendingReturns, record.members/onPad and, through dropMember, can reach
+        // InstanceTeardown.purge, all of which the server thread also reads and
+        // writes every tick and on every block break. Deferring the whole thing
+        // through server.execute (a no-op wrap if this ever fires on the server
+        // thread already) is what makes it safe.
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.getPlayer();
-            PartyService.clearFor(player.getUUID());
-            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-            if (record == null) {
-                return;
-            }
-            ReturnPoint point = record.members.get(player.getUUID());
-            if (point != null) {
-                pendingReturns.put(player.getUUID(), point);
-            }
-            // U8 Stage 1: disconnecting is free. The run keeps running, on its
-            // own clock, whether or not anyone is here to watch it -- there is
-            // nothing to settle on the way out any more.
-            RunLifecycle.dropMember(server, record, player.getUUID(), player, "member disconnected");
+            server.execute(() -> handleDisconnect(server, player));
         });
 
         // Rejoining inside a purged slot: send them home rather than leaving them
@@ -185,7 +195,8 @@ final class Instances {
             if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
                 return;
             }
-            ReturnPoint point = pendingReturns.remove(player.getUUID());
+            PendingReturn pending = pendingReturns.remove(player.getUUID());
+            ReturnPoint point = pending == null ? null : pending.point();
             pendingJoinRecoveries.add(new PendingJoinRecovery(
                     player.getUUID(), point, JOIN_RECOVERY_DELAY_TICKS));
         });
@@ -230,6 +241,7 @@ final class Instances {
                         anomalyManifest.rejections().size());
             }
             LootTables.validateAtStartup(server);
+            reconcileAfterUncleanShutdown(server);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -246,6 +258,74 @@ final class Instances {
             // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
         });
+    }
+
+    /**
+     * The body of the {@code DISCONNECT} handler, run on the server thread via
+     * {@code server.execute} (PD-12) rather than directly on the Netty IO
+     * thread the event itself fires on for an abrupt disconnect.
+     */
+    private static void handleDisconnect(MinecraftServer server, ServerPlayer player) {
+        PartyService.clearFor(player.getUUID());
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
+            return;
+        }
+        ReturnPoint point = record.members.get(player.getUUID());
+        if (point != null) {
+            long expiresAtTick = server.overworld().getGameTime() + PENDING_RETURN_TTL_TICKS;
+            pendingReturns.put(player.getUUID(), new PendingReturn(point, expiresAtTick));
+        }
+        // U8 Stage 1: disconnecting is free. The run keeps running, on its
+        // own clock, whether or not anyone is here to watch it -- there is
+        // nothing to settle on the way out any more.
+        RunLifecycle.dropMember(server, record, player.getUUID(), player, "member disconnected");
+    }
+
+    /**
+     * PD-14: on a clean shutdown, {@code SERVER_STOPPING} tears down and
+     * drains every live slot, which releases every force-load ticket the mod
+     * ever set. So a dungeon-dimension chunk still force-loaded the moment
+     * this runs is a sign the previous shutdown never got that far, a crash
+     * or a kill that skipped {@code SERVER_STOPPING}, and in-memory state
+     * ({@code bySlot}, {@code usedSlots}) is useless for finding it, since
+     * {@link InstanceRecord} is deliberately not persisted. Recovers by
+     * mapping every stray forced chunk back to the slot-grid cell it falls
+     * in and tearing that slot down through the same budgeted-clear path
+     * {@code SERVER_STOPPING}'s own orphan branch already uses for a
+     * record-less slot, a no-op sweep of already-air blocks in the far more
+     * common case where the previous shutdown was clean.
+     */
+    private static void reconcileAfterUncleanShutdown(MinecraftServer server) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+        LongSet forced = level.getChunkSource().getForceLoadedChunks();
+        if (forced.isEmpty()) {
+            return;
+        }
+        int slotPitch = PocketDungeonsConfig.slotPitch();
+        int slotsPerRow = PocketDungeonsConfig.slotsPerRow();
+        Set<Integer> orphanedSlots = new HashSet<>();
+        for (long packed : forced) {
+            int blockX = ChunkPos.getX(packed) * 16;
+            int blockZ = ChunkPos.getZ(packed) * 16;
+            int col = Math.floorDiv(blockX, slotPitch);
+            int row = Math.floorDiv(blockZ, slotPitch);
+            if (col < 0 || row < 0 || col >= slotsPerRow) {
+                continue; // outside the addressable grid, not one of this mod's tickets
+            }
+            orphanedSlots.add(row * slotsPerRow + col);
+        }
+        for (int slot : orphanedSlots) {
+            PocketDungeonsMod.LOG.warn(
+                    "Slot {} was still force-loaded at startup; the previous shutdown "
+                            + "was not clean, clearing it now",
+                    slot);
+            InstanceTeardown.teardown(server, slot, InstanceRegistry.originForSlot(slot), null,
+                    "startup reconciliation after unclean shutdown");
+        }
     }
 
     // ---- entry --------------------------------------------------------------
@@ -467,40 +547,10 @@ final class Instances {
                                              int slot, BlockPos origin, UUID owner) {
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
         try {
-            boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
-                    RandomSource.create(level.getRandom().nextLong()));
-            if (!placedOwnRoom) {
-                TemplateStamper.place(level, level.getStructureManager(), origin,
-                        TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
-            }
-            RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
-            // All four sides get bedrock here, including the SOUTH dungeon wall:
-            // before a door is chosen there is nothing behind that wall but void,
-            // so leaving it open let a player who broke through the sealed door
-            // fall out. The SOUTH face is cleared in generateBehindLobby, right
-            // before the dungeon is actually stamped behind it.
-            BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
-            // The MM slot itself has to be sealed explicitly, the same as ee just
-            // above -- RoomStore.place stamps the owner's blob exactly as it was
-            // captured, and a room saved mid-run (saveRoom on disconnect, or any
-            // other leave path while a dungeon was generated behind it) captures
-            // that wall genuinely open. Without this, a returning owner's very
-            // first lobby stamp would carry that hole straight through: no wall,
-            // though now with a bedrock backstop behind it either way.
-            RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
-            // The selector doors and MM slot sit on the room's *dungeon* wall,
-            // not its entrance wall -- lobbyDoorDirection() is the latter (it is
-            // where sealDoor/the bedrock envelope's reserved side belong, ee's
-            // wall). A fresh record always starts at InstanceRecord's default
-            // roomDungeonDoor (SOUTH); stampLobby/createVisitInstance run before
-            // the InstanceRecord exists, so that default is named directly here
-            // instead, and the two must not drift apart.
-            RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-            RoomTemplateGenerator.placeWallLodestone(level, origin);
+            stampRoomShell(level, server, owner, origin);
             // M19: the physical selection furniture (bulbs, lever, screens) and
             // the two text_display entities, summoned fresh at every stamp and
             // never captured with the room.
-            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
             DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
                     DungeonScreen.idleContent(level, owner));
             DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
@@ -514,6 +564,51 @@ final class Instances {
             return null;
         }
         return lobbyLayout(origin);
+    }
+
+    /**
+     * (M43.8) The room-shell sequence {@link #stampLobby} and
+     * {@link VisitService#visit}'s visit-instance path both need before
+     * either diverges into what it summons on top (the owner's live door
+     * screens vs. a visit record's read-only ones): place the owner's saved
+     * room or a fresh entrance hall, seal both the entrance and dungeon
+     * walls, wrap the cell in bedrock, and place the selector doors,
+     * lodestone and furniture. Left inside the caller's own try block
+     * (it can throw {@link RuntimeException}, same as every call it makes
+     * already could) rather than catching here, since the two callers
+     * disagree on what a failure does next (a lobby stamp returns
+     * {@code null}; a visit stamp also messages the visitor).
+     *
+     * <p>Both doors are sealed to {@code DoorMask.Direction.SOUTH} directly
+     * rather than through a not-yet-existing {@link InstanceRecord}: a fresh
+     * record always starts at {@code roomDungeonDoor}'s default (SOUTH), and
+     * this runs before that record exists, so the two must not drift apart.
+     */
+    static void stampRoomShell(ServerLevel level, MinecraftServer server, UUID owner, BlockPos origin) {
+        boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
+                RandomSource.create(level.getRandom().nextLong()));
+        if (!placedOwnRoom) {
+            TemplateStamper.place(level, level.getStructureManager(), origin,
+                    TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
+        }
+        RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
+        // All four sides get bedrock here, including the SOUTH dungeon wall:
+        // before a door is chosen there is nothing behind that wall but void,
+        // so leaving it open let a player who broke through the sealed door
+        // fall out. The SOUTH face is cleared in generateBehindLobby, right
+        // before the dungeon is actually stamped behind it.
+        BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
+        // The MM slot itself has to be sealed explicitly, the same as ee just
+        // above -- RoomStore.place stamps the owner's blob exactly as it was
+        // captured, and a room saved mid-run (saveRoom on disconnect, or any
+        // other leave path while a dungeon was generated behind it) captures
+        // that wall genuinely open. Without this, a returning owner's very
+        // first lobby stamp would carry that hole straight through: no wall,
+        // though now with a bedrock backstop behind it either way.
+        RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
+        RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
+        RoomTemplateGenerator.placeWallLodestone(level, origin);
+        RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
     }
 
     static net.minecraft.core.Direction mcDirection(DoorMask.Direction dir) {
@@ -635,6 +730,17 @@ final class Instances {
         // M2/M3: clear the previous dungeon before generating the next one.
         RunLifecycle.resetForNextDungeon(server, record);
 
+        // PD-13: release the previous dungeon's force-load tickets before
+        // acquiring the new one's. resetForNextDungeon clears blocks, not
+        // tickets, so without this any chunk the old layout touched but the
+        // new one does not stays forced for the rest of the process,
+        // surviving even a restart since setChunkForced persists into the
+        // level's saved data. record.layout is never null here: a lobby's own
+        // one-cell layout is assigned before a door choice is ever possible.
+        if (record.layout != null) {
+            forceLoad(level, record.layout.geometry().chunks(), false);
+        }
+
         long seed = level.getRandom().nextLong();
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
@@ -669,8 +775,26 @@ final class Instances {
             } catch (RuntimeException e) {
                 PocketDungeonsMod.LOG.error("Stamping plan behind the room at {} failed",
                         record.roomCellOrigin.toShortString(), e);
-                InstanceTeardown.teardown(server, record.slot, record.origin, InstanceLayout.forClearingOnly(planOrigin, geometry),
-                        "stamp failed");
+                // PD-11: a failed stamp is a failed attempt at the NEXT dungeon
+                // behind an already-live lobby, not the end of the instance
+                // itself. Routing this through InstanceTeardown.teardown used
+                // to compound two bugs at once: it erased the room cell (plan
+                // cell (0,0) always maps back to record.roomCellOrigin, per
+                // stampBehindLobby's entranceAlreadyStamped contract and
+                // PlanGeometry.of/cellOrigin) and it freed usedSlots for a slot
+                // whose record and player are still alive, letting a later
+                // allocateSlot() collide with this one. Clean up synchronously
+                // instead, the same way resetForNextDungeon clears between two
+                // successful door choices: every attempted cell except the
+                // room, blocks removed in-tick, registry untouched.
+                List<BlockPos> keepRoom = List.of(record.roomCellOrigin);
+                for (BlockPos cellOrigin : geometry.cellOrigins()) {
+                    if (cellOrigin.equals(record.roomCellOrigin)) {
+                        continue;
+                    }
+                    clearCellSync(level, cellOrigin, keepRoom);
+                }
+                forceLoad(level, geometry.chunks(), false);
                 return false;
             }
         } else {
@@ -719,15 +843,7 @@ final class Instances {
         // player. rewardChests stays at its old value for the same reason a
         // stale keystoneReturned would let a second completion slip past
         // returnKeystone's once-only guard.
-        record.completed.clear();
-        record.keystoneReturned.clear();
-        record.onPad.clear();
-        record.visited.clear();
-        // The spawner-cleared cue is per-run state too (M22): a cell added in
-        // the run that just ended must cue again in the next one.
-        record.clearedCells.clear();
-        record.rewardChests = -1;
-        record.expiresAtTick = 0;
+        record.clearPreviousRunState();
 
         // The previous run's bar, if this record is being reused for a second
         // dungeon behind the same lobby. Dropping the reference without closing it
@@ -850,49 +966,52 @@ final class Instances {
         player.resetFallDistance();
         player.setDeltaMovement(Vec3.ZERO);
 
-        if (record.roomCellOrigin != null && !record.visitInstance) {
-            // Teleport to the room's centre, standing on the floor. Same cleanup
-            // as eject (save room, drop from party, clear timer) but the
-            // destination is the room, not the original ReturnPoint.
-            RunLifecycle.saveRoomIfOwner(server, record, player.getUUID());
-            record.members.remove(player.getUUID());
-            InstanceRegistry.byMember.remove(player.getUUID());
-            record.onPad.remove(player.getUUID());
-            if (record.timer != null) {
-                record.timer.removePlayer(player);
-            }
-            clearTrialOmen(player);
+        ReturnPoint point = record.members.get(player.getUUID());
+        boolean hadRoom = record.roomCellOrigin != null && !record.visitInstance;
+        int slot = record.slot;
+
+        // PD-26: route through dropMember, the same detach every other exit
+        // path uses, instead of a fifth hand-rolled copy that skipped the
+        // T2.6 leadership check. An owner who dies mid-run with party members
+        // present used to leave the run running without them; dropMember's
+        // leadership branch now ends it for everyone, exactly as a voluntary
+        // exit or a disconnect already would.
+        RunLifecycle.dropMember(server, record, player.getUUID(), player, "death rescue");
+
+        // dropMember's leadership branch purges the whole record synchronously
+        // (InstanceRegistry.bySlot.remove), so this is how rescue tells
+        // whether the run it was standing in still exists to be teleported
+        // back into.
+        boolean stillLive = InstanceRegistry.bySlot.get(slot) == record;
+        if (stillLive && hadRoom) {
             BlockPos roomCentre = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
             teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                     Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+        } else if (point != null) {
+            // The run ended with them, or there was never a room to stand in
+            // (admin build, untimed run, visit instance): the same fallback
+            // eject already uses, back to wherever they actually came from.
+            teleport(server, player, point.dimension(), point.pos(), point.yaw(), point.pitch());
         } else {
-            // No room cell (admin build, untimed run, or visit instance): fall
-            // back to the original return-point eject.
-            eject(server, record, player);
+            sendToWorldSpawn(server, player);
         }
+
         player.sendSystemMessage(Component.literal(
                 "The dungeon throws you out. You keep everything you were carrying.")
                 .withStyle(ChatFormatting.RED));
         // U8 Stage 1: dying inside costs nothing. Under a wall clock the walk
         // back is already the cost; a penalty on top would double-charge it.
         RunLifecycle.returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
-        announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
-                player.getUUID());
-
-        purgeIfAbandonedLobby(server, record);
+        if (stillLive) {
+            announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
+                    player.getUUID());
+            purgeIfAbandonedLobby(server, record);
+        }
     }
 
     /** Teleports one member to their own return point and drops them from the party. */
     static void eject(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
-        // Before the teleport, while the room is still exactly as they left it.
-        RunLifecycle.saveRoomIfOwner(server, record, player.getUUID());
-        ReturnPoint point = record.members.remove(player.getUUID());
-        InstanceRegistry.byMember.remove(player.getUUID());
-        record.onPad.remove(player.getUUID());
-        if (record.timer != null) {
-            record.timer.removePlayer(player);
-        }
-        clearTrialOmen(player);
+        ReturnPoint point = detach(server, record, player.getUUID(), player);
         if (point != null) {
             // M6 T6.5: the exit does not consult the room itself. It does not
             // need to. Teleport falls back to sendHome when the return dimension
@@ -905,6 +1024,35 @@ final class Instances {
         } else {
             sendToWorldSpawn(server, player);
         }
+    }
+
+    /**
+     * M43.2: the one primitive for detaching a member from an instance's
+     * registry footprint, used by {@link #eject}, {@link RunLifecycle#dropMember},
+     * and the offline-member branches inside {@code InstanceTeardown.purge}/
+     * {@code retireOrPurge}, all four of which used to independently
+     * hand-roll their own subset of this. Room save, {@code members}/
+     * {@code byMember} removal, and clearing {@code onPad} happen
+     * unconditionally; timer and Trial Omen cleanup only when {@code player}
+     * is online, since an offline member has no live {@code ServerPlayer} to
+     * clear either against (the caller's own {@code timer.close()} or
+     * teardown loop accounts for them separately).
+     *
+     * @return the member's return point, or {@code null} if they had none
+     */
+    static ReturnPoint detach(MinecraftServer server, InstanceRecord record, UUID member, ServerPlayer player) {
+        // Before anything else, while the room is still exactly as they left it.
+        RunLifecycle.saveRoomIfOwner(server, record, member);
+        ReturnPoint point = record.members.remove(member);
+        InstanceRegistry.byMember.remove(member);
+        record.onPad.remove(member);
+        if (player != null) {
+            if (record.timer != null) {
+                record.timer.removePlayer(player);
+            }
+            clearTrialOmen(player);
+        }
+        return point;
     }
 
     /**
@@ -1047,6 +1195,13 @@ final class Instances {
         // Ahead of the instance sweep and outside its empty check: a remote goes
         // stale in the overworld, where there is no instance at all.
         reconcileKeystones(server);
+
+        // PD-44: same reasoning as reconcileKeystones above. A player who
+        // disconnected inside and never logged back in leaves an entry with
+        // no live instance behind it at all, so this has to run whether or
+        // not bySlot is empty.
+        long nowForReturns = server.overworld().getGameTime();
+        pendingReturns.values().removeIf(pending -> pending.expiresAtTick() <= nowForReturns);
 
         if (InstanceRegistry.bySlot.isEmpty()) {
             return;
@@ -1336,7 +1491,16 @@ final class Instances {
         return record == null ? null : record.roomDungeonDoor;
     }
 
-    private static InstanceRecord roomRecordAt(BlockPos pos) {
+    /**
+     * M43.4: package-visible rather than {@code private} so a caller that
+     * needs more than one of {@link #roomOwnerAt}/{@link #roomOriginAt}/
+     * {@link #roomDungeonDoorAt} for the same position (both
+     * {@code RoomProtection.beforeBlockBreak} and
+     * {@code RitualListener}'s placement check did) can resolve the record
+     * once and read every field off it, instead of repeating this same scan
+     * once per field.
+     */
+    static InstanceRecord roomRecordAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             BlockPos roomOrigin = record.roomCellOrigin;
             if (roomOrigin == null) {
@@ -1364,8 +1528,14 @@ final class Instances {
      * make the two lookups redundant with each other.
      */
     static InstanceRecord dungeonRecordAt(BlockPos pos) {
-        InstanceRecord record = dungeonRecordAndCellAt(pos);
-        return record == null ? null : record;
+        // M40: this used to go through a private dungeonRecordAndCellAt
+        // wrapper that did nothing but call dungeonCellLookupAt and unwrap
+        // the record, the same lookup dungeonCellOriginAt already calls
+        // directly below. Exercised only by DungeonShellProtectionTest, not
+        // by any production caller (RoomProtection reads the origin, not
+        // the record), so the wrapper added a layer with no reader.
+        DungeonCellLookup lookup = dungeonCellLookupAt(pos);
+        return lookup == null ? null : lookup.record();
     }
 
     /**
@@ -1379,11 +1549,6 @@ final class Instances {
     static BlockPos dungeonCellOriginAt(BlockPos pos) {
         DungeonCellLookup lookup = dungeonCellLookupAt(pos);
         return lookup == null ? null : lookup.cellOrigin;
-    }
-
-    private static InstanceRecord dungeonRecordAndCellAt(BlockPos pos) {
-        DungeonCellLookup lookup = dungeonCellLookupAt(pos);
-        return lookup == null ? null : lookup.record;
     }
 
     private record DungeonCellLookup(InstanceRecord record, BlockPos cellOrigin) {}

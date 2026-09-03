@@ -67,6 +67,16 @@ final class InstanceTeardown {
      * bounding this at one lingering dungeon per owner.
      */
     static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
+        // PD-10: a record that is already lingering was retired once already
+        // (its room saved, its members ejected, its timer closed). Re-entering
+        // this method for the same record, which is exactly what happens when
+        // RunLifecycle.enter()'s lingering-quarry check fires because the
+        // owner started a new run, must purge rather than retire again, or the
+        // slot never frees.
+        if (record.lingering) {
+            purge(server, record, reason);
+            return;
+        }
         // M25: a Pocket2 child dies with its parent, whatever teardown form the
         // parent takes. Purge the children first so their members are returned
         // before the parent's own roster is emptied.
@@ -89,8 +99,11 @@ final class InstanceTeardown {
             if (player != null) {
                 Instances.eject(server, record, player);
             } else {
-                record.members.remove(member);
-                InstanceRegistry.byMember.remove(member);
+                // M43.2: detach handles onPad too, which this branch used to
+                // miss (record.timer.close() below covers the timer side for
+                // both branches, so detach's own timer.removePlayer is a
+                // no-op here since player is null).
+                Instances.detach(server, record, member, null);
             }
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
@@ -123,6 +136,17 @@ final class InstanceTeardown {
         if (purgeLevel != null) {
             RunLifecycle.saveRoomIfOwnerSync(purgeLevel, server, record, record.owner);
         }
+        // PD-34: capture the room origin for teardown's extraCellOrigin below,
+        // then null the field on the record itself. The member loop right
+        // after this calls Instances.eject, which calls the deferred
+        // RunLifecycle.saveRoomIfOwner; with roomCellOrigin still set, that
+        // deferred save used to fire on a later tick and race the PendingClear
+        // queued at the end of this method, overwriting the good synchronous
+        // save above with a partially (or fully) cleared room. Both
+        // saveRoomIfOwner and saveRoomIfOwnerSync already no-op on a null
+        // roomCellOrigin, so this alone closes the race.
+        BlockPos roomCellOrigin = record.roomCellOrigin;
+        record.roomCellOrigin = null;
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
@@ -130,8 +154,9 @@ final class InstanceTeardown {
                 player.sendSystemMessage(Component.literal("Your dungeon has closed.")
                         .withStyle(ChatFormatting.GRAY));
             } else {
-                record.members.remove(member);
-                InstanceRegistry.byMember.remove(member);
+                // M43.2: detach handles onPad too, which this branch used to
+                // miss.
+                Instances.detach(server, record, member, null);
             }
             // U8 Stage 1: a purge, a shutdown or a crash is the server's fault and
             // never costs anything. The owner's timeout depletion, if any, already
@@ -159,7 +184,7 @@ final class InstanceTeardown {
         // room's blocks and bedrock envelope are never cleared, and whatever the
         // slot is handed to next stamps its own layout on top of them.
         teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep,
-                record.roomCellOrigin);
+                roomCellOrigin);
     }
 
     static void teardown(MinecraftServer server, int slot, BlockPos origin,

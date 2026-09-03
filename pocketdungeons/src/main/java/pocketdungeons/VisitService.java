@@ -6,7 +6,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 
 import java.util.EnumSet;
 import java.util.UUID;
@@ -19,10 +18,9 @@ import java.util.UUID;
  *
  * <p>{@link #createVisitInstance} calls back into {@code Instances} for the
  * lobby-stamping helpers it shares with the real entry path
- * ({@link Instances#lobbyDoorDirection}, {@link Instances#mcDirection},
- * {@link Instances#lobbyLayout}, {@link Instances#admit}) rather than
- * duplicating any of them -- all four opened from {@code private} to
- * package-visible for exactly this.
+ * ({@link Instances#stampRoomShell}, {@link Instances#lobbyLayout},
+ * {@link Instances#admit}) rather than duplicating any of them: all three
+ * opened from {@code private} to package-visible for exactly this.
  */
 final class VisitService {
 
@@ -43,6 +41,17 @@ final class VisitService {
         }
         if (InstanceRegistry.hasInstance(visitor)) {
             visitor.sendSystemMessage(Component.literal("You are already in a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        // PD-18: statusOf already knows the difference between an idle room and
+        // a live keystone run; nothing gated the directory's admit on it before
+        // this, so a visitor could walk into a run in progress, bypassing
+        // maxPartyMembers and being folded into the owner's completion/bounty
+        // counts as a full member with no way back except the run ending.
+        if ("run in progress".equals(statusOf(owner))) {
+            visitor.sendSystemMessage(Component.literal(
+                    "The owner is in the middle of a run. Try again once they are back in their room.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -107,34 +116,10 @@ final class VisitService {
 
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
         try {
-            boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
-                    RandomSource.create(level.getRandom().nextLong()));
-            if (!placedOwnRoom) {
-                TemplateStamper.place(level, level.getStructureManager(), origin,
-                        TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
-            }
-            RoomBuilder.sealDoor(level, origin, Instances.mcDirection(Instances.lobbyDoorDirection()));
-            // A visit room never generates a dungeon behind it, so all four sides
-            // get bedrock and stay that way: the room is sealed permanently.
-            BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
-            // The MM slot itself has to be sealed explicitly, the same as ee just
-            // above -- RoomStore.place stamps the owner's blob exactly as it was
-            // captured, and a room saved mid-run (saveRoom on disconnect, or any
-            // other leave path while a dungeon was generated behind it) captures
-            // that wall genuinely open. Without this, a returning owner's very
-            // first lobby stamp would carry that hole straight through: no wall,
-            // though now with a bedrock backstop behind it either way.
-            RoomBuilder.sealDoor(level, origin, Instances.mcDirection(DoorMask.Direction.SOUTH));
-            // The selector doors and MM slot sit on the room's *dungeon* wall,
-            // not its entrance wall -- lobbyDoorDirection() is the latter (it is
-            // where sealDoor/the bedrock envelope's reserved side belong, ee's
-            // wall). A fresh record always starts at InstanceRecord's default
-            // roomDungeonDoor (SOUTH); stampLobby/createVisitInstance run before
-            // the InstanceRecord exists, so that default is named directly here
-            // instead, and the two must not drift apart.
-            RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-            RoomTemplateGenerator.placeWallLodestone(level, origin);
-            RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
+            // A visit room never generates a dungeon behind it, so the SOUTH
+            // wall this seals stays sealed permanently, unlike the owner's own
+            // lobby stamp.
+            Instances.stampRoomShell(level, server, owner, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);

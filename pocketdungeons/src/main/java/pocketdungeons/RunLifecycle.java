@@ -48,18 +48,6 @@ final class RunLifecycle {
     // ---- entry ----------------------------------------------------------
 
     /**
-     * Opens a dungeon for this player and their pre-registered party.
-     *
-     * <p>Returns whether the player actually went in. Every failure path here
-     * leaves them standing exactly where they were, and {@link RitualListener}
-     * pays a real item for entry -- so "did this work" has to be answerable by
-     * the caller rather than inferred from a message the player was sent.
-     */
-    static boolean enter(ServerPlayer player) {
-        return enter(player, 0, EnumSet.noneOf(Affix.class));
-    }
-
-    /**
      * Spends a keystone from this player's inventory and opens the run it buys,
      * or -- if this player already owns a live instance -- teleports them back
      * into it for free (U8 Stage 1: free re-entry).
@@ -657,16 +645,21 @@ final class RunLifecycle {
      */
     enum ExitReason { EXIT_PAD, COMMAND }
 
-    static void exit(ServerPlayer player, ExitReason reason) {
+    /**
+     * @return whether the player actually left a dungeon. {@code false}
+     * means the refusal message is the whole story (PD-38): the command
+     * executor's brigadier result now agrees with it, for {@code execute if}.
+     */
+    static boolean exit(ServerPlayer player, ExitReason reason) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
-            return;
+            return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             player.sendSystemMessage(Component.literal("You are not in a dungeon.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         // A keystone run records its completion and hands over its door offer on
@@ -683,7 +676,7 @@ final class RunLifecycle {
                 .anyMatch(m -> !m.equals(player.getUUID()));
         if (leadershipChanged(record, player.getUUID(), othersRemain)) {
             InstanceTeardown.purge(server, record, "party leader left", player.getUUID());
-            return;
+            return true;
         }
 
         Instances.eject(server, record, player);
@@ -710,10 +703,11 @@ final class RunLifecycle {
         // as soon as its last visitor leaves.
         if (record.visitInstance && record.members.isEmpty()) {
             InstanceTeardown.purge(server, record, "visit ended", player.getUUID());
-            return;
+            return true;
         }
 
         Instances.purgeIfAbandonedLobby(server, record);
+        return true;
     }
 
     /**
@@ -791,38 +785,44 @@ final class RunLifecycle {
         record.completed.add(player.getUUID());
         TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
 
-        // M34: weekly bounty hooks. Bounties belong to the owner; a party
-        // member's completion counts toward the owner's bounties, the same
-        // way it counts toward the owner's prestige (M24).
-        if (record.isKeystoneRun()) {
-            int chests = record.rewardChests;
-            boolean timed = record.timer != null && chests > 0;
-            Set<BlockPos> spawners = record.layout.trialSpawners();
-            if (!spawners.isEmpty()) {
-                int cleared = TrialContent.countCleared(player.level(), spawners);
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
-            }
-            if (timed) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.SPEEDRUNNER.id, 1);
-            }
-            if (record.chosenStep >= 2) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.SPELUNKER.id, 1);
-            }
-            if (record.members.size() >= 2) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.PACK_HUNTER.id, 1);
-            }
-        }
-
         if (firstCompletion) {
             if (record.timer != null) {
                 record.timer.markCompleted();
             }
             completeDungeon(server, record);
             announceShellLift(server, record);
+
+            // M34: weekly bounty hooks. Bounties belong to the owner; a party
+            // member's completion counts toward the owner's bounties, the
+            // same way it counts toward the owner's prestige (M24). PD-15:
+            // this block used to sit outside firstCompletion, so every party
+            // member's own completion re-triggered it (CLEAR_HALLS,
+            // SPELUNKER and PACK_HUNTER over-counted once per member), and it
+            // read record.rewardChests before completeDungeon (above) ever
+            // set it, so SPEEDRUNNER's timed check was always false. Moving
+            // it here, after completeDungeon, fixes both at once.
+            if (record.isKeystoneRun()) {
+                int chests = record.rewardChests;
+                boolean timed = record.timer != null && chests > 0;
+                Set<BlockPos> spawners = record.layout.trialSpawners();
+                if (!spawners.isEmpty()) {
+                    int cleared = TrialContent.countCleared(player.level(), spawners);
+                    BountyTracker.progress(server, record.owner,
+                            BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
+                }
+                if (timed) {
+                    BountyTracker.progress(server, record.owner,
+                            BountyTracker.Bounty.SPEEDRUNNER.id, 1);
+                }
+                if (record.chosenStep >= 2) {
+                    BountyTracker.progress(server, record.owner,
+                            BountyTracker.Bounty.SPELUNKER.id, 1);
+                }
+                if (record.members.size() >= 2) {
+                    BountyTracker.progress(server, record.owner,
+                            BountyTracker.Bounty.PACK_HUNTER.id, 1);
+                }
+            }
         }
 
         DungeonLog log = DungeonLog.forServer(server);
@@ -1113,32 +1113,12 @@ final class RunLifecycle {
      */
     static void dropMember(MinecraftServer server, InstanceRecord record,
                                    UUID member, ServerPlayer player, String reason) {
-        // Keyed off `member`, not `player`: an offline drop passes a null player.
-        saveRoomIfOwner(server, record, member);
-        record.members.remove(member);
-        InstanceRegistry.byMember.remove(member);
-
-        // Everything eject detaches, minus the teleport. Dropping a member used to
-        // mean only "forget them", which was survivable when an instance died with
-        // its last member; U8 made instances outlive everyone, so each of these
-        // now persists for the rest of the run:
-        //
-        //  - onPad is UUID-keyed and read as an edge. A member who leaves standing
-        //    on the pad and walks back in (free re-entry, U8 Stage 1) would find
-        //    their contact already recorded and the pad inert until they step off.
-        //  - ServerBossEvent holds ServerPlayer references and prunes none of them
-        //    itself; the timer now ticks with nobody inside, so a disconnected
-        //    player would be broadcast to for the rest of the run.
-        //  - Trial Omen is the one effect this mod can export into the real world.
-        //    eject cleared it; every dropMember path did not, so an admin teleport
-        //    out of an ominous run -- or a disconnect -- carried it to the overworld.
-        record.onPad.remove(member);
-        if (player != null) {
-            if (record.timer != null) {
-                record.timer.removePlayer(player);
-            }
-            Instances.clearTrialOmen(player);
-        }
+        // M43.2: Instances.detach is the one primitive for this now. Dropping
+        // a member used to mean only "forget them," which was survivable when
+        // an instance died with its last member; U8 made instances outlive
+        // everyone, so what detach also clears (onPad, the timer, Trial Omen)
+        // matters for the rest of the run, not just at teardown.
+        Instances.detach(server, record, member, player);
 
         // record.members has already had `member` removed above, so a non-empty
         // set here means someone else is still in the party.

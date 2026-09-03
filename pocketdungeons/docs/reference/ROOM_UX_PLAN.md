@@ -989,15 +989,17 @@ screen shows tutorial prompts, level 2+ unchanged.
 
 ---
 
-## M33: Guided tasks via scoreboard
+## M33: Guided tasks via tracker screen
 
-**Goal:** sequential task system teaching core loops via
-Minecraft scoreboard objectives. Ten tasks, each level-gated,
-one active at a time (lowest incomplete). Progress shown on
-door screen. Inspired by archived dailyquests mod's turn-in
-pattern: visible objective, count, automatic detection.
-Scoreboard objective `pd_task` tracks active task number so
-vanilla sidebar works.
+**Goal:** sequential task system teaching core loops. Ten
+tasks, each level-gated, one active at a time (lowest
+incomplete). Progress shown on door screen and a physical
+tracker screen in the player's room. Inspired by archived
+dailyquests mod's turn-in pattern: visible objective, count,
+automatic detection. The tracker screen replaces the
+originally planned scoreboard sidebar: instead of a global
+per-player sidebar, the progress is a third physical screen
+in the room, visible only to whoever is standing in it.
 
 **Depends on:** nothing. M19 screens and M32 tutorial text
 must exist (landed or planned).
@@ -1014,12 +1016,16 @@ must exist (landed or planned).
   advances, chat on completion. Auto-completes tasks below
   player's keystoneLevel.
 
-### 33.2 Scoreboard integration
+### 33.2 Tracker screen
 
-- `syncScoreboard(server, player)`: `Objective` `pd_task`,
-  `Criteria.DUMMY`, slot `LIST`. Score: active task number.
-  Display name: `"Pocket Dungeons"`.
-- On completion: remove, create next. All done: remove.
+- `DungeonScreen.updateTracker` / `refreshTracker`: a
+  physical screen on the wall opposite the engine screen
+  (the selector wall's right), showing the owner's active
+  task with its progress. Replaces the originally planned
+  `pd_task` scoreboard objective.
+- On completion: the screen picks up the next active task
+  automatically. All done: the screen hands off to
+  `BountyTracker`'s weekly bounties (M34).
 
 ### 33.3 Hook into existing events
 
@@ -1032,7 +1038,7 @@ must exist (landed or planned).
 
 - `idleContent`, `previewContent`, `runContent`: append
   `TaskTracker.taskLine(owner)`.
-- Player join: `syncScoreboard`, chat with active task.
+- Player join: refresh tracker screen, chat with active task.
 
 **Task list:**
 
@@ -1047,16 +1053,17 @@ must exist (landed or planned).
 9. Extract a Power (lvl 30, x1)
 10. Tame a Wolf (Feral, x1)
 
-**Done when:** tasks surface on door screen, progress via
-scoreboard, advance automatically, persist across restarts.
+**Done when:** tasks surface on door screen and tracker
+screen, advance automatically, persist across restarts.
 
 **Touch points:** `TaskTracker` (new), `DungeonLog`
-(sidecar), `DungeonScreen` (three content methods),
-`RitualListener.selectDoor`, `RunLifecycle.chooseOffer`,
-`RunLifecycle.completeRun`, `GambleStation.onUse`,
-`RerollStation.onUse`, `CubeStation.onUse`,
-`VisitService.visit`, `EntityTameEvent` listener,
-`PocketDungeonsMod` join handler.
+(sidecar), `DungeonScreen` (three content methods +
+tracker screen), `RitualListener.selectDoor`,
+`RunLifecycle.chooseOffer`, `RunLifecycle.completeRun`,
+`GambleStation.onUse`, `RerollStation.onUse`,
+`CubeStation.onUse`, `VisitService.visit`,
+`EntityTameEvent` listener, `PocketDungeonsMod` join
+handler.
 
 ---
 
@@ -1068,7 +1075,7 @@ contribute progress; all online members get rewards on
 completion. Inspired by archived dailyquests mod's turn-in
 pattern, adapted to dungeon activities and party play.
 
-**Depends on:** nothing. M33 scoreboard pattern reusable.
+**Depends on:** nothing. M33 tracker screen reusable.
 M19 screens must exist (landed).
 
 **Scope:**
@@ -1086,12 +1093,13 @@ M19 screens must exist (landed).
 - `DungeonLog`: sidecar `Map<UUID, List<BountyState>>`,
   codec `bounties`, default empty. Stale weekKey resets.
 
-### 34.2 Scoreboard
+### 34.2 Tracker screen
 
-- `syncScoreboard(server, owner)`: three objectives
-  `pd_bounty_0/1/2`, `Criteria.DUMMY`, slot `SIDEBAR`.
-  Score: progress. Display name: bounty label.
-- Created when owner online in dungeon. Removed on logout.
+- The M33 tracker screen now also shows bounty lines below
+  the task line once the tutorial tasks are done. Replaces
+  the originally planned `pd_bounty` scoreboard sidebar.
+- `DungeonScreen.refreshTracker` runs whenever the door
+  screen recomputes its bounty lines.
 
 ### 34.3 Hook into events
 
@@ -1106,7 +1114,7 @@ M19 screens must exist (landed).
 
 - `idleContent`, `previewContent`: append `bountyLine(owner)`
   after task line (M33).
-- Join: sync scoreboard, chat with bounties.
+- Join: refresh tracker screen, chat with bounties.
 - Completion: broadcast to party in green.
 
 **Bounty pool (three per week per owner):**
@@ -1123,14 +1131,15 @@ Reward: 2 echo shards + 4 emeralds per online member.
 Owner +1 shard bonus.
 
 **Done when:** three weekly bounties per owner, party
-contribution, shared rewards, scoreboard, door screen,
+contribution, shared rewards, tracker screen, door screen,
 week reset.
 
 **Touch points:** `BountyTracker` (new), `DungeonLog`
-(sidecar), `DungeonScreen` (two content methods),
-`RunLifecycle.completeRun`, `RitualListener` engine handler,
-`GambleStation.onUse`, `DungeonLog.setKeystone`,
-`PocketDungeonsMod` join handler.
+(sidecar), `DungeonScreen` (two content methods + tracker
+screen), `RunLifecycle.completeRun`, `RitualListener`
+engine handler, `GambleStation.onUse`,
+`DungeonLog.setKeystone`, `PocketDungeonsMod` join
+handler.
 
 ---
 
@@ -1260,7 +1269,7 @@ M32 (independent, needs M19 screens)
 
 M33 (independent, needs M19 screens + M32 tutorial)
 
-M34 (independent, M33 scoreboard pattern reusable)
+M34 (independent, M33 tracker screen reusable)
 
 M11 ──> M35
 ```
@@ -1286,8 +1295,8 @@ M11 ──> M35
 | M30 | Small | Connector carving in LayoutStamper, enum, BedrockEnvelope tweak |
 | M31 | Small | dungeonRecordAt in Instances, protection check in RoomProtection + RitualListener |
 | M32 | Small | Two string changes in DungeonScreen, idleContent gains owner param |
-| M33 | Medium | New TaskTracker class, DungeonLog sidecar, scoreboard, 9 hook points |
-| M34 | Medium | New BountyTracker class, DungeonLog sidecar, scoreboard, 4 hook points |
+| M33 | Medium | New TaskTracker class, DungeonLog sidecar, tracker screen, 9 hook points |
+| M34 | Medium | New BountyTracker class, DungeonLog sidecar, tracker screen, 4 hook points |
 | M35 | Medium | Second manifest loader, RoomSelector injection, DungeonPlan field, 2-3 templates + loot table |
 
 ---

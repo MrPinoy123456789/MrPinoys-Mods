@@ -1,10 +1,15 @@
 # Pocket Dungeons — vanilla dialogs spec
 
-> **Status: §1–§6 are built. §7 is not.** See
-> [`DIALOGS.md`](DIALOGS.md) for what shipped, the two decisions this document
-> deferred and how they were settled, and what has not been tested in play yet.
-> §7 (the elevator) stays spec-only — it is blocked on a `listed` flag that
-> does not exist and on M3's shared visit method.
+> **Status: §1–§7 are all built, none in exactly the form described below.**
+> See [`DIALOGS.md`](reference/DIALOGS.md) for what shipped, the decisions
+> this document deferred and how they were settled, and what has not been
+> tested in play yet. §7 (the elevator/room directory) shipped as the lobby
+> directory: `DungeonLog.Entry.publicListed` and `VisitService.visit` both
+> exist and are wired end to end, not blocked as this section originally
+> assumed. §1 (a per-door notice dialog) did not ship in the form described
+> below: M19 replaced the whole surface with the physical `DungeonScreen`
+> text display in the player's room, and `sendDoorOffer` no longer exists
+> anywhere in the tree.
 >
 > What follows is the original design pass, kept as written: where a dialog
 > would help, what shape it takes, what it calls. Two of its assumptions were

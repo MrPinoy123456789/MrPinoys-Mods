@@ -81,14 +81,6 @@ final class TemplateStamper {
     private static final Identifier LOOT_VAULT = id("rooms/loot_vault");
     private static final Identifier EXIT_HALL = id("rooms/exit_hall");
 
-    /**
-     * U8's reward and selector rooms. Loaded directly by identifier, exactly
-     * like the four constants above -- neither has a door, so neither has a
-     * mask, and {@code RoomManifest} never touches them.
-     */
-    static final Identifier REWARD_HALL = id("rooms/reward_hall");
-    static final Identifier SELECTOR_ROOM = id("rooms/selector_room");
-
     private TemplateStamper() {}
 
     /** The M0 four-room line, unrotated. The {@link StaticLayout} fallback. */

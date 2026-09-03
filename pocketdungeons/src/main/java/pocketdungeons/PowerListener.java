@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -73,6 +74,12 @@ final class PowerListener {
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(PowerListener::onTick);
+        // PD-43: applied grows one entry per player who has ever logged in,
+        // for the life of the process, with nothing removing a stale entry.
+        // Self-healing on relog (the modifiers themselves are transient), but
+        // a real leak in the meantime.
+        ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> applied.remove(handler.getPlayer().getUUID()));
     }
 
     static void warmUp() {
@@ -124,6 +131,21 @@ final class PowerListener {
             reconcile(player);
             reconcileLore(player);
         }
+    }
+
+    /**
+     * The power ids currently active on {@code player}'s worn gear, capped at
+     * {@link PocketDungeonsConfig#equipCap()} the same way {@link #reconcile}
+     * applies the attributes for them. Exposed for
+     * {@link CubeStation#sortedUnlocked}, which needs the same answer to
+     * decide what the imbue picker should offer.
+     */
+    static List<String> activePowersOf(ServerPlayer player) {
+        List<String> presentInSlotOrder = new ArrayList<>(POWER_SLOTS.length);
+        for (EquipmentSlot slot : POWER_SLOTS) {
+            presentInSlotOrder.add(CubeStation.powerOf(player.getItemBySlot(slot)));
+        }
+        return PowerEquipMath.activePowers(presentInSlotOrder, PocketDungeonsConfig.equipCap());
     }
 
     private static void reconcile(ServerPlayer player) {

@@ -159,6 +159,89 @@ final class DungeonLog extends SavedData {
             recentVisitors = List.copyOf(recentVisitors);
             diaryBandsSeen = Set.copyOf(diaryBandsSeen);
         }
+
+        /*
+         * M43.6: one wither per group of fields a DungeonLog mutator actually
+         * changes together, so a mutator states only what it is changing
+         * instead of restating all 16 other fields by hand. Grouped by call
+         * site rather than one-wither-per-field: recordCompletion changes
+         * three run-stat fields at once, recordTheme changes three
+         * theme-progress fields at once, and a wither per individual field
+         * would still leave those two call sites building an intermediate
+         * Entry (or passing four separate withX calls) for no benefit.
+         */
+
+        Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withKeystone(int keystoneLevel, String keystoneAffix) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withPendingOfferLevel(int pendingOfferLevel) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withPublicListed(boolean publicListed) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withFuel(int fuel) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withRoomName(String roomName) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withExtractedPowers(Set<String> extractedPowers) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withUnlockedShells(Set<String> unlockedShells) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withRoomCompletions(int roomCompletions) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
+
+        Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+        }
     }
 
     /** (M27 27.2) one ring-buffer entry: who visited, and when. */
@@ -373,17 +456,10 @@ final class DungeonLog extends SavedData {
     /** Records one completed run at a keystone level, for the {@code /dungeon log} best-level line. */
     Entry recordCompletion(UUID player, int pathLength, int keystoneLevel) {
         Entry previous = get(player);
-        Entry next = new Entry(
+        Entry next = previous.withRunStats(
                 previous.runsCompleted() + 1,
                 Math.max(previous.bestPathLength(), pathLength),
-                Math.max(previous.bestKeystoneLevel(), keystoneLevel),
-                previous.keystoneLevel(),
-                previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen());
+                Math.max(previous.bestKeystoneLevel(), keystoneLevel));
         entries.put(player, next);
         setDirty();
         return next;
@@ -405,18 +481,15 @@ final class DungeonLog extends SavedData {
      * a save written before affixes stacked still loads: {@code "ominous"} parses
      * as a one-element set and {@code ""} as an empty one.
      *
-     * @param level clamped by the caller; {@code 0} clears the keystone entirely
+     * @param level {@code 0} clears the keystone entirely; any other value is
+     *              clamped to {@code [1, PocketDungeonsConfig.keystoneMaxLevel()]}
+     *              here (PD-16), not left to the caller
      */
     void setKeystone(UUID player, int level, Set<Affix> affixes) {
+        int clampedLevel = level <= 0 ? 0
+                : Math.min(level, PocketDungeonsConfig.keystoneMaxLevel());
         Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), Math.max(0, level),
-                AffixMath.join(AffixMath.elective(affixes)), previous.pendingOfferLevel(),
-                previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withKeystone(clampedLevel, AffixMath.join(AffixMath.elective(affixes))));
         setDirty();
     }
 
@@ -427,13 +500,7 @@ final class DungeonLog extends SavedData {
      */
     void setPendingOffer(UUID player, int level) {
         Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                Math.max(0, level), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withPendingOfferLevel(Math.max(0, level)));
         setDirty();
     }
 
@@ -442,13 +509,7 @@ final class DungeonLog extends SavedData {
         if (previous.pendingOfferLevel() == 0) {
             return;
         }
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(), 0,
-                previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withPendingOfferLevel(0));
         setDirty();
     }
 
@@ -462,13 +523,7 @@ final class DungeonLog extends SavedData {
      */
     void setPublicListed(UUID player, boolean listed) {
         Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                listed, previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withPublicListed(listed));
         setDirty();
     }
 
@@ -484,13 +539,7 @@ final class DungeonLog extends SavedData {
             return;
         }
         Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel() + amount,
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withFuel(previous.fuel() + amount));
         setDirty();
     }
 
@@ -502,13 +551,7 @@ final class DungeonLog extends SavedData {
      */
     void setRoomName(UUID player, String name) {
         Entry previous = get(player);
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), name == null ? "" : name, previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withRoomName(name == null ? "" : name));
         setDirty();
     }
 
@@ -550,12 +593,7 @@ final class DungeonLog extends SavedData {
             nextDepth = previous.depth() + 1;
         }
 
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), counts, nextTheme, nextDepth,
-                previous.extractedPowers(), previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen());
+        Entry next = previous.withThemeProgress(counts, nextTheme, nextDepth);
         entries.put(player, next);
         setDirty();
         return next;
@@ -575,13 +613,7 @@ final class DungeonLog extends SavedData {
         }
         Set<String> powers = new HashSet<>(previous.extractedPowers());
         powers.add(powerId);
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), powers,
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen());
+        Entry next = previous.withExtractedPowers(powers);
         entries.put(player, next);
         setDirty();
         return next;
@@ -602,13 +634,7 @@ final class DungeonLog extends SavedData {
         }
         Set<String> shells = new HashSet<>(previous.unlockedShells());
         shells.add(shell);
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                shells, previous.roomCompletions(), previous.recentVisitors(),
-                previous.diaryBandsSeen());
+        Entry next = previous.withUnlockedShells(shells);
         entries.put(player, next);
         setDirty();
         return next;
@@ -623,13 +649,7 @@ final class DungeonLog extends SavedData {
      */
     Entry addRoomCompletion(UUID player) {
         Entry previous = get(player);
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions() + 1, previous.recentVisitors(),
-                previous.diaryBandsSeen());
+        Entry next = previous.withRoomCompletions(previous.roomCompletions() + 1);
         entries.put(player, next);
         setDirty();
         return next;
@@ -646,13 +666,7 @@ final class DungeonLog extends SavedData {
         if (previous.roomCompletions() == count) {
             return;
         }
-        entries.put(player, new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), Math.max(0, count), previous.recentVisitors(),
-                previous.diaryBandsSeen()));
+        entries.put(player, previous.withRoomCompletions(Math.max(0, count)));
         setDirty();
     }
 
@@ -670,13 +684,7 @@ final class DungeonLog extends SavedData {
         if (visitors.size() > MAX_RECENT_VISITORS) {
             visitors = visitors.subList(0, MAX_RECENT_VISITORS);
         }
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), visitors,
-                previous.diaryBandsSeen());
+        Entry next = previous.withRecentVisitors(visitors);
         entries.put(owner, next);
         setDirty();
     }
@@ -698,13 +706,7 @@ final class DungeonLog extends SavedData {
         }
         Set<Integer> bands = new HashSet<>(previous.diaryBandsSeen());
         bands.add(band);
-        Entry next = new Entry(previous.runsCompleted(), previous.bestPathLength(),
-                previous.bestKeystoneLevel(), previous.keystoneLevel(), previous.keystoneAffix(),
-                previous.pendingOfferLevel(), previous.recentThemes(), previous.completedThemes(),
-                previous.currentTheme(), previous.depth(), previous.extractedPowers(),
-                previous.publicListed(), previous.roomName(), previous.fuel(),
-                previous.unlockedShells(), previous.roomCompletions(), previous.recentVisitors(),
-                bands);
+        Entry next = previous.withDiaryBandsSeen(bands);
         entries.put(player, next);
         setDirty();
         return next;

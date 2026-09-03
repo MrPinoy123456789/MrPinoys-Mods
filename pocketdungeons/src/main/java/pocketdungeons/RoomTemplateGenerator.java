@@ -349,31 +349,6 @@ final class RoomTemplateGenerator {
         // doors and nothing else. Never selected, no metadata file.
         specs.add(new RoomSpec("jig_room", HORIZONTALS));
 
-        // --- U8: the reward room and the selector room. Neither has a door --
-        //     both are reached by teleport, so neither has a mask, and neither
-        //     gets a dungeon_room/*.json: loading either through the manifest
-        //     would put it in the coverage grid and the planner's plan graph for
-        //     no benefit (U8 Stage 2/3). Stamped directly by Identifier through
-        //     TemplateStamper.place, the same way StaticLayout's fallback rooms
-        //     already are.
-
-        // Three chests, scaled by how much of the clock is left; a lodestone
-        // pad -- the same rotation-invariant 2x2 square every exit uses -- to
-        // leave. Reached only after the terminal cell's own pad is stamped.
-        specs.add(new RoomSpec("reward_hall", Set.of())
-                .chests(new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4))
-                .exitPad());
-
-        // Three doors -- the visual language for an affix -- and a lodestone
-        // pad of its own so leaving without choosing costs nothing. The pad
-        // sits well south of the door row (T12 gives no fixed coordinate for
-        // it, only for the doors), clear of both.
-        specs.add(new RoomSpec("selector_room", Set.of())
-                .decor((level, o) -> {
-                    placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
-                    placeWallLodestone(level, o);
-                }));
-
         return specs;
     }
 
@@ -530,12 +505,7 @@ final class RoomTemplateGenerator {
         // is only correct at rotation 0; a room re-stamped behind the terminal
         // cell arrives at whatever rotation puts its 'ee' side facing back, and
         // carries its own pad in the blob already.
-        net.minecraft.core.Direction facing = switch (wall) {
-            case NORTH -> Direction.SOUTH; // doors on north wall, open/facing into room
-            case SOUTH -> Direction.NORTH;
-            case EAST -> Direction.WEST;
-            case WEST -> Direction.EAST;
-        };
+        Direction facing = CellGeometry.facingIntoRoom(wall);
         Identifier[] blocks = {DOOR_NONE, DOOR_OMINOUS, DOOR_GREATER_3};
         for (int i = 0; i < SELECTOR_DOORS.length; i++) {
             placeDoor(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), blocks[i], facing,
@@ -564,12 +534,7 @@ final class RoomTemplateGenerator {
      * a real double door.
      */
     static void placePostSelectionDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        net.minecraft.core.Direction facing = switch (wall) {
-            case NORTH -> Direction.SOUTH; // doors open into the room
-            case SOUTH -> Direction.NORTH;
-            case EAST -> Direction.WEST;
-            case WEST -> Direction.EAST;
-        };
+        Direction facing = CellGeometry.facingIntoRoom(wall);
         for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
             BlockPos lower = postSelectionDoorPos(o, wall, i);
             DoorHingeSide hinge = i == RoomGeometry.DOOR_MIN
@@ -830,13 +795,7 @@ final class RoomTemplateGenerator {
      * opposite direction.
      */
     private static BlockState leverState(DoorMask.Direction wall) {
-        Direction facing = switch (wall) {
-            case NORTH -> Direction.SOUTH;
-            case SOUTH -> Direction.NORTH;
-            case EAST -> Direction.WEST;
-            case WEST -> Direction.EAST;
-        };
-        return LEVER_OFF.setValue(LeverBlock.FACING, facing);
+        return LEVER_OFF.setValue(LeverBlock.FACING, CellGeometry.facingIntoRoom(wall));
     }
 
     /**
@@ -845,13 +804,7 @@ final class RoomTemplateGenerator {
      * is attached to, so it reads the same way {@link #leverState} does.
      */
     private static BlockState signState(DoorMask.Direction wall) {
-        Direction facing = switch (wall) {
-            case NORTH -> Direction.SOUTH;
-            case SOUTH -> Direction.NORTH;
-            case EAST -> Direction.WEST;
-            case WEST -> Direction.EAST;
-        };
-        return LEVER_SIGN.setValue(WallSignBlock.FACING, facing);
+        return LEVER_SIGN.setValue(WallSignBlock.FACING, CellGeometry.facingIntoRoom(wall));
     }
 
     /**
@@ -861,13 +814,7 @@ final class RoomTemplateGenerator {
      * from it.
      */
     private static BlockState frameState(DoorMask.Direction wall, Half half) {
-        Direction facing = switch (wall) {
-            case NORTH -> Direction.SOUTH;
-            case SOUTH -> Direction.NORTH;
-            case EAST -> Direction.WEST;
-            case WEST -> Direction.EAST;
-        };
-        return FRAME.setValue(StairBlock.FACING, facing).setValue(StairBlock.HALF, half);
+        return FRAME.setValue(StairBlock.FACING, CellGeometry.facingIntoRoom(wall)).setValue(StairBlock.HALF, half);
     }
 
     // ---- spec ---------------------------------------------------------------

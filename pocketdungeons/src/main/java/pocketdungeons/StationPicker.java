@@ -71,14 +71,15 @@ final class StationPicker {
         gui.setTitle(Component.literal("Stations"));
 
         gui.setSlot(SLOT_REROLL, stationElement(
-                "Reroll Station",
+                "Smithing Table",
                 resolveItem(PocketDungeonsConfig.rerollBlock()),
                 level >= PocketDungeonsConfig.rerollUnlockLevel(),
                 PocketDungeonsConfig.rerollUnlockLevel(),
                 List.of(
                         "Rerolls one enchantment on a piece of gear.",
                         "Costs lapis, scaled by the gear's tier.",
-                        "Right-click the block with gear in hand."),
+                        "Right-click the block with gear in hand.",
+                        "A blacksmith NPC spawns near it to sell gear for emeralds."),
                 player));
 
         gui.setSlot(SLOT_GAMBLE, stationElement(
@@ -89,7 +90,8 @@ final class StationPicker {
                 List.of(
                         "Trades emeralds for a random piece of gear in a chosen slot.",
                         "Costs emeralds, scaled by tier. No guarantee of quality.",
-                        "Right-click the block to open the slot picker."),
+                        "Right-click the block to open the slot picker.",
+                        "Also available from the blacksmith NPC near a smithing table."),
                 player));
 
         gui.setSlot(SLOT_CUBE, stationElement(

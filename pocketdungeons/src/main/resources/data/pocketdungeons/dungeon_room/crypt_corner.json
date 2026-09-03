@@ -2,6 +2,7 @@
   "template": "pocketdungeons:rooms/crypt_corner",
   "footprint": [1, 1],
   "roles": ["encounter"],
+  "theme": ["deepslate", "infestation"],
   "weight": 2,
   "minDepth": 1,
   "maxPerDungeon": 2

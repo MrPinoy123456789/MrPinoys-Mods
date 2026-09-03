@@ -49,6 +49,12 @@ final class ThemeManifest {
                         if (value != null) {
                             load(value);
                             AdventureGraphs.load(value);
+                            // PD-30: Diaries.load previously had exactly one
+                            // call site, inside SERVER_STARTED, so an edited
+                            // diary entry needed a full restart even though
+                            // DatapackExporter exists specifically so an
+                            // operator can edit and /reload.
+                            Diaries.load(value);
                         }
                     }
                 });
@@ -62,7 +68,7 @@ final class ThemeManifest {
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
-            String id = baseName(resource.getKey());
+            String id = JsonPackSupport.baseName(resource.getKey());
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 DungeonThemeMeta meta = DungeonThemeMeta.fromJson(
                         JsonParser.parseReader(reader).getAsJsonObject());
@@ -97,19 +103,8 @@ final class ThemeManifest {
         return List.copyOf(byId.values());
     }
 
-    List<String> discoverableIds() {
-        return byId.values().stream().filter(entry -> entry.meta.discoverable)
-                .map(Entry::id).sorted().toList();
-    }
-
     List<String> rejections() {
         return rejections;
     }
 
-    private static String baseName(Identifier location) {
-        String path = location.getPath();
-        int slash = path.lastIndexOf('/');
-        String name = slash < 0 ? path : path.substring(slash + 1);
-        return name.substring(0, name.length() - 5);
-    }
 }

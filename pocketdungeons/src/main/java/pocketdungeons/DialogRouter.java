@@ -38,6 +38,15 @@ public final class DialogRouter {
 
     /** Dispatches one {@code pocketdungeons:} custom-click payload from the packet mixin. */
     public static void handle(ServerPlayer player, Identifier id, Optional<Tag> payload) {
+        // PD-21: the mixin defers this call through server.execute, a real gap
+        // in which the player can disconnect. Every other check below is about
+        // whether the payload is trustworthy; this one is about whether the
+        // player it would act on is still here at all, since some actions
+        // (unlockShell shrinking a held item, applyShell mutating the world,
+        // startDungeon teleporting) are not safe to run on a departed player.
+        if (player.hasDisconnected()) {
+            return;
+        }
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
@@ -226,6 +235,9 @@ public final class DialogRouter {
 
     /** The manage-room screen's name entry; caps at 16 like the command. */
     private static void setRoomName(ServerPlayer owner, MinecraftServer server, String name) {
+        // PD-37: same stripping the command path applies, so this routed
+        // path cannot smuggle a formatting code past it.
+        name = name.replace("§", "");
         if (name.length() > 16) {
             name = name.substring(0, 16);
         }

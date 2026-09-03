@@ -30,7 +30,12 @@ final class PayoutMath {
         if (secondsRemaining <= 0) {
             return 0;
         }
-        int usedPercent = 100 - (secondsRemaining * 100 / Math.max(1, totalSeconds));
+        // PD-42: widened to long before multiplying. secondsRemaining * 100
+        // overflows int past roughly 21.4 million seconds, and
+        // KeystoneMath.timerSeconds deliberately allows a timer that large
+        // (clamped only at Integer.MAX_VALUE), so this is the one place that
+        // guard fed a value the int math below could not hold.
+        int usedPercent = 100 - (int) ((long) secondsRemaining * 100 / Math.max(1, totalSeconds));
         if (usedPercent <= threePercent) {
             return 3;
         }

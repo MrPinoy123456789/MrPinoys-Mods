@@ -118,17 +118,9 @@ final class AdventureGraph {
         return theme == null ? null : nodes.get(theme);
     }
 
-    /** The node naming a given Cube power reward, or {@code null} if no loaded node grants it. */
-    Node nodeForReward(String powerId) {
-        if (powerId == null || powerId.isBlank()) {
-            return null;
-        }
-        for (Node node : nodes.values()) {
-            if (powerId.equals(node.reward())) {
-                return node;
-            }
-        }
-        return null;
+    /** Total node count, for the admin reload command's summary. */
+    int size() {
+        return nodes.size();
     }
 
     List<String> entryThemes() {
@@ -155,9 +147,27 @@ final class AdventureGraph {
         }
         List<Transition> expanded = weighted(pool);
         Collections.shuffle(expanded, new Random(seed(owner, currentTheme, depth)));
+        // M42.6: dedupe by theme before taking the top three, the same
+        // dedupe-then-shuffle convention BountyTracker.bountiesFor already
+        // uses, so one node cannot offer the same theme on two or three
+        // doors. Iterating the already-shuffled, weight-expanded list and
+        // keeping first occurrences preserves the weighting bias (a
+        // heavier-weight theme has more chances to appear early) while
+        // still producing distinct picks. A node with fewer than three
+        // distinct transitions has nothing else to offer, so the modulo
+        // below falls back to repeating one of them.
+        List<String> distinct = new ArrayList<>();
+        for (Transition transition : expanded) {
+            if (!distinct.contains(transition.theme())) {
+                distinct.add(transition.theme());
+            }
+            if (distinct.size() == 3) {
+                break;
+            }
+        }
         List<String> offers = new ArrayList<>(3);
         for (int step = 0; step < 3; step++) {
-            offers.add(expanded.get(step % expanded.size()).theme());
+            offers.add(distinct.get(step % distinct.size()));
         }
         return List.copyOf(offers);
     }

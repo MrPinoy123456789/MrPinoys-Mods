@@ -6,7 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 import java.util.List;
@@ -61,23 +64,57 @@ final class ConnectorStamper {
     }
 
     /**
-     * Two iron doors side by side, closed and unpowered by default -- gated
-     * behind a redstone signal the stamper does not provide (room content or
-     * the player supplies it). The door slot is 3 tall but a door is only 2,
-     * so the top row is capped with the wall's own material rather than left
-     * open above a closed door. Only one side of the edge stamps this: the
-     * other cell's wall stays as the air the jigsaw resolved, so there is
-     * one door to open, not two sets with a trapped gap between them.
+     * Two iron doors side by side, closed and unpowered by default, with a
+     * lever on the frame that always opens them (PD-27): nothing else in the
+     * mod places a redstone source, and this connector can land on the
+     * critical path, so a run with no lever would have no way through. The
+     * door slot is 3 tall but a door is only 2, so the top row is capped with
+     * the wall's own material rather than left open above a closed door.
+     * Only one side of the edge stamps this: the other cell's wall stays as
+     * the air the jigsaw resolved, so there is one door to open, not two sets
+     * with a trapped gap between them.
+     *
+     * <p>PD-28: {@code facing} is the inward convention every other door in
+     * the pipeline uses ({@link CellGeometry#opposite}), not the wall
+     * direction itself, and the two leaves alternate {@code HINGE} the same
+     * way {@link RoomTemplateGenerator#placePostSelectionDoors} already does,
+     * so they meet in the middle instead of both defaulting to
+     * {@code LEFT}.
      */
     private static void applyIronDoor(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
-        Direction facing = Instances.mcDirection(wall);
-        BlockState lower = Blocks.IRON_DOOR.defaultBlockState().setValue(DoorBlock.FACING, facing)
-                .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER);
-        BlockState upper = lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER);
+        Direction facing = Instances.mcDirection(CellGeometry.opposite(wall));
         BlockState cap = wallBlockAt(level, cellOrigin, wall);
-        fill(level, ConnectorGeometry.rect(cellOrigin, wall, DOOR_MIN, DOOR_MAX, 1, 1), lower);
-        fill(level, ConnectorGeometry.rect(cellOrigin, wall, DOOR_MIN, DOOR_MAX, 2, 2), upper);
-        fill(level, ConnectorGeometry.rect(cellOrigin, wall, DOOR_MIN, DOOR_MAX, 3, 3), cap);
+        for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {
+            DoorHingeSide hinge = i == DOOR_MIN ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
+            BlockState lower = Blocks.IRON_DOOR.defaultBlockState()
+                    .setValue(DoorBlock.FACING, facing)
+                    .setValue(DoorBlock.HINGE, hinge)
+                    .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER);
+            BlockState upper = lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER);
+            level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 1), lower, STAMP_FLAGS);
+            level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 2), upper, STAMP_FLAGS);
+            level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 3), cap, STAMP_FLAGS);
+        }
+
+        BlockState lever = Blocks.LEVER.defaultBlockState()
+                .setValue(LeverBlock.FACE, AttachFace.WALL)
+                .setValue(LeverBlock.FACING, facing);
+        level.setBlock(leverPos(cellOrigin, wall, DOOR_MIN - 1, 1), lever, STAMP_FLAGS);
+    }
+
+    /**
+     * One step inside the wall from {@link ConnectorGeometry#wallPos}, the
+     * same convention {@link RoomTemplateGenerator}'s own {@code doorPlanePos}
+     * uses for its wall-attached lever: the room-side air block a
+     * wall-attached block occupies, not the solid wall block itself.
+     */
+    private static BlockPos leverPos(BlockPos cellOrigin, DoorMask.Direction wall, int i, int y) {
+        return switch (wall) {
+            case NORTH -> cellOrigin.offset(i, y, 1);
+            case SOUTH -> cellOrigin.offset(i, y, CELL - 2);
+            case EAST -> cellOrigin.offset(CELL - 2, y, i);
+            case WEST -> cellOrigin.offset(1, y, i);
+        };
     }
 
     /**

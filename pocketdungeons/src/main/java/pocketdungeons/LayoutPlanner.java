@@ -1,7 +1,6 @@
 package pocketdungeons;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Top-level planner: ties graph generation ({@link LayoutGraphGenerator}) to
@@ -182,10 +181,6 @@ final class LayoutPlanner {
 
         boolean succeeded() {
             return plan != null;
-        }
-
-        Optional<DungeonPlan> planOptional() {
-            return Optional.ofNullable(plan);
         }
     }
 }

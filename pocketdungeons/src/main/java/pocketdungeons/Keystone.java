@@ -298,7 +298,14 @@ final class Keystone {
             if (shown.getAsInt() == level && affixOf(stack).equals(affixes)) {
                 continue;
             }
-            container.setItem(i, mint(level, affixes));
+            // PD-41: mint always returns a count-1 stack. Harmless with the
+            // default recovery compass (max stack size 1), but keystoneItem
+            // is a free-form config string with no such guarantee; preserve
+            // whatever count the old stack actually had, capped at the
+            // replacement's own max stack size.
+            ItemStack replacement = mint(level, affixes);
+            replacement.setCount(Math.min(stack.getCount(), replacement.getMaxStackSize()));
+            container.setItem(i, replacement);
         }
     }
 

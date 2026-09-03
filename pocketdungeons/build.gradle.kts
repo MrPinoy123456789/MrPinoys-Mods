@@ -64,8 +64,10 @@ tasks.register<JavaExec>("difficultyProfileTest") {
 tasks.register<JavaExec>("layoutGraphTest") {
     group = "verification"
     description = "Runs LayoutGraphGenerator's own shape/role/span verification sweep"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass = "pocketdungeons.LayoutGraphGenerator"
+    // M40: the harness moved out of production source into the test source
+    // set (LayoutGraphGeneratorHarness), so this points at test now, not main.
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "pocketdungeons.LayoutGraphGeneratorHarness"
 }
 
 tasks.register<JavaExec>("payoutMathTest") {
@@ -157,7 +159,10 @@ for ((taskName, testClass) in mapOf(
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
     "connectorTest" to "ConnectorTest",
-    "bountyTrackerTest" to "BountyTrackerTest"
+    "bountyTrackerTest" to "BountyTrackerTest",
+    "cubeStationTest" to "CubeStationTest",
+    "roomStoreTest" to "RoomStoreTest",
+    "payoutTest" to "PayoutTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -179,6 +184,9 @@ tasks.test {
     dependsOn("trialContentConfigIdTest")
     dependsOn("connectorTest")
     dependsOn("bountyTrackerTest")
+    dependsOn("cubeStationTest")
+    dependsOn("roomStoreTest")
+    dependsOn("payoutTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")

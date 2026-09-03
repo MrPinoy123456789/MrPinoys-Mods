@@ -41,19 +41,15 @@ final class Diaries {
     private final List<Entry> entries;
     private final List<String> rejections;
     private final Map<Integer, Entry> byBand;
-    private final Map<Integer, Entry> byNumber;
 
     private Diaries(List<Entry> entries, List<String> rejections) {
         this.entries = List.copyOf(entries);
         this.rejections = List.copyOf(rejections);
         Map<Integer, Entry> bandIndex = new HashMap<>();
-        Map<Integer, Entry> numberIndex = new HashMap<>();
         for (Entry entry : this.entries) {
             bandIndex.put(entry.band(), entry);
-            numberIndex.put(entry.number(), entry);
         }
         this.byBand = Map.copyOf(bandIndex);
-        this.byNumber = Map.copyOf(numberIndex);
     }
 
     /** One authored diary entry: a title, its pages in canonical order, and the band that drops it. */
@@ -72,7 +68,7 @@ final class Diaries {
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
-            String id = baseName(resource.getKey());
+            String id = JsonPackSupport.baseName(resource.getKey());
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 Entry entry = parseEntry(id, JsonParser.parseReader(reader).getAsJsonObject());
                 parsed.add(entry);
@@ -121,7 +117,7 @@ final class Diaries {
     private static Entry parseEntry(String id, JsonObject obj) {
         int number = requiredInt(obj, "number");
         int band = requiredInt(obj, "band");
-        String title = requiredString(obj, "title");
+        String title = JsonPackSupport.requiredString(obj, "title");
         JsonElement pagesElement = obj.get("pages");
         if (pagesElement == null || !pagesElement.isJsonArray() || pagesElement.getAsJsonArray().isEmpty()) {
             throw new IllegalArgumentException("pages must be a non-empty array");
@@ -150,18 +146,6 @@ final class Diaries {
         return element.getAsInt();
     }
 
-    private static String requiredString(JsonObject obj, String key) {
-        JsonElement element = obj.get(key);
-        if (element == null || element.isJsonNull()) {
-            throw new IllegalArgumentException("missing required field: " + key);
-        }
-        String value = element.getAsString().trim();
-        if (value.isEmpty()) {
-            throw new IllegalArgumentException("field must not be blank: " + key);
-        }
-        return value;
-    }
-
     static Diaries current() {
         return current;
     }
@@ -176,19 +160,8 @@ final class Diaries {
         return byBand.get(band);
     }
 
-    /** The entry with a given display number (1-7), or {@code null}. */
-    Entry byNumber(int number) {
-        return byNumber.get(number);
-    }
-
     List<String> rejections() {
         return rejections;
     }
 
-    private static String baseName(Identifier location) {
-        String path = location.getPath();
-        int slash = path.lastIndexOf('/');
-        String name = slash < 0 ? path : path.substring(slash + 1);
-        return name.substring(0, name.length() - 5);
-    }
 }

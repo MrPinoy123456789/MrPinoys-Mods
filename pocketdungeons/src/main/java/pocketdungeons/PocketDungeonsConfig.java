@@ -682,7 +682,12 @@ public final class PocketDungeonsConfig {
         watchIntervalTicks = readInt(root, "watchIntervalTicks", 20, v -> v > 0, "must be > 0");
         voidGuardDepth = readInt(root, "voidGuardDepth", 10, v -> v >= 0, "must be >= 0");
         maxPartyMembers = readInt(root, "maxPartyMembers", 6, v -> v >= 1, "must be >= 1");
-        inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 0, "must be >= 0");
+        // PD-45: 0 made the window sub-millisecond in practice (both
+        // consumers compare an expiry computed from currentTimeMillis() +
+        // ttl * 1000L against "now"), which silently disabled party kick
+        // confirmations and invites rather than the operator getting a
+        // diagnostic.
+        inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 1, "must be >= 1");
 
         pathLengthMin = readInt(root, "pathLengthMin", 5, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 8, v -> v >= 2, "must be >= 2");
@@ -698,6 +703,24 @@ public final class PocketDungeonsConfig {
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
         planAttemptBudget = readInt(root, "planAttemptBudget", 16, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
+        // PD-46: a path longer than the grid can possibly hold (its cell
+        // count can never exceed maxGridSpan squared, whatever shape the
+        // generator folds it into) fails RoomSelector.validate for every
+        // seed with no diagnostic, and the mod silently falls back to
+        // StaticLayout forever. This is the worst-case bound the grid
+        // literally cannot exceed, not a tight one: a real generated path
+        // can still fail well below it depending on branching.
+        int maxPossiblePathLength = maxGridSpan * maxGridSpan;
+        if (pathLengthMax > maxPossiblePathLength) {
+            PocketDungeonsMod.LOG.error(
+                    "pocketdungeons.json pathLengthMax ({}) cannot fit inside a maxGridSpan of {} "
+                            + "({} cells at most); clamping pathLengthMax to {}",
+                    pathLengthMax, maxGridSpan, maxPossiblePathLength, maxPossiblePathLength);
+            pathLengthMax = maxPossiblePathLength;
+            if (pathLengthMin > pathLengthMax) {
+                pathLengthMin = pathLengthMax;
+            }
+        }
         clearBlocksPerTick = readInt(root, "clearBlocksPerTick", 8192,
                 v -> v >= 1024, "must be >= 1024");
 
@@ -785,6 +808,26 @@ public final class PocketDungeonsConfig {
         imbueCost = readInt(root, "imbueCost", 4, v -> v >= 0, "must be >= 0");
         equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
         extractionReversible = readBoolean(root, "extractionReversible", false);
+
+        // PD-47: keystoneMaxLevel bounds every player's achievable level.
+        // Setting it below one of these four gates makes that feature
+        // permanently unreachable with no diagnostic otherwise. A low
+        // level cap can be a legitimate server choice, so this warns rather
+        // than refuses or clamps; the operator just needs to know what it
+        // costs.
+        warnIfGateUnreachable("greaterDoorMinLevel", greaterDoorMinLevel, "Greater doors");
+        warnIfGateUnreachable("rerollUnlockLevel", rerollUnlockLevel, "the reroll station");
+        warnIfGateUnreachable("gambleUnlockLevel", gambleUnlockLevel, "the gamble station");
+        warnIfGateUnreachable("cubeUnlockLevel", cubeUnlockLevel, "the Herobrine Cube");
+    }
+
+    private static void warnIfGateUnreachable(String key, int gateLevel, String feature) {
+        if (gateLevel > keystoneMaxLevel) {
+            PocketDungeonsMod.LOG.warn(
+                    "pocketdungeons.json {} ({}) is above keystoneMaxLevel ({}); "
+                            + "{} can never be reached on this server",
+                    key, gateLevel, keystoneMaxLevel, feature);
+        }
     }
 
     private static List<PowerBonusEntry> readPowerBonuses(JsonObject root) {

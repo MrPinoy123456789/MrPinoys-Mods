@@ -382,10 +382,6 @@ final class TrialContent {
      * removal in this mod does (trap 4): without it, a chest carrying a pending
      * loot table unpacks and scatters on the floor the instant it is broken.
      */
-    private static final BlockPos[] REWARD_CHEST_SPOTS = {
-            new BlockPos(4, 1, 4), new BlockPos(8, 1, 4), new BlockPos(12, 1, 4)
-    };
-
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix) {

@@ -26,6 +26,13 @@ public class PayoutMathTest {
         // A zero-length timer must not divide by zero, and still resolves.
         check(PayoutMath.chestCount(0, 0, 60, 80), 0);
         check(PayoutMath.chestCount(5, 0, 60, 80), 3);
+        // PD-42: secondsRemaining * 100 overflows int past roughly 21.4
+        // million seconds. KeystoneMath.timerSeconds allows a timer up to
+        // Integer.MAX_VALUE, so a misconfigured huge timer must still
+        // resolve correctly rather than through overflowed garbage.
+        // secondsRemaining == totalSeconds here, so 0% of the clock is used
+        // and all three chests are earned.
+        check(PayoutMath.chestCount(Integer.MAX_VALUE, Integer.MAX_VALUE, 60, 80), 3);
     }
 
     private static void check(int actual, int expected) {

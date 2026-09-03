@@ -1,10 +1,13 @@
 package pocketdungeons;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 /**
  * M12's Greater-door currency: what door 1 pays out and doors 2/3 cost.
@@ -27,12 +30,25 @@ import net.minecraft.world.item.ItemStack;
  * M12 plan section warns against. {@link RunLifecycle#completeRun} grants
  * {@link PocketDungeonsConfig#fuelPerFreeRun()} directly, guaranteed, on
  * every completed free-door run; nothing here rolls a chance at it.
+ *
+ * <p><strong>Matching by item type alone is not enough (PD-48).</strong> The
+ * configured fuel item defaults to a vanilla item other content, in this mod
+ * and in other mods sharing the world, can reasonably use for something else
+ * entirely, including as a base for its own re-skinned item via
+ * {@code set_custom_data}. Every fuel stack this class ever creates carries
+ * the {@link #KEY_FUEL} marker under {@code custom_data.pocketdungeons}, the
+ * same convention {@link CubeStation}'s {@code tier} tag uses, and every
+ * check here requires it. A stack that merely happens to share the
+ * configured item type, minted by anything other than {@link #grant}, does
+ * not count as fuel.
  */
 final class Fuel {
 
     private static final ConfiguredItem FUEL_ITEM = new ConfiguredItem("fuelItem",
             PocketDungeonsConfig::fuelItem,
             "the Greater doors will refuse every choice: nothing can ever pay their cost.");
+
+    private static final String KEY_FUEL = "fuel";
 
     private Fuel() {}
 
@@ -50,26 +66,24 @@ final class Fuel {
         return FUEL_ITEM.get();
     }
 
-    /** Whether {@code stack} is the configured fuel item. */
+    /** Whether {@code stack} is the configured fuel item, minted by {@link #grant}. */
     static boolean isFuel(ItemStack stack) {
         Item item = FUEL_ITEM.get();
-        return item != null && !stack.isEmpty() && stack.is(item);
+        return item != null && !stack.isEmpty() && stack.is(item) && isMarked(stack);
+    }
+
+    private static boolean isMarked(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
+        return mine != null && mine.getBooleanOr(KEY_FUEL, false);
     }
 
     /**
-     * How many units of fuel {@code player} is carrying. {@code 0} if the
-     * configured item does not resolve to anything, rather than throwing: an
-     * unresolvable fuel item should read as "can never afford it", the same
-     * as any other {@link ConfiguredItem} failure mode in this mod.
-     */
-    static int count(ServerPlayer player) {
-        Item item = FUEL_ITEM.get();
-        return item == null ? 0 : player.getInventory().countItem(item);
-    }
-
-    /**
-     * How much fuel {@code player} has banked in an engine terminal. This, not
-     * {@link #count}, is what a Greater door can spend.
+     * How much fuel {@code player} has banked in an engine terminal. This,
+     * not how much they are carrying, is what a Greater door can spend.
      */
     static int banked(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
@@ -111,24 +125,30 @@ final class Fuel {
      * count too). Nothing here should touch a crafting grid, so an empty,
      * unrelated {@link SimpleContainer} stands in for "nothing else."
      */
-    static void spend(ServerPlayer player, int amount) {
-        Item item = FUEL_ITEM.get();
-        if (item == null || amount <= 0) {
+    private static void spend(ServerPlayer player, int amount) {
+        if (FUEL_ITEM.get() == null || amount <= 0) {
             return;
         }
-        player.getInventory().clearOrCountMatchingItems(stack -> stack.is(item), amount, new SimpleContainer(0));
+        player.getInventory().clearOrCountMatchingItems(Fuel::isFuel, amount, new SimpleContainer(0));
     }
 
     /**
      * Grants {@code amount} units, via {@link Payout#deliver} so a full
      * inventory drops the overflow at the player's feet rather than voiding
-     * it.
+     * it. Marked with {@link #KEY_FUEL} so it, and only it, counts as fuel
+     * everywhere else in this class (PD-48).
      */
     static void grant(ServerPlayer player, int amount) {
         Item item = FUEL_ITEM.get();
         if (item == null || amount <= 0) {
             return;
         }
-        Payout.deliver(player, new ItemStack(item, amount));
+        ItemStack stack = new ItemStack(item, amount);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            CompoundTag mine = new CompoundTag();
+            mine.putBoolean(KEY_FUEL, true);
+            tag.put(PocketDungeonsMod.MOD_ID, mine);
+        });
+        Payout.deliver(player, stack);
     }
 }

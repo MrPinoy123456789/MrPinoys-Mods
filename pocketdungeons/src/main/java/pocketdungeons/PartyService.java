@@ -76,23 +76,28 @@ final class PartyService {
      * leader is already inside, which is too late for the difficulty curve --
      * it is computed once, at stamp time, from the party size known then.
      */
-    static void party(ServerPlayer leader, ServerPlayer target) {
+    /**
+     * @return whether {@code target} was actually pre-registered (PD-38): the
+     * command executor's brigadier result now agrees with the refusal
+     * messages below, for {@code execute if}.
+     */
+    static boolean party(ServerPlayer leader, ServerPlayer target) {
         if (InstanceRegistry.hasInstance(leader)) {
             leader.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon invite instead.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (target.getUUID().equals(leader.getUUID())) {
             leader.sendSystemMessage(Component.literal("You are already coming.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (InstanceRegistry.hasInstance(target)) {
             leader.sendSystemMessage(Component.literal(
                     target.getName().getString() + " is already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         Set<UUID> companions = pendingParty.computeIfAbsent(leader.getUUID(), k -> new LinkedHashSet<>());
@@ -100,13 +105,13 @@ final class PartyService {
             leader.sendSystemMessage(Component.literal(
                     target.getName().getString() + " is already pre-registered.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (1 + companions.size() >= PocketDungeonsConfig.maxPartyMembers()) {
             leader.sendSystemMessage(Component.literal(
                     "Your party is full (" + PocketDungeonsConfig.maxPartyMembers() + " players).")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         companions.add(target.getUUID());
@@ -117,6 +122,7 @@ final class PartyService {
                 leader.getName().getString() + " pre-registered you for their next dungeon. "
                         + "You'll be brought in automatically when they run /dungeon.")
                 .withStyle(ChatFormatting.GOLD));
+        return true;
     }
 
     /**
@@ -151,17 +157,18 @@ final class PartyService {
      *
      * @param target the companion to drop, or {@code null} to drop every one
      */
-    static void stageKick(ServerPlayer leader, UUID target, String targetName) {
+    /** @return whether a kick was actually staged (PD-38). */
+    static boolean stageKick(ServerPlayer leader, UUID target, String targetName) {
         Set<UUID> companions = pendingParty.get(leader.getUUID());
         if (companions == null || companions.isEmpty()) {
             leader.sendSystemMessage(Component.literal("You have nobody pre-registered.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (target != null && !companions.contains(target)) {
             leader.sendSystemMessage(Component.literal(
                     targetName + " is not in your party.").withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         pendingKicks.put(leader.getUUID(), new PendingKick(target,
@@ -175,22 +182,27 @@ final class PartyService {
         // screen now. The leader ran a command a tick ago, so this is the answer
         // to something they just did rather than an unprompted push.
         DialogKit.show(leader, DialogScreens.kickConfirm(what));
+        return true;
     }
 
-    /** Executes whatever {@link #stageKick} staged for this leader. */
-    static void confirmKick(ServerPlayer leader) {
+    /**
+     * Executes whatever {@link #stageKick} staged for this leader.
+     *
+     * @return whether at least one companion was actually removed (PD-38)
+     */
+    static boolean confirmKick(ServerPlayer leader) {
         PendingKick kick = pendingKicks.remove(leader.getUUID());
         if (kick == null || kick.expiresAtMillis() < System.currentTimeMillis()) {
             leader.sendSystemMessage(Component.literal(
                     "Nothing to confirm. Run /dungeon party kick again.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         Set<UUID> companions = pendingParty.get(leader.getUUID());
         if (companions == null || companions.isEmpty()) {
             leader.sendSystemMessage(Component.literal("You have nobody pre-registered.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         MinecraftServer server = leader.level().getServer();
@@ -225,6 +237,7 @@ final class PartyService {
             DialogKit.show(leader, DialogScreens.partyRoster(server,
                     partyCompanions(leader.getUUID())));
         }
+        return removed > 0;
     }
 
     /**
@@ -250,30 +263,31 @@ final class PartyService {
         }
     }
 
-    static void invite(ServerPlayer inviter, ServerPlayer target) {
+    /** @return whether an invite was actually sent (PD-38). */
+    static boolean invite(ServerPlayer inviter, ServerPlayer target) {
         InstanceRecord record = InstanceRegistry.byMember.get(inviter.getUUID());
         if (record == null) {
             inviter.sendSystemMessage(Component.literal(
                     "You are not in a dungeon. Run /dungeon first, then invite people in.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (target.getUUID().equals(inviter.getUUID())) {
             inviter.sendSystemMessage(Component.literal("You are already here.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (InstanceRegistry.byMember.containsKey(target.getUUID())) {
             inviter.sendSystemMessage(Component.literal(
                     target.getName().getString() + " is already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (record.members.size() >= PocketDungeonsConfig.maxPartyMembers()) {
             inviter.sendSystemMessage(Component.literal(
                     "This dungeon is full (" + PocketDungeonsConfig.maxPartyMembers() + " players).")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         invites.put(target.getUUID(), new Invite(inviter.getUUID(), record.slot,
@@ -295,18 +309,20 @@ final class PartyService {
                         + " within two minutes to go in.")
                 .withStyle(s -> s.withColor(ChatFormatting.GOLD)
                         .withClickEvent(DialogKit.open(DialogScreens.inviteOffer(inviterName)))));
+        return true;
     }
 
-    static void join(ServerPlayer player, ServerPlayer leader) {
+    /** @return whether the player actually joined (PD-38). */
+    static boolean join(ServerPlayer player, ServerPlayer leader) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
-            return;
+            return false;
         }
         if (InstanceRegistry.hasInstance(player)) {
             player.sendSystemMessage(Component.literal(
                     "You are already in a dungeon. Use /dungeon exit first.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         Invite invite = invites.get(player.getUUID());
@@ -316,7 +332,7 @@ final class PartyService {
             player.sendSystemMessage(Component.literal(
                     "You have no open invitation from " + leader.getName().getString() + ".")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         InstanceRecord record = InstanceRegistry.bySlot.get(invite.slot());
@@ -324,13 +340,13 @@ final class PartyService {
             invites.remove(player.getUUID());
             player.sendSystemMessage(Component.literal("That dungeon has already closed.")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
         if (record.members.size() >= PocketDungeonsConfig.maxPartyMembers()) {
             player.sendSystemMessage(Component.literal(
                     "That dungeon is full (" + PocketDungeonsConfig.maxPartyMembers() + " players).")
                     .withStyle(ChatFormatting.RED));
-            return;
+            return false;
         }
 
         invites.remove(player.getUUID());
@@ -342,5 +358,6 @@ final class PartyService {
                 player.getUUID());
         PocketDungeonsMod.LOG.info("{} joined dungeon slot {}",
                 player.getName().getString(), record.slot);
+        return true;
     }
 }

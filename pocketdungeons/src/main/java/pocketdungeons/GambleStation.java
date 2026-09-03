@@ -16,8 +16,6 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -91,12 +89,7 @@ final class GambleStation {
 
     /** Whether {@code state} is the configured gamble station block. */
     static boolean matchesStation(BlockState state) {
-        Item item = GAMBLE_BLOCK_ITEM.get();
-        if (item == null) {
-            return false;
-        }
-        Block block = Block.byItem(item);
-        return block != Blocks.AIR && state.is(block);
+        return StationSupport.matchesBlock(GAMBLE_BLOCK_ITEM, state);
     }
 
     /**
@@ -109,19 +102,28 @@ final class GambleStation {
         if (!matchesStation(state)) {
             return false;
         }
+
+        // PD-23: unlike the reroll station, this never checked its own
+        // unlock level. gambleUnlockLevel gated only the picker shelf, so
+        // anyone who obtained the block by any means used the station at
+        // keystone level 1.
+        int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
+        int unlock = PocketDungeonsConfig.gambleUnlockLevel();
+        if (StationSupport.levelTooLow(player, level, unlock, "gamble station")) {
+            return true;
+        }
+
         openGui(player);
-        TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
         return true;
     }
 
     /**
-     * Opens the villager trading screen with one trade per unlocked
-     * slot/tier combination. Each trade's cost is the emerald price; each
-     * trade's displayed result is a placeholder item carrying the slot and
-     * tier in its {@code CUSTOM_DATA} so {@code onTrade} can identify which
-     * gamble the player chose.
+     * Opens the gamble trading screen for {@code player}. Exposed package
+     * private so {@link BlacksmithNPC} can open the same screen when a
+     * player right-clicks the blacksmith villager, without duplicating the
+     * trade construction or {@code onTrade} logic.
      */
-    private static void openGui(ServerPlayer player) {
+    static void openGui(ServerPlayer player) {
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int maxTier = KeystoneMath.lootTier(Math.max(1, level));
 
@@ -169,8 +171,8 @@ final class GambleStation {
      */
     private static boolean handleTrade(ServerPlayer player, MerchantOffer offer) {
         ItemStack result = offer.getResult();
-        String slot = readMarker(result, "gambleSlot");
-        int tier = readIntMarker(result, "gambleTier");
+        String slot = StationSupport.readStringMarker(result, "gambleSlot");
+        int tier = StationSupport.readIntMarker(result, "gambleTier");
         if (slot.isEmpty() || tier < 1) {
             PocketDungeonsMod.LOG.warn("Gamble trade had no slot/tier marker on its placeholder");
             return false;
@@ -211,6 +213,10 @@ final class GambleStation {
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.EMERALD), cost,
                 new net.minecraft.world.SimpleContainer(0));
         Payout.deliver(player, drawn);
+        // PD-25: this used to fire from onUse, on opening the trade screen,
+        // before anything was spent. Moved to the point the emeralds are
+        // actually debited, matching "Spend Emeralds at Kadala"'s label.
+        TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
 
         // M34: emeralds spent at the gamble count toward the owner's High
         // Roller bounty. The owner is the instance owner, not necessarily the
@@ -265,24 +271,6 @@ final class GambleStation {
         return stack;
     }
 
-    private static String readMarker(ItemStack stack, String key) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return "";
-        }
-        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElseGet(CompoundTag::new);
-        return mine.getStringOr(key, "");
-    }
-
-    private static int readIntMarker(ItemStack stack, String key) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return 0;
-        }
-        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElseGet(CompoundTag::new);
-        return mine.getIntOr(key, 0);
-    }
-
     private static String capitalize(String word) {
         return word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1);
     }
@@ -311,6 +299,15 @@ final class GambleStation {
                 .withParameter(LootContextParams.ORIGIN, origin)
                 .create(LootContextParamSets.CHEST);
         ObjectArrayList<ItemStack> rolled = table.getRandomItems(params, level.getRandom().nextLong());
+        // PD-40: every shipped gear table rolls exactly one item, matching the
+        // single-pull trade metaphor ("Gambled into X."), so only the first
+        // stack is ever handed back by design. If a table is ever authored
+        // with more than one roll, that is a content mistake worth a log
+        // line, not a silent loss of whatever the player paid for.
+        if (rolled.size() > 1) {
+            PocketDungeonsMod.LOG.warn("Gamble table {} rolled {} items; only the first is delivered, "
+                    + "the rest are lost. Author it with a single roll.", id, rolled.size());
+        }
         return rolled.isEmpty() ? ItemStack.EMPTY : rolled.get(0);
     }
 }

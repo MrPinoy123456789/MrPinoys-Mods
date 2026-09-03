@@ -41,6 +41,8 @@ public final class PocketDungeonsMod implements ModInitializer {
         TrimListener.register();
         PowerListener.register();
         DiaryReading.register();
+        BlacksmithNPC.register();
+        StoreNPC.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");
     }

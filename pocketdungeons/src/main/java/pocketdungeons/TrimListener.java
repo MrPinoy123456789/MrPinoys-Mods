@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -84,6 +85,12 @@ final class TrimListener {
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(TrimListener::onTick);
+        // PD-43: applied grows one entry per player who has ever logged in,
+        // for the life of the process, with nothing removing a stale entry.
+        // Self-healing on relog (the modifiers themselves are transient), but
+        // a real leak in the meantime.
+        ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> applied.remove(handler.getPlayer().getUUID()));
     }
 
     /** Resolves every configured material/attribute pair once, so a typo is a boot-time log line. */

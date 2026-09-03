@@ -2,7 +2,7 @@
 
 ## Problem
 
-The four sinks (M14 reroll, M15 trims, M16 gamble, M17 Cube) are fully
+The four sinks (M14 reroll, M15 trims, M16 gamble, M17 Herobrine Cube) are fully
 implemented as functional code, but a player has no in-game way to discover
 them, learn what they do, or obtain the station blocks. The stations are
 configured vanilla blocks (smithing table, emerald block, beacon) that the
@@ -49,7 +49,7 @@ nothing about the station's function depends on where the block is placed.
 |---|---|---|---|
 | Reroll | `rerollUnlockLevel` | 5 | Already exists. Available early; gear starts dropping immediately. |
 | Gamble | `gambleUnlockLevel` | 10 | New. Needs a gear pool to exist (M13) and emeralds to accumulate. |
-| Cube | `cubeUnlockLevel` | 15 | New. Needs rare adventure-node rewards (M11) and extracted powers to mean something. |
+| Herobrine Cube | `cubeUnlockLevel` | 15 | New. Needs rare adventure-node rewards (M11) and extracted powers to mean something. |
 
 The 5/10/15 spread matches the brainstorm's own suggestion and gives roughly
 one new station per tier of progression. An operator can flatten or steepen
@@ -167,7 +167,7 @@ Gamble (emerald block):
 - Locked: "Unlocks at keystone level 10."
 - Unlocked: "Click to take."
 
-Cube (beacon):
+Herobrine Cube (beacon):
 - "Extract powers from rare items. Imbue them onto gear."
 - "Extract consumes the item permanently. Imbue costs iron."
 - "Right-click with a rare item to extract, or with gear to imbue."
@@ -212,10 +212,11 @@ option-count assertions and index-based label checks need updating:
   Inspect Keystone). Inspect Keystone moves to index 4, Diaries to 5.
 - In-dungeon owner: 6 options. "Stations" at index 3 (after Change Shell,
   before Inspect Keystone). Inspect Keystone moves to 4, Diaries to 5.
-- In-dungeon visitor: 4 options. "Stations" at index 1 (after Leave,
-  before Inspect Keystone). Inspect Keystone moves to 2, Diaries to 3.
-  Visitors can take stations too: a party member visiting another player's
-  room has their own keystone level and their own station unlocks.
+- In-dungeon visitor: unchanged at 3 options (Leave, Inspect Keystone,
+  Diaries). Stations is owner-only (see "Resolved decisions" below); a
+  visitor does not see it regardless of their own keystone level or
+  unlocks, since the station blocks come from the room's own lodestone,
+  which is the owner's terminal.
 
 The dialog button-count assertions (lines 74, 84) also need updating from
 5 to 6.
@@ -256,8 +257,9 @@ The dialog button-count assertions (lines 74, 84) also need updating from
   gates Change Shell: `roomOwner` must be true. A visitor's keystone level
   and unlocks are their own, but the station blocks are taken from the
   room's lodestone, which is the owner's terminal.
-- **Cube at 15.** Kept as-is. Low-level recipes for extractable items can
-  be authored to give the Cube something to do before deep rare nodes.
+- **Herobrine Cube at 15.** Kept as-is. Low-level recipes for extractable
+  items can be authored to give the Herobrine Cube something to do
+  before deep rare nodes.
 - **Gamble block changed to `minecraft:waxed_oxidized_copper_chest`.**
   Verified against the 26.2 jar. Replaces `minecraft:emerald_block` as the
   default `gambleBlock`, which a player might already use for storage or

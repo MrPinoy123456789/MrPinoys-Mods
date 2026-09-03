@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -54,6 +55,22 @@ final class CellGeometry {
             case SOUTH -> DoorMask.Direction.NORTH;
             case EAST -> DoorMask.Direction.WEST;
             case WEST -> DoorMask.Direction.EAST;
+        };
+    }
+
+    /**
+     * (M43.8) The vanilla {@link Direction} a fixture on {@code wall} faces
+     * to look into the room, i.e. the vanilla direction opposite
+     * {@code wall} itself. Was five verbatim copies of this same switch
+     * across {@code RoomTemplateGenerator}'s door, lever, sign and frame
+     * placement.
+     */
+    static Direction facingIntoRoom(DoorMask.Direction wall) {
+        return switch (wall) {
+            case NORTH -> Direction.SOUTH;
+            case SOUTH -> Direction.NORTH;
+            case EAST -> Direction.WEST;
+            case WEST -> Direction.EAST;
         };
     }
 

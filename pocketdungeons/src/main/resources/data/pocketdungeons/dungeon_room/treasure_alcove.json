@@ -2,6 +2,7 @@
   "template": "pocketdungeons:rooms/treasure_alcove",
   "footprint": [1, 1],
   "roles": ["loot"],
+  "theme": ["drowned_vault", "prismarine"],
   "weight": 3,
   "minDepth": 1,
   "maxPerDungeon": 2

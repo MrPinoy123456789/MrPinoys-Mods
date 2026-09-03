@@ -295,6 +295,45 @@ final class InstanceRecord {
         this.returnPos = returnPos;
     }
 
+    /**
+     * M43.1: clears every field that belongs to the run that just ended, not
+     * the one about to start, when this record is reused for a second run
+     * behind the same lobby (M3: finish a dungeon, choose again without ever
+     * leaving). Colocated with the field declarations above rather than
+     * living inline in {@code Instances.generateBehindLobby}'s much larger
+     * body, on purpose: {@code timedOutPenaltyApplied} (PD-49) went missing
+     * from that inline block for a while precisely because nothing forced
+     * whoever added the field to notice the reset lived hundreds of lines
+     * away in a different file. This does not make a forgotten field a
+     * compile error, but it puts the checklist next to the fields it has to
+     * cover, which is the cheapest real improvement available without
+     * migrating every one of this class's external readers onto a separate
+     * mutable run-state object.
+     *
+     * <p>Left out on purpose: {@link #layout}, {@link #affixes},
+     * {@link #theme}, {@link #awaitingDoorChoice}, {@link #chosenStep},
+     * {@link #freeDoor}, {@link #selectedStep} and {@link #timer} are all
+     * freshly assigned by the caller for the new run rather than cleared to
+     * a default, so they stay set directly in
+     * {@code Instances.generateBehindLobby} where the new values are
+     * actually computed.
+     */
+    void clearPreviousRunState() {
+        completed.clear();
+        keystoneReturned.clear();
+        onPad.clear();
+        visited.clear();
+        // The spawner-cleared cue is per-run state too (M22): a cell added in
+        // the run that just ended must cue again in the next one.
+        clearedCells.clear();
+        rewardChests = -1;
+        expiresAtTick = 0;
+        // PD-49: a run that timed out leaves this true; left uncleared, the
+        // next run behind the same lobby skips its own timeout penalty and
+        // arms the reward-room grace window on its very first watcher tick.
+        timedOutPenaltyApplied = false;
+    }
+
     /** Whether a keystone was spent to open this run. False for {@code /dungeon admin build}. */
     boolean isKeystoneRun() {
         return layout.keystoneLevel() > 0;
@@ -305,8 +344,4 @@ final class InstanceRecord {
         return parentSlot >= 0;
     }
 
-    /** Whether the reward room has been stamped yet -- lazily, on first completion. */
-    boolean rewardRoomStamped() {
-        return rewardChests >= 0;
-    }
 }

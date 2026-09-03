@@ -433,8 +433,7 @@ final class DungeonCommands {
 
     private static int exit(ServerPlayer player) {
         // A command exit is a retreat, not a completion -- it does not pay.
-        RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
-        return 1;
+        return RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND) ? 1 : 0;
     }
 
     /**
@@ -486,7 +485,7 @@ final class DungeonCommands {
 
     /** {@code /dungeon key info}: the held keystone plus this player's run statistics. */
     private static int keyInfo(ServerPlayer player) {
-        if (Keystone.findHeld(player).isEmpty()) {
+        if (Keystone.findHeld(player) == null) {
             player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
                     .withStyle(ChatFormatting.RED));
             return 0;
@@ -506,28 +505,23 @@ final class DungeonCommands {
     }
 
     private static int party(ServerPlayer leader, ServerPlayer target) {
-        PartyService.party(leader, target);
-        return 1;
+        return PartyService.party(leader, target) ? 1 : 0;
     }
 
     private static int kick(ServerPlayer leader, ServerPlayer target) {
-        PartyService.stageKick(leader, target.getUUID(), target.getName().getString());
-        return 1;
+        return PartyService.stageKick(leader, target.getUUID(), target.getName().getString()) ? 1 : 0;
     }
 
     private static int kickAll(ServerPlayer leader) {
-        PartyService.stageKick(leader, null, null);
-        return 1;
+        return PartyService.stageKick(leader, null, null) ? 1 : 0;
     }
 
     private static int kickConfirm(ServerPlayer leader) {
-        PartyService.confirmKick(leader);
-        return 1;
+        return PartyService.confirmKick(leader) ? 1 : 0;
     }
 
     private static int invite(ServerPlayer inviter, ServerPlayer target) {
-        PartyService.invite(inviter, target);
-        return 1;
+        return PartyService.invite(inviter, target) ? 1 : 0;
     }
 
     private static int join(ServerPlayer player, ServerPlayer leader) {
@@ -536,8 +530,7 @@ final class DungeonCommands {
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        PartyService.join(player, leader);
-        return 1;
+        return PartyService.join(player, leader) ? 1 : 0;
     }
 
     // ---- room whitelist (M2 T2.2) ---------------------------------------------
@@ -621,7 +614,11 @@ final class DungeonCommands {
      * dialog's text input enforces; a longer string is trimmed, not refused.
      */
     private static int roomName(ServerPlayer owner, String text) {
-        String name = text.trim();
+        // PD-37: the section sign is what triggers a legacy formatting code;
+        // stripping it neutralizes every code regardless of what follows,
+        // so an obfuscated or colored name cannot reach the lobby directory
+        // other players read.
+        String name = text.trim().replace("§", "");
         if (name.length() > 16) {
             name = name.substring(0, 16);
         }
@@ -847,6 +844,15 @@ final class DungeonCommands {
 
         for (String line : report) {
             source.sendSuccess(() -> Component.literal(line), false);
+        }
+        // PD-39: the stamped blocks are the point (inspect them by hand), but
+        // the force-load ticket is not; nothing released it, so repeated runs
+        // accumulated forced chunks with no way to clear them but a restart.
+        // The chunk stays loaded on its own once a player is standing nearby
+        // to inspect it, the same as anywhere else in the world.
+        for (int q = 0; q < 4; q++) {
+            BlockPos cellOrigin = base.offset(q * RoomGeometry.CELL, 0, 0);
+            level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
         }
         source.sendSuccess(() -> Component.literal(
                 "Stamped at " + base.toShortString() + "; purge by hand when done."), false);
@@ -1147,10 +1153,26 @@ final class DungeonCommands {
      */
     private static int experimentSet(CommandSourceStack source, String theme, String affixes,
                                      Integer lootOverride) {
-        ExperimentalDungeon.set(theme, AffixMath.parse(affixes), lootOverride);
+        // PD-16: every other offer's level goes through KeystoneMath.upgrade,
+        // which clamps to [1, keystoneMaxLevel]. This one skipped that,
+        // so an operator's typo could hand a completed door 3 an unclamped
+        // level, permanently downgrading (or overshooting) whoever took it.
+        if (lootOverride != null
+                && (lootOverride < 1 || lootOverride > PocketDungeonsConfig.keystoneMaxLevel())) {
+            source.sendFailure(Component.literal(
+                    "lootOverride must be between 1 and " + PocketDungeonsConfig.keystoneMaxLevel()
+                            + " (keystoneMaxLevel)."));
+            return 0;
+        }
+        var parsedAffixes = AffixMath.parse(affixes);
+        ExperimentalDungeon.set(theme, parsedAffixes, lootOverride);
+        // PD-36: echo what AffixMath.parse actually kept, not the operator's
+        // raw string. parse silently drops an unrecognized token, so the raw
+        // string could confirm an affix that was never applied.
+        String appliedAffixes = AffixMath.join(parsedAffixes);
         source.sendSuccess(() -> Component.literal(
                 "Door 3 now offers the experimental dungeon: theme " + theme
-                        + (affixes.isEmpty() ? "" : ", affixes " + affixes)
+                        + (appliedAffixes.isEmpty() ? "" : ", affixes " + appliedAffixes)
                         + (lootOverride == null ? "" : ", loot level " + lootOverride)
                         + ". Clear with /dungeon admin experiment clear.")
                 .withStyle(ChatFormatting.YELLOW), true);
@@ -1164,17 +1186,38 @@ final class DungeonCommands {
         return 1;
     }
 
+    /**
+     * {@code /dungeon admin manifest reload}. PD-29: used to reload rooms
+     * only, while three other commands ({@code stampTest}, {@code coverage}/
+     * {@code plan}/{@code planSurvey}) pointed operators here as the fix for
+     * stale themes, adventure nodes, diaries or anomaly rooms it could never
+     * actually clear. Reloads all five manifests and reports every count, the
+     * same set {@code SERVER_STARTED} loads at boot.
+     */
     private static int manifestReload(CommandSourceStack source) {
-        RoomManifest manifest = RoomManifest.load(source.getServer());
+        MinecraftServer server = source.getServer();
+        ThemeManifest themes = ThemeManifest.load(server);
+        AdventureGraphs adventure = AdventureGraphs.load(server);
+        Diaries diaries = Diaries.load(server);
+        RoomManifest manifest = RoomManifest.load(server);
+        RoomManifest anomaly = RoomManifest.loadAnomaly(server);
+
         int loaded = manifest.rooms().size();
-        int rejected = manifest.rejections().size();
-        if (rejected == 0) {
-            source.sendSuccess(() -> Component.literal(
-                    "Loaded " + loaded + " room(s) into manifest."), false);
-        } else {
-            source.sendSuccess(() -> Component.literal(
-                    "Loaded " + loaded + " room(s), rejected " + rejected + "."), false);
-            for (String reason : manifest.rejections()) {
+        List<String> rejections = new ArrayList<>();
+        rejections.addAll(themes.rejections());
+        rejections.addAll(adventure.rejections());
+        rejections.addAll(diaries.rejections());
+        rejections.addAll(manifest.rejections());
+        rejections.addAll(anomaly.rejections());
+
+        source.sendSuccess(() -> Component.literal(
+                "Loaded " + loaded + " room(s), " + anomaly.rooms().size() + " anomaly room(s), "
+                        + themes.themes().size() + " theme(s), " + adventure.graph().size()
+                        + " adventure node(s), " + diaries.entries().size() + " diar"
+                        + (diaries.entries().size() == 1 ? "y" : "ies") + "."), false);
+        if (!rejections.isEmpty()) {
+            source.sendFailure(Component.literal(rejections.size() + " rejected:"));
+            for (String reason : rejections) {
                 source.sendFailure(Component.literal("  rejected: " + reason));
             }
         }

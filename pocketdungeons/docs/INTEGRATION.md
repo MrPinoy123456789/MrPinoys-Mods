@@ -11,7 +11,7 @@ or a reward hook into another mod — without reading this mod's source.
 
 ---
 
-## 1. The five extensible surfaces
+## 1. The extensible surfaces
 
 ### 1.1 `dungeon_room/*.json` — new rooms, from any namespace
 
@@ -92,6 +92,35 @@ If a configured id fails to resolve, the affected feature falls back to its
 vanilla default rather than failing outright — see the log line named in
 `ConfiguredItem`'s usage at startup.
 
+### 1.6 `dungeon_theme/*.json` — new themes, from any namespace
+
+`ThemeManifest` calls `listResources("dungeon_theme", ...)`, scanning every
+namespace the same way `dungeon_room` does. Each file names a theme (the
+processor list its rooms stamp with, an optional `room_theme` filter, an
+optional `loot_suffix` and `spawner_prefix`); see `DungeonThemeMeta` for the
+full field list. Hot-reloadable via `/reload`, alongside `dungeon_room`.
+
+### 1.7 `dungeon_adventure/*.json` — the theme graph
+
+`AdventureGraphs` calls `listResources("dungeon_adventure", ...)`. One file
+per theme, named for that theme's own id, describing which themes a run can
+transition into from here and at what weight (`AdventureGraph.Node`). A
+theme with no adventure node is never offered as a door choice in normal
+play, regardless of whether its `dungeon_theme` file exists.
+
+### 1.8 `anomaly_room/*.json` — the anomaly room pool
+
+`RoomManifest.loadAnomaly` calls `listResources("anomaly_room", ...)`, same
+JSON shape as `dungeon_room` (§2), loaded into a separate manifest. A rare
+roll (`anomalyRoomChance`) swaps one critical-path cell for a room out of
+this pool instead of the run's own theme, deliberately foreign in palette.
+
+### 1.9 `diary/*.json` — collectible lore entries
+
+`Diaries` calls `listResources("diary", ...)`. Each file is one numbered
+diary entry (title, pages, the intensifier band that drops it, an optional
+shell unlock). See `Diaries.Entry` for the full field list.
+
 ---
 
 ## 2. The `dungeon_room` schema
@@ -104,6 +133,7 @@ documentation of existing behaviour, not a new contract.
 | `template` | string | **required** | Structure template id (e.g. `pocketdungeons:rooms/hall_tee`) |
 | `footprint` | `[x, z]` | `[1, 1]` | ⚠ **only `[1, 1]` works today** — multi-cell footprints are M8 (D4) |
 | `roles` | string[] | **required, non-empty** | Any of `entrance`, `exit`, `encounter`, `loot`, `corridor` |
+| `theme` | string[] | `[]` (empty) | Theme ids this room is eligible for; empty matches every theme. Paired with a theme's own `room_theme` field (§1.6) |
 | `weight` | int | `1` | Selection weight; higher is more likely |
 | `minDepth` | int | `0` | Earliest depth (cells from the entrance) this room may appear |
 | `maxPerDungeon` | int | `-1` | `-1` is unlimited; otherwise a hard cap per generated dungeon |
@@ -148,21 +178,13 @@ down, the other rooms still load. The exact messages a validator will see
 
 Naming these so nobody spends a weekend on them before they are datapack-driven:
 
-1. **Affixes are a Java enum** (`Keystone.Affix`: `NONE`, `OMINOUS`,
-   `FRAGILE`). There is no datapack surface for adding a new one — see
-   roadmap M4/M8 (D3, "data-driven affixes", explicitly gated on 5–6 existing
-   in Java first).
+1. **Affixes are a Java enum** (top-level `pocketdungeons.Affix`: `OMINOUS`,
+   `FERAL`, `SWARMING`, `OVERCLOCKED`, `MOLTEN`, `SILENCED`, `EXPLOSIVE`,
+   `VOIDED`). There is no datapack surface for adding a new one.
 2. **Room roles are a Java concept**, not a registry — `entrance`, `exit`,
    `encounter`, `loot`, `corridor` are the fixed set the generator's own
    `switch`-shaped logic understands. A `dungeon_room` file may only use these
    five strings in its `roles` array; inventing a sixth does nothing.
-3. **`ritualKeyItem` is dead config.** It still appears in
-   `config/pocketdungeons.json` and is read at load, but nothing branches on
-   it any more — it is referenced only in a comment. The real gate on whether
-   an item opens the ritual is `Keystone.isKeystone`, which checks for the
-   mod's own `CUSTOM_DATA` tag (minted onto `keystoneItem`, §1.5), not this
-   config key. Do not configure against `ritualKeyItem` expecting it to do
-   anything.
 
 ---
 

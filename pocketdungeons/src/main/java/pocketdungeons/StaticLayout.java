@@ -27,10 +27,6 @@ final class StaticLayout {
 
     static final int CELL_COUNT = 4;
 
-    private static final Set<Direction> WEST_ONLY = EnumSet.of(Direction.WEST);
-    private static final Set<Direction> EAST_ONLY = EnumSet.of(Direction.EAST);
-    private static final Set<Direction> THROUGH = EnumSet.of(Direction.WEST, Direction.EAST);
-
     private StaticLayout() {}
 
     /** Builds the rooms and their contents. Must run on the server thread. */

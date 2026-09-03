@@ -3,6 +3,7 @@
   "processors": "pocketdungeons:theme_grove",
   "footprint": [1, 1],
   "roles": ["corridor"],
+  "theme": ["drowned_vault", "prismarine"],
   "weight": 2,
   "minDepth": 1,
   "maxPerDungeon": 1

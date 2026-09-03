@@ -1,4 +1,5 @@
 {
   "name": "Blackstone",
-  "processors": "pocketdungeons:theme_blackstone"
+  "processors": "pocketdungeons:theme_blackstone",
+  "room_theme": "blackstone"
 }

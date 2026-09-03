@@ -2,6 +2,7 @@
   "kind": "entry",
   "next": [
     { "theme": "deepslate", "weight": 3 },
-    { "theme": "blackstone", "weight": 2 }
+    { "theme": "blackstone", "weight": 2 },
+    { "theme": "infestation", "weight": 2 }
   ]
 }

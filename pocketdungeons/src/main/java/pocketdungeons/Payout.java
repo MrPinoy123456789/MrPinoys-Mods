@@ -65,15 +65,26 @@ final class Payout {
         if (server == null) {
             return;
         }
-        String command = template
-                .replace("%player%", player.getName().getString())
-                .replace("%level%", Integer.toString(level))
-                .replace("%chests%", Integer.toString(chests));
+        String command = substitute(template, player.getName().getString(), level, chests);
         try {
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
         } catch (Exception e) {
             PocketDungeonsMod.LOG.error("payoutCommand '{}' failed for {}", command,
                     player.getName().getString(), e);
         }
+    }
+
+    /**
+     * (M44.4) The template-fill step of {@link #runPayoutCommand}, split out
+     * as pure string substitution so it is testable without a
+     * {@code ServerPlayer} or {@code MinecraftServer}. Every placeholder can
+     * appear more than once or not at all; {@code String.replace} handles
+     * both without help.
+     */
+    static String substitute(String template, String playerName, int level, int chests) {
+        return template
+                .replace("%player%", playerName)
+                .replace("%level%", Integer.toString(level))
+                .replace("%chests%", Integer.toString(chests));
     }
 }

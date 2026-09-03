@@ -271,19 +271,6 @@ final class RoomBuilder {
     }
 
     /**
-     * Stamps one sealed room: floor, four walls, ceiling, lighting, then punches
-     * a doorway through each wall named in {@code doors}.
-     */
-    static void buildCell(ServerLevel level, BlockPos instanceOrigin,
-                          int cellX, int cellZ, Set<Direction> doors) {
-        BlockPos o = cellOrigin(instanceOrigin, cellX, cellZ);
-        buildShell(level, o, FLOOR);
-        for (Direction door : doors) {
-            openDoor(level, o, door);
-        }
-    }
-
-    /**
      * Stamps a blank stone-brick shell over one cell -- floor, walls and ceiling
      * all {@link #WALL}, nothing inside -- and reopens the doorways named in
      * {@code doors}.
@@ -296,11 +283,11 @@ final class RoomBuilder {
      * whatever room is still standing next door. Writing a room in place touches
      * nothing outside the cell, so the shell around it survives untouched.
      *
-     * <p>No floor material of its own, unlike {@link #buildCell}: this is the
-     * blank that replaces a room, and it is meant to read as one. It is still
-     * lit, though -- the same four ceiling lamps {@link #buildCell} places. A
-     * blank room is a design choice; a dark one is a mob farm, and this cell
-     * sits inside a live instance the owner can walk back into.
+     * <p>No floor material of its own: this is the blank that replaces a room,
+     * and it is meant to read as one. It is still lit, though -- the same four
+     * ceiling lamps a live room's own shell places. A blank room is a design
+     * choice; a dark one is a mob farm, and this cell sits inside a live
+     * instance the owner can walk back into.
      */
     static void buildLiminalCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
         buildShell(level, o, WALL);

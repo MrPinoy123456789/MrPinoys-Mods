@@ -9,16 +9,14 @@ final class DungeonThemeMeta {
     final String name;
     final String processors;
     final String roomTheme;
-    final boolean discoverable;
     final String lootSuffix;
     final String spawnerPrefix;
 
-    DungeonThemeMeta(String name, String processors, String roomTheme, boolean discoverable,
+    DungeonThemeMeta(String name, String processors, String roomTheme,
                      String lootSuffix, String spawnerPrefix) {
         this.name = name;
         this.processors = processors;
         this.roomTheme = roomTheme;
-        this.discoverable = discoverable;
         this.lootSuffix = lootSuffix;
         this.spawnerPrefix = spawnerPrefix;
     }
@@ -26,7 +24,7 @@ final class DungeonThemeMeta {
     static DungeonThemeMeta fromJson(JsonObject obj) {
         return new DungeonThemeMeta(requiredString(obj, "name"),
                 requiredString(obj, "processors"), stringOrNull(obj.get("room_theme")),
-                booleanOr(obj.get("discoverable"), true), stringOrNull(obj.get("loot_suffix")),
+                stringOrNull(obj.get("loot_suffix")),
                 stringOrNull(obj.get("spawner_prefix")));
     }
 
@@ -44,9 +42,5 @@ final class DungeonThemeMeta {
         }
         String value = element.getAsString().trim();
         return value.isEmpty() ? null : value;
-    }
-
-    private static boolean booleanOr(JsonElement element, boolean fallback) {
-        return element == null || element.isJsonNull() ? fallback : element.getAsBoolean();
     }
 }

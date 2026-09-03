@@ -88,9 +88,17 @@ final class RoomContent {
     static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
                       Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
-                      boolean anomalyCell) {
+                      boolean anomalyCell, String content) {
         BlockPos spawnerAnchor = null;
         if (anomalyCell) {
+            if ("store".equals(content)) {
+                // M35 store anomaly: build a village shop interior and spawn a
+                // shopkeeper villager. No chest, no spawner, no combat: the
+                // store is a safe room the player finds along the critical path.
+                StoreShop.build(level, cellOrigin, seed);
+                StoreNPC.spawn(level, cellOrigin, seed);
+                return null;
+            }
             // M35: a loose chest off the anomaly table regardless of role -- never
             // a vault, never a keystone or a completion pad. An encounter-role
             // anomaly cell still gets its trial spawner (the fight is real; the

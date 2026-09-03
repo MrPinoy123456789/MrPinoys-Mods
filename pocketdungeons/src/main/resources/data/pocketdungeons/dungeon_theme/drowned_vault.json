@@ -1,6 +1,6 @@
 {
   "name": "Drowned Vault",
   "processors": "pocketdungeons:theme_drowned_vault",
-  "discoverable": false,
-  "loot_suffix": "_drowned"
+  "loot_suffix": "_drowned",
+  "room_theme": "drowned_vault"
 }

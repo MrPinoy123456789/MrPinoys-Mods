@@ -4,9 +4,23 @@ A server-side Fabric mod for MC 26.2. `/dungeon` to go in.
 
 ## Where to start
 
-All milestones M0–M21 are code-complete. Read `plans/COMPLETED-MILESTONES.md`
-for what was built, and `docs/reference/LIVE_TEST_PASS.md` for the outstanding live verification
-pass.
+Read `plans/COMPLETED-MILESTONES.md` for what was built (the highest `## M{n}`
+heading in that file is the current code-complete range), and
+`docs/reference/LIVE_TEST_PASS.md` for the outstanding live verification pass.
+
+## Key features
+
+- **Private dungeon instances** in a void dimension, seeded per player.
+- **Keystone progression**: run dungeons to level up your keystone, unlock
+  higher tiers and greater doors.
+- **Room stations**: place a smithing table to reroll enchantments (lapis)
+  and spawn a blacksmith NPC that sells random gear for emeralds. Place a
+  Herobrine Cube to extract and imbue powers.
+- **Tracker screen**: a physical screen in the player's room shows the
+  active guided task and, once the tutorial is done, weekly bounty progress.
+  Replaces the originally planned scoreboard sidebar.
+- **Trial spawners and vaults**: dungeon rooms contain trial spawners that
+  eject vault keys (50%) or emeralds (50%).
 
 ## Active documents
 
@@ -14,7 +28,7 @@ pass.
 |---|---|
 | `docs/DISCOVERIES.md` | Verified 26.2 API findings, so nobody re-derives them the hard way |
 | `docs/DIALOGS_SPEC.md` | Menu shapes, specced before they are built |
-| `docs/INTEGRATION.md` | The published `dungeon_room`/`dungeon_theme`/`dungeon_recipe` datapack schema, for pack authors |
+| `docs/INTEGRATION.md` | The published datapack schema (`dungeon_room`, `dungeon_theme`, `dungeon_adventure`, `anomaly_room`, `diary`), for pack authors |
 | `plans/COMPLETED-MILESTONES.md` | Architectural summary of every completed milestone |
 
 ## Reference vault (`docs/reference/`)
@@ -39,8 +53,9 @@ demand when a milestone handoff references them.
 
 ## Completed handoffs (`docs/d3-handoffs/archive/`)
 
-M18-M21 handoffs, kept for reference. The active handoff is
-`docs/d3-handoffs/M22-handoff.md`.
+Early-milestone handoffs, kept for reference. Later completed handoffs stay
+in `docs/d3-handoffs/` itself, renamed `M{n}-handoff-completed.md`; any file
+there without the `-completed` suffix is a genuinely open handoff.
 
 
 ## House conventions

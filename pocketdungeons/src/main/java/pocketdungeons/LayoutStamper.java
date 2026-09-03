@@ -146,7 +146,7 @@ final class LayoutStamper {
             String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
-                    voidedCells.contains(cell), isAnomalyCell);
+                    voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);
             }
@@ -213,7 +213,15 @@ final class LayoutStamper {
         Set<PlanCell> voided = new HashSet<>();
         PlanCell entrance = plan.entrance();
         PlanCell terminal = plan.terminal();
-        for (PlanCell cell : plan.cells()) {
+        // PD-20: plan.cells() is a Set.copyOf, whose iteration order is salted
+        // per JVM instance, not per seed. Every other consumer of it in this
+        // pipeline sorts first (see stampOrder below); this one did not, so
+        // the same seed voided a different cell set on every server restart.
+        List<PlanCell> sortedCells = new ArrayList<>(plan.cells());
+        sortedCells.sort((a, b) -> a.x() != b.x()
+                ? Integer.compare(a.x(), b.x())
+                : Integer.compare(a.z(), b.z()));
+        for (PlanCell cell : sortedCells) {
             if (cell.equals(entrance) || cell.equals(terminal)) {
                 continue;
             }

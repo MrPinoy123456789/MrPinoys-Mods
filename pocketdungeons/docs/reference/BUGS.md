@@ -11,6 +11,17 @@ PD-1, PD-3, PD-4, PD-5, PD-6, PD-7, and PD-8 are fixed (2026-08-27);
 `compileJava` and the full test suite pass. PD-2 stays open below as a
 content update, deferred by request.
 
+PD-9 through PD-48 (2026-08-31) are from a six-pass static audit of the
+whole mod. M36 through M39 in `ROADMAP.md` group them by severity for
+implementation order.
+
+All 48 bugs from the 2026-08-31 audit are closed: M36 (PD-9 through
+PD-14, PD-48), M37 (PD-15 through PD-22), M38 (PD-23 through PD-30,
+PD-33 through PD-35), M39 (PD-36 through PD-47), and M42 (PD-19, PD-31,
+PD-32, the three that were content or design decisions rather than pure
+code fixes) are fixed; `compileJava` and the full test suite pass after
+each.
+
 ## Open
 
 ### PD-1: Timer boss bar keeps ticking after dungeon completion (UI)
@@ -1822,3 +1833,1535 @@ After the fix:
    room should be saved at the terminal cell location (this is
    handled by `completeDungeon`, not by the purge save).
 
+
+---
+
+## Audit batch (2026-08-31)
+
+PD-9 through PD-51 come from a six-pass static audit of the whole mod
+(generation pipeline, instance lifecycle, commands/config/UI, content/economy,
+progression/data, cross-cutting). Severity labels (Critical/High/Medium/Low)
+are carried over from that audit. Fix these roughly in severity order; M36
+through M39 in the roadmap group them that way.
+
+### PD-9: `/dungeon key info` throws an NPE for any player without a keystone (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (unprivileged command crashes for any player)
+**Status:** Fixed (2026-08-31)
+
+`Keystone.findHeld` returns `null` when the player carries no keystone, not
+an empty stack (`Keystone.java` lines 309-322, explicit `return null`). The
+`keyInfo` command tests `.isEmpty()` on that result instead of `== null`.
+
+#### Exact code references
+
+`DungeonCommands.java` line 489:
+```java
+private static int keyInfo(ServerPlayer player) {
+    if (Keystone.findHeld(player).isEmpty()) {
+```
+
+Every other call site in the tree correctly tests for null:
+`DialogRouter.java:181`, `DialogRouter.java:207`, `DungeonCommands.java:346`,
+`DungeonCommands.java:405`, `RunLifecycle.java:82`.
+
+#### Fix
+
+```java
+private static int keyInfo(ServerPlayer player) {
+    if (Keystone.findHeld(player) == null) {
+```
+
+No other change needed; the refusal message and `DialogKit.show` call below
+it are already correct.
+
+#### Verification
+
+Run `/dungeon key info` while holding no keystone. Should print "You are not
+carrying a keystone." with no exception in the log. Run it again while
+holding one; should open the inspect screen as before.
+
+---
+
+### PD-10: Lingering quarries are never purged, leaking a slot per completed run (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (unbounded slot and world-footprint growth)
+**Status:** Fixed (2026-08-31)
+
+`InstanceTeardown` marks a completed keystone run `lingering = true` and
+leaves it in `InstanceRegistry.bySlot` with its slot still held. The
+documented escape hatch is `RunLifecycle.enter`'s lingering-quarry check,
+which calls `InstanceTeardown.retireOrPurge` on the old record. But
+`retireOrPurge` on an already-lingering record with a non-null
+`roomCellOrigin` falls past the purge branch and just re-marks it lingering.
+Nothing else clears the flag except an admin purge or `SERVER_STOPPING`.
+
+#### Root cause
+
+`InstanceTeardown.java` lines 69-110 (`retireOrPurge`): the branch that would
+purge only fires `if (!record.isKeystoneRun() || record.roomCellOrigin ==
+null)`. A completed keystone run with a saved room fails both conditions
+every time it is re-evaluated, so it retires again instead of purging.
+
+`RunLifecycle.java` lines 224-230 is the only call site that re-invokes
+`retireOrPurge` on a lingering record, and it does so unconditionally as
+part of starting the player's next run, expecting this call to free the slot.
+
+#### Consequences
+
+`InstanceRegistry.allocateSlot()` walks upward from 0 forever
+(`InstanceRegistry.java`), so slot indices and the on-disk footprint grow
+without bound, contradicting the class comment in `Instances.java` lines
+52-57. `Instances.onTick` (line 1061) skips lingering records, so there is
+no expiry either. `roomRecordAt` (line 1339) does not filter `lingering`,
+so `RoomProtection` keeps protecting an abandoned cell indefinitely.
+
+#### Fix
+
+In `InstanceTeardown.retireOrPurge`, a record that is already `lingering`
+when re-entered (i.e. this is the second time a run has ended for this
+slot without an intervening purge) should purge rather than re-retire:
+
+```java
+static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
+    if (record.lingering) {
+        purge(server, record, reason);
+        return;
+    }
+    if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
+        purge(server, record, reason);
+        return;
+    }
+    // existing retire-to-lingering path
+    ...
+    record.lingering = true;
+}
+```
+
+This makes the RunLifecycle.enter call site's re-invocation actually free
+the slot, since by the time it runs the record is already lingering from
+the first retire.
+
+#### Verification
+
+Complete a keystone run and leave the lobby (do not start a new one).
+Confirm the record stays `lingering` and the slot stays held (existing
+behavior, room remains browsable). Then start a second run as the same
+owner. Confirm the old slot is purged (`usedSlots` no longer contains it,
+`bySlot` no longer has the record) rather than re-marked lingering. Repeat
+across several runs and confirm slot indices stop climbing.
+
+---
+
+### PD-11: Stamp failure behind the lobby erases the player's room and double-frees the slot (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (data loss plus slot corruption)
+**Status:** Fixed (2026-08-31)
+
+When `generateBehindLobby`'s stamping throws, the catch block queues a
+`PendingClear` whose origin resolves to the player's own persistent room
+cell, and does not remove the record from `InstanceRegistry.bySlot` even
+though the clear's completion frees the slot.
+
+#### Exact code references
+
+`Instances.java` lines 666-675:
+```java
+} catch (RuntimeException e) {
+    InstanceTeardown.teardown(server, record.slot, record.origin,
+            InstanceLayout.forClearingOnly(planOrigin, geometry), "stamp failed");
+    return false;
+}
+```
+
+`planOrigin` at line 659 is `record.roomCellOrigin.offset(minX*CELL, 0,
+minZ*CELL)`, and `PlanGeometry.cellOrigin` (`PlanGeometry.java` lines 56-60)
+maps cell `(0,0)` back to exactly `record.roomCellOrigin`. So the clear
+blanks the room cell, not scratch space.
+
+`InstanceTeardown.finishClear` (line 296) does `usedSlots.remove(clear.slot)`
+once the clear completes, but nothing in this catch block removes the
+record from `bySlot`. The next `allocateSlot()` can hand out the freed slot
+while `bySlot` still maps it to the orphaned record, and `bySlot.put` then
+silently overwrites it.
+
+#### Fix
+
+Two changes, both in the catch block at `Instances.java:666`:
+
+1. Do not clear the room cell. Build the `InstanceLayout` for clearing from
+   `geometry` alone (the failed dungeon cells), excluding
+   `record.roomCellOrigin`. Pass the dungeon own origin (`record.origin`),
+   not `planOrigin`.
+2. Remove the record from the registry as part of the teardown, matching
+   what `InstanceTeardown.purge` does for every other failure path:
+   `InstanceRegistry.bySlot.remove(record.slot)` and the corresponding
+   `byMember` entries.
+
+The cleanest fix is to route this through `InstanceTeardown.purge` (which
+already handles the room-preserving case correctly, see PD-10 fix)
+instead of the ad hoc `teardown` call.
+
+#### Verification
+
+Force a stamp failure (e.g. temporarily corrupt a room template reference)
+behind a lobby with a previously-decorated room. Confirm the room survives
+the failure and the slot is either fully freed or fully retained, never
+both.
+
+---
+
+### PD-12: Disconnect handler mutates instance state off the server thread (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (data race, possible corruption or crash)
+**Status:** Fixed (2026-08-31)
+
+`ServerPlayConnectionEvents.DISCONNECT` fires on Netty IO thread for an
+abrupt disconnect. The handler comment acknowledges this and routes one
+operation (`RoomStore.capture`) through `server.execute`, but the rest of
+the call chain runs directly on the disconnect thread and mutates
+collections the server thread iterates concurrently.
+
+#### Exact code references
+
+`RunLifecycle.java` lines 542-554 (the disconnect handler, mitigating only
+the room capture). From `Instances.java:157-172` the same call chain reaches,
+all off-thread:
+
+- `PartyService.clearFor` (`PartyService.java:65-69`): three `HashMap.remove`
+- `Instances.java:166`: `pendingReturns.put` (plain `HashMap`)
+- `RunLifecycle.dropMember` (lines 1114-1153): `record.members.remove`,
+  `InstanceRegistry.byMember.remove`, `record.onPad.remove`,
+  `RunTimer.removePlayer`
+- possibly `InstanceTeardown.purge`: `InstanceRegistry.bySlot.remove`
+  (line 149), `pendingClears.add` (line 247), `usedSlots` writes (line 196)
+
+Concurrently, the server thread reads these same structures every tick
+(`Instances.onTick` line 1057, copying `bySlot.values()`) and on every
+block break (`roomRecordAt` line 1340, `dungeonCellLookupAt` line 1392) and
+in `processClears` (line 275, iterating `pendingClears`).
+
+#### Fix
+
+Wrap the entire disconnect handler body in `server.execute` lambda, the
+same way the room-capture call already is:
+
+```java
+ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
+    ServerPlayer player = listener.player;
+    server.execute(() -> handleDisconnect(server, player));
+});
+```
+
+Move the existing body into `handleDisconnect`.
+
+#### Verification
+
+No direct headless test (this is a threading defect). After the fix, stress
+test by having several players disconnect abruptly (kill client, not
+`/dungeon exit`) while mid-run, repeated many times, and confirm no
+`ConcurrentModificationException` or corrupted `bySlot`/`byMember` state in
+the logs across a long play session.
+
+---
+
+### PD-13: Force-load tickets leak across runs and survive server restarts (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (unbounded forced-chunk accumulation, persists across restarts)
+**Status:** Fixed (2026-08-31)
+
+Every door choice force-loads the new geometry chunks
+(`Instances.generateBehindLobby`, line 661), but
+`RunLifecycle.resetForNextDungeon` (lines 596-644) contains no matching
+`setChunkForced` release call. Tickets are only released in
+`InstanceTeardown.finishClear` (lines 293-295) and `retireOrPurge` (lines
+101-105), both of which walk the current layout cells only.
+
+#### Consequences
+
+Any chunk occupied by run N but not by run N plus 1 stays force-loaded
+permanently. `setChunkForced` persists into the level forced-chunk saved
+data, so this survives a server restart with nothing in memory that knows
+to release it.
+
+#### Fix
+
+Before force-loading the new geometry chunks in `generateBehindLobby`,
+release the previous run chunks first. Capture
+`record.layout == null ? Set.of() : record.layout.geometry().chunks()` at
+the top of `generateBehindLobby` before the new layout is built, release
+those chunks, then proceed as today.
+
+#### Verification
+
+Instrument (temporarily) a log line on every `setChunkForced` call with the
+boolean and chunk pos. Run several dungeons in sequence behind one lobby
+and confirm the count of currently-forced chunks stays bounded rather than
+growing every run.
+
+---
+
+### PD-14: No startup reconciliation after a crash orphans geometry and forced chunks (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical (permanent world corruption after any unclean shutdown)
+**Status:** Fixed (2026-08-31)
+
+`SERVER_STOPPING` (`Instances.java` lines 235-248) is the only cleanup path
+and only covers a clean shutdown. After a crash, `usedSlots` comes back
+empty on restart while the blocks from the previous session are still on
+disk and force-load tickets (PD-13) are still set. The next player
+`/dungeon` takes slot 0 and stamps over cell 0, leaving the previous run
+remaining cells standing and connected to it.
+
+#### Fix
+
+This needs a real reconciliation pass. On `SERVER_STARTED`
+(`Instances.java` lines 216-233, alongside the manifest loads), before
+accepting any player into a dungeon:
+
+1. Scan the dungeon dimension region files for chunks in the mod slot grid
+   range that show a bedrock envelope or stamped geometry but no
+   corresponding `InstanceRecord` in memory (`InstanceRecord` is
+   deliberately not persisted, per its own class comment).
+2. For each such orphaned region, clear it via `InstanceTeardown` budgeted
+   clear (reuse `processClears` per-tick budget rather than blocking
+   startup).
+3. Release any force-load tickets in the slot grid range that have no live
+   record backing them.
+
+This is large enough to be its own milestone rather than a quick patch; see
+M40 in the roadmap.
+
+#### Verification
+
+Force-kill the server mid-run (not graceful shutdown) with an active
+decorated room and an active dungeon. Restart. Confirm the reconciliation
+pass cleans up orphaned geometry and a fresh `/dungeon` from slot 0 does
+not collide with leftover blocks.
+
+---
+
+### PD-15: M34 bounty block over-counts three bounties and never advances a fourth (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (economy and progression correctness, single-run exploit)
+**Status:** Fixed (2026-08-31)
+
+`RunLifecycle.completeRun` M34 bounty hooks sit outside the
+`firstCompletion` guard that gates every other once-per-run effect, so they
+run once per party member. Independently, they read `record.rewardChests`
+before it is ever written for the first completer, so the timed bounty
+never fires at all.
+
+#### Exact code references
+
+`RunLifecycle.java` lines 790-820:
+```java
+boolean firstCompletion = record.completed.isEmpty();
+record.completed.add(player.getUUID());
+TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
+
+if (record.isKeystoneRun()) {
+    int chests = record.rewardChests;                    // always -1 here
+    boolean timed = record.timer != null && chests > 0;   // always false
+    Set<BlockPos> spawners = record.layout.trialSpawners();
+    if (!spawners.isEmpty()) {
+        int cleared = TrialContent.countCleared(player.level(), spawners);
+        BountyTracker.progress(server, record.owner, Bounty.CLEAR_HALLS.id, cleared);
+    }
+    if (timed) { BountyTracker.progress(server, record.owner, Bounty.SPEEDRUNNER.id, 1); }
+    if (record.chosenStep >= 2) { BountyTracker.progress(server, record.owner, Bounty.SPELUNKER.id, 1); }
+    if (record.members.size() >= 2) { BountyTracker.progress(server, record.owner, Bounty.PACK_HUNTER.id, 1); }
+}
+
+if (firstCompletion) {           // bounty block above is NOT inside this
+    completeDungeon(server, record);   // line 974 sets record.rewardChests here
+}
+```
+
+`record.rewardChests` is initialized to `-1` (`InstanceRecord.java:192`) and
+has exactly one write, at `RunLifecycle.java:974` inside `completeDungeon`,
+called from inside the `firstCompletion` branch that starts at line 820,
+after the bounty block already ran.
+
+#### Consequences
+
+A three-or-more player party completing one run advances `CLEAR_HALLS` by
+`members` times `cleared`, and `SPELUNKER`/`PACK_HUNTER` by one per member
+instead of once, completing `PACK_HUNTER` (target 3) outright in a single
+run. `SPEEDRUNNER` never advances at all, for any run size.
+
+#### Fix
+
+Move the entire `if (record.isKeystoneRun())` bounty block down, inside the
+existing `if (firstCompletion)` block, placed after the
+`completeDungeon(server, record);` call so `record.rewardChests` is
+populated by the time `chests`/`timed` are computed.
+
+#### Verification
+
+Complete a timed keystone run solo. Confirm `SPEEDRUNNER` advances by 1.
+Complete a run with 3 party members. Confirm `CLEAR_HALLS` advances by
+`cleared` (not `cleared` times 3), and `PACK_HUNTER`/`SPELUNKER` each
+advance by exactly 1, not 3.
+
+---
+
+### PD-16: Operator lootOverride writes an unclamped keystone level (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (can permanently and irreversibly downgrade a player progression)
+**Status:** Fixed (2026-08-31)
+
+`/dungeon admin experiment` builds door 3 experimental offer from the
+operator raw integer instead of routing it through the same clamp every
+other offer uses, and the write path has no clamp of its own either.
+
+#### Exact code references
+
+`Keystone.java` lines 144-148:
+```java
+int expLevel = experimental.lootLevel() != null
+        ? experimental.lootLevel() : KeystoneMath.upgrade(level, 3, max);
+doorThree = new Offer(expLevel, experimental.affixes(), 3, experimental.theme(), Tier.EXPERIMENTAL);
+```
+
+`Keystones.java` line 107 (`grantOffer`) writes it unconditionally.
+`DungeonLog.java` line 410 (`setKeystone`) only floors at zero despite its
+own javadoc claiming the caller clamps. `DungeonCommands.java` line 1150
+passes the brigadier integer through with no range validation.
+
+#### Consequences
+
+`/dungeon admin experiment <theme> "" 1` followed by a door-3 completion
+takes any player, at any level, down to level 1 permanently. A value of `0`
+reaches a state `Keystone.reconcile` explicitly refuses to repair.
+
+#### Fix
+
+Two clamps, both should land:
+
+1. In `DungeonCommands.java` experiment command executor, validate the
+   loot-level argument against 1 through `PocketDungeonsConfig.keystoneMaxLevel()`
+   before constructing the `ExperimentalDungeon`, refusing with a clear
+   message if out of range.
+2. In `DungeonLog.setKeystone`, actually clamp: `keystoneLevel =
+   Math.max(1, Math.min(level, PocketDungeonsConfig.keystoneMaxLevel()));`
+
+#### Verification
+
+Run `/dungeon admin experiment <theme> "" 0` and confirm it is refused. Run
+it with a value above `keystoneMaxLevel` and confirm it clamps. Run it with
+a valid value and confirm a door-3 completion grants exactly that level.
+
+---
+
+### PD-17: Reroll station can produce a strictly worse enchantment (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (breaks the station documented guarantee, unintended Mending source)
+**Status:** Fixed (2026-08-31)
+
+The replacement pool for a reroll is the entire enchantment registry
+filtered only by `isSupportedItem`, with no curse exclusion and no
+mutually-exclusive-set check.
+
+#### Exact code references
+
+`RerollStation.java` lines 162-171:
+```java
+for (Identifier id : registry.keySet()) {
+    Holder.Reference<Enchantment> candidate = registry.get(id).orElse(null);
+    if (candidate == null || candidate.equals(chosen) || current.getLevel(candidate) > 0) { continue; }
+    if (candidate.value().isSupportedItem(held)) { pool.add(candidate); }
+}
+```
+`minecraft:vanishing_curse` supports every item; `minecraft:binding_curse`
+supports every armor piece. Neither is excluded. `RerollMath.isValidReroll`
+(`RerollMath.java:43`) only compares ids and counts, so it passes silently.
+`RerollStation.java:44-50` and `RerollMath.java:36-42` both document the
+opposite guarantee (never strictly worse).
+
+#### Fix
+
+Add an exclusion filter to the pool-building loop in `RerollStation.java`:
+
+1. Exclude curses explicitly: skip any candidate whose id is
+   `minecraft:vanishing_curse` or `minecraft:binding_curse`, or any
+   enchantment in the curse tag if one exists on this MC version (verify
+   against the jar).
+2. Exclude mutually-exclusive pairs already present on `held`: build the
+   set of enchantment exclusive-set tags already on the item and skip any
+   candidate sharing one with an enchantment already on `current`.
+3. Decide whether treasure-only enchantments (Mending, Soul Speed, Swift
+   Sneak) should be reachable via reroll at all; if not, exclude
+   `candidate.value().isTreasureOnly()`.
+
+#### Verification
+
+Reroll a Sharpness sword repeatedly and confirm Curse of Vanishing or
+Binding never appear as a result. Reroll a Silk Touch tool and confirm
+Fortune never appears (and vice versa). Confirm the pool is never empty for
+a normal enchanted item.
+
+---
+
+### PD-18: Room directory admits a visitor into the owner live keystone run (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (bypasses party cap, corrupts bounty and prestige counts)
+**Status:** Fixed (2026-08-31)
+
+`VisitService.findOwnedLiveRoom` matches any non-lingering, non-visit
+record regardless of whether a keystone run is in progress. `statusOf`
+correctly reports "run in progress" for this case, but its only caller
+never checks it before admitting.
+
+#### Exact code references
+
+`VisitService.java` lines 85-92 (`findOwnedLiveRoom`, no run-state check),
+lines 62-72 (`visit`, calls `Instances.admit` unconditionally), lines
+215-222 (`statusOf`, has the correct check but nothing reads it for
+gating). `DialogRouter.java` lines 366-381 (`visitRoom`), the only caller,
+checks `publicListed()` and owner-online only.
+
+#### Fix
+
+In `VisitService.visit`, call `statusOf` first and refuse with the same
+message it already builds, before calling `Instances.admit`.
+
+#### Verification
+
+Start a keystone run as player A. As player B, open the room directory and
+attempt to visit A room while the run is active. Confirm B is refused with
+a "run in progress" message and not teleported in. Confirm visiting still
+works normally once A is back in their idle room.
+
+---
+
+### PD-19: Room-theme filter is inert, no shipped JSON supplies either half (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (a built selection feature never actually filters)
+**Status:** Fixed (2026-08-31); M42.2 paired four rooms (crypt_corner;
+treasure_alcove, grove, mossy_tee) to five themes via `theme`/`room_theme`
+
+The pipeline exists end to end in code, but no `dungeon_theme` JSON sets
+`room_theme` and no `dungeon_room` JSON sets `theme`, so
+`RoomManifest.matchesTheme` first branch always short-circuits true.
+
+#### Exact code references
+
+`Instances.java:645` passes `DungeonThemeMeta.roomTheme` into
+`RoomSelector.pick`. `RoomSelector.java:78` calls
+`manifest.queryAnyRotation(mask, role, theme)`. `RoomManifest.java:257-262`
+(`matchesTheme`) is the dead filter. All five theme files and all fifteen
+room files omit the relevant field.
+
+#### Fix
+
+This is a content decision, not a pure code fix: either wire real theming
+(assign each room a `theme` and each theme a matching `room_theme`, e.g.
+deepslate pulling `crypt_corner` preferentially) or remove the dead fields
+and the filter code if room-per-theme variety is not wanted. The existing
+`spawner_prefix: crypt` on deepslate alongside `crypt_corner.json` suggests
+the former was intended. Track under M42 alongside PD-21 style content
+items; needs a content-design decision, not just a code change.
+
+#### Verification
+
+Once content is added: generate several dungeons in a themed adventure and
+confirm the room mix visibly differs by theme, not uniform across all five.
+
+---
+
+### PD-20: Voided-cell selection is not reproducible across JVM restarts (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (breaks the same-seed-same-dungeon invariant)
+**Status:** Fixed (2026-08-31)
+
+The voided-cell pass draws one `nextDouble()` per cell while iterating
+`plan.cells()`, a `Set.copyOf` whose iteration order is randomized per JVM
+instance.
+
+#### Exact code references
+
+`LayoutStamper.java` lines 212-224:
+```java
+Random rng = new Random(plan.seed() ^ 0xB01DL);
+for (PlanCell cell : plan.cells()) {
+    if (cell.equals(entrance) || cell.equals(terminal)) continue;
+    if (rng.nextDouble() < PocketDungeonsConfig.voidedCellChance()) voided.add(cell);
+}
+```
+`DungeonPlan.cells` (`RoomSelector.java:99`) is `Set.copyOf(shape.cells())`.
+Every other consumer of `plan.cells()` in the pipeline sorts first.
+
+#### Fix
+
+Iterate a sorted view instead: `geometry.cells()` (already sorted
+elsewhere) or sort `plan.cells()` locally by a stable key before the loop.
+
+#### Verification
+
+Generate the same seed on two separate JVM runs and diff the resulting
+voided-cell sets; they should match.
+
+---
+
+### PD-21: Routed dialog clicks act on a possibly disconnected player (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (token consumed with no unlock granted, or world mutation for a gone player)
+**Status:** Fixed (2026-08-31)
+
+The custom-click mixin defers routing through `server.execute` but the
+router performs no liveness check on the captured `ServerPlayer` before
+acting on it.
+
+#### Exact code references
+
+`CustomClickMixin.java` lines 96-101 (captures `listener.player`, defers).
+`DialogRouter.java` line 40 (`handle`, no `hasDisconnected()` check
+anywhere in the method). Worst-case mutating call sites:
+`DialogRouter.java:332` (`unlockShell`, shrinks held item then writes the
+unlock by UUID), `:301` (`applyShell`, world mutation), `:163`
+(`startDungeon`, teleports).
+
+#### Fix
+
+Add one guard at the top of `DialogRouter.handle`:
+```java
+static void handle(ServerPlayer player, ...) {
+    if (player.hasDisconnected()) {
+        return;
+    }
+}
+```
+
+#### Verification
+
+Not easily reproducible on demand (timing-dependent). Confirm via code
+review that the guard is present and unconditional at the top of `handle`.
+
+---
+
+### PD-22: Adventure graph validation is single-pass and order-dependent (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (silently ships dangling theme transitions depending on hash order)
+**Status:** Fixed (2026-08-31)
+
+The validation loop iterates a snapshot of `nodes.entrySet()` while calling
+`nodes.remove` and testing `containsKey` against the live map being
+mutated in the same pass.
+
+#### Exact code references
+
+`AdventureGraphs.java` lines 60-76:
+```java
+for (Map.Entry<String, Node> entry : new ArrayList<>(nodes.entrySet())) {
+    ...
+    } else if (!nodes.containsKey(transition.theme())) { valid = false; }
+    if (!valid) { nodes.remove(entry.getKey()); }
+}
+```
+
+#### Fix
+
+Replace the single pass with a fixpoint loop that repeats validation over
+the current map until a full pass removes nothing, snapshotting the
+valid-key set once per pass:
+
+```java
+boolean changed = true;
+while (changed) {
+    changed = false;
+    Set<String> validKeys = Set.copyOf(nodes.keySet());
+    for (Map.Entry<String, Node> entry : new ArrayList<>(nodes.entrySet())) {
+        boolean valid = true;
+        for (Transition transition : entry.getValue().transitions()) {
+            if (!validKeys.contains(transition.theme())) { valid = false; break; }
+        }
+        if (!valid) {
+            nodes.remove(entry.getKey());
+            changed = true;
+        }
+    }
+}
+```
+
+#### Verification
+
+Add a three-node test pack to `AdventureGraphTest.java` where node A points
+at node B, and node B points at a nonexistent theme. Assert the fixpoint
+property directly: after `load`, every remaining node every transition
+target exists in the remaining node set. Confirm both A and B are removed.
+
+---
+
+### PD-23: Two of three stations enforce no unlock level at use time (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (progression gate is cosmetic for 2 of 3 stations)
+**Status:** Fixed (2026-08-31)
+
+Only `RerollStation.onUse` checks its unlock level. `GambleStation.onUse`
+and `CubeStation.onUse` check nothing; `gambleUnlockLevel` and
+`cubeUnlockLevel` are referenced only by `StationPicker.java`, never at the
+point of use.
+
+#### Exact code references
+
+`RerollStation.java:111-118` (has the check). `GambleStation.java:108-115`
+and `CubeStation.java:119-133` (missing it). `StationPicker.java:87,98`
+(the only readers of the two unlock-level knobs).
+
+#### Fix
+
+Add the same unlock-level check `RerollStation.onUse` already has to
+`GambleStation.onUse` and `CubeStation.onUse`, reading
+`PocketDungeonsConfig.gambleUnlockLevel()` and `cubeUnlockLevel()` against
+the player keystone level, refusing with a message before proceeding.
+
+#### Verification
+
+At a low keystone level, place a beacon or cube block by any means and
+attempt to use it. Confirm both are refused the same way the reroll
+station already refuses.
+
+---
+
+### PD-24: Dialog actions bypass the station block and the level gate entirely (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (gate bypass, materials still spent so not free value)
+**Status:** Fixed (2026-08-31)
+
+`DialogRouter` validates only that the owner key matches the sender for the
+reroll and imbue actions; there is no station-proximity check, and
+`RerollStation.handleReroll` never re-checks the unlock level `onUse` does.
+
+#### Exact code references
+
+`DialogRouter.java:54-55` (owner-only check, no station or level check).
+`RerollStation.java:137` (`handleReroll`, re-checks tier and lapis, not
+unlock level).
+
+#### Fix
+
+In `RerollStation.handleReroll` (and the equivalent gamble and cube dialog
+handlers once PD-23 adds their level checks), re-check the relevant unlock
+level the same way `onUse` does.
+
+#### Verification
+
+Depends on PD-23 landing first for the gamble and cube half. For reroll: at
+a low keystone level, confirm `handleReroll` refuses without a station
+present.
+
+---
+
+### PD-25: Task progress is awarded for opening a station, not for using it (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (task can complete without doing the thing its label says)
+**Status:** Fixed (2026-08-31)
+
+The reroll and gamble stations fire `TaskTracker.progress` immediately
+after showing their UI, before anything is charged.
+
+#### Exact code references
+
+`RerollStation.java:121` and `GambleStation.java:114`, both call
+`TaskTracker.progress` right after `showPicker`/`openGui`, before any
+spend. `TaskTracker.Task.GAMBLE` (`TaskTracker.java:37`) is labelled
+"Spend Emeralds at Kadala" with target 16. Contrast `CubeStation.java:147`
+(`EXTRACT_POWER` fired after `held.shrink(1)`) and
+`RitualListener.java:182` (`FEED_ENGINE` fired after the spend), both
+correct.
+
+#### Fix
+
+Move the `TaskTracker.progress` call in `RerollStation` to `handleReroll`,
+after the lapis spend succeeds. Move the one in `GambleStation` to
+`handleTrade`, after the emerald debit succeeds, not at `openGui` time.
+
+#### Verification
+
+Right-click a reroll or gamble station repeatedly with no lapis or
+emeralds on hand. Confirm the task does not progress. Complete an actual
+reroll or trade and confirm it does.
+
+---
+
+### PD-26: Death rescue detaches a member by hand and skips the leadership rule (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (owner death mid-run silently desyncs from their own party)
+**Status:** Fixed (2026-08-31)
+
+`Instances.rescue` open-codes member removal instead of routing through
+`RunLifecycle.dropMember`, so `leadershipChanged` is never evaluated for
+this path.
+
+#### Exact code references
+
+`Instances.java` lines 841-883 (`rescue`): does `record.members.remove`,
+`byMember.remove`, `onPad.remove`, `timer.removePlayer`,
+`clearTrialOmen` by hand, discarding the `ReturnPoint` at line 858. Compare
+`RunLifecycle.dropMember` (lines 1114-1153), which performs the same set of
+removals plus the leadership check at line 1173.
+
+#### Fix
+
+Replace the hand-rolled detach block in `rescue` with a call to
+`RunLifecycle.dropMember`, then perform the rescue own teleport and
+respawn handling after. Keep the `ReturnPoint` result rather than
+discarding it.
+
+#### Verification
+
+As a party owner, die inside a shared run. Confirm the leadership-changed
+behavior fires the same way it does for a voluntary exit or disconnect.
+
+---
+
+### PD-27: IRON_DOOR connector can gate the critical path with no redstone source in the mod (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (roughly 10 percent chance of an unopenable dead end on the golden path)
+**Status:** Fixed (2026-08-31)
+
+Only edges touching the entrance cell are excluded from the IRON_DOOR roll.
+Every other edge, including the sole critical-path edge to the terminal,
+can roll it, and nothing in the mod places a button, lever, or plate to
+open it.
+
+#### Exact code references
+
+`LayoutStamper.java:249-278` (edge exclusion only covers the entrance).
+`ConnectorStamper.java:64-66` comment says room content or the player
+supplies it, but grepping `RoomContent`/`TrialContent` for anything placing
+a redstone source near an IRON_DOOR connector returns nothing.
+
+#### Fix
+
+Pick one of two approaches:
+
+1. Exclude the critical path from the IRON_DOOR roll, reusing whatever
+   critical-path data the graph generator already computes for the
+   loot-guarantee pass.
+2. Have `ConnectorStamper.applyIronDoor` place a lever or button on the
+   door frame itself, so the door is always self-openable regardless of
+   which edge it lands on.
+
+Prefer option 2 unless a lever on every iron door reads as visually
+cluttered, in which case fall back to option 1.
+
+#### Verification
+
+Generate several hundred seeds and confirm no run requires redstone the
+player cannot obtain in-dungeon to reach the terminal.
+
+---
+
+### PD-28: Iron door pair does not alternate hinge and uses the wrong facing convention (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (visual and consistency defect, not a blocker)
+**Status:** Fixed (2026-08-31)
+
+`ConnectorStamper.applyIronDoor` builds one door state and fills both leaf
+positions with it, so both get the default LEFT hinge instead of
+alternating like every other double door in the mod, and sets FACING
+outward instead of the inward convention every other door uses.
+
+#### Exact code references
+
+`ConnectorStamper.java:74-79` (single `lower` state filled into both
+`DOOR_MIN` and `DOOR_MAX`, `FACING = Instances.mcDirection(wall)`).
+Compare `RoomTemplateGenerator.placePostSelectionDoors` (line 575,
+alternates LEFT and RIGHT so the two doors meet in the middle), and
+`placeSelectorDoors`/`leverState`/`signState`/`frameState` (all use the
+opposite-of-wall facing convention).
+
+#### Fix
+
+In `applyIronDoor`, build two states, one LEFT hinge for the first leaf,
+one RIGHT hinge for the second, matching `placePostSelectionDoors`
+pattern. Change FACING to `CellGeometry.opposite(wall)` instead of `wall`
+directly.
+
+#### Verification
+
+Generate a dungeon with an iron-door connector and inspect it visually:
+the two leaves should meet in the middle, and the door should face the
+same direction every other door in an equivalent position faces.
+
+---
+
+### PD-29: manifest reload command reloads one of five manifests (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (operator tooling lies about what it did)
+**Status:** Fixed (2026-08-31)
+
+Found independently by two passes of the audit. Startup loads five
+manifests; the reload command touches only rooms.
+
+#### Exact code references
+
+`Instances.java:217-226` (`SERVER_STARTED`, loads all five: themes,
+adventure graphs, diaries, rooms, anomaly rooms). `DungeonCommands.java`
+lines 1167-1182 (`manifestReload`) calls only `RoomManifest.load(server)`
+and reports "Loaded N room(s) into manifest." as if everything reloaded.
+Three other commands tell operators to run this command as the fix for
+stale state it cannot actually clear for themes, adventure, diaries, or
+anomaly.
+
+#### Fix
+
+Call all five loaders in `manifestReload`: `ThemeManifest.load(server)`,
+`AdventureGraphs.load(server)`, `Diaries.load(server)` (needs PD-30 landed
+alongside), `RoomManifest.load(server)`, `RoomManifest.loadAnomaly(server)`.
+Update the success message to name all five counts.
+
+#### Verification
+
+Edit a theme JSON and an anomaly room JSON on disk. Run
+`/dungeon admin manifest reload`. Confirm both changes take effect without
+a server restart.
+
+---
+
+### PD-30: Diaries never reload on /reload (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (operator content-editing workflow silently requires a restart)
+**Status:** Fixed (2026-08-31)
+
+`Diaries.load` has exactly one call site, inside `SERVER_STARTED`. The
+theme and room manifests both register a datapack-reload listener;
+diaries do not.
+
+#### Exact code references
+
+`Instances.java:219` (the sole call site). `ThemeManifest.java:50-51` and
+`RoomManifest.java:100-101` show the pattern to follow. `Diaries.rejections()`
+exists but is never called by any command, unlike the room and graph
+equivalents.
+
+#### Fix
+
+Register `Diaries.load` the same way `ThemeManifest`/`RoomManifest`
+register theirs, against the datapack reload listener (verify the exact
+API against the jar). Wire `Diaries.rejections()` into the same admin
+diagnostic command that surfaces room and graph rejections, for parity.
+
+#### Verification
+
+Edit a diary entry JSON. Run `/reload` or the manifest reload command from
+PD-29. Confirm the edited diary content is served without a restart.
+
+---
+
+### PD-31: infestation theme has no adventure node and is unreachable (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (authored content behind an unreachable theme)
+**Status:** Fixed (2026-08-31); M42.3 authored
+`dungeon_adventure/infestation.json` as a descent node reachable from
+both entry themes
+
+Five theme files ship; only four adventure files exist. `infestation` has
+no node, so `AdventureGraph.pick` can never offer it, and its six
+trial-spawner configs are unreachable through normal play.
+
+#### Exact code references
+
+`dungeon_theme/infestation.json` exists; `dungeon_adventure/` has
+blackstone, deepslate, drowned_vault, prismarine only.
+`DungeonCommands.java:1140-1147` (`admin experiment`) deliberately does not
+validate the theme id, so it is the only path in.
+
+#### Fix
+
+Content work: author `dungeon_adventure/infestation.json` following the
+shape of the four existing files, deciding where in the adventure graph it
+should sit. This is a content-design decision, not a code change; track
+under M42 alongside PD-19.
+
+#### Verification
+
+Once added: play through the adventure graph enough times to confirm
+infestation is reachable as a normal door offer, not only via the admin
+command.
+
+---
+
+### PD-32: Themed loot table suffix never resolves on an ominous run (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (the boss theme themed loot is likely never seen)
+**Status:** Fixed (2026-08-31); M42.4 added six small loot tables that
+reference the base ominous table via a `minecraft:loot_table` entry and
+layer a themed bonus pool on top, resolved automatically by the
+existing suffix-fallback in `resolveLootTable`
+
+`TrialContent.resolveLootTable` appends the theme `loot_suffix` to an
+already-decorated ominous path, which does not exist as a shipped table,
+so it silently falls back to the untheme'd ominous table.
+
+#### Exact code references
+
+`TrialContent.java:485-495`. `dungeon_theme/drowned_vault.json` is the
+only theme with `loot_suffix` set. Ominous runs ask for a table that does
+not exist; only the base and plain-ominous tables ship.
+
+#### Fix
+
+Either author the missing themed-ominous loot tables, or change
+`resolveLootTable` composition order so a themed table and the ominous
+modifier can combine without a full cross-product of tables. The latter
+scales better if more themed suffixes are added later; note under M42 as a
+design choice.
+
+#### Verification
+
+Run an ominous drowned_vault dungeon and confirm the chest and vault loot
+includes the theme intended flavor, not a silent fallback to generic
+ominous loot.
+
+---
+
+### PD-33: Cube extraction consumes the item before writing the state (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (rare-item destruction on a crash between two lines)
+**Status:** Fixed (2026-08-31)
+
+`CubeStation` extract path shrinks the held stack before recording the
+extraction in `DungeonLog`.
+
+#### Exact code references
+
+`CubeStation.java:143-144`:
+```java
+held.shrink(1);
+log.addExtractedPower(owner, reward);
+```
+
+#### Fix
+
+Swap the order:
+```java
+log.addExtractedPower(owner, reward);
+held.shrink(1);
+```
+
+#### Verification
+
+Code review is sufficient; confirm the two lines are swapped and no other
+consumer of `held` runs between them.
+
+---
+
+### PD-34: Deferred room save in eject races the clear that purge just queued (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (a room save can be silently overwritten by a stale deferred write)
+**Status:** Fixed (2026-08-31)
+
+`InstanceTeardown.purge` saves the room synchronously specifically to beat
+its own queued `PendingClear`, then calls `Instances.eject`, whose
+`saveRoomIfOwner` defers through `server.execute` and can fire on a later
+tick while the clear is actively blanking the same cell.
+
+#### Exact code references
+
+`InstanceTeardown.java:122-125` (the synchronous save), line 129 (calls
+`Instances.eject` per member), line 161 (queues the `PendingClear` last).
+`RunLifecycle.java:565-570` (`saveRoomIfOwner`, deferred). It currently
+survives only because the room cell happens to be the last thing cleared
+in the sequence.
+
+#### Fix
+
+In `Instances.eject`, when called from within `purge` (the room has
+already been synchronously saved and a clear is already queued), skip the
+deferred save. The cleanest way: `purge` should null out
+`record.roomCellOrigin` after its synchronous save, the same way
+`adminPurgeByOwner` (`Instances.java:1690`) already does, so
+`saveRoomIfOwner` own existing null-check guard makes the deferred call a
+no-op naturally.
+
+#### Verification
+
+Decorate a room, then trigger an admin purge. Confirm the room saved state
+matches what it looked like right before the purge, not a stale or
+partially-cleared version from a deferred write racing the clear.
+
+---
+
+### PD-35: Lobby directory is unbounded, contradicting the suite own pagination convention (Medium)
+
+**Reported:** 2026-08-31
+**Severity:** Medium (a large server can produce an oversized single-packet dialog)
+**Status:** Fixed (2026-08-31)
+
+`DialogScreens.lobbyBrowser` builds one button per public online room with
+no cap, in a dialog type that ships whole in one packet. The project own
+dialog spec names an existing convention (cap at a fixed count, drop the
+rest to chat) that this screen does not follow.
+
+#### Exact code references
+
+`DialogScreens.java:499-509`. `docs/DIALOGS_SPEC.md:414-415` names
+Ballot's own settings dialog, capped at 8, as the convention to follow.
+
+#### Fix
+
+Cap the row count (8, matching the cited convention) and append a text
+line below the cap listing how many more rooms exist. The zero-row case is
+already handled correctly and does not need to change.
+
+#### Verification
+
+Populate more than the cap worth of public listed rooms (test server or a
+temporary lowered cap) and confirm the dialog renders the capped list plus
+an overflow indicator instead of growing unbounded.
+
+---
+
+### PD-36: admin experiment echoes the raw affix string, not what was actually applied (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (misleading operator feedback only)
+**Status:** Fixed (2026-08-31)
+
+`AffixMath.parse` silently drops unrecognized tokens; the command success
+message echoes the operator original input string regardless.
+
+#### Exact code references
+
+`DungeonCommands.java:1150-1156`. `AffixMath.parse` (`AffixMath.java:70-88`,
+silent drop). `AffixMath.join` (`AffixMath.java:90`) already exists and is
+unused here.
+
+#### Fix
+
+Replace the echoed raw string with `AffixMath.join(AffixMath.parse(affixes))`
+in the success message.
+
+#### Verification
+
+Run `/dungeon admin experiment <theme> "FERAL,NOTAREALAFFIX"` and confirm
+the confirmation message shows only FERAL.
+
+---
+
+### PD-37: Room names are unvalidated legacy-formatting text shown to other players (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (cosmetic griefing via obfuscated or formatted room names)
+**Status:** Fixed (2026-08-31)
+
+Both the command and the routed room-rename path trim and truncate to 16
+characters and do nothing else; the value renders as a literal component
+with legacy format codes active.
+
+#### Exact code references
+
+`DungeonCommands.java:623-632`, `DialogRouter.java:228-234` (both paths).
+`DialogScreens.java:423` (`LobbyRow.label()`, renders as literal).
+
+#### Fix
+
+Strip the format-code prefix character from the input before storing it,
+or restrict the accepted character set to alphanumerics, spaces, and a
+small punctuation allowlist.
+
+#### Verification
+
+Attempt to set a room name containing an obfuscation or formatting code.
+Confirm the stored name has the codes stripped and renders as plain text.
+
+---
+
+### PD-38: Player-facing commands return success unconditionally (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (command-block integration only, chat text is correct)
+**Status:** Fixed (2026-08-31)
+
+`exit` and the six party subcommands return 1 even when the underlying
+service call refused the action.
+
+#### Exact code references
+
+`DungeonCommands.java:434-438` (`exit`), lines 508, 513, 518, 523, 528, 539
+(party subcommands). All call into void-returning service methods that can
+refuse internally.
+
+#### Fix
+
+Have the relevant service methods return a boolean instead of void, and
+have each command executor return 1 or 0 based on that result.
+
+#### Verification
+
+Use execute-if wrapping one of these commands in a scenario where it
+should refuse and confirm the branch now correctly treats it as failed.
+
+---
+
+### PD-39: stamptest force-loads chunks and never releases the tickets (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (dev-only command, same root cause as PD-13)
+**Status:** Fixed (2026-08-31)
+
+`DungeonCommands.java:803-806` force-loads chunks in a loop with no
+matching release; the command own closing message tells the operator to
+purge by hand, which does not cover the tickets.
+
+#### Fix
+
+Add a matching release loop, either as part of the purge-by-hand cleanup
+this dev tool already provides, or automatically when the test structures
+are torn down.
+
+#### Verification
+
+Run stamptest several times in a dev environment and confirm the server
+forced-chunk count does not climb across invocations.
+
+---
+
+### PD-40: Gamble draw silently discards every stack past the first (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (silent today, becomes a real loot-loss bug once a second pool is authored)
+**Status:** Fixed (2026-08-31)
+
+`GambleStation.draw` takes only the first entry from the loot table result
+with no loop.
+
+#### Exact code references
+
+`GambleStation.java:314-315`.
+
+#### Fix
+
+Loop over the result and hand back the full list, or keep single-item by
+design and add a log warning when more than one stack rolls, so a future
+table author notices the truncation.
+
+#### Verification
+
+Temporarily author a gear table with two rolls and confirm both items are
+delivered, or confirm the warning log fires if keeping single-item.
+
+---
+
+### PD-41: Keystone reconcile discards stack count on a stackable configured item (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (harmless with the default item, destructive if reconfigured)
+**Status:** Fixed (2026-08-31)
+
+`Keystone.mint` always returns a count-1 stack; `reconcile` replaces the
+existing stack with it wholesale, discarding any larger count.
+
+#### Exact code references
+
+`Keystone.java:291-303` (the replace). The configured keystone item is a
+free-form config string with no max-stack validation.
+
+#### Fix
+
+Either validate at config-load time that the configured keystone item has
+a max stack size of 1, or change `reconcile` to preserve the existing
+stack count when minting the replacement.
+
+#### Verification
+
+Temporarily configure the keystone item to a stackable item, stack several
+in an inventory slot, and trigger a reconcile. Confirm either the config is
+refused at load, or the stack count survives the reconcile.
+
+---
+
+### PD-42: Integer overflow in PayoutMath chestCount (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (requires a misconfigured huge timer to trigger)
+**Status:** Fixed (2026-08-31)
+
+`secondsRemaining * 100` overflows int past roughly 21.4 million seconds.
+
+#### Exact code references
+
+`PayoutMath.java:33`. `KeystoneMath.timerSeconds` deliberately computes in
+long and clamps to Integer.MAX_VALUE, so the one guard against a huge
+timer config feeds a value this line cannot hold safely.
+
+#### Fix
+
+```java
+int usedPercent = 100 - (int) ((long) secondsRemaining * 100 / Math.max(1, totalSeconds));
+```
+
+#### Verification
+
+Add an assertion in `PayoutMathTest.java` with a large `secondsRemaining`
+and confirm `chestCount` returns a sane, non-negative result instead of a
+value derived from overflow.
+
+---
+
+### PD-43: Attribute listener maps grow without a disconnect hook (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (self-healing on relog, grows for the process lifetime)
+**Status:** Fixed (2026-08-31)
+
+`TrimListener` and `PowerListener` each keep a static per-UUID map
+populated by `computeIfAbsent` in their reconcile pass, with no removal
+anywhere.
+
+#### Exact code references
+
+`TrimListener.java:79`, `PowerListener.java:68`. No remove or clear call
+and no disconnect registration in either file.
+
+#### Fix
+
+Register a disconnect handler in both files (or one shared handler if the
+station-shape refactor in M43 lands first) that removes the disconnecting
+player UUID from the map.
+
+#### Verification
+
+Log the map size periodically in a dev environment across many connect and
+disconnect cycles and confirm it stops growing once the fix lands.
+
+---
+
+### PD-44: pendingReturns never expires (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (bounded by unique players, unbounded in time)
+**Status:** Fixed (2026-08-31)
+
+Entries are added on disconnect-inside-a-dungeon and removed only by
+admit or a rejoin landing in the dungeon dimension. A player who
+disconnects and never returns leaves an entry forever.
+
+#### Exact code references
+
+`Instances.java:65` (the map), line 166 (add), lines 342 and 188 (remove
+sites).
+
+#### Fix
+
+Add a timestamp to each entry and sweep expired ones during the existing
+tick watcher pass.
+
+#### Verification
+
+Not easily testable headlessly; code review plus a manual long-session
+check that the map size is bounded is sufficient.
+
+---
+
+### PD-45: Config accepts inviteTtlSeconds of 0, silently disabling invites and kick confirmations (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (misconfiguration footgun, not reachable with default config)
+**Status:** Fixed (2026-08-31)
+
+Validated at 0 or above; both consumers compute an expiry from the current
+time plus the ttl, so a value of 0 makes the window sub-millisecond in
+practice.
+
+#### Exact code references
+
+`PocketDungeonsConfig.java:685` (validation). `PartyService.java:174,280`
+(both consumers).
+
+#### Fix
+
+Change the validation lower bound to at least 1.
+
+#### Verification
+
+Set the config to 0, restart, and confirm the loader now clamps it rather
+than silently accepting it.
+
+---
+
+### PD-46: pathLengthMax is never cross-checked against maxGridSpan (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (misconfiguration causes every seed to fall back to the static layout forever)
+**Status:** Fixed (2026-08-31)
+
+Both are validated independently. A path length that cannot fit the grid
+span fails `RoomSelector.validate` for every seed with no diagnostic,
+silently falling back to StaticLayout.
+
+#### Exact code references
+
+`PocketDungeonsConfig.java:688,700`. The file already does this kind of
+cross-field repair for the `pathLengthMin`/`pathLengthMax` pair and the
+chest-percent pair; this pair was missed.
+
+#### Fix
+
+Add a cross-check in the same validation pass: if `pathLengthMax` cannot
+fit within `maxGridSpan`, clamp it down and log a warning, matching the
+existing pattern.
+
+#### Verification
+
+Set `pathLengthMax` far beyond what `maxGridSpan` can support, restart, and
+confirm the config loader clamps and warns.
+
+---
+
+### PD-47: keystoneMaxLevel is never cross-checked against the level gates it caps (Low)
+
+**Reported:** 2026-08-31
+**Severity:** Low (misconfiguration silently makes late-game features unreachable)
+**Status:** Fixed (2026-08-31)
+
+`keystoneMaxLevel` bounds every player achievable level. Setting it below
+`greaterDoorMinLevel` (15), `cubeUnlockLevel` (15), `gambleUnlockLevel`
+(10), or `rerollUnlockLevel` (5) makes those features permanently
+unreachable with no log line.
+
+#### Fix
+
+Add a validation-time check: if `keystoneMaxLevel` is below any of the four
+named gate values, log a warning naming which gate is now unreachable.
+
+#### Verification
+
+Set `keystoneMaxLevel` below `rerollUnlockLevel`, restart, and confirm a
+warning is logged naming the unreachable feature.
+
+---
+
+### PD-48: Fuel matches by item type only and destroys custom-data items from other mods (Critical)
+
+**Reported:** 2026-08-31
+**Severity:** Critical
+**Status:** Fixed (2026-08-31)
+
+`Fuel.isFuel`, `count`, and `spend` all test the item type alone with
+`stack.is(item)`, ignoring custom data.
+
+#### Exact code references
+
+`Fuel.java:56` (`isFuel`), and the identical type-only test used by
+`count` and `spend`. Confirmed by grep: the default fuel item (echo
+shards) appears in 13 loot entries across 7 tables including
+`chests/anomaly.json` (pool 0, unconditional 1-3 shards, no chance
+condition) and `chests/pocket2.json`. Ominous chest and vault tables
+re-skin echo shards as kamutotems "Boss Stone II/III" via
+`set_custom_data` and `set_name` (`chests/tier_2_ominous.json:426,457`,
+`chests/tier_3_ominous.json:458`, `vaults/tier_1_ominous.json:132,163`,
+`vaults/tier_2_ominous.json:189,220,251`, `vaults/tier_3_ominous.json:185,216`).
+
+The `Fuel` javadoc states "Door 1 is the only source. Nothing else in this
+mod loot tables grants the fuel item," citing the M12 self-funding risk
+the design deliberately avoided. That claim is false against the shipped
+data.
+
+Related dead config: `ritualKeyItem` in the default config is also set to
+the same echo-shard item and is read by zero Java code anywhere in the
+tree.
+
+#### Fix
+
+Three parts:
+
+1. Stop matching by type alone. `Fuel.isFuel`, `count`, and `spend` should
+   also require the stack carry the mod own marker (the same
+   custom-data-tag pattern the three stations already use for tier tags),
+   set when fuel is granted via `Fuel.grant`, and required for a stack to
+   count as spendable fuel. This also protects against any future
+   echo-shard-based item another mod adds.
+2. Remove echo shards from the mod own loot tables, or replace them with a
+   different item, so the "Door 1 is the only source" invariant holds.
+   Fix `chests/anomaly.json` pool 0 and `chests/pocket2.json` specifically;
+   confirm no other loot table grants the configured fuel item.
+3. Remove the dead `ritualKeyItem` and `ritualKeyCount` keys from the
+   default config, since no code reads them.
+
+#### Verification
+
+Obtain a kamutotems Boss Stone via the ominous loot path and attempt to
+bank it at an engine terminal. Confirm it is refused. Confirm normal echo
+shards from `Fuel.grant` still bank and spend correctly. Confirm no
+dungeon loot table grants a plain echo shard anymore.
+
+---
+
+## Found while working M43 (2026-08-31)
+
+### PD-49: `timedOutPenaltyApplied` still not reset between runs behind the same lobby (High)
+
+**Reported:** 2026-08-31
+**Severity:** High (timeout economy bypass, false-positive grace-window
+arming; the original audit found this as its own finding, but it was
+dropped during BUGS.md consolidation and never actually got a fix
+landed in M36-M39 despite the record showing otherwise)
+**Status:** Fixed (2026-08-31)
+
+`Instances.generateBehindLobby`'s per-run reset block clears
+`completed`, `keystoneReturned`, `onPad`, `visited`, `clearedCells`,
+`rewardChests`, and `expiresAtTick`, but not `timedOutPenaltyApplied`.
+Surfaced again while starting M43.1's `InstanceRecord` refactor,
+which is exactly the kind of gap that refactor is meant to make
+structurally impossible.
+
+#### Exact code references
+
+`Instances.java`, the reset block inside `generateBehindLobby` (the
+block clearing `record.completed`, `record.keystoneReturned`, etc.):
+`timedOutPenaltyApplied` is absent from it. Consumers:
+`Instances.java` (the timeout-expiry check and the reward-room grace
+arming check, both gated on this field) and `RunLifecycle.java` (the
+late-finish downgrade check).
+
+#### Consequences
+
+Any second run behind the same lobby after a first run that timed out
+skips its own timeout penalty entirely (the guard
+`!record.timedOutPenaltyApplied` is already false), arms the
+reward-room grace countdown on the very first watcher tick of the new
+run (a second check keys off exactly this stale flag), and downgrades
+a genuinely late finish from `LATE` to `NO_CHANGE`.
+
+#### Fix
+
+Added `record.timedOutPenaltyApplied = false;` to the reset block,
+alongside the other per-run fields it already clears.
+
+#### Verification
+
+Let a run time out behind a lobby (timeout penalty applies, existing
+behavior). Start a second run behind the same lobby. Let it finish
+normally within time. Confirm no timeout penalty applies to the second
+run and the reward-room grace window does not arm prematurely on its
+first tick.

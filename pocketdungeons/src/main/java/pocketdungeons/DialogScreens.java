@@ -66,6 +66,12 @@ final class DialogScreens {
 
     /** M20: which public room the lobby browser's button chose to visit. */
     static final String ACTION_VISIT_ROOM = "pd_visit_room";
+    /**
+     * PD-35: a {@code MultiActionDialog} ships whole in one packet, so the
+     * lobby directory's row count needs a cap. Matches this suite's own
+     * convention, the same cap Ballot's settings dialog uses.
+     */
+    private static final int LOBBY_ROW_CAP = 8;
 
     /** M21: which wall-lodestone menu option the button chose. */
     static final String ACTION_START_DUNGEON = "start_dungeon";
@@ -392,7 +398,8 @@ final class DialogScreens {
      * player's live extracted-power set, and the material cost, since all
      * three can change while the picker sits open.
      */
-    static Dialog imbuePicker(UUID player, ItemStack held, Set<String> extractedPowers, String notice) {
+    static Dialog imbuePicker(UUID player, ItemStack held, Set<String> extractedPowers,
+                              Set<String> activePowers, String notice) {
         List<DialogBody> body = new ArrayList<>();
         if (notice != null) {
             body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
@@ -402,14 +409,16 @@ final class DialogScreens {
                 + cost + " " + PocketDungeonsConfig.imbueMaterial() + "."));
 
         List<ActionButton> buttons = new ArrayList<>();
-        for (String power : CubeStation.sortedUnlocked(extractedPowers)) {
+        for (String power : CubeStation.sortedUnlocked(extractedPowers, activePowers)) {
             CompoundTag context = new CompoundTag();
             context.putString(KEY_OWNER, player.toString());
             context.putString(KEY_POWER, power);
             buttons.add(DialogKit.button("Imbue " + power, null, DialogKit.submit(ACTION_IMBUE, context)));
         }
         if (buttons.isEmpty()) {
-            body.add(DialogKit.text("You have not extracted any powers yet."));
+            body.add(DialogKit.text(extractedPowers.isEmpty()
+                    ? "You have not extracted any powers yet."
+                    : "Every power you have unlocked is already active on your worn gear."));
             return DialogKit.notice("Herobrine Cube", body);
         }
         return DialogKit.list("Herobrine Cube", body, buttons, "Close");
@@ -496,8 +505,13 @@ final class DialogScreens {
                     .withStyle(ChatFormatting.GRAY)));
             return DialogKit.notice("Lobby directory", body, backToMenuButton(clicker));
         }
+        // PD-35: a MultiActionDialog ships whole in one packet, so an
+        // unbounded row count is an unbounded packet. Capped at 8, matching
+        // this suite's own convention (Ballot's settings dialog caps the
+        // same way); the rest are named in the overflow line below instead.
+        List<LobbyRow> shown = rows.size() > LOBBY_ROW_CAP ? rows.subList(0, LOBBY_ROW_CAP) : rows;
         List<ActionButton> buttons = new ArrayList<>();
-        for (LobbyRow row : rows) {
+        for (LobbyRow row : shown) {
             CompoundTag context = new CompoundTag();
             context.putString(KEY_OWNER, clicker.toString());
             context.putString(KEY_TARGET, row.owner().toString());
@@ -506,6 +520,11 @@ final class DialogScreens {
         }
         body.add(DialogKit.text(rows.size() + " public room" + (rows.size() == 1 ? "" : "s")
                 + " right now."));
+        if (rows.size() > LOBBY_ROW_CAP) {
+            body.add(DialogKit.text(Component.literal(
+                    "...and " + (rows.size() - LOBBY_ROW_CAP) + " more room(s) not shown.")
+                    .withStyle(ChatFormatting.GRAY)));
+        }
         return DialogKit.list("Lobby directory", body, buttons, backToMenuButton(clicker));
     }
 

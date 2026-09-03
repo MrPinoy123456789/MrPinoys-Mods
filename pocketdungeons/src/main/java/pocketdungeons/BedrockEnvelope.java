@@ -35,16 +35,12 @@ final class BedrockEnvelope {
 
     private BedrockEnvelope() {}
 
-    /** Applies the envelope to every occupied cell of {@code geometry}. */
-    static void apply(ServerLevel level, PlanGeometry geometry) {
-        apply(level, geometry, Set.of());
-    }
-
     /**
-     * As {@link #apply(ServerLevel, PlanGeometry)}, but skips the sub-floor
-     * bedrock layer for cells in {@code voidedCells}. The Voided affix uses
-     * this so players who fall through carved floors reach the void instead
-     * of bedrock. Wall rings and ceiling layers are still applied normally.
+     * Applies the envelope to every occupied cell of {@code geometry}, skipping
+     * the sub-floor bedrock layer for cells in {@code voidedCells}. The Voided
+     * affix uses this so players who fall through carved floors reach the void
+     * instead of bedrock. Wall rings and ceiling layers are still applied
+     * normally. Pass {@link Set#of()} for a run with no voided cells.
      */
     static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells) {
         Set<PlanCell> occupied = Set.copyOf(geometry.cells());

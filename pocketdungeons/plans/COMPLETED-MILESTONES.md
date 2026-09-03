@@ -1646,7 +1646,8 @@ entrance; likewise for the other three directions.
 **Headless-verified:** `./gradlew build` green, all existing suites
 including `PipelineProofTest` (200/200 seeds, full-library planning
 through the same `LayoutPlanner.plan` retry path this milestone changed).
-`LayoutGraphGenerator.main`'s live-play-profile sweep now retries each of
+The live-play-profile sweep (M40: moved to `LayoutGraphGeneratorHarness`,
+the test-source-set harness) now retries each of
 5000 logical seeds through the same 16-attempt budget as `LayoutPlanner`
 (non-overlapping seed windows, seed+attempt scheme) and asserts the
 resolution rate stays above 95%; it resolves at 100% on the 5-8 path /
@@ -1659,33 +1660,6 @@ exists to absorb.
 door directions and confirming no rooms appear behind the player's
 entrance room on the reverse axis; recorded as section 33 in
 LIVE_TEST_PASS.md.
-
-## M32: Tutorial screen and engine label
-
-**Goal:** the engine screen's title reads "ECHO SHARDS" instead of
-"ENGINE"; a first-time (keystone level 1) player sees tutorial prompts on
-the door screen instead of the normal idle/preview text.
-
-- `DungeonScreen.engineContent` title literal changed to "ECHO SHARDS".
-- `DungeonScreen.idleContent` gains nullable `ServerLevel level` and
-  `UUID owner` params; when both are present and
-  `DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1`,
-  it returns "Select the Oak Door / Then pull the lever to descend"
-  instead of the normal idle text. All four call sites (`Instances.stampLobby`,
-  `RunLifecycle` twice, `RoomBuilder`) pass through the `level`/`owner` (or
-  `record.owner`) already in scope.
-- `DungeonScreen.previewContent` appends "Pull the lever to descend!" in
-  green when `offerLevel <= 1`; no signature change, since it already
-  derives `offerLevel` from `DungeonLog`.
-
-**Headless-verified:** `./gradlew build` green, all existing suites
-passing. No new test added; `idleContent`/`previewContent` are simple
-enough that the existing `DungeonLogTest` coverage of `keystoneLevel()`
-is what would need to change to break this, and it didn't.
-
-**Live-only, not yet verified:** the engine screen title, and the
-level-1 tutorial prompts on the idle and preview door screens, both
-disappearing at level 2+; recorded as section 34 in LIVE_TEST_PASS.md.
 
 ## M30: Connector variations
 
@@ -1734,6 +1708,12 @@ format, or the canonical door slot position.
   check already skips every face with a live neighbour, which covers
   OPEN and ARCH's wider clearing the same way it already covered the
   original 2-wide door slot.
+- M38 (PD-27/PD-28) later found and fixed two defects in IRON_DOOR
+  specifically: nothing anywhere placed a redstone source, so a run
+  could roll an unopenable iron door on its critical path (a lever on
+  the door frame now ships with it), and the two leaves shared one
+  `HINGE`/`FACING` state instead of alternating and facing inward like
+  every other door in the pipeline.
 
 **Headless-verified:** `./gradlew build` and `./gradlew test` green
 (including the full existing suite) in a clean build taken before an
@@ -1759,12 +1739,92 @@ the time this milestone's code landed by an unrelated concurrent
 session leaving the tree mid-edit; not recorded in LIVE_TEST_PASS.md
 yet -- add a new numbered section there once verified.
 
-## M33: Guided tasks via scoreboard
+## M31: Dungeon shell protection
+
+**Goal:** during an active run, the dungeon cells outside any player
+room are shell-protected the same way a player room is: floor, walls
+and ceiling immutable to everyone, protection lifting automatically
+the moment the first member completes the run. Enables M30's
+`IRON_DOOR` connector as a real gate rather than a cosmetic one.
+
+- `Instances.dungeonCellOriginAt` (and the shared private
+  `dungeonCellLookupAt` it and `dungeonRecordAt` both call): the cell
+  origin of the active dungeon cell occupying a position, or `null`
+  if the position is not in any active run's dungeon cells or is the
+  room cell itself (`roomOwnerAt`'s job, kept out to avoid the two
+  lookups double-protecting the same cell). "Active" means the record
+  has a layout and `completed` is still empty; once the first member
+  completes, every cell of that run returns `null` and the quarry
+  becomes breakable again.
+- **Scope note: the shipped behavior is narrower than the original
+  handoff's plan.** The handoff called for the whole dungeon cell
+  (interior included: spawners, chests, everything) to be unbreakable
+  during an active run. What shipped instead mirrors the player-room
+  model exactly: only the shell (floor, walls, ceiling; see
+  `RoomProtection.isShell`) is immutable, and the interior stays
+  breakable and placeable throughout the run so a player can dig,
+  loot and fight their way through as normal. `RoomProtection.beforeBlockBreak`
+  and `RitualListener`'s placement check both branch on
+  `dungeonCellOriginAt` and then defer to `isShell`, not a blanket
+  denial.
+- Protection-lift indicator: the moment `completeRun` reaches the
+  `firstCompletion` branch, every member in the dungeon dimension gets
+  a green "The dungeon's shell has weakened. You can break blocks
+  now." chat line, once, not repeated on a later completion or
+  re-entry.
+- Container use, redstone interaction (levers, buttons), and trial
+  spawner activation were never gated by this check to begin with;
+  only block break and block place go through it.
+
+**Headless-verified:** `./gradlew build` green, full existing suite
+passing. New `DungeonShellProtectionTest`
+(`dungeonShellProtectionTest` Gradle task, wired into `tasks.test`):
+break denied inside an active run's dungeon shell, allowed in the
+interior and allowed everywhere after completion; `dungeonCellOriginAt`
+returns the right cell origin inside an active run, `null` outside and
+`null` after completion, and correctly skips the room cell so it never
+overlaps `roomOwnerAt`'s territory; an unowned `adminBuild` instance's
+shell is denied the same as an owned run's.
+
+**Live-only, not yet verified:** entering a dungeon, confirming shell
+blocks are denied and interior blocks are minable during an active
+run; completing the run and confirming the shell opens up; the
+protection-lift chat message firing once per run. Not recorded in
+LIVE_TEST_PASS.md yet; add a new numbered section there once verified.
+
+## M32: Tutorial screen and engine label
+
+**Goal:** the engine screen's title reads "ECHO SHARDS" instead of
+"ENGINE"; a first-time (keystone level 1) player sees tutorial prompts on
+the door screen instead of the normal idle/preview text.
+
+- `DungeonScreen.engineContent` title literal changed to "ECHO SHARDS".
+- `DungeonScreen.idleContent` gains nullable `ServerLevel level` and
+  `UUID owner` params; when both are present and
+  `DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1`,
+  it returns "Select the Oak Door / Then pull the lever to descend"
+  instead of the normal idle text. All four call sites (`Instances.stampLobby`,
+  `RunLifecycle` twice, `RoomBuilder`) pass through the `level`/`owner` (or
+  `record.owner`) already in scope.
+- `DungeonScreen.previewContent` appends "Pull the lever to descend!" in
+  green when `offerLevel <= 1`; no signature change, since it already
+  derives `offerLevel` from `DungeonLog`.
+
+**Headless-verified:** `./gradlew build` green, all existing suites
+passing. No new test added; `idleContent`/`previewContent` are simple
+enough that the existing `DungeonLogTest` coverage of `keystoneLevel()`
+is what would need to change to break this, and it didn't.
+
+**Live-only, not yet verified:** the engine screen title, and the
+level-1 tutorial prompts on the idle and preview door screens, both
+disappearing at level 2+; recorded as section 34 in LIVE_TEST_PASS.md.
+
+## M33: Guided tasks via tracker screen
 
 **Goal:** ten sequential guided tasks teaching the core loops (select a
 door, descend, complete a run, feed the engine, visit a friend, open a
 Greater door, the three stations, tame a wolf), one active at a time,
-surfaced on the door screen and the tab list.
+surfaced on the door screen and the tracker screen in the player's room.
 
 - `TaskTracker` (new): the `Task` enum (id, label, targetCount, minLevel)
   in sequence order. `activeTask(DungeonLog, UUID, int)` is the pure
@@ -1781,11 +1841,13 @@ surfaced on the door screen and the tab list.
   sidecar (own codec entry, `task_progress`, optional/empty-default) and
   `taskProgress`/`setTaskProgress` accessors, kept separate from `Entry`
   since `Entry`'s codec is already split across two 16-field groups.
-- Scoreboard: one shared `pd_task` objective (`Criteria.DUMMY`,
-  `DisplaySlot.LIST`), created lazily on first use and removed once
-  nobody is tracked on it; each player's score is their active task's
-  1-based position in the sequence. `TaskTracker.syncScoreboard` also
-  runs whenever the door screen recomputes a task line.
+- Tracker screen: a physical screen on the wall opposite the engine
+  screen (the selector wall's right), showing the owner's active task
+  with its progress. Replaces the originally planned scoreboard sidebar:
+  instead of a global per-player sidebar, the progress is a third
+  physical screen in the room, visible only to whoever is standing in
+  it. `DungeonScreen.updateTracker` / `refreshTracker` run whenever the
+  door screen recomputes a task line or a task completes.
 - Mechanic hooks (`TaskTracker.progress`, all naming their own task):
   `RitualListener.selectDoor` (SELECT_DOOR), the engine terminal's
   `Fuel.bank` branch (FEED_ENGINE), `RunLifecycle.chooseOffer`
@@ -1804,18 +1866,19 @@ surfaced on the door screen and the tab list.
 - Door screen: `idleContent`/`previewContent`/`runContent` all append
   the active task's line (e.g. "Feed the Engine 2/3") through a shared
   private `appendTaskLine` helper, which resolves the owner's online
-  `ServerPlayer` and syncs the scoreboard in the same call. `runContent`
-  gained a `ServerLevel level` parameter (its three call sites already
-  had one in scope) to resolve that player.
+  `ServerPlayer` and refreshes the tracker screen in the same call.
+  `runContent` gained a `ServerLevel level` parameter (its three call
+  sites already had one in scope) to resolve that player.
 - Login: a new `ServerPlayConnectionEvents.JOIN` handler (dimension-
-  agnostic, unlike the existing recovery handler) syncs the scoreboard
-  and chats the active task.
-- One deliberate reading worth flagging: GAMBLE/REROLL/EXTRACT_POWER
-  progress on interacting with their station (opening the picker, or
-  the extract branch completing directly) rather than on a confirmed
-  spend -- the handoff's hook references point at `onUse` specifically,
-  so e.g. "Spend Emeralds at Kadala x16" completes on 16 station
-  interactions, not 16 successful gambles.
+  agnostic, unlike the existing recovery handler) refreshes the tracker
+  screen and chats the active task.
+- GAMBLE and REROLL originally progressed on interacting with their
+  station (opening the picker) rather than on a confirmed spend, so
+  "Spend Emeralds at Kadala x16" could complete on 16 station
+  interactions with nothing actually spent. Fixed in M38 (PD-25): both
+  now progress at the point the item is actually debited
+  (`GambleStation.handleTrade`, `RerollStation.handleReroll`), matching
+  `CubeStation.extract`'s already-correct EXTRACT_POWER hook.
 
 **Headless-verified:** `./gradlew build` green, full existing suite
 passing. New `TaskTrackerTest` (`taskTrackerTest` Gradle task, wired
@@ -1829,7 +1892,7 @@ without overshooting, and the task-progress sidecar's codec round trip
 every task to 0).
 
 **Live-only, not yet verified:** every task surfacing and advancing in
-order on the door screen and the `pd_task` tab-list column as a fresh
+order on the door screen and the tracker screen as a fresh
 player actually plays through them; the wolf-taming reconciliation scan
 actually catching a taming in the dungeon dimension; task progress and
 the grandfather clause surviving a server restart. Not recorded in
@@ -1877,14 +1940,12 @@ and party play.
   getting one bonus shard. Offline members miss out, by design: the
   bounty is a party activity, and the reward is for showing up. A green
   "Bounty complete: <label>!" broadcast goes to every online member.
-- Scoreboard: one `pd_bounty` objective (`Criteria.DUMMY`,
-  `DisplaySlot.SIDEBAR`), created lazily on first use. Each bounty is
-  one scoreholder line (`"<ownerName>:<bountyId>"` via
-  `ScoreHolder.forNameOnly`, the 26.2 API that replaced the old
-  `String`-keyed scoreboard), with the score being the progress count.
-  `syncScoreboard` runs whenever the door screen recomputes its bounty
-  lines; `clearScoreboard` on logout removes the owner's lines and the
-  objective itself if nobody's lines remain.
+- Tracker screen: the same physical screen from M33, now also showing
+  the weekly bounty lines below the task line once the tutorial tasks
+  are done. Replaces the originally planned bounty scoreboard sidebar:
+  the bounty lines show label, progress and target on the room wall,
+  not a global sidebar. `DungeonScreen.refreshTracker` runs whenever
+  the door screen recomputes its bounty lines.
 - Mechanic hooks (all progress the instance owner's bounty, found via
   `InstanceRegistry.byMember`):
   `RunLifecycle.completeRun` (CLEAR_HALLS by spawners cleared,
@@ -1896,7 +1957,7 @@ and party play.
   as `offer.level() - previousLevel` read before `setKeystone` writes).
 - Door screen: `appendTaskLine` (M33's shared helper) now also appends
   the bounty lines below the task line, one per weekly bounty, and
-  syncs the bounty scoreboard in the same call. The bounty lines show
+  syncs the bounty tracker screen in the same call. The bounty lines show
   label, progress and target (e.g. "Clear the Halls 12/20"), with
   " (done)" appended on a completed bounty.
 
@@ -1907,8 +1968,696 @@ no-dupes, different owner/week picks, fresh materialisation, stale-week
 reset, sidecar codec round trip, and legacy save defaults.
 
 **Live-only, not yet verified:** an owner seeing their three weekly
-bounties on the door screen and the sidebar; a party member's
+bounties on the door screen and the tracker screen; a party member's
 completion counting toward the owner's bounty; a bounty completing and
 all online members receiving the reward; the week rolling over and
 fresh bounties appearing. Not recorded in LIVE_TEST_PASS.md yet -- add
 a new numbered section there once verified.
+
+## M35: Anomaly rooms
+
+**Goal:** rarely, a themed run contains one room that does not belong
+to its theme: a "wrong room" from a dedicated anomaly room set, loaded
+separately from the themed room manifest. The room sits on the
+critical path, so the player is guaranteed to walk through it; its
+palette and geometry read as foreign to the run around it. Tied
+tonally to Entry 2 (The Wrong Rooms) without any in-game text naming
+it.
+
+- `RoomManifest.currentAnomaly()`: a second manifest instance loading
+  `data/<namespace>/anomaly_room/*.json`, same loader shape and
+  validation as the themed `dungeon_room` manifest, separate index.
+  Shipped with three anomaly room templates (foreign palette, slightly
+  off geometry), stamped in a shell palette foreign to every run theme.
+- `RoomSelector.rollAnomaly`, called from `resolveDetailed` after the
+  plan resolves normally: rolls `anomalyRoomChance` (config, default
+  0.08, same pattern as `pocket2DoorChance`) off the plan seed, gated
+  on `AdventureGraphs.current().graph().node(theme) != null`, the same
+  gate the Pocket2 door uses. On a successful roll, picks one
+  non-entrance, non-terminal critical-path cell and swaps its room for
+  an anomaly room satisfying the same mask and role. If none matches,
+  the run stays normal; the anomaly is a bonus, never a requirement.
+  One per run, never more.
+- `DungeonPlan.anomalyCell` carries the swapped cell so
+  `LayoutStamper` and `RoomContent` can skip the run theme's
+  processors, loot suffix and themed spawners on that one cell.
+- Anomaly rooms carry their own loose chests and 0-1 spawners, no
+  theme suffix, from the `pocketdungeons:chests/anomaly` loot table
+  (M36/PD-48 later removed an unconditional echo-shard pool from that
+  table; it was granting fuel currency outside the "door 1 is the only
+  source" invariant). No keystone, no completion pad, no lodestone: a
+  pass-through cell on the critical path, not a destination.
+- `RoomSelector.rollAnomaly` passes its own fresh, per-cell-cap map
+  rather than the main selection loop's `used` map, so the anomaly
+  swap is not counted against `maxPerDungeon` for either the room it
+  replaces or the anomaly room itself.
+
+**Headless-verified:** `./gradlew build` green, full existing suite
+passing, including the plan-resolution paths this milestone extends
+(`PlanSelectorTest`, `PipelineProofTest`).
+
+**Live-only, not yet verified:** a themed run occasionally containing
+one visibly wrong room on the critical path; the rest of the run
+completing normally with one in it; the anomaly's own loot table
+delivering echo shards, shell unlock tokens and rare materials without
+themed gear. Not recorded in LIVE_TEST_PASS.md yet; add a new numbered
+section there once verified.
+
+## M36: Critical bug fixes from the audit
+
+**Goal:** close every finding from the 2026-08-31 six-pass static audit
+that crashes a player, destroys a player's room, or leaks a resource
+without bound. Seven bugs (`docs/reference/BUGS.md` PD-9, PD-10, PD-11,
+PD-12, PD-13, PD-14, PD-48).
+
+- PD-9: `DungeonCommands.keyInfo` tested `Keystone.findHeld(player).isEmpty()`
+  on a method that returns `null`, not an empty stack, for a player
+  carrying no keystone. Every other call site tested `== null`; this one
+  now does too.
+- PD-10: `InstanceTeardown.retireOrPurge` re-entered on an already-lingering
+  record (the path `RunLifecycle.enter()`'s lingering-quarry check takes
+  when an owner starts a new run) fell past the purge branch and just
+  re-marked the record lingering, never freeing the slot. Added an early
+  branch: a record that is already lingering purges on the next call
+  instead of retiring again.
+- PD-11: a stamp failure behind the lobby queued a clear whose origin
+  resolved to the player's own persistent room cell (plan cell (0,0)
+  always maps back to `record.roomCellOrigin`), and left the record in
+  `InstanceRegistry.bySlot` while the async clear freed `usedSlots`,
+  opening a slot-collision window. Replaced the `InstanceTeardown.teardown`
+  call with a synchronous clear of every attempted cell except the room,
+  mirroring `resetForNextDungeon`'s existing pattern, and released the
+  attempt's force-load tickets directly. The registry is never touched;
+  the room and its slot survive a failed regeneration exactly as before.
+- PD-12: the `DISCONNECT` handler ran its entire body, including writes to
+  `InstanceRegistry.byMember`, `pendingReturns`, and reachable calls into
+  `InstanceTeardown.purge`, on Netty's IO thread for an abrupt disconnect,
+  racing the server thread's own reads and writes of the same state.
+  Extracted the body into `Instances.handleDisconnect` and wrapped the
+  whole thing in `server.execute` (a no-op wrap on the rare path where it
+  already fires on the server thread).
+- PD-13: force-load tickets from one dungeon behind a lobby were never
+  released before the next door choice force-loaded its own set, since
+  `resetForNextDungeon` clears blocks but never touched tickets.
+  `generateBehindLobby` now releases the previous `record.layout`'s
+  chunks before force-loading the new plan's.
+- PD-14: a crash or kill skipped `SERVER_STOPPING`'s teardown-and-drain
+  pass entirely, leaving stamped geometry and force-load tickets behind
+  with no in-memory record to reconcile them against on restart
+  (`InstanceRecord` is deliberately not persisted). Added
+  `Instances.reconcileAfterUncleanShutdown`, run once on `SERVER_STARTED`:
+  if the dungeon dimension has any still-forced chunk (a clean shutdown
+  always leaves none, since `SERVER_STOPPING` releases every ticket it
+  set), maps each one back to its slot-grid cell via the same arithmetic
+  `InstanceRegistry.originForSlot` uses in reverse, and tears that slot
+  down through the same budgeted-clear path `SERVER_STOPPING`'s own
+  orphan branch already uses for a record-less slot. A no-op on every
+  clean-shutdown restart, which is the common case.
+- PD-48: `Fuel.isFuel`/`count`/`spend` matched on item type alone, so a
+  kamutotems Boss Stone (an echo shard re-skinned via `set_custom_data`
+  and `set_name` in the ominous chest/vault tables) counted as spendable
+  fuel. `Fuel.grant`, the sole mint point, now stamps every fuel stack
+  with a `custom_data.pocketdungeons.fuel` marker (the same convention
+  `CubeStation`'s tier tag uses), and every check requires it.
+  `chests/anomaly.json` and `chests/pocket2.json` also granted plain echo
+  shards directly, falsifying the class's own "door 1 is the only source"
+  invariant; both pools are removed. The dead, unread `ritualKeyItem`/
+  `ritualKeyCount` config keys (same default item, same confusion risk)
+  are removed from `config/pocketdungeons.default.json`.
+
+**Headless-verified:** `compileJava` and the full existing test suite
+pass. No new test coverage added in this milestone (see M44).
+
+**Live-only, not yet verified:** PD-11's room-preservation on a forced
+stamp failure, PD-12's thread-safety under a real abrupt disconnect,
+PD-13's force-load ticket count staying bounded across several
+in-session door choices, PD-14's reconciliation pass after an actual
+unclean shutdown, and PD-48's marker check against a live kamutotems
+Boss Stone. Not recorded in LIVE_TEST_PASS.md yet; add a new numbered
+section there once verified.
+
+## M37: High-severity bug fixes from the audit
+
+**Goal:** close the audit's economy and progression correctness bugs
+plus the generation-pipeline reproducibility bugs. Eight items
+(`docs/reference/BUGS.md` PD-15 through PD-22).
+
+- PD-15: the M34 bounty block sat outside `completeRun`'s `firstCompletion`
+  guard, so `CLEAR_HALLS`, `SPELUNKER` and `PACK_HUNTER` advanced once per
+  party member instead of once per run, and it read `record.rewardChests`
+  before `completeDungeon` (which sets it) ever ran, so `SPEEDRUNNER`
+  never advanced at all. Moved the whole block inside `firstCompletion`,
+  after `completeDungeon`.
+- PD-16: `/dungeon admin experiment`'s loot-level override skipped the
+  `[1, keystoneMaxLevel]` clamp every other offer goes through, so an
+  operator's typo on door 3 could permanently downgrade whoever completed
+  it. Added a range check in the command executor, and `DungeonLog.setKeystone`
+  now clamps positive levels itself rather than only flooring at zero
+  (zero still clears the keystone, unchanged).
+- PD-17: the reroll station's replacement pool was filtered on
+  `isSupportedItem` alone, so a curse or an enchantment exclusive with
+  one already on the item could come up as a "reroll," breaking the
+  station's own "never strictly worse" guarantee. The pool now excludes
+  `EnchantmentTags.CURSE` and anything sharing an exclusive set with a
+  surviving enchantment. Treasure-only enchantments stay reachable by
+  design; that is a windfall, not the failure this closes.
+- PD-18: the room directory could admit a visitor into an owner's live
+  keystone run, since `VisitService.visit` never consulted its own
+  `statusOf`, which already knew the difference. `visit` now refuses with
+  a message when `statusOf` reports "run in progress."
+- PD-19: `RoomManifest.matchesTheme` was confirmed to fail safe (matches
+  everything) when no room or theme declares the relevant field; the
+  filter is inert until M42.2 pairs content, not broken.
+- PD-20: the voided-cell pass iterated `plan.cells()` (a `Set.copyOf`
+  with per-JVM-instance salted order) directly, unlike every other
+  consumer in the generation pipeline, so the same seed voided a
+  different cell set on every restart. Now sorted the same way
+  `LayoutStamper.stampOrder` already sorts.
+- PD-21: routed dialog clicks trusted a `ServerPlayer` captured before a
+  `server.execute` defer, with no check that the player was still
+  connected by the time the deferred call ran. `DialogRouter.handle` now
+  refuses at the top if `player.hasDisconnected()`.
+- PD-22: `AdventureGraphs`' node-validation pass tested `nodes.containsKey`
+  against the live map while removing entries from it in the same loop,
+  so a cascading dangling edge (node A depends on node B, which is
+  itself invalid) was only caught if `HashMap` happened to iterate B
+  before A. Extracted the fixpoint loop into
+  `AdventureGraphs.removeUnresolvedTransitions`, testable independent of
+  the resource-manager plumbing around it, and added
+  `AdventureGraphTest.testUnresolvedTransitionsCascade` asserting the
+  cascade is caught regardless of iteration order.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full
+test suite (including the new cascade test) pass.
+
+**Live-only, not yet verified:** PD-16's clamp against a live experiment
+command, PD-17's exclusion set against real gear enchanted in a live
+world, PD-18's refusal message against a real visit attempt mid-run,
+PD-21's guard against an actual disconnect racing a dialog click. Not
+recorded in LIVE_TEST_PASS.md yet; add a new numbered section there once
+verified.
+
+## M38: Medium-severity bug fixes from the audit
+
+**Goal:** close the audit's gate-bypass, task-tracking, and
+operator-tooling-correctness bugs. Thirteen items
+(`docs/reference/BUGS.md` PD-23 through PD-35); PD-31 and PD-32 are
+content/design decisions deferred to M42, not fixed here.
+
+- PD-23: `GambleStation.onUse` and `CubeStation.onUse` never checked
+  their own unlock level; only `RerollStation` did. Both now check the
+  same way, refusing below `gambleUnlockLevel`/`cubeUnlockLevel`.
+- PD-24: the dialog path into reroll and imbue never re-checked the
+  unlock level `onUse` does, so a stale dialog with no station present
+  could still act. `RerollStation.handleReroll` and
+  `CubeStation.handleImbue` now re-check.
+- PD-25: `RerollStation` and `GambleStation` fired their task progress on
+  opening the picker, before anything was spent, so 16 right-clicks with
+  an empty inventory could complete "Spend Emeralds at Kadala." Moved
+  both to the actual spend point.
+- PD-26: `Instances.rescue` hand-rolled a fifth partial copy of "detach a
+  member," skipping the T2.6 leadership rule. Now routes through
+  `RunLifecycle.dropMember`, falling back to the member's own
+  `ReturnPoint` (or world spawn) when dropMember's leadership branch ends
+  the whole run instead of leaving the player standing in a room that is
+  no longer theirs.
+- PD-27/PD-28: `ConnectorStamper.applyIronDoor` now places a lever on the
+  door frame (nothing else in the mod supplied a redstone source, and
+  this connector can land on the critical path), alternates
+  `DoorHingeSide` across its two columns instead of defaulting both to
+  `LEFT`, and uses the inward `CellGeometry.opposite` facing convention
+  every other door in the pipeline already uses.
+- PD-29/PD-30: `/dungeon admin manifest reload` reloaded rooms only,
+  while three other commands pointed operators here as the fix for stale
+  themes, adventure nodes, diaries, or anomaly rooms. Now reloads and
+  reports all five. `Diaries.load` is also registered against the
+  datapack reload listener alongside `ThemeManifest`/`AdventureGraphs`
+  (which, on inspection, already reloaded together), so an edited diary
+  no longer needs a restart.
+- PD-33: `CubeStation.extract` wrote the extracted-power state before
+  shrinking the input item, not after, so a crash between the two is now
+  a harmless duplicate grant instead of a destroyed item.
+- PD-34: `InstanceTeardown.purge` nulls `record.roomCellOrigin` right
+  after its synchronous room save, so `Instances.eject`'s deferred save
+  (triggered for each remaining member in purge's own loop) sees the
+  null guard both `saveRoomIfOwner` and `saveRoomIfOwnerSync` already
+  had and no-ops, instead of racing the `PendingClear` queued moments
+  later.
+- PD-35: the lobby directory caps at 8 rows (matching this suite's own
+  convention) with an overflow line, instead of shipping an unbounded
+  `MultiActionDialog`.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full
+test suite pass, including `ConnectorTest` and `LobbyBrowserTest`.
+
+**Live-only, not yet verified:** PD-23/PD-24's refusal messages against
+a real low-level player, PD-27's lever against a live iron-door
+connector, PD-29's five-manifest reload against real edited datapack
+content, PD-30's diary reload via `/reload`, PD-34's room-save race
+under a real purge with online members. Not recorded in
+LIVE_TEST_PASS.md yet; add a new numbered section there once verified.
+
+## M39: Low-severity bug fixes and config validation gaps from the audit
+
+**Goal:** close the remaining small correctness bugs and the three
+config cross-field validation gaps. Twelve items
+(`docs/reference/BUGS.md` PD-36 through PD-47), the last of the four
+audit bug-fix milestones. All 40 bugs from the 2026-08-31 audit are now
+closed (three deferred to M42 as content or design decisions, not
+bugs).
+
+- PD-36: `/dungeon admin experiment` echoed the operator's raw affix
+  string instead of what `AffixMath.parse` actually kept, so a typo
+  confirmed an affix that was never applied. Now echoes
+  `AffixMath.join` of the parsed set.
+- PD-37: room names reached the lobby directory with legacy formatting
+  codes intact. Both the command and the routed dialog path now strip
+  the section sign before storing.
+- PD-38: `RunLifecycle.exit` and five `PartyService` methods (`party`,
+  `stageKick`, `confirmKick`, `invite`, `join`) always returned success
+  from their command executors even when they refused internally. All
+  six now return `boolean`, and every executor reflects it.
+- PD-39: the `stamptest` dev command force-loaded four chunks with no
+  release, leaking a ticket per invocation. Now released once the
+  report is sent; the stamped blocks stay for manual inspection exactly
+  as before.
+- PD-40: `GambleStation.draw` silently discarded every rolled stack past
+  the first. Kept single-item by design (every shipped table rolls
+  exactly one, matching the single-pull trade metaphor), now with a log
+  warning if a table is ever authored with more than one roll.
+- PD-41: `Keystone.reconcile` always minted a count-1 replacement,
+  destructive only if `keystoneItem` were ever reconfigured to a
+  stackable item. Now preserves the original stack's count, capped at
+  the replacement's max stack size.
+- PD-42: `PayoutMath.chestCount` overflowed `int` past roughly 21.4
+  million seconds, a value `KeystoneMath.timerSeconds` explicitly
+  allows. Widened to `long` before multiplying; `PayoutMathTest` gained
+  a large-value regression case.
+- PD-43: `TrimListener` and `PowerListener` each kept a static per-UUID
+  map with nothing removing a stale entry. Both now clear it on
+  disconnect.
+- PD-44: `pendingReturns` never expired. Entries now carry a game-time
+  expiry, swept in the existing tick watcher pass alongside
+  `reconcileKeystones` (both need to run whether or not any instance is
+  live).
+- PD-45/PD-46/PD-47: three config cross-field gaps.
+  `inviteTtlSeconds` now requires at least 1 (0 silently disabled party
+  kicks and invites). `pathLengthMax` is clamped to
+  `maxGridSpan` squared, the hard upper bound the grid can never exceed
+  regardless of shape, with a log warning; unlike PD-42/43/44 this is a
+  worst-case safety net, not a tight fit-guarantee, since a real
+  generated path can still fail well below it depending on branching.
+  `keystoneMaxLevel` is cross-checked (warn, not clamp, since a low cap
+  can be a legitimate server choice) against the four level gates it
+  can silently make unreachable.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full
+test suite pass, including `PayoutMathTest`'s new overflow case.
+
+**Live-only, not yet verified:** PD-38's `execute if` behavior against
+a real refusal, PD-43's map staying bounded across many connect and
+disconnect cycles, PD-44's expiry sweep against a real 24-hour wait,
+PD-46/PD-47's warnings against a real misconfigured
+`pocketdungeons.json`. Not recorded in LIVE_TEST_PASS.md yet; add a new
+numbered section there once verified.
+
+## M40: Dead code and stale-shipped-defaults cleanup
+
+**Goal:** remove verified-dead code, the reward hall and selector room
+(superseded, per the mod owner: folded into the final room and the
+player's own room), and the `discoverable` flag (cut, no theme-listing
+surface exists to consume it). Independent of M36 through M39.
+
+- 40.1: removed thirteen confirmed-dead members after a fresh
+  zero-caller grep at implementation time: `AdventureGraph.nodeForReward`,
+  `Diaries.byNumber` and its backing index (`Diaries.rejections()` was
+  dropped from the list; M38's PD-29/PD-30 fix wired it into the manifest
+  reload command, so it is live now), `InstanceRecord.rewardRoomStamped`,
+  `LayoutPlanner.planOptional`, `RoomStore.has`, the 1-arg
+  `RunLifecycle.enter(ServerPlayer)` overload, `RoomBuilder.buildCell`,
+  the 2-arg `BedrockEnvelope.apply` overload, `Fuel.count` (and demoted
+  `Fuel.spend` to `private`), `StaticLayout`'s three unused direction
+  constants, `TrialContent.REWARD_CHEST_SPOTS` (its javadoc, which
+  actually documented `placeCompletionChests`, moved to that method), and
+  `RoomSelector.MIN_ROOMS`'s unreachable branch. `Instances.dungeonRecordAt`
+  stayed: `DungeonShellProtectionTest` genuinely exercises it, so instead
+  of deleting it the redundant private `dungeonRecordAndCellAt` wrapper
+  was collapsed into a direct `dungeonCellLookupAt` call.
+- 40.2: moved `LayoutGraphGenerator.main` and `verifyLivePlayProfile`
+  (184 lines, the only `System.out` calls in the production source set)
+  to a new `LayoutGraphGeneratorHarness` in the test source set,
+  unchanged. `Counter`, which the harness does not use, stayed in
+  production; it backs the real critical-path recursion.
+  `build.gradle.kts`'s `layoutGraphTest` task now points at
+  `sourceSets["test"]`.
+- 40.3: removed the `discoverable` field end to end:
+  `DungeonThemeMeta`, its now-dead `booleanOr` helper,
+  `ThemeManifest.discoverableIds()`, `DungeonThemeMetaTest`'s two
+  assertions, and the key from both `drowned_vault.json` (which set it
+  `false`) and `infestation.json` (which set it `true`, a no-op value
+  but still present).
+- 40.4: removed the reward hall and selector room: their two specs in
+  `RoomTemplateGenerator.specs()`, `TemplateStamper.REWARD_HALL`/
+  `SELECTOR_ROOM`, and the two orphaned `.nbt` structure files under
+  `structure/rooms/`. `placeSelectorDoors`/`placeWallLodestone`, which
+  the selector room's decor lambda called, stayed: both are the lobby
+  stamping path's own real machinery, called from `Instances`,
+  `RoomBuilder`, `RunLifecycle` and `VisitService` independently of the
+  removed spec.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full
+test suite pass, including the relocated `layoutGraphTest` task run
+directly. `grep`-confirmed zero remaining references to `discoverable`,
+`reward_hall`/`REWARD_HALL`, and `selector_room`/`SELECTOR_ROOM` across
+`src/main/java` and `src/main/resources`, and zero `System.out` calls
+left in the production source set.
+
+**Live-only, not yet verified:** none. This milestone is pure removal
+with no behavior change; the existing headless suite is the whole
+verification surface.
+
+## M41: Documentation drift correction
+
+**Goal:** make every top-level and reference doc agree with what is
+actually built. Pure documentation; no source changes.
+
+- 41.1: the scoreboard-vs-tracker-screen drift the audit flagged turned
+  out smaller than claimed on re-reading. `COMPLETED-MILESTONES.md`'s
+  M33/M34 sections, `ROADMAP.md`'s, and `ROOM_UX_PLAN.md`'s already
+  correctly describe the tracker screen with "replaces the originally
+  planned scoreboard sidebar" as accurate history. Fixed two real
+  staleness spots found while checking: M33's note that GAMBLE/REROLL
+  progressed on station interaction rather than a spend (true when
+  written, fixed by M38's PD-25) and one leftover "sidebar" word in
+  M34's live-only list.
+- 41.2: `README.md`'s milestone range and active-handoff pointer both
+  named specific values that had already drifted once (M0-M34, then
+  M22). Replaced both with self-describing pointers (the highest
+  `## M{n}` heading in `COMPLETED-MILESTONES.md`; any handoff file
+  without the `-completed` suffix) so they cannot go stale the same
+  way again. Also corrected the `INTEGRATION.md` one-line description
+  to name the five surfaces it now actually documents.
+- 41.3: `docs/INTEGRATION.md` corrected to name the real
+  `pocketdungeons.Affix` (eight constants) instead of a `Keystone.Affix`
+  that never existed with that shape; removed the `ritualKeyItem`
+  caveat entirely now that M36 deleted the key; added the `theme` field
+  to the `dungeon_room` schema table; and documented the four
+  namespace-scanned surfaces the "five extensible surfaces" heading
+  never counted (`dungeon_theme`, `dungeon_adventure`, `anomaly_room`,
+  `diary`).
+- 41.4: renamed `M29-handoff.md`, `M31-handoff.md`, `M35-handoff.md` to
+  `-completed.md` and wrote their `COMPLETED-MILESTONES.md` sections
+  from the actual shipped code, not the original handoff plan. M31 in
+  particular shipped narrower than planned: the handoff called for the
+  whole dungeon cell (interior included) to be unbreakable during a
+  run; what shipped mirrors the player-room model exactly, protecting
+  only the shell and leaving the interior minable throughout. Also
+  fixed `COMPLETED-MILESTONES.md`'s M30/M32 ordering (M32 was appearing
+  before M30) and a stale `LayoutGraphGenerator.main` reference in
+  M29's entry that M40 orphaned.
+- 41.5: `docs/DIALOGS_SPEC.md`'s status header claimed section 7 was
+  spec-only, blocked on a `listed` flag and a shared visit method that
+  do not exist; both shipped
+  (`DungeonLog.Entry.publicListed`, `VisitService.visit`, verified live
+  in the tree). Conversely section 1 did not ship in the form the spec
+  describes: `sendDoorOffer` no longer exists anywhere, replaced by
+  M19's physical `DungeonScreen` display. Rewrote the header to match
+  both facts and fixed the broken relative link to `DIALOGS.md`
+  (actually at `docs/reference/DIALOGS.md`, one level down from
+  `docs/DIALOGS_SPEC.md`).
+- 41.6: `plans/STATION_PICKER_PLAN.md` section 7 claimed the in-dungeon
+  visitor menu grows to 4 options with a "Stations" entry visitors can
+  use; `LodestoneMenuTest.java` confirms the shipped visitor menu is 3
+  options with no Stations entry at all, matching "Resolved decisions"'
+  owner-only call. Corrected section 7 to match what shipped. Also
+  renamed "Cube" to "Herobrine Cube" throughout, matching the code and
+  player-facing text.
+
+**Headless-verified:** no source files changed in this milestone (three
+files showing as modified in `git status` predate this session and are
+unrelated); `compileJava` still green.
+
+**Live-only, not yet verified:** not applicable; this is a
+documentation-only milestone.
+
+## M42: Half-built feature content and design work
+
+**Goal:** implement the six half-built findings the mod owner decided to
+ship, and record the one they decided to leave. All decisions were made
+2026-08-31, ahead of this milestone.
+
+- 42.2 (PD-19): paired specialized rooms to themes via `theme` (on
+  `dungeon_room`) and `room_theme` (on `dungeon_theme`), previously
+  parsed but never populated by any shipped file, so the filter always
+  matched everything. `crypt_corner` is now exclusive to `deepslate`
+  and `infestation` (both reuse `theme_deepslate`'s processors and read
+  as crypt-like underground). `treasure_alcove`, `grove`, and
+  `mossy_tee` are exclusive to `drowned_vault` and `prismarine` (both
+  aquatic; algae/moss growth reads as underwater). The other eleven
+  rooms (the generic halls, `entrance_hall`, `exit_hall`,
+  `encounter_zombie`, `loot_vault`, `pillar_cross`, `spawner_den`) keep
+  `theme` unset, matching every theme, per `RoomManifest.matchesTheme`'s
+  existing empty-list fallback; none had a strong enough biome identity
+  to justify restricting them, and every theme still has full role and
+  mask coverage from the unset pool alone.
+- 42.3 (PD-31): authored `dungeon_adventure/infestation.json` as a
+  `descent` node (matching `blackstone`'s shape: one weighted path to
+  the boss, one each back to the two entries), and added `infestation`
+  as a third option alongside `blackstone` in both `deepslate.json`'s
+  and `prismarine.json`'s own `next` lists. The theme's six authored
+  tier 1-3 trial-spawner configs are reachable as a normal door offer
+  now, not only through the admin command.
+- 42.4 (PD-32): rather than restructure `TrialContent.resolveLootTable`
+  in code, added six small loot tables
+  (`chests`/`vaults` × tier 1-3 `_ominous_drowned`) that reference the
+  existing base ominous table via a `minecraft:loot_table` pool entry
+  (verified against the jar: `NestedLootTable`, registered id
+  `loot_table`) and layer a small drowned-flavored bonus pool
+  (nautilus shells, tridents, a heart of the sea at tier 3) on top.
+  `resolveLootTable`'s existing suffix-fallback already finds these
+  automatically, the same mechanism that already served the non-ominous
+  `tier_N_drowned` tables; no Java changed. Scales to future themed
+  suffixes as a handful of small wrapper files per theme rather than
+  full duplicates of the 500+ line base tables.
+- 42.5: `CubeStation.sortedUnlocked`'s javadoc promised a filter
+  excluding powers already active on worn gear; the body only sorted.
+  Implemented the filter for real: `PowerListener.activePowersOf`
+  (extracted from `reconcile`'s existing slot-scan, so both share one
+  computation) is now threaded through `CubeStation.showPicker` into
+  `DialogScreens.imbuePicker`, and `sortedUnlocked` takes the active set
+  as a second parameter and excludes it. The empty-picker message now
+  distinguishes "nothing extracted yet" from "everything you have is
+  already active." New `CubeStationTest`
+  (`cubeStationTest` Gradle task, wired into `tasks.test`).
+- 42.6: `AdventureGraph.pick` could offer the same theme on two or three
+  doors, since it expanded transitions by weight and took indices 0/1/2
+  from a shuffled list with no dedup. Now dedupes by theme (keeping
+  first-occurrence order in the already-weighted, already-shuffled
+  list, which preserves the weighting bias) before taking the top
+  three, falling back to repeating only when a node has fewer than
+  three distinct transitions. `AdventureGraphTest` gained two cases: a
+  4-transition node swept across 200 owners and 5 depths each shows no
+  duplicate, and a 1-transition node still repeats across all three
+  doors. Fixing this reduced the output space for the shared
+  `KeystoneOfferTest` graph enough that its two fixed test UUIDs
+  started colliding at 2 distinct transitions; added a third
+  transition to keep that check meaningful.
+- 42.7: reviewed and left as-is. `/dungeon party kick <target>` cannot
+  resolve an offline player, and the roster screen skips them; `kick
+  all` stays the only escape. No code change. Recorded here so a
+  future audit does not re-flag it as an open question.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full
+test suite pass, including `./gradlew build`'s jar assembly. All new
+and edited JSON validated for syntax. `KeystoneOfferTest`'s regression
+from 42.6 was caught and fixed in this same milestone, not left for a
+later one.
+
+**Live-only, not yet verified:** 42.2's room mix actually reading
+differently per theme in a seeded sweep; 42.3's infestation theme
+appearing as a real door offer in play; 42.4's themed bonus items
+actually appearing in an ominous drowned_vault chest; 42.5's imbue
+picker actually hiding an active power in a live inventory. Not
+recorded in LIVE_TEST_PASS.md yet; add a new numbered section there
+once verified.
+
+
+## M43: Refactor backlog
+
+**Goal:** land the eight structural findings from the audit follow-up plan
+that were safe to do without changing observable behavior. Each subsection
+is scoped independently; three were deliberately scoped down from the plan
+doc's literal ask after weighing risk against the value actually left to
+capture, and one bug (PD-49) was found mid-refactor and fixed as its own
+change before the structural work that found it continued.
+
+- 43.1 (`InstanceRecord` per-run state): scoped down from the plan's full
+  `InstanceRecord` -> `RunState` migration (hundreds of call sites) to a
+  colocated `InstanceRecord.clearPreviousRunState()` method, called from
+  `InstanceTeardown`, replacing the inline field-reset block that used to
+  live there. The full split's main benefit (making a forgotten reset
+  impossible to write) was already captured by finding and fixing PD-49
+  (`timedOutPenaltyApplied` was never reset between runs behind the same
+  lobby) during this same subsection; the wider migration's remaining
+  value did not clear the bar for its own risk.
+- 43.2 (offline teardown parity): `InstanceTeardown`'s two offline-player
+  branches now route through a new `Instances.detach` primitive instead of
+  duplicating `RunLifecycle.dropMember`'s cleanup by hand; `dropMember`
+  itself was rewritten to call `detach` too, so there is exactly one place
+  a member leaves an instance's bookkeeping now, online or not.
+- 43.3 (`extraOccupiedCellOrigin`): reviewed and left as a direct read of
+  `record.roomCellOrigin` at its one call site. An accessor was written,
+  then reverted: it was pure aliasing with no behavioral or clarity gain
+  over the field read it would have wrapped.
+- 43.4 (redundant same-position rescans): the plan's literal ask (a
+  maintained `Map<ChunkPos, InstanceRecord>` spatial index) was assessed as
+  adding real staleness risk to block-protection code for an uncertain
+  performance win at this mod's small live-instance count. Fixed the same
+  audit finding (up to four scans per block break) more narrowly instead:
+  `Instances.roomRecordAt` made package-visible, and `RoomProtection` and
+  `RitualListener` each now resolve the record once per call and reuse it,
+  rather than rescanning at every step.
+- 43.5 (datapack-loader helper): scoped down from a fully generic
+  `JsonPackLoader<T>` to a small `JsonPackSupport` class holding just the
+  two pieces that were byte-for-byte identical across loaders:
+  `baseName(Identifier)` (shared by `AdventureGraphs`, `Diaries`,
+  `ThemeManifest`, and `RoomManifest`'s own inline variant, which kept its
+  extra empty/underscore-prefix skip as a post-check) and `requiredString`
+  (shared by `AdventureGraphs` and `Diaries`, which had it byte-identical;
+  `DungeonThemeMeta` and `DungeonRoomMeta` each have a same-named helper
+  with different behavior (no trim, no blank check), so those two were
+  left alone rather than unified, since that would change what a malformed
+  datapack entry does). The rest of each loader's control flow stays where
+  it is: parse step, rejection wording, and published object differ enough
+  per loader that a fully generic loader would need to abstract those
+  differences away rather than remove real duplication.
+- 43.6 (`DungeonLog.Entry` withers): added twelve `withX(...)` methods to
+  `Entry`, grouped by what a given mutator actually changes together
+  (`withRunStats` for the three fields `recordCompletion` bumps at once,
+  `withThemeProgress` for the three `recordTheme` advances at once, one
+  wither per single field everywhere else). All fourteen mutators in
+  `DungeonLog.java` now call a wither instead of restating all sixteen
+  other record components by hand.
+- 43.7 (shared station shape): new `StationSupport` class holding the three
+  pieces that were duplicated across `RerollStation`, `GambleStation`, and
+  `CubeStation`: matching the configured station block (`matchesBlock`),
+  refusing a click below a station's unlock level with the standard
+  message (`levelTooLow`), and reading a string or int marker out of
+  `custom_data.pocketdungeons` (`readStringMarker`/`readIntMarker`). A full
+  shared `onUse` template was considered and rejected: the gamble
+  station's flow is an SGUI merchant callback with no held-item check at
+  all, structurally unlike the reroll and cube stations' direct
+  block-click dispatch, so forcing all three through one template would
+  need to abstract that difference away rather than remove real
+  duplication. PD-23 and PD-25, the two steps that had actually gone
+  missing on two of the three stations, were already fixed independently
+  in M36-M39; this only removes the boilerplate around them.
+- 43.8 (geometry and facing helpers, partial): the "wall-to-opposite-facing"
+  switch that appeared five times in `RoomTemplateGenerator.java` is now
+  one method, `CellGeometry.facingIntoRoom(DoorMask.Direction)`. The
+  "world position on a cell wall" arithmetic was left alone beyond that:
+  three of its four copies (`CellGeometry.doorSlotPositions`,
+  `ConnectorGeometry.wallPos`, `RoomTemplateGenerator.wallRingPos`) already
+  operate on the same `DoorMask.Direction` type and are deliberately kept
+  as separate pure-math/level-writing twins per `ConnectorGeometry`'s own
+  javadoc, while the fourth (`RoomBuilder.doorSlot`) is keyed on vanilla's
+  own `Direction` instead, a real type boundary a "dedup" would have to
+  convert across in a door-sealing path used on every room reset. Judged
+  not worth the risk for a cosmetic move. Separately, `Instances.stampLobby`
+  and `VisitService.createVisitInstance`'s verbatim eight-call room-shell
+  sequence (including the comment warning the two "must not drift apart")
+  is now one shared `Instances.stampRoomShell(level, server, owner,
+  origin)`, called from both.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full test
+suite pass after every subsection, including a final `./gradlew build`'s
+jar assembly. PD-49 was filed, fixed, and verified before the 43.1 refactor
+that found it continued, per the plan doc's own rule for this situation.
+
+**Live-only, not yet verified:** none of this milestone's changes are
+behavior changes (PD-49 aside, which is a `BUGS.md` entry in its own
+right), so nothing here needs a live playtest beyond what PD-49 already
+calls for.
+
+
+## M44: Test coverage for world-mutating and economy classes
+
+**Goal:** add coverage for the highest-risk classes the audit found
+completely untested, prioritizing persistence and currency/economy classes.
+
+**Scope note:** this suite is pure-JDK headless (`main(String[])` throwing
+`AssertionError`, no Fabric test framework, no mocking library, no running
+server). Every class in this milestone's scope mixes some pure logic with
+real `ServerLevel`/`ServerPlayer`/`Inventory` mutation; only the pure half
+of each is reachable here. Constructing a bare `ItemStack` was tried and
+found unreachable too: in this Minecraft version, `ItemStack`'s constructor
+requires its item holder's default components to already be bound, and
+that bind is driven by `DataComponentInitializers.build(HolderLookup.Provider)`,
+which needs a full registry-access build this suite has never assembled
+(`Bootstrap.bootStrap()` alone leaves it unbound: confirmed by bytecode
+inspection of `Holder.Reference.components()`/`bindComponents`, not by
+guessing). Building that infrastructure was judged out of this milestone's
+risk budget, the same class of call as 43.1/43.4's scope-downs.
+
+- 44.1 (`RoomStore`): `liveFile`/`backupFile` changed to take a `Path`
+  directly instead of a `MinecraftServer` argument, and `save`/`load`/
+  `backupTime`/`restoreFromBackup`/`reset` each gained a `Path`-taking
+  overload alongside the existing `MinecraftServer`-taking one (which now
+  just resolves the directory and delegates). None of this changes what any
+  existing caller does; it only makes the file's actual claimed risk
+  (backup-then-atomic-write, corrupted-file handling) reachable from a
+  plain temp directory with no server. New `RoomStoreTest`: save-then-load
+  round trip, a second save backing up the first, a corrupted live file
+  reading as `null` instead of throwing, `restoreFromBackup` actually
+  bringing the backed-up tag back live (and itself leaving a fresh
+  backup), and `reset` backing up before removing the live file. Also
+  resolved the plan doc's open question: `restoreFromBackup` is not dead
+  code; `DungeonCommands`'s `admin baserestore confirm` branch calls it.
+  `capture`/`place` (the `ServerLevel`-writing half) are not covered.
+- 44.2 (`Fuel`): investigated; `isFuel`/`isMarked` are pure and were the
+  intended target (PD-48's own fix), but exercising them needs a real
+  `ItemStack`, which hit the `ItemStack`-construction wall described above.
+  No test added. `bank`/`spendBanked`/`grant` need a `ServerPlayer` and
+  were never in reach either way.
+- 44.3 (`RerollStation`, `GambleStation`, `CubeStation`): investigated; the
+  unlock-level gate and marker-reading paths (`StationSupport`, M43.7) are
+  the pieces the plan wanted confirmed, but both take an `ItemStack` or a
+  `ServerPlayer` and hit the same wall. `RerollMath`/`GambleMath` (the pure
+  math these stations wire into) are already covered by their own existing
+  tests. No new test added.
+- 44.4 (`Payout`): extracted the `%player%`/`%level%`/`%chests%` template
+  fill out of `runPayoutCommand` into a pure `Payout.substitute(String,
+  String, int, int)`, called from the same site with no behavior change.
+  New `PayoutTest`: all three placeholders, a repeated placeholder, a
+  template missing some placeholders, and a template with none at all.
+  `deliver` (needs a `ServerPlayer`'s inventory) is not covered.
+- 44.5 (`InstanceTeardown`): investigated; the per-tick clear budget and
+  the purge/retire branch selection both operate directly on a
+  `ServerLevel`, with no pure seam to extract without restructuring the
+  class's actual control flow, which is exactly what M43 (the milestone
+  right before this one) drew the line against doing without a concrete
+  behavior reason. No test added.
+- 44.6 (`Pocket2Test.java`): kept the existing file and its name (it
+  already covers `InstanceRecord`'s child-instance shape and
+  `InstanceRegistry.allocateSlotNear`, both of which are genuinely part of
+  Pocket2's own mechanics even though they route through other classes),
+  and expanded it with real `Pocket2` coverage: `doorWall`, `returnPos`,
+  `returnYaw`, and `isDoorBlock` opened from `private` to package-visible
+  for the test, plus `childFor` (already package-visible). All four wall
+  directions checked for the position math; `isDoorBlock`'s two-wide,
+  two-tall pair checked against one block outside it on each axis.
+  `openChild`/`tickChild`/`dieInChild`/`placeDoor` (all `ServerLevel`- or
+  `ServerPlayer`-bound) are not covered.
+
+**Headless-verified:** `compileJava`, `compileTestJava`, and the full test
+suite pass, including `./gradlew build`'s jar assembly. `RoomStoreTest`
+logs one expected `ERROR` line (the corrupted-file case exercising
+`RoomStore.load`'s own catch-and-log path) that is not a test failure.
+
+**Live-only, not yet verified:** everything this milestone could not cover
+headlessly (44.2, 44.3 in full; 44.1's capture/place; 44.5 in full; 44.6's
+`ServerLevel`/`ServerPlayer`-bound methods) has no coverage of any kind
+yet, headless or live. A future milestone that wants real coverage of
+those would need to build genuine test infrastructure first (a fake or
+harnessed `ServerLevel`, and a way to bind item components without a full
+server), not just write more tests against what exists today.

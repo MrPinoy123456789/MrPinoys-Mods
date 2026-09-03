@@ -82,7 +82,7 @@ final class Pocket2 {
      * the door's position relative to its cell origin, so the caller needs no
      * separate wall bookkeeping.
      */
-    private static DoorMask.Direction doorWall(PlanGeometry geometry, BlockPos door) {
+    static DoorMask.Direction doorWall(PlanGeometry geometry, BlockPos door) {
         PlanCell cell = geometry.cellAt(door);
         if (cell == null) {
             return DoorMask.Direction.NORTH;
@@ -155,7 +155,7 @@ final class Pocket2 {
     }
 
     /** Whether {@code pos} is one of the two-by-two blocks of the door pair at {@code door}. */
-    private static boolean isDoorBlock(PlanGeometry geometry, BlockPos door, BlockPos pos) {
+    static boolean isDoorBlock(PlanGeometry geometry, BlockPos door, BlockPos pos) {
         DoorMask.Direction wall = doorWall(geometry, door);
         for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
             for (int y = 1; y <= 2; y++) {
@@ -308,7 +308,7 @@ final class Pocket2 {
     }
 
     /** Where a pocket member is returned: the stand spot just inside the door, in the parent cell. */
-    private static BlockPos returnPos(InstanceRecord parent, BlockPos door) {
+    static BlockPos returnPos(InstanceRecord parent, BlockPos door) {
         PlanGeometry geometry = parent.layout.geometry();
         PlanCell cell = geometry.cellAt(door);
         if (cell == null) {
@@ -488,7 +488,7 @@ final class Pocket2 {
     }
 
     /** Faces the player back into the parent room from the door stand spot. */
-    private static float returnYaw(InstanceRecord parent, BlockPos returnPos) {
+    static float returnYaw(InstanceRecord parent, BlockPos returnPos) {
         PlanCell cell = parent.layout.geometry().cellAt(returnPos);
         if (cell == null) {
             return 0.0f;

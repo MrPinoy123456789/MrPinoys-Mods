@@ -9,8 +9,6 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -82,31 +80,17 @@ final class CubeStation {
     }
 
     static boolean matchesStation(BlockState state) {
-        Item item = CUBE_BLOCK_ITEM.get();
-        if (item == null) {
-            return false;
-        }
-        Block block = Block.byItem(item);
-        return block != Blocks.AIR && state.is(block);
+        return StationSupport.matchesBlock(CUBE_BLOCK_ITEM, state);
     }
 
     /** The reward id a rare item claims via {@code custom_data.pocketdungeons.cubeReward}, or {@code ""} if none. */
     static String rewardOf(ItemStack stack) {
-        return readMarker(stack, KEY_CUBE_REWARD);
+        return StationSupport.readStringMarker(stack, KEY_CUBE_REWARD);
     }
 
     /** The power id an already-imbued item carries via {@code custom_data.pocketdungeons.power}, or {@code ""}. */
     static String powerOf(ItemStack stack) {
-        return readMarker(stack, KEY_POWER);
-    }
-
-    private static String readMarker(ItemStack stack, String key) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || data.isEmpty()) {
-            return "";
-        }
-        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
-        return mine == null ? "" : mine.getStringOr(key, "");
+        return StationSupport.readStringMarker(stack, KEY_POWER);
     }
 
     /**
@@ -121,15 +105,27 @@ final class CubeStation {
             return false;
         }
         String reward = rewardOf(held);
+        boolean imbuable = RerollStation.tierOf(held) > 0 && powerOf(held).isBlank();
+        if (reward.isBlank() && !imbuable) {
+            return false;
+        }
+
+        // PD-23: unlike the reroll station, this never checked its own
+        // unlock level. cubeUnlockLevel gated only the picker shelf, so
+        // anyone who obtained the block by any means used the station at
+        // keystone level 1.
+        int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
+        int unlock = PocketDungeonsConfig.cubeUnlockLevel();
+        if (StationSupport.levelTooLow(player, level, unlock, "Herobrine Cube")) {
+            return true;
+        }
+
         if (!reward.isBlank()) {
             extract(player, held, reward);
-            return true;
-        }
-        if (RerollStation.tierOf(held) > 0 && powerOf(held).isBlank()) {
+        } else {
             showPicker(player, held, null);
-            return true;
         }
-        return false;
+        return true;
     }
 
     private static void extract(ServerPlayer player, ItemStack held, String reward) {
@@ -140,8 +136,12 @@ final class CubeStation {
                     .withStyle(ChatFormatting.YELLOW));
             return;
         }
-        held.shrink(1);
+        // PD-33: write the state before consuming the item, not after. A
+        // crash or exception between the two used to make the input item
+        // destroyed but the power never granted; this order's worst case is
+        // a harmless duplicate grant instead.
         log.addExtractedPower(owner, reward);
+        held.shrink(1);
         player.sendSystemMessage(Component.literal("Extracted. That power is yours to imbue, permanently.")
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
         TaskTracker.progress(player, TaskTracker.Task.EXTRACT_POWER, 1);
@@ -149,7 +149,8 @@ final class CubeStation {
 
     static void showPicker(ServerPlayer player, ItemStack held, String notice) {
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
-        DialogKit.show(player, DialogScreens.imbuePicker(player.getUUID(), held, entry.extractedPowers(), notice));
+        Set<String> active = Set.copyOf(PowerListener.activePowersOf(player));
+        DialogKit.show(player, DialogScreens.imbuePicker(player.getUUID(), held, entry.extractedPowers(), active, notice));
     }
 
     /**
@@ -170,6 +171,15 @@ final class CubeStation {
             return;
         }
         DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
+        // PD-24: the dialog path is a second entry point into this action,
+        // with no station-proximity check at all (DialogRouter only verifies
+        // the owner key). onUse's unlock-level gate has to be re-checked
+        // here too, or a low-level player could imbue from a stale dialog
+        // with no station present, materials still spent.
+        int unlock = PocketDungeonsConfig.cubeUnlockLevel();
+        if (StationSupport.levelTooLow(player, entry.keystoneLevel(), unlock, "Herobrine Cube")) {
+            return;
+        }
         if (power == null || power.isBlank() || !entry.extractedPowers().contains(power)) {
             showPicker(player, held, "You have not extracted that power.");
             return;
@@ -210,9 +220,16 @@ final class CubeStation {
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(PocketDungeonsMod.MOD_ID, mine));
     }
 
-    /** Every power id a player has unlocked but not yet worn out an equip cap on, for the picker's button list. */
-    static List<String> sortedUnlocked(Set<String> extractedPowers) {
+    /**
+     * Every unlocked power id worth offering the imbue picker: excludes
+     * whatever is already active on the player's worn gear
+     * ({@code activePowers}, from {@link PowerListener#activePowersOf}),
+     * since imbuing a power onto more gear while it is already active and
+     * counted against the equip cap adds nothing but the material cost.
+     */
+    static List<String> sortedUnlocked(Set<String> extractedPowers, Set<String> activePowers) {
         List<String> sorted = new ArrayList<>(extractedPowers);
+        sorted.removeAll(activePowers);
         sorted.sort(String::compareTo);
         return sorted;
     }

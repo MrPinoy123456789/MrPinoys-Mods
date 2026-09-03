@@ -83,16 +83,12 @@ final class RoomStore {
         return server.getWorldPath(LevelResource.ROOT).resolve("data").resolve(DIR);
     }
 
-    private static Path liveFile(MinecraftServer server, UUID owner) {
-        return dir(server).resolve(owner + ".dat");
+    private static Path liveFile(Path dir, UUID owner) {
+        return dir.resolve(owner + ".dat");
     }
 
-    private static Path backupFile(MinecraftServer server, UUID owner) {
-        return dir(server).resolve(owner + ".dat.bak");
-    }
-
-    static boolean has(MinecraftServer server, UUID owner) {
-        return Files.exists(liveFile(server, owner));
+    private static Path backupFile(Path dir, UUID owner) {
+        return dir.resolve(owner + ".dat.bak");
     }
 
     /**
@@ -142,7 +138,7 @@ final class RoomStore {
      */
     static boolean place(ServerLevel level, MinecraftServer server, UUID owner,
                          BlockPos cellOrigin, int targetQuarterTurns, RandomSource random) {
-        CompoundTag tag = load(server, owner);
+        CompoundTag tag = load(dir(server), owner);
         if (tag == null) {
             return false;
         }
@@ -195,12 +191,22 @@ final class RoomStore {
      * whole of the "not optional" guarantee.
      */
     static void save(MinecraftServer server, UUID owner, CompoundTag tag) {
+        save(dir(server), owner, tag);
+    }
+
+    /**
+     * (M44.1) Same as {@link #save(MinecraftServer, UUID, CompoundTag)}, but
+     * taking the storage directory directly rather than resolving it from a
+     * {@link MinecraftServer}, so {@code RoomStoreTest} can exercise the
+     * backup-then-atomic-write guarantee against a plain temp directory with
+     * no running server.
+     */
+    static void save(Path dir, UUID owner, CompoundTag tag) {
         try {
-            Path dir = dir(server);
             Files.createDirectories(dir);
-            Path live = liveFile(server, owner);
+            Path live = liveFile(dir, owner);
             if (Files.exists(live)) {
-                Files.copy(live, backupFile(server, owner), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(live, backupFile(dir, owner), StandardCopyOption.REPLACE_EXISTING);
             }
             Path tmp = dir.resolve(owner + ".dat.tmp");
             NbtIo.writeCompressed(tag, tmp);
@@ -212,7 +218,12 @@ final class RoomStore {
 
     /** The live blob, or {@code null} if this owner has never captured a room, or it failed to read. */
     static CompoundTag load(MinecraftServer server, UUID owner) {
-        return readTag(liveFile(server, owner));
+        return load(dir(server), owner);
+    }
+
+    /** (M44.1) Same as {@link #load(MinecraftServer, UUID)}, taking the storage directory directly. */
+    static CompoundTag load(Path dir, UUID owner) {
+        return readTag(liveFile(dir, owner));
     }
 
     /**
@@ -226,8 +237,13 @@ final class RoomStore {
      * modified time, which {@link #save} sets by copying.
      */
     static java.time.Instant backupTime(MinecraftServer server, UUID owner) {
+        return backupTime(dir(server), owner);
+    }
+
+    /** (M44.1) Same as {@link #backupTime(MinecraftServer, UUID)}, taking the storage directory directly. */
+    static java.time.Instant backupTime(Path dir, UUID owner) {
         try {
-            Path backup = backupFile(server, owner);
+            Path backup = backupFile(dir, owner);
             return Files.exists(backup) ? Files.getLastModifiedTime(backup).toInstant() : null;
         } catch (IOException e) {
             return null;
@@ -241,14 +257,19 @@ final class RoomStore {
      * @return {@code false} if there is no backup to restore from
      */
     static boolean restoreFromBackup(MinecraftServer server, UUID owner) {
-        CompoundTag tag = readTag(backupFile(server, owner));
+        return restoreFromBackup(dir(server), owner);
+    }
+
+    /** (M44.1) Same as {@link #restoreFromBackup(MinecraftServer, UUID)}, taking the storage directory directly. */
+    static boolean restoreFromBackup(Path dir, UUID owner) {
+        CompoundTag tag = readTag(backupFile(dir, owner));
         if (tag == null) {
             return false;
         }
         // Routed back through save(), so the restore itself leaves a fresh
         // backup behind -- a second corruption does not strand the operator
         // with nothing left to fall back to.
-        save(server, owner, tag);
+        save(dir, owner, tag);
         return true;
     }
 
@@ -263,12 +284,17 @@ final class RoomStore {
      * @return {@code false} if this owner had no saved room to reset
      */
     static boolean reset(MinecraftServer server, UUID owner) {
-        Path live = liveFile(server, owner);
+        return reset(dir(server), owner);
+    }
+
+    /** (M44.1) Same as {@link #reset(MinecraftServer, UUID)}, taking the storage directory directly. */
+    static boolean reset(Path dir, UUID owner) {
+        Path live = liveFile(dir, owner);
         if (!Files.exists(live)) {
             return false;
         }
         try {
-            Files.copy(live, backupFile(server, owner), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(live, backupFile(dir, owner), StandardCopyOption.REPLACE_EXISTING);
             Files.delete(live);
         } catch (IOException e) {
             PocketDungeonsMod.LOG.error("Could not reset the room for {}", owner, e);

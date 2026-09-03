@@ -13,8 +13,6 @@
   "maxGridSpan": 12,
   "clearBlocksPerTick": 8192,
   "ritualEnabled": true,
-  "ritualKeyItem": "minecraft:echo_shard",
-  "ritualKeyCount": 1,
   "payoutCommand": "",
   "vaultKeyItem": "minecraft:trial_key",
   "ominousVaultKeyItem": "minecraft:ominous_trial_key",

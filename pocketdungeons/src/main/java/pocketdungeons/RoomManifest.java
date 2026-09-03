@@ -148,14 +148,7 @@ final class RoomManifest {
 
         for (Map.Entry<Identifier, Resource> e : sorted) {
             Identifier loc = e.getKey();
-            String name = loc.getPath();
-            int slash = name.lastIndexOf('/');
-            if (slash >= 0) {
-                name = name.substring(slash + 1);
-            }
-            if (name.endsWith(".json")) {
-                name = name.substring(0, name.length() - 5);
-            }
+            String name = JsonPackSupport.baseName(loc);
             if (name.isEmpty() || name.startsWith("_")) {
                 continue;
             }

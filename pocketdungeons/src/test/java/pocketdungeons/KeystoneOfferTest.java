@@ -11,10 +11,17 @@ import java.util.UUID;
 public class KeystoneOfferTest {
 
     public static void main(String[] args) {
+        // M42.6: deepslate carries three distinct transitions, not two. pick
+        // now dedupes by theme before taking the top three (no node offers
+        // the same theme on two doors), which collapses the output space to
+        // a single fixed permutation when only two distinct themes are
+        // available; the "different owners should differ" check below needs
+        // a third to stay a meaningful property rather than a coin flip.
         AdventureGraph graph = AdventureGraph.of(Map.of(
                 "deepslate", new AdventureGraph.Node("deepslate", AdventureGraph.Kind.ENTRY, List.of(
                         new AdventureGraph.Transition("prismarine", 3),
-                        new AdventureGraph.Transition("blackstone", 1))),
+                        new AdventureGraph.Transition("blackstone", 1),
+                        new AdventureGraph.Transition("drowned_vault", 1))),
                 "prismarine", new AdventureGraph.Node("prismarine", AdventureGraph.Kind.ENTRY, List.of(
                         new AdventureGraph.Transition("deepslate", 1))),
                 "blackstone", new AdventureGraph.Node("blackstone", AdventureGraph.Kind.DESCENT, List.of(

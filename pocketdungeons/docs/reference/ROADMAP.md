@@ -556,14 +556,14 @@ disappears at level 2+. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
 
 ---
 
-## M33: Guided tasks via scoreboard
+## M33: Guided tasks via tracker screen
 
-Independent. Sequential task system teaching core loops via
-Minecraft scoreboard objectives. Ten tasks from "Select a Door"
-to "Tame a Wolf", each level-gated, one active at a time.
-Progress shown on door screen. Inspired by archived dailyquests
-mod's turn-in pattern. Scoreboard objective `pd_task` tracks
-active task number. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
+Independent. Sequential task system teaching core loops. Ten tasks
+from "Select a Door" to "Tame a Wolf", each level-gated, one active
+at a time. Progress shown on the door screen and a physical tracker
+screen in the player's room (replaces the originally planned
+scoreboard sidebar). Inspired by archived dailyquests mod's turn-in
+pattern. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
 `## M33` section.
 
 → `../plans/COMPLETED-MILESTONES.md`
@@ -577,9 +577,10 @@ owner), seeded from owner UUID and ISO week key. Party members
 contribute progress; all online members get rewards on
 completion. Seven-bounty pool includes spawner clears, echo
 shard banking, timed runs, gamble spending, Greater doors,
-multi-member runs, and keystone levels. Scoreboard tracks
-progress. Inspired by archived dailyquests mod. Full scope in
-`docs/reference/ROOM_UX_PLAN.md`'s `## M34` section.
+multi-member runs, and keystone levels. The tracker screen in the
+player's room shows bounty progress (replaces the originally planned
+scoreboard sidebar). Inspired by archived dailyquests mod. Full scope
+in `docs/reference/ROOM_UX_PLAN.md`'s `## M34` section.
 
 → `../plans/COMPLETED-MILESTONES.md`
 
@@ -597,6 +598,184 @@ Pocket2 door. Full scope in `docs/reference/ROOM_UX_PLAN.md`'s
 `## M35` section.
 
 → `../plans/COMPLETED-MILESTONES.md`
+
+---
+
+## M36 through M44: Audit follow-up (2026-08-31)
+
+A six-pass static audit of the whole mod found 40 bugs and a further set
+of dead code, documentation drift, half-built features, refactor seams,
+and test gaps. M36 through M39 are bug fixes grouped by severity; M40
+through M44 are the structural follow-up. Do M36 first: it contains the
+lingering-quarry slot leak and the fuel-matching defect, both of which
+several of the other milestones' fixes sit near.
+
+## M36: Critical bug fixes from the audit
+
+Seven crash, data-loss, and unbounded-leak bugs found by the 2026-08-31
+static audit: keyInfo NPE, lingering-quarry slot leak, stamp-failure room
+erasure, off-thread disconnect mutation, force-load ticket leak, no
+startup reconciliation after a crash, and Fuel matching by item type
+alone (destroys another mod's items, falsifies the door-1-only-source
+invariant). Fix in the order listed; PD-10's fix and PD-14's
+reconciliation pass touch the same lingering/purge logic, do PD-10 first.
+Full detail: `docs/reference/BUGS.md` PD-9 through PD-14, PD-48.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M36` section
+
+---
+
+## M37: High-severity bug fixes from the audit
+
+Eight correctness bugs: the M34 bounty block double-counts and also never
+advances one bounty, an admin command can irreversibly downgrade a
+player's keystone level, the reroll station can hand back a strictly
+worse item, the room directory can admit a visitor into a live run, the
+room-theme filter never filters, voided-cell selection is not
+seed-reproducible, routed dialog clicks trust a possibly-disconnected
+player, and adventure-graph validation is iteration-order-dependent.
+Full detail: `docs/reference/BUGS.md` PD-15 through PD-22.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M37` section
+
+---
+
+## M38: Medium-severity bug fixes from the audit
+
+Thirteen fixes: two of three stations skip their unlock-level check, the
+dialog path bypasses both the station and the level gate, task progress
+fires on opening a station instead of using it, death rescue skips the
+party leadership rule, an iron-door connector can gate the critical path
+with no way to open it (plus a cosmetic hinge/facing bug on the same
+door), the manifest-reload command only reloads rooms, diaries never
+reload, the infestation theme is unreachable, themed loot never resolves
+on an ominous run, cube extraction can destroy the input item on a crash,
+and a deferred room save can race a queued clear. Full detail:
+`docs/reference/BUGS.md` PD-23 through PD-35.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M38` section
+
+---
+
+## M39: Low-severity bug fixes and config validation gaps from the audit
+
+Twelve small fixes: a misleading admin confirmation message, unvalidated
+room names with live formatting codes, commands that report success when
+they refused, a dev command that leaks force-load tickets, silent loot
+truncation, a stack-count-losing keystone reconcile, an integer overflow
+in the chest-count formula, two unbounded per-player maps, an
+unbounded map with no expiry, and three config cross-field validation
+gaps (invite TTL of zero, unchecked path-length-vs-grid-span, unchecked
+keystone-cap-vs-feature-gates). None of these are urgent; batch them.
+Full detail: `docs/reference/BUGS.md` PD-36 through PD-47.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M39` section
+
+---
+
+## M40: Dead code and stale-shipped-defaults cleanup
+
+Removes 16 verified-dead members (zero callers anywhere in `src/main` or
+`src/test`) surfaced by the audit's whole-module reference sweep, moves
+the `LayoutGraphGenerator` plain-Java verification harness out of the
+production source set, and removes two settled cuts: the `discoverable`
+flag on `dungeon_theme` (no consumer to wire it to) and the reward hall
+and selector room, an earlier design the mod owner folded into the final
+room and the player's own room without finishing the teardown.
+Independent of M36 through M39; safe to do in either order.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M40` section
+
+---
+
+## M41: Documentation drift correction
+
+The audit's plan-versus-implementation pass found docs describing a
+scoreboard-based task/bounty display that was replaced by the in-room
+tracker screen (M33/M34), a `README.md` three milestones and one handoff
+pointer stale, `INTEGRATION.md` naming the wrong affix class, four shipped
+datapack surfaces undocumented, two fully-implemented milestones (M31,
+M35) not recorded as complete, and `DIALOGS_SPEC.md`'s status header wrong
+in both directions. Pure documentation; no source changes.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M41` section
+
+---
+
+## M42: Half-built feature content and design work
+
+Six items the audit found wired on one end and not the other; the mod
+owner's decisions (2026-08-31) are recorded in the plan doc and this is
+now implementation, not a design session. Ship: the room-theme content
+pairing (PD-19), the infestation adventure node (PD-31), themed-ominous
+loot resolution (PD-32, restructured to layer rather than authoring a
+combinatorial table set), and the Herobrine Cube's `sortedUnlocked` cap
+filter (new powers deferred). Leave as-is: the inability to kick an
+offline party companion by name. The reward hall and selector room,
+originally part of this milestone, were cut and moved to M40.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M42` section
+
+---
+
+## M43: Refactor backlog from the audit
+
+Eight structural seams the audit identified as root causes of multiple
+bugs, not just style complaints: per-run state split out of
+`InstanceRecord` (would have made PD-18 structurally impossible), a
+single member-detach primitive (PD-26 lives in the gap between four
+partial copies), one `occupiedCells` set per instance (PD-11's root
+cause), an indexed spatial lookup replacing repeated linear scans, one
+shared datapack-loader helper (PD-30's root cause), wither methods on
+`DungeonLog.Entry`, a shared station shape (PD-23/PD-25's root cause),
+and deduplicating the geometry/facing helpers copy-pasted across the
+stamping pipeline. Lower priority than M36 through M39; do opportunistically.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M43` section
+
+---
+
+## M44: Test coverage for world-mutating and economy classes
+
+The audit found every class that touches the world, the filesystem, or a
+player's inventory untested, while every pure-math helper is well
+covered. Adds coverage for the highest-risk gap: `RoomStore` (the only
+persistence path for a player's room), `Fuel`, `RerollStation`,
+`CubeStation`, `GambleStation`, `Payout`, and `InstanceTeardown`.
+Also fixes `Pocket2Test.java`, which currently tests `InstanceRecord` and
+not `Pocket2` despite its name. Sequence after M36 through M39 land, since
+new tests should assert the fixed behavior, not the buggy behavior.
+
+→ `AUDIT_FOLLOWUP_PLAN.md`'s `## M44` section
+
+---
+
+## M45 through M55: Situations and Bags
+
+The round that builds `SITUATIONS_SPEC.md`: cells become situations, the
+player carries a bag, the global clock is replaced by omen, and the mod takes
+ownership of the inventory inside `pocketdungeons:void`.
+
+Planned for concurrent agents rather than as a chain. M45 is a seam milestone
+that removes every shared-file collision; wave 1 (M46, M46B, M47, M49) runs
+three or four agents at once; wave 2 (M48, M50, M51, M52, M53) runs five; M54
+and M55 are the serial tail. Template capture and live verification are the
+two steps that cannot be split.
+
+| Milestone | Scope |
+|---|---|
+| M45 | Seams: room schema fields, `Situations` dispatcher, `RoomSpec` split, swap hooks |
+| M46 | Stash and swap: the void inventory invariant, Lost and Found |
+| M46B | Gametest harness, from zero |
+| M47 | Provides and requires pass, plus the Pilgrim test |
+| M48 | Omen replaces the run clock |
+| M49 | Bag loot tables and in-run scarcity |
+| M50 to M53 | The situation catalogue, four families in parallel |
+| M54 | Cube recipes |
+| M55 | Three-way audit and the open questions |
+
+→ `SITUATIONS_PLAN.md` for the wave structure and the file ownership matrix,
+`SITUATIONS_SPEC.md` for the design
 
 ---
 

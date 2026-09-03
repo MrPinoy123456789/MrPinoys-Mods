@@ -1,6 +1,13 @@
 # M34 - Weekly bounties for party leaders - Handoff
 
 > Paste this whole file into a fresh chat to start work on this milestone.
+>
+> **Note:** the bounty scoreboard sidebar described below was replaced
+> during implementation by the same physical tracker screen in the
+> player's room that M33 uses (`DungeonScreen.updateTracker`). The
+> bounty logic, sidecar, and hooks are unchanged; only the display
+> surface differs. See `plans/COMPLETED-MILESTONES.md` for the as-built
+> description.
 
 ## Read before writing anything
 

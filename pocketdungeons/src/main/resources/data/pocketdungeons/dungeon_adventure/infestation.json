@@ -1,0 +1,8 @@
+{
+  "kind": "descent",
+  "next": [
+    { "theme": "drowned_vault", "weight": 1 },
+    { "theme": "deepslate", "weight": 2 },
+    { "theme": "prismarine", "weight": 2 }
+  ]
+}

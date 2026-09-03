@@ -27,7 +27,6 @@ import java.util.Set;
  */
 final class RoomSelector {
 
-    private static final int MIN_ROOMS = 1;
     private static final int MAX_ROOMS = 50;
 
     private RoomSelector() {}
@@ -167,10 +166,11 @@ final class RoomSelector {
             throw new IllegalArgumentException("maxGridSpan must be positive");
         }
         List<String> problems = new ArrayList<>();
+        // A plan's cell set is guaranteed non-empty by construction: PlanGeometry
+        // throws on an empty set, and the graph generator's own minPathLength
+        // (config-validated >= 2) guarantees at least an entrance and a
+        // terminal cell. A minimum-room check here would be unreachable.
         int count = plan.cells().size();
-        if (count < MIN_ROOMS) {
-            problems.add("room count " + count + " below minimum " + MIN_ROOMS);
-        }
         if (count > MAX_ROOMS) {
             problems.add("room count " + count + " above maximum " + MAX_ROOMS);
         }

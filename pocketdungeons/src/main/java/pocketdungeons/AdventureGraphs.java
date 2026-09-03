@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reloadable loader for {@code data/pocketdungeons/dungeon_adventure/*.json},
@@ -42,7 +43,7 @@ final class AdventureGraphs {
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
-            String id = baseName(resource.getKey());
+            String id = JsonPackSupport.baseName(resource.getKey());
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 AdventureGraph.Node node = parseNode(id,
                         JsonParser.parseReader(reader).getAsJsonObject());
@@ -57,23 +58,7 @@ final class AdventureGraphs {
         // ThemeManifest never loaded (typo, unloaded datapack) and a theme this
         // graph itself never declared a node for are both dead ends a door could
         // still be offered into.
-        for (Map.Entry<String, AdventureGraph.Node> entry : new ArrayList<>(nodes.entrySet())) {
-            AdventureGraph.Node node = entry.getValue();
-            boolean valid = true;
-            for (AdventureGraph.Transition transition : node.next()) {
-                if (ThemeManifest.current().byId(transition.theme()) == null) {
-                    rejections.add(entry.getKey() + " - transition theme not found: " + transition.theme());
-                    valid = false;
-                } else if (!nodes.containsKey(transition.theme())) {
-                    rejections.add(entry.getKey() + " - transition target has no adventure node: "
-                            + transition.theme());
-                    valid = false;
-                }
-            }
-            if (!valid) {
-                nodes.remove(entry.getKey());
-            }
-        }
+        removeUnresolvedTransitions(nodes, rejections, themeId -> ThemeManifest.current().byId(themeId) != null);
         AdventureGraph graph = AdventureGraph.of(nodes);
         if (graph.entryThemes().isEmpty() && !nodes.isEmpty()) {
             rejections.add("no ENTRY-kind theme in the graph; a boss run would have nowhere to reset to");
@@ -85,8 +70,51 @@ final class AdventureGraphs {
         return loaded;
     }
 
+    /**
+     * Drops every node with a transition to a theme {@code themeExists}
+     * rejects or to a theme that has no node of its own in {@code nodes},
+     * appending a reason to {@code rejections} for each. Repeats until a full
+     * pass removes nothing, rather than a single pass (PD-22): a single pass
+     * tested {@code nodes.containsKey} against the live map while removing
+     * entries from it mid-loop, so whether a dangling edge was caught
+     * depended on {@code HashMap}'s iteration order, a node validated before
+     * the node it points at was removed kept a dangling edge. Each pass here
+     * checks every remaining node against a snapshot of the keys still
+     * standing at the start of that pass, so a pass's own removals cannot
+     * affect that pass's own verdicts. Package-private, and taking
+     * {@code themeExists} rather than reaching for {@link ThemeManifest}
+     * directly, so {@code AdventureGraphTest} can exercise the fixpoint
+     * property on a plain map with no resource manager involved.
+     */
+    static void removeUnresolvedTransitions(Map<String, AdventureGraph.Node> nodes, List<String> rejections,
+                                            java.util.function.Predicate<String> themeExists) {
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            Set<String> stillPresent = Set.copyOf(nodes.keySet());
+            for (Map.Entry<String, AdventureGraph.Node> entry : new ArrayList<>(nodes.entrySet())) {
+                AdventureGraph.Node node = entry.getValue();
+                boolean valid = true;
+                for (AdventureGraph.Transition transition : node.next()) {
+                    if (!themeExists.test(transition.theme())) {
+                        rejections.add(entry.getKey() + " - transition theme not found: " + transition.theme());
+                        valid = false;
+                    } else if (!stillPresent.contains(transition.theme())) {
+                        rejections.add(entry.getKey() + " - transition target has no adventure node: "
+                                + transition.theme());
+                        valid = false;
+                    }
+                }
+                if (!valid) {
+                    nodes.remove(entry.getKey());
+                    changed = true;
+                }
+            }
+        }
+    }
+
     private static AdventureGraph.Node parseNode(String theme, JsonObject obj) {
-        String kindWord = requiredString(obj, "kind");
+        String kindWord = JsonPackSupport.requiredString(obj, "kind");
         AdventureGraph.Kind kind = switch (kindWord) {
             case "entry" -> AdventureGraph.Kind.ENTRY;
             case "descent" -> AdventureGraph.Kind.DESCENT;
@@ -99,7 +127,7 @@ final class AdventureGraphs {
             JsonArray array = nextElement.getAsJsonArray();
             for (JsonElement element : array) {
                 JsonObject edge = element.getAsJsonObject();
-                String edgeTheme = requiredString(edge, "theme");
+                String edgeTheme = JsonPackSupport.requiredString(edge, "theme");
                 int weight = edge.has("weight") ? edge.get("weight").getAsInt() : 1;
                 next.add(new AdventureGraph.Transition(edgeTheme, weight));
             }
@@ -115,18 +143,6 @@ final class AdventureGraphs {
         return new AdventureGraph.Node(theme, kind, next, reward);
     }
 
-    private static String requiredString(JsonObject obj, String key) {
-        JsonElement element = obj.get(key);
-        if (element == null || element.isJsonNull()) {
-            throw new IllegalArgumentException("missing required field: " + key);
-        }
-        String value = element.getAsString().trim();
-        if (value.isEmpty()) {
-            throw new IllegalArgumentException("field must not be blank: " + key);
-        }
-        return value;
-    }
-
     static AdventureGraphs current() {
         return current;
     }
@@ -139,10 +155,4 @@ final class AdventureGraphs {
         return rejections;
     }
 
-    private static String baseName(Identifier location) {
-        String path = location.getPath();
-        int slash = path.lastIndexOf('/');
-        String name = slash < 0 ? path : path.substring(slash + 1);
-        return name.substring(0, name.length() - 5);
-    }
 }
