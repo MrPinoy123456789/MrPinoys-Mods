@@ -8,8 +8,11 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -44,6 +47,145 @@ import java.util.UUID;
 final class RunLifecycle {
 
     private RunLifecycle() {}
+
+    // ---- the void inventory, on the way out (M46, spec 11.6 and 11.9) ------
+
+    /**
+     * Hands everything a player was carrying inside {@code pocketdungeons:void}
+     * to their room, on their way out.
+     *
+     * <p>Called from {@link InventorySwap}'s leaving branch with the 42 slot
+     * snapshot taken a moment earlier, before the live inventory is cleared and
+     * the survival backup restored. Nothing here ever touches that backup, and
+     * nothing here is allowed to throw: a delivery that fails must not take the
+     * survival restore down with it, so the whole body is wrapped and a failure
+     * is a log line. The Lost and Found entry for this same snapshot is already
+     * on disk by the time this runs.
+     *
+     * <p>Destination, in order of preference: a container in the player's own
+     * room cell, then the floor of that room cell, then the player's feet. The
+     * last case is spec 11.6's "if the player has no room, items are dropped at
+     * the player's current position. Nothing is voided silently."
+     */
+    static void deliverVoidInventory(MinecraftServer server, ServerPlayer player,
+                                     List<ItemStack> snapshot) {
+        try {
+            List<ItemStack> carried = new ArrayList<>();
+            for (ItemStack stack : snapshot) {
+                if (!stack.isEmpty()) {
+                    carried.add(stack.copy());
+                }
+            }
+            if (carried.isEmpty()) {
+                return;
+            }
+            warnAboutUntagged(player, carried);
+
+            ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+            BlockPos roomOrigin = record == null ? null : record.roomCellOrigin;
+            if (dungeon != null && roomOrigin != null) {
+                deliverToRoom(dungeon, roomOrigin, carried);
+                return;
+            }
+            PocketDungeonsMod.LOG.warn(
+                    "{} left the dungeon with {} stacks and no room to deliver them to; "
+                            + "dropping at their feet",
+                    player.getName().getString(), carried.size());
+            for (ItemStack stack : carried) {
+                player.drop(stack, false);
+            }
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not deliver {}'s dungeon inventory to their room",
+                    player.getName().getString(), e);
+        }
+    }
+
+    /**
+     * Spec 11.9's belt and braces. Anything in the void inventory that is
+     * neither bag loot nor the keystone got there without this mod's
+     * involvement, which is the "another mod put a netherite sword in my
+     * inventory mid-run" case.
+     *
+     * <p>It is a warning, not a confiscation and not a divert into the survival
+     * backup. The stacks still go to the room with everything else: they might
+     * be legitimate room items the player was holding, and the backup is
+     * restored whole either way. The one thing this must never do is put an
+     * untagged stack anywhere near the survival restore.
+     */
+    private static void warnAboutUntagged(ServerPlayer player, List<ItemStack> carried) {
+        List<ItemStack> strays = InventorySwap.untagged(carried, ItemStack::isEmpty, InventorySwap::isOurs);
+        if (strays.isEmpty()) {
+            return;
+        }
+        List<String> untagged = new ArrayList<>();
+        for (ItemStack stack : strays) {
+            untagged.add(stack.getCount() + "x " + stack.getItem());
+        }
+        PocketDungeonsMod.LOG.warn(
+                "{} left the dungeon carrying {} untagged stacks; they were not bag loot and "
+                        + "not a keystone, and have been delivered to the room rather than "
+                        + "restored with survival: {}",
+                player.getName().getString(), untagged.size(), String.join(", ", untagged));
+    }
+
+    /**
+     * Fills the room's own containers first, then drops whatever is left on the
+     * room floor.
+     *
+     * <p>The scan is the same shape {@code BlacksmithNPC.findSmithingTable}
+     * uses: at most ~1500 block reads, once, when somebody walks out of a
+     * dungeon.
+     */
+    private static void deliverToRoom(ServerLevel level, BlockPos roomOrigin, List<ItemStack> carried) {
+        List<Container> containers = new ArrayList<>();
+        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+            for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
+                for (int z = 1; z < RoomGeometry.CELL - 1; z++) {
+                    BlockEntity be = level.getBlockEntity(roomOrigin.offset(x, y, z));
+                    if (be instanceof Container container) {
+                        containers.add(container);
+                    }
+                }
+            }
+        }
+        BlockPos pad = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        for (ItemStack stack : carried) {
+            ItemStack remainder = insertInto(containers, stack);
+            if (!remainder.isEmpty()) {
+                Block.popResource(level, pad, remainder);
+            }
+        }
+    }
+
+    /**
+     * Puts as much of {@code stack} into {@code containers} as fits, and hands
+     * back whatever did not.
+     *
+     * <p>Only empty slots are used. Merging into a partially filled slot would
+     * mean re-implementing vanilla's stacking rules over an arbitrary
+     * container, and a room chest with a few free slots is the normal case
+     * anyway.
+     */
+    private static ItemStack insertInto(List<Container> containers, ItemStack stack) {
+        ItemStack remaining = stack.copy();
+        for (Container container : containers) {
+            for (int slot = 0; slot < container.getContainerSize() && !remaining.isEmpty(); slot++) {
+                if (!container.getItem(slot).isEmpty()) {
+                    continue;
+                }
+                int take = Math.min(remaining.getCount(),
+                        Math.min(remaining.getMaxStackSize(), container.getMaxStackSize()));
+                container.setItem(slot, remaining.copyWithCount(take));
+                remaining.shrink(take);
+            }
+            container.setChanged();
+            if (remaining.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+        }
+        return remaining;
+    }
 
     // ---- entry ----------------------------------------------------------
 

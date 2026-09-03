@@ -2,33 +2,63 @@ package pocketdungeons;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
- * M45 seam: the stash and swap pass (SITUATIONS_SPEC 11).
+ * Stash and swap: the failsafe inventory model of SITUATIONS_SPEC 11.
  *
- * <p>Both methods are deliberately empty. M46 fills them: a player entering a
- * dungeon has their own inventory stashed and is handed the run's bag, and a
- * player leaving gets it back. This milestone only lands the class and its
- * three call sites, so M46 never has to open {@link Instances}.
+ * <p>The whole design is one sentence. <strong>If a player is in
+ * {@code pocketdungeons:void} they hold the dungeon inventory; anywhere else
+ * they hold their survival inventory.</strong> No mismatch is possible, because
+ * there is no pair of events to desync. There is no entry handler and no exit
+ * handler; there is one reconciliation pass with four branches, two of which
+ * are no-ops, and it converges on the invariant regardless of how the player
+ * got where they are.
  *
- * <p>The three hooks, all registered in {@code Instances.register}:
+ * <p>The three hooks, all registered in {@code Instances.register} by M45:
  *
  * <ul>
  *   <li>{@link #reconcileAll(MinecraftServer)} from the end-of-tick lambda,
- *       after the join-recovery drain, which is the sweep that catches a player
- *       whose state drifted for any reason the edges below missed;</li>
- *   <li>{@link #reconcile(ServerPlayer)} from the join handler, for a player
- *       who logged out inside a run and logged back in;</li>
+ *       after the join-recovery drain. This is layer 2 of spec 11.2, the safety
+ *       net that catches a player whose state drifted for any reason the edges
+ *       below missed. It is the layer that prevents dimensional-inventories'
+ *       issue #22, because it depends on no event firing at all;</li>
+ *   <li>{@link #reconcile(ServerPlayer)} from the join handler, so a player who
+ *       logged out inside a run is fixed before they can act;</li>
  *   <li>{@link #reconcile(ServerPlayer)} from
- *       {@code ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL}, which
- *       is the edge that matters: crossing into or out of the dungeon
- *       dimension is exactly when a swap is owed.</li>
+ *       {@code ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL}, layer
+ *       1, so the common path never shows a one-tick flash of the wrong
+ *       inventory.</li>
  * </ul>
+ *
+ * <h2>Why there is no deduplication map</h2>
+ *
+ * <p>{@link StashRecord#stashed()} <em>is</em> the deduplication. If the
+ * dimension-change event fires twice, the first call sets the flag and the
+ * second sees the invariant already holding and does nothing. Spec 11.2 spends
+ * a page on why the alternative, dimensional-inventories'
+ * {@code transitionAlreadyHandled} map keyed on entity objects that respawn
+ * recreates, is the fragile approach this design exists to avoid. Do not add
+ * one.
+ *
+ * <h2>The pure core</h2>
+ *
+ * <p>The ordering, round trip and diversion logic are written against
+ * {@link SlotView}, a 42 slot window with no Minecraft in it, so
+ * {@code InventorySwapTest} can exercise them headlessly. {@link PlayerSlots}
+ * is the one adapter that puts a real {@link ServerPlayer} behind that window.
  */
 final class InventorySwap {
 
@@ -132,25 +162,351 @@ final class InventorySwap {
         }
     }
 
+    // ---- the pure core -----------------------------------------------------
+
     /**
-     * The per-tick sweep. Empty until M46.
+     * A 42 slot window over something that holds stacks, with no Minecraft in
+     * it.
      *
-     * <p>Runs every tick, so whatever M46 puts here has to gate itself on an
-     * interval or on there being a live instance at all; the surrounding
-     * end-of-tick lambda does not gate it.
+     * <p>The type parameter is the point. {@code InventorySwapTest} runs on a
+     * plain JVM with no bootstrapped registries, so it cannot build an
+     * {@link ItemStack}; it implements this over strings instead and gets the
+     * ordering, the round trip, the cursor slot and the diversion covered for
+     * free. {@link PlayerSlots} is the only production implementation.
      */
-    static void reconcileAll(MinecraftServer server) {
-        // M46 (spec 11): stash and swap.
+    interface SlotView<T> {
+
+        /** The value meaning "nothing here". Never null. */
+        T empty();
+
+        /** Whether {@code stack} holds nothing. */
+        boolean isEmpty(T stack);
+
+        /** An independent copy, so a snapshot cannot alias the live inventory. */
+        T copy(T stack);
+
+        /** Reads slot {@code index}, {@code 0} to {@code SLOTS - 1}. */
+        T get(int index);
+
+        /** Writes slot {@code index}, {@code 0} to {@code SLOTS - 1}. */
+        void set(int index, T stack);
     }
 
     /**
-     * One player's stash state brought back in line with where they are. Empty
-     * until M46.
+     * Copies all {@link #SLOTS} slots out of {@code view}, in order.
      *
-     * <p>Reached from a join and from a dimension change, so it has to be safe
-     * to call for a player who owes nothing, and safe to call twice.
+     * <p>Every element is a copy: the returned list has to survive the live
+     * inventory being cleared one line later.
+     */
+    static <T> List<T> snapshot(SlotView<T> view) {
+        List<T> out = new ArrayList<>(SLOTS);
+        for (int i = 0; i < SLOTS; i++) {
+            out.add(view.copy(view.get(i)));
+        }
+        return out;
+    }
+
+    /** Empties all {@link #SLOTS} slots, the cursor included. */
+    static <T> void clear(SlotView<T> view) {
+        for (int i = 0; i < SLOTS; i++) {
+            view.set(i, view.empty());
+        }
+    }
+
+    /**
+     * Writes {@code backup} back into {@code view}, slot for slot, and returns
+     * whatever could not be placed.
+     *
+     * <p>Slots {@code 0} to {@code 40} are direct copies. The cursor slot is
+     * not: a snapshot is only ever taken after the container is closed, so
+     * there is no container to restore a carried stack into. It goes to the
+     * first free main slot instead (spec 11.6), and if the main inventory is
+     * full it comes back to the caller to be dropped rather than voided.
+     *
+     * <p>A short or over-long backup is tolerated rather than thrown on. A
+     * corrupt or half-migrated record must still restore whatever of the
+     * player's gear it does hold.
+     */
+    static <T> T restore(SlotView<T> view, List<T> backup) {
+        for (int i = 0; i < LIVE_SLOTS; i++) {
+            view.set(i, i < backup.size() ? view.copy(backup.get(i)) : view.empty());
+        }
+        view.set(CURSOR, view.empty());
+        if (backup.size() <= CURSOR) {
+            return view.empty();
+        }
+        T carried = view.copy(backup.get(CURSOR));
+        if (view.isEmpty(carried)) {
+            return view.empty();
+        }
+        int free = firstFreeMainSlot(view);
+        if (free < 0) {
+            return carried;
+        }
+        view.set(free, carried);
+        return view.empty();
+    }
+
+    /**
+     * The first empty main slot, or {@code -1} if all 36 are taken. Armour and
+     * offhand are deliberately not candidates: an item that was on the cursor
+     * was not being worn.
+     */
+    static <T> int firstFreeMainSlot(SlotView<T> view) {
+        for (int i = MAIN_START; i < MAIN_START + MAIN_COUNT; i++) {
+            if (view.isEmpty(view.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ---- spec 11.9, belt and braces -----------------------------------------
+
+    /**
+     * The stacks in a snapshot that are neither empty nor something this mod
+     * put there.
+     *
+     * <p>Pure and generic for the same reason the rest of the core is: the
+     * predicate is supplied so {@code InventorySwapTest} can pass a string
+     * test and the leaving branch can pass the real tag check.
+     */
+    static <T> List<T> untagged(List<T> stacks, Predicate<T> isEmpty, Predicate<T> isOurs) {
+        List<T> out = new ArrayList<>();
+        for (T stack : stacks) {
+            if (!isEmpty.test(stack) && !isOurs.test(stack)) {
+                out.add(stack);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Whether this stack carries the {@code pocketdungeons.bag} byte that the
+     * bag tables and the in-run chest tables set (commit d99811d).
+     *
+     * <p>Same {@code CUSTOM_DATA} shape {@link Keystone} reads its own tag out
+     * of: a {@code pocketdungeons} compound at the root, holding the tag as an
+     * int.
+     */
+    static boolean isBagTagged(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        CompoundTag mine = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
+        return mine != null && mine.getIntOr("bag", 0) != 0;
+    }
+
+    /** Whether this stack is something the mod itself handed the player: bag loot, or their keystone. */
+    static boolean isOurs(ItemStack stack) {
+        return isBagTagged(stack) || Keystone.isKeystone(stack);
+    }
+
+    // ---- the reconciliation pass (spec 11.5) --------------------------------
+
+    /**
+     * Layer 2: every online player, every tick.
+     *
+     * <p>Deliberately not gated on an interval. The steady-state cost is one
+     * dimension comparison and one map lookup per player per tick, and the
+     * whole value of this layer is that it closes the window in which a player
+     * holds the wrong inventory. A five-second interval would be a five-second
+     * window in which a player can drop, trade or store items that are about to
+     * be swapped away.
+     */
+    static void reconcileAll(MinecraftServer server) {
+        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        if (players.isEmpty()) {
+            return;
+        }
+        for (ServerPlayer player : players) {
+            reconcile(player);
+        }
+    }
+
+    /**
+     * One player's stash state brought back in line with where they are.
+     *
+     * <p>Safe to call for a player who owes nothing, and safe to call twice:
+     * the second call finds the invariant holding and returns.
      */
     static void reconcile(ServerPlayer player) {
-        // M46 (spec 11): stash and swap.
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return;
+        }
+        boolean inVoid = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        DungeonLog log = DungeonLog.forServer(server);
+        StashRecord stash = log.stashOf(player.getUUID());
+        if (inVoid == stash.stashed()) {
+            // The invariant holds. This is the common case and the only branch
+            // most ticks ever reach.
+            return;
+        }
+        try {
+            if (inVoid) {
+                enterVoid(server, log, player);
+            } else {
+                leaveVoid(server, log, player, stash);
+            }
+        } catch (RuntimeException e) {
+            // Spec 11.10's alert. The Lost and Found write happens before
+            // anything is cleared, so the items are on disk even from here.
+            PocketDungeonsMod.LOG.error("Inventory swap failed for {} ({})",
+                    player.getName().getString(), player.getUUID(), e);
+            player.sendSystemMessage(Component.literal(
+                            "An inventory error occurred. Your items have been logged for "
+                                    + "recovery. Contact server staff.")
+                    .withStyle(ChatFormatting.RED));
+        }
+    }
+
+    /**
+     * Entering: save survival, clear the inventory, hand back the keystone.
+     *
+     * <p>Ordering is load bearing. The backup is written to {@link DungeonLog}
+     * <em>before</em> the live inventory is cleared, so a crash between the two
+     * leaves the items in the saved data rather than nowhere.
+     *
+     * <p>The bag is not applied here. It is applied when the player picks a
+     * door (spec 11.8), so in the room the player has the keystone and forty
+     * empty slots.
+     */
+    private static void enterVoid(MinecraftServer server, DungeonLog log, ServerPlayer player) {
+        PlayerSlots slots = new PlayerSlots(player);
+        List<ItemStack> survival = snapshotPlayer(player, slots);
+        log.setStash(player.getUUID(), new StashRecord(true, survival));
+        clear(slots);
+        applyKeystoneItem(server, log, player);
+        slots.flush();
+    }
+
+    /**
+     * Leaving: hand the void inventory to the room, then restore survival.
+     *
+     * <p>Ordering here is load bearing too, and in the other direction. The
+     * stash record is cleared <em>after</em> the restore, not before: if the
+     * restore throws halfway, the flag is still set and the backup is still in
+     * the saved data, so the next tick tries again from a clean clear rather
+     * than from nothing.
+     */
+    private static void leaveVoid(MinecraftServer server, DungeonLog log, ServerPlayer player,
+                                  StashRecord stash) {
+        PlayerSlots slots = new PlayerSlots(player);
+        List<ItemStack> voidInventory = snapshotPlayer(player, slots);
+        RunLifecycle.deliverVoidInventory(server, player, voidInventory);
+        clear(slots);
+        ItemStack overflow = restore(slots, stash.backup());
+        if (!overflow.isEmpty()) {
+            player.drop(overflow, false);
+        }
+        log.setStash(player.getUUID(), StashRecord.NONE);
+        slots.flush();
+    }
+
+    /**
+     * Takes the 42 slot snapshot, cursor included, with the container closed
+     * first.
+     *
+     * <p>The cursor is lifted off the menu <em>before</em> {@code closeContainer}
+     * rather than after. Spec 11.5 writes it the other way round, and the
+     * difference matters: verified in the 26.2 jar,
+     * {@code AbstractContainerMenu.removed} routes the carried stack through
+     * {@code dropOrPlaceInInventory}, which <em>drops it on the ground</em>
+     * when the inventory is full. On the entering branch the inventory is a
+     * full survival inventory and the ground is the dungeon, so following the
+     * spec's order literally would scatter a survival item into a room that is
+     * about to be torn down. Taking the stack first and closing an empty cursor
+     * cannot drop anything, and the stack still lands in slot 41 of the
+     * snapshot. That is what fixes vanilla MC-258705 here.
+     */
+    private static List<ItemStack> snapshotPlayer(ServerPlayer player, PlayerSlots slots) {
+        ItemStack carried = player.containerMenu.getCarried().copy();
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        player.closeContainer();
+        List<ItemStack> out = snapshot(slots);
+        out.set(CURSOR, carried);
+        return out;
+    }
+
+    /**
+     * Puts the player's keystone back in hotbar slot 0, the way the watcher's
+     * keystone reconcile pass would have.
+     *
+     * <p>A player with no keystone (level 0) gets nothing, which is correct:
+     * {@code Keystone.reconcile} has the same rule, and an admin build entry
+     * has no key behind it.
+     */
+    private static void applyKeystoneItem(MinecraftServer server, DungeonLog log, ServerPlayer player) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        int level = entry.keystoneLevel();
+        if (level <= 0) {
+            return;
+        }
+        player.getInventory().setItem(0, Keystone.mint(level,
+                AffixMath.effective(player.getUUID(), level,
+                        AffixMath.parse(entry.keystoneAffix()))));
+    }
+
+    // ---- the player adapter -------------------------------------------------
+
+    /**
+     * The one production {@link SlotView}: slots {@code 0} to {@code 40} onto
+     * {@link Inventory}, slot {@code 41} onto the container menu's carried
+     * stack.
+     *
+     * <p>{@link #flush()} is separate from the writes because a swap touches
+     * every slot and there is no reason to send 42 packets to do it.
+     */
+    static final class PlayerSlots implements SlotView<ItemStack> {
+
+        private final ServerPlayer player;
+
+        PlayerSlots(ServerPlayer player) {
+            this.player = player;
+        }
+
+        @Override
+        public ItemStack empty() {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public boolean isEmpty(ItemStack stack) {
+            return stack.isEmpty();
+        }
+
+        @Override
+        public ItemStack copy(ItemStack stack) {
+            return stack.copy();
+        }
+
+        @Override
+        public ItemStack get(int index) {
+            if (index == CURSOR) {
+                return player.containerMenu.getCarried();
+            }
+            return player.getInventory().getItem(index);
+        }
+
+        @Override
+        public void set(int index, ItemStack stack) {
+            if (index == CURSOR) {
+                player.containerMenu.setCarried(stack);
+                return;
+            }
+            player.getInventory().setItem(index, stack);
+        }
+
+        /** Sends the whole menu state once, after a swap has finished writing. */
+        void flush() {
+            player.getInventory().setChanged();
+            player.inventoryMenu.broadcastChanges();
+            player.containerMenu.sendAllDataToRemote();
+        }
     }
 }
