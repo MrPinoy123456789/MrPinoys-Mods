@@ -396,6 +396,7 @@ final class RoomSelector {
          * practice round one succeeds and this is one iteration.
          */
         void run() {
+            forceImpossibleCells();
             for (int round = 0; round <= order.size(); round++) {
                 if (search()) {
                     return;
@@ -410,6 +411,46 @@ final class RoomSelector {
             }
             throw new IllegalStateException("solvability pass did not terminate for seed "
                     + shape.seed());
+        }
+
+        /**
+         * Marks, before any search runs, the cells no assignment could ever
+         * satisfy.
+         *
+         * <p>Take the most generous view possible of a cell at depth n: assume
+         * every shallower cell picked whichever of its candidates helped most,
+         * so {@code available} is the bag plus the {@code provides} of every
+         * candidate of every cell at depth below n. If nothing fits the cell
+         * even then, nothing will, and searching for it is a search with no
+         * answer at the bottom of it.
+         *
+         * <p>This is the difference between a fast pass and a slow one. Without
+         * it a single impossible cell (a floor whose only encounter room wants
+         * redstone, on a floor with no redstone above it) makes the backtracker
+         * re-try every combination of every shallower cell before giving up,
+         * which is what burns the step cap. With it, that cell is a fallback
+         * immediately and the search only ever runs where an answer might be.
+         */
+        private void forceImpossibleCells() {
+            for (int i = 0; i < order.size(); i++) {
+                PlanCell cell = order.get(i);
+                int depth = depths.getOrDefault(cell, 0);
+                Set<String> optimistic = new LinkedHashSet<>(bagTags);
+                for (int j = 0; j < i; j++) {
+                    if (depths.getOrDefault(order.get(j), 0) >= depth) {
+                        break;
+                    }
+                    for (RoomManifest.Match match : matches.get(j)) {
+                        optimistic.addAll(match.entry().meta.provides);
+                    }
+                }
+                // Optimistic on the placement rules too: a cell rejected here is
+                // rejected on its requires alone, never on where it happens to sit.
+                if (solvable(matches.get(i), optimistic, onSpine.contains(cell), false, false)
+                        .isEmpty()) {
+                    forced.add(cell);
+                }
+            }
         }
 
         /**
@@ -432,19 +473,64 @@ final class RoomSelector {
                     index++;
                     continue;
                 }
-                // Nothing left here. Hand the cell back and take the previous
+                // Nothing left here. Hand the cell back and take an earlier
                 // cell's next candidate, which is what makes this better than
                 // greedy: a shallow pick that stranded a deeper gate is undone
                 // rather than paid for with a boring room.
-                states[index] = null;
-                assignments[index] = null;
-                index--;
+                int target = retryFrom(index);
+                for (int i = index; i > target && i >= 0; i--) {
+                    states[i] = null;
+                    assignments[i] = null;
+                }
+                index = target;
                 if (index < 0 || ++steps > MAX_BACKTRACK_STEPS) {
                     return false;
                 }
                 assignments[index] = null;
             }
             return true;
+        }
+
+        /**
+         * Which cell to go back to when {@code index} has run out of rooms.
+         *
+         * <p>The previous cell, except when this cell never had a candidate in
+         * the first place. That case is a {@code requires} conflict, and only a
+         * cell that could have provided one of the tags this cell wants, at a
+         * <em>smaller</em> root distance, can resolve it. Anything else is a
+         * cell whose choice cannot reach this one: a sibling at the same depth
+         * is invisible to it by 6.6's same-depth rule, and a room providing
+         * nothing it wants changes nothing.
+         *
+         * <p>Walking back one cell at a time through those instead is what
+         * turns a shallow search into an exponential one. Measured on a
+         * deliberately mean catalogue, jumping straight to the cell that could
+         * actually help takes the pass from tens of milliseconds a floor, with
+         * the step cap being hit, to a fraction of one.
+         *
+         * @return the index to retry, or {@code -1} when nothing upstream can
+         *         help and the search is over
+         */
+        private int retryFrom(int index) {
+            if (!states[index].startedEmpty) {
+                return index - 1;
+            }
+            Set<String> wanted = new LinkedHashSet<>();
+            for (RoomManifest.Match match : matches.get(index)) {
+                wanted.addAll(match.entry().meta.requires);
+            }
+            int depth = depths.getOrDefault(order.get(index), 0);
+            for (int j = index - 1; j >= 0; j--) {
+                if (depths.getOrDefault(order.get(j), 0) >= depth) {
+                    continue;
+                }
+                for (RoomManifest.Match match : matches.get(j)) {
+                    if (!java.util.Collections.disjoint(match.entry().meta.provides, wanted)) {
+                        return j;
+                    }
+                }
+            }
+            return -1;
         }
 
         /**
@@ -516,6 +602,14 @@ final class RoomSelector {
             private final List<RoomManifest.Match> remaining;
             private final Random rng;
 
+            /**
+             * Whether this cell had nothing to choose from the moment it was
+             * reached, which means a {@code requires} conflict rather than a
+             * cell that tried everything it had. {@link #retryFrom} needs the
+             * difference.
+             */
+            private final boolean startedEmpty;
+
             CellState(int index) {
                 PlanCell cell = order.get(index);
                 List<RoomManifest.Match> all = matches.get(index);
@@ -527,6 +621,7 @@ final class RoomSelector {
                     pool = solvable(all, availableFor(index), onSpine.contains(cell),
                             gatedBefore(index).contains(branch), cell.equals(gateCell));
                 }
+                this.startedEmpty = pool.isEmpty();
                 if (pool.isEmpty()) {
                     deepestEmpty = Math.max(deepestEmpty, index);
                 }
@@ -737,6 +832,31 @@ final class RoomSelector {
     private static List<RoomManifest.Match> solvable(List<RoomManifest.Match> matches,
                                                      Set<String> available, boolean onSpine,
                                                      boolean branchGated, boolean isGateCell) {
+        List<RoomManifest.Match> pool = withTags(matches, available, onSpine, branchGated);
+        if (pool.isEmpty() && branchGated) {
+            // The one-gate-per-branch rule emptied the pool on its own. It is a
+            // spacing rule, and spacing is not worth a cell falling back to a
+            // room that asks for nothing when a solvable room was sitting
+            // right there, so it yields. On any catalogue with an open room per
+            // role this never fires.
+            pool = withTags(matches, available, onSpine, false);
+        }
+        if (!isGateCell) {
+            return pool;
+        }
+        List<RoomManifest.Match> gated = new ArrayList<>();
+        for (RoomManifest.Match match : pool) {
+            if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)) {
+                gated.add(match);
+            }
+        }
+        return gated.isEmpty() ? pool : gated;
+    }
+
+    /** 6.6's subset filter plus the consumable and one-gate-per-branch rules. */
+    private static List<RoomManifest.Match> withTags(List<RoomManifest.Match> matches,
+                                                     Set<String> available, boolean onSpine,
+                                                     boolean branchGated) {
         List<RoomManifest.Match> pool = new ArrayList<>(matches.size());
         for (RoomManifest.Match match : matches) {
             DungeonRoomMeta meta = match.entry().meta;
@@ -751,16 +871,7 @@ final class RoomSelector {
             }
             pool.add(match);
         }
-        if (!isGateCell) {
-            return pool;
-        }
-        List<RoomManifest.Match> gated = new ArrayList<>();
-        for (RoomManifest.Match match : pool) {
-            if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)) {
-                gated.add(match);
-            }
-        }
-        return gated.isEmpty() ? pool : gated;
+        return pool;
     }
 
     /**
