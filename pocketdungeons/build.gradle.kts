@@ -179,7 +179,16 @@ for ((taskName, testClass) in mapOf(
     "bountyTrackerTest" to "BountyTrackerTest",
     "cubeStationTest" to "CubeStationTest",
     "roomStoreTest" to "RoomStoreTest",
-    "payoutTest" to "PayoutTest"
+    "payoutTest" to "PayoutTest",
+    // Situations round, registered here by M46B so no other milestone in the
+    // round has to open this file. Each class is filled in by its own
+    // milestone: M46, M49, M47, M48, M54 and M45 respectively.
+    "inventorySwapTest" to "InventorySwapTest",
+    "bagTableTest" to "BagTableTest",
+    "graphSolvabilityTest" to "GraphSolvabilityTest",
+    "omenMathTest" to "OmenMathTest",
+    "floorShapeTest" to "FloorShapeTest",
+    "situationTagsTest" to "SituationTagsTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -220,6 +229,13 @@ tasks.test {
     dependsOn("shellPaletteTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
+    // Situations round. These fail until their milestones land their classes.
+    dependsOn("inventorySwapTest")
+    dependsOn("bagTableTest")
+    dependsOn("graphSolvabilityTest")
+    dependsOn("omenMathTest")
+    dependsOn("floorShapeTest")
+    dependsOn("situationTagsTest")
     failOnNoDiscoveredTests = false
 }
 
