@@ -1661,3 +1661,168 @@ engine screen's renamed title actually render for a real player.
 1. As a player at keystone level 2 or higher, repeat 34.2. **Expected:**
    the idle screen shows the normal "Right-click a door to preview" text
    and the preview screen shows no added tutorial line.
+
+## 35. Stash and swap (M46)
+
+The failsafe inventory model of `SITUATIONS_SPEC` section 11. This is the
+riskiest thing the mod does: it takes custody of a player's real survival
+inventory on a live world, and getting it wrong loses gear permanently.
+
+What is already covered elsewhere, and therefore not repeated here:
+
+- `InventorySwapTest` (headless) covers the slot layout, the 42 slot round
+  trip, the cursor slot, a truncated backup, the invariant, the flag as
+  deduplication, the untagged diversion, and the Lost and Found ring buffer.
+- `InventorySwapGameTest` (`./gradlew runGameTest`) covers entry, exit, the
+  issue #22 sequence, the issue #25 respawn sequence, and the cursor case,
+  against a real server and a real `ServerPlayer`.
+
+Everything below is what neither of those can reach. **M46 does not merge
+until a human has walked this list once on a dev server.**
+
+Two limits the gametests work around, which is precisely why 35.1 and 35.5
+exist:
+
+- A gametest server has no datapack dimensions at all: `GameTestServer`
+  bakes an empty `LEVEL_STEM` registry against the flat world preset, so
+  `pocketdungeons:void` is never created there and the gametests point the
+  invariant at the nether instead. Nothing automated has ever seen the real
+  dimension key.
+- Nothing headless right-clicks a block (DISCOVERIES trap 10), so the ender
+  chest cancellation has never been exercised by a click.
+
+### 35.1 The real dimension key
+
+1. `/dungeon` into a run as a player carrying a recognisable survival
+   inventory (armour worn, something in the offhand, a full hotbar).
+   **Expected:** the inventory empties the moment the room loads, and the
+   keystone is in hotbar slot 0. Nothing is dropped on the floor.
+2. `/data get entity @s Inventory` while in the room. **Expected:** the
+   keystone and nothing else.
+3. `/dungeon exit`. **Expected:** every slot comes back exactly as it was,
+   armour on, offhand filled, hotbar in the same order.
+
+### 35.2 A real server restart mid-run
+
+The one case no test can stage: the backup has to survive the process
+dying. This is the check that proves `SavedData` is actually carrying the
+inventory rather than an in-memory map that happens to work.
+
+1. Enter a run with a recognisable survival inventory. Pick a door and take
+   the bag, so the live inventory is bag loot rather than survival.
+2. From the console, `save-all flush`, then `stop`. Wait for the process to
+   exit fully.
+3. Confirm the stash is on disk before restarting:
+   ```
+   ls -l world/data/pocketdungeons_dungeon_log.dat
+   ls -l world/data/pocketdungeons/lostandfound/<your-uuid>/
+   ```
+   **Expected:** both exist, and the newest `.log` in the lostandfound
+   folder has an `ENTERING pocketdungeons:void` cause line and your
+   survival inventory under `BEGIN LOST+FOUND CONTENT`.
+4. Start the server. Log back in. **Expected:** you are still in the room
+   or the dungeon, still holding the bag loot, and nothing has been
+   restored. The invariant holds: in the void, stashed.
+5. `/dungeon exit`. **Expected:** the bag loot goes to your room, and the
+   survival inventory that was saved before the restart comes back whole.
+
+### 35.3 Restart while standing outside the void, still flagged
+
+The other half of 35.2, and the issue #22 shape against a real restart.
+
+1. Enter a run, so the flag is set.
+2. From the console:
+   ```
+   execute as <player> in minecraft:overworld run tp <player> <x> <y> <z>
+   ```
+   **Expected:** survival is restored within a tick. That is layer 1 doing
+   it, so it should be instant and invisible.
+3. To exercise layer 2 instead, do the same thing with the server stopped
+   between the two halves: enter a run, `stop` the server, edit nothing,
+   restart, and log in from a position outside the void (use
+   `/spawnpoint` beforehand if needed). **Expected:** the join handler
+   restores survival before you can act, and the dungeon inventory is
+   delivered to your room rather than dropped in the overworld.
+
+### 35.4 Deliberate DungeonLog corruption, and the Lost and Found
+
+This is the check that proves the recovery layer is real. Do it on a dev
+world, never on the live one.
+
+1. Enter a run with a recognisable survival inventory. Note what you were
+   carrying.
+2. `save-all flush`, then `stop`.
+3. Destroy the primary store:
+   ```
+   mv world/data/pocketdungeons_dungeon_log.dat /tmp/dungeon_log.dat.bak
+   ```
+4. Start the server and log in. **Expected:** the mod treats you as having
+   no stash at all (no record reads as "not stashed"), so you keep whatever
+   your live inventory holds and your survival inventory is gone from the
+   primary store. This is the failure being simulated; it is not a bug.
+5. Read the recovery copy:
+   ```
+   ls world/data/pocketdungeons/lostandfound/<your-uuid>/ | tail -3
+   cat world/data/pocketdungeons/lostandfound/<your-uuid>/<newest>.log
+   ```
+   **Expected:** the file names sort newest last by plain text order, the
+   newest entry has cause `ENTERING pocketdungeons:void`, and the content
+   block lists 42 lines: `slot 0` through `slot 40`, then
+   `slot 41 (cursor)`. Every non-empty slot carries the item id, the count,
+   and the full stack as SNBT.
+6. Hand the items back from that file with `/give`, using the SNBT on each
+   line. **Expected:** the items come back with their components intact
+   (enchantments, damage, custom names).
+7. Restore the primary store (`mv` it back) before doing anything else.
+
+### 35.5 The ender chest, by hand
+
+Nothing headless can right-click, so this has never been run.
+
+1. Inside `pocketdungeons:void`, place an ender chest in your room and
+   right-click it. **Expected:** nothing opens. No GUI, no chest sound.
+2. Right-click a normal chest or barrel in the same room. **Expected:** it
+   opens as before, subject to the usual room permission mask.
+3. Right-click an ender chest in the overworld. **Expected:** it opens
+   normally. The cancellation is scoped to the dungeon dimension only.
+
+### 35.6 The cursor item, by hand
+
+The gametests cover the reconcile path. The teleport path is a vanilla
+behaviour this mod cannot get ahead of without a mixin, and it needs a real
+client to produce at all.
+
+1. Open your inventory, pick a stack up onto the mouse cursor, and while
+   holding it have somebody else run
+   `execute as <you> in pocketdungeons:void run tp <you> <x> <y> <z>`.
+   **Expected:** the stack is not destroyed. It is either folded back into
+   a free inventory slot before the swap (vanilla's own handling) or
+   captured in slot 41 of the backup, and either way it is in your survival
+   inventory when you come back out.
+2. Repeat with a completely full inventory (all 36 main slots occupied).
+   **Expected:** worst case, the stack is dropped as an item entity at the
+   origin position rather than deleted. Note where it lands. This is
+   vanilla MC-258705 and is out of this mod's reach; the point of the check
+   is to confirm the item still exists somewhere.
+
+### 35.7 Untagged items diverted, not restored
+
+1. Inside a run, have an operator `/give` you something that carries no
+   `pocketdungeons.bag` tag, for example
+   `/give <you> minecraft:netherite_sword`.
+2. `/dungeon exit`. **Expected:** a yellow chat line telling you the item
+   was left in your room, a `WARN` line in the server log naming the stack,
+   the sword in one of your room's containers (or on the room floor), and
+   your survival inventory restored without it.
+
+### 35.8 The multi-floor loop is deliberately untouched
+
+Not a check so much as a thing to confirm nobody "fixed". Spec section 12
+makes a run a multi-floor loop, and inventory is meant to carry across
+floors and only be delivered to the safe room on `/dungeon exit` or the
+safe door.
+
+1. Walk a run through more than one floor. **Expected:** no swap happens
+   between floors, and the bag loot carries through untouched. Every floor
+   and both rooms are inside `pocketdungeons:void`, so the dimension-based
+   invariant never fires. There is no per-floor code and none is needed.
