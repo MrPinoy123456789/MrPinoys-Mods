@@ -127,6 +127,13 @@ final class RunLifecycle {
                         + "not a keystone, and have been delivered to the room rather than "
                         + "restored with survival: {}",
                 player.getName().getString(), untagged.size(), String.join(", ", untagged));
+        // Said out loud as well as logged. A player who finds an item missing
+        // should be told where it went at the moment it moves, not left to
+        // discover it and file a bug about lost gear.
+        player.sendSystemMessage(Component.literal(untagged.size()
+                        + (untagged.size() == 1 ? " item was" : " items were")
+                        + " left in your room: they came into the dungeon from outside the run.")
+                .withStyle(ChatFormatting.YELLOW));
     }
 
     /**
