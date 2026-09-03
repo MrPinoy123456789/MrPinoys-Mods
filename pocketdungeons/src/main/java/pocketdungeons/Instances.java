@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -116,7 +117,18 @@ final class Instances {
             InstanceTeardown.processClears(server);
             onTick(server);
             processJoinRecoveries(server);
+            // M45 seam: empty until M46's stash and swap (spec 11).
+            InventorySwap.reconcileAll(server);
         });
+
+        // M45 seam for M46: crossing into or out of the dungeon dimension is
+        // the edge a swap is owed on. Verified against fabric-entity-events-v1
+        // 5.0.5 in the 26.2 build: the event is
+        // ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL and its
+        // callback is afterChangeLevel(ServerPlayer, ServerLevel origin,
+        // ServerLevel destination).
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(
+                (player, origin, destination) -> InventorySwap.reconcile(player));
 
         // Nobody dies in a dungeon. A killing blow inside an instance ejects the
         // player instead: no death screen, no dropped inventory, no lost XP. The
@@ -200,6 +212,11 @@ final class Instances {
             pendingJoinRecoveries.add(new PendingJoinRecovery(
                     player.getUUID(), point, JOIN_RECOVERY_DELAY_TICKS));
         });
+
+        // M45 seam: a player who logged out inside a run and came back. Empty
+        // until M46.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                InventorySwap.reconcile(handler.getPlayer()));
 
         // M33: every joining player gets a reminder of their active guided
         // task, and if they are logging back into a dungeon room, the tracker
