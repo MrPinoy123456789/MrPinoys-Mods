@@ -5,6 +5,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.ArrayList;
@@ -175,7 +176,7 @@ final class LayoutStamper {
             }
         }
 
-        applyConnectors(level, geometry, plan, entranceCell);
+        applyConnectors(level, geometry, plan, entranceCell, manifest);
 
         BedrockEnvelope.apply(level, geometry, voidedCells);
 
@@ -252,13 +253,18 @@ final class LayoutStamper {
      * opening lines up across the two-block partition between them.
      */
     private static void applyConnectors(ServerLevel level, PlanGeometry geometry, DungeonPlan plan,
-                                        PlanCell entranceCell) {
+                                        PlanCell entranceCell, RoomManifest manifest) {
         for (PlanEdge edge : plan.doors()) {
             if (edge.touches(entranceCell)) {
                 continue;
             }
             Random rng = ConnectorType.rngFor(plan.seed(), edge);
             ConnectorType type = ConnectorType.pick(rng);
+            // M45B: the window band rides this same per-edge pass. It is the
+            // only place that knows an edge is open, knows both cells that
+            // share it, and has already rolled the connector whose shape
+            // decides whether a band belongs on that edge at all.
+            applyWindowBand(level, geometry, plan, manifest, edge, type);
             if (type == ConnectorType.DOOR_WIDE) {
                 continue;
             }
@@ -297,6 +303,94 @@ final class LayoutStamper {
         int da = plan.depths().getOrDefault(a, 0);
         int db = plan.depths().getOrDefault(b, 0);
         return db < da ? b : a;
+    }
+
+    /**
+     * M45B: cuts both halves of one edge's window band, each side filled with
+     * its own room's material (spec section 4, readable from the doorway). A
+     * 2 by 3 doorway shows a player very little of what they are about to walk
+     * into; the band beside it is what lets them look before they commit.
+     *
+     * <p>Each side uses its own room's material on purpose. A dark room can
+     * face the partition with tinted glass while its neighbour answers with
+     * bars, and the pair still reads through.
+     *
+     * <p>Three rules keep this off any wall that is not a live partition
+     * between two placed rooms:
+     *
+     * <ul>
+     *   <li>only edges in {@code plan.doors()} are considered, so a sealed
+     *       wall is never touched, and neither is an outer wall of the
+     *       dungeon. Those have no occupied neighbour, which is exactly the
+     *       test {@link BedrockEnvelope} uses to decide where its ring goes,
+     *       so the two conditions are complementary and the band can never
+     *       breach the envelope;</li>
+     *   <li>the entrance's edges are skipped by the caller, leaving the lobby
+     *       and the entrance cell exactly as they were;</li>
+     *   <li>{@link ConnectorStamper#leavesWindowBandSolid} skips the
+     *       connectors that already open the band's own columns.</li>
+     * </ul>
+     *
+     * <p><strong>The mismatch rule.</strong> If one room asks for
+     * {@code none} and its neighbour asks for bars, the literal result is bars
+     * on one face and stone on the other: not see-through, and a player
+     * reading it as a window is reading a lie. So {@code none} on either side
+     * suppresses the whole band, and the disagreement is logged with both room
+     * names. Suppressing is the safer half of the pair, because a solid wall
+     * is a shape players already understand while glass backed by stone is a
+     * bug that looks like content. The warning is what keeps that from being a
+     * silent authoring loss.
+     */
+    private static void applyWindowBand(ServerLevel level, PlanGeometry geometry, DungeonPlan plan,
+                                        RoomManifest manifest, PlanEdge edge, ConnectorType type) {
+        if (!ConnectorStamper.leavesWindowBandSolid(type)) {
+            return;
+        }
+        PlanCell a = edge.a();
+        PlanCell b = edge.b();
+        DoorMask.Direction wallA = a.directionTo(b);
+        DoorMask.Direction wallB = b.directionTo(a);
+        if (wallA == null || wallB == null) {
+            return;
+        }
+        String nameA = roomNameAt(plan, a);
+        String nameB = roomNameAt(plan, b);
+        BlockState materialA = windowMaterialAt(manifest, nameA);
+        BlockState materialB = windowMaterialAt(manifest, nameB);
+        if (materialA == null || materialB == null) {
+            if (materialA != materialB) {
+                PocketDungeonsMod.LOG.warn(
+                        "Window band suppressed on the {} to {} edge: rooms \"{}\" and \"{}\""
+                                + " disagree, one of them sets window \"none\". Half a band is"
+                                + " glass backed by stone, so neither side gets one. Set both to"
+                                + " \"none\", or give the \"none\" side a material.",
+                        a, b, nameA, nameB);
+            }
+            return;
+        }
+        RoomBuilder.windowBand(level, geometry.cellOrigin(a), Instances.mcDirection(wallA), materialA);
+        RoomBuilder.windowBand(level, geometry.cellOrigin(b), Instances.mcDirection(wallB), materialB);
+    }
+
+    /** The plan's room name for {@code cell}, or {@code null} if it has none. */
+    private static String roomNameAt(DungeonPlan plan, PlanCell cell) {
+        DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
+        return placed == null ? null : placed.name();
+    }
+
+    /**
+     * The band fill a named room asks for, or {@code null} for {@code none}
+     * and for a room the manifest cannot resolve. An unresolvable name is
+     * already fatal earlier in the stamp, so reaching here with one means the
+     * plan changed underneath us, and leaving the wall solid is the harmless
+     * read of that.
+     */
+    private static BlockState windowMaterialAt(RoomManifest manifest, String roomName) {
+        if (roomName == null) {
+            return null;
+        }
+        RoomManifest.Entry entry = manifest.byName(roomName);
+        return entry == null ? null : RoomBuilder.windowMaterial(entry.meta.window);
     }
 
     private static void applyConnectorToSide(ServerLevel level, PlanGeometry geometry, PlanCell cell,
