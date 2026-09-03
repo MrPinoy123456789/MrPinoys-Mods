@@ -100,6 +100,10 @@ final class DungeonRoomMeta {
         int tier = intOr(obj.get("tier"), 1);
         List<String> provides = parseTags(obj.get("provides"));
         List<String> requires = parseTags(obj.get("requires"));
+        // M45 step 2: a typo here would otherwise make the room quietly
+        // unselectable forever, so it fails at manifest load with the room named.
+        SituationTags.validate(template, provides);
+        SituationTags.validate(template, requires);
         String pressure = stringOrNull(obj.get("pressure"));
         String access = parseAccess(obj.get("access"), template);
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,

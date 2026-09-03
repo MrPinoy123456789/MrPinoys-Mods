@@ -179,6 +179,21 @@ down, the other rooms still load. The exact messages a validator will see
 | A wall has some doors but is missing a canonical slot | `partial door on <edge> wall: missing jigsaw at <pos>` |
 | A canonical door slot exists but faces the wrong way | `partial door on <edge> wall: jigsaw at <pos> faces <facing>` |
 
+### 2.2 The situation tag vocabulary
+
+`provides` and `requires` draw from a closed list of fifteen tags. Anything
+else is rejected at load with the room and the offending tag named:
+
+`blocks`, `water`, `lava`, `lead`, `mob`, `trial_key`, `boat`, `gold`,
+`snowballs`, `shears`, `pearl`, `wind_charge`, `milk`, `bow`, `redstone`
+
+These are tags, not item ids. `water` is satisfied by a water bucket or by a
+bag carrying one; `mob` is satisfied by an upstream room that spawns a
+leashable mob, or by a party of two or more. The list is closed on purpose: an
+open one cannot be tested, and a typo in a datapack would otherwise make a room
+silently unselectable with nothing to say so.
+
+
 ---
 
 ## 3. What is *not* extensible yet
