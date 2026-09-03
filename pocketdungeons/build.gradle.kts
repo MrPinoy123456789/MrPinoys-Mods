@@ -29,6 +29,23 @@ dependencies {
     include("eu.pb4:sgui:2.1.0+26.2")
 }
 
+// M46B: the gametest harness. Loom's own fabric-api integration creates the
+// `gametest` source set, a `gameTest` run configuration that inherits `server`
+// and sets the `fabric-api.gametest` system property, and the `runGameTest`
+// task. Client gametests are off: this mod is server-side only and must never
+// pull client classes onto a source set.
+//
+// The gametest source set carries its own `fabric.mod.json` (mod id
+// `pocketdungeons-gametest`), so the `fabric-gametest` entrypoint is declared
+// there and nothing test-related enters the shipped jar. `modId` below names
+// the Loom classpath group only; it is read from that same file.
+fabricApi.configureTests {
+    createSourceSet = true
+    modId = "pocketdungeons-gametest"
+    enableGameTests = true
+    enableClientGameTests = false
+}
+
 java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_25

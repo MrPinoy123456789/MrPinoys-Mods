@@ -173,6 +173,22 @@ bite.
       leaves `isDeadOrDying()` false because it does not zero health. Drive the
       health down first if a scenario depends on the death actually taking.
 
+19. **How to add a gametest.** Put a class in
+    `src/gametest/java/pocketdungeons/gametest/`, give it public non-static
+    `void` methods taking a single `GameTestHelper` and annotated `@GameTest`,
+    then add the class name to the `fabric-gametest` entrypoint list in
+    `src/gametest/resources/fabric.mod.json`. That list is the only registration
+    step; forgetting it is the one silent failure mode, and it shows up as
+    nothing more than a lower test count in the run output. Run with
+    `./gradlew runGameTest --offline`. The output ends with either
+    `All N required tests passed :)` or a per-test failure line naming
+    `pocketdungeons-gametest:<test_id>`, and a failure fails the gradle build.
+    The default structure is an empty 8x8 with one block of padding, which is
+    what `HarnessGameTest` uses; `@GameTest(structure = "...")` points at an
+    `.snbt` under `<modid>/gametest/structure/` if a scenario needs real
+    geometry. Note that the passing case does not print test names, so to prove
+    a new test actually ran, break its assertion once and read the failure line.
+
 ---
 
 ## Carried-forward lessons (all still current)
