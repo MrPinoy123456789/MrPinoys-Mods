@@ -46,10 +46,33 @@ final class DungeonRoomMeta {
     /** A cell the player must solve to pass through. */
     static final String ACCESS_GATED = "gated";
 
+    /**
+     * M45: what fills the window band on this room's connected walls, one of
+     * {@link #WINDOW_BARS}, {@link #WINDOW_GLASS}, {@link #WINDOW_TINTED_GLASS}
+     * or {@link #WINDOW_NONE}. Never null; defaults to {@code bars}.
+     *
+     * <p>The band itself is a geometry contract both neighbouring cells honour
+     * ({@link RoomGeometry#WINDOW_MIN}), so a template cannot place it and this
+     * field only names the material.
+     */
+    final String window;
+
+    /** Iron bars: the default, containing what is on the other side. */
+    static final String WINDOW_BARS = "bars";
+
+    /** Clear glass, for a room whose point is being seen into. */
+    static final String WINDOW_GLASS = "glass";
+
+    /** Tinted glass: visible, and it does not carry the neighbour's light. */
+    static final String WINDOW_TINTED_GLASS = "tinted_glass";
+
+    /** No window at all: the wall stays solid either side of the doorway. */
+    static final String WINDOW_NONE = "none";
+
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
                     int weight, int minDepth, int maxPerDungeon, String processors,
                     List<String> theme, String content, int tier, List<String> provides,
-                    List<String> requires, String pressure, String access) {
+                    List<String> requires, String pressure, String access, String window) {
         this.template = template;
         this.footprintX = footprintX;
         this.footprintZ = footprintZ;
@@ -65,13 +88,15 @@ final class DungeonRoomMeta {
         this.requires = requires;
         this.pressure = pressure;
         this.access = access;
+        this.window = window;
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
                     int weight, int minDepth, int maxPerDungeon, String processors,
                     List<String> theme, String content) {
         this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon,
-                processors, theme, content, 1, List.of(), List.of(), null, ACCESS_OPEN);
+                processors, theme, content, 1, List.of(), List.of(), null, ACCESS_OPEN,
+                WINDOW_BARS);
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
@@ -106,9 +131,10 @@ final class DungeonRoomMeta {
         SituationTags.validate(template, requires);
         String pressure = stringOrNull(obj.get("pressure"));
         String access = parseAccess(obj.get("access"), template);
+        String window = parseWindow(obj.get("window"), template);
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,
                 weight, minDepth, maxPerDungeon, processors, theme, content,
-                tier, provides, requires, pressure, access);
+                tier, provides, requires, pressure, access, window);
     }
 
     private static String requiredString(JsonObject obj, String key) {
@@ -194,6 +220,25 @@ final class DungeonRoomMeta {
         if (!ACCESS_OPEN.equals(value) && !ACCESS_GATED.equals(value)) {
             throw new IllegalArgumentException("room " + roomName + ": access must be \""
                     + ACCESS_OPEN + "\" or \"" + ACCESS_GATED + "\", not \"" + value + "\"");
+        }
+        return value;
+    }
+
+    /**
+     * M45: the window band's material, rejected the same way {@code access} is
+     * and for the same reason. A misspelt material that fell back to the
+     * default would put bars in a room the author wanted to see through.
+     */
+    private static String parseWindow(JsonElement el, String roomName) {
+        String value = stringOrNull(el);
+        if (value == null) {
+            return WINDOW_BARS;
+        }
+        if (!WINDOW_BARS.equals(value) && !WINDOW_GLASS.equals(value)
+                && !WINDOW_TINTED_GLASS.equals(value) && !WINDOW_NONE.equals(value)) {
+            throw new IllegalArgumentException("room " + roomName + ": window must be one of \""
+                    + WINDOW_BARS + "\", \"" + WINDOW_GLASS + "\", \"" + WINDOW_TINTED_GLASS
+                    + "\" or \"" + WINDOW_NONE + "\", not \"" + value + "\"");
         }
         return value;
     }

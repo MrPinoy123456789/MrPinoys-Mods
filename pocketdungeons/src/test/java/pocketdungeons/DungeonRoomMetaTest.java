@@ -30,6 +30,8 @@ public class DungeonRoomMetaTest {
         testPressureRoundTrip();
         testAccessRoundTrip();
         testAccessRejectsUnknownValue();
+        testWindowRoundTrip();
+        testWindowRejectsUnknownValue();
         System.out.println("DungeonRoomMetaTest passed");
     }
 
@@ -149,6 +151,7 @@ public class DungeonRoomMetaTest {
         check(meta.requires.isEmpty(), true, "default requires is empty");
         check(meta.pressure, null, "default pressure");
         check(meta.access, "open", "default access");
+        check(meta.window, "bars", "default window");
     }
 
     private static void testTierRoundTrip() {
@@ -235,6 +238,39 @@ public class DungeonRoomMetaTest {
             }
         }
         check(threw, true, "bad access value throws");
+    }
+
+    private static void testWindowRoundTrip() {
+        check(parseWindow("glass"), "glass", "glass window");
+        check(parseWindow("tinted_glass"), "tinted_glass", "tinted glass window");
+        check(parseWindow("none"), "none", "no window");
+        check(parseWindow("bars"), "bars", "explicit bars window");
+    }
+
+    /** A misspelt material that fell back to bars would blind a room on purpose. */
+    private static void testWindowRejectsUnknownValue() {
+        boolean threw = false;
+        try {
+            parseWindow("stained_glass");
+        } catch (IllegalArgumentException e) {
+            threw = true;
+            if (!e.getMessage().contains("hall_straight")
+                    || !e.getMessage().contains("stained_glass")) {
+                throw new AssertionError(
+                        "window rejection must name the room and the bad value: " + e.getMessage());
+            }
+        }
+        check(threw, true, "bad window value throws");
+    }
+
+    private static String parseWindow(String value) {
+        return parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "window": "%s"
+                }
+                """.formatted(value)).window;
     }
 
     private static DungeonRoomMeta parse(String json) {
