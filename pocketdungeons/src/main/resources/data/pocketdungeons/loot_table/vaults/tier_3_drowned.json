@@ -12,6 +12,18 @@
               "condition": "minecraft:random_chance",
               "chance": 0.2
             }
+          ],
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
           ]
         }
       ]
@@ -34,7 +46,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "cubeReward": "warden_ward"
+                    "cubeReward": "warden_ward",
+                    "bag": 1
                   }
                 }
               }
@@ -85,33 +98,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:netherite_helmet",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -137,33 +125,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:netherite_chestplate",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -189,33 +152,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:netherite_leggings",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -241,33 +179,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:netherite_boots",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -293,33 +206,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:netherite_sword",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -345,7 +233,8 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
                   }
                 }
               }
@@ -371,7 +260,30 @@
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
+                    "tier": 3,
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:water_bucket",
+          "weight": 5,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
                   }
                 }
               }
@@ -380,24 +292,126 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:trident",
-          "weight": 1,
+          "name": "minecraft:oxidized_cut_copper",
+          "weight": 8,
           "functions": [
             {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 25.0,
-                "max": 35.0
-              },
-              "options": "#minecraft:on_random_loot"
+              "function": "minecraft:set_count",
+              "count": 8
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:max_stack_size": 8,
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:snowball",
+          "weight": 5,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 16
             },
             {
               "function": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
-                    "tier": 3
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:lead",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:shears",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_boots",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:oak_boat",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:trial_key",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
                   }
                 }
               }
