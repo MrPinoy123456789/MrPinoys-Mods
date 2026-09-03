@@ -21,6 +21,16 @@
             {
               "function": "minecraft:enchant_with_levels",
               "levels": 15
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
             }
           ]
         },
@@ -35,6 +45,16 @@
                 "type": "minecraft:uniform",
                 "min": 1.0,
                 "max": 2.0
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
               }
             }
           ]

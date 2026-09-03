@@ -5,8 +5,20 @@
       "rolls": 1,
       "entries": [
         {
-          "type": "minecraft:loot_table",
-          "name": "pocketdungeons:chests/tier_3_ominous"
+          "type": "minecraft:item",
+          "name": "minecraft:bow",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -15,11 +27,11 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:heart_of_the_sea",
+          "name": "minecraft:arrow",
           "functions": [
             {
               "function": "minecraft:set_count",
-              "count": 1
+              "count": 12
             },
             {
               "function": "minecraft:set_components",
@@ -40,11 +52,32 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:trident",
+          "name": "minecraft:spyglass",
           "functions": [
             {
-              "function": "minecraft:enchant_with_levels",
-              "levels": 25
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bread",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 4
             },
             {
               "function": "minecraft:set_components",

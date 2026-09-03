@@ -5,22 +5,9 @@
       "rolls": 1,
       "entries": [
         {
-          "type": "minecraft:loot_table",
-          "name": "pocketdungeons:chests/tier_3_ominous"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
           "type": "minecraft:item",
-          "name": "minecraft:heart_of_the_sea",
+          "name": "minecraft:water_bucket",
           "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 1
-            },
             {
               "function": "minecraft:set_components",
               "components": {
@@ -40,11 +27,32 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:trident",
+          "name": "minecraft:lava_bucket",
           "functions": [
             {
-              "function": "minecraft:enchant_with_levels",
-              "levels": 25
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bread",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 4
             },
             {
               "function": "minecraft:set_components",

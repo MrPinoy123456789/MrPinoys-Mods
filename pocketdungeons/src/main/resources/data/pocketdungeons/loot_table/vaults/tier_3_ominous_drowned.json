@@ -20,6 +20,16 @@
             {
               "function": "minecraft:set_count",
               "count": 1
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
             }
           ]
         }
@@ -35,6 +45,16 @@
             {
               "function": "minecraft:enchant_with_levels",
               "levels": 30
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
             }
           ]
         }
