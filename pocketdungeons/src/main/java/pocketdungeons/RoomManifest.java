@@ -247,6 +247,38 @@ final class RoomManifest {
         return queryAnyRotation(requiredMask, role, null);
     }
 
+    /**
+     * M47 (SITUATIONS_SPEC 6.6 step 3): as
+     * {@link #queryAnyRotation(int, String, String)}, additionally filtered to
+     * rooms this floor can currently solve.
+     *
+     * <p>A room is kept when its {@code requires} is a <strong>subset</strong>
+     * of {@code available}, not when it merely intersects it. 6.1's wording
+     * ("at least one of which") reads as an intersection and 6.6 overrides it
+     * explicitly: "the filter checks that {@code requires} is a subset of
+     * {@code available}, not that it intersects". A room asking for water and
+     * redstone needs both.
+     *
+     * <p>An empty {@code requires} always passes, which is most of the room
+     * library, so on today's catalogue this overload returns exactly what the
+     * three-argument form does.
+     *
+     * @param available the tags reachable strictly before this cell: the bag's
+     *                  seed ({@link BagTags#seed}) plus the {@code provides} of
+     *                  every cell at a smaller root distance. Null reads as
+     *                  empty, which is the Pilgrim case.
+     */
+    List<Match> queryAnyRotation(int requiredMask, String role, String theme, Set<String> available) {
+        Set<String> have = available == null ? Set.of() : available;
+        List<Match> out = new ArrayList<>();
+        for (Match match : queryAnyRotation(requiredMask, role, theme)) {
+            if (have.containsAll(match.entry().meta.requires)) {
+                out.add(match);
+            }
+        }
+        return out;
+    }
+
     private static boolean matchesTheme(List<String> roomThemes, String requested) {
         if (requested == null) {
             return true;
