@@ -81,6 +81,16 @@ final class RitualListener {
 
         BlockPos pos = hit.getBlockPos();
 
+        // M46 (spec 11.11): the ender chest is the one container that reaches
+        // across dimensions, which makes it the obvious way around the scarcity
+        // the bag creates: a player with netherite in their ender chest could
+        // otherwise take it into a run from inside the room. The block stays
+        // where it is and stays a decoration; it just does not open in here.
+        if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                && level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+            return InteractionResult.FAIL;
+        }
+
         // M2 T2.2: the room's permission mask, ahead of everything else below --
         // a denied container open or a denied placement must never fall through
         // to the ritual or to vanilla's own handling of the block. Positional
