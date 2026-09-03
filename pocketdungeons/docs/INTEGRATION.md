@@ -138,6 +138,12 @@ documentation of existing behaviour, not a new contract.
 | `minDepth` | int | `0` | Earliest depth (cells from the entrance) this room may appear |
 | `maxPerDungeon` | int | `-1` | `-1` is unlimited; otherwise a hard cap per generated dungeon |
 | `processors` | string | none | Id of a `processor_list` — see M1; a typo here is rejected at load rather than silently ignored |
+| `content` | string | none | Situation id dispatched by `RoomContent` at stamp time |
+| `tier` | int | `1` | Minimum loot tier at which this room may appear |
+| `provides` | string[] | `[]` (empty) | Tool tags this room guarantees to make available. Closed vocabulary, see §2.2 |
+| `requires` | string[] | `[]` (empty) | Tool tags at least one cell before this one must have provided. Closed vocabulary, see §2.2 |
+| `pressure` | string | none | `local`, `omen` or absent. Informational: the selector uses it to space pressure rooms apart |
+| `access` | string | `open` | `open` (exits reachable without engaging) or `gated` (must be solved to pass). Any other value is rejected at load |
 
 ### 2.1 Validation rules, and their failures verbatim
 
@@ -165,6 +171,7 @@ down, the other rooms still load. The exact messages a validator will see
 | `footprint` present but not a 2-element array | `footprint must be a 2-element array [x,z]` |
 | `roles` missing or not an array | `roles must be a JSON array of strings` |
 | `roles` is an empty array | `roles array must not be empty` |
+| `access` is neither `open` nor `gated` | `room <template>: access must be "open" or "gated", not "<value>"` |
 | `template` does not resolve to a loaded structure | `template not found: <template>` |
 | `processors` names a processor list that is not loaded | `processor list not found: <processors>` |
 | A door jigsaw is not on any cell edge | `door jigsaw at <pos> is not on a cell edge` |
