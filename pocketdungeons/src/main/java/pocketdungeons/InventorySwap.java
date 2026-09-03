@@ -379,6 +379,7 @@ final class InventorySwap {
     private static void enterVoid(MinecraftServer server, DungeonLog log, ServerPlayer player) {
         PlayerSlots slots = new PlayerSlots(player);
         List<ItemStack> survival = snapshotPlayer(player, slots);
+        LostAndFound.write(server, player, LostAndFound.ENTERING, survival);
         log.setStash(player.getUUID(), new StashRecord(true, survival));
         clear(slots);
         applyKeystoneItem(server, log, player);
@@ -398,6 +399,9 @@ final class InventorySwap {
                                   StashRecord stash) {
         PlayerSlots slots = new PlayerSlots(player);
         List<ItemStack> voidInventory = snapshotPlayer(player, slots);
+        // The pre-restore safety net of spec 11.10: what is about to be
+        // replaced goes on disk before the replacement starts.
+        LostAndFound.write(server, player, LostAndFound.LEAVING, voidInventory);
         RunLifecycle.deliverVoidInventory(server, player, voidInventory);
         clear(slots);
         ItemStack overflow = restore(slots, stash.backup());
