@@ -120,13 +120,30 @@ catalogue tracks, and it touches each one once.
    the ones in the tree; if they are not, the move changed something and must be
    fixed before the wave opens.
 
-6. **`RoomSpec` builder additions the catalogue needs.** The current builder
-   carries `chests`, `spawns`, `spawner`, `exitPad`, `decor`, `palette`. Add
-   `window(...)` for the spec 4 readable-from-the-doorway rule (an iron bar or
-   glass panel in a named wall at eye height, bedrock backed), since all four
-   template milestones need it and none of them may add it later without
-   touching a foreign file. Nothing else speculative: a template agent that
-   needs another primitive writes it inside its own `decor` lambda.
+6. **The window band, in the geometry contract rather than in `RoomSpec`.**
+   Revision 2 planned a `RoomSpec.window(...)` builder for spec 4's
+   readable-from-the-doorway rule. The catalogue audit killed it and the code
+   agrees: cells tile at 16 and each template owns its full footprint including
+   its own wall ring, so between two interiors there are two wall blocks, one
+   per cell (`BedrockEnvelope`'s javadoc calls this "the neighbour's own wall
+   column"). A template carving glass at its x=15 looks into the neighbour's
+   stone at x=16, and no template knows its neighbour. A per-template window
+   primitive compiles, looks right in isolation, and is a blank wall in play.
+
+   The window has to be punched symmetrically by the shell stamper, the way
+   doorways already are: `RoomGeometry` gains `WINDOW_MIN`, `WINDOW_MAX` and
+   `WINDOW_Y` constants placing a 4 wide by 1 tall band at eye height centred on
+   the existing 2 by 3 doorway lane, and `RoomBuilder` cuts the union of doorway
+   and band in one pass where it already cuts the doorway. A face with no
+   connected neighbour keeps its solid wall and bedrock ring. The material is a
+   `dungeon_room` field, `window`, with values `bars`, `glass`, `tinted_glass`
+   or `none`, defaulting to `bars`. `RoomSpec` gets no window method at all:
+   authors choose the material in JSON and the shell does the placement.
+
+   **The risk to check first:** `DoorMask` derives masks from authored openings.
+   If widening the opening changes what it infers, every existing template stops
+   matching and the whole room library silently breaks. Verify before touching
+   the shell, and keep the band out of the range the mask reader inspects.
 
 7. **`InventorySwap` stub and its hooks.** A new `InventorySwap` class with
    `reconcileAll(MinecraftServer)` and `reconcile(ServerPlayer)` that do nothing.
@@ -341,7 +358,8 @@ downstream of it.
 
 **Owns:** `TraversalSpecs.java`,
 `dungeon_room/{chasm,flooded_hall,thicket,powder_snow_field,ice_run}.json`,
-`trial_spawner/cave_spider_*`, `trial_spawner/breeze_*`.
+and the cave spider and breeze spawner configs, which M52 authors on its behalf
+(see M52's spawner directory note).
 
 Chasm, Flooded Hall, Thicket, Powder Snow Field, Ice Run. Three are pure
 template; Thicket and Ice Run need a spawner config. Flooded Hall's drowned go
@@ -374,8 +392,15 @@ before writing the other seven.
 
 ### M52: Knowledge, combat variety, and the clear gate (spec 4.3, 4.4, 6.4)
 
-**Owns:** `KnowledgeSpecs.java`, its `dungeon_room/*.json`, `trial_spawner/**`
-for the 4.4 table, `TrialContent.java`.
+**Owns:** `KnowledgeSpecs.java`, its `dungeon_room/*.json`, the whole of
+`trial_spawner/**`, and `TrialContent.java`.
+
+**Spawner directory ownership.** M50 (cave spider, breeze) and M53 (Hold the
+Plate, Barred Vault) both need spawner configs and neither may write that
+directory. M52 owns it and authors every config in the round, including theirs.
+The two of them specify what they need in their handoff and M52 ships it. This
+is the audit's catch: revision 2's matrix gave the same paths to M50 and M52 and
+gave M53 none at all.
 
 Bazaar, Don't Look, The Herd, Deep Dark Landing, Elder's Chamber, Blaze Loft,
 Infested Wall, plus the seven combat variants of 4.4 which are pure
@@ -588,6 +613,7 @@ Blank means no milestone in that wave touches it.
 |---|---|---|---|---|---|
 | `RoomContent.java` | own | | | | |
 | `RoomTemplateGenerator.java`, `RoomSpec.java` | own | | | | |
+| `RoomBuilder.java`, `RoomGeometry.java` | own (window band) | | | M55, M56 | |
 | `DungeonRoomMeta.java`, `SituationTags.java` | own | | | | |
 | `build.gradle.kts`, `fabric.mod.json`, `src/gametest/**` | | M46B | | | |
 | `DungeonLog.java` | | M46 | | | |
@@ -605,9 +631,10 @@ Blank means no milestone in that wave touches it.
 | `TraversalSpecs.java` | stub | | M50 | M58 | |
 | `MechanismSpecs.java` | stub | | M51 | M58 | |
 | `KnowledgeSpecs.java`, `TrialContent.java` | stub | | M52 | M58 | |
+| `trial_spawner/**` | | | M52 owns the directory; M50 and M53 request additions through it | | |
 | `PressureSpecs.java`, `SpurSpecs.java` | stub | | M53 | M58 | |
 | `StagingSpecs.java` | stub | | | M55 | |
-| `RoomBuilder.java`, `BedrockEnvelope.java` | | | | M55, M56 | |
+| `BedrockEnvelope.java` | | | | M55, M56 | |
 | `InstanceRegistry.java` | | | | M57 | |
 | `Situations.java` | registry | | M50 to M53 registrations | M58 | |
 | `CubeStation.java`, `Keystone.java` | | | | | M59 |
@@ -615,6 +642,53 @@ Blank means no milestone in that wave touches it.
 `Situations.java` is the one file four wave-2 agents all append to. Each adds a
 single registration line in its own family's block: a two-line merge conflict at
 worst, resolved by the integrator.
+
+---
+
+## 7b. The catalogue audit, and what it blocks
+
+`SITUATIONS_AUDIT.md` is the per-situation table the four template milestones
+implement from: 34 situations, each with its tier, `access`, `provides`,
+`requires`, `pressure`, build cost, three-way verdict, item-return verdict and
+window material. Read it instead of re-deriving any of that from the spec.
+
+Its findings changed this plan in three places (M45 step 6, M52's ownership of
+the whole spawner directory, and the matrix rows for `RoomBuilder` and
+`RoomGeometry`) and it carries four results that block or reshape wave 2. None
+of them is a reason to delay wave 1.
+
+1. **Frame Lock is not buildable as specified.** A comparator on an item frame
+   reads the item's rotation, 1 to 8, and zero when empty. It cannot tell a
+   copper ingot from a prismarine shard, so "frame the right item and the door
+   opens" has no vanilla mechanism, and Frame Lock and Rotation Lock are
+   currently the same room. It has to be rebuilt as a hopper item filter. This
+   is M51's largest single item and its handoff must carry the rebuild, not the
+   spec's description.
+2. **There are no pits.** `BedrockEnvelope` stamps a sub-floor bedrock layer at
+   y=-1, so any hole is one block deep. Gallery's pit, Chasm's channel,
+   Collapsing Bridge's pit, Blaze Loft's lava below and Slime Pit's name all
+   assume depth the cell cannot have. Lava at y=0 is the general substitute and
+   fixes several three-way failures at the same time. Every template milestone
+   needs this in its handoff or four agents will independently author holes that
+   the shell fills in.
+3. **Two gated rooms are impassable for the Pilgrim bag.** Infested Wall and
+   Elder's Chamber both assume a pickaxe, and only Mason carries one. There is
+   no `pickaxe` tag in the vocabulary, so M47's Pilgrim test cannot catch it as
+   a `requires` violation: it presents in play as a stuck player. The audit's
+   fixes are a stone pickaxe in a pot for Infested Wall and a gravel or dirt
+   soft wall for Elder's Chamber. Either way M52 owns both.
+4. **Four gated rooms break the item-return rule** (Frame Lock, Flow Puzzle,
+   Gallery, Barred Vault), which is the rule M47's boolean `available` model
+   depends on. The audit gives each a two-block fix, all of the same shape: a
+   hopper through the wall into a chest past the door. These are not optional
+   polish; each one silently over-promises solvability to the generator.
+
+Three spec corrections fall out of it and should be made before the templates
+ship: 6.4 credits Frame Lock with Item Plate's return chest; Plate Pair's
+"`lead` or `mob`" is an OR that 6.6's subset model cannot express and should
+collapse to a single leashable-`mob` tag; and `trial_key` is consumable, which
+the boolean model cannot represent, so it may appear in `provides` and in spur
+`requires` but never in a critical-path `requires`.
 
 ---
 
