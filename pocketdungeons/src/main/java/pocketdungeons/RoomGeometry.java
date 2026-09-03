@@ -17,6 +17,31 @@ final class RoomGeometry {
     static final int DOOR_MAX = 8;
     static final int DOOR_HEIGHT = 3;
 
+    /**
+     * M45: the window band, the doorway lane widened by one block on each side
+     * at eye height and nowhere else. Cells tile at 16 and each owns its whole
+     * footprint, so two adjacent interiors are separated by two wall blocks,
+     * one per cell. A window is therefore not something a single template can
+     * author: both cells have to open the same band or the player looks at the
+     * neighbour's stone. Making it a canonical slot beside the doorway is what
+     * makes the two sides line up by construction rather than by agreement,
+     * exactly as {@link #DOOR_MIN} already does for the doorway.
+     *
+     * <p>The band is {@code WINDOW_MIN..WINDOW_MAX} at {@link #WINDOW_Y} only,
+     * which is one row of four. Its middle two columns are the doorway's own,
+     * so the opening a connected pair actually carries is the union of the two:
+     * a 2 wide by 3 tall doorway with a 1 tall band of light either side of it.
+     * Whatever fills the band must be placed in the outer columns alone, or it
+     * plugs the doorway at eye height.
+     */
+    static final int WINDOW_MIN = DOOR_MIN - 1;
+
+    /** The far end of the window band. See {@link #WINDOW_MIN}. */
+    static final int WINDOW_MAX = DOOR_MAX + 1;
+
+    /** Eye height, so the band reads from a standing player's own line of sight. */
+    static final int WINDOW_Y = 2;
+
     private RoomGeometry() {}
 
     /** Which wall a coordinate on the cell boundary sits on. */

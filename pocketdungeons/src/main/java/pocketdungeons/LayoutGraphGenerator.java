@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -111,7 +112,12 @@ public final class LayoutGraphGenerator {
 
         Map<PlanCell, String> roles = assignRoles(rng, criticalPath, cells, openEdges);
 
-        return new DungeonShape(seed, cells, openEdges, entrance, terminal, criticalPath, roles);
+        // M45 (spec 6.6): the one BFS from the entrance. validate() reads it back
+        // off the shape for its reachability check rather than walking again.
+        Map<PlanCell, Integer> distances = rootDistances(cells, openEdges, entrance);
+
+        return new DungeonShape(seed, cells, openEdges, entrance, terminal, criticalPath, roles,
+                distances);
     }
 
     /**
@@ -152,10 +158,11 @@ public final class LayoutGraphGenerator {
         } else if (!cells.contains(shape.terminal())) {
             problems.add("terminal cell " + shape.terminal() + " is not in cells()");
         } else {
-            Map<PlanCell, List<PlanCell>> adjacency = buildAdjacency(cells, edges);
-            Set<PlanCell> reachable = bfs(shape.entrance(), adjacency);
+            // M45: the shape carries the BFS depths this check used to compute
+            // for itself, so a cell missing from the map is an unreachable cell.
+            Map<PlanCell, Integer> reachable = shape.rootDistances();
             for (PlanCell cell : cells) {
-                if (!reachable.contains(cell)) {
+                if (!reachable.containsKey(cell)) {
                     problems.add("cell " + cell + " is unreachable from entrance");
                 }
             }
@@ -596,20 +603,39 @@ public final class LayoutGraphGenerator {
         return adjacency;
     }
 
-    private static Set<PlanCell> bfs(PlanCell start, Map<PlanCell, List<PlanCell>> adjacency) {
-        Set<PlanCell> visited = new HashSet<>();
+    /**
+     * M45 (SITUATIONS_SPEC 6.6): BFS depth from the entrance for every cell
+     * reachable from it. The entrance is 0; a cell reachable by two routes gets
+     * the shorter, which is what a breadth-first walk produces without being
+     * asked. A cell absent from the returned map is unreachable, which is the
+     * reachability check {@link #validate} performs.
+     *
+     * <p>This is the graph's only walk from the entrance. It runs once, in
+     * {@link #generate}, and the result rides on the {@link DungeonShape}.
+     *
+     * @return an insertion-ordered map, shallowest cell first
+     */
+    static Map<PlanCell, Integer> rootDistances(Set<PlanCell> cells, Set<PlanEdge> edges,
+                                                PlanCell entrance) {
+        Map<PlanCell, Integer> depths = new LinkedHashMap<>();
+        if (entrance == null || !cells.contains(entrance)) {
+            return depths;
+        }
+        Map<PlanCell, List<PlanCell>> adjacency = buildAdjacency(cells, edges);
         Deque<PlanCell> queue = new ArrayDeque<>();
-        visited.add(start);
-        queue.add(start);
+        depths.put(entrance, 0);
+        queue.add(entrance);
         while (!queue.isEmpty()) {
             PlanCell current = queue.poll();
+            int next = depths.get(current) + 1;
             for (PlanCell neighbor : adjacency.getOrDefault(current, List.of())) {
-                if (visited.add(neighbor)) {
+                if (!depths.containsKey(neighbor)) {
+                    depths.put(neighbor, next);
                     queue.add(neighbor);
                 }
             }
         }
-        return visited;
+        return depths;
     }
 
     /** Simple mutable integer holder for recursion bookkeeping. */

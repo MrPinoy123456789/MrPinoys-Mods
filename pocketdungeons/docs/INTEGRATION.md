@@ -138,6 +138,13 @@ documentation of existing behaviour, not a new contract.
 | `minDepth` | int | `0` | Earliest depth (cells from the entrance) this room may appear |
 | `maxPerDungeon` | int | `-1` | `-1` is unlimited; otherwise a hard cap per generated dungeon |
 | `processors` | string | none | Id of a `processor_list` — see M1; a typo here is rejected at load rather than silently ignored |
+| `content` | string | none | Situation id dispatched by `RoomContent` at stamp time |
+| `tier` | int | `1` | Minimum loot tier at which this room may appear |
+| `provides` | string[] | `[]` (empty) | Tool tags this room guarantees to make available. Closed vocabulary, see §2.2 |
+| `requires` | string[] | `[]` (empty) | Tool tags at least one cell before this one must have provided. Closed vocabulary, see §2.2 |
+| `pressure` | string | none | `local`, `omen` or absent. Informational: the selector uses it to space pressure rooms apart |
+| `access` | string | `open` | `open` (exits reachable without engaging) or `gated` (must be solved to pass). Any other value is rejected at load |
+| `window` | string | `bars` | What fills the window band beside this room's doorways: `bars`, `glass`, `tinted_glass` or `none`. Any other value is rejected at load. The band itself is fixed geometry, see §2.3 |
 
 ### 2.1 Validation rules, and their failures verbatim
 
@@ -165,12 +172,51 @@ down, the other rooms still load. The exact messages a validator will see
 | `footprint` present but not a 2-element array | `footprint must be a 2-element array [x,z]` |
 | `roles` missing or not an array | `roles must be a JSON array of strings` |
 | `roles` is an empty array | `roles array must not be empty` |
+| `access` is neither `open` nor `gated` | `room <template>: access must be "open" or "gated", not "<value>"` |
+| `window` is not one of the four materials | `room <template>: window must be one of "bars", "glass", "tinted_glass" or "none", not "<value>"` |
 | `template` does not resolve to a loaded structure | `template not found: <template>` |
 | `processors` names a processor list that is not loaded | `processor list not found: <processors>` |
 | A door jigsaw is not on any cell edge | `door jigsaw at <pos> is not on a cell edge` |
 | A door jigsaw's facing does not match the wall it sits on | `door jigsaw at <pos> faces <facing> but sits on <edge> wall` |
 | A wall has some doors but is missing a canonical slot | `partial door on <edge> wall: missing jigsaw at <pos>` |
 | A canonical door slot exists but faces the wrong way | `partial door on <edge> wall: jigsaw at <pos> faces <facing>` |
+
+### 2.2 The situation tag vocabulary
+
+`provides` and `requires` draw from a closed list of fifteen tags. Anything
+else is rejected at load with the room and the offending tag named:
+
+`blocks`, `water`, `lava`, `lead`, `mob`, `trial_key`, `boat`, `gold`,
+`snowballs`, `shears`, `pearl`, `wind_charge`, `milk`, `bow`, `redstone`
+
+These are tags, not item ids. `water` is satisfied by a water bucket or by a
+bag carrying one; `mob` is satisfied by an upstream room that spawns a
+leashable mob, or by a party of two or more. The list is closed on purpose: an
+open one cannot be tested, and a typo in a datapack would otherwise make a room
+silently unselectable with nothing to say so.
+
+
+### 2.3 The window band
+
+Cells tile at 16 and each template owns its whole 16 by 16 footprint, wall ring
+included, so two adjacent room interiors are separated by **two** wall blocks,
+one per cell. A window is therefore not something one template can author: a
+template that carved glass out of its own wall would be looking at the
+neighbour's stone.
+
+The band is fixed geometry instead, in the same lane as the doorway: the
+doorway's 2 wide by 3 tall opening, widened by one block on each side at eye
+height only. Both cells of a connected pair open the same four columns by
+construction, the way they already agree on the doorway. A wall with no
+connected neighbour keeps its solid wall and its bedrock ring.
+
+`window` names the material for the two outer columns only. The middle two are
+the doorway's own and stay open, or the band would plug a doorway the player
+walks through. `none` leaves the wall solid.
+
+Door masks are unaffected: `RoomManifest` derives a room's mask from its
+`pocketdungeons:door` jigsaws at the canonical door slots, and the band sits
+outside that range and carries no jigsaws.
 
 ---
 

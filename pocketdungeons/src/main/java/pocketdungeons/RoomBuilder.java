@@ -47,6 +47,11 @@ final class RoomBuilder {
     private static final int DOOR_MAX = RoomGeometry.DOOR_MAX;
     private static final int DOOR_HEIGHT = RoomGeometry.DOOR_HEIGHT;
 
+    /** M45: the window band beside the doorway. See {@link RoomGeometry#WINDOW_MIN}. */
+    private static final int WINDOW_MIN = RoomGeometry.WINDOW_MIN;
+    private static final int WINDOW_MAX = RoomGeometry.WINDOW_MAX;
+    private static final int WINDOW_Y = RoomGeometry.WINDOW_Y;
+
     /**
      * No neighbour updates while stamping -- section 8.3's update suppression --
      * and no drops. {@code UPDATE_SUPPRESS_DROPS} alone only suppresses a
@@ -328,6 +333,71 @@ final class RoomBuilder {
                 };
                 set(level, pos, state);
             }
+        }
+    }
+
+    // ---- M45: the window band ------------------------------------------------
+
+    /**
+     * The block a {@code dungeon_room}'s {@code window} value names.
+     *
+     * @return the fill for the band, or {@code null} for
+     *         {@link DungeonRoomMeta#WINDOW_NONE} and for any value that never
+     *         reached the parser, which is the caller's cue to leave the wall
+     *         alone
+     */
+    static BlockState windowMaterial(String window) {
+        if (window == null) {
+            return Blocks.IRON_BARS.defaultBlockState();
+        }
+        return switch (window) {
+            case DungeonRoomMeta.WINDOW_BARS -> Blocks.IRON_BARS.defaultBlockState();
+            case DungeonRoomMeta.WINDOW_GLASS -> Blocks.GLASS_PANE.defaultBlockState();
+            case DungeonRoomMeta.WINDOW_TINTED_GLASS -> Blocks.TINTED_GLASS.defaultBlockState();
+            default -> null;
+        };
+    }
+
+    /**
+     * M45: opens one cell's half of the window band on {@code wall} and fills
+     * it with {@code material}.
+     *
+     * <p>Only the two outer columns are touched. The middle two are the
+     * doorway's own, and putting bars in them at eye height would plug a
+     * doorway the player is meant to walk through: the opening a connected pair
+     * carries is the union of the doorway and the band, cut once, not two
+     * features overwriting each other. A wall with no doorway must not be
+     * given a band at all, because the block on the other side of it is the
+     * bedrock envelope, not a neighbour.
+     *
+     * <p>The neighbour punches its own facing wall at the same coordinates and
+     * the two line up, exactly as {@link #openDoor} already relies on.
+     *
+     * <p><strong>Nothing calls this yet.</strong> The one call site that can is
+     * the pass that already knows an edge is open and which two cells share it,
+     * which is where {@code ConnectorStamper} is driven from; wiring it is the
+     * template milestone's job, not this seam's.
+     *
+     * @param material the fill, from {@link #windowMaterial}; {@code null}
+     *                 leaves the wall solid
+     */
+    static void windowBand(ServerLevel level, BlockPos cellOrigin, Direction wall,
+                           BlockState material) {
+        if (material == null) {
+            return;
+        }
+        for (int i = WINDOW_MIN; i <= WINDOW_MAX; i++) {
+            if (i >= DOOR_MIN && i <= DOOR_MAX) {
+                continue;
+            }
+            BlockPos pos = switch (wall) {
+                case NORTH -> cellOrigin.offset(i, WINDOW_Y, 0);
+                case SOUTH -> cellOrigin.offset(i, WINDOW_Y, CELL - 1);
+                case WEST -> cellOrigin.offset(0, WINDOW_Y, i);
+                case EAST -> cellOrigin.offset(CELL - 1, WINDOW_Y, i);
+                default -> throw new IllegalArgumentException("wall must be horizontal: " + wall);
+            };
+            set(level, pos, material);
         }
     }
 

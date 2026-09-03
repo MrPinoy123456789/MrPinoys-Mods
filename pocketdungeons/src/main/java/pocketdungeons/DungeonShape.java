@@ -21,6 +21,14 @@ import java.util.Set;
  * {@code boss_chamber} template exists, so the terminal critical-path cell
  * uses {@code "exit"}, matching what M0/M1's fixed dungeon already does.
  * Every cell must have exactly one role and appear as a key in this map.
+ *
+ * <p>{@code rootDistances} is M45's addition (SITUATIONS_SPEC 6.6): the BFS
+ * depth of every cell from the entrance, which is the root. The entrance is 0,
+ * its neighbours are 1, and a cell reachable two ways takes the shorter of the
+ * two, which is what BFS gives for nothing. It is computed once, by the same
+ * walk {@link LayoutGraphGenerator#validate} used to do its reachability check
+ * with, and a cell missing from the map is a cell unreachable from the
+ * entrance. Nothing reads it yet; M47's solvability pass is the consumer.
  */
 record DungeonShape(
         long seed,
@@ -29,7 +37,20 @@ record DungeonShape(
         PlanCell entrance,
         PlanCell terminal,
         List<PlanCell> criticalPath,
-        Map<PlanCell, String> roles) {
+        Map<PlanCell, String> roles,
+        Map<PlanCell, Integer> rootDistances) {
+
+    /**
+     * The pre-M45 shape, for callers that have no distances of their own to
+     * pass: they are derived from {@code cells}, {@code openEdges} and
+     * {@code entrance} by the one BFS in
+     * {@link LayoutGraphGenerator#rootDistances}.
+     */
+    DungeonShape(long seed, Set<PlanCell> cells, Set<PlanEdge> openEdges, PlanCell entrance,
+                 PlanCell terminal, List<PlanCell> criticalPath, Map<PlanCell, String> roles) {
+        this(seed, cells, openEdges, entrance, terminal, criticalPath, roles,
+                LayoutGraphGenerator.rootDistances(cells, openEdges, entrance));
+    }
 
     /**
      * A rigid rotation of the whole shape around the entrance -- always
@@ -76,8 +97,16 @@ record DungeonShape(
             rotatedRoles.put(xform.apply(entry.getKey()), entry.getValue());
         }
 
+        // A rotation relabels cells and moves nothing else, so every distance
+        // is carried over rather than re-walked.
+        Map<PlanCell, Integer> rotatedDistances = new java.util.LinkedHashMap<>();
+        for (Map.Entry<PlanCell, Integer> entry : rootDistances.entrySet()) {
+            rotatedDistances.put(xform.apply(entry.getKey()), entry.getValue());
+        }
+
         return new DungeonShape(seed, rotatedCells, rotatedEdges,
-                xform.apply(entrance), xform.apply(terminal), rotatedPath, rotatedRoles);
+                xform.apply(entrance), xform.apply(terminal), rotatedPath, rotatedRoles,
+                rotatedDistances);
     }
 
     private static PlanCell rotateCell(PlanCell cell, int quarterTurns) {

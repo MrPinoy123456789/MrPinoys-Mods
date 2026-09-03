@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -269,6 +270,39 @@ final class InstanceRecord {
      * the outer run's clock: time in the pocket is time the outer run counts.
      */
     long deadlineTick;
+
+    // ---- M45: the situations round's seam ------------------------------------
+    // All four are unused today. They are declared here so wave 3 can consume
+    // them without opening this file while wave 2 is still running.
+
+    /**
+     * The run's accumulated omen. M48 is the only consumer: it is what pressure
+     * rooms raise and what the run's difficulty reads back. In memory like
+     * every other field on this record; it dies with the instance.
+     */
+    int omen;
+
+    /**
+     * The situation ids this floor's cells resolved to, in the order they were
+     * resolved. M59 reads it for the compass Cube recipe and the completion
+     * line. Mutable and empty for a run whose cells carried no situation, which
+     * is every run today.
+     */
+    final List<String> situations = new ArrayList<>();
+
+    /**
+     * Which floor of the run this instance is, counting the first from 0. M57
+     * is the consumer: a multi-floor run needs to know which one it is
+     * standing on to pick the next.
+     */
+    int floorIndex;
+
+    /**
+     * Floor corner of this floor's hidden staging room, or {@code null} while
+     * the floor has none. M55 is the consumer; it stamps the room and records
+     * where it put it.
+     */
+    BlockPos stagingCellOrigin;
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {

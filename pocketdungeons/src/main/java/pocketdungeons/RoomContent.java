@@ -108,6 +108,14 @@ final class RoomContent {
                 spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                         profile.lootTier(), affixes, null);
             }
+        } else if (Situations.apply(level, cellOrigin, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content)) {
+            // M45: the one branch this class carries for the situation
+            // catalogue. A registered handler owns its cell outright, so the
+            // role switch below never sees it. No handler is registered today,
+            // and Situations.apply returns false for a null or unknown content
+            // id, so every cell still falls through to the role dispatch.
+            return null;
         } else if (role != null) {
             switch (role) {
                 case "encounter" -> {

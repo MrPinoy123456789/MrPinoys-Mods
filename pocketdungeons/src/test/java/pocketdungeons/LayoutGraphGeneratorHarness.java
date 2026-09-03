@@ -97,8 +97,111 @@ final class LayoutGraphGeneratorHarness {
         System.out.println("unreachable cell => " + p2);
 
         verifyLivePlayProfile();
+        verifyRootDistances();
 
         System.out.println("\n=== Verification complete ===");
+    }
+
+    /**
+     * M45 (SITUATIONS_SPEC 6.6): the BFS root distances the shape now carries.
+     *
+     * <p>Three invariants, over 500 generated shapes:
+     *
+     * <ul>
+     *   <li>the entrance is 0, because it is the root;</li>
+     *   <li>every cell in the shape has a distance, which is the same statement
+     *       as {@code validate}'s reachability check now that the check reads
+     *       this map;</li>
+     *   <li>no open edge spans a depth gap wider than one, which is what makes
+     *       a loop cell take the shorter of its two routes rather than
+     *       whichever the walk happened to meet first, and the i-th
+     *       critical-path cell is never deeper than i. In a loopless shape it
+     *       is exactly i: the critical path is then the only route there.</li>
+     * </ul>
+     */
+    private static void verifyRootDistances() {
+        System.out.println("\n=== Root distances (spec 6.6, 500 seeds) ===");
+
+        int checked = 0;
+        int maxDepth = 0;
+        int trees = 0;
+        int shortcuts = 0;
+
+        for (long seed = 0; seed < 500; seed++) {
+            DungeonShape shape = LayoutGraphGenerator.generate(seed, 5, 8, 0.35, 0.15);
+            if (shape == null) {
+                continue;
+            }
+            checked++;
+            Map<PlanCell, Integer> depths = shape.rootDistances();
+
+            Integer entranceDepth = depths.get(shape.entrance());
+            if (entranceDepth == null || entranceDepth != 0) {
+                throw new AssertionError("seed " + seed + ": entrance depth is " + entranceDepth
+                        + ", expected 0");
+            }
+
+            for (PlanCell cell : shape.cells()) {
+                if (!depths.containsKey(cell)) {
+                    throw new AssertionError("seed " + seed + ": cell " + cell + " has no distance");
+                }
+            }
+            for (PlanCell cell : depths.keySet()) {
+                if (!shape.cells().contains(cell)) {
+                    throw new AssertionError("seed " + seed + ": distance for absent cell " + cell);
+                }
+            }
+
+            // A tree (no loop edges) has exactly one route to each cell, so the
+            // critical path is the shortest path and its depths climb by one.
+            // A shape carrying loop edges may be shortcut: the i-th path cell is
+            // then reachable in fewer than i steps, never more. Both cases are
+            // the same statement, depth(path[i]) <= i, tightened to equality
+            // where a shortcut cannot exist.
+            boolean isTree = shape.openEdges().size() == shape.cells().size() - 1;
+            if (isTree) {
+                trees++;
+            }
+            List<PlanCell> path = shape.criticalPath();
+            for (int i = 0; i < path.size(); i++) {
+                int depth = depths.get(path.get(i));
+                if (depth > i) {
+                    throw new AssertionError("seed " + seed + ": critical path cell " + i
+                            + " is at depth " + depth + ", further than its own path index");
+                }
+                if (isTree && depth != i) {
+                    throw new AssertionError("seed " + seed + ": loopless critical path cell " + i
+                            + " is at depth " + depth + ", expected " + i);
+                }
+                if (depth < i) {
+                    shortcuts++;
+                }
+            }
+
+            // Every open edge joins cells whose depths differ by at most one.
+            // A loop edge that closed back on a shallower cell is exactly the
+            // case where the walk must have taken the shorter of two routes:
+            // a depth-first order would leave a gap of more than one here.
+            for (PlanEdge edge : shape.openEdges()) {
+                int da = depths.get(edge.a());
+                int db = depths.get(edge.b());
+                if (Math.abs(da - db) > 1) {
+                    throw new AssertionError("seed " + seed + ": edge " + edge
+                            + " spans depths " + da + " and " + db);
+                }
+            }
+
+            for (int depth : depths.values()) {
+                maxDepth = Math.max(maxDepth, depth);
+            }
+        }
+
+        System.out.println(checked + " shapes (" + trees + " loopless), deepest cell at "
+                + maxDepth + ", critical-path cells a loop reached sooner: " + shortcuts);
+        if (trees == 0 || trees == checked) {
+            throw new AssertionError("the sweep saw only " + (trees == 0 ? "looped" : "loopless")
+                    + " shapes, so one half of the distance invariant went unchecked");
+        }
     }
 
     /**

@@ -23,6 +23,15 @@ public class DungeonRoomMetaTest {
         testThemeAbsent();
         testThemePresent();
         testThemeEmptyArray();
+        testSituationFieldDefaults();
+        testTierRoundTrip();
+        testProvidesRoundTrip();
+        testRequiresRoundTrip();
+        testPressureRoundTrip();
+        testAccessRoundTrip();
+        testAccessRejectsUnknownValue();
+        testWindowRoundTrip();
+        testWindowRejectsUnknownValue();
         System.out.println("DungeonRoomMetaTest passed");
     }
 
@@ -125,6 +134,143 @@ public class DungeonRoomMetaTest {
         check(meta.minDepth, 2, "minDepth");
         check(meta.maxPerDungeon, 3, "maxPerDungeon");
         check(meta.processors, "pocketdungeons:theme_deepslate", "processors");
+    }
+
+    // ---- M45: the spec 6.1 situation fields ---------------------------------
+
+    /** Every room shipped today omits all five; the defaults are what they get. */
+    private static void testSituationFieldDefaults() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"]
+                }
+                """);
+        check(meta.tier, 1, "default tier");
+        check(meta.provides.isEmpty(), true, "default provides is empty");
+        check(meta.requires.isEmpty(), true, "default requires is empty");
+        check(meta.pressure, null, "default pressure");
+        check(meta.access, "open", "default access");
+        check(meta.window, "bars", "default window");
+    }
+
+    private static void testTierRoundTrip() {
+        check(parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "tier": 3
+                }
+                """).tier, 3, "tier");
+    }
+
+    private static void testProvidesRoundTrip() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "provides": ["water", "blocks"]
+                }
+                """);
+        check(meta.provides.size(), 2, "provides size");
+        check(meta.provides.get(0), "water", "provides[0]");
+        check(meta.provides.get(1), "blocks", "provides[1]");
+    }
+
+    private static void testRequiresRoundTrip() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "requires": ["lead"]
+                }
+                """);
+        check(meta.requires.size(), 1, "requires size");
+        check(meta.requires.get(0), "lead", "requires[0]");
+    }
+
+    private static void testPressureRoundTrip() {
+        check(parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "pressure": "omen"
+                }
+                """).pressure, "omen", "pressure");
+    }
+
+    private static void testAccessRoundTrip() {
+        check(parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "access": "gated"
+                }
+                """).access, "gated", "gated access");
+        check(parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "access": "open"
+                }
+                """).access, "open", "explicit open access");
+    }
+
+    /**
+     * A third value is a typo, and reading it as {@code open} would quietly
+     * un-gate a room the author meant to gate.
+     */
+    private static void testAccessRejectsUnknownValue() {
+        boolean threw = false;
+        try {
+            parse("""
+                    {
+                      "template": "pocketdungeons:rooms/hall_straight",
+                      "roles": ["corridor"],
+                      "access": "locked"
+                    }
+                    """);
+        } catch (IllegalArgumentException e) {
+            threw = true;
+            if (!e.getMessage().contains("hall_straight") || !e.getMessage().contains("locked")) {
+                throw new AssertionError(
+                        "access rejection must name the room and the bad value: " + e.getMessage());
+            }
+        }
+        check(threw, true, "bad access value throws");
+    }
+
+    private static void testWindowRoundTrip() {
+        check(parseWindow("glass"), "glass", "glass window");
+        check(parseWindow("tinted_glass"), "tinted_glass", "tinted glass window");
+        check(parseWindow("none"), "none", "no window");
+        check(parseWindow("bars"), "bars", "explicit bars window");
+    }
+
+    /** A misspelt material that fell back to bars would blind a room on purpose. */
+    private static void testWindowRejectsUnknownValue() {
+        boolean threw = false;
+        try {
+            parseWindow("stained_glass");
+        } catch (IllegalArgumentException e) {
+            threw = true;
+            if (!e.getMessage().contains("hall_straight")
+                    || !e.getMessage().contains("stained_glass")) {
+                throw new AssertionError(
+                        "window rejection must name the room and the bad value: " + e.getMessage());
+            }
+        }
+        check(threw, true, "bad window value throws");
+    }
+
+    private static String parseWindow(String value) {
+        return parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"],
+                  "window": "%s"
+                }
+                """.formatted(value)).window;
     }
 
     private static DungeonRoomMeta parse(String json) {
