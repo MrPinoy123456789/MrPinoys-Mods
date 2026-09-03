@@ -117,6 +117,62 @@ bite.
     anything that replaces wall must clear back to `RoomBuilder.WALL` or it
     punches a hole in the seal.
 
+18. **Gametests work here, and vanilla's own mock player is enough. No Carpet.**
+    Verified against fabric-api 0.156.0+26.2, Loom 1.17.20 and the 26.2 jar, by
+    running the harness, not from memory.
+
+    - `fabric-gametest-api-v1` version `4.0.21+4a7fa0819e` is already a
+      dependency of the `fabric-api` artifact this project depends on, so no new
+      version property and no new repository are needed. It is the annotation
+      based rewrite: `net.fabricmc.fabric.api.gametest.v1.GameTest` on a method
+      that is public, non-static, returns `void` and takes one
+      `GameTestHelper`. `TestAnnotationLocator` finds those methods on classes
+      listed under the `fabric-gametest` entrypoint key, and derives the test id
+      from class and method name, so nothing is registered by hand. Watch the id
+      shape: `placesABlock` on `HarnessGameTest` becomes
+      `harness_game_test_places_ablock`, not `..._places_a_block`.
+    - Loom 1.17 already knows how to do all of the wiring:
+      `fabricApi.configureTests { }` (extension `fabricApi`, interface
+      `net.fabricmc.loom.api.fabricapi.FabricApiExtension`) creates the
+      `gametest` source set, a `gameTest` run config that inherits `server` and
+      sets `-Dfabric-api.gametest`, a run directory at `build/run/gameTest`, and
+      the `runGameTest` task, and makes `check` depend on it. Two settings
+      matter here: `createSourceSet = true`, and `enableClientGameTests = false`
+      because this mod is server-side only. Note the knock-on: `build` runs
+      `check`, so `./gradlew build` now boots a headless test server for about
+      fifteen seconds. That is intended.
+    - `getEula()` and `getClearRunDirectory()` on `GameTestSettings` only take
+      effect in the client gametest branch, so with client tests off they are
+      no-ops. The server path needs no `eula.txt`: the gametest module's
+      `MainMixin` forces `Eula.hasAgreedToEULA` true whenever the
+      `fabric-api.gametest` property is set.
+    - The entrypoint lives in `src/gametest/resources/fabric.mod.json` under its
+      own mod id, `pocketdungeons-gametest`, which depends on `pocketdungeons`.
+      That is deliberate. Putting the `fabric-gametest` entrypoint in the main
+      `fabric.mod.json` would ship a dangling entrypoint class name in the
+      release jar. Verified with `unzip -l`: the built jar contains zero
+      gametest entries and its `fabric.mod.json` is byte for byte what it was
+      before this milestone.
+    - **Vanilla can carry the player scenarios.** `GameTestHelper` has three
+      mock players; only `makeMockServerPlayerInLevel()` is a real one. It
+      builds a `ServerPlayer` over an `EmbeddedChannel` backed `Connection` and
+      calls `PlayerList.placeNewPlayer`, which is the same code path a real
+      login takes. A probe run confirmed, in one test: the player appears in the
+      `PlayerList` (count 1), `teleportTo(nether, ...)` returns true and moves
+      it across dimensions, `PlayerList.respawn` returns a *different*
+      `ServerPlayer` instance back in the overworld at full health, and
+      `PlayerList.remove` takes the count back to 0. That is the whole "enters a
+      dimension, disconnects, reconnects, dies, respawns" surface, with no third
+      party dependency. Carpet is not needed and should not be added.
+    - Two catches on that mock player. First, it is
+      `@Deprecated(forRemoval = true)` in 26.2, verified in the constant pool
+      with `javap -v`, and it is the only helper that registers a player with
+      the `PlayerList`, so there is currently no supported replacement. Use it,
+      annotate the call site `@SuppressWarnings("removal")`, and expect to
+      revisit on the next version bump. Second, `player.die(source)` alone
+      leaves `isDeadOrDying()` false because it does not zero health. Drive the
+      health down first if a scenario depends on the death actually taking.
+
 ---
 
 ## Carried-forward lessons (all still current)
