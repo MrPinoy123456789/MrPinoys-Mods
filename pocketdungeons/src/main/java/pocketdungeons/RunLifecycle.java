@@ -1147,14 +1147,22 @@ final class RunLifecycle {
         DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
         DoorMask.Direction farWall = CellGeometry.opposite(entranceDir);
 
+        // M57: increment the floor index. The staging room about to be stamped
+        // is for the next floor (or the safe room return).
+        record.floorIndex++;
+
+        // M57: determine whether this is a safe staging room. Every
+        // floorsPerSafeVisit floors, the staging room offers a safe door
+        // instead of three dungeon doors.
+        boolean isSafeStaging = record.floorIndex % PocketDungeonsConfig.floorsPerSafeVisit() == 0;
+        record.safeStaging = isSafeStaging;
+
         // M48: the omen finish table replaces the clock (spec 5.2, 5.4). No
         // omen sources are wired yet, so the sum is 0 and every completion
-        // lands in the low band: +1 level, three chests. Future milestones
-        // that wire dwell, sensors, shrieks and the bargain accumulate the
-        // per-floor omen and pass the sum here. floorsPerSafeVisit is 1 until
-        // the multi-floor loop (spec 12) lands.
-        int omenSum = 0;
-        int band = Omen.band(omenSum, 1);
+        // lands in the low band. M57: the band denominator is now
+        // floorsPerSafeVisit instead of hardcoded 1.
+        int omenSum = record.omen;
+        int band = Omen.band(omenSum, PocketDungeonsConfig.floorsPerSafeVisit());
         int chests = Omen.chestCount(band);
         record.rewardChests = chests;
 
@@ -1170,13 +1178,11 @@ final class RunLifecycle {
         // Sealed door in the far wall, behind the chests.
         CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
 
-        // M55: the old staging room is cleared to a liminal cell, the same way
-        // the old room cell used to be. The safe room is already despawned, so
-        // there is no blob to capture or move. A new staging room is stamped
-        // behind the terminal's far wall for the next door choice.
+        // M55: the old staging room is cleared to a liminal cell. The safe
+        // room is already despawned, so there is no blob to capture or move.
+        // A new staging room is stamped behind the terminal's far wall for
+        // the next door choice.
         BlockPos oldStagingOrigin = record.stagingCellOrigin;
-        // Clear the post-selection doors and furniture from the old staging room
-        // before blanking it.
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
         RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
@@ -1189,9 +1195,7 @@ final class RunLifecycle {
         }
         RoomBuilder.buildLiminalCell(level, oldStagingOrigin, backDoors);
 
-        // Stamp a new staging room in the cell behind the far wall. Its ee
-        // side (opposite farWall) faces back toward the terminal cell; its
-        // MM side (farWall) is where the next dungeon's selector doors go.
+        // Stamp a new staging room in the cell behind the far wall.
         BlockPos newStagingOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
         level.setChunkForced(newStagingOrigin.getX() >> 4, newStagingOrigin.getZ() >> 4, true);
         Instances.stampStagingRoom(level, newStagingOrigin, farWall);
@@ -1206,23 +1210,142 @@ final class RunLifecycle {
 
         // Summon fresh screens at the new staging room.
         record.selectedStep = 0;
-        DungeonScreen.summonDoor(level, newStagingOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
+        if (isSafeStaging) {
+            // M57: safe staging room. The door screen shows a safe-return
+            // prompt instead of a dungeon preview.
+            DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
+                    Component.literal("Safe Room").withStyle(ChatFormatting.GREEN));
+        } else {
+            DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
+                    DungeonScreen.idleContent(level, record.owner));
+        }
         DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
         DungeonScreen.summonTracker(level, newStagingOrigin, farWall,
                 DungeonScreen.trackerContent(level.getServer(), record.owner));
         record.awaitingDoorChoice = true;
 
-        // The bedrock envelope for the new staging room. farWall stays
-        // reserved (no bedrock) since a real connection will exist there once
-        // a door is chosen, and ee stays reserved because the terminal cell
-        // is right there.
+        // The bedrock envelope for the new staging room.
         BedrockEnvelope.applyToCell(level, newStagingOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
 
-        // Open the sealed door into the staging room. The terminal cell's
-        // lodestones mark the end of the run; the chests are here, the door
-        // to the staging room now stands open behind them, and walking
-        // through it is the player's to do.
+        // Open the sealed door into the staging room.
         CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
+    }
+
+    /**
+     * (M57) Returns the party to the safe room from a safe staging room.
+     * The dungeon and staging room are purged, the safe room is re-stamped
+     * from RoomStore, and the party is teleported into it. The floor index
+     * is reset to 0 for the next visit.
+     */
+    static boolean returnToSafe(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return false;
+        }
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
+                || !record.safeStaging) {
+            return false;
+        }
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return false;
+        }
+
+        // Release the current layout's force-load tickets.
+        if (record.layout != null) {
+            Instances.forceLoad(level, record.layout.geometry().chunks(), false);
+        }
+
+        // Clear every cell of the current dungeon and the staging room.
+        List<BlockPos> keepCells = new java.util.ArrayList<>();
+        // The safe room is not loaded, so there is nothing to keep.
+        if (record.layout != null) {
+            for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
+                Instances.clearCellSync(level, cellOrigin, keepCells);
+            }
+        }
+        if (record.stagingCellOrigin != null) {
+            Instances.clearCellSync(level, record.stagingCellOrigin, keepCells);
+            level.setChunkForced(record.stagingCellOrigin.getX() >> 4,
+                    record.stagingCellOrigin.getZ() >> 4, false);
+        }
+
+        // Re-stamp the safe room at the slot origin from RoomStore.
+        BlockPos safeOrigin = record.origin;
+        DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
+        level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, true);
+        Instances.stampSafeRoom(level, server, record.owner, safeOrigin);
+        record.roomCellOrigin = safeOrigin;
+        record.roomDungeonDoor = dungeonDir;
+
+        // Stamp a fresh staging room adjacent to the safe room.
+        BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
+        level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, true);
+        Instances.stampStagingRoom(level, stagingOrigin, dungeonDir);
+        RoomBuilder.openDoor(level, safeOrigin, Instances.mcDirection(dungeonDir));
+        BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
+        record.stagingCellOrigin = stagingOrigin;
+
+        // Summon fresh screens at the staging room.
+        DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
+                DungeonScreen.idleContent(level, record.owner));
+        DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
+                DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
+                DungeonScreen.trackerContent(level.getServer(), record.owner));
+
+        // Re-arm the bag chest at the safe room.
+        Instances.clearBagChest(level, safeOrigin);
+        Instances.placeBagChestForParty(level, server, record);
+
+        // Teleport every member into the safe room.
+        BlockPos roomCentre = safeOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer inside = server.getPlayerList().getPlayer(member);
+            if (inside == null) {
+                continue;
+            }
+            if (inside.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                Instances.teleport(server, inside, PocketDungeonsMod.DUNGEON_LEVEL,
+                        net.minecraft.world.phys.Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+            }
+        }
+
+        // Close the timer and clear trial omen from every member.
+        if (record.timer != null) {
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer inside = server.getPlayerList().getPlayer(member);
+                if (inside != null) {
+                    record.timer.removePlayer(inside);
+                    Instances.clearTrialOmen(inside);
+                }
+            }
+            record.timer.close();
+            record.timer = null;
+        }
+
+        // Reset the record for the next visit.
+        record.layout = Instances.lobbyLayout(safeOrigin);
+        record.affixes = EnumSet.noneOf(Affix.class);
+        record.theme = null;
+        record.awaitingDoorChoice = true;
+        record.chosenStep = 0;
+        record.freeDoor = false;
+        record.selectedStep = 0;
+        record.floorIndex = 0;
+        record.safeStaging = false;
+        record.omen = 0;
+        record.previewPlan = null;
+        record.previewCellOrigin = null;
+        record.clearPreviousRunState();
+
+        player.sendSystemMessage(Component.literal(
+                "You return to the safe room. The dungeon closes behind you.")
+                .withStyle(ChatFormatting.GREEN));
+        Chime.roomRelocated(player);
+        return true;
     }
 
     /**

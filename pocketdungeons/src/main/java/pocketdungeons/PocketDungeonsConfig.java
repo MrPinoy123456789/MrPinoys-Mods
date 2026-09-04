@@ -51,6 +51,8 @@ public final class PocketDungeonsConfig {
     private static int planAttemptBudget = 16;
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
+    // M57: how many floors the party plays before a safe staging room appears.
+    private static int floorsPerSafeVisit = 3;
 
     // ---- ritual -------------------------------------------------------------
     private static boolean ritualEnabled = true;
@@ -383,6 +385,11 @@ public final class PocketDungeonsConfig {
         return planAttemptBudget;
     }
 
+    /** M57: floors before a safe staging room appears. */
+    public static int floorsPerSafeVisit() {
+        return floorsPerSafeVisit;
+    }
+
     public static int maxGridSpan() {
         return maxGridSpan;
     }
@@ -611,6 +618,7 @@ public final class PocketDungeonsConfig {
         planAttemptBudget = 16;
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
+        floorsPerSafeVisit = 3;
 
         ritualEnabled = true;
 
@@ -708,6 +716,7 @@ public final class PocketDungeonsConfig {
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
         planAttemptBudget = readInt(root, "planAttemptBudget", 16, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
+        floorsPerSafeVisit = readInt(root, "floorsPerSafeVisit", 3, v -> v >= 1, "must be >= 1");
         // PD-46: a path longer than the grid can possibly hold (its cell
         // count can never exceed maxGridSpan squared, whatever shape the
         // generator folds it into) fails RoomSelector.validate for every
@@ -1004,6 +1013,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("planAttemptBudget", 16);
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);
+        root.addProperty("floorsPerSafeVisit", 3);
 
         root.addProperty("ritualEnabled", true);
 

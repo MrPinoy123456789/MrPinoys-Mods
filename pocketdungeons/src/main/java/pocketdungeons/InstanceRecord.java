@@ -345,6 +345,14 @@ final class InstanceRecord {
      */
     BlockPos previewCellOrigin;
 
+    /**
+     * (M57) Whether the current staging room is a safe staging room, which
+     * offers a safe door back to the safe room instead of three dungeon
+     * doors. Set by {@code completeDungeon} when {@code floorIndex + 1} is a
+     * multiple of {@code floorsPerSafeVisit}.
+     */
+    boolean safeStaging;
+
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);

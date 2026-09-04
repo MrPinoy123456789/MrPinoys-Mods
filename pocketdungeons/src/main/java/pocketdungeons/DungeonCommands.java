@@ -377,9 +377,14 @@ final class DungeonCommands {
      * {@code /dungeon choose <1|2|3>}: settle a completed run's door offer.
      * Player-only, not op-gated. M56: this now does preview then commit in
      * sequence, since the command bypasses the physical door-click and
-     * lever-pull flow.
+     * lever-pull flow. M57: in a safe staging room, the command returns
+     * the party to the safe room regardless of the step argument.
      */
     private static int choose(ServerPlayer player, int step) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record != null && record.safeStaging) {
+            return RunLifecycle.returnToSafe(player) ? 1 : 0;
+        }
         if (!RunLifecycle.previewDoor(player, step)) {
             return 0;
         }

@@ -1240,6 +1240,9 @@ final class Instances {
         record.awaitingDoorChoice = true;
         record.chosenStep = 0;
         record.freeDoor = false;
+        record.floorIndex = 0;
+        record.safeStaging = false;
+        record.omen = 0;
         record.clearPreviousRunState();
     }
 

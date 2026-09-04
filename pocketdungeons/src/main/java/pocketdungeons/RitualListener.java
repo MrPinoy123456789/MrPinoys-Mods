@@ -328,6 +328,16 @@ final class RitualListener {
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record != null && record.awaitingDoorChoice && record.stagingCellOrigin != null) {
+            // M57: if this is a safe staging room, the lever returns the
+            // party to the safe room. No door selection or preview needed.
+            if (record.safeStaging) {
+                if (RunLifecycle.returnToSafe(player)) {
+                    Chime.runComplete(player);
+                    return InteractionResult.SUCCESS_SERVER;
+                }
+                Chime.refused(player);
+                return InteractionResult.SUCCESS_SERVER;
+            }
             if (record.selectedStep == 0) {
                 Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
@@ -371,6 +381,11 @@ final class RitualListener {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
                 || record.stagingCellOrigin == null) {
+            return;
+        }
+        // M57: in a safe staging room, there are no dungeon doors to select.
+        // The lever alone returns the party to the safe room.
+        if (record.safeStaging) {
             return;
         }
         int previous = record.selectedStep;
