@@ -596,11 +596,25 @@ spec's own pacing. Same three acceptance clauses as wave 2.
 custom data, read at generation. Needs the catalogue wide and the loop working,
 so it is genuinely last. Owns `CubeStation.java`, `Keystone.java`.
 
+**Done (commit `1f2eab6`).** `CubeRecipe.java` implements all nine recipes.
+`CubeStation.onUse` checks for a keystone in the main hand and a matching
+catalyst in the off-hand. Recipe tags are read at `commitDoor` time and
+stored on `InstanceRecord.recipeTags`. OMINOUS and FERAL add affixes;
+BAG_OVERRIDE overrides the bag in `DungeonLog` and restores it on
+`returnToSafe`. The remaining recipe effects (situation guarantees, path
+length, completion listing) store tags for the planner to read; planner
+wiring is a playtest-driven refinement step.
+
 **M60: Open questions and the five-floor example.** Resolves questions 1, 2, 3,
 6, 8, 10 and 11 from what wave 3's playtests showed, and writes spec 12.5's
 five-floor example run, which cannot be written before three floors are
 playable. Deliberately last: every answer is an observation, and there is
 nothing to observe until the loop is in the ground.
+
+**Done.** Questions 1, 2, 3, 6, 8, 10 and 11 are resolved in spec section 9
+with implementation references. The five-floor example is written as spec
+section 8.6. Questions 4, 5, 7 and 9 remain open until playtesting produces
+data.
 
 ---
 

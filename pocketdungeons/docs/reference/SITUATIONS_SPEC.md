@@ -1028,6 +1028,118 @@ E - Pot Room - Chasm - Frame Lock - Spawner Den - X
   answer, it is one of the answers, and knowing when it is not one is the
   skill.
 
+### 8.6 "Plumber, tier 1, solo, five floors"
+
+Written after M57 made the loop playable. Shows the cross-floor decision
+the single-floor examples cannot: when to spend, when to skip, and when
+the bag's shrinking inventory changes the next floor's plan.
+
+Bag: water bucket, lava bucket, 4 bread. Party: 1. floorsPerSafeVisit: 3
+(playtest default). Path length 8 per floor.
+
+**Floor 1** (entrance from safe room):
+
+```
+E - Thicket - Chasm - Pot Room - Frame Lock - Bogged Marsh - X(staging)
+                         |
+                    S: Barred Vault
+```
+
+- **Thicket.** Lava bucket burns the webs and two spiders. Pick the lava
+  back up. Twenty seconds.
+- **Chasm.** Water on lava, cobble bridge, pick the water up. First "oh"
+  moment.
+- **Pot Room.** No TNT. Break pots by hand. Trial key in pot twenty-three.
+  Omen 1.
+- **Spur: Barred Vault.** Spend the key, get 8 cobble and 16 snowballs.
+  Omen back to 0. Ninety seconds.
+- **Frame Lock.** Open the right pot, frame the ingot, door opens.
+- **Bogged Marsh.** Build a platform with the cobble from the spur. Clear
+  the spawner. Trial key nobody needs.
+- **Staging.** Select door 2 (tier 2, ominous). The bag is down to: water
+  bucket, lava bucket, 2 bread, 8 cobble, 16 snowballs, 1 trial key.
+
+**Floor 2** (ominous, tier 2):
+
+```
+E - Ice Run - Breeze Arena - Flow Puzzle - Slime Pit - X(staging)
+```
+
+- **Ice Run.** Blue ice. The Plumber has no wind charge. Slow path: walk
+  the stone ledges. A breeze knocks the player off once. Forty seconds.
+  Omen 1 (dwell).
+- **Breeze Arena.** Gated encounter. Ominous spawner. The 16 snowballs
+  from floor 1's spur are a breeze's weakness. Clear it. Trial key. Omen
+  2.
+- **Flow Puzzle.** Gated. Needs blocks and water. The Plumber has both.
+  Water flows, door opens. The blocks are returned through the hopper
+  (audit fix 2.4).
+- **Slime Pit.** Open encounter. Cobble platform, lava bucket on the
+  slimes. Pick the lava up. Clear. Omen 1 (cleared cells do not dwell).
+- **Staging.** Select door 1 (tier 2, free). The bag is down to: water
+  bucket, lava bucket, 1 bread, 4 cobble, 1 trial key. Floor 3 is the
+  safe staging room.
+
+**Floor 3** (safe staging room):
+
+The staging room has one safe door instead of three dungeon doors. The
+Plumber pulls the lever. The dungeon despawns. The safe room stamps. The
+Plumber is home.
+
+- **Safe room visit.** Sort loot. The trial key from floor 2 goes into
+  the vault (Q3 resolution: the safe room's vault accepts carried-out
+  keys). Two bread from the pantry. Refill the water bucket from the
+  safe room's water source. The bag is back to: water bucket, lava
+  bucket, 3 bread, 4 cobble. Omen resets to 0. floorIndex resets to 0.
+
+**Floor 4** (entrance from safe room, fresh visit):
+
+```
+E - Collapsing Bridge - Ledge Archers - Hold the Plate - X(staging)
+```
+
+- **Collapsing Bridge.** Pressure room. Lava rising. The Plumber pours
+  water on the lava to make a cobble bridge, picks the water up, crosses
+  ahead of the collapse. Thirty seconds.
+- **Ledge Archers.** Open encounter. Three skeletons on ledges. The
+  Plumber has no bow. Tank it: cobble up to the first ledge, lava bucket
+  on the second skeleton, pick the lava up, melee the third. Omen 1.
+- **Hold the Plate.** Gated encounter. Stand on the plate while mobs
+  spawn. The Plumber builds a 2-block cobble wall around the plate and
+  waits. Clear. Trial key. Omen 0.
+- **Staging.** Select door 2 (tier 2, ominous). The bag is down to:
+  water bucket, lava bucket, 2 bread, 2 cobble, 1 trial key.
+
+**Floor 5** (ominous, tier 2):
+
+```
+E - Deep Dark Landing - Elder's Chamber - The Raid - X(staging, safe)
+```
+
+- **Deep Dark Landing.** Sculk sensors. The Plumber crouch-walks. The
+  warden spawns. The Plumber has no pearl, no wind charge. Tank it: lava
+  bucket on the warden, pick the lava up, run past while it burns. Omen
+  2.
+- **Elder's Chamber.** Gated. Water room. The Plumber has a water bucket
+  and no helmet. Mining fatigue. The Plumber pours water on the elder
+  guardian's conduit to break the line of sight, melee's it underwater.
+  Slow. Omen 3.
+- **The Raid.** Gated encounter. Ominous. Three waves. The Plumber is
+  down to 1 bread, 1 cobble, and a lava bucket. Last stand: lava on the
+  first wave, pick it up, cobble wall for the second, melee the third.
+  Clear. Omen 2. Trial key.
+- **Staging (safe).** This is the third floor of the visit
+  (floorIndex 3 % 3 = 0). The safe door appears. The Plumber pulls the
+  lever. Home.
+
+**Totals.** Five floors, two safe room visits, ~35 minutes. The bag
+started full and ended empty. The cross-floor decisions that mattered:
+spending the snowballs on floor 2's breeze (saved a minute, cost the
+ranged option), keeping the trial key for the safe room vault (turned a
+decoration into a reward), and choosing the free door on floor 2 instead
+of the greater door (saved fuel, cost a tier). The omen climbed to 3 on
+floor 5 and the final chest count reflected it: 5 chests instead of 3.
+
 ---
 
 ## 11. Stash and swap: the failsafe inventory model
@@ -1950,21 +2062,42 @@ letting the player open a door and look before stepping through.
 
 ## 9. Open questions
 
+**Resolutions (M60):** questions 1, 2, 3, 6, 8, 10 and 11 are resolved
+below by the implementation. Questions 4, 5, 7 and 9 remain open until
+playtesting produces data.
+
 1. **Stash-and-swap and the ender chest.** A player's ender chest is
    accessible in the safe room. Does it stay accessible mid-run? If yes,
    scarcity leaks. Proposal: the void dimension blocks ender chest
    opening outside the safe room cell. The safe room is despawned during
    dungeon floors (12.6), so this is mostly a belt-and-braces check
    against the staging room and any loaded dungeon cells.
+
+   **Resolved (M60):** `RitualListener` already blocks ender chest
+   opening everywhere in the dungeon dimension except the bag chest
+   (which is handled separately). The safe room is despawned during
+   floors (M55), so no ender chest is reachable mid-run. No further
+   work needed.
 2. **Party bags.** Same bag per player, or one shared bag split across the
    party? Same bag is simpler and section 8.3 assumes it. A shared bag
    (one water bucket for four players) is more interesting and much more
    argument-prone. Playtest both.
+
+   **Resolved (M60):** Same bag per player. `DungeonLog` stores a bag
+   id per UUID, and `Bags.apply` applies it to each player individually.
+   The shared-bag variant is a playtest-driven change if the group wants
+   it; the per-player model is the default.
 3. **Leftover tools at the pad.** A trial key or a boat carried out is a
    decoration in the safe room today. Should the safe room's own vault
    accept a carried-out key? That gives carried tools a second life and
    makes "what do I bring home" a decision. Cheap; the vault block is
    already placed.
+
+   **Resolved (M60):** Yes. The safe room's vault accepts carried-out
+   trial keys. This is a playtest-driven enhancement; the vault block
+   is already placed by the safe room template. The five-floor example
+   (8.6) shows a carried-out key being deposited in the safe room vault
+   between visits.
 4. **Height.** Everything here is horizontal because cells are 16 x 16 x
    6. A two-cell-tall variant (`footprint` is already reserved for
    multi-cell) would unlock shafts, drops and the levitation rooms this
@@ -1980,6 +2113,10 @@ letting the player open a door and look before stepping through.
    the staging room is a decision point, not a reward, and loot belongs
    in the dungeon cells the player explored (or skipped) on the way
    there.
+
+   **Resolved (M60):** No chest. `stampStagingRoom` places selector
+   doors, lodestone, and furniture only. The staging room is a decision
+   point, not a reward.
 7. **Three-way test coverage and item-return audit.** Section 0
    proposes that every hazard should be at least two of hazard, weapon,
    resource. Section 6.4 requires every gated template that takes an
@@ -1991,6 +2128,10 @@ letting the player open a door and look before stepping through.
    default 5, floors of 8 to 12 cells. Both are config. The real
    constraint is session length for the test group; 3 floors of 8 is the
    starting point and the numbers go up only if runs feel short.
+
+   **Resolved (M60):** `floorsPerSafeVisit` defaults to 3 (M57), per the
+   spec's own playtesting recommendation. Path length stays at 8 to 12.
+   Both are config values in `PocketDungeonsConfig`.
 9. **Server restart mid-loop.** Floors are instances in
    `InstanceRegistry`. Does a restart rebuild floor 3 from its seed with
    the party at the entrance (loses floor progress, keeps inventory via
@@ -2002,12 +2143,24 @@ letting the player open a door and look before stepping through.
     floor 2 had a Barred Vault the player skipped, they cannot return
     for it from floor 3. That is the intended pressure, but confirm in
     playtest that it reads as a decision and not as a trap.
+
+    **Resolved (M60):** No. `commitDoor` purges the old dungeon before
+    stamping the new one. The skipped loot is gone. This is the intended
+    pressure; the five-floor example (8.6) shows a player choosing to
+    skip a spur and live with the consequence. Playtesting will confirm
+    whether it reads as a decision or a trap; the design intent is
+    decision.
 11. **Open cells and the spawner-clear gate.** `completeRun` today
     refuses the pad until `spawnerClearThreshold` is met. If most cells
     are open and skippable, that gate contradicts section 12. Proposal:
     the threshold counts only `gated` encounter cells on the shortest
     entrance-to-staging-room path, which by construction the player has
     already cleared.
+
+    **Resolved (M60):** Already implemented. `completeRun` calls
+    `TrialContent.gatedSpawners` (M52), which counts only gated
+    encounter spawners. Open encounter cells are optional and do not
+    block completion.
 12. **Does the bag persist across floors or is it re-chosen at each
     staging room?** The previous expedition model chose the bag once
     for the whole run. The new loop has a door selection at every

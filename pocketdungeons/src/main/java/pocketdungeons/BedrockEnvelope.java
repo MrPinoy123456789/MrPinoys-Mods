@@ -159,6 +159,12 @@ final class BedrockEnvelope {
      * Clears the bedrock ring on one face of a cell, so a dungeon
      * connection can pass through. Called when a door is chosen and
      * the dungeon is about to be stamped behind the lobby.
+     *
+     * <p>Skips {@code y=0} (the floor level): the adjacent cell owns that
+     * row, and clearing it would destroy the neighbour's floor, leaving a
+     * gap the player falls through. The sub-floor bedrock ({@code y=-1})
+     * and the wall/ceiling bedrock ({@code y=1..CEILING_Y+1}) are cleared
+     * as before.
      */
     static void clearFace(ServerLevel level, BlockPos o, DoorMask.Direction face) {
         BlockState air = Blocks.AIR.defaultBlockState();
@@ -166,22 +172,26 @@ final class BedrockEnvelope {
             case NORTH -> {
                 for (int x = 0; x < CELL; x++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        level.setBlock(o.offset(x, y, -1), air, STAMP_FLAGS);
+                        if (y != 0)
+                            level.setBlock(o.offset(x, y, -1), air, STAMP_FLAGS);
             }
             case SOUTH -> {
                 for (int x = 0; x < CELL; x++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        level.setBlock(o.offset(x, y, CELL), air, STAMP_FLAGS);
+                        if (y != 0)
+                            level.setBlock(o.offset(x, y, CELL), air, STAMP_FLAGS);
             }
             case WEST -> {
                 for (int z = 0; z < CELL; z++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        level.setBlock(o.offset(-1, y, z), air, STAMP_FLAGS);
+                        if (y != 0)
+                            level.setBlock(o.offset(-1, y, z), air, STAMP_FLAGS);
             }
             case EAST -> {
                 for (int z = 0; z < CELL; z++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        level.setBlock(o.offset(CELL, y, z), air, STAMP_FLAGS);
+                        if (y != 0)
+                            level.setBlock(o.offset(CELL, y, z), air, STAMP_FLAGS);
             }
         }
     }
