@@ -3,7 +3,10 @@
   "package": "pocketdungeons.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "CustomClickMixin"
+    "CustomClickMixin",
+    "ResultSlotMixin",
+    "BlockItemPlaceMixin",
+    "ServerExplosionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

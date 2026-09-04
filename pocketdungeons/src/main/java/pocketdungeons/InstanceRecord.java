@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +54,16 @@ final class InstanceRecord {
 
     /** Cells any member has stood in, for the boss bar's room-visited counter. */
     final Set<PlanCell> visited = new HashSet<>();
+
+    /**
+     * (M48) Block positions placed by a player inside a dungeon cell, mapped
+     * to the placer's UUID, for the "right tool for the job" exemption: a
+     * player can always break what they placed, regardless of tool. In-memory,
+     * dies with the instance. Populated by {@code BlockItemPlaceMixin} on
+     * every successful block placement in the dungeon dimension. Only the
+     * placer is exempt; other party members still need the correct tool.
+     */
+    final Map<BlockPos, UUID> playerPlaced = new HashMap<>();
 
     /**
      * M22: cells whose every trial spawner has been cleared (each at
@@ -238,6 +249,22 @@ final class InstanceRecord {
      * out is {@code Instances} purging it outright when the owner opens a new run.
      */
     boolean lingering;
+
+    /**
+     * True from the moment {@code InstanceTeardown.purge} or
+     * {@code retireOrPurge} starts tearing this record down, before either
+     * one ejects a single member. Both methods eject online members through
+     * the exact same {@code Instances.eject} path a voluntary exit uses.
+     * Without this flag, {@link RunLifecycle#isReenterable} would see every
+     * other field on a record mid-teardown still reading as a perfectly
+     * ordinary, reenterable run ({@code lingering} is not set until the very
+     * end of {@code retireOrPurge}, and a plain {@code purge} never sets it
+     * at all), and {@link RunLifecycle#reenterableInstance} would offer the
+     * owner a free re-entry into an instance that is seconds away from being
+     * removed from {@code InstanceRegistry.bySlot} entirely.
+     * {@link RunLifecycle#isReenterable} checks this first.
+     */
+    boolean tearingDown;
 
     /**
      * True for a read-only visit instance created when someone visits while the

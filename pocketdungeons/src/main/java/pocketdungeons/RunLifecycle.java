@@ -51,57 +51,6 @@ final class RunLifecycle {
     // ---- the void inventory, on the way out (M46, spec 11.6 and 11.9) ------
 
     /**
-     * Hands everything a player was carrying inside {@code pocketdungeons:void}
-     * to their room, on their way out.
-     *
-     * <p>Called from {@link InventorySwap}'s leaving branch with the 42 slot
-     * snapshot taken a moment earlier, before the live inventory is cleared and
-     * the survival backup restored. Nothing here ever touches that backup, and
-     * nothing here is allowed to throw: a delivery that fails must not take the
-     * survival restore down with it, so the whole body is wrapped and a failure
-     * is a log line. The Lost and Found entry for this same snapshot is already
-     * on disk by the time this runs.
-     *
-     * <p>Destination, in order of preference: a container in the player's own
-     * room cell, then the floor of that room cell, then the player's feet. The
-     * last case is spec 11.6's "if the player has no room, items are dropped at
-     * the player's current position. Nothing is voided silently."
-     */
-    static void deliverVoidInventory(MinecraftServer server, ServerPlayer player,
-                                     List<ItemStack> snapshot) {
-        try {
-            List<ItemStack> carried = new ArrayList<>();
-            for (ItemStack stack : snapshot) {
-                if (!stack.isEmpty()) {
-                    carried.add(stack.copy());
-                }
-            }
-            if (carried.isEmpty()) {
-                return;
-            }
-            warnAboutUntagged(player, carried);
-
-            ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-            BlockPos roomOrigin = record == null ? null : record.roomCellOrigin;
-            if (dungeon != null && roomOrigin != null) {
-                deliverToRoom(dungeon, roomOrigin, carried);
-                return;
-            }
-            PocketDungeonsMod.LOG.warn(
-                    "{} left the dungeon with {} stacks and no room to deliver them to; "
-                            + "dropping at their feet",
-                    player.getName().getString(), carried.size());
-            for (ItemStack stack : carried) {
-                player.drop(stack, false);
-            }
-        } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Could not deliver {}'s dungeon inventory to their room",
-                    player.getName().getString(), e);
-        }
-    }
-
-    /**
      * Spec 11.9's belt and braces. Anything in the void inventory that is
      * neither bag loot nor the keystone got there without this mod's
      * involvement, which is the "another mod put a netherite sword in my
@@ -112,8 +61,11 @@ final class RunLifecycle {
      * be legitimate room items the player was holding, and the backup is
      * restored whole either way. The one thing this must never do is put an
      * untagged stack anywhere near the survival restore.
+     *
+     * <p>Package-private so {@link InventorySwap}'s leaving branch can call
+     * it, since the delivery logic lives there.
      */
-    private static void warnAboutUntagged(ServerPlayer player, List<ItemStack> carried) {
+    static void warnAboutUntagged(ServerPlayer player, List<ItemStack> carried) {
         List<ItemStack> strays = InventorySwap.untagged(carried, ItemStack::isEmpty, InventorySwap::isOurs);
         if (strays.isEmpty()) {
             return;
@@ -137,14 +89,27 @@ final class RunLifecycle {
     }
 
     /**
-     * Fills the room's own containers first, then drops whatever is left on the
-     * room floor.
+     * Fills the room's own containers first, then returns whatever did not
+     * fit so the caller can hold it for the player's next entry rather than
+     * dropping it into the dungeon dimension where it can be lost to a
+     * teardown.
      *
      * <p>The scan is the same shape {@code BlacksmithNPC.findSmithingTable}
      * uses: at most ~1500 block reads, once, when somebody walks out of a
      * dungeon.
+     *
+     * <p>PD-65: this method used to drop overflow at the room's pad position
+     * inside the dungeon dimension via {@code Block.popResource}. If the room
+     * was being torn down at the same time (an abandoned lobby purge firing
+     * after "Leave Dungeon"), the floor under that pad position could be
+     * cleared before the item landed, and the item fell into the void and
+     * was destroyed. Returning the leftovers to the caller instead lets
+     * {@link InventorySwap#leaveVoid} hold them as an
+     * {@link InventorySwap.OrphanRecord} and hand them back on the player's
+     * next entry into any dungeon, the same guarantee the overworld
+     * inventory already has through {@link InventorySwap.StashRecord}.
      */
-    private static void deliverToRoom(ServerLevel level, BlockPos roomOrigin, List<ItemStack> carried) {
+    static List<ItemStack> deliverToRoom(ServerLevel level, BlockPos roomOrigin, List<ItemStack> carried) {
         List<Container> containers = new ArrayList<>();
         for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
             for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
@@ -156,13 +121,14 @@ final class RunLifecycle {
                 }
             }
         }
-        BlockPos pad = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        List<ItemStack> leftover = new ArrayList<>();
         for (ItemStack stack : carried) {
             ItemStack remainder = insertInto(containers, stack);
             if (!remainder.isEmpty()) {
-                Block.popResource(level, pad, remainder);
+                leftover.add(remainder);
             }
         }
+        return leftover;
     }
 
     /**
@@ -279,23 +245,42 @@ final class RunLifecycle {
      */
     private static InstanceRecord reenterableInstance(UUID owner) {
         for (InstanceRecord candidate : InstanceRegistry.bySlot.values()) {
-            // A lingering quarry (T2.5) is not re-entered for free -- it is done,
-            // and opening a new run purges it. See enter()'s lingering-quarry check.
-            //
-            // Nor is an instance that has already completed (T2.4): once the
-            // room has moved to the terminal cell, "re-entering" this instance
-            // means dropping the player at a cleared entrance cell with their
-            // room sitting at the far end, which reads as broken even though it
-            // is exactly what a finished run looks like now. A run that is done
-            // is done -- there is nothing left to continue, and the reward room
-            // stays reachable through its own grace window/lingering-quarry
-            // path regardless (T2.5), not through free re-entry.
-            if (!candidate.lingering && !candidate.visitInstance
-                    && candidate.completed.isEmpty() && owner.equals(candidate.owner)) {
+            if (owner.equals(candidate.owner) && isReenterable(candidate)) {
                 return candidate;
             }
         }
         return null;
+    }
+
+    /**
+     * Whether {@code record} is a run its owner could step back into for
+     * free right now, ownership aside. Extracted from
+     * {@link #reenterableInstance} so the filter has one home, used by
+     * {@link #reenterableInstance} (free re-entry search) and
+     * {@code DungeonCommands.abandon} (find the run to abandon).
+     *
+     * <p>A lingering quarry (T2.5) is not re-entered for free: it is done,
+     * and opening a new run purges it. See {@link #enter}'s lingering-quarry
+     * check.
+     *
+     * <p>Nor is an instance that has already completed (T2.4): once the room
+     * has moved to the terminal cell, "re-entering" this instance means
+     * dropping the player at a cleared entrance cell with their room sitting
+     * at the far end, which reads as broken even though it is exactly what a
+     * finished run looks like now. A run that is done is done; there is
+     * nothing left to continue, and the reward room stays reachable through
+     * its own grace window/lingering-quarry path regardless (T2.5), not
+     * through free re-entry.
+     *
+     * <p>Nor is an instance that is tearing down: a purge or retirement
+     * sets {@link InstanceRecord#tearingDown} before ejecting the first
+     * member, so a re-entry search that runs in the same tick does not
+     * offer the owner a way back into an instance that is seconds away
+     * from being removed from {@code InstanceRegistry.bySlot}.
+     */
+    static boolean isReenterable(InstanceRecord record) {
+        return !record.tearingDown && !record.lingering && !record.visitInstance
+                && record.completed.isEmpty();
     }
 
     /**
@@ -641,6 +626,10 @@ final class RunLifecycle {
         // run-scoped mod furniture, not part of the room, and must not bake
         // into the blob either.
         RoomTemplateGenerator.clearFurniture(level, record.roomCellOrigin, record.roomDungeonDoor);
+        // M48: the bag chest is transient furniture too. Clear it before the
+        // capture so it never bakes into the room blob, then re-arm it after,
+        // so an owner who disconnects mid-choice still has it on return.
+        Instances.clearBagChest(level, record.roomCellOrigin);
         RoomStore.capture(level, server, record.owner, record.roomCellOrigin, roomRotation);
         if (record.awaitingDoorChoice) {
             RoomTemplateGenerator.placeSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
@@ -649,6 +638,9 @@ final class RunLifecycle {
         }
         RoomTemplateGenerator.placeFurniture(level, record.roomCellOrigin, record.roomDungeonDoor,
                 record.awaitingDoorChoice);
+        if (record.awaitingDoorChoice) {
+            Instances.placeBagChestForParty(level, server, record);
+        }
 
         // The capture swept every non-frame/armour-stand entity out of the
         // cell, the door screen's text_display included. Bring it back so the
@@ -1000,22 +992,18 @@ final class RunLifecycle {
         boolean late = chests <= 0;
         if (late) {
             // Completed after the clock: the run still counts and still offers a
-            // door, but finishing late costs a couple of levels -- the other way,
+            // door, but finishing late costs a couple of levels, the other way,
             // besides a full timeout, to lose ground. Settled through the same
             // path every other depletion is (Keystones.Outcome.LATE), so the
             // keystoneReturned guard it sets stops a later exit() from
             // overwriting this back to the pre-run level.
-            //
-            // M12: door 1 never depletes, full stop, so a late free-door finish
-            // settles as NO_CHANGE instead, the same exemption expireTimedOut
-            // applies to a free door that runs out the clock entirely.
             //
             // PD-7: a timeout already depleted the keystone once for this run
             // (record.timedOutPenaltyApplied). Applying LATE on top of that
             // would double penalize a player who finishes in overtime after
             // the timeout already fired, so it settles as NO_CHANGE instead.
             Keystones.Outcome outcome;
-            if (record.freeDoor || record.timedOutPenaltyApplied) {
+            if (record.timedOutPenaltyApplied) {
                 outcome = Keystones.Outcome.NO_CHANGE;
             } else {
                 outcome = Keystones.Outcome.LATE;
@@ -1220,6 +1208,10 @@ final class RunLifecycle {
         // the room's new orientation, and clear the previous run's selection.
         record.selectedStep = 0;
         RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall, true);
+        // M48: re-arm the bag chest at the room's new location for the next
+        // door choice, dropping any stale chest first.
+        Instances.clearBagChest(level, newRoomOrigin);
+        Instances.placeBagChestForParty(level, server, record);
         DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
         DungeonScreen.summonTracker(level, newRoomOrigin, farWall,
@@ -1306,28 +1298,101 @@ final class RunLifecycle {
     /**
      * The clock ran out: the keystone is downgraded once, but the dungeon
      * stays open (PD-7) so the owner can still reach a door in overtime.
-     * Depletes the owner alone -- a party member riding along never had a
-     * key at stake -- and messages them wherever they are.
      *
-     * <p>M12: a free-door run settles as {@code NO_CHANGE} instead. Door 1
-     * never depletes, and a generous flat clock ({@code door1TimerSeconds})
-     * running out is not a different kind of failure than any other way a
-     * free door ends.
+     * <p>Thin wrapper over {@link #applyTimedOutPenalty}, kept as its own
+     * method because {@link Instances#onTick} calls it by name against
+     * {@code record.timer.overTime()}.
      */
     static void expireTimedOut(MinecraftServer server, InstanceRecord record) {
         ServerPlayer owner = record.owner != null ? server.getPlayerList().getPlayer(record.owner) : null;
-        returnKeystone(server, record, record.owner, owner,
-                record.freeDoor ? Keystones.Outcome.NO_CHANGE : Keystones.Outcome.TIMED_OUT);
+        applyTimedOutPenalty(server, record, owner, false);
+    }
+
+    /**
+     * The keystone-downgrade half of a timeout, shared by the clock actually
+     * running out ({@link #expireTimedOut}) and a player choosing to quit the
+     * door instead of waiting for it ({@link #quitDoor}). Depletes the owner
+     * alone -- a party member riding along never had a key at stake -- and
+     * messages them wherever they are. The two paths must apply the exact
+     * same penalty, so this is the one place either of them can drift from.
+     *
+     * <p>M12: a free-door run settles as {@code NO_CHANGE} instead. Door 1
+     * never depletes, and a generous flat clock ({@code door1TimerSeconds})
+     * running out (or being given up on) is not a different kind of failure
+     * than any other way a free door ends.
+     *
+     * @param voluntary whether the player chose this over waiting out the
+     *                  clock, purely for the message's wording
+     */
+    private static void applyTimedOutPenalty(MinecraftServer server, InstanceRecord record,
+                                             ServerPlayer owner, boolean voluntary) {
+        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.TIMED_OUT);
         record.timedOutPenaltyApplied = true;
         if (owner != null) {
+            String verb = voluntary ? "You quit the door." : "The clock ran out.";
             owner.sendSystemMessage(Component.literal(
-                    "The clock ran out. Your keystone is downgraded by "
+                    verb + " Your keystone is downgraded by "
                             + PocketDungeonsConfig.timedOutDepletion()
-                            + ", but the dungeon stays open if you want to finish.")
+                            + (voluntary ? "." : ", but the dungeon stays open if you want to finish."))
                     .withStyle(ChatFormatting.YELLOW));
             Chime.runTimedOut(owner);
         } else {
             PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
         }
+    }
+
+    /**
+     * Player-facing: instantly fails the caller's own active keystone door,
+     * applies the keystone penalty, then resets the dungeon back to its
+     * lobby state so the player can pick a new door. Nobody is ejected: the
+     * player stays in the safe room, the dungeon beyond it is cleared, the
+     * selector doors come back, and the record returns to
+     * {@code awaitingDoorChoice}.
+     *
+     * <p>Reuses {@link #applyTimedOutPenalty} exactly, so a voluntary quit
+     * and the clock actually running out can never apply different
+     * penalties. Skipped (falls straight through to {@link #exit}) when
+     * there is nothing to quit: no active keystone run, the caller does not
+     * own it, it already completed, or it was already timed out. A non-
+     * keystone run (untimed, admin build) also falls through to {@link #exit},
+     * since there is no door to quit and no lobby to reset to.
+     *
+     * @return whether the player was actually in a dungeon to leave, exactly
+     *         {@link #exit}'s own contract
+     */
+    static boolean quitDoor(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return false;
+        }
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
+            player.sendSystemMessage(Component.literal("You are not in a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        // A non-keystone run (untimed, admin build) has no door to quit and
+        // no lobby to reset to. Treat it as a plain exit.
+        if (!record.isKeystoneRun()) {
+            return exit(player, ExitReason.COMMAND);
+        }
+        // Only the owner can quit the door: their keystone is the one on the
+        // line. A party member riding along never had a key at stake.
+        if (!player.getUUID().equals(record.owner)) {
+            player.sendSystemMessage(Component.literal(
+                    "Only the dungeon's owner can quit the door.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        // Nothing to quit: the run already completed or already timed out.
+        // Fall through to a plain exit so the player leaves normally.
+        if (!record.completed.isEmpty() || record.timedOutPenaltyApplied) {
+            return exit(player, ExitReason.COMMAND);
+        }
+        // Apply the keystone penalty, then reset the dungeon to its lobby
+        // state. The player stays in the safe room and picks a new door.
+        applyTimedOutPenalty(server, record, player, true);
+        Instances.resetToLobby(server, record);
+        return true;
     }
 }

@@ -54,6 +54,15 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.5f);
     }
 
+    /**
+     * (M48) The player started mining a block inside a dungeon cell with the
+     * wrong tool. A short, low note so the denial is heard but not punishing,
+     * paired with the action-bar message from {@code RoomProtection}.
+     */
+    public static void wrongTool(ServerPlayer player) {
+        play(player, SoundEvents.NOTE_BLOCK_BASS, 0.2f, 0.7f);
+    }
+
     /** A run started from the lever or the lodestone menu. */
     public static void runStarts(ServerPlayer player) {
         play(player, Holder.direct(SoundEvents.RESPAWN_ANCHOR_CHARGE), 0.5f, 1.0f);

@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Top-level planner: ties graph generation ({@link LayoutGraphGenerator}) to
@@ -98,6 +99,25 @@ final class LayoutPlanner {
                         int minPath, int maxPath,
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme,
+                requiredEntranceDirection, BagTags.pilgrim());
+    }
+
+    /**
+     * The full form, with the party's bag tags supplied by the caller. In live
+     * play the tags come from {@link BagTags#seed} over the owner's chosen bag
+     * and the party size; the shorter overloads default to {@link BagTags#pilgrim}
+     * so existing callers (tests, admin commands) are unaffected and get the
+     * strictest seed.
+     *
+     * @param bagTags the depth-0 solvability seed, from {@link BagTags#seed}
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
+                        Set<String> bagTags) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -133,7 +153,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags);
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()

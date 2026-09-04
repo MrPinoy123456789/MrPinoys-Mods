@@ -10,6 +10,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
@@ -81,6 +82,30 @@ final class RitualListener {
 
         BlockPos pos = hit.getBlockPos();
 
+        // Dev tool: right-click any block with a spyglass to get its
+        // coordinates in chat, both absolute and relative to its chunk and
+        // to the nearest Pocket Dungeons cell origin.
+        if (serverPlayer.getMainHandItem().is(Items.SPYGLASS)) {
+            reportCoords(serverPlayer, level, pos);
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // M48: the bag chest. A member of a non-visit instance who has not yet
+        // chosen a bag right-clicks the ender chest at the safe room's centre
+        // to open the bag picker, independently of every other member. This
+        // claims the click before the ender-chest denial below, which would
+        // otherwise block it (the bag chest is an ender chest, deliberately,
+        // to read as distinct from loot chests). Position-based, the same way
+        // the selector doors, lever and engine are identified.
+        InstanceRecord bagRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+        if (bagRecord != null && !bagRecord.visitInstance && bagRecord.roomCellOrigin != null
+                && pos.equals(Instances.bagChestPos(bagRecord.roomCellOrigin))
+                && level.getBlockState(pos).is(Blocks.ENDER_CHEST)
+                && DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID()).isEmpty()) {
+            DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // M46 (spec 11.11): the ender chest is the one container that reaches
         // across dimensions, which makes it the obvious way around the scarcity
         // the bag creates: a player with netherite in their ender chest could
@@ -140,11 +165,27 @@ final class RitualListener {
         // interior stays open so a player can place torches, blocks and the
         // like while fighting through. Protection lifts once the first member
         // completes.
+        //
+        // PD-62: one shell position is deliberately let through anyway. The
+        // far side of an IRON_DOOR connector never gets its own lever
+        // (ConnectorStamper.applyIronDoor only stamps the near side), and the
+        // doorway threshold in front of the door is shell purely as a side
+        // effect of isShell being a blanket coordinate rule with no notion of
+        // "this square happens to be open air, not wall": a player who
+        // backtracks and finds the door shut behind them had no way to power
+        // it. The door itself stays shell-protected either way; only the
+        // empty threshold square is exempted, and only for that connector
+        // type. See InstanceLayout.ironDoorFarSideSlots.
         BlockPos dungeonPlacementOrigin = Instances.dungeonCellOriginAt(placementPos);
         if (dungeonPlacementOrigin != null
                 && isPlacementSource(player.getItemInHand(hand))
                 && RoomProtection.isShell(placementPos, dungeonPlacementOrigin)) {
-            return InteractionResult.FAIL;
+            InstanceRecord dungeonRecord = Instances.dungeonRecordAt(placementPos);
+            boolean ironDoorFarSideExempt = dungeonRecord != null
+                    && dungeonRecord.layout.ironDoorFarSideSlots().contains(placementPos);
+            if (!ironDoorFarSideExempt) {
+                return InteractionResult.FAIL;
+            }
         }
 
         // M25: the Pocket2 rare door. Claimed whenever the click lands on this
@@ -402,5 +443,36 @@ final class RitualListener {
         net.minecraft.world.item.Item item = stack.getItem();
         return item instanceof net.minecraft.world.item.BlockItem
                 || item instanceof net.minecraft.world.item.BucketItem;
+    }
+
+    /**
+     * Dev tool: prints the block's coordinates to the clicking player. Shows
+     * absolute coords, chunk coords, in-chunk offset, and, if the block is
+     * inside a Pocket Dungeons cell, the cell origin and offset from it.
+     */
+    private static void reportCoords(ServerPlayer player, Level level, BlockPos pos) {
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        int inChunkX = x & 15;
+        int inChunkZ = z & 15;
+        net.minecraft.network.chat.Component base = net.minecraft.network.chat.Component.literal(
+                "Block: " + x + ", " + y + ", " + z
+                        + "  Chunk: " + chunkX + ", " + chunkZ
+                        + "  In-chunk: " + inChunkX + ", " + y + ", " + inChunkZ)
+                .withStyle(net.minecraft.ChatFormatting.AQUA);
+        player.sendSystemMessage(base);
+        BlockPos cellOrigin = Instances.roomOriginAt(pos);
+        if (cellOrigin != null) {
+            int offX = x - cellOrigin.getX();
+            int offY = y - cellOrigin.getY();
+            int offZ = z - cellOrigin.getZ();
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "Cell origin: " + cellOrigin.getX() + ", " + cellOrigin.getY() + ", " + cellOrigin.getZ()
+                            + "  Offset: " + offX + ", " + offY + ", " + offZ)
+                    .withStyle(net.minecraft.ChatFormatting.GOLD));
+        }
     }
 }

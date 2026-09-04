@@ -53,6 +53,29 @@ import java.util.Set;
  *                     cleared encounter cell stamped, or {@code null} when the
  *                     run rolled no Pocket2 door (or was never eligible).
  *                     Right-clicking it opens the nested sub-dungeon.
+ * @param ironDoorFarSideSlots (PD-62) the doorway-threshold air positions on
+ *                     the far side of every {@code IRON_DOOR} connector this
+ *                     run stamped. {@code ConnectorStamper.applyIronDoor}
+ *                     only ever places the door and its lever on the cell
+ *                     nearer the entrance, so a player who ends up on the far
+ *                     side with the door shut (backtracking is allowed by
+ *                     design) has no redstone source anywhere in reach and,
+ *                     confirmed live, no way out at all: the door stays
+ *                     shell-protected on purpose (it is meant to stay a real
+ *                     lock, not something to dig through), but the threshold
+ *                     in front of it was shell-protected too, purely as an
+ *                     accident of {@code isShell} being a blanket coordinate
+ *                     rule with no notion of "this square happens to be
+ *                     open air, not wall". {@code RitualListener}'s placement
+ *                     check and {@code RoomProtection}'s break check both
+ *                     read this set to lift that one accident: a player
+ *                     carrying their own lever, button or redstone dust can
+ *                     place it in the threshold and power the door from the
+ *                     far side, the same way the near side's built-in lever
+ *                     already can, and can just as freely mine it back up if
+ *                     it turns out to be the wrong block, or they want the
+ *                     threshold empty again. Empty for every connector type
+ *                     but {@code IRON_DOOR}.
  */
 record InstanceLayout(
         BlockPos origin,
@@ -72,10 +95,12 @@ record InstanceLayout(
         int entranceRotation,
         int terminalRotation,
         Set<BlockPos> trialSpawners,
-        BlockPos pocket2Door) {
+        BlockPos pocket2Door,
+        Set<BlockPos> ironDoorFarSideSlots) {
 
     InstanceLayout {
         trialSpawners = trialSpawners == null ? Set.of() : Set.copyOf(trialSpawners);
+        ironDoorFarSideSlots = ironDoorFarSideSlots == null ? Set.of() : Set.copyOf(ironDoorFarSideSlots);
     }
 
     /**
@@ -115,6 +140,6 @@ record InstanceLayout(
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
                 geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false,
-                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null);
+                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null, Set.of());
     }
 }

@@ -102,29 +102,42 @@ final class GambleStation {
         if (!matchesStation(state)) {
             return false;
         }
-
-        // PD-23: unlike the reroll station, this never checked its own
-        // unlock level. gambleUnlockLevel gated only the picker shelf, so
-        // anyone who obtained the block by any means used the station at
-        // keystone level 1.
-        int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
-        int unlock = PocketDungeonsConfig.gambleUnlockLevel();
-        if (StationSupport.levelTooLow(player, level, unlock, "gamble station")) {
-            return true;
-        }
-
+        // The level gate lives in openGui itself now (PD-51): this used to
+        // duplicate the check here, which is exactly how PD-51 happened --
+        // BlacksmithNPC grew a second entry point to openGui and nobody
+        // copied the check onto it. One gate, checked once, cannot be
+        // forgotten by a future third caller.
         openGui(player);
         return true;
     }
 
     /**
-     * Opens the gamble trading screen for {@code player}. Exposed package
-     * private so {@link BlacksmithNPC} can open the same screen when a
-     * player right-clicks the blacksmith villager, without duplicating the
-     * trade construction or {@code onTrade} logic.
+     * Opens the gamble trading screen for {@code player}, or refuses with the
+     * standard "needs a keystone level N or higher" message and opens
+     * nothing.
+     *
+     * <p>Exposed package private so {@link BlacksmithNPC} can reach the same
+     * screen when a player right-clicks the blacksmith villager, without
+     * duplicating the trade construction or {@code onTrade} logic.
+     *
+     * <p><strong>PD-51:</strong> the level gate used to live only in
+     * {@link #onUse}, the block's own right-click handler. {@code BlacksmithNPC}
+     * called this method directly and never re-checked the level, so the
+     * blacksmith sold Tier 1 gear (its trades already scale down to
+     * {@code Math.max(1, level)}, so a level-0 player still saw a real Tier 1
+     * offer) to anyone regardless of {@code gambleUnlockLevel}, the exact hole
+     * PD-23 closed on the block itself. The gate is checked here now, once,
+     * so every caller gets it for free and a future caller cannot skip it by
+     * accident the way {@code BlacksmithNPC} did.
+     *
+     * @return whether the screen actually opened
      */
-    static void openGui(ServerPlayer player) {
+    static boolean openGui(ServerPlayer player) {
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
+        int unlock = PocketDungeonsConfig.gambleUnlockLevel();
+        if (StationSupport.levelTooLow(player, level, unlock, "gamble station")) {
+            return false;
+        }
         int maxTier = KeystoneMath.lootTier(Math.max(1, level));
 
         MerchantGui gui = new MerchantGui(player, false) {
@@ -156,10 +169,11 @@ final class GambleStation {
             // No trades at all: keystone level too low for even tier 1.
             player.sendSystemMessage(Component.literal("Your keystone does not clear tier 1 yet.")
                     .withStyle(ChatFormatting.YELLOW));
-            return;
+            return false;
         }
 
         gui.open();
+        return true;
     }
 
     /**

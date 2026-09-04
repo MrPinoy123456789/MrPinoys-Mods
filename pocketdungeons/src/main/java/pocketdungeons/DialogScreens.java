@@ -79,6 +79,8 @@ final class DialogScreens {
     static final String ACTION_MANAGE_ROOM = "manage_room";
     static final String ACTION_INSPECT_KEYSTONE = "inspect_keystone";
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
+    static final String ACTION_QUIT_DUNGEON = "quit_dungeon";
+    static final String ACTION_QUIT_DUNGEON_CONFIRM = "quit_dungeon_confirm";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
     static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
 
@@ -104,6 +106,13 @@ final class DialogScreens {
      */
     static final String ACTION_BACK_MENU = "back_menu";
     static final String ACTION_BACK_WHITELIST = "back_whitelist";
+
+    /** M48: which bag a bag-picker button chose. */
+    static final String KEY_BAG_ID = "pd_bag_id";
+    /** M48: a bag-picker button opens the confirm dialog for that bag. */
+    static final String ACTION_SELECT_BAG = "select_bag";
+    /** M48: a confirm-dialog button commits the bag choice. */
+    static final String ACTION_CONFIRM_BAG = "confirm_bag";
 
     // ---- section 2: party roster and kick confirmation ----------------------
 
@@ -159,6 +168,23 @@ final class DialogScreens {
         return DialogKit.confirm("Remove from party",
                 List.of(DialogKit.text("Remove " + what + " from your party?")),
                 DialogKit.command("Confirm", null, "/dungeon party kickconfirm"),
+                DialogKit.closeButton("Cancel"));
+    }
+
+    /**
+     * The confirmation for the in-dungeon menu's Quit Door option. Quitting
+     * fails the current dungeon, downgrades the keystone, and resets the
+     * room to its lobby state so a new door can be chosen. The confirm is
+     * a fixed command string ({@code /dungeon quit}), so this is tier A:
+     * no round trip through {@link DialogRouter} is needed.
+     */
+    static Dialog quitDoorConfirm() {
+        return DialogKit.confirm("Quit the dungeon?",
+                List.of(DialogKit.text("Quitting fails this dungeon and downgrades your keystone."),
+                        DialogKit.text(Component.literal(
+                                "You will stay in the safe room and can pick a new door.")
+                                .withStyle(ChatFormatting.GRAY))),
+                DialogKit.command("Quit Door", null, "/dungeon quit"),
                 DialogKit.closeButton("Cancel"));
     }
 
@@ -543,10 +569,15 @@ final class DialogScreens {
      * player who just wants to leave or browse never needs their compass
      * first.
      */
-    static List<MenuOption> menuOptions(boolean inDungeon, boolean roomOwner) {
+    static List<MenuOption> menuOptions(boolean inDungeon, boolean roomOwner, boolean doorChosen) {
         if (inDungeon) {
             List<MenuOption> options = new ArrayList<>();
             options.add(new MenuOption("Leave", "Exit the dungeon", ACTION_LEAVE_DUNGEON));
+            if (roomOwner && doorChosen) {
+                options.add(new MenuOption("Quit Door",
+                        "Fail the dungeon, downgrade your keystone, pick a new door",
+                        ACTION_QUIT_DUNGEON));
+            }
             if (roomOwner) {
                 options.add(new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM));
                 // M24: the shell swap needs the room's live cell, so it is an
@@ -585,11 +616,13 @@ final class DialogScreens {
      */
     static Dialog lodestoneMenu(ServerPlayer player, boolean inDungeon) {
         boolean roomOwner = false;
+        boolean doorChosen = false;
         if (inDungeon) {
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             roomOwner = record != null && record.owner.equals(player.getUUID());
+            doorChosen = record != null && !record.awaitingDoorChoice && record.chosenStep > 0;
         }
-        return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner), player.getUUID(), inDungeon);
+        return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner, doorChosen), player.getUUID(), inDungeon);
     }
 
     /**
@@ -866,5 +899,88 @@ final class DialogScreens {
                         Component.literal(label), Optional.empty(), DialogKit.WIDE),
                 Optional.of(new StaticAction(
                         new ClickEvent.ShowDialog(net.minecraft.core.Holder.direct(dialog)))));
+    }
+
+    // ---- section 15: the bag picker (M48) -----------------------------------
+
+    /**
+     * One row of the bag picker before rendering, kept pure for the headless
+     * test: the bag's display name, its blurb, and its id.
+     */
+    record BagOption(String label, String tooltip, String bagId) {}
+
+    /** The bag picker's button list, one per {@link Bags} constant, in declaration order. */
+    static List<BagOption> bagOptions() {
+        List<BagOption> out = new ArrayList<>(Bags.values().length);
+        for (Bags bag : Bags.values()) {
+            out.add(new BagOption(bag.displayName.getString(), bag.blurb.getString(), bag.id));
+        }
+        return out;
+    }
+
+    /**
+     * The bag selection menu: one button per bag, each carrying the clicker's
+     * UUID and the bag id and dispatching {@link #ACTION_SELECT_BAG}. The bag
+     * is the player's class, chosen once and held until a keystone reset, so
+     * the body says so plainly. Opened by right-clicking the bag chest in the
+     * safe room.
+     */
+    static Dialog bagPicker(ServerPlayer player) {
+        return bagPickerDialog(bagOptions(), player.getUUID());
+    }
+
+    /**
+     * The dialog from prebuilt options plus the clicking player's UUID; the
+     * headless-testable half of {@link #bagPicker}. Every button carries
+     * {@link #KEY_OWNER} so {@link DialogRouter}'s owner check passes.
+     */
+    static Dialog bagPickerDialog(List<BagOption> options, UUID owner) {
+        List<DialogBody> body = new ArrayList<>();
+        body.add(DialogKit.text("Your bag is your class. You keep it until you reset your keystone."));
+        body.add(DialogKit.text(Component.literal("Choose carefully: you cannot change it mid-run.")
+                .withStyle(ChatFormatting.GRAY)));
+        List<ActionButton> buttons = new ArrayList<>();
+        for (BagOption option : options) {
+            CompoundTag context = new CompoundTag();
+            context.putString(KEY_OWNER, owner.toString());
+            context.putString(KEY_BAG_ID, option.bagId());
+            buttons.add(DialogKit.button(option.label(), option.tooltip(),
+                    DialogKit.submit(ACTION_SELECT_BAG, context)));
+        }
+        return DialogKit.list("Choose your bag", body, buttons, "Close");
+    }
+
+    /**
+     * The confirmation for a bag choice: the bag's name and blurb, a Confirm
+     * button that dispatches {@link #ACTION_CONFIRM_BAG} carrying the bag id,
+     * and a Back button that re-opens the picker. There is no history stack in
+     * this API, so Back is the picker rebuilt from live state.
+     */
+    static Dialog bagConfirm(ServerPlayer player, String bagId) {
+        return bagConfirmDialog(player.getUUID(), bagId);
+    }
+
+    /**
+     * The headless-testable half of {@link #bagConfirm}: the dialog from the
+     * clicking player's UUID and the bag id, with no live state read. The
+     * Confirm button carries {@link #KEY_OWNER} and {@link #KEY_BAG_ID}; the
+     * Back button carries only {@link #KEY_OWNER}, which is the router's
+     * signal to re-open the picker.
+     */
+    static Dialog bagConfirmDialog(UUID owner, String bagId) {
+        Bags bag = Bags.byId(bagId);
+        String name = bag == null ? bagId : bag.displayName.getString();
+        String blurb = bag == null ? "" : bag.blurb.getString();
+        List<DialogBody> body = new ArrayList<>();
+        body.add(DialogKit.text(name));
+        body.add(DialogKit.text(blurb));
+        body.add(DialogKit.text(Component.literal(
+                "This is permanent until you reset your keystone.").withStyle(ChatFormatting.GRAY)));
+        CompoundTag confirm = new CompoundTag();
+        confirm.putString(KEY_OWNER, owner.toString());
+        confirm.putString(KEY_BAG_ID, bagId);
+        ActionButton yes = DialogKit.button("Confirm", null, DialogKit.submit(ACTION_CONFIRM_BAG, confirm));
+        ActionButton back = backButton("Back", ACTION_SELECT_BAG, owner);
+        return DialogKit.confirm("Confirm bag", body, yes, back);
     }
 }

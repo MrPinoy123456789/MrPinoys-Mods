@@ -138,6 +138,14 @@ final class DungeonLog extends SavedData {
      *                           and {@code unlockedShells}. Guards the drop in
      *                           {@code RunLifecycle.completeRun} against
      *                           handing the same band's book out twice.
+     * @param bag               (M48) this player's chosen bag id, or {@code ""}
+     *                          for none yet. A bag is the player's class: a
+     *                          starting inventory chosen once via the bag chest
+     *                          in the safe room, applied fresh on every void
+     *                          entry, and locked to the keystone until a full
+     *                          {@link #resetCampaign}. Empty is the pre-choice
+     *                          state and the post-reset state; it is never the
+     *                          Pilgrim default, because Pilgrim is a choice.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
@@ -145,7 +153,8 @@ final class DungeonLog extends SavedData {
                  String currentTheme, int depth, Set<String> extractedPowers,
                  boolean publicListed, String roomName, int fuel,
                  Set<String> unlockedShells, int roomCompletions,
-                 List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen) {
+                 List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen,
+                 String bag) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -158,6 +167,7 @@ final class DungeonLog extends SavedData {
             roomCompletions = Math.max(0, roomCompletions);
             recentVisitors = List.copyOf(recentVisitors);
             diaryBandsSeen = Set.copyOf(diaryBandsSeen);
+            bag = bag == null ? "" : bag;
         }
 
         /*
@@ -174,73 +184,79 @@ final class DungeonLog extends SavedData {
         Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withKeystone(int keystoneLevel, String keystoneAffix) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withPendingOfferLevel(int pendingOfferLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withPublicListed(boolean publicListed) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withFuel(int fuel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withRoomName(String roomName) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withExtractedPowers(Set<String> extractedPowers) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withUnlockedShells(Set<String> unlockedShells) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withRoomCompletions(int roomCompletions) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
 
         Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
+        }
+
+        Entry withBag(String bag) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag);
         }
     }
 
@@ -250,7 +266,7 @@ final class DungeonLog extends SavedData {
     static final int MAX_RECENT_VISITORS = 10;
 
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0, Set.of(), 0, List.of(), Set.of());
+            false, "", 0, Set.of(), 0, List.of(), Set.of(), "");
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -285,6 +301,15 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, InventorySwap.StashRecord> stashes = new HashMap<>();
 
+    /**
+     * One player's orphaned void-side inventory, same shape and same
+     * reasoning as {@link #stashes}: held for a player who left a dungeon
+     * so it can be restored on their next entry into any dungeon, regardless
+     * of how they left or whether the instance they were in still exists.
+     * See {@link InventorySwap.OrphanRecord}'s own javadoc.
+     */
+    private final Map<UUID, InventorySwap.OrphanRecord> orphans = new HashMap<>();
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -312,7 +337,7 @@ final class DungeonLog extends SavedData {
 
     private record PartB(int depth, Set<String> extractedPowers, boolean publicListed,
                          String roomName, int fuel, Set<String> unlockedShells, int roomCompletions,
-                         List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen) {}
+                         List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen, String bag) {}
 
     private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -359,7 +384,11 @@ final class DungeonLog extends SavedData {
             // loads unchanged: a player with no field simply has every band's
             // diary still to find.
             Codec.INT.listOf().xmap(list -> (Set<Integer>) new HashSet<>(list), List::copyOf)
-                    .optionalFieldOf("diary_bands_seen", Set.of()).forGetter(PartB::diaryBandsSeen)
+                    .optionalFieldOf("diary_bands_seen", Set.of()).forGetter(PartB::diaryBandsSeen),
+            // M48: the chosen bag id. A save written before M48 has no field
+            // and loads with the empty pre-choice state, so an existing player
+            // gets the bag chest on their next dungeon entry.
+            Codec.STRING.optionalFieldOf("bag", "").forGetter(PartB::bag)
     ).apply(instance, PartB::new));
 
     private static final Codec<Entry> ENTRY_CODEC = Codec.mapPair(PART_A_CODEC, PART_B_CODEC).xmap(
@@ -370,7 +399,7 @@ final class DungeonLog extends SavedData {
                         a.keystoneLevel(), a.keystoneAffix(), a.pendingOfferLevel(), a.recentThemes(),
                         a.completedThemes(), a.currentTheme(), b.depth(), b.extractedPowers(),
                         b.publicListed(), b.roomName(), b.fuel(), b.unlockedShells(),
-                        b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen());
+                        b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen(), b.bag());
             },
             entry -> com.mojang.datafixers.util.Pair.of(
                     new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),
@@ -378,7 +407,8 @@ final class DungeonLog extends SavedData {
                             entry.recentThemes(), entry.completedThemes(), entry.currentTheme()),
                     new PartB(entry.depth(), entry.extractedPowers(), entry.publicListed(),
                             entry.roomName(), entry.fuel(), entry.unlockedShells(),
-                            entry.roomCompletions(), entry.recentVisitors(), entry.diaryBandsSeen()))
+                            entry.roomCompletions(), entry.recentVisitors(), entry.diaryBandsSeen(),
+                            entry.bag()))
     ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -419,6 +449,16 @@ final class DungeonLog extends SavedData {
             InventorySwap.StashRecord.CODEC.fieldOf("stash").forGetter(PlayerStash::stash)
     ).apply(instance, PlayerStash::new));
 
+    /** One player's orphaned void inventory, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerOrphan(UUID player, InventorySwap.OrphanRecord orphan) {}
+
+    private static final Codec<PlayerOrphan> PLAYER_ORPHAN_CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerOrphan::player),
+            InventorySwap.OrphanRecord.CODEC.fieldOf("orphan").forGetter(PlayerOrphan::orphan)
+    ).apply(instance, PlayerOrphan::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
@@ -440,11 +480,18 @@ final class DungeonLog extends SavedData {
             // the correct reading of "this player is not inside a dungeon".
             PLAYER_STASH_CODEC.listOf().optionalFieldOf("stashes", List.of())
                     .forGetter(log -> log.stashes.entrySet().stream()
-                            .map(e -> new PlayerStash(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerStash(e.getKey(), e.getValue())).toList()),
+            // Optional for the same reason stashes is: a dungeon_log.dat
+            // written before this existed loads unchanged, every player
+            // simply starting with nothing orphaned.
+            PLAYER_ORPHAN_CODEC.listOf().optionalFieldOf("orphans", List.of())
+                    .forGetter(log -> log.orphans.entrySet().stream()
+                            .map(e -> new PlayerOrphan(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
-                                          List<PlayerBounties> bounties, List<PlayerStash> stashes) {
+                                          List<PlayerBounties> bounties, List<PlayerStash> stashes,
+                                          List<PlayerOrphan> orphans) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -457,6 +504,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerStash s : stashes) {
             log.stashes.put(s.player(), s.stash());
+        }
+        for (PlayerOrphan o : orphans) {
+            log.orphans.put(o.player(), o.orphan());
         }
         return log;
     }
@@ -481,6 +531,33 @@ final class DungeonLog extends SavedData {
 
     Entry get(UUID player) {
         return entries.getOrDefault(player, NONE);
+    }
+
+    /**
+     * (M48) This player's chosen bag id, or {@code ""} if they have not chosen
+     * one (or have just reset). Read by the bag chest's right-click handler to
+     * decide whether to open the picker, by {@code InventorySwap.enterVoid} to
+     * decide whether to apply a fresh bag, and by the room generator to seed
+     * the solvability pass.
+     */
+    String bagOf(UUID player) {
+        return get(player).bag();
+    }
+
+    /**
+     * (M48) Sets this player's chosen bag id, clamped to a non-null string.
+     * {@code ""} clears it (used by {@link #resetCampaign}). A non-empty id is
+     * stored verbatim; validity is the caller's concern, since the picker only
+     * ever offers ids from {@link Bags}.
+     */
+    void setBag(UUID player, String bagId) {
+        String clamped = bagId == null ? "" : bagId;
+        Entry previous = get(player);
+        if (previous.bag().equals(clamped)) {
+            return;
+        }
+        entries.put(player, previous.withBag(clamped));
+        setDirty();
     }
 
     /** Records one completed run at a keystone level, for the {@code /dungeon log} best-level line. */
@@ -796,6 +873,55 @@ final class DungeonLog extends SavedData {
         } else {
             stashes.put(player, stash);
         }
+        setDirty();
+    }
+
+    /** This player's orphaned void inventory, or {@link InventorySwap.OrphanRecord#NONE}. */
+    InventorySwap.OrphanRecord orphanOf(UUID player) {
+        return orphans.getOrDefault(player, InventorySwap.OrphanRecord.NONE);
+    }
+
+    /**
+     * Replaces this player's orphan record, for {@link InventorySwap}. Same
+     * remove-rather-than-store-empty shape as {@link #setStash}, so the map
+     * holds only players with items actually held for the next entry.
+     */
+    void setOrphan(UUID player, InventorySwap.OrphanRecord orphan) {
+        if (orphan.items().isEmpty()) {
+            if (orphans.remove(player) == null) {
+                return;
+            }
+        } else {
+            orphans.put(player, orphan);
+        }
+        setDirty();
+    }
+
+    /**
+     * (M48) A full campaign reset: clears every keystone-progress field on this
+     * player's entry while preserving the unlockables, then drops any stashed
+     * survival inventory and any orphaned void inventory. The bag is cleared
+     * too, so the player gets the bag chest back on their next dungeon entry.
+     *
+     * <p>Preserved (unlockables and room settings, not keystone progress):
+     * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
+     * {@code publicListed}, {@code recentVisitors}. The sidecar maps
+     * ({@code taskProgress}, {@code bounties}) are untouched: a task's count
+     * and a weekly bounty are meta-progression, not keystone progress.
+     *
+     * <p>Called by {@code /dungeon resetkey} and its admin twin, after the
+     * caller has moved the player out of any live inventory swap. Building the
+     * fresh entry in one {@code entries.put} keeps it atomic against the
+     * per-tick reconciliation pass.
+     */
+    void resetCampaign(UUID player) {
+        Entry previous = get(player);
+        Entry reset = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
+                previous.publicListed(), previous.roomName(), 0, previous.unlockedShells(),
+                0, previous.recentVisitors(), previous.diaryBandsSeen(), "");
+        entries.put(player, reset);
+        setOrphan(player, InventorySwap.OrphanRecord.NONE);
+        setStash(player, InventorySwap.StashRecord.NONE);
         setDirty();
     }
 }

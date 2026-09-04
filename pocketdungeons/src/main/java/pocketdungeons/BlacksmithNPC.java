@@ -90,8 +90,13 @@ final class BlacksmithNPC {
             villager.lookAt(EntityAnchorArgument.Anchor.EYES, player.getEyePosition());
             villager.setYHeadRot(villager.getYRot());
             villager.setYBodyRot(villager.getYRot());
-            GambleStation.openGui(serverPlayer);
-            TaskTracker.progress(serverPlayer, TaskTracker.Task.GAMBLE, 1);
+            // PD-51: openGui now carries its own gambleUnlockLevel gate and
+            // reports whether it actually opened, so an under-level player
+            // gets the refusal message and no progress credit instead of a
+            // Tier 1 trade screen the block itself would have refused them.
+            if (GambleStation.openGui(serverPlayer)) {
+                TaskTracker.progress(serverPlayer, TaskTracker.Task.GAMBLE, 1);
+            }
             return InteractionResult.SUCCESS;
         });
 
@@ -207,6 +212,15 @@ final class BlacksmithNPC {
         villager.setInvulnerable(true);
         villager.setCustomName(Component.literal("Blacksmith"));
         villager.setCustomNameVisible(true);
+        // PD-52: a villager's InteractWithDoor brain behavior opens a wooden
+        // door in its way while pathing, which the class javadoc above already
+        // admitted the tether cannot undo once it happens. setCanOpenDoors is
+        // the vanilla per-mob switch that behavior itself checks before
+        // acting; disabling it here is surgical, unlike stripping the goal
+        // selector or the brain (which the modern villager AI barely uses
+        // Goals for at all -- door interaction is brain-driven, not a Goal).
+        // The wandering AI this class deliberately keeps is untouched.
+        villager.getNavigation().setCanOpenDoors(false);
 
         level.addFreshEntity(villager);
     }

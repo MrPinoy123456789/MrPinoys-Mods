@@ -1,4 +1,4 @@
-# Known bugs
+﻿# Known bugs
 
 A running list of reported bugs, with status. Ordered oldest first.
 Each entry includes the root cause, exact file and line references, and
@@ -224,7 +224,7 @@ After the fix:
 
 **Reported:** 2026-08-26
 **Severity:** Medium (gameplay monotony)
-**Status:** Open, root cause identified, fix plan ready
+**Status:** Fixed
 
 A player feels like they get the same affixes every run. They do: the
 seeded affix set is a pure function of `(owner UUID, keystone level)`,
@@ -467,7 +467,7 @@ After the fix (nonce approach):
 
 **Reported:** 2026-08-26
 **Severity:** Medium (affix feels broken)
-**Status:** Fixed (2026-08-27), parts 1 and 2. Part 3 (`setHomeTo` radius) stays deferred as agreed.
+**Status:** Fixed (2026-08-27), parts 1 and 2. Part 3 (`setHomeTo` radius) fixed 2026-09-03: player reported wolves still moving very slowly and not working properly, matching the stutter this section already diagnosed.
 
 Feral wolves spawn angry, behave glitchy (stuttering back and forth),
 and do not meaningfully attack the player or other mobs. Tamed wolves
@@ -596,17 +596,15 @@ cell. Fewer angry wolves makes the affix calmer and less visually
 chaotic while the anger clear does the real work. The floor of 1
 ensures a configured minimum of 1 still spawns.
 
-**Part 3 (deferred): The `setHomeTo` radius issue.**
+**Part 3 (fixed 2026-09-03): The `setHomeTo` radius issue.**
 
-The `setHomeTo` radius issue (stuttering, refusal to pursue, tamed
-wolves not following) is still open. The player has not asked for it
-yet. When requested, the fix is to remove `setHomeTo` entirely and
-rely on the cell's bedrock envelope and sealed doors to keep wolves
-in. A wolf that pathfinds through an open door into the next cell is
-still within the dungeon's overall bounds and is caught by teardown.
-If containment is still needed, use a larger radius (the full layout
-bounds) rather than 6 blocks from one cell. After taming, clear the
-home position so the wolf follows the player.
+`setHomeTo(centre, HOME_RADIUS)` and the `HOME_RADIUS` constant are
+removed from `FeralContent.apply`. Containment relies on the cell's
+sealed walls and doors instead: a wolf that pathfinds through an open
+door into the next cell is still within the dungeon's overall bounds
+and is caught by `Instances.clearCellSync`'s 1 block margin at
+teardown. No home position is ever set, so there is nothing to clear
+after taming; a tamed wolf follows the player immediately.
 
 #### Verification
 
@@ -616,6 +614,10 @@ After the fix:
 3. Wolves should be tamable with bones (angry wolves refuse bones).
 4. With the default config of 2, only 1 wolf should spawn per cell.
 5. Hitting a wolf should still anger it (vanilla anger on hit).
+6. A wolf that spots a target should close to melee range without
+   stuttering back and forth, and should stay inside its cell on its
+   own (walls and doors, not a home pin).
+7. A tamed wolf should follow the player out of the cell immediately.
 
 ---
 
@@ -3365,3 +3367,1498 @@ behavior). Start a second run behind the same lobby. Let it finish
 normally within time. Confirm no timeout penalty applies to the second
 run and the reward-room grace window does not arm prematurely on its
 first tick.
+
+---
+
+## Found live testing the M45 through M49 situations round (2026-09-03)
+
+### PD-50: Void inventory is dropped on the ground on exit, and not restored on re-entry (Critical)
+
+**Reported:** 2026-09-03
+**Severity:** Critical (the situations round's whole stash-and-swap
+design exists to make exactly this not happen)
+**Status:** Fixed (2026-09-03)
+
+Reported from live play. Two symptoms, observed together:
+
+1. Entering `pocketdungeons:void` correctly stashes the overworld
+   inventory (the survival side of the M46 swap appears to work).
+2. On leaving the void, the inventory the player was carrying **inside**
+   the dungeon is dropped on the ground at the teleport-back position
+   instead of being delivered to the room, and the player's *survival*
+   inventory is restored correctly at that point.
+3. On the next entry into the void, the player starts with only the
+   keystone compass. Whatever the player had picked up or been given
+   inside the previous dungeon session is gone: not in the dropped
+   pile from step 2, not carried forward.
+
+Net effect: the void-side inventory is not being persisted, delivered,
+or regenerated at all. It behaves as if `InventorySwap`'s leaving
+branch is dropping the void snapshot on the ground (a `deliverToRoom`
+fallback path, going by `RunLifecycle.java`'s new M46 code) instead of
+routing it into the room's containers, and the entering branch always
+treats the player as unstashed for the void side rather than restoring
+a previous void state.
+
+Root cause: symptom 2 exactly, confirmed by reading the code.
+`Instances.detach` (the one primitive every exit path routes through:
+`eject`, `dropMember`, both `InstanceTeardown` purge paths) removes
+the player from `InstanceRegistry.byMember` *before* the teleport that
+triggers `InventorySwap`'s leaving branch. By the time
+`RunLifecycle.deliverVoidInventory` looked the room up to deliver items
+to, the record was already gone (`InstanceRegistry.byMember.get(...)`
+returned `null`), so it fell straight through to the "drop at the
+player's feet" branch on every single exit. Symptom 3 (reset to just the
+keystone on re-entry) turned out to be intended per spec 11.6, which
+deliberately does not apply a bag on entry; it only read as a bug
+because the delivery in symptom 2 was silently failing every time.
+
+#### Fix
+
+`Instances.detach` now caches `record.roomCellOrigin` into a new
+consume-once map (`Instances.lastRoomCellOrigin` /
+`consumeLastRoomCellOrigin`) before clearing `byMember`.
+`RunLifecycle.deliverVoidInventory` falls back to that cache when the
+live record is already gone, which is the common case on every normal
+exit path. The cache entry is read once and removed, so a stale value
+cannot outlive the one delivery it was written for.
+
+#### Verification
+
+Full test suite green after the change (`./gradlew build --offline`).
+No dedicated regression test added: the fix is two small additions to
+existing methods with no new pure-logic surface to unit test against,
+so this is a live-play item. Walk: enter a dungeon, pick up a chest item,
+leave via the pad/`/dungeon exit`/the "Leave" menu option, confirm the
+item lands in the room's containers (or on the floor if the room has no
+container, or at the player's feet only as the last resort) rather than
+on the ground at the teleport-out position; re-enter and confirm the
+keystone-only start is now the only thing left (expected, not a bug).
+
+---
+
+### PD-51: Station blocks are usable-gated but not obtainably-gated (Medium)
+
+**Reported:** 2026-09-03
+**Severity:** Medium (unlock progression can be bypassed for stations
+the player should not have yet, though the block does nothing useful
+until the level check passes)
+**Status:** Fixed (2026-09-03)
+
+Reported from live play as "stations require Tier 1 or something but
+shouldn't even be obtainable until unlocked."
+
+Confirmed while reading the code (not yet confirmed live): the picker
+GUI itself gates correctly. `StationPicker.stationElement` only wires a
+"click to take" callback onto the `GuiElementBuilder` when `unlocked`
+is true (`StationPicker.java` around line 138); a locked station shows
+only the "Unlocks at keystone level N" lore line and no callback, so
+the picker cannot hand out a station item early.
+
+Root cause, confirmed: not a placement-gating gap at all. Stations are
+deliberately plain vanilla blocks with no capture hygiene
+(`StationPicker`'s own javadoc: "player places them wherever they
+want... no capture hygiene"), so obtaining and placing the block was
+never meant to be restricted to the picker, and gating placement of a
+plain smithing table would have blocked unrelated vanilla use of the
+same block. The real gap: `GambleStation.onUse` (right-clicking the
+block) checks `gambleUnlockLevel` via `StationSupport.levelTooLow`, with
+a comment describing this exact bug class from an earlier fix (PD-23).
+But `BlacksmithNPC`'s villager right-click handler called
+`GambleStation.openGui` directly, bypassing that check entirely --
+anyone, at any keystone level, could trade at the blacksmith. Its trade
+tier scaling (`KeystoneMath.lootTier(Math.max(1, level))`) already
+shows real Tier 1 gear even at level 0, which is what the "Tier 1"
+wording in the original report was describing.
+
+#### Fix
+
+`GambleStation.openGui` now performs the `gambleUnlockLevel` check
+itself (and returns `boolean`, whether it actually opened) instead of
+trusting each caller to have already checked. `onUse` simplified to just
+call it. `BlacksmithNPC` now checks the return value before crediting
+`TaskTracker.Task.GAMBLE` progress, so an under-level player gets the
+refusal message and no progress credit instead of a trade screen the
+block itself would have refused them. One gate, checked once, cannot be
+forgotten by a future third caller.
+
+#### Verification
+
+Full test suite green after the change. Live item: right-click the
+blacksmith villager below `gambleUnlockLevel`, confirm the refusal
+message instead of the trade screen, and confirm trading still works
+normally once past the level.
+
+---
+
+### PD-52: The blacksmith villager can open the room door and let dungeon mobs in (Medium-High)
+
+**Reported:** 2026-09-03
+**Severity:** Medium-High (breaches the room's safety, the same class
+of problem M25/M27 class fixes exist for elsewhere in this mod)
+**Status:** Fixed (2026-09-03)
+
+`BlacksmithNPC` spawns a plain vanilla `Villager` (`EntityTypes.VILLAGER`,
+`BlacksmithNPC.java` register/spawn path) with no AI goals stripped and
+no `setNoAi(true)`; the class javadoc says this is deliberate, to get
+"wanders near the smithing table" wandering behavior for free. The same
+javadoc already admits the villager "can still drift out of the room
+through an open door" and relies on a periodic (`SWEEP_INTERVAL_TICKS`,
+every 5 seconds) tether that only pulls it back after it has wandered
+more than 8 blocks from the smithing table.
+
+What that javadoc does not account for: an unmodified villager will
+open a wooden door itself while pathing, not just wander through one
+already open. The original theory here named `OpenDoorGoal` (the old
+goal-selector mechanism some other mobs use); verified against the
+26.2 jar this is wrong for a modern villager, whose door interaction is
+brain-driven (`net.minecraft.world.entity.ai.behavior.InteractWithDoor`,
+wired in via `VillagerGoalPackages`), not a `Goal` at all, so stripping
+goals would not have touched it. If the blacksmith's smithing table is
+anywhere near the door between the player's room and the dungeon/lobby
+side, the villager's own AI can open that door, and the 5-second/8-block
+tether does nothing to stop the door from staying open once opened. This
+would let dungeon monsters wander into the safe room independently of
+whether the villager itself ever leaves.
+
+#### Fix
+
+`Brain` has no fine-grained per-behavior removal API
+(`removeAllBehaviors()` is all-or-nothing and would have killed the
+wandering AI this class deliberately keeps), so stripping
+`InteractWithDoor` out of the brain was not the way in. The actual
+vanilla switch, verified in the jar: `PathNavigation.setCanOpenDoors(boolean)`,
+which `InteractWithDoor` itself checks before acting.
+`BlacksmithNPC.spawnBlacksmith` now calls
+`villager.getNavigation().setCanOpenDoors(false)` once, at spawn.
+Surgical: does not touch the goal selector, the brain, or the wandering
+AI the class exists to keep.
+
+#### Verification
+
+Full test suite green after the change. Live item: place a smithing
+table near the door between the room and the dungeon/lobby side, let
+the blacksmith spawn, wait past a sweep interval, and confirm the door
+stays closed even if the villager paths toward it (a player or another
+mob opening the door and the blacksmith walking through the opening is
+still expected and out of scope, per the class's own javadoc).
+
+---
+
+### PD-53: `/dungeon admin resetroom` leaves the player with an unselectable stone brick shell (Low)
+
+**Reported:** 2026-09-03
+**Severity:** Low (cosmetic/quality-of-life; the reset itself works as
+designed)
+**Status:** Fixed (2026-09-03). User confirmed the reset behavior itself
+is fine; the ask was to also make the reset shell selectable, not to
+change what resetroom resets to.
+
+`/dungeon admin resetroom` (`DungeonCommands.resetRoom`) wipes the
+player's saved room via `RoomStore.reset` and, the next time they open
+a lobby, `RoomBuilder.buildShell` stamps a fresh room. `buildShell`
+hardcodes its palette as `new ShellPalette("built_in", "Stone Brick",
+null, floor, WALL, CEILING, CEILING_SLAB, STAIR)` (`RoomBuilder.java`,
+`buildShell`), a `ShellPalette` value built inline and never entered
+into `RoomBuilder.SHELL_PALETTES` (the `Map.of(OAK.name(), OAK,
+SANDSTONE.name(), SANDSTONE, DEEPSLATE.name(), DEEPSLATE,
+NETHER_BRICK.name(), NETHER_BRICK, ALEXS_ROOM.name(), ALEXS_ROOM)` table
+that backs the M24 shell-selection system, `unlockedShells`, and
+whatever menu offers "Apply Oak" etc.). Because `"built_in"` is not a
+key in that map, the stone brick shell the player starts with (and
+lands back on after a reset) cannot be re-selected once they switch to
+another unlocked palette; it is only ever reachable by being a fresh
+room's default or a post-reset default, never by player choice.
+
+#### Fix
+
+Added `RoomBuilder.STONE_BRICK`, a real `ShellPalette` entry built
+directly from the existing `FLOOR`/`WALL`/`CEILING`/`CEILING_SLAB`/`STAIR`
+constants so it keeps its exact original look (polished andesite floor
+under stone brick walls, not homogenized to one material the way the
+uniform `palette(...)` helper would). Entered into `SHELL_PALETTES` and
+`shellOrder()`. `buildShell` now builds off this shared constant instead
+of an inline, unregistered `ShellPalette`. Made it free like `OAK`
+(`isDefaultShell` now returns true for both): every room already starts
+on it without unlocking anything, so treating it as locked would have
+been a regression relative to today, not neutral.
+
+#### Verification
+
+Full test suite green after the change, including updated
+`ShellPaletteTest` and `RoomShellTest` assertions covering the new
+palette (six shipped palettes, `stone_brick` free and resolvable, menu
+order, and that its floor/wall materials match `buildShell`'s originals
+exactly). Live item: open the shell picker on a fresh or reset room,
+confirm "Apply Stone Brick" appears and is not locked, and confirm
+applying another shell then switching back to Stone Brick reproduces
+the original look.
+
+---
+
+## Found live testing after the situations round's wave 1 (2026-09-03)
+
+### PD-54: Chests and vaults yield far more items than intended, and vaults carry a resources pool that should be chest-only (Medium)
+
+**Reported:** 2026-09-03
+**Severity:** Medium (economy/balance, not correctness; every roll is
+individually well formed, there are just too many of them)
+**Status:** Fixed (2026-09-03), user-directed and confirmed a second
+time live before the fix landed ("still way to many items... should be
+1 or 2 instead of the near full chest slots having items").
+
+Reported from live play: "getting too many items from chests and
+vaults, probably just 1 or 2 items/stacks per chest/vault, vaults give
+gear or emeralds, chests give utility items and resources."
+
+Confirmed by counting pools (`grep -c '"rolls"'`) across every table
+under `loot_table/chests/` and `loot_table/vaults/`. Datapack loot
+tables execute *every pool*, and none of these pools are mutually
+exclusive alternatives inside one pool the way "1 or 2 items" implies;
+each pool with no `conditions` block (the common case here) always
+fires, and each fired pool yields one roll's worth of items (or more,
+where `rolls` is itself a range) independent of every other pool. Pool
+counts, one open per chest/vault:
+
+| Table | Pools | Table | Pools |
+|---|---|---|---|
+| `chests/tier_1` | 13 | `vaults/tier_1` | 5 |
+| `chests/tier_1_ominous` | 14 | `vaults/tier_1_ominous` | 6 |
+| `chests/tier_2` | 15 | `vaults/tier_2` | 6 |
+| `chests/tier_2_ominous` | 17 | `vaults/tier_2_ominous` | 7 |
+| `chests/tier_3` | 15 | `vaults/tier_3` | 6 |
+| `chests/tier_3_ominous` | 17 | `vaults/tier_3_ominous` | 7 |
+| `chests/supply_tier_*` | 9 each | | |
+
+The `_drowned` and `_ominous_drowned` variants run much leaner (2 to 8),
+which reads as a structural gap rather than a design choice: they look
+like supplemental/reference tables layered on top of the base tables
+(the M49 completion report flagged the four `*_ominous_drowned` tables
+by name as ones the stale `tools/gen_vault_tables.py` script chokes on
+for the same reason), so their low counts are likely an accident of
+being written differently, not evidence the base tables' counts are
+intentional.
+
+Reading `chests/tier_1.json` pool by pool shows most of these predate
+the M49 situations-round loot rework entirely: food, torches, bone,
+building blocks, a sapling, seeds/vegetables, a diamond pool, a
+mining-resources pool that itself rolls 2 to 3 items, an
+arrow-or-golden-apple pool, and a gear pool, stacked as separate
+always-firing pools rather than weighted entries inside one or two
+pools. This is a long-accumulated pattern across many milestones, not a
+single regression, though M49 did make it measurably worse for two
+specific reasons:
+
+1. **M49 added a "tools" pool to every gated and supply chest, at two to
+   three rolls for gated chests** (per M49's own completion report,
+   commit d99811d), on top of every pool that was already there,
+   compounding rather than replacing the existing count problem.
+2. **M49 also added that same tools pool to every vault**
+   (`water_bucket`, `stone`, `snowball`, `lead`, `shears`,
+   `golden_boots`, `oak_boat`, `trial_key`: confirmed by reading
+   `vaults/tier_1.json` directly), which is exactly the "utility items
+   and resources" category the user says belongs in chests only.
+   Vaults today mix a diamond pool, a mining-resources-and-gear pool, a
+   gear (armor/weapon) pool, an armor trim pool, *and* this tools pool,
+   not "gear or emeralds" alone.
+
+#### Fix
+
+Every base and `_drowned` table (13 files under `loot_table/chests/`,
+9 under `loot_table/vaults/`) collapsed from its many always-firing
+pools into a single pool with `rolls: {min: 1, max: 2}`, every existing
+entry (weight, `functions`, everything) carried over unchanged as a
+weighted alternative inside that one pool. On vaults, ten specific
+utility item names (`water_bucket`, `stone` and its three per-theme
+block reskins `prismarine_bricks`/`dark_prismarine`/`oxidized_cut_copper`,
+`snowball`, `lead`, `shears`, `golden_boots`, `oak_boat`) were dropped
+outright rather than carried over, so a vault is left with only its
+gear, mining-resource/currency, and armor-trim pools, per "vaults give
+gear or emeralds." Chests kept every entry, just fewer total rolls of
+them, since utility items and resources are exactly what belongs there.
+
+The six `*_ominous_drowned` reference tables (three chest, three vault)
+were left untouched: each is a `minecraft:loot_table` reference to its
+base table plus one or two of its own bonus item pools, so flattening
+the base it points to already fixes it, and its own 1-2 extra pools
+were already within the target count. `chests/anomaly.json` (2 pools,
+both `rolls: 1`) was also left alone: already at 2 items, the top of
+the stated range. `chests/pocket2.json` (4 pools) was flattened the
+same way as everything else.
+
+**Design call made without asking, worth knowing:** the base tables
+carried an explicit guaranteed-floor design (food and torches in every
+chest, called out in code comments and `VISION.md` 3.7.4). Flattening
+everything into one pool with only 1 or 2 total rolls makes that floor
+no longer guaranteed: food, torches, and every other former pool now
+just compete on weight for the same 1-2 draws, so a chest can come up
+with neither. The user's own restated ask ("should be 1 or 2... instead
+of the near full chest slots") was specific and repeated enough to read
+as intentional, so this was implemented as the literal, strict reading
+rather than preserving the floor as a guaranteed extra on top (which
+would have made the effective count 3-4, not 1-2). If the food/torch
+guarantee turns out to matter more than the count, that is a one-line
+change: split the flattened pool back into a guaranteed floor pool
+(`rolls: 1`, food and torches only) plus a bonus pool
+(`rolls: {min: 1, max: 2}`, everything else).
+
+#### Verification
+
+`./gradlew build --offline` green. All 22 rewritten files parse as
+valid JSON (`node -e "JSON.parse(...)"` per file) and were spot-checked
+for correct entry counts and no accidental data loss (e.g.
+`vaults/tier_3.json`: 42 entries survived the vault utility filter, no
+duplicate-looking near-misses). No Java code in the mod reads loot
+table pool structure directly (`grep`'d for it), so nothing outside the
+datapack itself needed to change. Live item, not yet walked: open
+several chests and vaults across tiers and confirm 1-2 items each,
+gear/currency only from vaults.
+
+---
+
+### PD-55: Every iron door connector ships with its own lever attached, defeating the point of a locked door (Low-Medium)
+
+**Reported:** 2026-09-03
+**Severity:** Low-Medium (not a correctness bug: the lever's presence
+is itself a deliberate, documented fix for a real problem, PD-27, but
+it does defeat the intended obstacle every time)
+**Status:** Fixed
+
+Reported from live play: "iron doors seem to all have the switches
+preattached when the switches should either be in chests or on other
+walls not attached to the door (or even in a different but accessible
+room)."
+
+Confirmed exactly, in `ConnectorStamper.applyIronDoor`
+(`ConnectorStamper.java`): every `IRON_DOOR` connector (10 of the
+connector weight table's roughly 95 total, so roughly 1 in 10 open
+edges) places its own lever one column beside the door, on the same
+wall, at `DOOR_MIN - 1`. The javadoc directly above it names the reason:
+"PD-27: ... nothing else in the mod places a redstone source, and this
+connector can land on the critical path, so a run with no lever would
+have no way through." So the lever's placement is not an oversight; it
+is a previous fix for a previous bug (an iron door with literally no way
+to open it, since the mod has no other redstone source anywhere), and
+moving the lever away without something else replacing its guarantee
+would reopen that exact bug.
+
+**The real tension**, worth reading before this is actioned: the
+situations round (M45 through M53, already landed) built a proper
+mechanism for exactly this kind of gate: `access: gated` plus
+`provides`/`requires` tags, one of which is already `redstone`
+(`SituationTags.REDSTONE`), checked by M47's root-distance solvability
+pass so a `requires: redstone` gate is guaranteed satisfiable by some
+upstream `provides: redstone` cell or the bag. The `IRON_DOOR` connector
+predates all of that and sits entirely outside it: it is a
+`LayoutStamper`-level connector between any two cells (not a
+`dungeon_room` template's own gate), it carries no `access`/`requires`
+tag of its own, and the situations round's solvability guarantee says
+nothing about it. Relocating the lever "into a chest, on another wall,
+or in a different room" as asked is exactly what the `requires: redstone`
+tag exists to guarantee is reachable, but wiring `IRON_DOOR` into that
+system, rather than just moving the block, is real integration work
+across two features built at different times, not a two-line fix.
+
+#### Fix
+
+Not planned yet. Recorded for investigation only. Three shapes worth
+weighing once this is picked up, roughly in order of how much they
+disturb the existing PD-27 guarantee:
+1. Move the lever off the door frame onto a different wall of the
+   *same* cell (still trivially guaranteed reachable, since it never
+   leaves the room the door is in, but no longer looks pre-opened).
+2. Put the lever (or a button, or an item the door consumes) in a chest
+   in the same cell, guaranteed reachable the same way.
+3. Put it in a different cell entirely, which is only safe if that cell
+   is wired through the situations round's `provides: redstone` /
+   `requires: redstone` tags and M47's solvability pass, so a run can
+   never generate an `IRON_DOOR` edge with no reachable `redstone`
+   source upstream of it. The option the user's phrasing most directly
+   asked for, and also the one with the most real work behind it.
+
+#### Verification
+
+Not applicable yet.
+
+---
+
+## Found live testing, follow-up on the trial key report (2026-09-03)
+
+### PD-56: Every trial key this mod grants is permanently non-functional: the M49 bag tag breaks vanilla's strict vault-key match (High)
+
+**Reported:** 2026-09-03
+**Severity:** High (the mod's own trial keys cannot open any vault, ever,
+which breaks the trial-key economy the situations round's Pot Room /
+spur-vault design depends on, not just an item-count nuisance)
+**Status:** Partially fixed live (vault-side drops removed); the deeper
+tagging bug is open, record only, no further fix until told to proceed.
+It needs a design call, not a mechanical one (see below).
+
+Follow-up to the earlier "trial key doesn't work on other vaults"
+exchange, which this replaces with the real, verified cause. The
+original vanilla-single-use explanation was true but incomplete: a
+freshly *mod-granted* trial key was reported as not working on *any*
+vault, including a brand new one, and not stacking with other trial
+keys the player held.
+
+Root cause, verified against the 26.2 jar's bytecode, not guessed:
+`VaultBlockEntity$Server.isValidToInsert` checks
+`ItemStack.isSameItemSameComponents(heldStack, vaultConfig.keyItem())`,
+a strict match on item type *and every component*. `VaultConfig.keyItem()`
+is a plain `minecraft:trial_key` with no components. Every `trial_key`
+this mod's loot tables grant carries a `minecraft:set_components`
+function stamping `custom_data.pocketdungeons.bag = 1` on it (the M49
+tag `InventorySwap.isBagTagged` reads to know an item came from the
+run). That tag makes `isSameItemSameComponents` return `false`
+unconditionally: a mod-granted trial key cannot open *any* vault,
+freshly opened or otherwise, and it cannot stack with an untagged key
+either, for the same reason (stacking also requires identical
+components). This is not a per-vault bug; it is the item itself being
+broken at the moment it is created, confirmed with `javap -c` on
+`VaultBlockEntity$Server`, not inferred.
+
+Checked and ruled out: `minecraft:ominous_trial_key` is never granted by
+any loot table in this mod (`grep` across `chests/` and `vaults/` found
+zero matches), so it is not affected. Plain `trial_key` is granted from
+17 files total: all 9 tier/drowned/ominous variants under both
+`chests/` and `vaults/`.
+
+#### Fix
+
+**Done, live:** the `trial_key` entry was removed outright from all 9
+`loot_table/vaults/*.json` files (tier 1 through 3, base/drowned/ominous),
+per the user's explicit "I'd rather not receive a trial key from a vault
+anyways." This also resolves PD-54's vault-should-be-gear-or-emeralds
+finding for this one item specifically. Verified: no `trial_key`
+reference remains anywhere under `loot_table/vaults/`, and every touched
+file still parses as valid JSON.
+
+**Still open, and deliberately not touched:** the same broken tag is
+still on every `trial_key` granted from `loot_table/chests/*.json` (9
+files), where trial keys are supposed to stay per the original design
+(Pot Room `provides: trial_key`, gated-chest tool rewards). Those keys
+are just as non-functional as the vault-granted ones were. Stripping the
+tag outright is not a safe mechanical fix on its own: the tag is also
+what `InventorySwap.isOurs` (spec 11.9's "belt and braces" check) uses
+to decide an item legitimately came from the run rather than from
+somewhere suspicious, on the way out of the void. An untagged trial key
+in a player's inventory when they leave would trip the "these items came
+into the dungeon from outside the run" warning and get diverted, even
+though it is entirely legitimate loot. This needs one of:
+1. Exempt `trial_key` (and any other vanilla item whose function depends
+   on exact component equality) from the `set_components` tagging pass
+   specifically, and teach `InventorySwap.isOurs` to also recognize a
+   plain, untagged `trial_key`/`ominous_trial_key` as "ours" by item type
+   alone, the same way it already special-cases `Keystone.isKeystone`.
+2. Find a tagging mechanism that does not touch `custom_data` at all (a
+   different component vanilla's vault check ignores, if one exists) --
+   unconfirmed whether such a component exists; not checked.
+3. Track "this trial key came from this run" out of band (e.g., in
+   `DungeonLog` or the instance record) instead of on the item, and stop
+   tagging `trial_key` entirely.
+Whoever picks this up should also decide whether the same tagging
+pattern is silently breaking any *other* vanilla item this mod grants
+whose function depends on component equality (a comparator reading an
+item frame, a specific enchanted book match, etc.); `trial_key` is
+simply the one a player happened to notice and report, and the tagging pass
+was applied uniformly to everything, so it is worth an audit rather than
+treating this as an isolated case.
+
+#### Verification
+
+Vault removal: confirmed by grep (no `trial_key` reference remains under
+`loot_table/vaults/`) and by parsing all 9 touched files as JSON. Live
+item, not yet walked: open a vault, confirm it never offers a trial key
+as a reward. The deeper chest-side bug is unverified beyond the jar
+bytecode read; a live check would be opening a chest for a tagged trial
+key and confirming it still fails to open a fresh vault.
+
+---
+
+## Found live testing, same session as the free re-entry fix (2026-09-03)
+
+### PD-57: Free re-entry duplicated the keystone compass once per re-entry (High)
+
+**Reported:** 2026-09-03 ("now I get an additional compass each time I
+enter the dungeon, I entered and left 3 times, now I have 3 compasses")
+**Severity:** High while it lasted (a real regression in a fix from the
+same session, not a pre-existing bug; item duplication)
+**Status:** Fixed (2026-09-03), same session as the report
+
+A self-inflicted regression in the free-re-entry inventory fix built
+earlier this session (the one that stopped a step-out-and-come-back run
+from resetting the player's void inventory to just the keystone).
+`InventorySwap.enterVoid` calls `applyKeystoneItem` (mints a fresh
+keystone into slot 0) and then, for a matching re-entry,
+`restorePauseIfMatching` (hands back everything that was paused on the
+way out). `PauseRecord`'s snapshot is the full 42 slot capture
+`snapshotPlayer` always takes, and slot 0 of that capture is whatever
+keystone the player was holding at the moment they stepped out.
+Restoring it back duplicated the one `applyKeystoneItem` had just
+placed: a second compass on the first re-entry, a third on the second,
+exactly the 1-per-re-entry pattern reported.
+
+#### Fix
+
+`InventorySwap.withoutKeystoneSlot` strips slot 0 (replaces it with
+`ItemStack.EMPTY`) at the moment a pause is created, before it is
+stored, rather than filtering it out later at restore time. The
+invariant (a `PauseRecord` never carries slot 0) holds no matter which
+of the two sites, pause creation in `leaveVoid` or restore in
+`restorePauseIfMatching`, a future reader looks at first.
+
+#### Verification
+
+Full test suite green (`./gradlew build --offline`). No dedicated
+regression test added: same reasoning as PD-50, this is state-machine
+behaviour with no new pure-logic surface, so it is a live-play item.
+Walk: enter a dungeon, leave via a path that keeps it re-enterable
+(pad, `/dungeon exit`, the wall lodestone's Leave), re-enter, confirm
+exactly one compass; repeat three times in a row and confirm the count
+never grows.
+
+#### A related question this surfaced, not chased
+
+`RunLifecycle.deliverVoidInventory`'s `carried` list is built from every
+non-empty slot in the full snapshot, slot 0 included, same as
+`PauseRecord` was before this fix. That means a genuinely **final** exit
+(not a free re-entry, `shouldPause` says no) still delivers the
+keystone item into the room's containers along with everything else,
+rather than it following the player out. Whether that is actually wrong
+is unclear and not confirmed either way: `DungeonCommands.mintKey`'s own
+javadoc calls the keystone item "a view onto server state" that costs
+nothing to replace ("losing it in lava is no longer a way to lose a
+keystone"), which suggests this may be harmless by design: the player
+can just run `/dungeon key` again. Not touched, since it has not been
+reported and the design intent is genuinely ambiguous rather than
+verified either way. Worth a quick look if a "my compass vanished when
+I left for good" report ever comes in.
+
+---
+
+## Design change, same session (2026-09-03)
+
+### PD-58: Crash/restart recovery holds the void inventory instead of dropping it on the ground
+
+**Reported:** 2026-09-03 ("seems if I log off and restart the server
+while being in a pocket dungeon, when I log back in it puts my items
+on the ground in the overworld instead of restoring them in the
+dungeon when I reenter"). Traced to spec 11.6's own documented
+last-resort fallback firing correctly, not a defect: a crash or a hard
+restart wipes `InstanceRegistry` (in-memory only), and
+`Instances.processJoinRecoveries` teleports the player out on rejoin
+through a raw `teleport` call that never runs through `Instances.detach`,
+so `InventorySwap`'s leaving branch has no room and no cached slot to
+find. Confirmed nothing was actually lost: the items land on the
+ground, visible, exactly as spec 11.6 promises ("nothing is voided
+silently").
+
+The user's follow-up reframed this correctly: dropping was never
+required just because there was no room to speak of. "If we're able to
+drop them on the ground, why can't we instead just save them into the
+pocket dungeon inventory?" The specific old instance is genuinely gone
+(a fresh `/dungeon` after a restart opens a brand new one, not the old
+one), so restoring *into that instance* is not possible. Holding the
+items and handing them back the next time the player enters *any*
+dungeon is possible, and is a straightforward extension of the
+`PauseRecord` mechanism PD-57 already built.
+
+#### Fix
+
+New `InventorySwap.OrphanRecord` (list of items, no slot: unlike
+`PauseRecord` there is no instance to match against) with its own
+`DungeonLog` sidecar (`orphans`, mirroring `stashes`/`pauses`
+exactly). `RunLifecycle.deliverVoidInventory` gained a `knownInstance`
+parameter, set by `InventorySwap.leaveVoid` from whether
+`Instances.consumeLastDetachedSlot` returned anything at all:
+
+- `knownInstance` true, no room found: a normal, tracked exit from a
+  run that legitimately has no room (untimed, `/dungeon admin build`).
+  Unchanged: drop at the player's still-visible feet.
+- `knownInstance` false: nothing in this mod ever saw the player
+  leave. `InventorySwap.stashOrphan` holds the items (slot 0 stripped
+  the same way `PauseRecord` strips it, same reasoning as PD-57: a
+  future `applyKeystoneItem` owns slot 0) instead of dropping them.
+
+`InventorySwap.enterVoid` gained `restoreOrphanIfAny`, run after the
+existing pause restore: on the player's next entry into any dungeon,
+whatever was orphaned is placed into their inventory and the record is
+cleared, with a chat line telling them what happened
+("Your items from a dungeon that closed while you were away have been
+returned to you."). The Lost and Found entry for the original leave is
+written before this branch runs either way, unaffected.
+
+#### Verification
+
+Full test suite green (`./gradlew build --offline`). No dedicated
+regression test: same reasoning as PD-50 and PD-57, this is
+state-machine behaviour with no new pure-logic surface, so it is a
+live-play item. Walk: enter a dungeon holding some items, kill the
+server process (not a graceful shutdown, to skip the disconnect path
+the same way a real crash would), restart, log back in, confirm no
+items on the ground; enter any dungeon and confirm the held items
+appear in the main inventory with the return message, and that slot 0
+still holds exactly one keystone.
+
+---
+
+## Loot tuning, follow-up on PD-54 (2026-09-03)
+
+### PD-59: Reward room still felt loot-heavy after PD-54; durability items always spawned pristine; coal too common
+
+**Reported:** 2026-09-03. "Everything in priority 1 and priority 2 is
+good except for the loot counts, it's still too much. Also coal can be
+a lot more scarce", followed mid-turn by "Anything with durability
+should have random damage."
+
+**Status:** Fixed (2026-09-03). Item 1 was flagged rather than fixed
+when this entry was first written; the user's follow-up ("cut the
+reward chests down") settled it.
+
+Three separate findings under one report:
+
+1. **The reward room places up to three completion chests**
+   (`TrialContent.placeCompletionChests`, called from
+   `RunLifecycle.completeRun`'s payout step), each independently set to
+   the same tier table and each rolling PD-54's `{min: 1, max: 2}`.
+   PD-54 fixed *per-table* roll count; it did not touch *how many
+   chests get that table*. Three chests at 1-2 items each is 3-6 items
+   from the reward room alone, which is almost certainly what still
+   read as "too much" even though every individual chest is within
+   spec. **Not changed**: whether each reward chest's roll count should
+   drop further specifically when multiple chests are placed, or
+   whether the three-chest reward shape itself should change, is a
+   design call (`PayoutMath.chestCount` already varies 1 to 3 chests by
+   how quickly the run finished, which is deliberate reward-shape
+   design predating this session) that was not made unilaterally.
+   Flagged for the user rather than acted on.
+2. **No item with durability had a `minecraft:set_damage` function
+   anywhere in the mod's loot tables.** Every sword, tool, and armour
+   piece always spawned at full durability, in chests, vaults, the
+   per-slot `gear/*.json` tables the gamble/reroll stations draw from,
+   and `equipment/*.json`. Counted 215 matching entries before the fix.
+3. **Coal was weighted 6 (4 on supply tables) against pools whose total
+   weight ran 167 to 193**, a 3 to 4 percent pick chance per roll on its
+   own, low as a single number but compounding across the many chests
+   and vaults a run passes through, and its stack size (`set_count`)
+   ran as high as 8 to 30 depending on tier, well above every other
+   resource entry's range.
+
+#### Fix
+
+**Durability (item 2).** Added `minecraft:set_damage` with a
+`{"type": "minecraft:uniform", "min": 0.1, "max": 0.6}` range to every
+loot table entry matching a durable item pattern (swords, axes,
+pickaxes, shovels, hoes, the four armour pieces, bows, crossbows,
+shears, tridents, flint and steel, fishing rods, shields, elytra)
+across `loot_table/chests/`, `loot_table/vaults/`,
+`loot_table/equipment/`, and `loot_table/gear/`: 212 entries across 46
+files (three of the 215 counted already had some other functions
+touching damage-adjacent state and were left alone rather than risk a
+double-application; not re-verified which three). **Deliberately
+excluded `loot_table/bags/*.json`**: those are the deliberately scarce
+starting kit, not found loot, and giving a player's starting tool
+random pre-existing wear reads as a different kind of scarcity than
+what was asked for. Flag if bags should be included too.
+
+**Coal (item 3).** Weight cut to 2 everywhere it appears (13 files:
+`chests/tier_1`, `tier_1_ominous`, `tier_2`, `tier_2_ominous`,
+`tier_3_ominous`, `supply_tier_1/2/3`, and the same five vault tiers).
+Stack size cut roughly in half to two-thirds depending on tier, e.g.
+`chests/tier_1` 8-16 down to 2-4, `chests/tier_3_ominous` 12-30 down to
+4-9. Full before/after per file is in the commit; not reproduced here.
+
+**Reward room multiplier (item 1).** `PayoutMath.chestCount` capped at
+2, not 3: the fast-finish tier (`usedPercent <= threePercent`, ≤60% of
+the clock used) and the medium tier (`usedPercent <= twoPercent`, ≤80%)
+now both return 2, collapsing rather than each losing one, so medium
+and slow finishers stay distinguishable from each other. The physical
+third chest slot stays in `TrialContent.placeCompletionChests`'s room
+template; it just never gets filled (already how an under-earned slot
+is handled: set to air, per the existing `else` branch). The
+`threePercent` parameter and the `threeChestPercent` config value it
+reads from are kept, unused, rather than deleted outright, the same
+codec migration discipline `CONVENTIONS.md` asks for on a superseded
+`DungeonLog` field: an existing server's `pocketdungeons.json` should
+not need edits to load cleanly, and the threshold is still there if a
+future pass wants the fast/medium distinction back.
+
+#### Verification
+
+All 63 files under `loot_table/` parse as valid JSON. `PayoutMathTest`
+updated for the new cap (every case that used to expect the maximum
+now expects 2, one new comment explaining why) and passes; full test
+suite green (`./gradlew build --offline`). Checked by hand that nothing
+else in the mod assumes a maximum of 3 reward chests: every
+`record.rewardChests` read is a `> 0` / `<= 0` check, never an equality
+against 3, so the cap needed no changes outside `PayoutMath` and its
+test. Live items, none yet walked: open several chests/vaults and
+confirm damaged gear (not always pristine); confirm coal shows up
+markedly less often and in smaller stacks; finish a run comfortably
+within the clock and confirm the reward room hands out at most 2 filled
+chests, not 3.
+
+---
+
+## Follow-up on PD-59: stack sizes, not just item counts (2026-09-03)
+
+### PD-60: Individual stacks still read as too generous even at 1-2 items per chest
+
+**Reported:** 2026-09-03. "Still too many items, for example I got 6
+steaks from a chest when I should really only get 1 or maybe 2. So
+reduce reward sizes by about a third or quarter of it's current size
+and make unstackable items like water buckets, armour, tools, etc. half
+as common."
+
+**Status:** Fixed (2026-09-03).
+
+PD-54 and PD-59 both worked at the pool level (how many rolls, how many
+chests); this report is about what a single roll produces. "6 steaks"
+is one roll landing on `cooked_beef` with its `set_count` range, not
+six separate items, so the fix is stack size, not roll count.
+
+#### Fix
+
+One pass over every `.json` under `loot_table/chests/` and
+`loot_table/vaults/` (both explicitly asked for by name in earlier
+reports; `bags/` stays excluded, same reasoning as PD-59: a starter kit
+is not "found loot"):
+
+- **Every `minecraft:set_count` range cut to roughly two-thirds**
+  (`round(value * 0.65)`, floored at 1, `max` never allowed below the
+  new `min`). `chests/tier_1.json`'s `cooked_beef`, the reported
+  example, went from 6-10 down to 4-7. 295 count ranges touched.
+- **Every unstackable item's pick weight halved** (`round(weight / 2)`,
+  floored at 1): all armour, all tools and weapons, `bow`, `crossbow`,
+  `trident`, `shears`, `shield`, `elytra`, `flint_and_steel`,
+  `fishing_rod`, the three filled buckets, `oak_boat`, and `book`
+  (every occurrence in this dataset carries `enchant_with_levels`,
+  which turns it into an effectively unstackable enchanted book at roll
+  time even though the base id is plain `book`). 165 weights touched.
+  Verified against vanilla max-stack-size knowledge item by item rather
+  than pattern-matched blind: block items that happen to share a
+  naming quirk (`oak_planks`, `iron_bars`, `lapis_lazuli`, the armour
+  trim smithing templates, `heart_of_the_sea`, `echo_shard`,
+  `netherite_scrap`/`ingot`, both golden apples) all stack normally in
+  vanilla and were deliberately left out of the halving.
+- Not touched: `loot_table/gear/` and `loot_table/equipment/`. Every
+  entry in those tables is already an armour or weapon piece, so
+  halving every weight equally inside a pool that is entirely
+  unstackable items is a no-op in relative terms; the halving only
+  does something where unstackable items compete against stackable
+  resources in the same pool, which is exactly the chests/vaults case.
+
+#### Verification
+
+All 63 files under `loot_table/` parse as valid JSON. Full test suite
+green (`./gradlew build --offline`). No dedicated regression test:
+pure datapack content. Live item, not yet walked: open several chests
+across tiers and confirm food/resource stacks read as noticeably
+smaller, and that armour, tools, and buckets show up less often
+relative to stackable resources.
+
+---
+
+### PD-61: PD-60's cut was not aggressive enough
+
+**Reported:** 2026-09-03. "no, you need to cut more, 6-10 should be
+down to 1-3." (`cooked_beef` in `chests/tier_1.json`, the same entry
+PD-60 used as its own example, originally 6-10, cut by PD-60 to 4-7.)
+
+**Status:** Fixed (2026-09-03).
+
+#### Fix
+
+Rather than guess at a second multiplier, solved directly for the ratio
+the report specifies. Only the current on-disk value (4-7, post PD-60)
+was actually available to transform, so the ratio was derived from that
+step, not the original 6-10: `1/4 = 0.25` for the low end,
+`3/7 ≈ 0.4286` for the high end. Applied uniformly to every remaining
+`minecraft:set_count` range in `loot_table/chests/` and
+`loot_table/vaults/` (`bags/` still excluded, same reasoning as PD-59
+and PD-60): `new_min = max(1, round(old_min * 0.25))`,
+`new_max = max(new_min, round(old_max * 0.4286))`. 283 ranges scaled
+across 17 files. `cooked_beef` in `chests/tier_1.json` now reads
+`{"min": 1, "max": 3}`, confirmed by reading the file directly, matching
+the report exactly.
+
+This is now two compounding cuts on top of the original values (PD-60's
+~0.65, then this pass's ~0.25-0.43), so a stack that started at 6-10 is
+now 1-3, roughly a quarter to a third of where it began, in line with
+"reduce reward sizes by about a third or quarter" from the PD-60 report
+that this one is a correction to.
+
+#### Verification
+
+All 63 files under `loot_table/` parse as valid JSON. Full test suite
+green (`./gradlew build --offline`). Calibration point verified by
+reading the file back, not just trusting the script's own log line (its
+log line had an unrelated bug and printed `null` for the sample; the
+file itself is correct, checked directly). Live item, not yet walked:
+open several chests and confirm stack sizes now read as small,
+single-digit amounts rather than a meaningful haul.
+
+---
+
+### PD-62: Player permanently locked in a room, trapped by an iron door with no lever on their side (High)
+
+**Reported:** 2026-09-03. "got locked in a room since the lever was on
+one side of the door and the other side was protected in all areas
+close to the door."
+
+**Status:** Fixed (2026-09-03).
+
+Confirmed in `ConnectorStamper.applyIronDoor`: an `IRON_DOOR` connector
+only stamps its door and lever on the cell nearer the entrance
+(`LayoutStamper.applyConnectors`, `nearerToEntrance`), on purpose, so a
+fresh arrival meets an already-openable door rather than two closed
+doors facing each other. But backtracking through an already-open door
+is allowed by design, and once it swings shut behind a player standing
+on the far side, that side has no redstone source anywhere in reach:
+there is no lever, no other block placed there, and nothing else in the
+mod generates one. The player is stuck.
+
+Three wrong turns before landing on the real cause, each corrected by a
+precise live report:
+1. First attempt placed a second, floor-mounted lever on the far side.
+   Rejected: "the solutioon is not extra levers, think about the door
+   placement." The actual ask was narrower: the doorway strip between
+   the two cells is a 2-wide-by-3-tall column of open air on the far
+   side (the near side's `applyIronDoor` stamps the door there; the far
+   side's matching column was already resolved to air by the door
+   jigsaw and never touched again), and that strip should simply allow
+   the player to place their own redstone source in it.
+2. Second attempt misread that as "let the door itself be broken
+   through." Corrected: "no digging through, the iron doors stay
+   protected, the empty space is what's unprotected." The door leaves
+   stay exactly as immutable as they are today; only the open threshold
+   in front of them, on the far side, needed to change.
+3. Third attempt, having correctly narrowed the target to a placement
+   exemption rather than a break exemption, searched only
+   `RoomProtection.java`, found no block-place event registered there at
+   all, and concluded placement in dungeon cells was already
+   unrestricted everywhere, so nothing needed to change. Corrected: "I
+   could not place blocks in that space." `RoomProtection` only
+   registers `PlayerBlockBreakEvents`; the actual placement gate lives
+   in `RitualListener.onUseBlock`, which fakes Fabric's missing
+   "before block place" event off `UseBlockCallback` and denies
+   placement whenever the target position is shell
+   (`RoomProtection.isShell`), a pure floor/wall/ceiling coordinate rule
+   with no notion of "this particular wall square is actually open air".
+   The far side's doorway threshold is shell by that rule (it sits on
+   the cell's wall ring), even though nothing is built there, which is
+   exactly what was blocking the player.
+
+#### Fix
+
+Added a new per-instance set, `InstanceLayout.ironDoorFarSideSlots`,
+threaded the same way `trialSpawners` already is: collected during
+stamping, carried immutably on the record, read back at the point that
+needs it.
+
+`LayoutStamper.applyConnectors` now takes a `Set<BlockPos>` to populate.
+For every `IRON_DOOR` edge, alongside the existing near-side door stamp
+it also resolves the far cell and its wall
+(`PlanCell farCell = edge.other(nearCell); DoorMask.Direction farWall =
+farCell.directionTo(nearCell);`) and records that wall's full doorway
+rectangle (`ConnectorGeometry.rect(farOrigin, farWall, DOOR_MIN,
+DOOR_MAX, 1, DOOR_HEIGHT)`, the same two-wide, three-tall footprint the
+near side's door occupies) into the set. No block is placed there; only
+the positions are recorded.
+
+`RitualListener.onUseBlock`'s dungeon-cell placement check now reads
+this set before denying a shell placement: if the target position is in
+`Instances.dungeonRecordAt(placementPos).layout.ironDoorFarSideSlots()`,
+the denial is skipped and the placement (a lever, a button, redstone
+dust, anything) is allowed through, exactly as though that one square
+were not shell. Every other shell position, including the door leaves
+themselves and every other connector type's doorway, is untouched.
+
+`InstanceLayout` gained the new field as its last record component,
+normalized to `Set.of()` when null the same way `trialSpawners` is. Its
+three other construction sites (`Instances.lobbyLayout`,
+`StaticLayout.build`'s `forClearingOnly` path via
+`InstanceLayout.forClearingOnly`, and `StaticLayout.build` itself) pass
+`Set.of()`, since none of them ever place an `IRON_DOOR` connector.
+
+#### Verification
+
+`./gradlew build --offline` green, all tests passing, including the
+full `LayoutGraphGenerator` and `GraphSolvabilityTest` sweeps.
+Live item, not yet walked: generate a run with an `IRON_DOOR` connector
+on the critical path, cross it, let it close, and confirm a lever placed
+on the far-side threshold opens it and nowhere else in that cell's walls
+accepts a placement.
+
+#### Follow-up: the same threshold was still unbreakable (2026-09-03)
+
+Reported from live play: "I can place blocks now (correct) but I can't
+mine them up again. What if I place the wrong block in the doorway, I
+can't fix it with the current setup." Placement went through
+`RitualListener.onUseBlock`, which the fix above updated; breaking goes
+through the separate `RoomProtection.beforeBlockBreak`, which still only
+checked `isShell` and had no idea `ironDoorFarSideSlots` existed. A
+player who placed the wrong block, or simply wanted the threshold empty
+again, had no way to undo it.
+
+**Fix:** `beforeBlockBreak`'s dungeon-cell branch now carries the same
+exemption placement got: a shell position still denies breaking by
+default, but if it is also in `Instances.dungeonRecordAt(pos).layout
+.ironDoorFarSideSlots()`, breaking is allowed. Every other shell
+position, door leaves included, is unaffected.
+
+**Verification:** `./gradlew build --offline` green, all tests passing.
+Live item, not yet walked: place a block on the far-side threshold, then
+mine it back up, and confirm every other wall position in that cell
+(including the door itself) still refuses to break.
+
+---
+
+### PD-63: Trial-spawner and exit-pad completion silently stops registering for a player who died mid-run (High)
+
+**Reported:** 2026-09-03. "Sometimes I get a glitch where even when I
+complete all the trail spawners and stand on the lodestones to mark the
+finish, it doesn't register and then I'm just stuck... I think the
+problem with the dungeons not registering completion comes from when I
+die." The report correctly named the trigger; the mechanism took a full
+read of the death path to confirm.
+
+**Status:** Fixed (2026-09-03).
+
+Confirmed in `Instances.rescue`, the handler `ALLOW_DEATH` calls instead
+of letting a player actually die inside the dungeon. It always calls
+`RunLifecycle.dropMember` first, which routes through `Instances.detach`:
+that removes the player from `record.members`, `InstanceRegistry.byMember`,
+the timer and Trial Omen unconditionally, the same full detachment a
+normal `/dungeon exit` performs. For a solo player (no leadership change,
+the record survives instead of being purged, U8 Stage 1), `rescue` then
+checks `stillLive && hadRoom` and, when true, teleports the player right
+back into the same still-live instance's entrance room, as a courtesy
+rather than throwing them all the way back to the overworld. But nothing
+in that branch ever re-added the player to `record.members` or
+`InstanceRegistry.byMember` after `detach` removed them. The player ends
+up standing inside a dungeon that, as far as the mod's own bookkeeping is
+concerned, they are not in: `Instances.onTick`'s watcher (`watchSpawnerClears`,
+the exit-pad `stepped` check, the timer) only ever iterates
+`record.members`, so from the moment of death onward it silently stops
+seeing this player at all. Every trial spawner they clear still counts
+(that state lives on the record's own world/content tracking, not on
+membership), and standing on the exit pad afterward still physically
+happens, but the watcher that would turn either into a completion never
+runs for them again. Block protection was unaffected (`RoomProtection`/
+`RitualListener`'s checks are position-based, not membership-based), which
+is why the run otherwise felt normal and the cause was easy to miss.
+
+#### Fix
+
+`rescue`'s `stillLive && hadRoom` branch (`Instances.java`) now re-admits
+the player the same way `admit()` does for a fresh entry, before
+teleporting them back in: `record.members.put` with the same `ReturnPoint`
+already captured earlier in the method (before `detach` cleared it, so
+the player's current in-dungeon position is never mistaken for a return
+point), `InstanceRegistry.byMember.put`, `record.timer.addPlayer` when a
+timer exists, and `applyTrialOmen` to restore what `detach` had just
+cleared for an ominous run. Every other branch of `rescue` (a run that
+ended with the death, an admin build or untimed run with no room, the
+`else` fallback to world spawn) is unchanged: only the one path that
+teleports the player back into a still-live instance needed the re-admit.
+
+#### Verification
+
+`./gradlew build --offline` green, all tests passing. Live item, not yet
+walked: die inside a dungeon run, confirm the rescue message and the
+teleport back into the entrance room, then clear the remaining trial
+spawners and step on the exit pad, and confirm completion now registers
+normally.
+
+---
+
+### PD-64: No self-service way to despawn a stuck or unwanted run and start over
+
+**Reported:** 2026-09-03, alongside PD-63: "you still haven't added the
+reset feature I asked a while ago... if a player fails a dungeon they
+'can' complete it anyways but they should also be able to despawn the
+whole dungeon and start fresh."
+
+**Status:** Fixed (2026-09-03).
+
+Confirmed there was no command for this. `/dungeon exit` and `/dungeon
+quit` both only detach the caller (`RunLifecycle.exit`/`quitDoor`); for a
+solo player neither one purges the instance, so the same layout, PD-63's
+soft-lock included, sits there waiting for free re-entry (U8 Stage 1: "an
+empty instance is now normal"). `/dungeon resetkey` is self-service but
+answers a different question: it wipes the caller's keystone *level*
+progress back to 0 and mints a fresh `[1]`, which is not what "start over
+on this run" means and is a much bigger reset than a stuck player is
+asking for. Only `/dungeon admin purge`/`resetroom` could actually despawn
+a live instance, and both are operator-only.
+
+#### Fix
+
+Added `/dungeon abandon`, player-facing, owner-only. It resolves the
+caller's own run (the one they are currently standing in, or, if they
+already stepped out of it, the idle one `RunLifecycle.isReenterable`
+would otherwise hand them back into for free) and calls
+`InstanceTeardown.purge`, the same routine an admin purge, a timeout and a
+normal completion all already funnel through: every stamped block clears,
+the timer closes, any party members still inside are ejected, and the
+keystone is refunded the same cost-free way a death already is. The
+refund is the point: the same keystone opens a brand new layout. A
+non-owner (a party guest) is refused with a pointer to `/dungeon exit`
+instead, since purging ends the run for the whole party, not just the
+caller.
+
+#### Verification
+
+`./gradlew build --offline` green, all tests passing. Live item, not yet
+walked: open a run, run `/dungeon abandon`, confirm the dungeon's blocks
+clear and the keystone is back in hand, and confirm a guest party member
+running the same command is refused rather than ending the run for the
+owner.
+
+---
+
+### PD-65: Void inventory lost on every exit, including "Leave Dungeon" (Critical)
+
+**Reported:** 2026-09-03. Initially reported as "lost in all cases
+except Leave Dungeon"; corrected the same day to "lost even if I press
+Leave Dungeon." The user also noted the contrast that matters: "The
+overworld inventory seems to survive no matter how the player logs out,
+disconnects, changes worlds." That is the design principle the void
+inventory violates.
+**Severity:** Critical
+**Status:** Fixed. The void inventory is now persisted as an
+`OrphanRecord` on `DungeonLog` unconditionally on every leave, the same
+guarantee `StashRecord` gives the overworld inventory. Room delivery is
+a bonus that clears the orphan only on full success. `shouldPause`,
+`PauseRecord`, `flushOrphanedPause`, `deliverVoidInventory`, and the
+`lastDetachedSlot` cache have been removed. `./gradlew build --offline`
+green, all tests passing. Live verification not yet performed.
+
+The void inventory (everything the player was carrying inside
+`pocketdungeons:void`) is supposed to be preserved no matter how the
+player leaves: "Leave Dungeon", getting kicked, disconnecting, the
+server closing, or the dungeon being purged. The overworld (survival)
+inventory already has this guarantee: it is persisted as a
+`StashRecord` on `DungeonLog` (saved to disk), and restored on the
+player's next entry into any dungeon, regardless of how they left or
+whether the instance they were in still exists. The void inventory
+does not have the same guarantee. It is routed through a tangle of
+in-memory caches and physical blocks in the dungeon dimension, all of
+which can be gone by the time the delivery runs.
+
+#### Root cause: a regression introduced by the `shouldPause` /
+`tearingDown` / `flushOrphanedPause` changes
+
+The last committed version (97dfa4e, "stash and swap, the void
+inventory invariant") had a single leaving branch:
+`leaveVoid` always called
+`RunLifecycle.deliverVoidInventory(server, player, voidInventory)`.
+That method looked up the room through `InstanceRegistry.byMember`,
+which was already null (detach removed the player before the
+teleport that triggers the leave), so `roomOrigin` was null, and
+items were dropped at the player's feet. That was not great (items
+scattered at the return point), but it was not a total loss: the
+player could see and pick them up. The user considers this "working."
+
+The uncommitted changes added three mechanisms on top of that
+committed baseline, each well-intentioned, together a regression:
+
+1. **PD-50 fix** (`lastRoomCellOrigin` cache in `Instances.detach`):
+   made `deliverVoidInventory` fall back to a cached room origin when
+   `byMember` is already null, so items reach the room's containers
+   instead of the player's feet. This is what made "Leave Dungeon"
+   actually deliver to the room.
+
+2. **`shouldPause` / `PauseRecord`** (new branch in `leaveVoid`):
+   for a solo owner leaving a mid-run, not-yet-completed, still-live
+   instance, pause the void inventory in `DungeonLog` and restore it
+   on free re-entry into that exact instance, instead of delivering
+   it to the room. The intent was to avoid emptying the player's
+   hands on a brief step-out-and-come-back. The side effect is that
+   items are no longer delivered to the room, so a player who leaves
+   mid-run and then starts a *new* dungeon (instead of re-entering
+   the old one) finds nothing: the items are stuck in a
+   `PauseRecord` tied to a slot the new dungeon does not match, and
+   `restorePauseIfMatching` silently skips them.
+
+3. **`tearingDown` flag** (new field on `InstanceRecord`, set at the
+   top of `purge` and `retireOrPurge`): prevents `shouldPause` from
+   pausing items for an instance that is seconds away from being
+   removed from `bySlot`. Without it, a purge that ejects an online
+   member would pause their items for a re-entry that is never
+   coming. With it, `shouldPause` returns false for any exit where a
+   purge fires in the same tick, which includes "Leave Dungeon" from
+   the lobby (see below). Those items fall through to
+   `deliverVoidInventory`, which targets a room being torn down.
+
+4. **`flushOrphanedPause`** (new safety net in `InstanceTeardown`):
+   supposed to flush a paused `PauseRecord` to the room when the
+   instance is purged. It only runs inside `purge`'s member loop
+   (`record.members.keySet()`), so a member who already left or
+   disconnected (removed from `members` by `detach`) is never
+   reached. The `PauseRecord` sits in `DungeonLog` forever.
+
+The net effect: every exit path either pauses items for an instance
+the player might never re-enter, or delivers to a room that might
+already be gone. The overworld inventory has none of these problems
+because `StashRecord` is written unconditionally on entry and restored
+unconditionally on the next entry, with no dependency on which
+instance the player was in or whether it still exists.
+
+#### How each exit loses items
+
+**"Leave Dungeon" from the lobby** (the most common "Leave Dungeon"
+case, since the dialog is available before any door is chosen):
+`RunLifecycle.exit` calls `Instances.eject`, which calls `detach`,
+which caches `lastRoomCellOrigin` and `lastDetachedSlot` and
+teleports the player out. Then `exit` calls
+`Instances.purgeIfAbandonedLobby` (`Instances.java` lines 1210-1214),
+which sees `awaitingDoorChoice && chosenStep == 0 && members.isEmpty()`
+and fires `InstanceTeardown.purge`. `purge` sets `tearingDown = true`,
+nulls `record.roomCellOrigin` at line 155, captures it for its own
+teardown use, and queues a `PendingClear` to erase the room blocks.
+The player was already removed from `record.members` by `detach`, so
+`purge`'s member loop does not execute for them and
+`flushOrphanedPause` is never called. On the next tick, `leaveVoid`
+runs: `shouldPause` is false (the record is gone from `bySlot`, and
+`tearingDown` would have blocked it anyway), so `deliverVoidInventory`
+runs with the cached `roomOrigin` from `detach` time.
+`deliverToRoom` (`RunLifecycle.java` lines 183-202) scans the room
+cell for containers, but the `PendingClear` may have already erased
+them. Any items that do not fit in surviving containers are dropped
+via `Block.popResource` at the pad position inside the dungeon
+dimension, where the floor is being cleared. The items fall into the
+void and are destroyed.
+
+**"Leave Dungeon" mid-run, then start a new dungeon:**
+`shouldPause` is true (instance is live, owner, reenterable), so the
+items go into a `PauseRecord` tied to this instance's slot. The
+player then runs `/dungeon` to start fresh.
+`reenterOwnedInstance` finds the old instance is still reenterable
+and teleports the player back into it (free re-entry), which does
+restore the pause. But if the player instead runs `/dungeon abandon`
+(PD-64) first, or lets the instance expire, or the server closes,
+the instance is purged. `purge`'s member loop does not include the
+player (detach already removed them), so `flushOrphanedPause` is
+never called. The `PauseRecord` sits in `DungeonLog` with the items,
+never delivered to the room, never restored on any future entry. The
+items are orphaned in saved data that nothing ever reads again.
+
+**"Leave Dungeon" after completing the run:** `shouldPause` is false
+because `isReenterable` checks `record.completed.isEmpty()` and the
+player has completed. `deliverVoidInventory` runs with the cached
+`roomOrigin`, which `completeDungeon` updated to the terminal cell
+(`RunLifecycle.java` line 1251: `record.roomCellOrigin =
+newRoomOrigin`). `deliverToRoom` delivers to the room at the terminal
+cell. This is the one variant that might actually work, if the room
+containers survived and the player knows to look there on their next
+run's lobby. But the player has no way to know the items went to a
+room they cannot see until they start another run, and any overflow
+is still dropped at the pad in the dungeon dimension.
+
+**Purge while the player is online** (kick that triggers a leadership
+change, `SERVER_STOPPING`): `InstanceTeardown.purge` sets
+`tearingDown = true` and nulls `record.roomCellOrigin` at line 155
+*before* the member loop calls `eject`/`detach`. `detach`
+(`Instances.java` line 1149) only writes `lastRoomCellOrigin` when
+`record.roomCellOrigin != null`, so it is never written. By the time
+`leaveVoid` runs on the next tick, `teardown` has already removed the
+record from `bySlot`, so `shouldPause` is false.
+`deliverVoidInventory` gets `knownInstance = true` (the slot was
+recorded) but `roomOrigin = null` (never cached), so it falls through
+to the "drop at the player's feet" branch (`RunLifecycle.java` lines
+119-125). The items are scattered at the return point in the
+overworld, easily missed or despawned, and never handed to the room
+the player expected.
+
+**Disconnect, then the instance is purged while the player is
+offline:** `handleDisconnect` calls `dropMember`/`detach` while the
+room still exists, so `lastRoomCellOrigin` *is* cached with a valid
+origin. The instance is purged later (abandoned lobby, timeout
+retirement, etc.); the member was already removed from
+`record.members` at disconnect, so `purge`'s member loop never
+reaches them and `flushOrphanedPause` is never called for them (it
+iterates `record.members.keySet()`, `InstanceTeardown.java` line
+156). The room blocks are torn down. On reconnect, the join recovery
+teleport (`Instances.java` lines 260-275, `processJoinRecoveries`
+lines 1229-1263) sends the player out of the void, `leaveVoid` runs,
+`shouldPause` is false (bySlot empty), and `deliverVoidInventory`
+gets the stale `roomOrigin` from disconnect time. `deliverToRoom`
+(`RunLifecycle.java` lines 183-202) scans the room cell for
+containers, finds none (the cell was cleared by teardown), and calls
+`Block.popResource` at the pad position *inside the dungeon
+dimension*, where there is no floor left. The items fall into the
+void and are destroyed. This is the worst variant: the items are not
+just scattered, they are gone.
+
+**Server close / hard restart:** `SERVER_STOPPING` calls
+`InstanceTeardown.purge` for every live instance (`Instances.java`
+lines 325-338), which ejects online members. Whether `leaveVoid` runs
+depends on whether a tick fires after those teleports before the
+server finishes stopping; if it does, the items hit one of the broken
+paths above. If it does not, the player reconnects into the void
+still carrying the void inventory, the join recovery teleports them
+out, and `leaveVoid` runs with the in-memory `lastDetachedSlot` /
+`lastRoomCellOrigin` maps cleared by the restart, so `knownInstance`
+is false and `stashOrphan` finally does the right thing. The outcome
+is race dependent, which matches "it seems I lose my items" rather
+than a deterministic save.
+
+#### Exact code references
+
+**The committed baseline (97dfa4e), before the regression:**
+`InventorySwap.leaveVoid` had a single branch:
+```java
+LostAndFound.write(server, player, LostAndFound.LEAVING, voidInventory);
+RunLifecycle.deliverVoidInventory(server, player, voidInventory);
+```
+`RunLifecycle.deliverVoidInventory` looked up the room through
+`byMember` (already null after detach), got `roomOrigin = null`, and
+dropped items at the player's feet. Not ideal, but not a total loss.
+
+**The current `leaveVoid` with the `shouldPause` split:**
+`InventorySwap.java` lines 726-757:
+```java
+private static void leaveVoid(MinecraftServer server, DungeonLog log, ServerPlayer player,
+                              StashRecord stash) {
+    PlayerSlots slots = new PlayerSlots(player);
+    List<ItemStack> voidInventory = snapshotPlayer(player, slots);
+    LostAndFound.write(server, player, LostAndFound.LEAVING, voidInventory);
+    if (shouldPause(player)) {
+        Integer slot = Instances.consumeLastDetachedSlot(player.getUUID());
+        log.setPause(player.getUUID(), new PauseRecord(slot, withoutKeystoneSlot(voidInventory)));
+    } else {
+        boolean knownInstance = Instances.consumeLastDetachedSlot(player.getUUID()) != null;
+        RunLifecycle.deliverVoidInventory(server, player, voidInventory, knownInstance);
+    }
+    clear(slots);
+    // ... restore survival ...
+}
+```
+
+**`shouldPause`, the gate that only one narrow case passes:**
+`InventorySwap.java` lines 772-780:
+```java
+private static boolean shouldPause(ServerPlayer player) {
+    Integer slot = Instances.peekLastDetachedSlot(player.getUUID());
+    if (slot == null) {
+        return false;
+    }
+    InstanceRecord record = InstanceRegistry.bySlot.get(slot);
+    return record != null && player.getUUID().equals(record.owner)
+            && RunLifecycle.isReenterable(record);
+}
+```
+
+**`isReenterable`, false the moment a purge starts or a run
+completes:**
+`RunLifecycle.java` lines 346-349:
+```java
+static boolean isReenterable(InstanceRecord record) {
+    return !record.tearingDown && !record.lingering && !record.visitInstance
+            && record.completed.isEmpty();
+}
+```
+
+**`exit` calls `purgeIfAbandonedLobby` after `eject`, purging the
+lobby before `leaveVoid` runs:**
+`RunLifecycle.java` lines 881, 908:
+```java
+Instances.eject(server, record, player);
+// ...
+Instances.purgeIfAbandonedLobby(server, record);
+```
+
+**`purgeIfAbandonedLobby` fires for any lobby with no members left:**
+`Instances.java` lines 1210-1214:
+```java
+static void purgeIfAbandonedLobby(MinecraftServer server, InstanceRecord record) {
+    if (record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty()) {
+        InstanceTeardown.purge(server, record, "lobby abandoned");
+    }
+}
+```
+
+**`purge` sets `tearingDown` and nulls `roomCellOrigin` before the
+member loop:**
+`InstanceTeardown.java` lines 131, 154-156:
+```java
+record.tearingDown = true;
+// ...
+BlockPos roomCellOrigin = record.roomCellOrigin;
+record.roomCellOrigin = null;
+for (UUID member : new ArrayList<>(record.members.keySet())) {
+```
+
+**`detach` only caches the room origin when it is still set:**
+`Instances.java` lines 1149-1152:
+```java
+if (record.roomCellOrigin != null) {
+    lastRoomCellOrigin.put(member, record.roomCellOrigin);
+}
+lastDetachedSlot.put(member, record.slot);
+```
+
+**`deliverVoidInventory`'s fallback ladder:**
+`RunLifecycle.java` lines 97-125:
+```java
+ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+BlockPos roomOrigin = record != null ? record.roomCellOrigin
+        : Instances.consumeLastRoomCellOrigin(player.getUUID());
+if (dungeon != null && roomOrigin != null) {
+    deliverToRoom(dungeon, roomOrigin, carried);
+    return;
+}
+if (!knownInstance) {
+    InventorySwap.stashOrphan(server, player, snapshot);
+    return;
+}
+// ... drop at the player's feet ...
+for (ItemStack stack : carried) {
+    player.drop(stack, false);
+}
+```
+
+**`deliverToRoom` drops leftovers into the dungeon dimension:**
+`RunLifecycle.java` lines 195-201:
+```java
+BlockPos pad = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+for (ItemStack stack : carried) {
+    ItemStack remainder = insertInto(containers, stack);
+    if (!remainder.isEmpty()) {
+        Block.popResource(level, pad, remainder);
+    }
+}
+```
+
+**`flushOrphanedPause` only runs for members still in
+`record.members`:** `InstanceTeardown.java` line 156 (the loop) and
+line 171 (the call): the loop iterates `record.members.keySet()`, so
+a member who disconnected or left earlier (already removed from
+`members` by `detach`) is never flushed. This is the gap that orphans
+every `PauseRecord` whose owner left before the purge.
+
+**The contrast that matters: `StashRecord` (overworld) is
+unconditional, `PauseRecord` / `OrphanRecord` (void) are
+conditional.** `StashRecord` is written on every entry
+(`enterVoid`, line 582: `log.setStash(player.getUUID(), new
+StashRecord(true, survival))`) and restored on every leave
+(`leaveVoid`, line 751: `restore(slots, stash.backup())`), with no
+dependency on which instance the player was in or whether it still
+exists. `PauseRecord` is only written when `shouldPause` passes
+(one narrow case), only restored when the player re-enters the exact
+same slot, and never flushed if the instance is purged after the
+player left. `OrphanRecord` is only written when `knownInstance` is
+false (crash/restart), not for any normal tracked exit. The void
+inventory needs the same unconditional write-and-restore guarantee
+the overworld inventory already has.
+
+#### Fix (implemented)
+
+The overworld inventory survives everything because it is persisted
+to `DungeonLog` unconditionally and restored unconditionally. The
+void inventory now has the same guarantee. `leaveVoid` always
+persists the void inventory to `DungeonLog` as an `OrphanRecord`
+via `stashOrphan`, then treats delivery to the room as a bonus that
+clears the orphan only when the room is provably still live and
+delivery fully succeeds.
+
+**Step 1: Always hold the void inventory as an orphan, first.**
+
+`leaveVoid` unconditionally writes the void inventory to
+`DungeonLog` as an `OrphanRecord` via `stashOrphan` before any
+delivery attempt. This is the same guarantee `StashRecord` gives
+the overworld inventory: the items are on disk, and
+`restoreOrphanIfAny` (which runs in `enterVoid`) hands them back on
+the player's next entry into any dungeon, no matter what happened to
+the instance they left.
+
+**Step 2: Attempt delivery to the room as a bonus, clear the orphan
+only on full success.**
+
+After persisting, `leaveVoid` attempts to deliver to the room if one
+is provably still live (the pad block is not air). If delivery fully
+succeeds (all items placed in containers, no overflow), the orphan is
+cleared so the items are not duplicated on re-entry. If delivery
+fails or partially fails (overflow, no room, room gone), the orphan
+keeps the remainder and `restoreOrphanIfAny` hands it back on the
+next entry instead.
+
+`deliverToRoom` was changed to return the leftover stacks instead of
+dropping them at the pad position in the dungeon dimension. The old
+`Block.popResource` drop was the path that lost items to a teardown
+clearing the floor under the pad.
+
+**Step 3: Verify the room is live before delivering.**
+
+`leaveVoid` checks `dungeon.getBlockState(pad).isAir()` before
+calling `deliverToRoom`. If the room is gone (teardown cleared it),
+delivery is skipped and the orphan keeps the items.
+
+**Step 4: Removed `shouldPause`, `PauseRecord`, `flushOrphanedPause`,
+`deliverVoidInventory`, and the `lastDetachedSlot` cache.**
+
+With the orphan record covering every exit unconditionally, none of
+these are needed:
+- `shouldPause` is gone: every exit holds as orphan first, then
+  attempts delivery.
+- `PauseRecord` is gone: the orphan record replaces it, and is not
+  tied to a specific slot.
+- `flushOrphanedPause` is gone: there is no pause to flush.
+- `deliverVoidInventory` is gone: its logic moved into `leaveVoid`.
+- `lastDetachedSlot` / `consumeLastDetachedSlot` /
+  `peekLastDetachedSlot` are gone: they were only used by
+  `shouldPause` and the `knownInstance` parameter, both gone.
+- `lastRoomCellOrigin` / `consumeLastRoomCellOrigin` stay: the
+  delivery attempt still uses them.
+- `knownInstance` parameter on `deliverVoidInventory` is gone with
+  the method itself.
+
+**Kept: `tearingDown` and `isReenterable`.**
+
+The original fix plan proposed removing `tearingDown` as well, since
+it was only checked by `isReenterable`, which was only called by
+`shouldPause`. But `isReenterable` is also called by
+`reenterableInstance` (the free re-entry search) and
+`DungeonCommands.abandon` (find the run to abandon). Both need to
+exclude records that are mid-purge, so `tearingDown` and
+`isReenterable` stay. Their javadocs were updated to reflect the
+current callers.
+
+This is a net reduction in code surface, which is the right sign for
+a fix that replaces a tangle of conditional paths with one
+unconditional one.
+
+#### Verification
+
+After the fix:
+1. Enter a dungeon, pick up a chest item, pick "Leave Dungeon" from
+   the lobby (before choosing a door). Items should be held as an
+   orphan and restored on the next dungeon entry, not dropped into
+   the void dimension or at the player's feet.
+2. Enter a dungeon, pick up a chest item, pick "Leave Dungeon"
+   mid-run (after choosing a door, before completing). Items should
+   be held as an orphan and restored on the next entry into any
+   dungeon (same instance via free re-entry, or a new one via
+   `/dungeon`), not stuck in a slot-specific `PauseRecord`.
+3. Enter a dungeon, complete the run, pick "Leave Dungeon" from the
+   reward room. Items should be delivered to the room at the terminal
+   cell (if it survived) or held as an orphan (if it did not).
+4. Enter a dungeon, pick up an item, get kicked (or trigger a
+   leadership-change purge). Items should be held as an orphan and
+   restored on the next dungeon entry, not dropped at the return
+   point.
+5. Enter a dungeon, pick up an item, disconnect. Have the instance
+   purged while offline (wait out the abandoned-lobby timer, or
+   admin purge). Reconnect, get teleported out by join recovery,
+   then start a new dungeon. The item should reappear at the new
+   entry, not be lost into the void.
+6. Enter a dungeon, pick up an item, stop the server. Restart, log
+   back in, start a new dungeon. The item should reappear at entry.
+7. Enter a dungeon, pick up an item, let the dungeon purge on its
+   own (timer expiry and retirement while still inside). Items
+   should be held as an orphan, not dropped into the void dimension.
+8. The overworld inventory should still survive every exit exactly
+   as it did before (the `StashRecord` path is untouched).

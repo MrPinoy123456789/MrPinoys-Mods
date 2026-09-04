@@ -86,6 +86,8 @@ public final class DialogRouter {
             case DialogScreens.ACTION_INSPECT_KEYSTONE -> inspectKeystone(player);
             case DialogScreens.ACTION_LEAVE_DUNGEON ->
                     RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
+            case DialogScreens.ACTION_QUIT_DUNGEON ->
+                    DialogKit.show(player, DialogScreens.quitDoorConfirm());
             case DialogScreens.ACTION_SET_ROOM_NAME -> setRoomName(player, server,
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_TOGGLE_PUBLIC -> togglePublic(player, server);
@@ -98,6 +100,13 @@ public final class DialogRouter {
             case DialogScreens.ACTION_STATIONS -> StationPicker.open(player);
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
+            // M48: the bag picker. A picker button carries a bag id and opens
+            // the confirm dialog; the confirm dialog's Back button re-opens the
+            // picker (it carries no bag id, which is the signal to do so).
+            case DialogScreens.ACTION_SELECT_BAG -> selectBag(player,
+                    tag.getStringOr(DialogScreens.KEY_BAG_ID, ""));
+            case DialogScreens.ACTION_CONFIRM_BAG -> confirmBag(player, server,
+                    tag.getStringOr(DialogScreens.KEY_BAG_ID, ""));
             default -> PocketDungeonsMod.LOG.warn("Unknown dialog action {}", id);
         }
     }
@@ -399,6 +408,75 @@ public final class DialogRouter {
             Chime.refused(clicker); // as in reshow: a notice here is a room that said no
         }
         DialogKit.show(clicker, DialogScreens.lobbyBrowser(server, clicker.getUUID(), notice));
+    }
+
+    // ---- M48: bag selection -------------------------------------------------
+
+    /**
+     * A bag-picker button click. A non-empty bag id opens the confirm dialog
+     * for that bag; an empty one (the confirm dialog's Back button, which
+     * carries only {@link DialogScreens#KEY_OWNER}) re-opens the picker, since
+     * this API has no client-side history stack.
+     */
+    private static void selectBag(ServerPlayer player, String bagId) {
+        if (bagId.isEmpty()) {
+            DialogKit.show(player, DialogScreens.bagPicker(player));
+            return;
+        }
+        if (Bags.byId(bagId) == null) {
+            Chime.refused(player);
+            return;
+        }
+        DialogKit.show(player, DialogScreens.bagConfirm(player, bagId));
+    }
+
+    /**
+     * A bag-confirm click: re-validates against live state (the player must
+     * still be in the dungeon dimension, be a member of a non-visit instance,
+     * and have no bag assigned), then records the bag on their
+     * {@link DungeonLog} entry, rolls the bag's loot into their inventory, and
+     * clears the bag chest once every member present has chosen. The chest is
+     * also cleared on door-choice and save, so a member who skips it simply
+     * enters with the keystone alone and gets the chest back next lobby.
+     */
+    private static void confirmBag(ServerPlayer player, MinecraftServer server, String bagId) {
+        Bags bag = Bags.byId(bagId);
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (bag == null || record == null || record.visitInstance || record.roomCellOrigin == null
+                || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            Chime.refused(player);
+            return;
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        if (!log.bagOf(player.getUUID()).isEmpty()) {
+            // Already chosen, possibly on another screen that sat open. Do not
+            // overwrite a chosen bag from a stale click.
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal("You have already chosen a bag.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
+        log.setBag(player.getUUID(), bagId);
+        Bags.apply(player, bagId);
+        // Clear the chest once every member present has chosen; until then it
+        // stays so a bagless member can still pick.
+        boolean anyBagless = log.bagOf(record.owner).isEmpty();
+        for (UUID member : record.members.keySet()) {
+            if (log.bagOf(member).isEmpty()) {
+                anyBagless = true;
+                break;
+            }
+        }
+        if (!anyBagless) {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (level != null) {
+                Instances.clearBagChest(level, record.roomCellOrigin);
+            }
+        }
+        player.sendSystemMessage(Component.literal(
+                "You chose " + bag.displayName.getString()
+                        + ". It is yours until you reset your keystone.")
+                .withStyle(ChatFormatting.GOLD));
     }
 
     private static UUID uuid(String raw) {

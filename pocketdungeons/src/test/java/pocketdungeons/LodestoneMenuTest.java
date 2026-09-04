@@ -24,7 +24,7 @@ public class LodestoneMenuTest {
         UUID player = UUID.fromString("00000000-0000-0000-0000-0000000000d4");
 
         // Overworld menu: Start Dungeon, Browse Lobbies, Manage Room, Stations, Inspect Keystone, Diaries.
-        List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false);
+        List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false, false);
         check(overworld.size(), 6, "overworld menu has six options");
         check(overworld.get(0).label(), "Start Dungeon", "overworld first is Start Dungeon");
         check(overworld.get(0).action(), DialogScreens.ACTION_START_DUNGEON,
@@ -45,9 +45,11 @@ public class LodestoneMenuTest {
         check(overworld.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
-        // In-dungeon owner: Leave, Manage Room, Change Shell, Stations, Inspect Keystone, Diaries.
-        List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true);
-        check(owner.size(), 6, "in-dungeon owner menu has six options");
+        // In-dungeon owner, no door chosen yet (lobby): Leave, Manage Room,
+        // Change Shell, Stations, Inspect Keystone, Diaries. No Quit Door,
+        // because there is no door to quit.
+        List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true, false);
+        check(owner.size(), 6, "in-dungeon owner menu (lobby) has six options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON,
                 "Leave carries its action id");
@@ -63,9 +65,18 @@ public class LodestoneMenuTest {
         check(owner.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
-        // In-dungeon visitor: Leave, Inspect Keystone, Diaries; no Manage Room.
-        List<DialogScreens.MenuOption> visitor = DialogScreens.menuOptions(true, false);
-        check(visitor.size(), 3, "in-dungeon visitor menu omits Manage Room");
+        // In-dungeon owner, door chosen (mid-run): Quit Door appears after Leave.
+        List<DialogScreens.MenuOption> ownerRun = DialogScreens.menuOptions(true, true, true);
+        check(ownerRun.size(), 7, "in-dungeon owner menu (mid-run) has seven options");
+        check(ownerRun.get(0).label(), "Leave", "mid-run first is Leave");
+        check(ownerRun.get(1).label(), "Quit Door", "mid-run second is Quit Door");
+        check(ownerRun.get(1).action(), DialogScreens.ACTION_QUIT_DUNGEON,
+                "Quit Door carries its action id");
+        check(ownerRun.get(2).label(), "Manage Room", "mid-run third is Manage Room");
+
+        // In-dungeon visitor: Leave, Inspect Keystone, Diaries; no Manage Room, no Quit Door.
+        List<DialogScreens.MenuOption> visitor = DialogScreens.menuOptions(true, false, true);
+        check(visitor.size(), 3, "in-dungeon visitor menu omits Manage Room and Quit Door");
         check(visitor.get(0).label(), "Leave", "visitor sees Leave");
         check(visitor.get(1).label(), "Inspect Keystone", "visitor sees Inspect Keystone");
         check(visitor.get(2).label(), "Diaries", "visitor sees Diaries");

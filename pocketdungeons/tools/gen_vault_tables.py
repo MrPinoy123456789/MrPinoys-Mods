@@ -46,6 +46,7 @@ KEEP = {
     'minecraft:ender_chest': 'curio',
     'minecraft:trident': 'themed_weapon',
     'minecraft:heart_of_the_sea': 'themed_treasure',
+    'minecraft:water_bucket': 'tools',
 }
 
 DROP = {
@@ -58,7 +59,22 @@ DROP = {
     'minecraft:dirt', 'minecraft:oak_sapling', 'minecraft:wheat_seeds',
     'minecraft:arrow',
     'minecraft:quartz', 'minecraft:amethyst_shard',
+    'minecraft:redstone', 'minecraft:diamond_sword', 'minecraft:copper_ingot',
+    'minecraft:cobblestone', 'minecraft:sandstone', 'minecraft:oak_log',
+    'minecraft:potato', 'minecraft:nautilus_shell',
 }
+
+# These reference another loot table instead of listing item pools directly,
+# and the table they point at is itself one of the tier_*_ominous tables
+# already handled here, so skipping them outright loses nothing.
+SKIP_TABLES = {
+    'tier_1_ominous_drowned.json', 'tier_2_ominous_drowned.json',
+    'tier_3_ominous_drowned.json',
+}
+
+ARMOR_SUFFIXES = ('_helmet', '_chestplate', '_leggings', '_boots')
+WEAPON_SUFFIXES = ('_sword', '_axe')
+WEAPON_NAMES = {'minecraft:bow', 'minecraft:crossbow'}
 
 
 def kind(pool, path, index):
@@ -68,10 +84,17 @@ def kind(pool, path, index):
         sys.exit('%s pool %d has no leading item entry' % (path, index))
     if first.endswith('_armor_trim_smithing_template'):
         return 'trim'
-    if first.endswith(('_helmet', '_chestplate', '_leggings', '_boots')):
-        return 'gear'
+    # The leader decides pools like "tools" (leads with a water bucket) before
+    # the armour scan runs below; otherwise a gold boot buried later in that
+    # same pool would read as gear and the whole pool would be dropped.
     if first in KEEP:
         return KEEP[first]
+    names = [entry.get('name') for entry in pool['entries']]
+    if any(name is not None and name.endswith(ARMOR_SUFFIXES) for name in names):
+        return 'gear'
+    if any(name in WEAPON_NAMES or (name is not None and name.endswith(WEAPON_SUFFIXES))
+           for name in names):
+        return 'weapon'
     if first in DROP:
         return None
     sys.exit('%s pool %d leads with %s, which is in neither KEEP nor DROP. '
@@ -107,7 +130,8 @@ def main():
     os.makedirs(VAULTS, exist_ok=True)
 
     names = sorted(n for n in os.listdir(CHESTS)
-                   if n.startswith('tier_') and n.endswith('.json'))
+                   if n.startswith('tier_') and n.endswith('.json')
+                   and n not in SKIP_TABLES)
     for name in names:
         path = os.path.join(CHESTS, name)
         with open(path, encoding='utf-8') as handle:

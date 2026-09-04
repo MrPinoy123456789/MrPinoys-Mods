@@ -110,6 +110,23 @@ final class RoomBuilder {
     static final ShellPalette OAK = palette("oak", "Oak", null,
             Blocks.OAK_PLANKS, Blocks.OAK_PLANKS, Blocks.OAK_PLANKS,
             Blocks.OAK_SLAB, Blocks.OAK_STAIRS);
+    /**
+     * PD-53: the shell every fresh or {@code /dungeon admin resetroom}'d room
+     * actually starts on, built directly from the pre-M24 shop-worn shell
+     * constants ({@link #FLOOR}, {@link #WALL}, {@link #CEILING},
+     * {@link #CEILING_SLAB}, {@link #STAIR}) rather than through {@link #palette}
+     * so it keeps its two-tone look (polished andesite floor under stone brick
+     * walls) exactly as it always has -- this is not a new look, only a name
+     * for the one every room already had. Never entered {@link #SHELL_PALETTES}
+     * before this fix, so {@link #buildShell} built its own throwaway,
+     * unregistered copy every time instead of pointing at a shared constant,
+     * and a player who switched away could never switch back to it. Free like
+     * {@link #OAK}: nothing has ever required unlocking it, and every room
+     * starts here without holding any token or completion streak that would
+     * justify one now.
+     */
+    static final ShellPalette STONE_BRICK = new ShellPalette(
+            "stone_brick", "Stone Brick", null, FLOOR, WALL, CEILING, CEILING_SLAB, STAIR);
     /** Rare-node unlock: found as a possible token in a rare room's completion chest. */
     static final ShellPalette SANDSTONE = palette("sandstone", "Sandstone", "Found in rare rooms",
             Blocks.SANDSTONE, Blocks.SANDSTONE, Blocks.SANDSTONE,
@@ -151,6 +168,7 @@ final class RoomBuilder {
     /** Every selectable palette by unlock name; {@link #isDefaultShell} names the one player starts with. */
     static final Map<String, ShellPalette> SHELL_PALETTES = Map.of(
             OAK.name(), OAK,
+            STONE_BRICK.name(), STONE_BRICK,
             SANDSTONE.name(), SANDSTONE,
             DEEPSLATE.name(), DEEPSLATE,
             NETHER_BRICK.name(), NETHER_BRICK,
@@ -188,8 +206,14 @@ final class RoomBuilder {
      * than {@link #FLOOR}; every other block in the shell is fixed.
      */
     static void buildShell(ServerLevel level, BlockPos o, BlockState floor) {
-        stampShell(level, o, new ShellPalette("built_in", "Stone Brick", null,
-                floor, WALL, CEILING, CEILING_SLAB, STAIR));
+        // PD-53: built off the registered STONE_BRICK constant rather than an
+        // inline, unregistered "built_in" palette, so the shell every fresh or
+        // reset room starts on is the same object the shell menu now offers to
+        // switch back to. floor stays a parameter: buildLiminalCell passes WALL
+        // here instead of STONE_BRICK.floor(), which this preserves exactly.
+        stampShell(level, o, new ShellPalette(STONE_BRICK.name(), STONE_BRICK.displayName(),
+                STONE_BRICK.unlockHint(), floor, STONE_BRICK.wall(), STONE_BRICK.ceiling(),
+                STONE_BRICK.ceilingSlab(), STONE_BRICK.stair()));
     }
 
     /**
@@ -546,12 +570,16 @@ final class RoomBuilder {
 
     /** The selectable palettes in menu order: the default first, then the unlocks. */
     static List<ShellPalette> shellOrder() {
-        return List.of(OAK, SANDSTONE, DEEPSLATE, NETHER_BRICK, ALEXS_ROOM);
+        return List.of(OAK, STONE_BRICK, SANDSTONE, DEEPSLATE, NETHER_BRICK, ALEXS_ROOM);
     }
 
-    /** Whether {@code name} is the default palette, usable without any unlock. */
+    /**
+     * Whether {@code name} is a palette usable without any unlock: {@link #OAK}
+     * and {@link #STONE_BRICK} (PD-53), the only two shells a player can hold
+     * without ever having unlocked anything.
+     */
     static boolean isDefaultShell(String name) {
-        return OAK.name().equals(name);
+        return OAK.name().equals(name) || STONE_BRICK.name().equals(name);
     }
 
     /** The palette for an unlock name, falling back to the default for an unknown one. */

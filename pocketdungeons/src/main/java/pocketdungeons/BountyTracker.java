@@ -239,9 +239,10 @@ final class BountyTracker {
                 continue;
             }
             int shards = REWARD_SHARDS + (member.equals(owner) ? OWNER_BONUS_SHARDS : 0);
-            if (Fuel.item() != null) {
-                Payout.deliver(player, new ItemStack(Fuel.item(), shards));
-            }
+            // PD-48: fuel must carry the pocketdungeons.fuel marker or the
+            // engine rejects it. Fuel.grant mints the marked stack and delivers
+            // via Payout.deliver, so a full inventory still drops at the feet.
+            Fuel.grant(player, shards);
             Payout.deliver(player, new ItemStack(Items.EMERALD, REWARD_EMERALDS));
         }
     }

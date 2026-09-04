@@ -16,14 +16,33 @@ final class PayoutMath {
     private PayoutMath() {}
 
     /**
-     * How many of the reward room's three chests are earned, scored against how
-     * much of the clock is left when the run is completed.
+     * How many of the reward room's three chest slots are earned (and filled
+     * with loot; the rest stay air, per {@code TrialContent.placeCompletionChests}),
+     * scored against how much of the clock is left when the run is completed.
      *
      * <p>Over time (no seconds remaining) earns none -- the run still counts as
      * finished, but the chests stay empty. {@code totalSeconds} is floored at 1 so
      * a misconfigured zero-length timer cannot divide by zero; the boundaries are
      * inclusive of the threshold percentage, so finishing at exactly 60% or 80%
      * used still earns the better tier.
+     *
+     * <p>Capped at 2, not 3: three loot-table rolls landing beside each other
+     * in the reward room compounded into more items than the per-table roll
+     * count (PD-54, PD-59) was ever meant to allow on its own, even after that
+     * fix cut each individual chest down to one or two items. The fast and
+     * medium finish tiers collapse to the same reward here (both 2) rather
+     * than losing the distinction between medium and slow, which a straight
+     * "subtract one from every tier" would have done. The physical third
+     * chest slot stays in the template; it just never gets filled.
+     *
+     * <p>{@code threePercent} is kept in the signature, superseded rather
+     * than deleted (same codec migration discipline `CONVENTIONS.md`
+     * describes for a superseded field): the config value it reads from,
+     * {@code threeChestPercent}, is a server operator's tuned setting, not
+     * something to invalidate out from under an existing
+     * {@code pocketdungeons.json} on the first pass this cap shipped in. If
+     * the cap ever needs to distinguish a fast finish from a merely timely
+     * one again, the threshold is already here to reach for.
      */
     static int chestCount(int secondsRemaining, int totalSeconds,
                           int threePercent, int twoPercent) {
@@ -36,9 +55,6 @@ final class PayoutMath {
         // (clamped only at Integer.MAX_VALUE), so this is the one place that
         // guard fed a value the int math below could not hold.
         int usedPercent = 100 - (int) ((long) secondsRemaining * 100 / Math.max(1, totalSeconds));
-        if (usedPercent <= threePercent) {
-            return 3;
-        }
         if (usedPercent <= twoPercent) {
             return 2;
         }

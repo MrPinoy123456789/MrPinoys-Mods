@@ -17,8 +17,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The Feral affix's wolves: neutral, pinned to their cell, and wearing a coat the
- * run's loot tier decides.
+ * The Feral affix's wolves: neutral, contained by the cell's own sealed envelope
+ * rather than any leash on their AI, and wearing a coat the run's loot tier
+ * decides.
  *
  * <h2>Why nothing here angers them</h2>
  *
@@ -76,17 +77,6 @@ final class FeralContent {
             List.of(WolfVariants.SNOWY, WolfVariants.BLACK, WolfVariants.STRIPED));
 
     /**
-     * How far from the cell centre a wolf may wander, in blocks.
-     *
-     * <p>A cell is {@link RoomGeometry#CELL} wide, so six keeps a pinned wolf a
-     * clear block short of every wall and therefore short of every doorway. That is
-     * the room-geometry invariant doing the deciding, not comfort: a wolf that
-     * strolls into the next cell is a mob the teardown pass does not expect to find
-     * there.
-     */
-    private static final int HOME_RADIUS = 6;
-
-    /**
      * Keeps the coat roll off the same {@code (seed, cell)} stream the placement
      * uses, so a template change that shifts spawn anchors does not silently
      * recolour every wolf in the run as well.
@@ -96,8 +86,15 @@ final class FeralContent {
     private FeralContent() {}
 
     /**
-     * Spawns this cell's wolves through {@link RoomContent#spawnMobs}, pins each to
-     * the cell centre and dresses it in a tier-appropriate coat.
+     * Spawns this cell's wolves through {@link RoomContent#spawnMobs} and dresses
+     * each in a tier-appropriate coat. No {@code setHomeTo} pin: see PD-3 in
+     * {@code docs/reference/BUGS.md}, part 3. It clamped a wolf's pathfinding
+     * target to a 6 block radius, which reads as a wolf that walks toward
+     * anything, hits the boundary, and turns back before ever closing to melee
+     * range, the sluggish, glitchy behaviour that pin existed to prevent players
+     * from wandering out of. The sealed cell walls and doors already keep a wolf
+     * in, and {@link Instances#clearCellSync}'s 1 block margin still catches one
+     * that slips through an open door at teardown.
      *
      * <p>Falls back to the cell centre when a template carries no spawn anchors at
      * all -- columns 7 and 8 are the anchor columns the door and spawn jigsaws use
@@ -133,10 +130,12 @@ final class FeralContent {
             if (!(entity instanceof Wolf wolf)) {
                 return;
             }
-            // Pinned, never angered. See the class note: an angry wolf refuses the
-            // bone outright, which would delete the affix's kiss.
+            // Never angered, and not pinned with setHomeTo: that clamped the
+            // wolf's pathfinding target and produced the PD-3 stutter (it walks
+            // toward a target, hits the home radius, turns back, repeats). The
+            // sealed cell envelope and Instances.clearCellSync's 1 block margin
+            // already keep a wolf in the cell without fighting its own AI.
             wolf.stopBeingAngry();
-            wolf.setHomeTo(centre, HOME_RADIUS);
             Instances.applyMobScale(wolf, keystoneLevel);
             Optional<Holder.Reference<WolfVariant>> coat =
                     variants.get(coats.get(coatRandom.nextInt(coats.size())));

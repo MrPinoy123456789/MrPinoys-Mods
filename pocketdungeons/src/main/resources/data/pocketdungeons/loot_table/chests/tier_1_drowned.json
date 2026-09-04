@@ -2,7 +2,10 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": 1,
+      "rolls": {
+        "min": 1,
+        "max": 2
+      },
       "entries": [
         {
           "type": "minecraft:item",
@@ -23,12 +26,7 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:torch",
@@ -49,12 +47,7 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:prismarine_bricks",
@@ -75,12 +68,7 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:trident",
@@ -100,31 +88,28 @@
                   }
                 }
               }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.08
-        }
-      ],
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_helmet",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -137,6 +122,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -144,14 +137,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:chainmail_helmet",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -164,6 +157,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -171,14 +172,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_chestplate",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -191,6 +192,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -198,14 +207,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:chainmail_chestplate",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -218,6 +227,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -225,14 +242,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_leggings",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -245,6 +262,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -252,14 +277,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:chainmail_leggings",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -272,6 +297,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -279,14 +312,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_boots",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -299,6 +332,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -306,14 +347,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:chainmail_boots",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -326,6 +367,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -333,14 +382,14 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_sword",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
-                "min": 5.0,
-                "max": 15.0
+                "min": 5,
+                "max": 15
               },
               "options": "#minecraft:on_random_loot"
             },
@@ -354,20 +403,17 @@
                   }
                 }
               }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.1
-        }
-      ],
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:sandstone",
@@ -406,19 +452,11 @@
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": {
-        "min": 2,
-        "max": 3
-      },
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:water_bucket",
-          "weight": 5,
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -495,7 +533,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:shears",
-          "weight": 4,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -505,6 +543,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ]
@@ -512,7 +558,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:golden_boots",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -523,13 +569,21 @@
                   }
                 }
               }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:oak_boat",
-          "weight": 3,
+          "weight": 2,
           "functions": [
             {
               "function": "minecraft:set_components",

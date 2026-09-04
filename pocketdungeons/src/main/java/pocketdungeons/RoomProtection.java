@@ -1,8 +1,14 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -40,7 +46,69 @@ final class RoomProtection {
 
     static void register() {
         PlayerBlockBreakEvents.BEFORE.register(RoomProtection::beforeBlockBreak);
+        AttackBlockCallback.EVENT.register(RoomProtection::onAttackBlock);
     }
+
+    /**
+     * (M48) Early feedback for the "right tool for the job" rule. Fires on
+     * {@code START_DESTROYING}, the moment the player begins mining, before
+     * the crack animation has time to play. When the held tool is wrong for
+     * the target block inside a dungeon cell, this cancels the mining start,
+     * sends an action-bar message naming the required tool, plays a denial
+     * sound, and rate-limits all three to once per 20 ticks per player so
+     * holding left-click does not spam.
+     *
+     * <p>The {@link PlayerBlockBreakEvents#BEFORE} handler remains as the
+     * server-side enforcement backstop. This callback is the UX layer; that
+     * one is the security layer.
+     */
+    private static InteractionResult onAttackBlock(Player player, Level level,
+                                                    InteractionHand hand, BlockPos pos,
+                                                    net.minecraft.core.Direction direction) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.PASS;
+        }
+        if (!serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            return InteractionResult.PASS;
+        }
+        if (serverPlayer.isCreative()) {
+            return InteractionResult.PASS;
+        }
+        // Only dungeon cells enforce the tool rule; the safe room interior is
+        // free-build and outside the dungeon dimension is vanilla.
+        BlockPos dungeonCellOrigin = Instances.dungeonCellOriginAt(pos);
+        if (dungeonCellOrigin == null) {
+            return InteractionResult.PASS;
+        }
+        if (isShell(pos, dungeonCellOrigin)) {
+            return InteractionResult.PASS; // shell protection handles this
+        }
+        BlockState state = level.getBlockState(pos);
+        if (DungeonTools.isCorrectTool(serverPlayer.getMainHandItem(), state)) {
+            return InteractionResult.PASS;
+        }
+        // Player-placed blocks are exempt: the placer can break their own
+        // builds by hand. Other party members still need the correct tool.
+        if (DungeonTools.isPlayerPlaced(pos, serverPlayer.getUUID())) {
+            return InteractionResult.PASS;
+        }
+        // Wrong tool: cancel the mining start and give feedback.
+        String message = DungeonTools.requiredToolMessage(state);
+        if (message != null) {
+            long now = serverPlayer.level().getGameTime();
+            Long lastSent = lastWrongToolTick.get(serverPlayer.getUUID());
+            if (lastSent == null || now - lastSent >= 20) {
+                lastWrongToolTick.put(serverPlayer.getUUID(), now);
+                serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(
+                        Component.literal(message).withStyle(ChatFormatting.RED)));
+                Chime.wrongTool(serverPlayer);
+            }
+        }
+        return InteractionResult.FAIL;
+    }
+
+    /** Rate-limiting map for wrong-tool feedback: player UUID to last game tick sent. */
+    private static final java.util.Map<UUID, Long> lastWrongToolTick = new java.util.HashMap<>();
 
     private static boolean beforeBlockBreak(Level level, Player player, BlockPos pos,
                                              BlockState state, BlockEntity blockEntity) {
@@ -60,7 +128,40 @@ final class RoomProtection {
             if (dungeonCellOrigin == null) {
                 return true;
             }
-            return !isShell(pos, dungeonCellOrigin);
+            if (!isShell(pos, dungeonCellOrigin)) {
+                // M48: "right tool for the job." A block inside a dungeon cell
+                // is unbreakable unless the player is holding the correct tool
+                // for it, or the block was placed by that player (so you can
+                // always clean up your own builds). TNT bypasses this check
+                // entirely because explosions do not go through
+                // PlayerBlockBreakEvents; the ServerExplosionMixin handles
+                // shell protection for explosions separately. Creative players
+                // bypass the tool check: they are operators building or
+                // debugging, not playing the survival loop.
+                if (player.isCreative()) {
+                    DungeonTools.forgetPlayerPlacement(pos);
+                    return true;
+                }
+                if (DungeonTools.isPlayerPlaced(pos, player.getUUID())) {
+                    DungeonTools.forgetPlayerPlacement(pos);
+                    return true;
+                }
+                boolean correct = DungeonTools.isCorrectTool(player.getMainHandItem(), state);
+                if (correct) {
+                    DungeonTools.forgetPlayerPlacement(pos);
+                }
+                return correct;
+            }
+            // PD-62: the far-side doorway threshold of an IRON_DOOR
+            // connector is exempted from placement (RitualListener.onUseBlock)
+            // so a stuck player can power the door from behind. The same
+            // exemption has to reach breaking too, or a player who places the
+            // wrong block there (or wants it back) has no way to correct it:
+            // once placed, it would be as permanently stuck as the door
+            // itself. Every other shell position, door leaves included,
+            // stays unbreakable.
+            InstanceRecord dungeonRecord = Instances.dungeonRecordAt(pos);
+            return dungeonRecord != null && dungeonRecord.layout.ironDoorFarSideSlots().contains(pos);
         }
         // M18 9.1: the shell is immutable to everyone, the owner included.
         // Checked ahead of the permission mask so a whitelisted guest cannot

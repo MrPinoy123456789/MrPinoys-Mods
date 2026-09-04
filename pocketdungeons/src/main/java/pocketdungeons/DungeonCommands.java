@@ -54,6 +54,29 @@ final class DungeonCommands {
                     .then(Commands.literal("exit")
                             .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
 
+                    // Instantly fails the caller's own door instead of making them
+                    // wait out the real-time clock for the same downgrade. All the
+                    // logic lives in RunLifecycle.quitDoor; see its own javadoc.
+                    .then(Commands.literal("quit")
+                            .executes(ctx -> quit(ctx.getSource().getPlayerOrException())))
+
+                    // Self-service despawn of the caller's own run, owner only.
+                    // Distinct from exit/quit, neither of which tears the
+                    // instance down: a solo run left behind stays live and
+                    // free-re-enterable (U8 Stage 1), which is exactly the
+                    // problem for a run that is stuck rather than merely
+                    // unfinished. See abandon's own javadoc.
+                    .then(Commands.literal("abandon")
+                            .executes(ctx -> abandon(ctx.getSource().getPlayerOrException())))
+
+                    // Self-service /dungeon admin resetkey: resets the caller's own
+                    // progress and hands them a fresh keystone [1], safe to run
+                    // mid-run (quits the door first if one is active). See
+                    // resetOwnKey's own javadoc for how it differs from the admin
+                    // command it is named after.
+                    .then(Commands.literal("resetkey")
+                            .executes(ctx -> resetOwnKey(ctx.getSource().getPlayerOrException())))
+
                     .then(Commands.literal("key")
                             .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException()))
                             // Read-only companion to the lore tooltip and /dungeon log,
@@ -434,6 +457,69 @@ final class DungeonCommands {
     private static int exit(ServerPlayer player) {
         // A command exit is a retreat, not a completion -- it does not pay.
         return RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND) ? 1 : 0;
+    }
+
+    /**
+     * {@code /dungeon quit}: instantly fails the caller's own door instead of
+     * making them wait out the real-time clock for the same downgrade, then
+     * leaves. All of the actual work is {@link RunLifecycle#quitDoor}; this
+     * is only the command binding.
+     */
+    private static int quit(ServerPlayer player) {
+        return RunLifecycle.quitDoor(player) ? 1 : 0;
+    }
+
+    /**
+     * {@code /dungeon abandon}: fully despawns the caller's own live run,
+     * whether they are standing in it right now or it is sitting idle
+     * waiting for free re-entry. Requested live: a player who gets stuck (a
+     * completion that will not register, a soft-lock) can technically still
+     * finish the run given enough persistence, but had no way to just throw
+     * the whole thing away and start over with a clean layout.
+     *
+     * <p>{@code /dungeon exit} and {@code /dungeon quit} both only detach the
+     * caller; the instance itself survives empty (U8 Stage 1: "an empty
+     * instance is now normal"), so the same possibly-broken layout is what
+     * free re-entry hands them right back. This instead calls the same
+     * {@link InstanceTeardown#purge} every admin purge, timeout and normal
+     * completion already funnel through: every stamped block is cleared,
+     * the timer closes, any party members still inside are ejected, and the
+     * keystone is refunded the same cost-free way a death or a timeout
+     * already is (U8 Stage 1): the refund is what "start fresh" means
+     * here, since the same keystone opens a brand new layout.
+     *
+     * <p>Owner only, the same restriction {@link RunLifecycle#leadershipChanged}
+     * already enforces elsewhere: a guest abandoning the run would end it
+     * for everyone else in the party too, which is not theirs to decide.
+     * {@code /dungeon exit} already covers a guest removing just themselves.
+     */
+    private static int abandon(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
+            for (InstanceRecord candidate : InstanceRegistry.bySlot.values()) {
+                if (player.getUUID().equals(candidate.owner) && RunLifecycle.isReenterable(candidate)) {
+                    record = candidate;
+                    break;
+                }
+            }
+        }
+        if (record == null) {
+            player.sendSystemMessage(Component.literal("You have no dungeon run to abandon.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        if (!player.getUUID().equals(record.owner)) {
+            player.sendSystemMessage(Component.literal(
+                    "Only the run's owner can abandon it. Use /dungeon exit to leave it yourself.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        InstanceTeardown.purge(server, record, "abandoned by owner");
+        player.sendSystemMessage(Component.literal(
+                "Dungeon abandoned. Your keystone is back in hand; open a new run whenever you're ready.")
+                .withStyle(ChatFormatting.AQUA));
+        return 1;
     }
 
     /**
@@ -1099,16 +1185,84 @@ final class DungeonCommands {
 
     private static int resetKey(CommandSourceStack source, ServerPlayer target) {
         MinecraftServer server = source.getServer();
-        DungeonLog.forServer(server).setKeystone(target.getUUID(), 0, java.util.EnumSet.noneOf(Affix.class));
+        // M48: a moderation reset is the same full campaign reset a player can
+        // do themselves, not just a keystone zeroing. Clears keystone progress,
+        // themes, fuel, run stats, the bag, and any orphaned or stashed
+        // inventory; preserves unlocked shells, diary bands, room settings and
+        // recent visitors.
+        DungeonLog.forServer(server).resetCampaign(target.getUUID());
         int cleared = clearKeystones(target);
         source.sendSuccess(() -> Component.literal(
-                "Reset " + target.getName().getString() + "'s keystone progress to 0"
+                "Reset " + target.getName().getString() + "'s campaign"
                         + (cleared > 0 ? " and cleared " + cleared + " keystone(s)." : ".")), true);
         if (target != source.getPlayer()) {
-            target.sendSystemMessage(Component.literal("Your keystone progress has been reset to 0.")
+            target.sendSystemMessage(Component.literal("Your keystone progress has been reset.")
                     .withStyle(ChatFormatting.YELLOW));
         }
         return 1;
+    }
+
+    /**
+     * {@code /dungeon resetkey}: the player-facing, self-service version of
+     * {@link #resetKey}. Two differences from the admin command, both by
+     * request: it hands the caller a fresh keystone {@code [1]} afterward.
+     * The admin version leaves the target with a reset log entry and nothing
+     * in hand, which is the right call for moderation but not for a player
+     * resetting their own progress on purpose, and it is safe to run from
+     * inside an active run. {@link RunLifecycle#quitDoor} is only called when
+     * there is actually something to quit, so a player resetting from the
+     * overworld never sees an unrelated "you have left the dungeon" line.
+     */
+    private static int resetOwnKey(ServerPlayer player) {
+        // 1. If in an instance, fail the door first so the keystone penalty
+        //    applies and the room returns to its lobby state.
+        if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
+            RunLifecycle.quitDoor(player);
+        }
+        MinecraftServer server = player.level().getServer();
+        // 2. If still in the dungeon dimension, exit to the overworld before
+        //    clearing the stash and orphan, so the live inventory swap is not
+        //    racing the reset. exit is a no-op (returns false) from the overworld.
+        if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
+        }
+        // 3. Full campaign reset: keystone progress, themes, fuel, run stats,
+        //    bag, orphan and stash. Unlockables (shells, diary bands, room
+        //    settings, recent visitors) are preserved.
+        DungeonLog.forServer(server).resetCampaign(player.getUUID());
+        // 4. Clear any keystones from the inventory and ender chest.
+        int cleared = clearKeystones(player);
+        // 5. Clear any bag-tagged items the player is still carrying (a reset
+        //    from the overworld can leave bag loot in the survival inventory).
+        int bagsCleared = clearBagTagged(player);
+        // 6. A fresh keystone [1] in hand, the same as a brand-new player.
+        Payout.deliver(player, Keystone.mint(1));
+        player.sendSystemMessage(Component.literal(
+                "Keystone progress reset. Bag cleared. Keystone [1] in hand."
+                        + " Your unlocked shells and diary entries are preserved.")
+                .withStyle(ChatFormatting.AQUA));
+        if (cleared > 0 || bagsCleared > 0) {
+            player.sendSystemMessage(Component.literal(
+                    (cleared > 0 ? cleared + " old keystone(s)" : "")
+                            + (cleared > 0 && bagsCleared > 0 ? ", " : "")
+                            + (bagsCleared > 0 ? bagsCleared + " bag item(s)" : "")
+                            + " cleared.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        return 1;
+    }
+
+    private static int clearBagTagged(ServerPlayer player) {
+        int cleared = 0;
+        net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (InventorySwap.isBagTagged(stack)) {
+                inv.setItem(i, ItemStack.EMPTY);
+                cleared++;
+            }
+        }
+        return cleared;
     }
 
     private static int clearKeystones(ServerPlayer player) {

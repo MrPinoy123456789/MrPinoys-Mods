@@ -185,10 +185,13 @@ for ((taskName, testClass) in mapOf(
     // milestone: M46, M49, M47, M48, M54 and M45 respectively.
     "inventorySwapTest" to "InventorySwapTest",
     "bagTableTest" to "BagTableTest",
+    "bagSelectionTest" to "BagSelectionTest",
+    "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
     "omenMathTest" to "OmenMathTest",
     "floorShapeTest" to "FloorShapeTest",
-    "situationTagsTest" to "SituationTagsTest"
+    "situationTagsTest" to "SituationTagsTest",
+    "dungeonToolsTest" to "DungeonToolsTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -232,10 +235,13 @@ tasks.test {
     // Situations round. These fail until their milestones land their classes.
     dependsOn("inventorySwapTest")
     dependsOn("bagTableTest")
+    dependsOn("bagSelectionTest")
+    dependsOn("resetCampaignTest")
     dependsOn("graphSolvabilityTest")
     dependsOn("omenMathTest")
     dependsOn("floorShapeTest")
     dependsOn("situationTagsTest")
+    dependsOn("dungeonToolsTest")
     failOnNoDiscoveredTests = false
 }
 

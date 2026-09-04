@@ -77,6 +77,8 @@ final class InstanceTeardown {
             purge(server, record, reason);
             return;
         }
+        // Set before a single member is ejected: see InstanceRecord.tearingDown.
+        record.tearingDown = true;
         // M25: a Pocket2 child dies with its parent, whatever teardown form the
         // parent takes. Purge the children first so their members are returned
         // before the parent's own roster is emptied.
@@ -124,6 +126,8 @@ final class InstanceTeardown {
 
     static void purge(MinecraftServer server, InstanceRecord record,
                       String reason, UUID excludeFromStraySweep) {
+        // Set before a single member is ejected: see InstanceRecord.tearingDown.
+        record.tearingDown = true;
         // M25: a Pocket2 child dies with its parent. Purged first so the
         // child's members are returned to the door while the parent still
         // exists to receive them.

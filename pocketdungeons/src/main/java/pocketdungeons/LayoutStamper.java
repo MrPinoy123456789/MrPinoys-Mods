@@ -176,7 +176,8 @@ final class LayoutStamper {
             }
         }
 
-        applyConnectors(level, geometry, plan, entranceCell, manifest);
+        Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
+        applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots);
 
         BedrockEnvelope.apply(level, geometry, voidedCells);
 
@@ -198,7 +199,8 @@ final class LayoutStamper {
                 plan.rooms().get(entranceCell).rotation(),
                 plan.rooms().get(plan.terminal()).rotation(),
                 Set.copyOf(trialSpawners),
-                pocket2Door);
+                pocket2Door,
+                Set.copyOf(ironDoorFarSideSlots));
     }
 
     /**
@@ -253,7 +255,8 @@ final class LayoutStamper {
      * opening lines up across the two-block partition between them.
      */
     private static void applyConnectors(ServerLevel level, PlanGeometry geometry, DungeonPlan plan,
-                                        PlanCell entranceCell, RoomManifest manifest) {
+                                        PlanCell entranceCell, RoomManifest manifest,
+                                        Set<BlockPos> ironDoorFarSideSlots) {
         for (PlanEdge edge : plan.doors()) {
             if (edge.touches(entranceCell)) {
                 continue;
@@ -269,23 +272,35 @@ final class LayoutStamper {
                 continue;
             }
             boolean fillNearColumn = rng.nextBoolean();
-            // IRON_DOOR: only one side gets the door. Both sides stamping
-            // their own wall creates two closed door sets 1 block apart, and
-            // a player who opens one side is trapped in the gap between them
-            // with no room to place a block or reach the other door's
-            // redstone. One side places the door; the other stays as the air
-            // the jigsaw already resolved.
+            // IRON_DOOR: only one side stamps the door and its frame. Both
+            // sides stamping their own full door set would put two closed
+            // doors directly against each other, and a player who opens one
+            // side is trapped between them, unable to reach the other door's
+            // redstone. The door goes on the cell closer to the entrance
+            // (smaller depth), so the player reaches its lever-side face
+            // first on the way in.
             //
-            // The door goes on the cell closer to the entrance (smaller
-            // depth). The player arrives from the entrance, so the near cell
-            // is the one they are standing in when they reach the door; its
-            // interior is theirs to build in, so a lever or redstone on that
-            // side can power the door. Placing on the far cell's wall leaves
-            // the door's near face behind the shell-protected partition gap,
-            // out of reach of any signal the player can place.
+            // PD-62: that first-arrival guarantee is not a standing one.
+            // Backtracking is allowed by design (spec section 2), and a
+            // player who crosses through and finds the door shut behind them
+            // has no redstone source anywhere in the far cell. Confirmed
+            // live. The door itself stays locked to the far side (it is
+            // meant to be a real lock, not something to dig through); the
+            // fix instead lifts placement protection off the far cell's own
+            // doorway threshold, so a stuck player can place their own
+            // lever, button or redstone dust there and power the door from
+            // behind. See InstanceLayout.ironDoorFarSideSlots and
+            // RitualListener's placement check for the rest of it.
             if (type == ConnectorType.IRON_DOOR) {
-                applyConnectorToSide(level, geometry, nearerToEntrance(plan, edge.a(), edge.b()),
-                        edge, type, fillNearColumn);
+                PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
+                applyConnectorToSide(level, geometry, nearCell, edge, type, fillNearColumn);
+                PlanCell farCell = edge.other(nearCell);
+                DoorMask.Direction farWall = farCell.directionTo(nearCell);
+                if (farWall != null) {
+                    ironDoorFarSideSlots.addAll(ConnectorGeometry.rect(
+                            geometry.cellOrigin(farCell), farWall,
+                            RoomGeometry.DOOR_MIN, RoomGeometry.DOOR_MAX, 1, RoomGeometry.DOOR_HEIGHT));
+                }
             } else {
                 applyConnectorToSide(level, geometry, edge.a(), edge, type, fillNearColumn);
                 applyConnectorToSide(level, geometry, edge.b(), edge, type, fillNearColumn);

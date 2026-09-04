@@ -69,6 +69,37 @@ final class Instances {
     private static final Map<UUID, PendingReturn> pendingReturns = new HashMap<>();
 
     /**
+     * PD-50: the last {@link InstanceRecord#roomCellOrigin} a member's record
+     * carried at the moment {@link #detach} removed them from
+     * {@link InstanceRegistry#byMember}.
+     *
+     * <p>{@code detach} runs, and clears {@code byMember}, <em>before</em>
+     * {@link #eject} teleports the player: see this class's javadoc on
+     * {@code eject} ("by then this player has already been removed from the
+     * record"). {@code InventorySwap}'s leaving branch is driven by that same
+     * teleport (the dimension-change event, or the tick sweep at worst one
+     * tick later), and it looks the player's room up through
+     * {@code InstanceRegistry.byMember} to find a container to deliver their
+     * void inventory to. By the time it runs, that lookup is already gone, so
+     * every void-side inventory was silently falling through to the "drop at
+     * their feet" branch instead of reaching the room. This map is the fix:
+     * {@code detach} writes the origin here before clearing {@code byMember},
+     * and {@link #consumeLastRoomCellOrigin} reads and forgets it, so a stale
+     * entry cannot outlive the one delivery it was written for.
+     */
+    private static final Map<UUID, BlockPos> lastRoomCellOrigin = new HashMap<>();
+
+    /**
+     * PD-50: the room origin {@link #detach} last saw for {@code member},
+     * consumed once. Returns {@code null} if none was recorded, which is the
+     * existing behaviour for a player with no room at all (an untimed or
+     * admin-built run) and for anyone who was never detached.
+     */
+    static BlockPos consumeLastRoomCellOrigin(UUID member) {
+        return lastRoomCellOrigin.remove(member);
+    }
+
+    /**
      * PD-44: a game-time expiry alongside the point itself, so a player who
      * disconnects inside and never comes back does not leave an entry for
      * the rest of the process. 24 in-game hours is generous to a genuinely
@@ -391,11 +422,15 @@ final class Instances {
                                               int slot, BlockPos origin, long seed,
                                               int keystoneLevel, Set<Affix> affixes,
                                               String theme, UUID owner) {
+        // M48: seed the solvability pass from the owner's bag. buildLayout is
+        // the untimed/admin path with no party, so the party size is one.
+        String bagId = owner == null ? "" : DungeonLog.forServer(server).bagOf(owner);
+        Set<String> bagTags = BagTags.seed(bagId, 1);
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
                 PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                PocketDungeonsConfig.maxGridSpan(), theme);
+                PocketDungeonsConfig.maxGridSpan(), theme, null, bagTags);
 
         DungeonPlan plan = outcome.plan();
         if (plan != null) {
@@ -446,6 +481,15 @@ final class Instances {
             record.timer.addPlayer(player);
         }
         applyTrialOmen(player, record);
+        // M48: a member who has not yet chosen a bag gets the bag chest on
+        // entry. Each member picks independently; the chest is a shared
+        // station, so this is a no-op once it is already standing.
+        if (record.roomCellOrigin != null && !record.visitInstance) {
+            ServerLevel dungeonLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (dungeonLevel != null) {
+                placeBagChestIfBagless(dungeonLevel, server, player.getUUID(), record.roomCellOrigin);
+            }
+        }
     }
 
     /**
@@ -628,6 +672,81 @@ final class Instances {
         RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
     }
 
+    // ---- M48: the bag chest (the player's class selection) -----------------
+
+    /**
+     * (M48) The bag chest's fixed spot in the safe room: the centre of the
+     * floor at standing height. The room is a 16-wide cell with the selector
+     * doors, lodestone and furniture all on the walls, so the centre is open
+     * floor at every rotation. Detected by position rather than block-entity
+     * NBT, the same way {@link #selectorDoorStep}, {@link #isCommitLever} and
+     * {@link #engineTerminalAt} identify their own fixtures.
+     */
+    static BlockPos bagChestPos(BlockPos origin) {
+        return origin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+    }
+
+    /**
+     * (M48) Places the bag chest if any member of this instance (owner
+     * included) has not yet chosen a bag. The chest is a shared station: each
+     * bagless member right-clicks it independently and picks their own bag.
+     * A no-op if the chest is already standing, so it is safe to call from
+     * every lobby-arming path.
+     */
+    static void placeBagChestForParty(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        if (record == null || record.roomCellOrigin == null || record.visitInstance) {
+            return;
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        boolean anyBagless = log.bagOf(record.owner).isEmpty();
+        if (!anyBagless) {
+            for (UUID member : record.members.keySet()) {
+                if (log.bagOf(member).isEmpty()) {
+                    anyBagless = true;
+                    break;
+                }
+            }
+        }
+        if (!anyBagless) {
+            return;
+        }
+        BlockPos pos = bagChestPos(record.roomCellOrigin);
+        if (!level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+            RoomBuilder.set(level, pos, Blocks.ENDER_CHEST.defaultBlockState());
+        }
+    }
+
+    /**
+     * (M48) Places the bag chest if this one player has not yet chosen a bag.
+     * Used from {@link #admit}, where the record exists but the party is still
+     * assembling, so the per-party check is not yet meaningful. A no-op if the
+     * chest is already standing.
+     */
+    private static void placeBagChestIfBagless(ServerLevel level, MinecraftServer server,
+                                               UUID player, BlockPos origin) {
+        if (player == null || !DungeonLog.forServer(server).bagOf(player).isEmpty()) {
+            return;
+        }
+        BlockPos pos = bagChestPos(origin);
+        if (!level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+            RoomBuilder.set(level, pos, Blocks.ENDER_CHEST.defaultBlockState());
+        }
+    }
+
+    /**
+     * (M48) Clears the bag chest if it is standing. The chest is transient
+     * furniture, not part of the room blob: it must not bake into a
+     * {@link RoomStore#capture}, and it has no place in an active run, so this
+     * runs before capture in {@code RunLifecycle.saveRoom} and when a door is
+     * chosen in {@code generateBehindLobby}.
+     */
+    static void clearBagChest(ServerLevel level, BlockPos origin) {
+        BlockPos pos = bagChestPos(origin);
+        if (level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+            RoomBuilder.set(level, pos, RoomBuilder.AIR);
+        }
+    }
+
     static net.minecraft.core.Direction mcDirection(DoorMask.Direction dir) {
         return switch (dir) {
             case NORTH -> net.minecraft.core.Direction.NORTH;
@@ -646,7 +765,7 @@ final class Instances {
         // is for admin output only.
         BlockPos exitPad = origin.offset(1, 1, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null);
+                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null, Set.of());
     }
 
     /**
@@ -761,12 +880,17 @@ final class Instances {
         long seed = level.getRandom().nextLong();
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
+        // M48: seed the solvability pass from the owner's bag and the live
+        // party size, so a floor is solvable for the class the party actually
+        // brought in rather than for the strictest Pilgrim default.
+        String bagId = DungeonLog.forServer(server).bagOf(record.owner);
+        Set<String> bagTags = BagTags.seed(bagId, record.members.size());
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
                 PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
                 PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
-                dungeonDoor);
+                dungeonDoor, bagTags);
 
         DungeonPlan plan = outcome.plan();
         // The door's elective affix plus whatever the offered level seeds: the run
@@ -823,6 +947,9 @@ final class Instances {
 
         RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(dungeonDoor));
         RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, dungeonDoor);
+        // M48: the room is no longer a lobby, so the bag chest has no place
+        // here. A member who skipped the chest enters with the keystone alone.
+        clearBagChest(level, record.roomCellOrigin);
         // M18 9.2: the punched doorway gets physical double doors (Y=1..2) with
         // a wall lintel (Y=3), so mobs from the first dungeon cell cannot walk
         // straight into the room. They are plain vanilla doors the player opens
@@ -922,6 +1049,107 @@ final class Instances {
         return true;
     }
 
+    // ---- quit: reset to lobby ----------------------------------------------
+
+    /**
+     * Resets a live run back to its lobby state without ejecting anyone:
+     * pulls every member into the safe room, clears the dungeon cells beyond
+     * it, seals and bedrocks all four walls, re-arms the selector doors and
+     * furniture, resets the door screen to idle, and returns the record to
+     * {@code awaitingDoorChoice}. Called by {@link RunLifecycle#quitDoor}
+     * so {@code /dungeon quit} is a "pick a new door" action, not an eject.
+     *
+     * <p>The room stays in its current cell (it has not moved, since the run
+     * was not completed). The keystone penalty is applied by the caller
+     * before this runs; this method only handles the physical reset and the
+     * record state.
+     */
+    static void resetToLobby(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null || record.roomCellOrigin == null) {
+            return;
+        }
+        BlockPos roomOrigin = record.roomCellOrigin;
+        DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
+
+        // Save the room before clearing, the same way resetForNextDungeon
+        // does: any edits the owner made while the run was live are theirs
+        // and must survive the reset.
+        RunLifecycle.saveRoom(level, server, record);
+
+        // Pull every member into the safe room.
+        BlockPos roomCentre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer inside = server.getPlayerList().getPlayer(member);
+            if (inside == null) {
+                continue;
+            }
+            if (inside.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    && roomOwnerAt(inside.blockPosition()) == null) {
+                teleport(server, inside, PocketDungeonsMod.DUNGEON_LEVEL,
+                        net.minecraft.world.phys.Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+            }
+        }
+
+        // Release the current layout's force-load tickets before clearing.
+        if (record.layout != null) {
+            forceLoad(level, record.layout.geometry().chunks(), false);
+        }
+
+        // Clear every cell of the current dungeon except the room itself.
+        List<BlockPos> keepRoom = List.of(roomOrigin);
+        for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
+            if (cellOrigin.equals(roomOrigin)) {
+                continue;
+            }
+            clearCellSync(level, cellOrigin, keepRoom);
+        }
+
+        // Seal both the entrance wall (ee) and the dungeon wall (MM), then
+        // bedrock all four sides: the lobby is a sealed box until a door is
+        // chosen, the same state stampLobby leaves it in.
+        CellGeometry.sealDoorOnWall(level, roomOrigin, CellGeometry.opposite(dungeonDoor));
+        CellGeometry.sealDoorOnWall(level, roomOrigin, dungeonDoor);
+        BedrockEnvelope.applyToCell(level, roomOrigin, java.util.Set.of());
+
+        // Clear the post-selection doors the run placed, then re-arm the
+        // selector doors and furniture for a fresh door choice.
+        RoomTemplateGenerator.clearPostSelectionDoors(level, roomOrigin, dungeonDoor);
+        RoomTemplateGenerator.clearFurniture(level, roomOrigin, dungeonDoor);
+        RoomTemplateGenerator.placeSelectorDoors(level, roomOrigin, dungeonDoor);
+        RoomTemplateGenerator.placeFurniture(level, roomOrigin, dungeonDoor, true);
+        // M48: re-arm the bag chest for the fresh door choice, dropping any
+        // stale chest first. A member who still has no bag gets to pick here.
+        clearBagChest(level, roomOrigin);
+        placeBagChestForParty(level, server, record);
+        DungeonScreen.updateDoor(level, record, DungeonScreen.idleContent(level, record.owner));
+        DungeonScreen.updateEngine(level, record, null);
+        record.selectedStep = 0;
+
+        // Close the timer and clear trial omen from every member.
+        if (record.timer != null) {
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer inside = server.getPlayerList().getPlayer(member);
+                if (inside != null) {
+                    record.timer.removePlayer(inside);
+                    clearTrialOmen(inside);
+                }
+            }
+            record.timer.close();
+            record.timer = null;
+        }
+
+        // Reset the record to lobby state. The one-cell lobby layout has no
+        // keystone level, no affixes, no theme, no timer, no completion.
+        record.layout = lobbyLayout(roomOrigin);
+        record.affixes = EnumSet.noneOf(Affix.class);
+        record.theme = null;
+        record.awaitingDoorChoice = true;
+        record.chosenStep = 0;
+        record.freeDoor = false;
+        record.clearPreviousRunState();
+    }
+
     // ---- exit ---------------------------------------------------------------
 
     /**
@@ -1001,6 +1229,27 @@ final class Instances {
         // back into.
         boolean stillLive = InstanceRegistry.bySlot.get(slot) == record;
         if (stillLive && hadRoom) {
+            // PD-63: this branch teleports the player straight back into the
+            // same live instance they were just detached from, not out of
+            // it: dropMember's detach() above already removed them from
+            // record.members, InstanceRegistry.byMember, the timer and
+            // Trial Omen. Left alone, they would land back inside a
+            // dungeon that no longer knows they exist: onTick's member loop
+            // only iterates record.members, so the spawner-clear cue, the
+            // exit pad's completion check and the timer would all silently
+            // ignore them from this point on, even though they are
+            // standing right there. Re-admitting mirrors what admit() does
+            // for a fresh entry, reusing the same point captured above
+            // (before detach cleared it) rather than the player's current
+            // in-dungeon position, which would make a bad return point.
+            if (point != null) {
+                record.members.put(player.getUUID(), point);
+            }
+            InstanceRegistry.byMember.put(player.getUUID(), record);
+            if (record.timer != null) {
+                record.timer.addPlayer(player);
+            }
+            applyTrialOmen(player, record);
             BlockPos roomCentre = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
             teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                     Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
@@ -1060,6 +1309,13 @@ final class Instances {
     static ReturnPoint detach(MinecraftServer server, InstanceRecord record, UUID member, ServerPlayer player) {
         // Before anything else, while the room is still exactly as they left it.
         RunLifecycle.saveRoomIfOwner(server, record, member);
+        // PD-50: cached before byMember loses the association, so the leaving
+        // swap that this detach's own teleport is about to trigger can still
+        // find where to deliver this player's void inventory. See
+        // lastRoomCellOrigin's javadoc.
+        if (record.roomCellOrigin != null) {
+            lastRoomCellOrigin.put(member, record.roomCellOrigin);
+        }
         ReturnPoint point = record.members.remove(member);
         InstanceRegistry.byMember.remove(member);
         record.onPad.remove(member);
