@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/blaze_loft",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "content": "blaze_loft",
+  "tier": 2,
+  "provides": ["lava"],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/bazaar",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "content": "bazaar",
+  "tier": 2,
+  "provides": ["gold"],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

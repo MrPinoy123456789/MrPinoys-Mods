@@ -34,6 +34,8 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,19 +106,35 @@ final class TrialContent {
             PocketDungeonsConfig::ominousVaultKeyItem,
             "ominous vaults will fall back to minecraft:ominous_trial_key.");
 
+    /**
+     * M52: trial spawners placed by situation handlers, mapped to whether the
+     * cell they sit in is {@code gated}. The clear-gate check (spec 6.4 open
+     * question 11) counts only gated encounter cells, so the filter in
+     * {@link #gatedSpawners} reads this map. Base-room encounter cells that go
+     * through the ordinary role dispatch are recorded here as {@code false}
+     * (open); situation-handler combat rooms pass their own {@code access} value.
+     *
+     * <p>Keyed by the spawner's world position. Instance slots reuse the same
+     * origins, so re-stamping overwrites stale entries naturally. The
+     * {@link #gatedSpawners} filter also checks for a live trial spawner block
+     * entity, which drops any remaining stale positions from the denominator.
+     */
+    private static final Map<BlockPos, Boolean> SITUATION_SPAWNERS = new LinkedHashMap<>();
+
     private TrialContent() {}
 
     /**
      * Resolves the configured key items once, so a typo is a boot-time log line.
-     *
-     * <p>Unconditional since T17: the trial loop was the only path even before
-     * then ({@code trialsEnabled: false} was the kill switch for U3's chests and
-     * mob spawns, now deleted), so there is no longer a case where these keys
-     * are not needed.
+     * Also registers the M52 situation handlers, which need to be in place
+     * before any stamping pass runs.
      */
     static void warmUp() {
         VAULT_KEY.get();
         OMINOUS_VAULT_KEY.get();
+        KnowledgeSpecs.registerHandlers();
+        MechanismSpecs.registerHandlers();
+        PressureSpecs.registerHandlers();
+        SpurSpecs.registerHandlers();
     }
 
     // ---- encounter ----------------------------------------------------------
@@ -201,7 +219,90 @@ final class TrialContent {
         spawner.getTrialSpawner().load(input);
         spawner.setChanged();
         spawner.markUpdated();
+        SITUATION_SPAWNERS.put(anchor, false);
         return anchor;
+    }
+
+    /**
+     * M52: situation-handler encounter placement. As the theme-based
+     * {@link #applyEncounter}, but uses a fixed spawner config prefix (e.g.
+     * {@code "breeze_arena"}) instead of the run theme's prefix, and records
+     * the cell's {@code gated} flag for the clear-gate filter (spec 6.4 open
+     * question 11).
+     */
+    static BlockPos applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
+                                  int tier, Set<Affix> affixes, String configPrefix, boolean gated) {
+        boolean ominous = affixes.contains(Affix.OMINOUS);
+        boolean swarming = affixes.contains(Affix.SWARMING);
+        boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
+        boolean silenced = affixes.contains(Affix.SILENCED);
+        BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
+        if (anchor == null) {
+            PocketDungeonsMod.LOG.warn(
+                    "Situation encounter cell at {} has no spawner anchor; no trial spawner placed",
+                    cellOrigin.toShortString());
+            return null;
+        }
+        clearClassicSpawners(level, cellOrigin);
+        BlockState state = Blocks.TRIAL_SPAWNER.defaultBlockState()
+                .setValue(TrialSpawnerBlock.OMINOUS, ominous);
+        level.setBlock(anchor, state, FLAGS);
+        BlockEntity be = level.getBlockEntity(anchor);
+        if (!(be instanceof TrialSpawnerBlockEntity spawner)) {
+            PocketDungeonsMod.LOG.warn("Trial spawner at {} has no block entity",
+                    anchor.toShortString());
+            return null;
+        }
+        String normalId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/normal";
+        String ominousId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/ominous";
+        CompoundTag tag = new CompoundTag();
+        if (swarming) {
+            writeInlineConfigById(level, tag, "normal_config", Identifier.parse(normalId));
+            writeInlineConfigById(level, tag, "ominous_config", Identifier.parse(ominousId));
+        } else {
+            tag.putString("normal_config", normalId);
+            tag.putString("ominous_config", ominousId);
+        }
+        int cooldown = PocketDungeonsConfig.trialSpawnerCooldownTicks();
+        if (overclocked) {
+            cooldown = (int) Math.round(cooldown * PocketDungeonsConfig.overclockedCooldownFactor());
+        }
+        tag.putInt("target_cooldown_length", cooldown);
+        tag.putInt("required_player_range",
+                silenced ? PocketDungeonsConfig.silencedPlayerRange() : 14);
+        ValueInput input = TagValueInput.create(
+                ProblemReporter.DISCARDING, level.registryAccess(), tag);
+        spawner.getTrialSpawner().load(input);
+        spawner.setChanged();
+        spawner.markUpdated();
+        SITUATION_SPAWNERS.put(anchor, gated);
+        return anchor;
+    }
+
+    /**
+     * M52 (spec 6.4): the subset of this layout's trial spawners that sit in
+     * {@code gated} encounter cells, for the spawner-clear completion gate.
+     * Open encounter cells are excluded so a floor full of skippable open cells
+     * cannot block completion. Stale positions (a slot reused by a later run
+     * whose new layout has no spawner there) are dropped by the block-entity
+     * check, which keeps the denominator honest.
+     */
+    static Set<BlockPos> gatedSpawners(InstanceLayout layout, ServerLevel level) {
+        Set<BlockPos> out = new LinkedHashSet<>();
+        for (Map.Entry<BlockPos, Boolean> entry : SITUATION_SPAWNERS.entrySet()) {
+            if (!entry.getValue()) {
+                continue;
+            }
+            BlockPos pos = entry.getKey();
+            if (layout.geometry().cellAt(pos) == null) {
+                continue;
+            }
+            if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity)) {
+                continue;
+            }
+            out.add(pos);
+        }
+        return out;
     }
 
     /**
@@ -246,7 +347,16 @@ final class TrialContent {
      */
     private static void writeInlineConfig(ServerLevel level, CompoundTag tag, String key,
                                           String prefix, int tier, boolean ominous) {
-        Identifier id = Identifier.parse(configId(prefix, tier, ominous));
+        writeInlineConfigById(level, tag, key, Identifier.parse(configId(prefix, tier, ominous)));
+    }
+
+    /**
+     * Resolves a config by registry id, scales its mob counts for Swarming, and
+     * writes the result inline under {@code key}. Shared by the theme-based and
+     * situation-handler encounter paths.
+     */
+    private static void writeInlineConfigById(ServerLevel level, CompoundTag tag, String key,
+                                              Identifier id) {
         TrialSpawnerConfig base = level.registryAccess()
                 .lookupOrThrow(Registries.TRIAL_SPAWNER_CONFIG).getValue(id);
         if (base == null) {

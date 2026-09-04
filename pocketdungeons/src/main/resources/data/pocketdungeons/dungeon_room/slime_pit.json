@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/slime_pit",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "content": "slime_pit",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

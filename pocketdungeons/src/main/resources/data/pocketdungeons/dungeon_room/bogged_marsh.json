@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/bogged_marsh",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "bogged_marsh",
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

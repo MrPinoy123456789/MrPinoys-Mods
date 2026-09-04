@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/ice_run",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "ice_run",
+  "tier": 2,
+  "provides": ["wind_charge"],
+  "requires": [],
+  "pressure": "local",
+  "access": "open",
+  "window": "bars"
+}

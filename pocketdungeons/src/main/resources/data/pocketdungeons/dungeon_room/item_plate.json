@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/item_plate",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "item_plate",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

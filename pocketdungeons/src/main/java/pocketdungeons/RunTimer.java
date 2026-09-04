@@ -1,25 +1,22 @@
 package pocketdungeons;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.BossEvent;
-
-import java.util.UUID;
 
 /**
- * The clock a keystone run is measured against, shown as a server-side boss bar
- * so a vanilla client renders it with no client mod.
+ * The elapsed-time tracker for a keystone run (M48, spec 5.3).
  *
- * <p><strong>Expiry does not end the run.</strong> The bar turns red, reads
- * {@code OVER TIME}, and the run continues. The keystone is downgraded by 2
- * levels once when the clock runs out, but the player can still finish and
- * earn a door offer to mitigate the loss.
+ * <p>The boss bar is gone. The timer still records total run time for the
+ * completion line, the diary, and future leaderboard use. It stops being a
+ * gate: omen (see {@link Omen}) determines the keystone consequence on
+ * completion, not the clock. The timeout still fires independently through
+ * {@code overTime}, depleting the keystone via {@code RunLifecycle.expireTimedOut}.
+ *
+ * <p>{@code addPlayer}, {@code removePlayer} and {@code close} are retained as
+ * no-ops so {@code Instances}, which this milestone does not own, still compiles.
+ * A later wave that takes {@code Instances} back can remove the calls.
  */
 final class RunTimer {
 
-    private final ServerBossEvent bar;
     private final int totalSeconds;
     private final int roomCount;
     private final String prefix;
@@ -38,25 +35,16 @@ final class RunTimer {
         this.prefix = prefix;
         this.totalSeconds = Math.max(1, totalSeconds);
         this.roomCount = Math.max(1, roomCount);
-        this.bar = new ServerBossEvent(UUID.randomUUID(), Component.empty(),
-                BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.PROGRESS);
-        refresh();
     }
 
-    void addPlayer(ServerPlayer player) {
-        bar.addPlayer(player);
-    }
+    // No-ops retained for Instances.java; the boss bar is gone (M48).
+    void addPlayer(ServerPlayer player) {}
 
-    void removePlayer(ServerPlayer player) {
-        bar.removePlayer(player);
-    }
+    void removePlayer(ServerPlayer player) {}
 
-    void close() {
-        bar.removeAllPlayers();
-        bar.setVisible(false);
-    }
+    void close() {}
 
-    /** How many distinct rooms the party has stood in, for the bar's progress readout. */
+    /** How many distinct rooms the party has stood in. Kept for future use. */
     void notePresence(int rooms) {
         if (rooms > roomsSeen) {
             roomsSeen = rooms;
@@ -76,12 +64,16 @@ final class RunTimer {
         return totalSeconds;
     }
 
+    /** Elapsed seconds since the run started, for the completion line and diary. */
+    int elapsedSeconds() {
+        return elapsedTicks / 20;
+    }
+
     /**
-     * Advances the clock by {@code ticks} and repaints the bar.
+     * Advances the clock by {@code ticks}.
      *
      * <p>Called from the existing instance watcher rather than every tick, so
-     * {@code ticks} is the watcher's interval. The bar only needs to be right to
-     * the second and the watcher runs at 20 ticks by default.
+     * {@code ticks} is the watcher's interval.
      */
     void tick(int ticks) {
         if (completed) {
@@ -91,40 +83,10 @@ final class RunTimer {
         if (!overTime && secondsRemaining() <= 0) {
             overTime = true;
         }
-        refresh();
     }
 
     /** Freezes the clock at its last reading once the run has been completed. */
     void markCompleted() {
         completed = true;
-        refresh();
-    }
-
-    private void refresh() {
-        if (completed) {
-            bar.setName(Component.literal(
-                    prefix + " - COMPLETE"
-                    + " - " + roomsSeen + "/" + roomCount + " rooms")
-                    .withStyle(ChatFormatting.GREEN));
-            bar.setProgress(1.0f);
-            bar.setColor(BossEvent.BossBarColor.GREEN);
-            return;
-        }
-        int remaining = secondsRemaining();
-        String title = prefix + " - "
-                + (overTime ? "OVER TIME" : KeystoneMath.formatClock(remaining))
-                + " - " + roomsSeen + "/" + roomCount + " rooms";
-
-        ChatFormatting colour = overTime ? ChatFormatting.DARK_RED
-                : remaining * 5 <= totalSeconds ? ChatFormatting.RED
-                : remaining * 2 <= totalSeconds ? ChatFormatting.YELLOW
-                : ChatFormatting.GREEN;
-
-        bar.setName(Component.literal(title).withStyle(colour));
-        bar.setProgress(Math.max(0.0f, Math.min(1.0f, (float) remaining / totalSeconds)));
-        bar.setColor(overTime ? BossEvent.BossBarColor.RED
-                : remaining * 5 <= totalSeconds ? BossEvent.BossBarColor.RED
-                : remaining * 2 <= totalSeconds ? BossEvent.BossBarColor.YELLOW
-                : BossEvent.BossBarColor.GREEN);
     }
 }

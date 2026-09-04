@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/deep_dark_landing",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "tier": 3,
+  "provides": [],
+  "requires": [],
+  "pressure": "omen",
+  "access": "open",
+  "window": "tinted_glass"
+}

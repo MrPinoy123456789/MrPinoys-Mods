@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/frame_lock",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "frame_lock",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "pressure": "omen",
+  "access": "gated",
+  "window": "bars"
+}

@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/wither_loft",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "wither_loft",
+  "tier": 3,
+  "provides": [],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

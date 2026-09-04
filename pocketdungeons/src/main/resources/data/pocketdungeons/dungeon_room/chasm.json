@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/chasm",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": null,
+  "tier": 1,
+  "provides": ["lava"],
+  "requires": [],
+  "pressure": null,
+  "access": "open",
+  "window": "bars"
+}

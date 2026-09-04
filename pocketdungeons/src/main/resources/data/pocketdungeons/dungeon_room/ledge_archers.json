@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/ledge_archers",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "content": "ledge_archers",
+  "tier": 1,
+  "provides": ["bow"],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

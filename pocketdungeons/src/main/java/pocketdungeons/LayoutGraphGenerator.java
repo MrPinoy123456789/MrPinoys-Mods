@@ -93,6 +93,15 @@ public final class LayoutGraphGenerator {
             return null;
         }
 
+        int fullPathLength = criticalPath.size();
+
+        // M54 (spec 6.5): the terminal is placed at a critical-path index between
+        // 60% and 90% of the path, not at the end. The cells past it are a decoy
+        // branch: still in the cells set and still connected by open edges, but
+        // not part of the stored critical path. The player who walks the longest
+        // corridor does not automatically find the staging room.
+        int terminalIndex = pickTerminalIndex(rng, fullPathLength);
+
         Set<PlanCell> cells = new HashSet<>(criticalPath);
         Set<PlanEdge> openEdges = new HashSet<>();
         for (int i = 0; i < criticalPath.size() - 1; i++) {
@@ -100,24 +109,35 @@ public final class LayoutGraphGenerator {
         }
 
         PlanCell entrance = criticalPath.get(0);
-        PlanCell terminal = criticalPath.get(criticalPath.size() - 1);
+        PlanCell terminal = criticalPath.get(terminalIndex);
 
-        // The entrance and terminal cells are held to exactly one door each. That
-        // is what lets a single entrance_hall (E) and exit_hall (W) template cover
-        // all four single-door masks by rotation, instead of needing one end-cap
-        // room per mask family -- and it gives the player a cleaner read: one way
-        // in, one way out.
-        addBranches(rng, criticalPath, cells, openEdges, branchProbability);
+        // The stored critical path ends at the terminal. The cells past it
+        // (terminalIndex+1 .. end) are decoy cells: still connected through the
+        // terminal, which now carries two doors (one back along the path, one
+        // forward into the decoy). The entrance stays single-door; addBranches
+        // and addLoops both skip the terminal, so no extra edges land on it.
+        List<PlanCell> storedPath = new ArrayList<>(criticalPath.subList(0, terminalIndex + 1));
+
+        addBranches(rng, storedPath, cells, openEdges, branchProbability);
         addLoops(rng, cells, openEdges, loopProbability, entrance, terminal);
 
-        Map<PlanCell, String> roles = assignRoles(rng, criticalPath, cells, openEdges);
+        Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges);
 
         // M45 (spec 6.6): the one BFS from the entrance. validate() reads it back
         // off the shape for its reachability check rather than walking again.
         Map<PlanCell, Integer> distances = rootDistances(cells, openEdges, entrance);
 
-        return new DungeonShape(seed, cells, openEdges, entrance, terminal, criticalPath, roles,
-                distances);
+        // M54 (spec 6.5): the staging room is never visible from the front door.
+        // A shape where the terminal shares a row or column with the entrance
+        // through an unbroken run of open doorways is rejected here so the caller
+        // retries with the next seed, the same way it retries on a
+        // no-backwards-propagation shape.
+        if (hasLineOfSight(cells, openEdges, entrance, terminal)) {
+            return null;
+        }
+
+        return new DungeonShape(seed, cells, openEdges, entrance, terminal, storedPath, roles,
+                distances, fullPathLength);
     }
 
     /**
@@ -130,6 +150,11 @@ public final class LayoutGraphGenerator {
      *   <li>BFS from the entrance reaches every cell.</li>
      *   <li>The critical path is contiguous and each step has a matching open edge.</li>
      *   <li>Every cell has a role, and roles are only assigned to real cells.</li>
+     *   <li>The entrance has exactly one door; the terminal has one or two (M54:
+     *       two when a decoy branch runs past it).</li>
+     *   <li>No cell sits behind the entrance (M29 no-backwards-propagation).</li>
+     *   <li>The terminal is not in line of sight from the entrance (M54 spec 6.5:
+     *       no straight run of open doorways between them).</li>
      * </ul>
      */
     public static List<String> validate(DungeonShape shape) {
@@ -185,11 +210,12 @@ public final class LayoutGraphGenerator {
             }
         }
 
-        // The entrance and terminal must stay single-door: the room library ships
-        // exactly one entrance template and one exit template, and they cover all
-        // four single-door masks by rotation and nothing else. A second door on
-        // either end cap is unresolvable content, so catch it here rather than as
-        // a mystery selection failure in-game.
+        // The entrance must stay single-door: the room library ships exactly one
+        // entrance template, and it covers all four single-door masks by rotation
+        // and nothing else. A second door on the entrance is unresolvable content.
+        // The terminal (M54) may carry one or two doors: one back along the
+        // critical path, and optionally one forward into the decoy branch when
+        // the terminal is placed partway along the path rather than at the end.
         Map<PlanCell, Integer> degrees = degrees(cells, edges);
         int entranceDegree = degrees.getOrDefault(shape.entrance(), 0);
         if (entranceDegree != 1) {
@@ -197,9 +223,9 @@ public final class LayoutGraphGenerator {
                     + " doors, expected exactly 1");
         }
         int terminalDegree = degrees.getOrDefault(shape.terminal(), 0);
-        if (terminalDegree != 1) {
+        if (terminalDegree < 1 || terminalDegree > 2) {
             problems.add("terminal cell " + shape.terminal() + " has " + terminalDegree
-                    + " doors, expected exactly 1");
+                    + " doors, expected 1 or 2");
         }
 
         Map<PlanCell, String> roles = shape.roles();
@@ -242,6 +268,16 @@ public final class LayoutGraphGenerator {
             }
         }
 
+        // M54 (spec 6.5): the staging room is never visible from the front door.
+        // The terminal must not share a row or column with the entrance through
+        // an unbroken run of open doorways. generate() filters these out before
+        // returning, so a shape that reaches this check with a violation was
+        // hand-built (or constructed by a path the generator rejected).
+        if (hasLineOfSight(cells, edges, shape.entrance(), shape.terminal())) {
+            problems.add("terminal " + shape.terminal() + " " + LINE_OF_SIGHT_MARKER
+                    + " " + shape.entrance());
+        }
+
         return problems;
     }
 
@@ -251,6 +287,75 @@ public final class LayoutGraphGenerator {
      * retry instead of hard-failing.
      */
     static final String NO_BACKWARDS_MARKER = "is behind the entrance on the";
+
+    /**
+     * Marks a line-of-sight problem (spec 6.5): the terminal is visible from
+     * the entrance through a straight run of open doorways. {@code generate}
+     * filters these out before returning, so a shape that reaches
+     * {@code validate} with this marker was hand-built for testing.
+     */
+    static final String LINE_OF_SIGHT_MARKER = "is in line of sight from the entrance";
+
+    /**
+     * Picks the terminal index at 60-90% of the full path (spec 6.5). The
+     * cells past it become a decoy branch. The minimum uses ceil so the stored
+     * critical path always has at least two interior cells for the
+     * encounter/loot role guarantee; paths too short for that (fewer than 5
+     * cells) keep the terminal at the end.
+     */
+    private static int pickTerminalIndex(Random rng, int pathLength) {
+        int last = pathLength - 1;
+        if (last < 4) {
+            return last;
+        }
+        int minN = Math.max(1, (int) Math.ceil(0.6 * last));
+        int maxN = Math.min(last - 1, (int) Math.floor(0.9 * last));
+        if (minN > maxN) {
+            return last;
+        }
+        return minN + rng.nextInt(maxN - minN + 1);
+    }
+
+    /**
+     * Whether the terminal shares a row or column with the entrance through an
+     * unbroken run of open doorways (spec 6.5). The entrance is the root of the
+     * graph; a straight corridor from it to the staging room makes the room
+     * visible from the front door, which is exactly what the staging room must
+     * never be.
+     */
+    private static boolean hasLineOfSight(Set<PlanCell> cells, Set<PlanEdge> edges,
+                                          PlanCell entrance, PlanCell terminal) {
+        int ex = entrance.x(), ez = entrance.z();
+        int tx = terminal.x(), tz = terminal.z();
+
+        if (tx == ex && tz != ez) {
+            int step = Integer.signum(tz - ez);
+            PlanCell prev = entrance;
+            for (int z = ez + step; z != tz; z += step) {
+                PlanCell cur = new PlanCell(ex, z);
+                if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
+                    return false;
+                }
+                prev = cur;
+            }
+            return edges.contains(new PlanEdge(prev, terminal));
+        }
+
+        if (tz == ez && tx != ex) {
+            int step = Integer.signum(tx - ex);
+            PlanCell prev = entrance;
+            for (int x = ex + step; x != tx; x += step) {
+                PlanCell cur = new PlanCell(x, ez);
+                if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
+                    return false;
+                }
+                prev = cur;
+            }
+            return edges.contains(new PlanEdge(prev, terminal));
+        }
+
+        return false;
+    }
 
     private static boolean isBehindEntrance(PlanCell cell, DoorMask.Direction entranceDir) {
         return switch (entranceDir) {

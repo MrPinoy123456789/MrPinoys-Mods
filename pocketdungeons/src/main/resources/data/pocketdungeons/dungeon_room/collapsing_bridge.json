@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/collapsing_bridge",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "collapsing_bridge",
+  "tier": 2,
+  "provides": ["lava"],
+  "pressure": "local",
+  "access": "open",
+  "window": "glass"
+}

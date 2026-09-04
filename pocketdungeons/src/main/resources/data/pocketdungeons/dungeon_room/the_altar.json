@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/the_altar",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 2,
+  "content": "the_altar",
+  "tier": 2,
+  "provides": ["trial_key"],
+  "pressure": "omen",
+  "access": "open",
+  "window": "bars"
+}

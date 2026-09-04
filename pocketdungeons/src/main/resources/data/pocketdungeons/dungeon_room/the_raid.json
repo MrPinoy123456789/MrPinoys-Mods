@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/the_raid",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "the_raid",
+  "tier": 3,
+  "provides": [],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

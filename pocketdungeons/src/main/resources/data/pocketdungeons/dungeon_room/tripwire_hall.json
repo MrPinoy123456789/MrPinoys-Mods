@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/tripwire_hall",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "tripwire_hall",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "pressure": "local",
+  "access": "open",
+  "window": "bars"
+}

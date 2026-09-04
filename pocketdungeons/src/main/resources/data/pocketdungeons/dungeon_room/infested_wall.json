@@ -1,0 +1,13 @@
+{
+  "template": "pocketdungeons:rooms/infested_wall",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "tier": 2,
+  "provides": ["blocks"],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

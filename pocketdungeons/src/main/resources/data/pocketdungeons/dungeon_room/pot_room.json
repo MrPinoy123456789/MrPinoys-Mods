@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/pot_room",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "pot_room",
+  "tier": 1,
+  "provides": ["trial_key"],
+  "requires": [],
+  "pressure": "omen",
+  "access": "open",
+  "window": "bars"
+}

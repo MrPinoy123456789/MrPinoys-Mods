@@ -1,0 +1,178 @@
+package pocketdungeons;
+
+/**
+ * M48: the run-level pressure system's pure math (spec 5.2, 5.3, 5.4).
+ *
+ * <p>Omen is an integer 0 to 4 per floor, accumulated from dwell time, sensor
+ * pulses, shrieks, the Ominous Bargain, and Barred Vault clears. The per-floor
+ * value is clamped; the <em>sum</em> across floors between two safe room visits
+ * keys the finish table, which determines the keystone consequence (level change
+ * and chest count) on completion.
+ *
+ * <p>No state lives here. The caller tracks the current floor's omen and hands
+ * it to {@link #clamp} or {@link #add} on every source event; the sum and the
+ * finish table are computed at completion from the per-floor values. This is
+ * the same discipline as {@link PayoutMath} and {@link DifficultyProfile}: the
+ * arithmetic is easy to get wrong at the boundaries and trivial to test with
+ * plain {@code javac}.
+ */
+final class Omen {
+
+    private Omen() {}
+
+    /** Per-floor omen is clamped to this range. */
+    static final int MIN_OMEN = 0;
+    static final int MAX_OMEN = 4;
+
+    // ---- source table (spec 5.2) ----------------------------------------
+
+    /**
+     * Dwell: +1 per 90 seconds in an unsolved cell beyond the first 60.
+     *
+     * <p>Spec 5.4: dwelling only counts while the player is in a cell whose
+     * situation is unsolved. A cleared cell and the staging room are free.
+     * This overload applies the exemption: pass {@code unsolved = false} for a
+     * cleared cell or {@code stagingRoom = true} for the staging room and the
+     * contribution is 0 regardless of time spent.
+     *
+     * @param seconds total time spent in this cell
+     * @param unsolved whether this cell's situation is still unsolved
+     * @param stagingRoom whether this is the staging room
+     */
+    static int dwellContribution(int seconds, boolean unsolved, boolean stagingRoom) {
+        if (!unsolved || stagingRoom) {
+            return 0;
+        }
+        return dwellContribution(seconds);
+    }
+
+    /**
+     * The raw dwell formula with no exemption check: +1 per 90 seconds
+     * beyond the first 60. Exposed for callers that have already filtered
+     * to unsolved, non-staging cells.
+     */
+    static int dwellContribution(int seconds) {
+        if (seconds <= 60) {
+            return 0;
+        }
+        return (seconds - 60) / 90;
+    }
+
+    /**
+     * Sensor pulses: +1 per 5 pulses (spec 5.2, Pot Room or Landing).
+     */
+    static int sensorContribution(int pulses) {
+        return Math.max(0, pulses) / 5;
+    }
+
+    /**
+     * Shrieks: +1 each (spec 5.2).
+     */
+    static int shriekContribution(int shrieks) {
+        return Math.max(0, shrieks);
+    }
+
+    /**
+     * Drinking the Ominous Bargain sets the floor's omen to 4 (spec 5.2).
+     * Use {@link #set} rather than {@link #add}; the bargain replaces, it
+     * does not stack.
+     */
+    static int bargainOmen() {
+        return MAX_OMEN;
+    }
+
+    /**
+     * Clearing a Barred Vault: -1 (spec 5.2).
+     */
+    static int barredVaultContribution() {
+        return -1;
+    }
+
+    // ---- clamp and accumulate -------------------------------------------
+
+    /**
+     * Clamps a per-floor omen value to [{@value MIN_OMEN}, {@value MAX_OMEN}].
+     */
+    static int clamp(int omen) {
+        return Math.max(MIN_OMEN, Math.min(MAX_OMEN, omen));
+    }
+
+    /**
+     * Adds a contribution to the current per-floor omen and clamps.
+     */
+    static int add(int current, int contribution) {
+        return clamp(current + contribution);
+    }
+
+    /**
+     * Sets the per-floor omen to a specific value (for the Ominous Bargain),
+     * clamped.
+     */
+    static int set(int value) {
+        return clamp(value);
+    }
+
+    // ---- per-floor sum (spec 5.4) ---------------------------------------
+
+    /**
+     * The sum of per-floor omens across floors between two safe room visits.
+     * Each floor's omen is clamped before summing, so a caller that forgot to
+     * clamp does not corrupt the total.
+     */
+    static int floorSum(int[] perFloorOmens) {
+        int sum = 0;
+        for (int omen : perFloorOmens) {
+            sum += clamp(omen);
+        }
+        return sum;
+    }
+
+    // ---- finish table (spec 5.2, 5.4) -----------------------------------
+
+    /**
+     * The finish table band for a given omen sum and floor count.
+     *
+     * <p>Thresholds scale to {@code floorsPerSafeVisit}: 0 to
+     * {@code floorsPerSafeVisit} is the low band, {@code floorsPerSafeVisit + 1}
+     * to {@code 3 * floorsPerSafeVisit} is the mid band, and
+     * {@code 3 * floorsPerSafeVisit + 1} to {@code 4 * floorsPerSafeVisit} is
+     * the high band. For 1 floor: 0 to 1, 2 to 3, 4. For 3 floors: 0 to 3,
+     * 4 to 9, 10 to 12. For 5 floors: 0 to 5, 6 to 15, 16 to 20.
+     *
+     * @return 0 for low, 1 for mid, 2 for high
+     */
+    static int band(int sum, int floorsPerSafeVisit) {
+        int floors = Math.max(1, floorsPerSafeVisit);
+        int lowMax = floors;
+        int midMax = 3 * floors;
+        if (sum <= lowMax) {
+            return 0;
+        }
+        if (sum <= midMax) {
+            return 1;
+        }
+        return 2;
+    }
+
+    /**
+     * Keystone level change from the finish table band (spec 5.2).
+     *
+     * <p>Low and mid bands: +1 level. High band: +0 level.
+     */
+    static int levelChange(int band) {
+        return band < 2 ? 1 : 0;
+    }
+
+    /**
+     * Reward chest count from the finish table band (spec 5.2).
+     *
+     * <p>Low band: 3 chests. Mid band: 2 chests. High band: 1 chest.
+     */
+    static int chestCount(int band) {
+        return switch (band) {
+            case 0 -> 3;
+            case 1 -> 2;
+            default -> 1;
+        };
+    }
+}

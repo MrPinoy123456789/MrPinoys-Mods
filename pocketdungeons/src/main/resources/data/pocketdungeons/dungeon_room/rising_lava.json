@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/rising_lava",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "rising_lava",
+  "tier": 2,
+  "provides": ["lava"],
+  "pressure": "local",
+  "access": "open",
+  "window": "glass"
+}

@@ -899,7 +899,10 @@ final class RunLifecycle {
     static void completeRun(MinecraftServer server, InstanceRecord record,
                                     ServerPlayer player) {
         if (record.isKeystoneRun()) {
-            Set<BlockPos> spawners = record.layout.trialSpawners();
+            // M52: only gated encounter cells gate completion. Open encounter
+            // cells are optional and must not block a run the player has already
+            // fought their way through.
+            Set<BlockPos> spawners = TrialContent.gatedSpawners(record.layout, player.level());
             int cleared = TrialContent.countCleared(player.level(), spawners);
             if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
                     PocketDungeonsConfig.spawnerClearThreshold())) {
@@ -944,7 +947,9 @@ final class RunLifecycle {
             // it here, after completeDungeon, fixes both at once.
             if (record.isKeystoneRun()) {
                 int chests = record.rewardChests;
-                boolean timed = record.timer != null && chests > 0;
+                // M48: SPEEDRUNNER means "finished before the clock ran out,"
+                // not "finished with chests" (omen always gives at least one).
+                boolean timed = record.timer != null && !record.timedOutPenaltyApplied;
                 Set<BlockPos> spawners = record.layout.trialSpawners();
                 if (!spawners.isEmpty()) {
                     int cleared = TrialContent.countCleared(player.level(), spawners);
@@ -989,37 +994,21 @@ final class RunLifecycle {
         }
 
         int chests = record.rewardChests;
-        boolean late = chests <= 0;
-        if (late) {
-            // Completed after the clock: the run still counts and still offers a
-            // door, but finishing late costs a couple of levels, the other way,
-            // besides a full timeout, to lose ground. Settled through the same
-            // path every other depletion is (Keystones.Outcome.LATE), so the
-            // keystoneReturned guard it sets stops a later exit() from
-            // overwriting this back to the pre-run level.
-            //
-            // PD-7: a timeout already depleted the keystone once for this run
-            // (record.timedOutPenaltyApplied). Applying LATE on top of that
-            // would double penalize a player who finishes in overtime after
-            // the timeout already fired, so it settles as NO_CHANGE instead.
-            Keystones.Outcome outcome;
-            if (record.timedOutPenaltyApplied) {
-                outcome = Keystones.Outcome.NO_CHANGE;
-            } else {
-                outcome = Keystones.Outcome.LATE;
-            }
-            returnKeystone(server, record, player.getUUID(), player, outcome);
-        }
+        // M48: the omen finish table replaces the clock (spec 5.2). chests >= 2
+        // means the low or mid band (+1 level); chests == 1 means the high band
+        // (+0 level). The old "late" depletion is gone; the timeout still
+        // depletes independently through expireTimedOut, and a high-band finish
+        // simply banks no door offer, so the keystone does not level up.
+        boolean levelUp = chests >= 2;
         // M2/M3: the door choice already happened, at the lobby, before this
-        // run started. On a timed success, record.chosenStep is which of
+        // run started. On a low/mid-band finish, record.chosenStep is which of
         // Keystone.offers this player's own current level banks at: the key
         // levels up by the door step, so a +2 door from 14 lands at 16. The
-        // door bonus is the reward for timing the run, not for reaching the
-        // pad at all. A late finish depletes from the member's own key level
-        // (above) and banks nothing, so failing to time never levels the key
-        // up. Banked immediately rather than parked as a pending offer, since
-        // there is no later "go choose a door" step any more.
-        if (!late && record.chosenStep > 0) {
+        // door bonus is the reward for a good omen, not for reaching the pad
+        // at all. A high-band finish banks nothing, so a bad run never levels
+        // the key up. Banked immediately rather than parked as a pending
+        // offer, since there is no later "go choose a door" step any more.
+        if (levelUp && record.chosenStep > 0) {
             DungeonLog.Entry memberEntry = log.get(player.getUUID());
             Keystone.Offer[] offers = Keystone.offers(player.getUUID(), memberEntry.keystoneLevel(),
                     memberEntry.currentTheme(), memberEntry.depth());
@@ -1031,9 +1020,10 @@ final class RunLifecycle {
         }
 
         // M12: door 1's second job. Granted guaranteed, not a loot roll, and
-        // regardless of lateness: a late free-door finish already lost its
-        // chests, and costing it the fuel too would be a second, undocumented
-        // penalty for a tier that is supposed to never deplete anything.
+        // regardless of omen band: a high-band free-door finish already lost
+        // its level-up, and costing it the fuel too would be a second,
+        // undocumented penalty for a tier that is supposed to never deplete
+        // anything.
         if (record.freeDoor) {
             Fuel.grant(player, PocketDungeonsConfig.fuelPerFreeRun());
         }
@@ -1041,20 +1031,14 @@ final class RunLifecycle {
         Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
 
         // M26: reads log fresh, after every keystone-level change this run
-        // could still make (the late penalty above, the banked door offer
-        // below) has already settled, so the band it checks is final.
+        // could still make (the banked door offer above) has already settled,
+        // so the band it checks is final.
         DiaryDelivery.deliverIfEligible(log, player);
 
-        if (!late) {
-            player.sendSystemMessage(Component.literal(
-                    "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
-                            + " wait in your room, and the door stands open.")
-                    .withStyle(ChatFormatting.AQUA));
-        } else {
-            player.sendSystemMessage(Component.literal(
-                    "The chests stay empty, but the door to your room stands open.")
-                    .withStyle(ChatFormatting.YELLOW));
-        }
+        player.sendSystemMessage(Component.literal(
+                "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
+                        + " wait in your room, and the door stands open.")
+                .withStyle(ChatFormatting.AQUA));
         PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.slot, entry.runsCompleted(),
                 chests, record.layout.lootTier());
@@ -1104,10 +1088,15 @@ final class RunLifecycle {
         DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
         DoorMask.Direction farWall = CellGeometry.opposite(entranceDir);
 
-        int secondsRemaining = record.timer != null ? record.timer.secondsRemaining() : Integer.MAX_VALUE;
-        int totalSeconds = record.timer != null ? record.timer.totalSeconds() : 1;
-        int chests = PayoutMath.chestCount(secondsRemaining, totalSeconds,
-                PocketDungeonsConfig.threeChestPercent(), PocketDungeonsConfig.twoChestPercent());
+        // M48: the omen finish table replaces the clock (spec 5.2, 5.4). No
+        // omen sources are wired yet, so the sum is 0 and every completion
+        // lands in the low band: +1 level, three chests. Future milestones
+        // that wire dwell, sensors, shrieks and the bargain accumulate the
+        // per-floor omen and pass the sum here. floorsPerSafeVisit is 1 until
+        // the multi-floor loop (spec 12) lands.
+        int omenSum = 0;
+        int band = Omen.band(omenSum, 1);
+        int chests = Omen.chestCount(band);
         record.rewardChests = chests;
 
         // Chests on the far side of the terminal cell, beyond the 2x2 lodestone

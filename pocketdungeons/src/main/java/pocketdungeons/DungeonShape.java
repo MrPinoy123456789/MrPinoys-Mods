@@ -29,6 +29,12 @@ import java.util.Set;
  * walk {@link LayoutGraphGenerator#validate} used to do its reachability check
  * with, and a cell missing from the map is a cell unreachable from the
  * entrance. Nothing reads it yet; M47's solvability pass is the consumer.
+ *
+ * <p>{@code generatedPathLength} is M54's addition (SITUATIONS_SPEC 6.5): the
+ * length of the full self-avoiding walk the backtracker produced, before the
+ * terminal was moved to 60-90% of it. The {@code criticalPath} list ends at
+ * the terminal; the cells past it are a decoy branch still in {@code cells}.
+ * Tests read this to verify the terminal index falls in the 60-90% band.
  */
 record DungeonShape(
         long seed,
@@ -38,18 +44,33 @@ record DungeonShape(
         PlanCell terminal,
         List<PlanCell> criticalPath,
         Map<PlanCell, String> roles,
-        Map<PlanCell, Integer> rootDistances) {
+        Map<PlanCell, Integer> rootDistances,
+        int generatedPathLength) {
 
     /**
      * The pre-M45 shape, for callers that have no distances of their own to
      * pass: they are derived from {@code cells}, {@code openEdges} and
      * {@code entrance} by the one BFS in
-     * {@link LayoutGraphGenerator#rootDistances}.
+     * {@link LayoutGraphGenerator#rootDistances}. Defaults
+     * {@code generatedPathLength} to {@code criticalPath.size()}, which is the
+     * correct value for a hand-built shape whose terminal is at the end.
      */
     DungeonShape(long seed, Set<PlanCell> cells, Set<PlanEdge> openEdges, PlanCell entrance,
                  PlanCell terminal, List<PlanCell> criticalPath, Map<PlanCell, String> roles) {
         this(seed, cells, openEdges, entrance, terminal, criticalPath, roles,
-                LayoutGraphGenerator.rootDistances(cells, openEdges, entrance));
+                LayoutGraphGenerator.rootDistances(cells, openEdges, entrance),
+                criticalPath.size());
+    }
+
+    /**
+     * As above, but the caller supplies pre-computed root distances. Defaults
+     * {@code generatedPathLength} to {@code criticalPath.size()}.
+     */
+    DungeonShape(long seed, Set<PlanCell> cells, Set<PlanEdge> openEdges, PlanCell entrance,
+                 PlanCell terminal, List<PlanCell> criticalPath, Map<PlanCell, String> roles,
+                 Map<PlanCell, Integer> rootDistances) {
+        this(seed, cells, openEdges, entrance, terminal, criticalPath, roles,
+                rootDistances, criticalPath.size());
     }
 
     /**
@@ -106,7 +127,7 @@ record DungeonShape(
 
         return new DungeonShape(seed, rotatedCells, rotatedEdges,
                 xform.apply(entrance), xform.apply(terminal), rotatedPath, rotatedRoles,
-                rotatedDistances);
+                rotatedDistances, generatedPathLength);
     }
 
     private static PlanCell rotateCell(PlanCell cell, int quarterTurns) {

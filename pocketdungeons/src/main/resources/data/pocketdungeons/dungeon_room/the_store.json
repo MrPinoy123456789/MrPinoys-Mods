@@ -1,0 +1,13 @@
+{
+  "template": "pocketdungeons:rooms/the_store",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "store",
+  "tier": 1,
+  "pressure": "omen",
+  "access": "open",
+  "window": "glass"
+}

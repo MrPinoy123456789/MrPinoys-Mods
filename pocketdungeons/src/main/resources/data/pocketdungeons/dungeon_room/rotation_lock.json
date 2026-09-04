@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/rotation_lock",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "rotation_lock",
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

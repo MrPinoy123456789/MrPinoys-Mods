@@ -1,0 +1,13 @@
+{
+  "template": "pocketdungeons:rooms/ominous_bargain",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 3,
+  "maxPerDungeon": 1,
+  "content": "ominous_bargain",
+  "tier": 3,
+  "pressure": "omen",
+  "access": "open",
+  "window": "glass"
+}

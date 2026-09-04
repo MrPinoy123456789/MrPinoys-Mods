@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/gallery",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "gallery",
+  "tier": 2,
+  "provides": ["blocks"],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

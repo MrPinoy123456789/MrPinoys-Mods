@@ -1,0 +1,13 @@
+{
+  "template": "pocketdungeons:rooms/hold_the_plate",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "hold_the_plate",
+  "tier": 1,
+  "pressure": "local",
+  "access": "gated",
+  "window": "bars"
+}

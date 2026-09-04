@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/flow_puzzle",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "flow_puzzle",
+  "tier": 2,
+  "provides": ["blocks", "water"],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

@@ -1,0 +1,15 @@
+{
+  "template": "pocketdungeons:rooms/powder_snow_field",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": null,
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "pressure": "local",
+  "access": "open",
+  "window": "bars"
+}

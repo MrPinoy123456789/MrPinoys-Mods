@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/plate_pair",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "content": "plate_pair",
+  "tier": 1,
+  "provides": [],
+  "requires": ["mob"],
+  "access": "gated",
+  "window": "bars"
+}

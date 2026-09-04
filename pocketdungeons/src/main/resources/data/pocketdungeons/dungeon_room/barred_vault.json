@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/barred_vault",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 2,
+  "content": "barred_vault",
+  "tier": 2,
+  "requires": ["trial_key"],
+  "pressure": "omen",
+  "access": "open",
+  "window": "bars"
+}

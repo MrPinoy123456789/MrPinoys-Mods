@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/breeze_arena",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "breeze_arena",
+  "tier": 2,
+  "provides": ["wind_charge", "lava"],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

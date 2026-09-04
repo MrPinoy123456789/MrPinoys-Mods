@@ -39,10 +39,15 @@ public final class PocketDungeonsConfig {
     private static int inviteTtlSeconds = 120;
 
     // ---- layout planning ----------------------------------------------------
-    private static int pathLengthMin = 5;
-    private static int pathLengthMax = 8;
-    private static double branchProbability = 0.35;
-    private static double loopProbability = 0.15;
+    // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
+    // branch and loop rates high enough that a floor reads as a small maze
+    // rather than a spine with stubs. The terminal is placed partway along
+    // the path (LayoutGraphGenerator), so the staging room is never the
+    // obvious far end.
+    private static int pathLengthMin = 8;
+    private static int pathLengthMax = 12;
+    private static double branchProbability = 0.55;
+    private static double loopProbability = 0.30;
     private static int planAttemptBudget = 16;
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
@@ -599,10 +604,10 @@ public final class PocketDungeonsConfig {
         maxPartyMembers = 6;
         inviteTtlSeconds = 120;
 
-        pathLengthMin = 5;
-        pathLengthMax = 8;
-        branchProbability = 0.35;
-        loopProbability = 0.15;
+        pathLengthMin = 8;
+        pathLengthMax = 12;
+        branchProbability = 0.55;
+        loopProbability = 0.30;
         planAttemptBudget = 16;
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
@@ -689,17 +694,17 @@ public final class PocketDungeonsConfig {
         // diagnostic.
         inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 1, "must be >= 1");
 
-        pathLengthMin = readInt(root, "pathLengthMin", 5, v -> v >= 2, "must be >= 2");
-        pathLengthMax = readInt(root, "pathLengthMax", 8, v -> v >= 2, "must be >= 2");
+        pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
+        pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
         if (pathLengthMax < pathLengthMin) {
             PocketDungeonsMod.LOG.error(
                     "pocketdungeons.json pathLengthMax ({}) is below pathLengthMin ({}); "
                             + "using pathLengthMax = pathLengthMin", pathLengthMax, pathLengthMin);
             pathLengthMax = pathLengthMin;
         }
-        branchProbability = readDouble(root, "branchProbability", 0.35,
+        branchProbability = readDouble(root, "branchProbability", 0.55,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-        loopProbability = readDouble(root, "loopProbability", 0.15,
+        loopProbability = readDouble(root, "loopProbability", 0.30,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
         planAttemptBudget = readInt(root, "planAttemptBudget", 16, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
@@ -992,10 +997,10 @@ public final class PocketDungeonsConfig {
         root.addProperty("maxPartyMembers", 6);
         root.addProperty("inviteTtlSeconds", 120);
 
-        root.addProperty("pathLengthMin", 5);
-        root.addProperty("pathLengthMax", 8);
-        root.addProperty("branchProbability", 0.35);
-        root.addProperty("loopProbability", 0.15);
+        root.addProperty("pathLengthMin", 8);
+        root.addProperty("pathLengthMax", 12);
+        root.addProperty("branchProbability", 0.55);
+        root.addProperty("loopProbability", 0.30);
         root.addProperty("planAttemptBudget", 16);
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);

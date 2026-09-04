@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/elders_chamber",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "elders_chamber",
+  "tier": 3,
+  "provides": ["water"],
+  "requires": [],
+  "access": "gated",
+  "window": "glass"
+}

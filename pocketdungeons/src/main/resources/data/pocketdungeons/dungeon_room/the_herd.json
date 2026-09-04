@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/the_herd",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "content": "the_herd",
+  "tier": 1,
+  "provides": ["gold"],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

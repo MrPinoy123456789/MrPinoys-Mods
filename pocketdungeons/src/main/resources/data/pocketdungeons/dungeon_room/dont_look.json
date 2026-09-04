@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/dont_look",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "content": "dont_look",
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "tinted_glass"
+}
