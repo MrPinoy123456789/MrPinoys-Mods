@@ -95,10 +95,10 @@ final class DungeonScreen {
 
     /** Refreshes the door screen above the selector doors with {@code content}. */
     static void updateDoor(ServerLevel level, InstanceRecord record, Component content) {
-        if (record.roomCellOrigin == null) {
+        if (record.stagingCellOrigin == null) {
             return;
         }
-        summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+        summonDoor(level, record.stagingCellOrigin, record.roomDungeonDoor, content);
     }
 
     /**
@@ -118,11 +118,11 @@ final class DungeonScreen {
      * standing there yet).
      */
     static void updateEngine(ServerLevel level, InstanceRecord record, ServerPlayer viewer) {
-        if (record.roomCellOrigin == null) {
+        if (record.stagingCellOrigin == null) {
             return;
         }
         Component content = engineContent(viewer);
-        summonEngine(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+        summonEngine(level, record.stagingCellOrigin, record.roomDungeonDoor, content);
     }
 
     /** Summons the engine screen for a room stamp; see {@link #updateEngine}. */
@@ -142,11 +142,11 @@ final class DungeonScreen {
      * only to whoever is standing in it.
      */
     static void updateTracker(ServerLevel level, InstanceRecord record) {
-        if (record.roomCellOrigin == null) {
+        if (record.stagingCellOrigin == null) {
             return;
         }
         Component content = trackerContent(level.getServer(), record.owner);
-        summonTracker(level, record.roomCellOrigin, record.roomDungeonDoor, content);
+        summonTracker(level, record.stagingCellOrigin, record.roomDungeonDoor, content);
     }
 
     /** Summons the tracker screen for a room stamp; see {@link #updateTracker}. */
@@ -169,7 +169,7 @@ final class DungeonScreen {
             return;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(owner);
-        if (record == null || record.roomCellOrigin == null) {
+        if (record == null || record.stagingCellOrigin == null) {
             return;
         }
         ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);

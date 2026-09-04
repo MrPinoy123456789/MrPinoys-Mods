@@ -147,15 +147,20 @@ final class RitualListener {
         InstanceRecord placementRoomRecord = Instances.roomRecordAt(placementPos);
         UUID placementRoomOwner = placementRoomRecord == null ? null : placementRoomRecord.owner;
         if (placementRoomOwner != null && isPlacementSource(player.getItemInHand(hand))) {
-            BlockPos placementRoomOrigin = placementRoomRecord.roomCellOrigin;
+            // M55: use roomOriginAt to get the correct cell origin (safe room
+            // or staging room) for this position, and roomDungeonDoorAt for
+            // the furniture direction (only set for the staging room).
+            BlockPos placementRoomOrigin = Instances.roomOriginAt(placementPos);
+            DoorMask.Direction placementDungeonDoor = Instances.roomDungeonDoorAt(placementPos);
             // M19 19.7: furniture is protected from placement the same way the
             // shell is. The door screen blocks sit in the wall ring (already
             // shell), but the bulbs, the lever and the engine screen stand on
             // interior or adjacent-wall positions that only this check covers.
             if ((placementRoomOrigin != null
                     && (RoomProtection.isShell(placementPos, placementRoomOrigin)
-                            || RoomProtection.isFurniture(placementPos, placementRoomOrigin,
-                                    placementRoomRecord.roomDungeonDoor)))
+                            || (placementDungeonDoor != null
+                                    && RoomProtection.isFurniture(placementPos, placementRoomOrigin,
+                                            placementDungeonDoor))))
                     || !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
                 return InteractionResult.FAIL;
             }
@@ -322,7 +327,7 @@ final class RitualListener {
      */
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record != null && record.awaitingDoorChoice && record.roomCellOrigin != null) {
+        if (record != null && record.awaitingDoorChoice && record.stagingCellOrigin != null) {
             if (record.selectedStep == 0) {
                 Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
@@ -359,13 +364,13 @@ final class RitualListener {
     private static void selectDoor(ServerPlayer player, int step) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
-                || record.roomCellOrigin == null) {
+                || record.stagingCellOrigin == null) {
             return;
         }
         int previous = record.selectedStep;
         record.selectedStep = step;
         ServerLevel level = (ServerLevel) player.level();
-        BlockPos o = record.roomCellOrigin;
+        BlockPos o = record.stagingCellOrigin;
         DoorMask.Direction wall = record.roomDungeonDoor;
         if (previous >= 1 && previous <= 3 && previous != step) {
             RoomTemplateGenerator.setBulb(level, o, wall,

@@ -463,18 +463,12 @@ final class RoomBuilder {
         }
         DoorMask.Direction wall = record.roomDungeonDoor;
         DoorMask.Direction ee = CellGeometry.opposite(wall);
-        // Read before any stamping: the post-completion room's ee door stands
-        // open onto the terminal cell, a lobby's is sealed, and the two states
-        // both carry awaitingDoorChoice=true, so the flag cannot tell them apart.
+        // M55: the safe room has no selector doors, furniture or screens.
+        // Those live in the staging room. The shell swap only needs to
+        // preserve the blob and restore the door state (ee and MM walls).
         boolean eeOpen = doorOpen(level, o, ee);
+        boolean mmOpen = doorOpen(level, o, wall);
         int rotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, ee);
-
-        if (record.awaitingDoorChoice) {
-            RoomTemplateGenerator.clearSelectorDoors(level, o, wall);
-        } else {
-            RoomTemplateGenerator.clearPostSelectionDoors(level, o, wall);
-        }
-        RoomTemplateGenerator.clearFurniture(level, o, wall);
 
         // The safety net: the whole cell, old frame and interior, persisted.
         RoomStore.capture(level, server, record.owner, o, rotation);
@@ -495,29 +489,11 @@ final class RoomBuilder {
         } else {
             sealDoorSlot(level, o, ee, palette.wall());
         }
-        // The MM slot is wall again after the stamp; the selector doors stand
-        // one block inside it, the post-selection doors fill it.
-        if (!record.awaitingDoorChoice) {
-            RoomTemplateGenerator.placePostSelectionDoors(level, o, wall);
+        if (mmOpen) {
+            CellGeometry.openDoorOnWall(level, o, wall);
         } else {
-            RoomTemplateGenerator.placeSelectorDoors(level, o, wall);
+            sealDoorSlot(level, o, wall, palette.wall());
         }
-        RoomTemplateGenerator.placeFurniture(level, o, wall, record.awaitingDoorChoice);
-
-        if (record.awaitingDoorChoice) {
-            if (record.selectedStep > 0) {
-                RoomTemplateGenerator.setBulb(level, o, wall,
-                        RoomTemplateGenerator.bulbAlongForStep(record.selectedStep), true);
-                DungeonScreen.summonDoor(level, o, wall,
-                        DungeonScreen.previewContent(level, record.owner, record.selectedStep));
-            } else {
-                DungeonScreen.summonDoor(level, o, wall, DungeonScreen.idleContent(level, record.owner));
-            }
-        } else {
-            DungeonScreen.summonDoor(level, o, wall, DungeonScreen.runContent(level, record));
-        }
-        DungeonScreen.summonEngine(level, o, wall, DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, o, wall, DungeonScreen.trackerContent(level.getServer(), record.owner));
     }
 
     /** Whether {@code wall}'s door slot of the room at {@code o} currently stands open. */

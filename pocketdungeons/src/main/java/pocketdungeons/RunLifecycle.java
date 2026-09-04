@@ -525,6 +525,24 @@ final class RunLifecycle {
             return false;
         }
 
+        // M55: the beginRun gate. When the safe room is still active (before
+        // the first commit of a visit), every party member must be standing in
+        // the staging room before the host can commit. Solo players skip the
+        // wait. This prevents a straggler in the safe room from keeping it
+        // loaded and the scarcity back door open. Once the safe room is
+        // despawned (roomCellOrigin == null), the party is in the dungeon loop
+        // and the gate no longer applies.
+        if (record.roomCellOrigin != null && !record.visitInstance
+                && record.stagingCellOrigin != null) {
+            List<String> missing = missingStagingMembers(server, record);
+            if (!missing.isEmpty()) {
+                player.sendSystemMessage(Component.literal(
+                        "Waiting in the staging room for: " + String.join(", ", missing))
+                        .withStyle(ChatFormatting.YELLOW));
+                return false;
+            }
+        }
+
         DungeonLog log = DungeonLog.forServer(server);
         DungeonLog.Entry entry = log.get(player.getUUID());
         Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
@@ -553,7 +571,35 @@ final class RunLifecycle {
         }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null || !Instances.generateBehindLobby(server, level, record, offer, step)) {
+        if (level == null) {
+            return false;
+        }
+
+        // M55: save and despawn the safe room before generating the dungeon.
+        // The safe room is captured to RoomStore so it can be re-stamped on
+        // return. After this point, the safe room cell is gone and the
+        // staging room is the party's only base.
+        if (record.roomCellOrigin != null && !record.visitInstance) {
+            saveRoom(level, server, record);
+            // Seal the safe room's connection to the staging room and restore
+            // its bedrock envelope before despawning, so the blob captures
+            // correctly with all walls sealed.
+            DoorMask.Direction dungeonDir = record.roomDungeonDoor;
+            RoomBuilder.sealDoor(level, record.roomCellOrigin,
+                    Instances.mcDirection(dungeonDir));
+            BedrockEnvelope.applyToCell(level, record.roomCellOrigin, Set.of());
+            // Re-capture with the sealed wall, then despawn.
+            saveRoom(level, server, record);
+            Instances.despawnSafeRoom(level, record);
+            // Seal the staging room's side of the connection (the ee door that
+            // was open toward the safe room) and add bedrock there.
+            DoorMask.Direction eeDir = CellGeometry.opposite(dungeonDir);
+            RoomBuilder.sealDoor(level, record.stagingCellOrigin,
+                    Instances.mcDirection(eeDir));
+            BedrockEnvelope.applyToCell(level, record.stagingCellOrigin, Set.of(dungeonDir));
+        }
+
+        if (!Instances.generateBehindLobby(server, level, record, offer, step)) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. Try another door.")
                     .withStyle(ChatFormatting.RED));
@@ -580,6 +626,28 @@ final class RunLifecycle {
     }
 
     /**
+     * (M55) Returns the names of party members who are not standing in the
+     * staging room. Used by the {@code beginRun} gate to refuse a commit
+     * until the whole party has left the safe room.
+     */
+    private static List<String> missingStagingMembers(MinecraftServer server, InstanceRecord record) {
+        List<String> missing = new java.util.ArrayList<>();
+        net.minecraft.world.phys.AABB stagingBounds = CellGeometry.cellBounds(record.stagingCellOrigin);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                missing.add("offline member");
+                continue;
+            }
+            if (!memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    || !stagingBounds.contains(net.minecraft.world.phys.Vec3.atCenterOf(memberPlayer.blockPosition()))) {
+                missing.add(memberPlayer.getName().getString());
+            }
+        }
+        return missing;
+    }
+
+    /**
      * Persists the owner's room exactly as it stands right now.
      *
      * <p>Called on every path where the owner stops looking at the room -- the
@@ -598,70 +666,17 @@ final class RunLifecycle {
         if (record.roomCellOrigin == null || record.visitInstance) {
             return;
         }
-        DoorMask.Direction eeDir = CellGeometry.opposite(record.roomDungeonDoor);
-        int roomRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, eeDir);
-
-        // While a door choice is pending, the three selector doors are standing
-        // live blocks in the room -- capturing them would bake that instant's
-        // doors into the blob permanently. They would be overwritten correctly
-        // everywhere the room is re-stamped as a lobby (placeSelectorDoors always
-        // runs right after RoomStore.place there), but LayoutStamper also
-        // re-skins a generated dungeon's entrance cell with this same blob, and
-        // that path has no reason to touch selector doors at all -- baked-in
-        // ones would leak into every dungeon run forever. Clear them out for the
-        // capture and put them straight back, so the live room the owner is
-        // standing in is undisturbed.
-        //
-        // M18: once a door is chosen, the post-selection double doors stand in
-        // the room's dungeon wall instead. Same capture hygiene, same reason:
-        // the doors are run-scoped mod furniture, not part of the room, and
-        // must not bake into the blob either.
-        if (record.awaitingDoorChoice) {
-            RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
-        } else {
-            RoomTemplateGenerator.clearPostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
-        }
-        // M19: the physical selection furniture has the same capture hygiene as
-        // the doors above: bulbs, lever, screen blocks and the engine block are
-        // run-scoped mod furniture, not part of the room, and must not bake
-        // into the blob either.
-        RoomTemplateGenerator.clearFurniture(level, record.roomCellOrigin, record.roomDungeonDoor);
-        // M48: the bag chest is transient furniture too. Clear it before the
-        // capture so it never bakes into the room blob, then re-arm it after,
-        // so an owner who disconnects mid-choice still has it on return.
+        // M55: the safe room holds only the owner's blob and the bag chest.
+        // Selector doors, furniture and screens live in the staging room now,
+        // so capture hygiene no longer needs to clear and re-arm them here.
+        // The bag chest is still transient: clear it before capture so it
+        // never bakes into the blob, then re-arm it after.
         Instances.clearBagChest(level, record.roomCellOrigin);
-        RoomStore.capture(level, server, record.owner, record.roomCellOrigin, roomRotation);
-        if (record.awaitingDoorChoice) {
-            RoomTemplateGenerator.placeSelectorDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
-        } else {
-            RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, record.roomDungeonDoor);
-        }
-        RoomTemplateGenerator.placeFurniture(level, record.roomCellOrigin, record.roomDungeonDoor,
-                record.awaitingDoorChoice);
-        if (record.awaitingDoorChoice) {
-            Instances.placeBagChestForParty(level, server, record);
-        }
-
-        // The capture swept every non-frame/armour-stand entity out of the
-        // cell, the door screen's text_display included. Bring it back so the
-        // room does not stand without it. In a lobby the selection state is
-        // restored too (bulb and preview) so an owner who left mid-choice
-        // returns to the same choice; the engine screen comes back on its next
-        // click or at the next stamp.
-        if (record.awaitingDoorChoice) {
-            if (record.selectedStep > 0) {
-                RoomTemplateGenerator.setBulb(level, record.roomCellOrigin, record.roomDungeonDoor,
-                        RoomTemplateGenerator.bulbAlongForStep(record.selectedStep), true);
-                DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
-                        DungeonScreen.previewContent(level, record.owner, record.selectedStep));
-            } else {
-                DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
-                        DungeonScreen.idleContent(level, record.owner));
-            }
-        } else {
-            DungeonScreen.summonDoor(level, record.roomCellOrigin, record.roomDungeonDoor,
-                    DungeonScreen.runContent(level, record));
-        }
+        // The safe room is always stamped at rotation 0 (its ee and MM walls
+        // are sealed by stampSafeRoom regardless of what the blob was saved
+        // with), so the capture rotation is always 0.
+        RoomStore.capture(level, server, record.owner, record.roomCellOrigin, 0);
+        Instances.placeBagChestForParty(level, server, record);
     }
 
     /**
@@ -718,24 +733,22 @@ final class RunLifecycle {
     }
 
     /**
-     * Teleports party members still in the old dungeon back into the room, clears
-     * the old dungeon cells, and seals the room's {@code ee} wall so the void
-     * behind the previous dungeon cannot be entered.
+     * (M55) Teleports party members still in the old dungeon back into the
+     * staging room, clears the old dungeon cells, and seals the staging room's
+     * {@code ee} wall so the void behind the previous dungeon cannot be
+     * entered. The safe room is already despawned during dungeon play, so this
+     * method no longer saves or seals the safe room.
      */
     static void resetForNextDungeon(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null || record.roomCellOrigin == null) {
+        if (level == null || record.stagingCellOrigin == null) {
             return;
         }
-        BlockPos roomOrigin = record.roomCellOrigin;
+        BlockPos stagingOrigin = record.stagingCellOrigin;
         DoorMask.Direction eeDir = CellGeometry.opposite(record.roomDungeonDoor);
 
-        // Persist any edits made to the room while the last run was lingering,
-        // before the old dungeon is cleared and the room is re-sealed.
-        saveRoom(level, server, record);
-
-        // Pull stragglers into the room.
-        BlockPos roomCentre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        // Pull stragglers into the staging room.
+        BlockPos stagingCentre = stagingOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         for (ServerPlayer straggler : server.getPlayerList().getPlayers()) {
             if (!record.members.containsKey(straggler.getUUID())) {
                 continue;
@@ -744,32 +757,27 @@ final class RunLifecycle {
                 continue;
             }
             if (Instances.roomOwnerAt(straggler.blockPosition()) != null) {
-                continue; // already inside the room
+                continue; // already inside the staging room
             }
             Instances.teleport(server, straggler, PocketDungeonsMod.DUNGEON_LEVEL,
-                    net.minecraft.world.phys.Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
+                    net.minecraft.world.phys.Vec3.atBottomCenterOf(stagingCentre), 0.0f, 0.0f);
         }
 
-        // Clear every cell of the previous dungeon except the room itself. The
-        // room is named as a keep-cell because the cell adjacent to it clears a
-        // one-block margin that lands squarely on the room's own wall column.
-        List<BlockPos> keepRoom = List.of(roomOrigin);
+        // Clear every cell of the previous dungeon except the staging room.
+        List<BlockPos> keepStaging = List.of(stagingOrigin);
         for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
-            if (cellOrigin.equals(roomOrigin)) {
+            if (cellOrigin.equals(stagingOrigin)) {
                 continue;
             }
-            Instances.clearCellSync(level, cellOrigin, keepRoom);
+            Instances.clearCellSync(level, cellOrigin, keepStaging);
         }
 
-        // Seal the room's entrance from the previous dungeon.
-        CellGeometry.sealDoorOnWall(level, roomOrigin, eeDir);
+        // Seal the staging room's entrance from the previous dungeon.
+        CellGeometry.sealDoorOnWall(level, stagingOrigin, eeDir);
 
-        // ...and put the bedrock back behind that seal. The clear above ran
-        // through the margin the room's own envelope occupies, so without this
-        // the room is left with a sealed wall and nothing but cleared void
-        // behind it. Only the MM side stays reserved -- that is where the run
-        // about to be generated connects.
-        BedrockEnvelope.applyToCell(level, roomOrigin, Set.of(record.roomDungeonDoor));
+        // ...and put the bedrock back behind that seal. Only the MM side stays
+        // reserved -- that is where the run about to be generated connects.
+        BedrockEnvelope.applyToCell(level, stagingOrigin, Set.of(record.roomDungeonDoor));
     }
 
     // ---- exit -------------------------------------------------------------
@@ -1076,7 +1084,7 @@ final class RunLifecycle {
     }
 
     private static void completeDungeon(MinecraftServer server, InstanceRecord record) {
-        if (record.roomCellOrigin == null) {
+        if (record.stagingCellOrigin == null) {
             return;
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -1111,71 +1119,32 @@ final class RunLifecycle {
         // Sealed door in the far wall, behind the chests.
         CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
 
-        // Capture, persist, and clear the current room cell. The room's actual
-        // rotation right now comes from record.roomDungeonDoor -- exactly the
-        // formula saveRoom/resetForNextDungeon use -- not layout.entranceRotation():
-        // that field is the planner's rotation for a room LayoutStamper itself
-        // stamps into the entrance cell, and stampBehindLobby explicitly never
-        // does that for the lobby (Instances stamps/relocates it with its own,
-        // unrelated rotation math). Using it here captured the room under
-        // whatever unrelated value the planner happened to assign the entrance
-        // cell, so the very next RoomStore.place below could rotate the entire
-        // captured room by however far that value differed from the truth --
-        // walls and doors landing wherever the rotation put them, not where the
-        // fresh openDoorOnWall/sealDoorOnWall/placeSelectorDoors calls after it
-        // assume they are. Each completed run recaptured whatever that had
-        // already left standing, so the damage compounded floor over floor.
-        BlockPos oldRoomOrigin = record.roomCellOrigin;
-        int oldRoomRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, CellGeometry.opposite(record.roomDungeonDoor));
-        // M18: the post-selection double doors stand in the room's dungeon wall
-        // for the whole run, and this capture happens with the run just
-        // finished. Clear them first (capture hygiene, trap 17) so they do not
-        // bake into the blob and leak into some later placement of it; the room
-        // is moving anyway, so there is nothing to put back. The old cell is
-        // blanked below and the new one is re-armed by the caller. M19: the
-        // selection furniture and its screen entities are swept the same way.
-        RoomTemplateGenerator.clearPostSelectionDoors(level, oldRoomOrigin, record.roomDungeonDoor);
-        RoomTemplateGenerator.clearFurniture(level, oldRoomOrigin, record.roomDungeonDoor);
-        RoomStore.capture(level, server, record.owner, oldRoomOrigin, oldRoomRotation);
-
-        // What the room leaves behind: a blank stone-brick room, not a hole.
-        // Clearing this cell wrote air through the one-block margin too, and
-        // that margin is the bedrock envelope -- so on every face of this cell
-        // without an occupied neighbour, the clear erased the shell and left the
-        // still-standing dungeon room next door with a mineable path off the
-        // edge of the world. A stamp stays inside the cell and leaves the
-        // bedrock alone.
-        //
-        // Doorways are reopened toward whichever neighbours are still standing,
-        // so a player who walks back up the dungeon finds an empty room rather
-        // than a sealed face where their room used to be.
-        Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
-        for (DoorMask.Direction dir : CellGeometry.standingNeighbours(record.layout.geometry(), oldRoomOrigin)) {
-            backDoors.add(Instances.mcDirection(dir));
-        }
-        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldRoomOrigin),
+        // M55: the old staging room is cleared to a liminal cell, the same way
+        // the old room cell used to be. The safe room is already despawned, so
+        // there is no blob to capture or move. A new staging room is stamped
+        // behind the terminal's far wall for the next door choice.
+        BlockPos oldStagingOrigin = record.stagingCellOrigin;
+        // Clear the post-selection doors and furniture from the old staging room
+        // before blanking it.
+        RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
+        RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
+        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
                 e -> !(e instanceof ServerPlayer))) {
-            // The blob just captured these; without this they would stand here
-            // as well as in the room's new cell.
             leftover.discard();
         }
-        RoomBuilder.buildLiminalCell(level, oldRoomOrigin, backDoors);
-
-        // Stamp the room in the cell behind the far wall, rotated so its entrance
-        // (the 'ee' side) faces back toward the terminal cell. farWall is the MM
-        // side, so ee is the opposite wall.
-        BlockPos newRoomOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
-        int targetRotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, CellGeometry.opposite(farWall));
-        boolean placed = RoomStore.place(level, server, record.owner, newRoomOrigin, targetRotation,
-                net.minecraft.util.RandomSource.create(record.layout.seed()));
-        if (!placed) {
-            PocketDungeonsMod.LOG.error(
-                    "completeDungeon captured a room for {} but could not re-place it at slot {}",
-                    record.owner, record.slot);
-            record.roomCellOrigin = null;
-            return;
+        Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
+        for (DoorMask.Direction dir : CellGeometry.standingNeighbours(record.layout.geometry(), oldStagingOrigin)) {
+            backDoors.add(Instances.mcDirection(dir));
         }
-        record.roomCellOrigin = newRoomOrigin;
+        RoomBuilder.buildLiminalCell(level, oldStagingOrigin, backDoors);
+
+        // Stamp a new staging room in the cell behind the far wall. Its ee
+        // side (opposite farWall) faces back toward the terminal cell; its
+        // MM side (farWall) is where the next dungeon's selector doors go.
+        BlockPos newStagingOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
+        level.setChunkForced(newStagingOrigin.getX() >> 4, newStagingOrigin.getZ() >> 4, true);
+        Instances.stampStagingRoom(level, newStagingOrigin, farWall);
+        record.stagingCellOrigin = newStagingOrigin;
         record.roomDungeonDoor = farWall;
 
         // M22: the post-completion relocation stamp, heard by the owner.
@@ -1184,46 +1153,24 @@ final class RunLifecycle {
             Chime.roomRelocated(ownerPlayer);
         }
 
-        // The room arrives exactly as it was captured: 'ee' sealed (the run that
-        // just finished sealed it), 'MM' standing open onto the cell the last
-        // dungeon used to occupy, and no selector doors -- choosing one is what
-        // cleared them. Re-arm all three against the room's new orientation, or
-        // the player lands in a sealed box whose doors are gone and whose one
-        // opening looks out onto nothing.
-        CellGeometry.openDoorOnWall(level, newRoomOrigin, CellGeometry.opposite(farWall));
-        CellGeometry.sealDoorOnWall(level, newRoomOrigin, farWall);
-        RoomTemplateGenerator.placeSelectorDoors(level, newRoomOrigin, farWall);
-        // M19: re-arm the physical selection furniture and both screens against
-        // the room's new orientation, and clear the previous run's selection.
+        // Summon fresh screens at the new staging room.
         record.selectedStep = 0;
-        RoomTemplateGenerator.placeFurniture(level, newRoomOrigin, farWall, true);
-        // M48: re-arm the bag chest at the room's new location for the next
-        // door choice, dropping any stale chest first.
-        Instances.clearBagChest(level, newRoomOrigin);
-        Instances.placeBagChestForParty(level, server, record);
-        DungeonScreen.summonDoor(level, newRoomOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonEngine(level, newRoomOrigin, farWall, DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, newRoomOrigin, farWall,
+        DungeonScreen.summonDoor(level, newStagingOrigin, farWall, DungeonScreen.idleContent(level, record.owner));
+        DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, newStagingOrigin, farWall,
                 DungeonScreen.trackerContent(level.getServer(), record.owner));
         record.awaitingDoorChoice = true;
 
-        // The bedrock envelope, same as stampLobby's applyToCell: nothing
-        // else stamps one for this cell until a door is chosen and
-        // LayoutStamper.stampBehindLobby's full BedrockEnvelope.apply runs over
-        // the next plan's whole geometry. Left alone, the relocated room is
-        // walled but has no bedrock backstop for however long the owner takes
-        // to choose -- and voidGuardDepth's fallback aside, that gap is real
-        // digging distance, not a documented default. farWall stays reserved
-        // (no bedrock) since a real connection will exist there once a door is
-        // chosen, exactly like a fresh lobby's reservedSide.
-        BedrockEnvelope.applyToCell(level, newRoomOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
+        // The bedrock envelope for the new staging room. farWall stays
+        // reserved (no bedrock) since a real connection will exist there once
+        // a door is chosen, and ee stays reserved because the terminal cell
+        // is right there.
+        BedrockEnvelope.applyToCell(level, newStagingOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
 
-        // Open the sealed door into the room. That is the whole of the reward for
-        // reaching the pad: nobody is teleported anywhere. The terminal cell's
-        // lodestones mark the end of the run, not an exit -- the chests are here,
-        // the door to the room now stands open behind them, and walking through
-        // it is the player's to do. (The room's own leave-pad is the lodestone
-        // that actually moves anyone, and it moves them out of the dungeon.)
+        // Open the sealed door into the staging room. The terminal cell's
+        // lodestones mark the end of the run; the chests are here, the door
+        // to the staging room now stands open behind them, and walking
+        // through it is the player's to do.
         CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
     }
 

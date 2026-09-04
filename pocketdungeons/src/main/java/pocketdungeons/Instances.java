@@ -577,6 +577,8 @@ final class Instances {
                 EnumSet.noneOf(Affix.class), player.getUUID(), false);
         record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
+        record.stagingCellOrigin = CellGeometry.offsetInDirection(
+                origin, DoorMask.Direction.SOUTH, RoomGeometry.CELL);
         InstanceRegistry.bySlot.put(slot, record);
 
         admit(server, record, player);
@@ -606,21 +608,32 @@ final class Instances {
      */
     private static InstanceLayout stampLobby(MinecraftServer server, ServerLevel level,
                                              int slot, BlockPos origin, UUID owner) {
+        DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
+        BlockPos stagingOrigin = CellGeometry.offsetInDirection(origin, dungeonDir, RoomGeometry.CELL);
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, true);
         try {
-            stampRoomShell(level, server, owner, origin);
+            // M55: the safe room holds the owner's blob, bag chest and stations.
+            stampSafeRoom(level, server, owner, origin);
+            // The staging room holds the selector doors, lodestone, furniture.
+            stampStagingRoom(level, stagingOrigin, dungeonDir);
+            // Connect the two: open the safe room's dungeon wall and clear its
+            // bedrock face so the party can walk through.
+            RoomBuilder.openDoor(level, origin, mcDirection(dungeonDir));
+            BedrockEnvelope.clearFace(level, origin, dungeonDir);
             // M19: the physical selection furniture (bulbs, lever, screens) and
             // the two text_display entities, summoned fresh at every stamp and
-            // never captured with the room.
-            DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
+            // never captured with the room. They live in the staging room now.
+            DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                     DungeonScreen.idleContent(level, owner));
-            DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
+            DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
                     DungeonScreen.engineContent(null));
-            DungeonScreen.summonTracker(level, origin, DoorMask.Direction.SOUTH,
+            DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
                     DungeonScreen.trackerContent(level.getServer(), owner));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, false);
             InstanceRegistry.usedSlots.remove(slot);
             return null;
         }
@@ -628,22 +641,12 @@ final class Instances {
     }
 
     /**
-     * (M43.8) The room-shell sequence {@link #stampLobby} and
-     * {@link VisitService#visit}'s visit-instance path both need before
-     * either diverges into what it summons on top (the owner's live door
-     * screens vs. a visit record's read-only ones): place the owner's saved
-     * room or a fresh entrance hall, seal both the entrance and dungeon
-     * walls, wrap the cell in bedrock, and place the selector doors,
-     * lodestone and furniture. Left inside the caller's own try block
-     * (it can throw {@link RuntimeException}, same as every call it makes
-     * already could) rather than catching here, since the two callers
-     * disagree on what a failure does next (a lobby stamp returns
-     * {@code null}; a visit stamp also messages the visitor).
-     *
-     * <p>Both doors are sealed to {@code DoorMask.Direction.SOUTH} directly
-     * rather than through a not-yet-existing {@link InstanceRecord}: a fresh
-     * record always starts at {@code roomDungeonDoor}'s default (SOUTH), and
-     * this runs before that record exists, so the two must not drift apart.
+     * (M43.8) The combined room-shell sequence for visit instances, which
+     * stamp the owner's room blob and the selector/furniture in one cell.
+     * The main dungeon loop no longer calls this: {@link #stampSafeRoom}
+     * and {@link #stampStagingRoom} split the blob and the door furniture
+     * into separate cells (M55, spec 12.6). Visit instances keep the old
+     * single-cell model because they never generate a dungeon behind them.
      */
     static void stampRoomShell(ServerLevel level, MinecraftServer server, UUID owner, BlockPos origin) {
         boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
@@ -653,23 +656,89 @@ final class Instances {
                     TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
         }
         RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
-        // All four sides get bedrock here, including the SOUTH dungeon wall:
-        // before a door is chosen there is nothing behind that wall but void,
-        // so leaving it open let a player who broke through the sealed door
-        // fall out. The SOUTH face is cleared in generateBehindLobby, right
-        // before the dungeon is actually stamped behind it.
         BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
-        // The MM slot itself has to be sealed explicitly, the same as ee just
-        // above -- RoomStore.place stamps the owner's blob exactly as it was
-        // captured, and a room saved mid-run (saveRoom on disconnect, or any
-        // other leave path while a dungeon was generated behind it) captures
-        // that wall genuinely open. Without this, a returning owner's very
-        // first lobby stamp would carry that hole straight through: no wall,
-        // though now with a bedrock backstop behind it either way.
         RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
         RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
         RoomTemplateGenerator.placeWallLodestone(level, origin);
         RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
+    }
+
+    /**
+     * (M55) Stamps the safe room: the owner's saved room blob (or a fresh
+     * entrance hall), with both the entrance and dungeon walls sealed and a
+     * full bedrock envelope. No selector doors, no lodestone, no furniture.
+     * The safe room is the player's persistent home base: loot, stash, bag
+     * chest and stations live here. It despawns while a dungeon is active
+     * and re-stamps from {@link RoomStore} on return.
+     */
+    static void stampSafeRoom(ServerLevel level, MinecraftServer server, UUID owner, BlockPos origin) {
+        boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
+                RandomSource.create(level.getRandom().nextLong()));
+        if (!placedOwnRoom) {
+            TemplateStamper.place(level, level.getStructureManager(), origin,
+                    TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
+        }
+        RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
+        RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
+        BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
+    }
+
+    /**
+     * (M55) Stamps the staging room: a blank shell with selector doors,
+     * lodestone and furniture on the dungeon wall, but no saved room blob.
+     * The {@code safeDir} side is left open (no bedrock, door carved) so the
+     * staging room connects to the safe room or the terminal cell beside it.
+     * The dungeon wall ({@code dungeonDir}) is sealed and bedrocked until a
+     * door is chosen and {@link #generateBehindLobby} clears that face.
+     */
+    static void stampStagingRoom(ServerLevel level, BlockPos origin, DoorMask.Direction dungeonDir) {
+        DoorMask.Direction safeDir = CellGeometry.opposite(dungeonDir);
+        RoomBuilder.buildShell(level, origin, RoomBuilder.FLOOR);
+        RoomBuilder.openDoor(level, origin, mcDirection(safeDir));
+        RoomBuilder.sealDoor(level, origin, mcDirection(dungeonDir));
+        BedrockEnvelope.applyToCell(level, origin, java.util.Set.of(safeDir));
+        RoomTemplateGenerator.placeSelectorDoors(level, origin, dungeonDir);
+        RoomTemplateGenerator.placeWallLodestone(level, origin);
+        RoomTemplateGenerator.placeFurniture(level, origin, dungeonDir, true);
+    }
+
+    /**
+     * (M55) Clears the safe room cell and discards its entities. Called at
+     * commit time after {@link RunLifecycle#saveRoom} has captured the blob.
+     * Sets {@code roomCellOrigin} to null so every safe-room-aware check
+     * (saveRoom, bag chest, room protection) knows the safe room is gone.
+     */
+    static void despawnSafeRoom(ServerLevel level, InstanceRecord record) {
+        if (record.roomCellOrigin == null) {
+            return;
+        }
+        BlockPos origin = record.roomCellOrigin;
+        clearCellSync(level, origin, List.of());
+        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(origin),
+                e -> !(e instanceof ServerPlayer))) {
+            leftover.discard();
+        }
+        record.roomCellOrigin = null;
+    }
+
+    /**
+     * (M55) Re-stamps the safe room from {@link RoomStore} at the slot origin
+     * and reconnects it to the staging room (if one is active). Called on
+     * return from a dungeon: the blob is restored, both walls sealed, and a
+     * full bedrock envelope applied. If a staging room is active, the safe
+     * room's dungeon wall is opened and its bedrock face cleared so the two
+     * cells connect.
+     */
+    static void restoreSafeRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        BlockPos origin = record.origin;
+        stampSafeRoom(level, server, record.owner, origin);
+        record.roomCellOrigin = origin;
+        // If a staging room is active, connect the safe room to it.
+        if (record.stagingCellOrigin != null) {
+            DoorMask.Direction dungeonDir = record.roomDungeonDoor;
+            RoomBuilder.openDoor(level, origin, mcDirection(dungeonDir));
+            BedrockEnvelope.clearFace(level, origin, dungeonDir);
+        }
     }
 
     // ---- M48: the bag chest (the player's class selection) -----------------
@@ -783,7 +852,7 @@ final class Instances {
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
             return null;
         }
-        BlockPos o = record.roomCellOrigin;
+        BlockPos o = record.stagingCellOrigin;
         if (o == null) {
             return null;
         }
@@ -832,10 +901,10 @@ final class Instances {
     static boolean isCommitLever(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
-                || record.roomCellOrigin == null) {
+                || record.stagingCellOrigin == null) {
             return false;
         }
-        return RoomTemplateGenerator.leverPos(record.roomCellOrigin, record.roomDungeonDoor).equals(pos);
+        return RoomTemplateGenerator.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -847,19 +916,19 @@ final class Instances {
      */
     static boolean engineTerminalAt(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || record.roomCellOrigin == null) {
+        if (record == null || record.stagingCellOrigin == null) {
             return false;
         }
-        return RoomTemplateGenerator.enginePos(record.roomCellOrigin, record.roomDungeonDoor).equals(pos);
+        return RoomTemplateGenerator.enginePos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
      * The generation half of {@code RunLifecycle.chooseOffer}: before planning,
-     * any stragglers still in the old dungeon are pulled into the room, the old dungeon cells
-     * are cleared, and the room's {@code ee} wall (the entrance from the previous
-     * dungeon) is sealed. Then a new shape is planned so its entrance edge lines
-     * up with the room's {@code MM} side, and everything except cell 0 (the room)
-     * is stamped.
+     * any stragglers still in the old dungeon are pulled into the staging room,
+     * the old dungeon cells are cleared, and the staging room's {@code ee} wall
+     * (the entrance from the previous dungeon) is sealed. Then a new shape is
+     * planned so its entrance edge lines up with the staging room's {@code MM}
+     * side, and everything except cell 0 (the staging room) is stamped.
      */
     static boolean generateBehindLobby(MinecraftServer server, ServerLevel level,
                                                 InstanceRecord record, Keystone.Offer offer, int step) {
@@ -898,39 +967,35 @@ final class Instances {
         EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
         InstanceLayout layout;
         if (plan != null) {
-            // The room is physically at record.roomCellOrigin, resolved to grid
-            // (0,0). The plan's own cell set may reach negative x/z, so the
-            // world origin is shifted back by the minimum cell coordinates.
+            // The staging room is physically at record.stagingCellOrigin,
+            // resolved to grid (0,0). The plan's own cell set may reach
+            // negative x/z, so the world origin is shifted back by the minimum
+            // cell coordinates.
             int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
             int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
-            BlockPos planOrigin = record.roomCellOrigin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
+            BlockPos planOrigin = record.stagingCellOrigin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
             PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
             forceLoad(level, geometry.chunks(), true);
-            // The lobby was bedrocked on all four sides so a player could not fall
-            // into the void before choosing a door. Now that a dungeon is actually
-            // about to exist behind it, clear that face so the two connect.
-            BedrockEnvelope.clearFace(level, record.roomCellOrigin, dungeonDoor);
+            // The staging room was bedrocked on all four sides so a player
+            // could not fall into the void before choosing a door. Now that a
+            // dungeon is actually about to exist behind it, clear that face so
+            // the two connect.
+            BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDoor);
             try {
                 layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
                         record.owner, offer.theme());
             } catch (RuntimeException e) {
-                PocketDungeonsMod.LOG.error("Stamping plan behind the room at {} failed",
-                        record.roomCellOrigin.toShortString(), e);
+                PocketDungeonsMod.LOG.error("Stamping plan behind the staging room at {} failed",
+                        record.stagingCellOrigin.toShortString(), e);
                 // PD-11: a failed stamp is a failed attempt at the NEXT dungeon
-                // behind an already-live lobby, not the end of the instance
-                // itself. Routing this through InstanceTeardown.teardown used
-                // to compound two bugs at once: it erased the room cell (plan
-                // cell (0,0) always maps back to record.roomCellOrigin, per
-                // stampBehindLobby's entranceAlreadyStamped contract and
-                // PlanGeometry.of/cellOrigin) and it freed usedSlots for a slot
-                // whose record and player are still alive, letting a later
-                // allocateSlot() collide with this one. Clean up synchronously
-                // instead, the same way resetForNextDungeon clears between two
-                // successful door choices: every attempted cell except the
-                // room, blocks removed in-tick, registry untouched.
-                List<BlockPos> keepRoom = List.of(record.roomCellOrigin);
+                // behind an already-live staging room, not the end of the
+                // instance itself. Clean up synchronously, the same way
+                // resetForNextDungeon clears between two successful door
+                // choices: every attempted cell except the staging room, blocks
+                // removed in-tick, registry untouched.
+                List<BlockPos> keepRoom = List.of(record.stagingCellOrigin);
                 for (BlockPos cellOrigin : geometry.cellOrigins()) {
-                    if (cellOrigin.equals(record.roomCellOrigin)) {
+                    if (cellOrigin.equals(record.stagingCellOrigin)) {
                         continue;
                     }
                     clearCellSync(level, cellOrigin, keepRoom);
@@ -940,22 +1005,19 @@ final class Instances {
             }
         } else {
             PocketDungeonsMod.LOG.warn(
-                    "Planning failed behind the room for seed {} after {} attempts ({})",
+                    "Planning failed behind the staging room for seed {} after {} attempts ({})",
                     seed, outcome.attemptsUsed(), outcome.failureReason());
             return false;
         }
 
-        RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(dungeonDoor));
-        RoomTemplateGenerator.clearSelectorDoors(level, record.roomCellOrigin, dungeonDoor);
-        // M48: the room is no longer a lobby, so the bag chest has no place
-        // here. A member who skipped the chest enters with the keystone alone.
-        clearBagChest(level, record.roomCellOrigin);
+        RoomBuilder.openDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
+        RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDoor);
         // M18 9.2: the punched doorway gets physical double doors (Y=1..2) with
         // a wall lintel (Y=3), so mobs from the first dungeon cell cannot walk
-        // straight into the room. They are plain vanilla doors the player opens
-        // by hand; selectorDoorStep no longer claims clicks once the run is
-        // underway, so right-clicking falls through to vanilla.
-        RoomTemplateGenerator.placePostSelectionDoors(level, record.roomCellOrigin, dungeonDoor);
+        // straight into the staging room. They are plain vanilla doors the
+        // player opens by hand; selectorDoorStep no longer claims clicks once
+        // the run is underway, so right-clicking falls through to vanilla.
+        RoomTemplateGenerator.placePostSelectionDoors(level, record.stagingCellOrigin, dungeonDoor);
 
         record.layout = layout;
         record.affixes = affixes;
@@ -1016,7 +1078,7 @@ final class Instances {
         // the run context (level, theme, affixes, clock); selectedStep stays 0
         // until the next lobby re-arms the room.
         record.selectedStep = 0;
-        RoomTemplateGenerator.clearBulbs(level, record.roomCellOrigin, record.roomDungeonDoor);
+        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
         // Everything admit() hands a player off the record's layout has to be
@@ -1066,19 +1128,66 @@ final class Instances {
      */
     static void resetToLobby(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null || record.roomCellOrigin == null) {
+        if (level == null) {
             return;
         }
-        BlockPos roomOrigin = record.roomCellOrigin;
-        DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
 
-        // Save the room before clearing, the same way resetForNextDungeon
-        // does: any edits the owner made while the run was live are theirs
-        // and must survive the reset.
-        RunLifecycle.saveRoom(level, server, record);
+        // Release the current layout's force-load tickets before clearing.
+        if (record.layout != null) {
+            forceLoad(level, record.layout.geometry().chunks(), false);
+        }
+
+        // Clear every cell of the current dungeon and the staging room. The
+        // safe room was already despawned at commit time, so there is no
+        // safe room cell to keep. If the safe room is still active (quit
+        // before commit), keep it.
+        List<BlockPos> keepCells = new java.util.ArrayList<>();
+        if (record.roomCellOrigin != null) {
+            keepCells.add(record.roomCellOrigin);
+        }
+        if (record.layout != null) {
+            for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
+                if (keepCells.contains(cellOrigin)) {
+                    continue;
+                }
+                clearCellSync(level, cellOrigin, keepCells);
+            }
+        }
+        // Clear the staging room too, wherever it is.
+        if (record.stagingCellOrigin != null && !keepCells.contains(record.stagingCellOrigin)) {
+            clearCellSync(level, record.stagingCellOrigin, keepCells);
+        }
+
+        // Re-stamp the safe room at the slot origin from RoomStore. If the
+        // safe room was still active (quit before commit), it is already
+        // standing; save it first so any edits survive the re-stamp.
+        BlockPos safeOrigin = record.origin;
+        DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
+        if (record.roomCellOrigin != null) {
+            RunLifecycle.saveRoom(level, server, record);
+        }
+        clearCellSync(level, safeOrigin, List.of());
+        stampSafeRoom(level, server, record.owner, safeOrigin);
+        record.roomCellOrigin = safeOrigin;
+        record.roomDungeonDoor = dungeonDir;
+
+        // Stamp a fresh staging room adjacent to the safe room.
+        BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
+        level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, true);
+        stampStagingRoom(level, stagingOrigin, dungeonDir);
+        RoomBuilder.openDoor(level, safeOrigin, mcDirection(dungeonDir));
+        BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
+        record.stagingCellOrigin = stagingOrigin;
+        // Summon fresh screens at the staging room.
+        DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
+                DungeonScreen.idleContent(level, record.owner));
+        DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
+                DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
+                DungeonScreen.trackerContent(level.getServer(), record.owner));
 
         // Pull every member into the safe room.
-        BlockPos roomCentre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+        BlockPos roomCentre = safeOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         for (UUID member : record.members.keySet()) {
             ServerPlayer inside = server.getPlayerList().getPlayer(member);
             if (inside == null) {
@@ -1091,39 +1200,9 @@ final class Instances {
             }
         }
 
-        // Release the current layout's force-load tickets before clearing.
-        if (record.layout != null) {
-            forceLoad(level, record.layout.geometry().chunks(), false);
-        }
-
-        // Clear every cell of the current dungeon except the room itself.
-        List<BlockPos> keepRoom = List.of(roomOrigin);
-        for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
-            if (cellOrigin.equals(roomOrigin)) {
-                continue;
-            }
-            clearCellSync(level, cellOrigin, keepRoom);
-        }
-
-        // Seal both the entrance wall (ee) and the dungeon wall (MM), then
-        // bedrock all four sides: the lobby is a sealed box until a door is
-        // chosen, the same state stampLobby leaves it in.
-        CellGeometry.sealDoorOnWall(level, roomOrigin, CellGeometry.opposite(dungeonDoor));
-        CellGeometry.sealDoorOnWall(level, roomOrigin, dungeonDoor);
-        BedrockEnvelope.applyToCell(level, roomOrigin, java.util.Set.of());
-
-        // Clear the post-selection doors the run placed, then re-arm the
-        // selector doors and furniture for a fresh door choice.
-        RoomTemplateGenerator.clearPostSelectionDoors(level, roomOrigin, dungeonDoor);
-        RoomTemplateGenerator.clearFurniture(level, roomOrigin, dungeonDoor);
-        RoomTemplateGenerator.placeSelectorDoors(level, roomOrigin, dungeonDoor);
-        RoomTemplateGenerator.placeFurniture(level, roomOrigin, dungeonDoor, true);
-        // M48: re-arm the bag chest for the fresh door choice, dropping any
-        // stale chest first. A member who still has no bag gets to pick here.
-        clearBagChest(level, roomOrigin);
+        // M48: re-arm the bag chest for the fresh door choice.
+        clearBagChest(level, safeOrigin);
         placeBagChestForParty(level, server, record);
-        DungeonScreen.updateDoor(level, record, DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.updateEngine(level, record, null);
         record.selectedStep = 0;
 
         // Close the timer and clear trial omen from every member.
@@ -1139,9 +1218,8 @@ final class Instances {
             record.timer = null;
         }
 
-        // Reset the record to lobby state. The one-cell lobby layout has no
-        // keystone level, no affixes, no theme, no timer, no completion.
-        record.layout = lobbyLayout(roomOrigin);
+        // Reset the record to lobby state.
+        record.layout = lobbyLayout(safeOrigin);
         record.affixes = EnumSet.noneOf(Affix.class);
         record.theme = null;
         record.awaitingDoorChoice = true;
@@ -1212,7 +1290,10 @@ final class Instances {
         player.setDeltaMovement(Vec3.ZERO);
 
         ReturnPoint point = record.members.get(player.getUUID());
-        boolean hadRoom = record.roomCellOrigin != null && !record.visitInstance;
+        // M55: during dungeon play the safe room is despawned, so the rescue
+        // target is the staging room. The hadRoom check uses stagingCellOrigin
+        // because that is the cell the player regroups in.
+        boolean hadRoom = record.stagingCellOrigin != null && !record.visitInstance;
         int slot = record.slot;
 
         // PD-26: route through dropMember, the same detach every other exit
@@ -1250,7 +1331,7 @@ final class Instances {
                 record.timer.addPlayer(player);
             }
             applyTrialOmen(player, record);
-            BlockPos roomCentre = record.roomCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+            BlockPos roomCentre = record.stagingCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
             teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                     Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
         } else if (point != null) {
@@ -1313,8 +1394,11 @@ final class Instances {
         // swap that this detach's own teleport is about to trigger can still
         // find where to deliver this player's void inventory. See
         // lastRoomCellOrigin's javadoc.
-        if (record.roomCellOrigin != null) {
-            lastRoomCellOrigin.put(member, record.roomCellOrigin);
+        // M55: the safe room may be despawned during dungeon play, but the
+        // player's inventory was swapped at the safe room's origin (the slot
+        // origin). Cache that origin so the leaving swap can find it.
+        if (record.origin != null && !record.visitInstance) {
+            lastRoomCellOrigin.put(member, record.origin);
         }
         ReturnPoint point = record.members.remove(member);
         InstanceRegistry.byMember.remove(member);
@@ -1722,8 +1806,10 @@ final class Instances {
         if (record.layout.bounds().contains(Vec3.atCenterOf(below))) {
             return true;
         }
-        return record.roomCellOrigin != null
-                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below));
+        return (record.roomCellOrigin != null
+                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below)))
+                || (record.stagingCellOrigin != null
+                && CellGeometry.cellBounds(record.stagingCellOrigin).contains(Vec3.atCenterOf(below)));
     }
 
     /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
@@ -1748,20 +1834,36 @@ final class Instances {
      */
     static BlockPos roomOriginAt(BlockPos pos) {
         InstanceRecord record = roomRecordAt(pos);
-        return record == null ? null : record.roomCellOrigin;
+        if (record == null) {
+            return null;
+        }
+        // M55: return whichever cell origin the position is actually in.
+        // roomCellOrigin is the safe room; stagingCellOrigin is the staging room.
+        if (inCellBounds(pos, record.roomCellOrigin)) {
+            return record.roomCellOrigin;
+        }
+        return record.stagingCellOrigin;
     }
 
     /**
      * Which wall of the room occupying {@code pos} the selector doors stand on
      * (the record's {@link InstanceRecord#roomDungeonDoor}), or {@code null}
-     * outside every room. The direction half of {@link #roomOriginAt}: the
-     * furniture protection (M19 19.7) needs it to run its wall-relative
-     * coordinate test, and like the origin it shares {@link #roomRecordAt} so
-     * the two lookups can never disagree.
+     * outside every room or inside the safe room (which has no dungeon door).
+     * The direction half of {@link #roomOriginAt}: the furniture protection
+     * (M19 19.7) needs it to run its wall-relative coordinate test, and like
+     * the origin it shares {@link #roomRecordAt} so the two lookups can never
+     * disagree.
      */
     static DoorMask.Direction roomDungeonDoorAt(BlockPos pos) {
         InstanceRecord record = roomRecordAt(pos);
-        return record == null ? null : record.roomDungeonDoor;
+        if (record == null) {
+            return null;
+        }
+        // The dungeon door direction only applies to the staging room.
+        if (inCellBounds(pos, record.stagingCellOrigin)) {
+            return record.roomDungeonDoor;
+        }
+        return null;
     }
 
     /**
@@ -1775,18 +1877,28 @@ final class Instances {
      */
     static InstanceRecord roomRecordAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
-            BlockPos roomOrigin = record.roomCellOrigin;
-            if (roomOrigin == null) {
-                continue;
+            if (inCellBounds(pos, record.roomCellOrigin)) {
+                return record;
             }
-            if (pos.getX() >= roomOrigin.getX() && pos.getX() < roomOrigin.getX() + RoomGeometry.CELL
-                    && pos.getZ() >= roomOrigin.getZ() && pos.getZ() < roomOrigin.getZ() + RoomGeometry.CELL
-                    && pos.getY() >= roomOrigin.getY()
-                    && pos.getY() <= roomOrigin.getY() + RoomGeometry.CEILING_Y) {
+            if (inCellBounds(pos, record.stagingCellOrigin)) {
                 return record;
             }
         }
         return null;
+    }
+
+    /**
+     * (M55) Whether {@code pos} is inside the 16x7x16 box of the cell at
+     * {@code origin}. Returns {@code false} if {@code origin} is null.
+     */
+    private static boolean inCellBounds(BlockPos pos, BlockPos origin) {
+        if (origin == null) {
+            return false;
+        }
+        return pos.getX() >= origin.getX() && pos.getX() < origin.getX() + RoomGeometry.CELL
+                && pos.getZ() >= origin.getZ() && pos.getZ() < origin.getZ() + RoomGeometry.CELL
+                && pos.getY() >= origin.getY()
+                && pos.getY() <= origin.getY() + RoomGeometry.CEILING_Y;
     }
 
     /**
@@ -1843,7 +1955,11 @@ final class Instances {
             }
             if (record.roomCellOrigin != null
                     && geometry.cellOrigin(cell).equals(record.roomCellOrigin)) {
-                continue; // the room cell -- roomOwnerAt's job, not this one's
+                continue; // the safe room cell -- roomOwnerAt's job, not this one's
+            }
+            if (record.stagingCellOrigin != null
+                    && geometry.cellOrigin(cell).equals(record.stagingCellOrigin)) {
+                continue; // the staging room cell -- roomOwnerAt's job, not this one's
             }
             return new DungeonCellLookup(record, geometry.cellOrigin(cell));
         }

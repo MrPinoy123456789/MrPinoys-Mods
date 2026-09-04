@@ -169,14 +169,18 @@ final class RoomProtection {
         // stop. Paintings, item frames, carpets, signs, buttons and torches
         // never reach this branch for the shell: they are entities or sit on
         // the face of a wall, not in the wall.
-        BlockPos roomOrigin = roomRecord.roomCellOrigin;
+        // M55: roomOriginAt returns whichever cell origin (safe room or
+        // staging room) the position is actually in, and roomDungeonDoorAt
+        // returns the dungeon door direction only for the staging room.
+        BlockPos roomOrigin = Instances.roomOriginAt(pos);
         if (roomOrigin != null) {
+            DoorMask.Direction dungeonDoor = Instances.roomDungeonDoorAt(pos);
             // M19 19.7: mod-placed furniture (bulbs, lever, screen blocks,
             // engine block) is equally unbreakable. The shell check stays a
             // pure coordinate test; the furniture check needs to know which
             // wall the selector doors stand on, so it is direction-aware.
             if (isShell(pos, roomOrigin)
-                    || isFurniture(pos, roomOrigin, roomRecord.roomDungeonDoor)) {
+                    || (dungeonDoor != null && isFurniture(pos, roomOrigin, dungeonDoor))) {
                 return false;
             }
         }

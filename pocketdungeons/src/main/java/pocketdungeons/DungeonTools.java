@@ -254,12 +254,16 @@ public final class DungeonTools {
      * agree exactly.
      */
     public static boolean isShellProtected(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
-        InstanceRecord roomRecord = Instances.roomRecordAt(pos);
-        if (roomRecord != null && roomRecord.roomCellOrigin != null) {
-            if (RoomProtection.isShell(pos, roomRecord.roomCellOrigin)) {
+        // M55: check whichever cell (safe room or staging room) the position
+        // is in, using roomOriginAt and roomDungeonDoorAt for the correct
+        // cell-specific origin and direction.
+        BlockPos roomOrigin = Instances.roomOriginAt(pos);
+        if (roomOrigin != null) {
+            if (RoomProtection.isShell(pos, roomOrigin)) {
                 return true;
             }
-            if (RoomProtection.isFurniture(pos, roomRecord.roomCellOrigin, roomRecord.roomDungeonDoor)) {
+            DoorMask.Direction dungeonDoor = Instances.roomDungeonDoorAt(pos);
+            if (dungeonDoor != null && RoomProtection.isFurniture(pos, roomOrigin, dungeonDoor)) {
                 return true;
             }
         }

@@ -151,6 +151,7 @@ final class InstanceTeardown {
         // roomCellOrigin, so this alone closes the race.
         BlockPos roomCellOrigin = record.roomCellOrigin;
         record.roomCellOrigin = null;
+        record.stagingCellOrigin = null;
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
