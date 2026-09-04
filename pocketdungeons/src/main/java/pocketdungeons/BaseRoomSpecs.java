@@ -16,7 +16,6 @@ import static pocketdungeons.RoomTemplateGenerator.WALL_HEIGHT;
 import static pocketdungeons.RoomTemplateGenerator.column;
 import static pocketdungeons.RoomTemplateGenerator.concat;
 import static pocketdungeons.RoomTemplateGenerator.floorRing;
-import static pocketdungeons.RoomTemplateGenerator.placeSelectorDoors;
 import static pocketdungeons.RoomTemplateGenerator.placeWallLodestone;
 
 /**
@@ -46,9 +45,9 @@ final class BaseRoomSpecs {
 
         // No mob: the entrance is where a party arrives and regroups, and where
         // the void guard bounces a falling player back to. It stays safe.
+        // Selector doors belong in the staging room, not the entrance cell.
         specs.add(new RoomSpec("entrance_hall", EnumSet.of(Direction.SOUTH))
                 .decor((level, o) -> {
-                    placeSelectorDoors(level, o, DoorMask.Direction.SOUTH);
                     placeWallLodestone(level, o);
                 }));
 

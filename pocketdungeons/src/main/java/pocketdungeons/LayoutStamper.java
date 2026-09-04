@@ -5,6 +5,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
@@ -126,7 +127,32 @@ final class LayoutStamper {
                 depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
 
+        // Remove stray selector door blocks that may be baked into older
+        // versions of entrance_hall.nbt. Selector doors belong only in the
+        // staging room; the dungeon's entrance cell should not carry them.
+        clearStraySelectorDoors(level, cellOrigin);
+
         return geometry;
+    }
+
+    /**
+     * Removes any blocks that are the selector-door furniture from the cell.
+     * Older entrance_hall.nbt templates included the three selector doors from
+     * the staging room; the dungeon's entrance cell should never have them.
+     */
+    private static void clearStraySelectorDoors(ServerLevel level, BlockPos cellOrigin) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = 0; x < RoomGeometry.CELL; x++) {
+            for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT + 1; y++) {
+                for (int z = 0; z < RoomGeometry.CELL; z++) {
+                    cursor.set(cellOrigin.getX() + x, cellOrigin.getY() + y, cellOrigin.getZ() + z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
+                        RoomBuilder.set(level, cursor, Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+        }
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
