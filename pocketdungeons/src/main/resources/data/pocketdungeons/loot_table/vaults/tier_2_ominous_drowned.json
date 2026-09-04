@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:loot_table",
-          "name": "pocketdungeons:vaults/tier_2_ominous"
+          "value": "pocketdungeons:vaults/tier_2_ominous"
         }
       ]
     },

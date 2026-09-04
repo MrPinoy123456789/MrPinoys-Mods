@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:loot_table",
-          "name": "pocketdungeons:chests/tier_3_ominous"
+          "value": "pocketdungeons:chests/tier_3_ominous"
         }
       ]
     },

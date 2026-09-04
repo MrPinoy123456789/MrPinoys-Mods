@@ -162,22 +162,45 @@ final class RoomTemplateGenerator {
     }
 
     /**
-     * The resources directory room templates are written to, created on
-     * demand. Dev-environment only: the game dir's parent is the mod project,
-     * so this is the source tree itself.
+     * The directory room templates are written to, created on demand. In a
+     * dev environment this is the source tree so generated templates ship in
+     * the next build. On a production server this is a datapack inside the
+     * world's datapacks directory, so a {@code /reload} after generation
+     * makes them available without a restart.
      *
      * @return the directory, or {@code null} if it could not be created
      */
     static Path templateOutDir() {
-        Path outDir = FabricLoader.getInstance().getGameDir().getParent().resolve(
-                "src/main/resources/data/" + PocketDungeonsMod.MOD_ID + "/structure/rooms");
+        // Dev environment: game dir's parent is the mod project.
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            Path outDir = FabricLoader.getInstance().getGameDir().getParent().resolve(
+                    "src/main/resources/data/" + PocketDungeonsMod.MOD_ID + "/structure/rooms");
+            try {
+                Files.createDirectories(outDir);
+            } catch (IOException e) {
+                PocketDungeonsMod.LOG.error("Could not create template output directory", e);
+                return null;
+            }
+            return outDir;
+        }
+        // Production: write to a datapack in the world's datapacks directory.
+        Path gameDir = FabricLoader.getInstance().getGameDir();
+        Path datapackDir = gameDir.resolve("world/datapacks/pocketdungeons_rooms"
+                + "/data/" + PocketDungeonsMod.MOD_ID + "/structure/rooms");
         try {
-            Files.createDirectories(outDir);
+            Files.createDirectories(datapackDir);
+            // Write a pack.mcmeta so the game recognises the datapack.
+            Path packMeta = gameDir.resolve("world/datapacks/pocketdungeons_rooms/pack.mcmeta");
+            if (!Files.exists(packMeta)) {
+                Files.createDirectories(packMeta.getParent());
+                Files.writeString(packMeta,
+                        "{\"pack\":{\"pack_format\": 0,\"description\":\"Pocket Dungeons generated room templates\"}}");
+            }
         } catch (IOException e) {
-            PocketDungeonsMod.LOG.error("Could not create template output directory", e);
+            PocketDungeonsMod.LOG.error("Could not create template datapack directory", e);
             return null;
         }
-        return outDir;
+        return datapackDir;
     }
 
     // ---- the library --------------------------------------------------------

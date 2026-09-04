@@ -116,8 +116,12 @@ final class RoomManifest {
     static RoomManifest load(MinecraftServer server) {
         RoomManifest loaded = loadFrom(server, ROOM_PATH);
         current = loaded;
-        PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms ({} rejected)",
-                loaded.rooms.size(), loaded.rejections.size());
+        if (loaded.rejections.isEmpty()) {
+            PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms", loaded.rooms.size());
+        } else {
+            PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms ({} rejected; run /dungeon admin gentemplates to generate missing templates)",
+                    loaded.rooms.size(), loaded.rejections.size());
+        }
         return loaded;
     }
 
@@ -167,7 +171,14 @@ final class RoomManifest {
                 entries.add(entry);
             } catch (Exception ex) {
                 String reason = loc + " - " + ex.getMessage();
-                PocketDungeonsMod.LOG.error("Rejected dungeon room '{}': {}", name, reason, ex);
+                // Template-not-found is expected when the room catalogue is
+                // incomplete (M58 rooms not yet generated). Log at INFO to
+                // avoid spamming ERROR for a known state.
+                if (ex.getMessage() != null && ex.getMessage().contains("template not found")) {
+                    PocketDungeonsMod.LOG.info("Rejected dungeon room '{}': {}", name, reason);
+                } else {
+                    PocketDungeonsMod.LOG.error("Rejected dungeon room '{}': {}", name, reason, ex);
+                }
                 rejections.add(reason);
             }
         }

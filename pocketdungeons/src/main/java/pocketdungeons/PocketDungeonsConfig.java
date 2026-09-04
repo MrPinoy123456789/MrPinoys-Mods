@@ -331,6 +331,12 @@ public final class PocketDungeonsConfig {
                     throw new IllegalStateException("pocketdungeons.json is empty");
                 }
                 apply(parsed);
+                // Re-save the config so any new fields added since the last
+                // version get written to disk. This keeps the file complete
+                // without requiring operators to delete it on every update.
+                try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                    GSON.toJson(defaultsJson(), w);
+                }
             }
         } catch (Exception e) {
             // Defaults in memory, file untouched -- an operator's broken-but-
@@ -846,7 +852,7 @@ public final class PocketDungeonsConfig {
 
     private static List<PowerBonusEntry> readPowerBonuses(JsonObject root) {
         if (!root.has("powerBonuses") || !root.get("powerBonuses").isJsonArray()) {
-            PocketDungeonsMod.LOG.error(
+            PocketDungeonsMod.LOG.info(
                     "pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults");
             return defaultPowerBonuses();
         }
@@ -878,7 +884,7 @@ public final class PocketDungeonsConfig {
 
     private static List<TrimBonusEntry> readTrimBonuses(JsonObject root) {
         if (!root.has("trimBonuses") || !root.get("trimBonuses").isJsonArray()) {
-            PocketDungeonsMod.LOG.error(
+            PocketDungeonsMod.LOG.info(
                     "pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults");
             return defaultTrimBonuses();
         }
@@ -911,7 +917,7 @@ public final class PocketDungeonsConfig {
     private static int readInt(JsonObject root, String key, int defaultValue,
                                 IntPredicate valid, String requirement) {
         if (!root.has(key)) {
-            PocketDungeonsMod.LOG.error("pocketdungeons.json field '{}' is missing; using default {}",
+            PocketDungeonsMod.LOG.info("pocketdungeons.json field '{}' is missing; using default {}",
                     key, defaultValue);
             return defaultValue;
         }
@@ -934,7 +940,7 @@ public final class PocketDungeonsConfig {
     private static double readDouble(JsonObject root, String key, double defaultValue,
                                      DoublePredicate valid, String requirement) {
         if (!root.has(key)) {
-            PocketDungeonsMod.LOG.error("pocketdungeons.json field '{}' is missing; using default {}",
+            PocketDungeonsMod.LOG.info("pocketdungeons.json field '{}' is missing; using default {}",
                     key, defaultValue);
             return defaultValue;
         }
@@ -956,7 +962,7 @@ public final class PocketDungeonsConfig {
 
     private static boolean readBoolean(JsonObject root, String key, boolean defaultValue) {
         if (!root.has(key)) {
-            PocketDungeonsMod.LOG.error("pocketdungeons.json field '{}' is missing; using default {}",
+            PocketDungeonsMod.LOG.info("pocketdungeons.json field '{}' is missing; using default {}",
                     key, defaultValue);
             return defaultValue;
         }
@@ -977,7 +983,7 @@ public final class PocketDungeonsConfig {
     private static String readString(JsonObject root, String key, String defaultValue,
                                      boolean allowEmpty) {
         if (!root.has(key)) {
-            PocketDungeonsMod.LOG.error("pocketdungeons.json field '{}' is missing; using default '{}'",
+            PocketDungeonsMod.LOG.info("pocketdungeons.json field '{}' is missing; using default '{}'",
                     key, defaultValue);
             return defaultValue;
         }
