@@ -76,6 +76,12 @@ final class PressureSpecs {
             TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
                     "hold_the_plate", true);
         });
+        // M58: template-only pressure rooms. The decor in the RoomSpec is
+        // the whole of the content; the handler owns the cell.
+        Situations.register("rising_lava", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+        Situations.register("collapsing_bridge", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
     }
 
     // ---- shared helpers -----------------------------------------------------

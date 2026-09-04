@@ -48,6 +48,12 @@ final class TraversalSpecs {
                 affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
         Situations.register("ice_run", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+        // M58: template-only traversal rooms. The decor in the RoomSpec is
+        // the whole of the content; the handler just owns the cell.
+        Situations.register("chasm", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+        Situations.register("powder_snow_field", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
     }
 
     /** The traversal family's templates. */

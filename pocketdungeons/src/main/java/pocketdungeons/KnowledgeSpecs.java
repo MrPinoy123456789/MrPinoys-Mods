@@ -145,6 +145,20 @@ final class KnowledgeSpecs {
                 affixes, lootSuffix, theme, voidedFloor, content) ->
                 TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
                         "creeper_kennel", false));
+
+        // M58: remaining knowledge rooms.
+        // Deep Dark Landing: sculk sensors in the floor trigger the warden.
+        // The template decor places the sculk; the handler spawns a warden
+        // when the first player steps in.
+        Situations.register("deep_dark_landing", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) ->
+                RoomContent.spawnMobs(level, o, EntityTypes.WARDEN, 1, spawns, seed, null));
+        // Infested Wall: gated room with infested stone blocks. A stone
+        // pickaxe in a pot (audit fix 2.3) lets the Pilgrim bag break through.
+        // The template decor places the infested blocks and the pot; the
+        // handler owns the cell for the gated flag.
+        Situations.register("infested_wall", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
     }
 
     // ---- shared helpers -----------------------------------------------------

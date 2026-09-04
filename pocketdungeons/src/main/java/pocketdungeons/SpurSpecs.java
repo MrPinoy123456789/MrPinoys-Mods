@@ -91,6 +91,11 @@ final class SpurSpecs {
             StoreShop.build(level, o, seed);
             StoreNPC.spawn(level, o, seed);
         });
+        // M58: The Altar. Pure template room with a trial key reward chest.
+        // The handler owns the cell so the corridor role dispatch does not
+        // strip the reward chest.
+        Situations.register("the_altar", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
     }
 
     // ---- shared helpers -----------------------------------------------------
