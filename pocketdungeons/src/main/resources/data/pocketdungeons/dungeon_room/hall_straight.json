@@ -1,7 +1,7 @@
 {
   "template": "pocketdungeons:rooms/hall_straight",
   "footprint": [1, 1],
-  "roles": ["encounter", "loot", "corridor", "exit"],
+  "roles": ["encounter", "loot", "corridor"],
   "weight": 1,
   "minDepth": 0,
   "maxPerDungeon": -1

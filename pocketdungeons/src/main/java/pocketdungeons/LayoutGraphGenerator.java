@@ -103,27 +103,30 @@ public final class LayoutGraphGenerator {
         int fullPathLength = criticalPath.size();
 
         // M54 (spec 6.5): the terminal is placed at a critical-path index between
-        // 60% and 90% of the path, not at the end. The cells past it are a decoy
-        // branch: still in the cells set and still connected by open edges, but
-        // not part of the stored critical path. The player who walks the longest
-        // corridor does not automatically find the staging room.
+        // 60% and 90% of the path, not at the end. The cells past it are removed
+        // (not kept as decoy cells): a terminal with two doors (one back, one
+        // forward into a decoy) needs a room with the "exit" role and a 2-door
+        // mask, and the room library does not have one for every mask. Keeping
+        // the terminal single-door means exit_hall (1 door) always fits.
+        // hasLineOfSight below still prevents the staging room from being
+        // visible from the front door.
         int terminalIndex = pickTerminalIndex(rng, fullPathLength);
 
-        Set<PlanCell> cells = new HashSet<>(criticalPath);
+        // Only keep cells up to and including the terminal. Cells past the
+        // terminal are discarded entirely.
+        List<PlanCell> keptPath = new ArrayList<>(criticalPath.subList(0, terminalIndex + 1));
+        Set<PlanCell> cells = new HashSet<>(keptPath);
         Set<PlanEdge> openEdges = new HashSet<>();
-        for (int i = 0; i < criticalPath.size() - 1; i++) {
-            openEdges.add(new PlanEdge(criticalPath.get(i), criticalPath.get(i + 1)));
+        for (int i = 0; i < keptPath.size() - 1; i++) {
+            openEdges.add(new PlanEdge(keptPath.get(i), keptPath.get(i + 1)));
         }
 
-        PlanCell entrance = criticalPath.get(0);
-        PlanCell terminal = criticalPath.get(terminalIndex);
+        PlanCell entrance = keptPath.get(0);
+        PlanCell terminal = keptPath.get(keptPath.size() - 1);
 
-        // The stored critical path ends at the terminal. The cells past it
-        // (terminalIndex+1 .. end) are decoy cells: still connected through the
-        // terminal, which now carries two doors (one back along the path, one
-        // forward into the decoy). The entrance stays single-door; addBranches
-        // and addLoops both skip the terminal, so no extra edges land on it.
-        List<PlanCell> storedPath = new ArrayList<>(criticalPath.subList(0, terminalIndex + 1));
+        // The stored critical path is the kept path: entrance to terminal,
+        // single-door at both ends.
+        List<PlanCell> storedPath = new ArrayList<>(keptPath);
 
         addBranches(rng, storedPath, cells, openEdges, branchProbability, entranceDir);
         addLoops(rng, cells, openEdges, loopProbability, entrance, terminal);
