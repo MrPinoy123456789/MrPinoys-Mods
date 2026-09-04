@@ -997,12 +997,19 @@ final class Instances {
             return false;
         }
 
-        // Replace the selected door with an iron-bars window. The selector
+        // Replace the selected door with a glass window. The selector
         // door for this step is at a fixed offset within the door slot; the
-        // simplest approach is to fill the entire door slot with bars, since
+        // simplest approach is to fill the entire door slot with glass, since
         // the other two doors are still selector doors and this one is now a
         // window.
         RoomBuilder.windowDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
+
+        // Open the entrance cell's wall on the staging side so the party can
+        // see through the glass window into the room. The entrance cell's own
+        // door faces into the dungeon (toward the next cell); the wall facing
+        // the staging room is solid and would block the view without this.
+        DoorMask.Direction stagingSide = CellGeometry.opposite(dungeonDoor);
+        RoomBuilder.openDoor(level, entranceOrigin, mcDirection(stagingSide));
 
         record.previewPlan = plan;
         record.previewCellOrigin = entranceOrigin;
