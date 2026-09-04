@@ -191,6 +191,28 @@ bite.
 
 ---
 
+20. **The doorway plane belongs to the manifest, not to the template.**
+    `RoomManifest.deriveMask` reads a room's door mask from the jigsaw blocks
+    at the canonical doorway slots (x=15, y=1..3, z=7..8 at rotation 0). A
+    template that writes anything over all three of them ships a room the
+    planner reads as having no door on that wall, so it is placed as a dead
+    end and whatever the template put there gates nothing. Writing over only
+    some of them is a partial door and the manifest rejects the room outright,
+    which is the only case that produces a log line. Five rooms shipped this
+    way and four were silent. Stand doors, seals and lintels one block inside,
+    at x=14; the door still covers both doorway columns because z=7 and z=8
+    are the only way through. Audit it with a jigsaw count: every template
+    must carry exactly three `pocketdungeons:door` jigsaws per declared door.
+
+21. **Flowing water never plugs a hole; only a solid block or a source does.**
+    Water scans about five blocks for a drop and, finding one, commits its
+    whole flow to it and ignores every other direction. Flowing water in that
+    hole does not restore the terrain: the scan looks straight through it and
+    still sees the drop, so the diversion is permanent until a player places a
+    solid block (or a true source block levels the surface). This is what makes
+    Flow Puzzle's redirect a real gate, and it means a one block deep hole is
+    enough. Do not reach for extra depth to make a drain work.
+
 ## Carried-forward lessons (all still current)
 
 - **Verify Minecraft API shapes against the real jar with `javap`, and check

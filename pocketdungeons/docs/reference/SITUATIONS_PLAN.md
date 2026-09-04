@@ -616,6 +616,25 @@ with implementation references. The five-floor example is written as spec
 section 8.6. Questions 4, 5, 7 and 9 remain open until playtesting produces
 data.
 
+**M61: Stories (spec 13).** Resolves open question 4. A room may own the
+16 x 16 volume beneath its own cell, private to it, with no doorways and no
+presence in the layout graph. Gives the catalogue the pits that audit 4.2
+says do not exist: Gallery's pit, Chasm's channel, Slime Pit's bounce,
+Blaze Loft's lava below the ledge.
+
+Deliberately scoped as a room feature, not a layout feature. The planner
+stays two dimensional and the door mask stays four bits, so `LayoutPlanner`,
+`RoomSelector`, `DungeonShape` and the coverage floor are untouched. Spec
+13.5 records why the larger vertical-layout version is not adopted.
+
+Owns `DungeonRoomMeta.java`, `RoomSpec.java`, `RoomTemplateGenerator.java`,
+`BedrockEnvelope.java`, `RoomManifest.java` (door slot offset only), and one
+family spec file for the pilot room. Ships one room, not the catalogue: the
+point of the milestone is to prove the anchor, the envelope and the return
+path check on a single template before any other room declares `stories`.
+
+Handoff: `docs/d3-handoffs/M61-handoff.md`.
+
 ---
 
 ## 7. File ownership matrix

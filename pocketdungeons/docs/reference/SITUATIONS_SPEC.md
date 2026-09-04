@@ -2102,6 +2102,14 @@ playtesting produces data.
    6. A two-cell-tall variant (`footprint` is already reserved for
    multi-cell) would unlock shafts, drops and the levitation rooms this
    spec had to leave out. Not needed for the first catalogue.
+
+   **Resolved (M61):** yes, as a room-level feature, not a layout-level
+   one. Section 13 specifies `stories`: a cell may own the 16 x 16 volume
+   beneath it, private to that room, with no doorways to a neighbour. The
+   planner stays two dimensional and the door mask stays four bits, so
+   nothing in `LayoutPlanner`, `RoomSelector` or the coverage floor
+   changes. True vertical layout, with up and down doors between planner
+   cells, is deliberately not adopted; section 13.5 says why.
 5. **Omen visibility.** The design says no bar, no message. If playtesting
    shows players cannot connect their dawdling to the ominous spawners,
    the fallback is a single ambient sound on each omen increment, not a
@@ -2263,3 +2271,85 @@ Each step is playable on its own and is a natural milestone boundary.
    (12.5) once three floors are playable.
 10. **Cube recipes**, once the catalogue is wide enough for a recipe to
     meaningfully steer it.
+
+---
+
+## 13. Stories: a room that owns the volume below it
+
+### 13.1 Why this and not a taller cell
+
+Audit 4.2 records that there are no pits: sub-floor bedrock sits at y = -1,
+so the deepest hole a template can carve is one block. Gallery's pit, Chasm's
+channel, Slime Pit's name, Blaze Loft's "lava below the ledge" and every
+levitation room in open question 4 are all written around vertical space the
+cell does not have.
+
+Two ways to get it. Stretch one cell's interior taller, or let a cell own a
+second 16 x 16 volume underneath. The second is better and it is what this
+section specifies. Stretching changes the cell contract that the doorway
+slots, the shell, the wall rings and all 49 existing templates are written
+against. Composing leaves every one of those alone: a one story room is
+exactly what it is today, byte identical.
+
+Vertical space is free. `InstanceRegistry.slotOrigin` tiles slots in x and z
+with a constant `BASE_Y` of 64, and the void dimension is `min_y: 0` with
+`height: 256`. A cell occupies nine blocks of that. There is room for about
+seven stories below a slot and twenty above without touching slot allocation.
+
+### 13.2 The schema
+
+`DungeonRoomMeta` gains `stories`, an int defaulting to 1, sibling to the
+`footprint` that is already reserved for multi-cell. `stories: 2` means the
+room owns its own cell and the 16 x 16 x 9 volume directly beneath it.
+
+Only a room that declares `stories` pays anything. The other 48 keep their
+current geometry, their current templates and the current coverage guarantee.
+
+### 13.3 What the lower story is, and is not
+
+It **is** private interior belonging to one room: a pit with a floor you can
+land on, a shaft, a sump, a cellar.
+
+It is **not** connected to anything but its own upper story. It has no
+doorways, it is not a `PlanCell`, the planner never sees it, and no neighbour
+can reach it. That is the whole reason this is cheap.
+
+### 13.4 The return path invariant
+
+Spec 12.3 makes a cleared cell the player's safe ground, and audit 4.4
+rejected Collapsing Bridge's retracting bridge because a one way breaks
+backtracking for the whole floor. A drop into a lower story is a one way
+unless the room ships a way back up.
+
+> **Every room that declares `stories` greater than 1 must carry a climbable
+> return path from the lowest story to its own entrance floor.** A ladder, a
+> water column, a soul sand column, or a stair of blocks. This is checked in
+> code at stamp time, not left to the template author.
+
+The check is cheap and it is not optional. This round found five rooms that
+shipped an iron door nothing could open, and exactly one of them produced a
+log line; the others were only found by auditing the templates directly. A
+structural invariant that is invisible when broken needs an assertion, not a
+convention.
+
+### 13.5 Why not vertical layout
+
+The obvious larger version gives cells up and down doors and makes the layout
+graph three dimensional. It is not adopted, for three reasons.
+
+1. **The coverage floor does not survive it.** Door masks go from four bits to
+   six, so mask families go from 16 to 64. The current guarantee, that all 53
+   (mask, role) pairs are satisfied, is what takes plan resolution from M3's
+   measured 0% to effectively 100%, and it rests on one template per mask
+   family per role. A six bit mask needs a far larger coverage floor before
+   the planner resolves anything at all.
+2. **A vertical connection is not a doorway.** The mask machinery reads 2 x 3
+   wall slots at fixed positions (`RoomGeometry.isDoorSlot`,
+   `RoomManifest.canonicalDoorSlots`). A hole in a floor is a different
+   connector with different geometry, different validation and no jigsaw
+   convention.
+3. **Spec 6.5 and 6.6 assume a grid.** Floor shape and the root distance
+   invariant are both written over a two dimensional BFS.
+
+None of that is unsolvable, and none of it is worth doing before the loop and
+the catalogue are stable.
