@@ -50,7 +50,7 @@ public class ServerExplosionMixin {
     @Shadow @Final private ServerLevel level;
     @Shadow @Final private Entity source;
 
-    @Inject(method = "calculateExplodedPositions", at = @At("RETURN"))
+    @Inject(method = "calculateExplodedPositions", at = @At("RETURN"), cancellable = true)
     private void pocketdungeons$filterExplosion(CallbackInfoReturnable<List<BlockPos>> cir) {
         if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             return;
