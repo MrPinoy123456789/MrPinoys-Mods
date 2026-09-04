@@ -6,7 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.loader.api.FabricLoader;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -737,11 +737,6 @@ final class DungeonCommands {
     }
 
     private static int generateTemplates(CommandSourceStack source) {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal(
-                    "Room template generation is a development-only command and cannot be used on a production server."));
-            return 0;
-        }
         ServerLevel level = source.getServer().getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             source.sendFailure(Component.literal("The dungeon dimension is not loaded."));
@@ -759,11 +754,6 @@ final class DungeonCommands {
      * player: an existing build room is torn down first.
      */
     private static int buildRoom(CommandSourceStack source) throws CommandSyntaxException {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal(
-                    "buildroom is a development-only command."));
-            return 0;
-        }
         ServerPlayer player = source.getPlayerOrException();
         int slot = Instances.adminBuildRoom(source.getServer(), player);
         if (slot == -2) {
@@ -789,11 +779,6 @@ final class DungeonCommands {
      * spawn, and tears the room down.
      */
     private static int saveRoom(CommandSourceStack source, String name) throws CommandSyntaxException {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal(
-                    "saveroom is a development-only command."));
-            return 0;
-        }
         ServerPlayer player = source.getPlayerOrException();
         String path = Instances.adminSaveRoom(source.getServer(), player, name);
         if (path == null) {
@@ -860,11 +845,6 @@ final class DungeonCommands {
      * spawn positions per rotation instead of making someone walk the rooms.
      */
     private static int stampTest(CommandSourceStack source) {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal(
-                    "stamptest is a development-only command."));
-            return 0;
-        }
         MinecraftServer server = source.getServer();
         int slot = Instances.adminBuild(server, null);
         if (slot < 0) {
@@ -962,10 +942,6 @@ final class DungeonCommands {
      * position is not otherwise readable from the console.
      */
     private static int cellReport(CommandSourceStack source, int slot) {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            source.sendFailure(Component.literal("cellreport is a development-only command."));
-            return 0;
-        }
         ServerLevel level = source.getServer().getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             source.sendFailure(Component.literal("The dungeon dimension is not loaded."));

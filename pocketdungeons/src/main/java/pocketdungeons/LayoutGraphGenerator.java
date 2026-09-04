@@ -93,6 +93,13 @@ public final class LayoutGraphGenerator {
             return null;
         }
 
+        // Compute the entrance direction from the first step. Branches must
+        // not place cells behind the entrance (the no-backwards-propagation
+        // rule, spec M29). The critical path itself is still checked by
+        // validate(), which lets the planner retry; but preventing branches
+        // from going behind the entrance eliminates the most common cause.
+        DoorMask.Direction entranceDir = entranceDirectionOf(criticalPath);
+
         int fullPathLength = criticalPath.size();
 
         // M54 (spec 6.5): the terminal is placed at a critical-path index between
@@ -118,7 +125,7 @@ public final class LayoutGraphGenerator {
         // and addLoops both skip the terminal, so no extra edges land on it.
         List<PlanCell> storedPath = new ArrayList<>(criticalPath.subList(0, terminalIndex + 1));
 
-        addBranches(rng, storedPath, cells, openEdges, branchProbability);
+        addBranches(rng, storedPath, cells, openEdges, branchProbability, entranceDir);
         addLoops(rng, cells, openEdges, loopProbability, entrance, terminal);
 
         Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges);
@@ -357,15 +364,6 @@ public final class LayoutGraphGenerator {
         return false;
     }
 
-    private static boolean isBehindEntrance(PlanCell cell, DoorMask.Direction entranceDir) {
-        return switch (entranceDir) {
-            case EAST -> cell.x() < 0;
-            case WEST -> cell.x() > 0;
-            case NORTH -> cell.z() > 0;
-            case SOUTH -> cell.z() < 0;
-        };
-    }
-
     private static List<PlanCell> generateCriticalPath(Random rng, int targetLength) {
         List<PlanCell> path = new ArrayList<>(targetLength);
         Set<PlanCell> visited = new HashSet<>(targetLength * 2);
@@ -402,9 +400,42 @@ public final class LayoutGraphGenerator {
         return false;
     }
 
+    /**
+     * The entrance direction, determined by the first step of the critical
+     * path. {@code null} if the path has only one cell (no steps).
+     */
+    private static DoorMask.Direction entranceDirectionOf(List<PlanCell> criticalPath) {
+        if (criticalPath.size() < 2) {
+            return null;
+        }
+        PlanCell entrance = criticalPath.get(0);
+        PlanCell first = criticalPath.get(1);
+        int dx = first.x() - entrance.x();
+        int dz = first.z() - entrance.z();
+        if (dx == 1) return DoorMask.Direction.EAST;
+        if (dx == -1) return DoorMask.Direction.WEST;
+        if (dz == 1) return DoorMask.Direction.SOUTH;
+        if (dz == -1) return DoorMask.Direction.NORTH;
+        return null;
+    }
+
+    /**
+     * Whether {@code cell} is behind the entrance relative to {@code entranceDir}.
+     * The entrance is at (0,0); "behind" is the half-plane opposite the
+     * entrance direction.
+     */
+    private static boolean isBehindEntrance(PlanCell cell, DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
+            case EAST -> cell.x() < 0;
+            case WEST -> cell.x() > 0;
+            case NORTH -> cell.z() > 0;
+            case SOUTH -> cell.z() < 0;
+        };
+    }
+
     private static void addBranches(Random rng, List<PlanCell> criticalPath,
                                     Set<PlanCell> cells, Set<PlanEdge> openEdges,
-                                    double branchProbability) {
+                                    double branchProbability, DoorMask.Direction entranceDir) {
         double center = (criticalPath.size() - 1) / 2.0;
         // Skip index 0 and the last index: no spur ever roots at the entrance or
         // the terminal, so both keep a single-door mask.
@@ -417,17 +448,19 @@ public final class LayoutGraphGenerator {
 
             PlanCell root = criticalPath.get(i);
             int depth = MIN_BRANCH_DEPTH + rng.nextInt(MAX_BRANCH_DEPTH - MIN_BRANCH_DEPTH + 1);
-            tryGrowBranch(rng, root, depth, cells, openEdges);
+            tryGrowBranch(rng, root, depth, cells, openEdges, entranceDir);
         }
     }
 
     private static void tryGrowBranch(Random rng, PlanCell root, int depth,
-                                      Set<PlanCell> cells, Set<PlanEdge> openEdges) {
+                                      Set<PlanCell> cells, Set<PlanEdge> openEdges,
+                                      DoorMask.Direction entranceDir) {
         List<DoorMask.Direction> directions = shuffledDirections(rng);
         PlanCell first = null;
         for (DoorMask.Direction dir : directions) {
             PlanCell candidate = root.neighbor(dir);
-            if (!cells.contains(candidate)) {
+            if (!cells.contains(candidate)
+                    && (entranceDir == null || !isBehindEntrance(candidate, entranceDir))) {
                 first = candidate;
                 break;
             }
@@ -445,7 +478,8 @@ public final class LayoutGraphGenerator {
             PlanCell next = null;
             for (DoorMask.Direction dir : directions) {
                 PlanCell candidate = current.neighbor(dir);
-                if (!cells.contains(candidate)) {
+                if (!cells.contains(candidate)
+                        && (entranceDir == null || !isBehindEntrance(candidate, entranceDir))) {
                     next = candidate;
                     break;
                 }

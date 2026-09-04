@@ -48,7 +48,7 @@ public final class PocketDungeonsConfig {
     private static int pathLengthMax = 12;
     private static double branchProbability = 0.55;
     private static double loopProbability = 0.30;
-    private static int planAttemptBudget = 16;
+    private static int planAttemptBudget = 32;
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
     // M57: how many floors the party plays before a safe staging room appears.
@@ -615,7 +615,7 @@ public final class PocketDungeonsConfig {
         pathLengthMax = 12;
         branchProbability = 0.55;
         loopProbability = 0.30;
-        planAttemptBudget = 16;
+        planAttemptBudget = 32;
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
         floorsPerSafeVisit = 3;
@@ -714,7 +714,7 @@ public final class PocketDungeonsConfig {
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
         loopProbability = readDouble(root, "loopProbability", 0.30,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-        planAttemptBudget = readInt(root, "planAttemptBudget", 16, v -> v >= 1, "must be >= 1");
+        planAttemptBudget = readInt(root, "planAttemptBudget", 32, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
         floorsPerSafeVisit = readInt(root, "floorsPerSafeVisit", 3, v -> v >= 1, "must be >= 1");
         // PD-46: a path longer than the grid can possibly hold (its cell
@@ -1010,7 +1010,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("pathLengthMax", 12);
         root.addProperty("branchProbability", 0.55);
         root.addProperty("loopProbability", 0.30);
-        root.addProperty("planAttemptBudget", 16);
+        root.addProperty("planAttemptBudget", 32);
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);
         root.addProperty("floorsPerSafeVisit", 3);
