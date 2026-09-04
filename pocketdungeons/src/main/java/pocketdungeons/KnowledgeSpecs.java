@@ -180,27 +180,36 @@ final class KnowledgeSpecs {
     }
 
     /**
-     * Fills the top row (y=3) of the exit doorway with wall, leaving y=1..2 as
-     * jigsaw blocks so the stamper opens a 2-block-high gap instead of the full
-     * 3. Used by Don't Look: an enderman (3 tall) cannot path through, a
-     * crouching player can.
+     * Drops the exit passage to two blocks high by walling y=3 one block inside
+     * the doorway. Used by Don't Look: an enderman (3 tall) cannot path through,
+     * a crouching player can.
+     *
+     * <p>The wall goes at x=14, not in the doorway plane at x=15, because the
+     * doorway's three jigsaw blocks are what {@link RoomManifest} reads the door
+     * mask from. Writing over the y=3 jigsaw leaves a partial door, which the
+     * manifest rejects outright, and the room never loads at all.
      */
     private static void fillDoorwayTop(ServerLevel level, BlockPos o) {
         for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-            RoomBuilder.set(level, o.offset(WALL_X, 3, z), RoomBuilder.WALL);
+            RoomBuilder.set(level, o.offset(WALL_X - 1, 3, z), RoomBuilder.WALL);
         }
     }
 
     /**
-     * Fills the entire exit doorway (y=1..3, z=7..8) with {@code material},
-     * sealing it. The jigsaw blocks are overwritten so the stamper does not open
-     * the doorway. Used by gated knowledge rooms (Elder's Chamber, Infested
-     * Wall) whose gate is a soft wall the player mines through.
+     * Plugs the exit passage with {@code material}, one block inside the doorway
+     * (x=14, y=1..3, z=7..8). Used by gated knowledge rooms (Elder's Chamber,
+     * Infested Wall) whose gate is a soft wall the player mines through.
+     *
+     * <p>The plug goes at x=14 rather than in the doorway plane at x=15 so the
+     * doorway's jigsaw blocks survive. They are what {@link RoomManifest} reads
+     * the door mask from: sealing over them ships a room the planner believes
+     * has no east door, which places it as a dead end and makes the soft wall
+     * a wall around nothing.
      */
     private static void sealExitDoorway(ServerLevel level, BlockPos o, BlockState material) {
         for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
             for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                RoomBuilder.set(level, o.offset(WALL_X, y, z), material);
+                RoomBuilder.set(level, o.offset(WALL_X - 1, y, z), material);
             }
         }
     }
@@ -372,9 +381,11 @@ final class KnowledgeSpecs {
         BlockState infested = Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
         return new RoomSpec("infested_wall", EnumSet.of(ENTRANCE, EXIT))
                 .decor((level, o) -> {
+                    // One block inside the doorway, so the doorway's jigsaws
+                    // survive and the room keeps its east door in the mask.
                     for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
                         for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                            RoomBuilder.set(level, o.offset(WALL_X, y, z),
+                            RoomBuilder.set(level, o.offset(WALL_X - 1, y, z),
                                     y == 1 ? infested : normal);
                         }
                     }

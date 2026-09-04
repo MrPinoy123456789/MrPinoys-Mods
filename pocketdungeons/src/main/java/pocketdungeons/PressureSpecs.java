@@ -92,14 +92,17 @@ final class PressureSpecs {
                 .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
                 .setValue(DoorBlock.FACING, Direction.WEST)
                 .setValue(DoorBlock.OPEN, false);
+        // One block inside the doorway: writing over the doorway's jigsaw
+        // blocks would cost the room its east door in the manifest's mask,
+        // and the planner would place it as a dead end.
         for (int z = DOOR_Z0; z <= DOOR_Z1; z++) {
             DoorHingeSide hinge = z == DOOR_Z0 ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
-            RoomBuilder.set(level, o.offset(WALL_X, 1, z),
+            RoomBuilder.set(level, o.offset(WALL_X - 1, 1, z),
                     lower.setValue(DoorBlock.HINGE, hinge));
-            RoomBuilder.set(level, o.offset(WALL_X, 2, z),
+            RoomBuilder.set(level, o.offset(WALL_X - 1, 2, z),
                     lower.setValue(DoorBlock.HINGE, hinge)
                             .setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-            RoomBuilder.set(level, o.offset(WALL_X, 3, z), RoomBuilder.WALL);
+            RoomBuilder.set(level, o.offset(WALL_X - 1, 3, z), RoomBuilder.WALL);
         }
     }
 
@@ -295,11 +298,19 @@ final class PressureSpecs {
                     // the iron door. The plate itself is not wired to the door:
                     // standing on it keeps the clock loaded by keeping the chunk
                     // active, and the clock opens the door when it lands.
-                    placeComparator(level, o, 8, 2, 11, Direction.EAST);
-                    for (int x = 9; x <= 13; x++) {
-                        placeDust(level, o, x, 2, 11);
+                    placeComparator(level, o, 9, 1, 11, Direction.EAST);
+                    for (int x = 10; x <= 12; x++) {
+                        placeDust(level, o, x, 1, 11);
                     }
-                    placeDust(level, o, 14, 1, 8);
+                    for (int z = 10; z >= 6; z--) {
+                        placeDust(level, o, 12, 1, z);
+                    }
+                    // The gate: a repeater into the block beside the door's
+                    // north leaf. A strongly powered block next to an iron door
+                    // opens it.
+                    set(level, o, 14, 1, 6, RoomBuilder.WALL);
+                    set(level, o, 13, 1, 6, Blocks.REPEATER.defaultBlockState()
+                            .setValue(RepeaterBlock.FACING, Direction.EAST));
                 });
     }
 }
