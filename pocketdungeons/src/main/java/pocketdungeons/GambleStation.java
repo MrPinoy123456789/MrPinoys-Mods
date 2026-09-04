@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.MerchantContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -143,7 +144,7 @@ final class GambleStation {
         MerchantGui gui = new MerchantGui(player, false) {
             @Override
             public boolean onTrade(MerchantOffer offer) {
-                return handleTrade(player, offer);
+                return handleTrade(player, offer, this.merchantInventory);
             }
         };
         gui.setTitle(Component.literal("Gamble Station"));
@@ -182,7 +183,8 @@ final class GambleStation {
      * and returns {@code false} so vanilla's trade completion never fires.
      * The GUI closes immediately after a successful draw.
      */
-    private static boolean handleTrade(ServerPlayer player, MerchantOffer offer) {
+    private static boolean handleTrade(ServerPlayer player, MerchantOffer offer,
+                                       MerchantContainer merchantInventory) {
         ItemStack result = offer.getResult();
         String slot = StationSupport.readStringMarker(result, "gambleSlot");
         int tier = StationSupport.readIntMarker(result, "gambleTier");
@@ -207,8 +209,8 @@ final class GambleStation {
 
         int cost = GambleMath.cost(tier, slot, PocketDungeonsConfig.gambleEmeraldsPerTier(),
                 PocketDungeonsConfig.gambleSlotMultiplier(), PocketDungeonsConfig.gambleWeightedSlot());
-        int emeralds = player.getInventory().countItem(Items.EMERALD);
-        if (emeralds < cost) {
+        ItemStack payment = merchantInventory.getItem(0);
+        if (!payment.is(Items.EMERALD) || payment.getCount() < cost) {
             player.sendSystemMessage(Component.literal("You need " + cost + " emeralds.")
                     .withStyle(ChatFormatting.YELLOW));
             return false;
@@ -223,8 +225,10 @@ final class GambleStation {
             return false;
         }
 
-        player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.EMERALD), cost,
-                new net.minecraft.world.SimpleContainer(0));
+        payment.shrink(cost);
+        if (payment.isEmpty()) {
+            merchantInventory.setItem(0, ItemStack.EMPTY);
+        }
         Payout.deliver(player, drawn);
         // PD-25: this used to fire from onUse, on opening the trade screen,
         // before anything was spent. Moved to the point the emeralds are

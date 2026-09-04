@@ -228,7 +228,7 @@ final class StoreNPC {
                     .withStyle(ChatFormatting.YELLOW));
             return;
         }
-        int emeralds = player.getInventory().countItem(Items.EMERALD);
+        int emeralds = StationSupport.countItems(player, Items.EMERALD);
         if (emeralds < current.price) {
             player.sendSystemMessage(Component.literal("You need " + current.price + " emeralds.")
                     .withStyle(ChatFormatting.YELLOW));

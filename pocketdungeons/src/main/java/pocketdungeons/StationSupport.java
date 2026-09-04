@@ -68,6 +68,20 @@ final class StationSupport {
         return mine == null ? "" : mine.getStringOr(key, "");
     }
 
+    /**
+     * Counts how many of {@code item} the player has in their inventory plus
+     * the stack on their cursor. {@link Container#countItem(Item)} does not
+     * include the carried item, but stations should accept payment from it.
+     */
+    static int countItems(ServerPlayer player, Item item) {
+        int count = player.getInventory().countItem(item);
+        ItemStack carried = player.containerMenu.getCarried();
+        if (carried.is(item)) {
+            count += carried.getCount();
+        }
+        return count;
+    }
+
     /** The int marker at {@code custom_data.pocketdungeons.<key>}, or {@code 0} if the stack has none. */
     static int readIntMarker(ItemStack stack, String key) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
