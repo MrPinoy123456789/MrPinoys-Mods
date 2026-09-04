@@ -1004,12 +1004,14 @@ final class Instances {
         // window.
         RoomBuilder.windowDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
 
-        // Open the entrance cell's wall on the staging side so the party can
-        // see through the glass window into the room. The entrance cell's own
-        // door faces into the dungeon (toward the next cell); the wall facing
-        // the staging room is solid and would block the view without this.
+        // Place a glass window in the entrance cell's wall on the staging side
+        // so the party can see through the staging room's window into the room.
+        // The entrance cell's own door faces into the dungeon (toward the next
+        // cell); the wall facing the staging room is solid and would block the
+        // view without this. Glass (not open air) so the player cannot walk in
+        // before committing.
         DoorMask.Direction stagingSide = CellGeometry.opposite(dungeonDoor);
-        RoomBuilder.openDoor(level, entranceOrigin, mcDirection(stagingSide));
+        RoomBuilder.windowDoor(level, entranceOrigin, mcDirection(stagingSide));
 
         record.previewPlan = plan;
         record.previewCellOrigin = entranceOrigin;
@@ -1080,9 +1082,6 @@ final class Instances {
         PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
         forceLoad(level, geometry.chunks(), true);
 
-        // Clear the staging room's bedrock face so the dungeon connects.
-        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDoor);
-
         InstanceLayout layout;
         try {
             // stampBehindLobby skips the entrance cell since it was already
@@ -1104,8 +1103,19 @@ final class Instances {
             return false;
         }
 
-        // Replace the window with a walkable doorway.
+        // Clear the staging room's bedrock face AFTER stampBehindLobby,
+        // because BedrockEnvelope.apply inside stampBehindLobby places
+        // bedrock around all plan cells (including the entrance cell), and
+        // the entrance cell's staging-side face has no occupied neighbour
+        // in the plan geometry, so bedrock lands there. This clears it.
+        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDoor);
+
+        // Replace the windows with walkable doorways. Both the staging room's
+        // door slot and the entrance cell's staging-side wall had glass windows
+        // from previewDoor; both need to become open doorways on commit.
         RoomBuilder.openDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
+        BlockPos entranceOrigin = geometry.cellOrigin(plan.entrance());
+        RoomBuilder.openDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDoor);
         RoomTemplateGenerator.placePostSelectionDoors(level, record.stagingCellOrigin, dungeonDoor);
 
