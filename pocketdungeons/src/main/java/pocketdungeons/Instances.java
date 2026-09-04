@@ -1284,6 +1284,7 @@ final class Instances {
         record.floorIndex = 0;
         record.safeStaging = false;
         record.omen = 0;
+        record.floorOmens.clear();
         record.recipeTags = null;
         record.clearPreviousRunState();
     }
@@ -1460,6 +1461,7 @@ final class Instances {
         if (record.origin != null && !record.visitInstance) {
             lastRoomCellOrigin.put(member, record.origin);
         }
+        OmenSources.forget(member);
         ReturnPoint point = record.members.remove(member);
         InstanceRegistry.byMember.remove(member);
         record.onPad.remove(member);

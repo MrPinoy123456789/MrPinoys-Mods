@@ -1183,11 +1183,13 @@ final class RunLifecycle {
         boolean isSafeStaging = record.floorIndex % PocketDungeonsConfig.floorsPerSafeVisit() == 0;
         record.safeStaging = isSafeStaging;
 
-        // M48: the omen finish table replaces the clock (spec 5.2, 5.4). No
-        // omen sources are wired yet, so the sum is 0 and every completion
-        // lands in the low band. M57: the band denominator is now
-        // floorsPerSafeVisit instead of hardcoded 1.
-        int omenSum = record.omen;
+        // M48: the omen finish table replaces the clock (spec 5.2, 5.4).
+        // OmenSources accrues the floor in progress into record.omen; close it
+        // here and key the table off the sum since the last safe visit. M57:
+        // the band denominator is floorsPerSafeVisit, not a hardcoded 1.
+        record.floorOmens.add(Omen.clamp(record.omen));
+        record.omen = 0;
+        int omenSum = Omen.floorSum(record.floorOmens.stream().mapToInt(Integer::intValue).toArray());
         int band = Omen.band(omenSum, PocketDungeonsConfig.floorsPerSafeVisit());
         int chests = Omen.chestCount(band);
         record.rewardChests = chests;

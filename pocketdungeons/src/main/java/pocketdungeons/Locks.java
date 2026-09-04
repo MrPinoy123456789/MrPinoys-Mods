@@ -117,9 +117,15 @@ final class Locks {
                 new Lock(level, kind, key, List.copyOf(doors), List.copyOf(triggers)));
     }
 
-    /** Drops every lock, for a teardown that takes the whole dungeon with it. */
-    static void clearAll() {
-        ACTIVE.clear();
+    /** Whether the cell still has an unsatisfied lock, which is what makes its
+     *  situation "unsolved" for the dwell clock (spec 5.4). */
+    static boolean isArmed(BlockPos cellOrigin) {
+        return ACTIVE.containsKey(cellOrigin);
+    }
+
+    /** Drops one cell's lock. Called from teardown, per cell of the layout. */
+    static void clear(BlockPos cellOrigin) {
+        ACTIVE.remove(cellOrigin);
     }
 
     private static void tick() {
@@ -137,10 +143,10 @@ final class Locks {
     }
 
     /**
-     * Whether the cell has been torn down under the lock. {@link #clearAll}
-     * covers the ordinary teardown; this covers a purge that misses one, which
-     * would otherwise leave the map growing for the life of the server. No door
-     * left means no cell left.
+     * Whether the cell has been torn down under the lock. {@link #clear} covers
+     * the ordinary teardown; this covers a purge that misses one, which would
+     * otherwise leave the map growing for the life of the server. No door left
+     * means no cell left.
      */
     private static boolean stale(Lock lock) {
         for (BlockPos pos : lock.doors()) {

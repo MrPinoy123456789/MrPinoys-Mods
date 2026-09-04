@@ -37,6 +37,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomProtection.register();
         RoomTemplateGenerator.register();
         Locks.register();
+        OmenSources.register();
         ThemeManifest.register();
         RoomManifest.register();
         TrimListener.register();

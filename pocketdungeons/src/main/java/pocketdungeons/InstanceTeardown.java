@@ -221,6 +221,16 @@ final class InstanceTeardown {
     static void teardown(MinecraftServer server, int slot, BlockPos origin,
                          InstanceLayout layout, String reason, UUID excludeFromStraySweep,
                          BlockPos extraCellOrigin) {
+        // The cell-keyed subsystems go first: they hold positions in a dungeon
+        // that is about to stop existing, and neither can tell a torn-down cell
+        // from a cell whose player has simply walked away.
+        if (layout != null && layout.geometry() != null) {
+            for (BlockPos cellOrigin : layout.geometry().cellOrigins()) {
+                Locks.clear(cellOrigin);
+                OmenSources.clear(cellOrigin);
+            }
+        }
+
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             InstanceRegistry.usedSlots.remove(slot);

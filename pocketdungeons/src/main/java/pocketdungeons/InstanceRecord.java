@@ -310,6 +310,13 @@ final class InstanceRecord {
     int omen;
 
     /**
+     * M48: each completed floor's clamped omen, in order, since the last safe
+     * room visit. {@code omen} above is the floor in progress; this is what
+     * {@link Omen#floorSum} keys the finish table from.
+     */
+    final java.util.List<Integer> floorOmens = new java.util.ArrayList<>();
+
+    /**
      * The situation ids this floor's cells resolved to, in the order they were
      * resolved. M59 reads it for the compass Cube recipe and the completion
      * line. Mutable and empty for a run whose cells carried no situation, which

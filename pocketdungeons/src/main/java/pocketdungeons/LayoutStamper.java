@@ -126,6 +126,7 @@ final class LayoutStamper {
         RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
                 depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
+            OmenSources.arm(level, cellOrigin, entry.meta);
 
         // Remove stray selector door blocks that may be baked into older
         // versions of entrance_hall.nbt. Selector doors belong only in the
@@ -224,6 +225,7 @@ final class LayoutStamper {
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
+            OmenSources.arm(level, cellOrigin, entry.meta);
             if (spawnerAnchor != null) {
                 trialSpawners.add(spawnerAnchor);
             }

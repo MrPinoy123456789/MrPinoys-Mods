@@ -329,6 +329,23 @@ final class TrialContent {
         return cleared;
     }
 
+    /**
+     * Whether the cell still holds a trial spawner that has not gone to
+     * cooldown. M48's dwell clock uses this as half of "unsolved": a cell you
+     * have not fought through yet is a cell that costs you omen to linger in.
+     */
+    static boolean hasActiveSpawner(ServerLevel level, BlockPos cellOrigin) {
+        for (BlockPos pos : BlockPos.betweenClosed(
+                cellOrigin.offset(0, 1, 0),
+                cellOrigin.offset(RoomGeometry.CELL - 1, RoomGeometry.CEILING_Y, RoomGeometry.CELL - 1))) {
+            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
+                    && spawner.getState() != TrialSpawnerState.COOLDOWN) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static String configId(String prefix, int tier, boolean ominous) {
         String clampedTier = "tier_" + Math.max(1, Math.min(3, tier));
         String base = prefix == null || prefix.isBlank() ? clampedTier : prefix + "_" + clampedTier;
