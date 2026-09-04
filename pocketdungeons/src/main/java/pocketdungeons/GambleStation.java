@@ -164,8 +164,7 @@ final class GambleStation {
             }
         }
 
-        if (gui.getOfferIndex(gui.getSelectedTrade()) == -1
-                && !player.level().getServer().getPlayerList().getPlayer(player.getUUID()).equals(null)) {
+        if (maxTier < 1 || LootTables.GEAR_SLOTS.isEmpty()) {
             // No trades at all: keystone level too low for even tier 1.
             player.sendSystemMessage(Component.literal("Your keystone does not clear tier 1 yet.")
                     .withStyle(ChatFormatting.YELLOW));
