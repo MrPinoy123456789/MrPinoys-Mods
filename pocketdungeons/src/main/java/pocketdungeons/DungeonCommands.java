@@ -1220,6 +1220,13 @@ final class DungeonCommands {
         //    from the overworld can leave bag loot in the survival inventory).
         int bagsCleared = clearBagTagged(player);
         // 6. A fresh keystone [1] in hand, the same as a brand-new player.
+        //    setKeystone must be called so the server-side level matches the
+        //    item: InventorySwap.enterVoid reads the server-side level to
+        //    decide whether to place a keystone in the dungeon inventory, and
+        //    applyKeystoneItem skips level 0. Without this, the player enters
+        //    the dungeon with no compass after a resetkey.
+        DungeonLog.forServer(server).setKeystone(player.getUUID(), 1,
+                java.util.EnumSet.noneOf(Affix.class));
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
                 "Keystone progress reset. Bag cleared. Keystone [1] in hand."
