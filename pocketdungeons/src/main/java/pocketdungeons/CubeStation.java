@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -103,6 +104,26 @@ final class CubeStation {
     static boolean onUse(ServerPlayer player, BlockState state, ItemStack held) {
         if (!matchesStation(state)) {
             return false;
+        }
+        // M59: check for a Cube recipe first. A recipe is a keystone in the
+        // main hand plus a specific second item in the off-hand. The recipe
+        // writes a tag into the keystone's custom data that the door reads
+        // at generation.
+        if (Keystone.isKeystone(held)) {
+            ItemStack offHand = player.getOffhandItem();
+            if (!offHand.isEmpty()) {
+                CubeRecipe recipe = CubeRecipe.match(held, offHand);
+                if (recipe != null) {
+                    int level = DungeonLog.forServer(player.level().getServer())
+                            .get(player.getUUID()).keystoneLevel();
+                    int unlock = PocketDungeonsConfig.cubeUnlockLevel();
+                    if (StationSupport.levelTooLow(player, level, unlock, "Herobrine Cube")) {
+                        return true;
+                    }
+                    recipe.apply(player, held, offHand);
+                    return true;
+                }
+            }
         }
         String reward = rewardOf(held);
         boolean imbuable = RerollStation.tierOf(held) > 0 && powerOf(held).isBlank();

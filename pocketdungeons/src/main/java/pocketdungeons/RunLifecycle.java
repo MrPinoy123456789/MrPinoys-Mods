@@ -651,6 +651,32 @@ final class RunLifecycle {
             BedrockEnvelope.applyToCell(level, record.stagingCellOrigin, Set.of(dungeonDir));
         }
 
+        // M59: read the keystone's recipe tags and store them on the record
+        // for the generation path to use. The tags are cleared from the
+        // keystone after reading, so a single-use recipe does not persist.
+        ItemStack keystone = Keystone.findHeld(player);
+        if (keystone != null) {
+            record.recipeTags = CubeRecipe.recipesOf(keystone);
+            if (!record.recipeTags.isEmpty()) {
+                CubeRecipe.clearRecipes(keystone);
+            }
+            // M59: BAG_OVERRIDE overrides the bag for this run. The bag is
+            // stored in DungeonLog, so override it before the generation
+            // reads it. The original bag is restored after the run by the
+            // safe-room return path (which re-reads from the log).
+            String overrideBagId = CubeRecipe.bagOverrideId(keystone);
+            if (overrideBagId != null) {
+                DungeonLog recipeLog = DungeonLog.forServer(server);
+                String originalBag = recipeLog.bagOf(player.getUUID());
+                recipeLog.setBag(player.getUUID(), overrideBagId);
+                // Store the original bag so returnToSafe can restore it.
+                if (record.recipeTags == null) {
+                    record.recipeTags = new net.minecraft.nbt.CompoundTag();
+                }
+                record.recipeTags.putString("bag_original", originalBag);
+            }
+        }
+
         if (!Instances.commitDoor(server, level, record, offer, step)) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. Try another door.")
@@ -1339,6 +1365,14 @@ final class RunLifecycle {
         record.omen = 0;
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        // M59: restore the original bag if BAG_OVERRIDE was used.
+        if (record.recipeTags != null) {
+            String originalBag = record.recipeTags.getStringOr("bag_original", "");
+            if (!originalBag.isEmpty()) {
+                DungeonLog.forServer(server).setBag(player.getUUID(), originalBag);
+            }
+            record.recipeTags = null;
+        }
         record.clearPreviousRunState();
 
         player.sendSystemMessage(Component.literal(

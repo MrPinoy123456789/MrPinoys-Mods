@@ -353,6 +353,13 @@ final class InstanceRecord {
      */
     boolean safeStaging;
 
+    /**
+     * (M59) The recipe tags read from the keystone at commit time, stored as
+     * a CompoundTag under the {@code recipe} key. The generation path reads
+     * these to adjust the plan. Cleared after the first floor of a visit.
+     */
+    net.minecraft.nbt.CompoundTag recipeTags;
+
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);

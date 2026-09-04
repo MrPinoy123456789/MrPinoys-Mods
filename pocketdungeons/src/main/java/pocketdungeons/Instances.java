@@ -1040,6 +1040,16 @@ final class Instances {
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
 
+        // M59: apply recipe-tag effects that modify the affix set.
+        if (record.recipeTags != null && !record.recipeTags.isEmpty()) {
+            if (record.recipeTags.getBooleanOr("ominous", false)) {
+                affixes.add(Affix.OMINOUS);
+            }
+            if (record.recipeTags.getBooleanOr("feral", false)) {
+                affixes.add(Affix.FERAL);
+            }
+        }
+
         // Recompute the plan origin the same way previewDoor did.
         int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
         int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
@@ -1243,6 +1253,7 @@ final class Instances {
         record.floorIndex = 0;
         record.safeStaging = false;
         record.omen = 0;
+        record.recipeTags = null;
         record.clearPreviousRunState();
     }
 
