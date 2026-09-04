@@ -331,6 +331,20 @@ final class InstanceRecord {
      */
     BlockPos stagingCellOrigin;
 
+    /**
+     * (M56) The plan produced by the current door preview, or {@code null}
+     * if no preview is active. Stored so {@code commitDoor} can re-use the
+     * exact same plan rather than re-planning with a new seed.
+     */
+    DungeonPlan previewPlan;
+
+    /**
+     * (M56) The world origin of the cell stamped as the current door
+     * preview, or {@code null} if no preview is active. Purged on switch
+     * or commit.
+     */
+    BlockPos previewCellOrigin;
+
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<Affix> affixes, UUID owner, boolean untimed) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);

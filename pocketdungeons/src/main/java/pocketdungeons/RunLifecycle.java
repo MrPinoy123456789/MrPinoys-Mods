@@ -508,14 +508,71 @@ final class RunLifecycle {
      *
      * @return whether a door was actually taken
      */
-    static boolean chooseOffer(ServerPlayer player, int step) {
+    /**
+     * (M56) The preview phase of door selection. The host right-clicks a
+     * selector door; this plans the dungeon and stamps only its entrance
+     * cell beyond the door, replacing the door with an iron-bars window so
+     * the party can see in. The plan is stored on the record for
+     * {@link #commitDoor} to re-use. Switching doors purges the old preview
+     * and stamps the new one.
+     */
+    static boolean previewDoor(ServerPlayer player, int step) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return false;
         }
         if (step < 1 || step > 3) {
-            player.sendSystemMessage(Component.literal("Choose 1, 2 or 3.")
+            return false;
+        }
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
+            return false;
+        }
+
+        DungeonLog log = DungeonLog.forServer(server);
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
+                entry.currentTheme(), entry.depth());
+        Keystone.Offer offer = offers[step - 1];
+
+        // The Greater tier's refusals are checked at the door screen level
+        // (doorRefusal) before this is called, but re-check here for safety.
+        if (!offer.free()) {
+            int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+            if (entry.keystoneLevel() < minLevel) {
+                return false;
+            }
+            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
+            if (Fuel.banked(player) < cost) {
+                return false;
+            }
+        }
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return false;
+        }
+
+        if (!Instances.previewDoor(server, level, record, offer, step)) {
+            player.sendSystemMessage(Component.literal(
+                    "The preview failed to build. Try another door.")
                     .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * (M56) The commit phase of door selection. The host pulls the lever;
+     * this stamps the rest of the dungeon around the already-previewed
+     * entrance cell, replaces the window with a walkable doorway, saves and
+     * despawns the safe room (M55), and starts the run. The plan stored by
+     * {@link #previewDoor} is re-used so the entrance cell is the exact one
+     * the party previewed.
+     */
+    static boolean commitDoor(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -524,14 +581,18 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
+        if (record.selectedStep == 0 || record.previewPlan == null) {
+            player.sendSystemMessage(Component.literal("Select and preview a door first.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        int step = record.selectedStep;
 
         // M55: the beginRun gate. When the safe room is still active (before
         // the first commit of a visit), every party member must be standing in
         // the staging room before the host can commit. Solo players skip the
-        // wait. This prevents a straggler in the safe room from keeping it
-        // loaded and the scarcity back door open. Once the safe room is
-        // despawned (roomCellOrigin == null), the party is in the dungeon loop
-        // and the gate no longer applies.
+        // wait. Once the safe room is despawned (roomCellOrigin == null), the
+        // party is in the dungeon loop and the gate no longer applies.
         if (record.roomCellOrigin != null && !record.visitInstance
                 && record.stagingCellOrigin != null) {
             List<String> missing = missingStagingMembers(server, record);
@@ -549,8 +610,8 @@ final class RunLifecycle {
                 entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[step - 1];
 
-        // M12: the Greater tier's two refusals, checked ahead of spending
-        // anything or generating anything. Door 1 never refuses on either.
+        // M12: re-check the Greater tier refusals at commit time, since the
+        // player's state may have changed since the preview.
         if (!offer.free()) {
             int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
             if (entry.keystoneLevel() < minLevel) {
@@ -575,39 +636,29 @@ final class RunLifecycle {
             return false;
         }
 
-        // M55: save and despawn the safe room before generating the dungeon.
-        // The safe room is captured to RoomStore so it can be re-stamped on
-        // return. After this point, the safe room cell is gone and the
-        // staging room is the party's only base.
+        // M55: save and despawn the safe room before committing the dungeon.
         if (record.roomCellOrigin != null && !record.visitInstance) {
             saveRoom(level, server, record);
-            // Seal the safe room's connection to the staging room and restore
-            // its bedrock envelope before despawning, so the blob captures
-            // correctly with all walls sealed.
             DoorMask.Direction dungeonDir = record.roomDungeonDoor;
             RoomBuilder.sealDoor(level, record.roomCellOrigin,
                     Instances.mcDirection(dungeonDir));
             BedrockEnvelope.applyToCell(level, record.roomCellOrigin, Set.of());
-            // Re-capture with the sealed wall, then despawn.
             saveRoom(level, server, record);
             Instances.despawnSafeRoom(level, record);
-            // Seal the staging room's side of the connection (the ee door that
-            // was open toward the safe room) and add bedrock there.
             DoorMask.Direction eeDir = CellGeometry.opposite(dungeonDir);
             RoomBuilder.sealDoor(level, record.stagingCellOrigin,
                     Instances.mcDirection(eeDir));
             BedrockEnvelope.applyToCell(level, record.stagingCellOrigin, Set.of(dungeonDir));
         }
 
-        if (!Instances.generateBehindLobby(server, level, record, offer, step)) {
+        if (!Instances.commitDoor(server, level, record, offer, step)) {
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. Try another door.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
 
-        // The spend happens only once the choice has actually succeeded, so a
-        // failed stamp (the branch above) never costs fuel for nothing.
+        // The spend happens only once the commit has actually succeeded.
         if (!offer.free()) {
             Fuel.spendBanked(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }

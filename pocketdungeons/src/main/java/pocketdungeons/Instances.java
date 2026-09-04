@@ -923,35 +923,23 @@ final class Instances {
     }
 
     /**
-     * The generation half of {@code RunLifecycle.chooseOffer}: before planning,
-     * any stragglers still in the old dungeon are pulled into the staging room,
-     * the old dungeon cells are cleared, and the staging room's {@code ee} wall
-     * (the entrance from the previous dungeon) is sealed. Then a new shape is
-     * planned so its entrance edge lines up with the staging room's {@code MM}
-     * side, and everything except cell 0 (the staging room) is stamped.
+     * (M56) Plans the dungeon for door {@code step} and stamps only its
+     * entrance cell beyond the staging room's selected door, replacing the
+     * selector door with an iron-bars window so the party can see in. The
+     * plan and preview cell origin are stored on the record for
+     * {@link #commitDoor} to use. If a previous preview is active, it is
+     * purged and its door restored first.
+     *
+     * @return {@code true} if the preview was stamped successfully
      */
-    static boolean generateBehindLobby(MinecraftServer server, ServerLevel level,
-                                                InstanceRecord record, Keystone.Offer offer, int step) {
-        // M2/M3: clear the previous dungeon before generating the next one.
-        RunLifecycle.resetForNextDungeon(server, record);
-
-        // PD-13: release the previous dungeon's force-load tickets before
-        // acquiring the new one's. resetForNextDungeon clears blocks, not
-        // tickets, so without this any chunk the old layout touched but the
-        // new one does not stays forced for the rest of the process,
-        // surviving even a restart since setChunkForced persists into the
-        // level's saved data. record.layout is never null here: a lobby's own
-        // one-cell layout is assigned before a door choice is ever possible.
-        if (record.layout != null) {
-            forceLoad(level, record.layout.geometry().chunks(), false);
-        }
+    static boolean previewDoor(MinecraftServer server, ServerLevel level,
+                               InstanceRecord record, Keystone.Offer offer, int step) {
+        // Purge any existing preview before generating the new one.
+        clearPreview(level, record);
 
         long seed = level.getRandom().nextLong();
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
-        // M48: seed the solvability pass from the owner's bag and the live
-        // party size, so a floor is solvable for the class the party actually
-        // brought in rather than for the strictest Pilgrim default.
         String bagId = DungeonLog.forServer(server).bagOf(record.owner);
         Set<String> bagTags = BagTags.seed(bagId, record.members.size());
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
@@ -962,61 +950,132 @@ final class Instances {
                 dungeonDoor, bagTags);
 
         DungeonPlan plan = outcome.plan();
-        // The door's elective affix plus whatever the offered level seeds: the run
-        // about to be stamped is the run the new key advertises, not just the door.
-        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
-        InstanceLayout layout;
-        if (plan != null) {
-            // The staging room is physically at record.stagingCellOrigin,
-            // resolved to grid (0,0). The plan's own cell set may reach
-            // negative x/z, so the world origin is shifted back by the minimum
-            // cell coordinates.
-            int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
-            int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
-            BlockPos planOrigin = record.stagingCellOrigin.offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
-            PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
-            forceLoad(level, geometry.chunks(), true);
-            // The staging room was bedrocked on all four sides so a player
-            // could not fall into the void before choosing a door. Now that a
-            // dungeon is actually about to exist behind it, clear that face so
-            // the two connect.
-            BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDoor);
-            try {
-                layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
-                        record.owner, offer.theme());
-            } catch (RuntimeException e) {
-                PocketDungeonsMod.LOG.error("Stamping plan behind the staging room at {} failed",
-                        record.stagingCellOrigin.toShortString(), e);
-                // PD-11: a failed stamp is a failed attempt at the NEXT dungeon
-                // behind an already-live staging room, not the end of the
-                // instance itself. Clean up synchronously, the same way
-                // resetForNextDungeon clears between two successful door
-                // choices: every attempted cell except the staging room, blocks
-                // removed in-tick, registry untouched.
-                List<BlockPos> keepRoom = List.of(record.stagingCellOrigin);
-                for (BlockPos cellOrigin : geometry.cellOrigins()) {
-                    if (cellOrigin.equals(record.stagingCellOrigin)) {
-                        continue;
-                    }
-                    clearCellSync(level, cellOrigin, keepRoom);
-                }
-                forceLoad(level, geometry.chunks(), false);
-                return false;
-            }
-        } else {
+        if (plan == null) {
             PocketDungeonsMod.LOG.warn(
-                    "Planning failed behind the staging room for seed {} after {} attempts ({})",
+                    "Planning failed for door preview seed {} after {} attempts ({})",
                     seed, outcome.attemptsUsed(), outcome.failureReason());
             return false;
         }
 
+        // The entrance cell is one cell beyond the staging room in the
+        // dungeon door direction. The plan's own cell set may reach negative
+        // x/z, so the world origin is shifted back by the minimum cell
+        // coordinates, then forward one cell in the dungeon direction.
+        int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
+        int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
+        BlockPos planOrigin = CellGeometry.offsetInDirection(
+                record.stagingCellOrigin, dungeonDoor, RoomGeometry.CELL)
+                .offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
+        PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
+        BlockPos entranceOrigin = geometry.cellOrigin(plan.entrance());
+
+        // Force-load the entrance cell's chunk so the stamp lands.
+        forceLoad(level, Set.of(entranceOrigin), true);
+
+        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+        try {
+            LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
+                    offer.theme());
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Preview stamp failed for door {}", step, e);
+            clearCellSync(level, entranceOrigin, List.of(record.stagingCellOrigin));
+            forceLoad(level, Set.of(entranceOrigin), false);
+            return false;
+        }
+
+        // Replace the selected door with an iron-bars window. The selector
+        // door for this step is at a fixed offset within the door slot; the
+        // simplest approach is to fill the entire door slot with bars, since
+        // the other two doors are still selector doors and this one is now a
+        // window.
+        RoomBuilder.windowDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
+
+        record.previewPlan = plan;
+        record.previewCellOrigin = entranceOrigin;
+        return true;
+    }
+
+    /**
+     * (M56) Purges the current preview cell and restores the selector door
+     * that was replaced by the window. No-op if no preview is active.
+     */
+    static void clearPreview(ServerLevel level, InstanceRecord record) {
+        if (record.previewCellOrigin == null) {
+            return;
+        }
+        clearCellSync(level, record.previewCellOrigin, List.of(record.stagingCellOrigin));
+        forceLoad(level, Set.of(record.previewCellOrigin), false);
+        // Restore the selector door by re-placing all three selector doors.
+        // The window was in the full door slot, so this overwrites it.
+        RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
+                record.roomDungeonDoor);
+        record.previewPlan = null;
+        record.previewCellOrigin = null;
+    }
+
+    /**
+     * (M56) Commits the current preview: stamps the rest of the dungeon
+     * around the already-stamped entrance cell, replaces the window with a
+     * walkable doorway, and starts the run. The plan stored by
+     * {@link #previewDoor} is re-used so the entrance cell is the exact one
+     * the party previewed.
+     *
+     * @return {@code true} if the dungeon was stamped and the run started
+     */
+    static boolean commitDoor(MinecraftServer server, ServerLevel level,
+                              InstanceRecord record, Keystone.Offer offer, int step) {
+        DungeonPlan plan = record.previewPlan;
+        if (plan == null || record.previewCellOrigin == null) {
+            return false;
+        }
+
+        // M2/M3: clear the previous dungeon before generating the next one.
+        RunLifecycle.resetForNextDungeon(server, record);
+
+        // PD-13: release the previous dungeon's force-load tickets.
+        if (record.layout != null) {
+            forceLoad(level, record.layout.geometry().chunks(), false);
+        }
+
+        DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
+        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+
+        // Recompute the plan origin the same way previewDoor did.
+        int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
+        int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
+        BlockPos planOrigin = CellGeometry.offsetInDirection(
+                record.stagingCellOrigin, dungeonDoor, RoomGeometry.CELL)
+                .offset(minX * RoomGeometry.CELL, 0, minZ * RoomGeometry.CELL);
+        PlanGeometry geometry = PlanGeometry.of(planOrigin, plan.cells());
+        forceLoad(level, geometry.chunks(), true);
+
+        // Clear the staging room's bedrock face so the dungeon connects.
+        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDoor);
+
+        InstanceLayout layout;
+        try {
+            // stampBehindLobby skips the entrance cell since it was already
+            // stamped by previewDoor. The owner's room overlay is skipped
+            // too (the safe room is despawned; the entrance is a dungeon room).
+            layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
+                    null, offer.theme());
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Commit stamp failed behind the staging room at {}",
+                    record.stagingCellOrigin.toShortString(), e);
+            List<BlockPos> keepRoom = List.of(record.stagingCellOrigin);
+            for (BlockPos cellOrigin : geometry.cellOrigins()) {
+                if (cellOrigin.equals(record.stagingCellOrigin)) {
+                    continue;
+                }
+                clearCellSync(level, cellOrigin, keepRoom);
+            }
+            forceLoad(level, geometry.chunks(), false);
+            return false;
+        }
+
+        // Replace the window with a walkable doorway.
         RoomBuilder.openDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDoor);
-        // M18 9.2: the punched doorway gets physical double doors (Y=1..2) with
-        // a wall lintel (Y=3), so mobs from the first dungeon cell cannot walk
-        // straight into the staging room. They are plain vanilla doors the
-        // player opens by hand; selectorDoorStep no longer claims clicks once
-        // the run is underway, so right-clicking falls through to vanilla.
         RoomTemplateGenerator.placePostSelectionDoors(level, record.stagingCellOrigin, dungeonDoor);
 
         record.layout = layout;
@@ -1025,75 +1084,32 @@ final class Instances {
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
         record.freeDoor = offer.free();
+        record.previewPlan = null;
+        record.previewCellOrigin = null;
 
-        // M11: a boss-themed run gets its one proof encounter, spawned now so
-        // it is already standing in the terminal cell the first time anyone
-        // can reach it, never spawned reactively on pad contact.
+        // M11: a boss-themed run gets its one proof encounter.
         AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(offer.theme());
         if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS) {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
-        // This InstanceRecord is being reused for a second run behind the same
-        // lobby (M3: finish a dungeon, choose again without ever leaving), not
-        // replaced. Every piece of state completeRun/the exit-pad watcher use to
-        // recognise "this member already finished" belongs to the run that just
-        // ended, not the one about to start -- left alone, the exit-pad watcher
-        // finds the owner already in record.completed the moment they touch the
-        // new terminal pad and routes them through plain exit() instead of
-        // completeRun(), which reads as being ejected right at the finish line.
-        // record.expiresAtTick carries the same risk on a longer timeline: it is
-        // the previous run's reward-room grace deadline, computed from a
-        // completion that already happened, and left ticking it can expire
-        // *during* the new run and retire the whole record out from under the
-        // player. rewardChests stays at its old value for the same reason a
-        // stale keystoneReturned would let a second completion slip past
-        // returnKeystone's once-only guard.
         record.clearPreviousRunState();
 
-        // The previous run's bar, if this record is being reused for a second
-        // dungeon behind the same lobby. Dropping the reference without closing it
-        // first leaves a dead ServerBossEvent with every member still attached --
-        // nothing ticks it again, so it hangs on their screens frozen at whatever
-        // the old run's last reading was, beside the new one.
         if (record.timer != null) {
             record.timer.close();
             record.timer = null;
         }
         if (!record.untimed) {
-            // M12: door 1 gets its own flat, generous clock instead of the
-            // room-count formula doors 2/3 use. "Farming" should not feel
-            // like racing.
             int seconds = record.freeDoor ? PocketDungeonsConfig.door1TimerSeconds()
                     : KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
                             PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength());
             record.timer = new RunTimer(layout.keystoneLevel(), seconds, layout.roomCount());
         }
 
-        // M19: the run is underway, so the pending door selection is over.
-        // The bulbs come out of the wall rather than going dark, back to the
-        // plain stone brick they displaced: two of the three sat in the course
-        // the doorway punched just above now uses for its lintel, and there is
-        // nothing left for the third to indicate. The door screen switches to
-        // the run context (level, theme, affixes, clock); selectedStep stays 0
-        // until the next lobby re-arms the room.
         record.selectedStep = 0;
         RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
-        // Everything admit() hands a player off the record's layout has to be
-        // handed out again here, and this is the only place it can be.
-        //
-        // <p>Lobby-first entry (M2/M3 3.2.3) inverted the order the old flow had:
-        // admit() runs at enterLobby, when the record carries a one-cell lobby
-        // layout with no level, no affixes and no clock, and the real run does not
-        // exist until a door is chosen -- here. admit()'s two side effects were
-        // both written against the old "enter() builds the whole dungeon, then
-        // admits" order and are silently skipped by the new one: the boss bar is
-        // created with nobody watching it (the clock runs, expires and can end the
-        // run without a single player ever having seen it), and an ominous run
-        // never grants its Trial Omen. Re-running them for every member standing
-        // in the lobby is what puts the two orders back in agreement.
         for (UUID member : record.members.keySet()) {
             ServerPlayer inside = server.getPlayerList().getPlayer(member);
             if (inside == null) {
@@ -1102,9 +1118,6 @@ final class Instances {
             if (record.timer != null) {
                 record.timer.addPlayer(inside);
             }
-            // Clear before applying, not instead of: a second run behind the same
-            // lobby can be plain where the first was ominous, and applyTrialOmen
-            // returns early on a plain run rather than taking the old effect away.
             clearTrialOmen(inside);
             applyTrialOmen(inside, record);
         }
@@ -1128,6 +1141,8 @@ final class Instances {
      */
     static void resetToLobby(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        // M56: clear any active door preview before resetting.
+        clearPreview(level, record);
         if (level == null) {
             return;
         }
@@ -2289,6 +2304,16 @@ final class Instances {
     static void forceLoad(ServerLevel level, List<ChunkPos> chunks, boolean forced) {
         for (ChunkPos chunk : chunks) {
             level.setChunkForced(chunk.x(), chunk.z(), forced);
+        }
+    }
+
+    /**
+     * (M56) Force-loads the chunks containing the given cell origins. Used by
+     * the door preview to load just the entrance cell's chunk.
+     */
+    static void forceLoad(ServerLevel level, Set<BlockPos> cellOrigins, boolean forced) {
+        for (BlockPos origin : cellOrigins) {
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, forced);
         }
     }
 

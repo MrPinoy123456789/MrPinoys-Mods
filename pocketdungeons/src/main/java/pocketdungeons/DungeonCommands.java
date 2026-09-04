@@ -375,12 +375,15 @@ final class DungeonCommands {
 
     /**
      * {@code /dungeon choose <1|2|3>}: settle a completed run's door offer.
-     * Player-only, not op-gated -- see {@link RunLifecycle#chooseOffer}, which does
-     * the real validation against {@link DungeonLog} rather than trusting the
-     * click that sent the player here.
+     * Player-only, not op-gated. M56: this now does preview then commit in
+     * sequence, since the command bypasses the physical door-click and
+     * lever-pull flow.
      */
     private static int choose(ServerPlayer player, int step) {
-        return RunLifecycle.chooseOffer(player, step) ? 1 : 0;
+        if (!RunLifecycle.previewDoor(player, step)) {
+            return 0;
+        }
+        return RunLifecycle.commitDoor(player) ? 1 : 0;
     }
 
     /**

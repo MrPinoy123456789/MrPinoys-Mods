@@ -334,6 +334,14 @@ final class RitualListener {
                         DungeonScreen.refusalContent("Select a door first"));
                 return InteractionResult.SUCCESS_SERVER;
             }
+            // M56: if no preview is active, the player selected a door but
+            // the preview failed or never ran. Refuse the commit.
+            if (record.previewPlan == null) {
+                Chime.refused(player);
+                DungeonScreen.updateDoor((ServerLevel) level, record,
+                        DungeonScreen.refusalContent("Preview the door first"));
+                return InteractionResult.SUCCESS_SERVER;
+            }
             String refusal = doorRefusal(player, record.selectedStep);
             if (refusal != null) {
                 Chime.refused(player);
@@ -341,10 +349,8 @@ final class RitualListener {
                         DungeonScreen.refusalContent(refusal));
                 return InteractionResult.SUCCESS_SERVER;
             }
-            if (RunLifecycle.chooseOffer(player, record.selectedStep)) {
+            if (RunLifecycle.commitDoor(player)) {
                 Chime.runStarts(player);
-                // The run started; generateBehindLobby reset the selection,
-                // darkened the bulbs and switched the screen to the run.
                 return InteractionResult.SUCCESS_SERVER;
             }
             Chime.refused(player);
@@ -380,12 +386,29 @@ final class RitualListener {
             RoomTemplateGenerator.setBulb(level, o, wall,
                     RoomTemplateGenerator.bulbAlongForStep(step), true);
         }
+        // M56: generate the physical preview for this door. The preview
+        // stamps only the entrance cell and replaces the door with a window.
+        // A failed preview leaves the door screen on the text preview.
+        if (!RunLifecycle.previewDoor(player, step)) {
+            // Restore the previous selection state if the preview failed.
+            record.selectedStep = previous;
+            if (previous >= 1 && previous <= 3 && previous != step) {
+                RoomTemplateGenerator.setBulb(level, o, wall,
+                        RoomTemplateGenerator.bulbAlongForStep(previous), true);
+            }
+            if (step != previous) {
+                RoomTemplateGenerator.setBulb(level, o, wall,
+                        RoomTemplateGenerator.bulbAlongForStep(step), false);
+            }
+            DungeonScreen.updateDoor(level, record,
+                    previous >= 1 && previous <= 3
+                            ? DungeonScreen.previewContent(level, record.owner, previous)
+                            : DungeonScreen.idleContent(level, record.owner));
+            return;
+        }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
         Chime.doorSelected(player, step);
         TaskTracker.progress(player, TaskTracker.Task.SELECT_DOOR, 1);
-        // A door the lever will refuse says so now, on the browse, rather than
-        // waiting for the pull: the walk between doors is the browse, so the
-        // answer to "can I afford this one" belongs to the same click.
         if (doorRefusal(player, step) != null) {
             Chime.doorLocked(player);
         }

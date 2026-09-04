@@ -345,6 +345,17 @@ final class RoomBuilder {
         doorSlot(level, cellOrigin, door, WALL);
     }
 
+    /**
+     * (M56) Replaces the canonical door slot on {@code wall} with iron bars,
+     * the preview window material. The slot is filled with bars so the party
+     * can see into the previewed first room without walking in. Bedrock is
+     * placed behind the bars (on the staging room side) by the caller so the
+     * window cannot be broken.
+     */
+    static void windowDoor(ServerLevel level, BlockPos cellOrigin, Direction door) {
+        doorSlot(level, cellOrigin, door, Blocks.IRON_BARS.defaultBlockState());
+    }
+
     private static void doorSlot(ServerLevel level, BlockPos cellOrigin, Direction door, BlockState state) {
         for (int y = 1; y <= DOOR_HEIGHT; y++) {
             for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {

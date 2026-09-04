@@ -79,6 +79,56 @@ final class LayoutStamper {
         return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme);
     }
 
+    /**
+     * (M56) Stamps only the entrance cell of the plan, for the door preview.
+     * The entrance cell's template and room content are placed, but no
+     * connectors, no bedrock envelope, and no owner room overlay. The caller
+     * places a window in the staging room's door slot so the party can see
+     * in. On commit, {@link #stampBehindLobby} stamps the rest of the cells
+     * (skipping the entrance, since it is already stamped) and applies
+     * connectors and bedrock.
+     *
+     * @return the {@link PlanGeometry} for the plan, so the caller knows the
+     *         entrance cell's world origin and the full geometry for later
+     *         force-loading
+     */
+    static PlanGeometry stampEntranceOnly(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                                          int keystoneLevel, Set<Affix> affixes, String theme) {
+        PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
+        StructureTemplateManager manager = level.getStructureManager();
+        RoomManifest manifest = RoomManifest.current();
+        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
+        PlanCell entranceCell = plan.entrance();
+
+        Set<PlanCell> voidedCells = computeVoidedCells(plan, affixes);
+
+        DungeonPlan.PlacedRoom placed = plan.rooms().get(entranceCell);
+        if (placed == null) {
+            throw new IllegalStateException("plan has no room for entrance cell " + entranceCell);
+        }
+        RoomManifest.Entry entry = manifest.byName(placed.name());
+        if (entry == null) {
+            throw new IllegalStateException("manifest has no room named " + placed.name());
+        }
+
+        BlockPos cellOrigin = geometry.cellOrigin(entranceCell);
+        ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
+        String processors = entry.meta.processors != null ? entry.meta.processors
+                : (runTheme == null) ? null : runTheme.meta().processors;
+        List<BlockPos> spawns = TemplateStamper.place(
+                level, manager, cellOrigin, Identifier.parse(entry.meta.template),
+                placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
+                processors == null ? null : Identifier.parse(processors));
+
+        int depth = plan.depths().getOrDefault(entranceCell, 0);
+        String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
+        RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
+                depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
+                voidedCells.contains(entranceCell), false, entry.meta.content);
+
+        return geometry;
+    }
+
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<Affix> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
