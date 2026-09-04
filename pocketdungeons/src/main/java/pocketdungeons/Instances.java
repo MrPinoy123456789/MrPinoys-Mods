@@ -937,23 +937,37 @@ final class Instances {
         // Purge any existing preview before generating the new one.
         clearPreview(level, record);
 
-        long seed = level.getRandom().nextLong();
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
         String bagId = DungeonLog.forServer(server).bagOf(record.owner);
         Set<String> bagTags = BagTags.seed(bagId, record.members.size());
-        LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
-                seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
-                PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
-                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
-                dungeonDoor, bagTags);
 
-        DungeonPlan plan = outcome.plan();
+        // Try up to 4 base seeds; each one runs the full attempt budget
+        // inside LayoutPlanner.plan. A single base seed can fail all its
+        // attempts on an unlucky room-library interaction, but a different
+        // seed reshuffles the shape entirely.
+        DungeonPlan plan = null;
+        long lastSeed = 0;
+        int lastAttempts = 0;
+        String lastReason = null;
+        for (int round = 0; round < 4 && plan == null; round++) {
+            long seed = level.getRandom().nextLong();
+            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
+                    seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
+                    PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
+                    PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                    PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
+                    dungeonDoor, bagTags);
+            plan = outcome.plan();
+            lastSeed = outcome.finalSeed();
+            lastAttempts = outcome.attemptsUsed();
+            lastReason = outcome.failureReason();
+        }
+
         if (plan == null) {
             PocketDungeonsMod.LOG.warn(
-                    "Planning failed for door preview seed {} after {} attempts ({})",
-                    seed, outcome.attemptsUsed(), outcome.failureReason());
+                    "Planning failed for door preview after 4 rounds of {} attempts each (last: seed {}, {})",
+                    PocketDungeonsConfig.planAttemptBudget(), lastSeed, lastReason);
             return false;
         }
 

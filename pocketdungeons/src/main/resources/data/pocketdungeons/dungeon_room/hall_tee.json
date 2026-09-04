@@ -1,7 +1,7 @@
 {
   "template": "pocketdungeons:rooms/hall_tee",
   "footprint": [1, 1],
-  "roles": ["encounter", "loot", "corridor"],
+  "roles": ["encounter", "loot", "corridor", "exit"],
   "weight": 1,
   "minDepth": 0,
   "maxPerDungeon": -1
