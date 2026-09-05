@@ -189,6 +189,31 @@ bite.
     geometry. Note that the passing case does not print test names, so to prove
     a new test actually ran, break its assertion once and read the failure line.
 
+22. **A stale `world/session.lock` produces `BUILD SUCCESSFUL` with nothing
+    checked, not a build failure.** `dungeonIntegrationTest` (M62) launches a
+    real dedicated server against an isolated run directory; if that
+    directory's world is already locked by a leftover process, `Main.main`
+    throws before `MinecraftServer` is ever constructed, `SERVER_STARTED`
+    never fires, `onInitialize`'s checks never run, and the JVM exits 0
+    anyway. The task reports green having verified nothing. Confirmed by
+    reproducing it: no assertion ran, yet the gradle task passed. There is no
+    generic fix here beyond treating a scratch run directory as disposable —
+    delete it and retry rather than trusting a green result from a directory
+    that was already in use.
+
+23. **Never call `System.exit()` from the server thread itself.** Doing so
+    inside a `ServerLifecycleEvents.SERVER_STARTED` (or any other) callback
+    that runs on the server thread deadlocks the process rather than exiting
+    it: Minecraft's own JVM shutdown hook needs the server thread to notice a
+    stop flag and unwind its tick loop before the hook returns, and a
+    `System.exit` call from that same thread blocks inside the hook it is
+    waiting on. Confirmed empirically in `DungeonIntegrationEntrypoint`
+    (M62): the process hung for 36 minutes with no further log output after
+    logging its own "PASS", until killed by hand. The fix is to call
+    `System.exit` from a separate (daemon) thread, so the callback returns
+    and the server thread reaches its normal tick loop, where the shutdown
+    hook can actually make progress against it.
+
 ---
 
 20. **The doorway plane belongs to the manifest, not to the template.**

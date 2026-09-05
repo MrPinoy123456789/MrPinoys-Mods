@@ -1826,3 +1826,134 @@ safe door.
    between floors, and the bag loot carries through untouched. Every floor
    and both rooms are inside `pocketdungeons:void`, so the dimension-based
    invariant never fires. There is no per-floor code and none is needed.
+
+---
+
+## 36. M62 acceptance index
+
+Append-only. This is the index M62 (`d3-handoffs/M62-handoff-completed.md`)
+asks for: one disposition per existing subsection above, plus the M45–M61
+omissions the checklist never got rows for. Built from this file's section
+and subsection headers plus a close read of sections 24, 26 and 35, per
+M62's own "do not re-read the whole file" instruction; it is a routing index
+for follow-up work, not a fresh verification pass over every row.
+
+**Disposition legend**
+
+- `current` — still an outstanding live-only check; no automated coverage
+  found, no reason to think it has been exercised since it was written.
+- `superseded` — replaced by a later section; successor named.
+- `passed` — headless evidence now exists; evidence named.
+- `blocked` — cannot be dispositioned without more investigation than this
+  pass could do without re-reading the whole file, or waits on something
+  external. Not a claim that the check fails.
+
+### Sections 1–23 (M0–M19)
+
+Everything in this range is `current`: live-client-only checks (screen,
+sound, or a right-click, per DISCOVERIES traps 10 and 26), and this pass
+found no test class or later section that has since covered any of them
+headlessly. One exception:
+
+- **3.1 Calling card** — `superseded` by **24.5 The calling card is gone**.
+  M20 deleted the calling-card item and command outright; 3.1 asks to
+  confirm behaviour of an item that M20's own successor check (24.5) asks
+  to confirm no longer exists.
+- **8.4 Spirit Stone permanence** — `blocked`, explicitly on an external
+  mod (`spiritwolves`) per its own title, not on anything this milestone
+  can resolve.
+- **14.4 High-level affix stacking** — `current`, but its own title already
+  marks it a playtest note rather than a pass/fail row; carried forward
+  as-is.
+
+### 24. Visiting rework: lobby directory (M20)
+
+24.1–24.5: `current`. The header for this section already separates what
+it covers (`LobbyBrowserTest`, `DungeonLogTest` — codec round trip, row
+filter, button payloads) from what it doesn't (the screen itself); the
+five rows above are exactly the "doesn't" part, unchanged.
+
+### 25. UX consolidation (M21)
+
+25.1–25.5: `current`, same shape as 24: `LodestoneMenuTest` covers option
+lists and payloads headlessly, the screens themselves do not.
+
+### 26. Sound cues (M22)
+
+26.1–26.4: `current`. The section's own header states client-side playback
+cannot be verified headlessly at all; nothing has changed that.
+
+### 27. M18–M22 review fixes (live)
+
+27.1–27.2: `current`. Live fixes to live-only rows stay live-only.
+
+### 28–34
+
+`current` throughout (28.1–28.2, 29.1–29.4, 30.1–30.5, 31.1–31.2, 32.1–32.4,
+33.1–33.2, 34.1–34.3). All are screen, click or playtest checks per their
+own text; none named a headless successor.
+
+### 35. Stash and swap (M46)
+
+- **35.1 The real dimension key** — `passed` (partial). Evidence:
+  `dungeonIntegrationTest` (M62), which boots a real dedicated server
+  against this project's own bundled datapack (not `GameTestServer`, which
+  DISCOVERIES trap 18 already rules out for this) and asserts
+  `server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL)` is non-null, then
+  forces a save and confirms `world/data` exists on disk. That is the
+  dimension-key half of 35.1's three steps. The other two — the inventory
+  actually emptying into a keystone-only hand, and `/dungeon exit`
+  restoring it — need a real player and stay `current`.
+- **35.2–35.4** — `current`, explicitly out of scope for M62 by its own
+  constraints ("M62 does not run [corruption tests]; M63 does"). M63
+  inherits these as its custody and fault scenarios.
+- **35.5–35.8** — `current`. Right-click and cursor-drag checks
+  (DISCOVERIES trap 10) and one deliberate non-check (35.8).
+
+### M45–M61 omissions
+
+`COMPLETED-MILESTONES.md` jumps from M44 straight to M61; M45–M60's scope
+(`ROADMAP.md` "M45 through M55: Situations and Bags", plus the situation
+catalogue in `SITUATIONS_AUDIT.md`) never got consolidated entries or live
+rows here. The seven rows below are the ones M62's own handoff named by
+name; each is `blocked` pending someone locating the actual mechanic and
+writing real steps, not a claim that the feature is broken:
+
+- **Floor bank timing** — `blocked`. Likely the door-offer bank/timer
+  interaction from section 9 and 16, re-scoped under the M48 omen system
+  (`ROADMAP.md`: "the global clock is replaced by omen"); no section above
+  currently names omen at all, so there is nothing existing to supersede.
+- **Recipes** — `blocked`. Section 7 (M7) covers the original theme/recipe
+  system; unclear whether the situations round (M49 bag loot tables, M54
+  Cube recipes) added recipes this file has never listed.
+- **Frozen preview membership** — `blocked`. Likely `/dungeon admin
+  buildroom`'s preview state (section 28.1); "frozen" and "membership"
+  aren't vocabulary this file uses anywhere in sections 1–35, so this needs
+  someone to find the actual command/state before a row can be written.
+- **Post-selection tool depletion** — `blocked`. Reads like a limited-use
+  tool consumed after a selection (buildroom/saveroom again, or a
+  situation's own tool), same gap as above.
+- **Return paths** — `blocked`, but with a concrete lead: M61's
+  `ReturnPathValidator.validate` structurally checks a climbable route
+  (ladder, water source column, soul sand bubble column, or a solid-block
+  staircase) for any `spanY > 1` room at stamp time, and refuses the stamp
+  if none is found. That is headless coverage of "does a route exist at
+  all", already proven for Slime Pit's pilot ladder shaft
+  (`plans/COMPLETED-MILESTONES.md` M61). What is still `current`, not
+  `passed`, is a player actually falling in and climbing back out — the
+  validator checks block geometry, not that a player's hitbox and jump
+  height can use it.
+- **Room preservation** — `blocked`, same lead. M61 extended teardown
+  (`InstanceRegistry.maximalBounds`, `InstanceTeardown.PendingClear`,
+  `Instances.clearCellSync`, `RoomProtection.isShell`) to cover a two-story
+  room's full vertical extent. No live check above confirms a two-story
+  room actually tears down clean (no orphaned lower-story blocks, no
+  leftover bedrock) on purge or leadership change (sections 2.5, 2.6).
+- **Silence about room movement** — `blocked`, and this one surfaced a real
+  open question rather than just a missing row: `NEXT_ROADMAP.md` states
+  "no sound for room movement" as a constraint for later work, but section
+  **26.3** already documents a shipped cue — `STONE_PLACE` plays for the
+  owner when the room re-stamps after a run completes. Whoever picks this
+  row up needs to reconcile whether 26.3's cue is the thing "silence" means
+  to remove, or whether "room movement" names something else (relocation
+  between cells?) that hasn't shipped yet.

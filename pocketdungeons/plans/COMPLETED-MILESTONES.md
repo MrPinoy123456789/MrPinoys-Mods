@@ -2661,3 +2661,189 @@ yet, headless or live. A future milestone that wants real coverage of
 those would need to build genuine test infrastructure first (a fake or
 harnessed `ServerLevel`, and a way to bind item components without a full
 server), not just write more tests against what exists today.
+
+
+## M61: Vertical room span (spec 13)
+
+A room may declare `spanY: 2` to own the 16 x 16 x 9 volume directly beneath
+its own cell, private to it, with no doorways and no presence in the layout
+graph. The planner stays two dimensional and the door mask stays four bits.
+
+### Naming
+
+The field is `spanY`, paralleling `PlanGeometry.spanX`/`spanZ`. The user
+rejected the handoff's `stories` name and asked for something compatible
+with a future vertical layout dimension. `spanY` reads as "the room's span
+along the y axis of the layout," which is the direction the user described.
+
+### Constants
+
+`RoomGeometry.STORY_HEIGHT = CEILING_Y + 2` is the floor-to-floor pitch.
+`RoomGeometry.MAX_SPAN_Y = 2` is the largest value `spanY` may take.
+`RoomGeometry.storyOffset(int spanY)` returns `(spanY - 1) * STORY_HEIGHT`,
+the number of blocks a multi-story room's capture origin sits below its
+cell origin. It lives on `RoomGeometry` (pure constants, no Minecraft
+bootstrap) rather than `RoomTemplateGenerator` so tests and geometry helpers
+can call it without triggering the template generator's static initializer.
+
+### Schema
+
+`DungeonRoomMeta` gains a `spanY` field (int, default 1). The parser
+rejects values outside 1..MAX_SPAN_Y with the room named, following the
+same pattern as `access` and `window`. The convenience constructor chain
+defaults spanY to 1.
+
+### Template capture
+
+`RoomTemplateGenerator.buildAndQueue` computes `captureOrigin` and `size`
+from `spec.spanY`. For spanY=1 the origin is the cell origin and the size
+is `TEMPLATE_SIZE` (16 x 7 x 16), byte-identical to before. For spanY=2
+the origin moves down by `STORY_HEIGHT` and the height grows by the same
+amount. `buildLowerStories` stamps a plain shell for each lower story and
+fills the over-ceiling gap (the 2-block space between one story's ceiling
+and the story above's floor) with solid wall material. The room's decor
+carves shaft holes through this filler.
+
+### Door slot offset (trap 20)
+
+`RoomManifest.canonicalDoorSlots` offsets template-local door y by
+`storyOffset(meta.spanY)`. A spanY=2 template's doors sit at y=9..11
+(template-local), not y=1..3, because the capture origin moved down. The
+manifest validation reads at the offset position. One-spanY rooms have
+offset 0 and are unaffected.
+
+### Bedrock envelope
+
+`BedrockEnvelope.apply` takes a per-cell spanY map from `LayoutStamper`.
+The sub-floor bedrock drops to under the lowest story. Wall rings extend
+from the new sub-floor to the unchanged over-ceiling. The standalone
+`applyToCell(reservedSides)` (lobby and relocated rooms) is unchanged
+because those are always single-story.
+
+### Bounds and teardown
+
+`PlanGeometry` gains a `storyFloorOffset` field, computed by
+`LayoutStamper` from the deepest spanY in the layout. `bounds()` lowers
+its floor by this offset. `InstanceRegistry.maximalBounds` lowers by the
+max possible offset (layout-less teardown covers any two-story room).
+`InstanceTeardown.PendingClear` and `Instances.clearCellSync` clear the
+max possible vertical extent. `CellGeometry.insideAnyCell` and
+`RoomContent.inCell` extend their y range downward by the same max.
+`RoomProtection.isShell` checks every possible story's shell pattern.
+`Instances.dungeonCellLookupAt` widens its y guard to cover lower stories.
+`TemplateStamper.place` derives the story offset from the template's own
+size and places from the lowered origin.
+
+### Return path validator (spec 13.4)
+
+`ReturnPathValidator.validate` runs at stamp time for any room with
+spanY > 1. It inspects the stamped blocks structurally (not metadata) for a
+climbable route from the lowest story floor to the upper floor. Supported
+patterns: ladder column, water source column, soul sand bubble column, and
+staircase of solid blocks (flood fill). If no route is found, the stamp is
+refused with an error naming the room.
+
+### Pilot room
+
+Slime Pit (`KnowledgeSpecs.slimePit()`) declares `spanY(2)`. The upper
+level keeps the slime block floor and the north-wall ledge. The lower
+level has a chest at (8, -8, 8). A ladder shaft at (8, z=1) against the
+north wall connects the two: the player drops in, loots the chest, and
+climbs the ladder back. The `slime_pit.json` metadata adds `"spanY": 2`.
+
+### Verification
+
+- `./gradlew.bat build --offline`: all tests pass.
+- `/dungeon admin gentemplates`: 52 templates generated, no errors.
+- Server restart: "Loaded 49 dungeon rooms" (0 rejected).
+- `/dungeon admin coverage`: all 53 (mask, role) pairs satisfied.
+- `/dungeon admin plansurvey 30`: 30 of 30 succeeded.
+- Door jigsaw audit: every room has the correct count (multiples of 6 per
+  door edge, i.e. 3 per door position).
+- Byte-identical check: 48 of 52 templates match the pre-M61 backup. The
+  4 diffs are slime_pit (expected, spanY=2) and 3 rooms with pre-existing
+  entity UUID/Motion non-determinism (rising_lava, rotation_lock,
+  the_altar), not caused by M61.
+- Live verification (falling into the pit and climbing the ladder) requires
+  a Minecraft client and is not headless-verified.
+
+## M62: Establish executable acceptance
+
+### Harness boundary
+
+M62 proves runner plumbing, not custody or fault coverage. Two dedicated
+server routes now exist side by side:
+
+- `runGameTest` (`GameTestServer`): fast, but bakes an empty `LEVEL_STEM`
+  registry against the flat world preset, so `pocketdungeons:void` is never
+  created there (DISCOVERIES trap 18). `InventorySwapGameTest` and
+  `HarnessGameTest` live here.
+- `dungeonIntegrationTest` (a real `loom.runs` dedicated-server
+  configuration, aliased from a thin `verification`-group task): slower,
+  boots an ordinary server against this project's own bundled datapack in
+  an isolated `run-dungeonIntegrationTest` directory, and does create the
+  real dimension. `DungeonIntegrationEntrypoint` is its only entrypoint,
+  registered under the `pocketdungeons-gametest` module's `main` key so it
+  never reaches the production jar, and it is a no-op outside its own task
+  (gated on the `pocketdungeons.integrationtest` system property, so
+  `runServer`/`runGameTest` load it harmlessly).
+
+`DungeonTestFixtures` adds shared plumbing for M63 to build on: bound
+`ItemStack` builders, a `corruptPrimaryStore`/`restorePrimaryStore` pair
+scoped to `world/data` only, a guaranteed-cleanup mock-player fixture, and
+`requireLevel`. Nothing in it exercises a fault yet; M62 does not claim
+M44's or M46's missing tests are now covered.
+
+### A deadlock found and fixed during verification
+
+The first `dungeonIntegrationTest` run reported `BUILD SUCCESSFUL` while the
+server had actually failed to start at all — `run-dungeonIntegrationTest`'s
+`world/session.lock` was held by a stale run, `MinecraftServer` never got
+created, `SERVER_STARTED` never fired, and the task exited 0 having checked
+nothing. That is the exact false positive M62 exists to make impossible, so
+it was treated as a real bug rather than an environment quirk to route
+around: the scratch directory was cleared and the run repeated clean.
+
+The repeat run then hung indefinitely instead: `DungeonIntegrationEntrypoint`
+called `System.exit(exitCode)` directly from inside the `SERVER_STARTED`
+callback, which runs on the server thread. Minecraft's own JVM shutdown hook
+needs that same thread to notice a stop flag and unwind its tick loop before
+the hook can return, so calling `System.exit` synchronously from the server
+thread blocks it inside the hook it is waiting on — confirmed empirically
+(36 minutes, no further log output, until the process was killed by hand).
+Fixed by moving the `System.exit` call onto a separate daemon thread, so the
+callback returns, the server thread proceeds into its normal tick loop, and
+the shutdown hook's wait resolves. Re-verified clean: `BUILD SUCCESSFUL in
+20s`, log shows `pocketdungeons:void` saved and `dungeonIntegrationTest:
+PASS`, and no java process was left running afterward.
+
+### Break-one-assertion proof
+
+`DungeonIntegrationEntrypoint.INVERT_DUNGEON_LEVEL_ASSERTION_FOR_PROOF`
+exists for the step 5 proof (invert, confirm the task goes red, restore to
+`false`); `false` is the only value that should ever be committed.
+
+### Acceptance index
+
+Appendix "36. M62 acceptance index" appended to `LIVE_TEST_PASS.md`: a
+disposition (`current`, `superseded`, `passed`, or `blocked`) for every
+existing subsection plus the seven M45–M61 omissions M62's handoff named
+by name (floor bank timing, recipes, frozen preview membership,
+post-selection tool depletion, return paths, room preservation, silence
+about room movement). One row moved to `passed`: 35.1's dimension-key half,
+on `dungeonIntegrationTest` evidence. One surfaced as a live tension worth
+a human decision rather than a missing row: "silence about room movement"
+finds `NEXT_ROADMAP.md` asking for no room-movement sound against a
+already-shipped `STONE_PLACE` cue in section 26.3.
+
+### Verification
+
+- `./gradlew.bat dungeonIntegrationTest --offline`: `BUILD SUCCESSFUL` in
+  20s. Log confirms `server.getLevel(pocketdungeons:void)` non-null on a
+  real dedicated server (not `GameTestServer`), a forced save, and
+  `world/data` present on disk afterward.
+- `./gradlew.bat build --offline`: full suite, including
+  `dungeonIntegrationTest` as a `check` dependency.
+- Production jar: `dungeonIntegrationTest`'s only entrypoint is registered
+  in `src/gametest/resources/fabric.mod.json`, not the main
+  `fabric.mod.json`, so it never ships.

@@ -46,6 +46,54 @@ fabricApi.configureTests {
     enableClientGameTests = false
 }
 
+// M62: a second run configuration, alongside the "gameTest" one above,
+// launching an ordinary dedicated server rather than GameTestServer. That
+// difference is the whole point: GameTestServer bakes an empty LEVEL_STEM
+// registry against the flat world preset and never creates a datapack
+// dimension (DISCOVERIES trap 18), so it can never load the real
+// pocketdungeons:void. An ordinary server run, pointed at this project's own
+// bundled datapack in an isolated run directory, does load it for real.
+//
+// This reuses Loom's own run-configuration machinery (the same mechanism
+// behind runServer and, via fabricApi.configureTests above, runGameTest)
+// rather than hand-assembling a KnotServer JavaExec from scratch, since that
+// machinery is Loom's supported extension point and already carries the
+// classpath and JVM wiring a real launch needs. It generates a task named
+// runDungeonIntegrationTest; dungeonIntegrationTest below is a thin alias so
+// this milestone's task list reads the same as every other JavaExec
+// verification task registered further down this file.
+loom.runs {
+    create("dungeonIntegrationTest") {
+        server()
+        name("Dungeon Integration Test")
+        source(sourceSets["gametest"])
+        runDir("run-dungeonIntegrationTest")
+        property("pocketdungeons.integrationtest", "true")
+    }
+}
+
+tasks.register("dungeonIntegrationTest") {
+    group = "verification"
+    description = "Boots an isolated real dedicated server and proves pocketdungeons:void " +
+        "loads outside the GameTestServer stand-in (LIVE_TEST_PASS 35.1)"
+    dependsOn("runDungeonIntegrationTest")
+}
+
+// A real dedicated server refuses to boot the world until eula.txt agrees, and
+// nothing else in this project's run directories writes that file for a fresh
+// scratch directory. runGameTest doesn't hit this because the gametest
+// module's own MainMixin forces Eula.hasAgreedToEULA whenever
+// fabric-api.gametest is set (DISCOVERIES trap 18); this run has no such
+// mixin (and isn't allowed one, per the one-mixin budget), so the file is
+// written by hand before every launch instead.
+tasks.named("runDungeonIntegrationTest") {
+    doFirst {
+        val runDir = file("run-dungeonIntegrationTest")
+        runDir.mkdirs()
+        file("$runDir/eula.txt").writeText("eula=true\n")
+    }
+}
+
 java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_25
@@ -232,6 +280,7 @@ tasks.test {
     dependsOn("shellPaletteTest")
     dependsOn("pipelineProof")
     dependsOn("layoutGraphTest")
+    dependsOn("dungeonIntegrationTest")
     // Situations round. These fail until their milestones land their classes.
     dependsOn("inventorySwapTest")
     dependsOn("bagTableTest")

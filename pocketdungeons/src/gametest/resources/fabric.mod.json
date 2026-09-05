@@ -10,6 +10,9 @@
     "fabric-gametest": [
       "pocketdungeons.gametest.HarnessGameTest",
       "pocketdungeons.gametest.InventorySwapGameTest"
+    ],
+    "main": [
+      "pocketdungeons.gametest.DungeonIntegrationEntrypoint"
     ]
   },
   "depends": {
