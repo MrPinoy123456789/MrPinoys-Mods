@@ -29,7 +29,29 @@ public class RoomStoreTest {
         testRestoreFromBackupFalseWithNoBackup();
         testResetBacksUpAndRemovesLiveFile();
         testResetFalseWithNoSavedRoom();
+        testSaveReportsSuccessAndFailure();
         System.out.println("RoomStoreTest passed");
+    }
+
+    /**
+     * (M63) A save says whether it landed.
+     *
+     * <p>Before this, {@link RoomStore#save} swallowed its {@code IOException}
+     * and returned void, so a caller about to clear the room cell could not
+     * find out that the room it was about to destroy had not been written. The
+     * failure is provoked the one way a plain temp directory allows: the
+     * destination path is occupied by a directory, so
+     * {@code Files.createDirectories} and the write cannot produce a regular
+     * file there.
+     */
+    private static void testSaveReportsSuccessAndFailure() throws IOException {
+        Path dir = freshDir();
+        check(RoomStore.save(dir, OWNER, tagged("good")), "a save that lands reports success");
+
+        Path blocked = freshDir().resolve("blocked");
+        Files.createDirectories(blocked.resolve(OWNER + ".dat"));
+        check(!RoomStore.save(blocked, OWNER, tagged("doomed")),
+                "a save that cannot write its file reports failure rather than swallowing it");
     }
 
     private static Path freshDir() throws IOException {

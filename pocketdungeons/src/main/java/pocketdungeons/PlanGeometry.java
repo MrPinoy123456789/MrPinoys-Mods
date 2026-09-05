@@ -26,9 +26,22 @@ import java.util.List;
  * not 40.
  */
 record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
-                    int spanX, int spanZ, List<PlanCell> cells) {
+                    int spanX, int spanZ, List<PlanCell> cells, int storyFloorOffset) {
 
     static PlanGeometry of(BlockPos origin, Collection<PlanCell> cells) {
+        return of(origin, cells, 0);
+    }
+
+    /**
+     * M61: as {@link #of(BlockPos, Collection)}, with {@code storyFloorOffset}
+     * giving how far below {@code origin.getY()} the deepest multi-story room
+     * in this layout reaches ({@code (spanY-1)*STORY_HEIGHT} for its deepest
+     * room, 0 for an all-single-story layout). It only widens
+     * {@link #bounds()} downward so teardown, entity sweeps and protection
+     * cover the lower stories; {@link #chunks()} is per cell and needs no
+     * change, since a lower story shares its cell's chunk column.
+     */
+    static PlanGeometry of(BlockPos origin, Collection<PlanCell> cells, int storyFloorOffset) {
         if (cells.isEmpty()) {
             throw new IllegalArgumentException("a layout must have at least one cell");
         }
@@ -49,7 +62,7 @@ record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
         ordered.sort(Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
 
         return new PlanGeometry(origin, minX, minZ,
-                maxX - minX + 1, maxZ - minZ + 1, List.copyOf(ordered));
+                maxX - minX + 1, maxZ - minZ + 1, List.copyOf(ordered), storyFloorOffset);
     }
 
     /** Floor corner of a cell, in world space. */
@@ -67,7 +80,7 @@ record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
     /** Everything the instance owns, for entity sweeps and teardown. */
     AABB bounds() {
         return new AABB(
-                origin.getX(), origin.getY(), origin.getZ(),
+                origin.getX(), origin.getY() - storyFloorOffset, origin.getZ(),
                 origin.getX() + spanX * RoomGeometry.CELL,
                 origin.getY() + RoomGeometry.CEILING_Y + 1,
                 origin.getZ() + spanZ * RoomGeometry.CELL);

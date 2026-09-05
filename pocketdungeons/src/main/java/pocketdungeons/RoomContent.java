@@ -430,11 +430,14 @@ final class RoomContent {
     }
 
     private static boolean inCell(BlockPos pos, BlockPos cellOrigin) {
+        // M61: a cell may own lower stories below its floor, so the y range
+        // extends downward by the max allowed story offset.
+        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
         int dx = pos.getX() - cellOrigin.getX();
         int dy = pos.getY() - cellOrigin.getY();
         int dz = pos.getZ() - cellOrigin.getZ();
         return dx >= 0 && dx < RoomGeometry.CELL
                 && dz >= 0 && dz < RoomGeometry.CELL
-                && dy >= 0 && dy <= RoomGeometry.CEILING_Y;
+                && dy >= -maxOffset && dy <= RoomGeometry.CEILING_Y;
     }
 }

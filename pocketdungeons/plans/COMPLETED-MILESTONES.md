@@ -2847,3 +2847,243 @@ already-shipped `STONE_PLACE` cue in section 26.3.
 - Production jar: `dungeonIntegrationTest`'s only entrypoint is registered
   in `src/gametest/resources/fabric.mod.json`, not the main
   `fabric.mod.json`, so it never ships.
+
+## M63: make custody and teardown recoverable
+
+Goal: no tested transition silently loses or duplicates a player's room,
+currency or either inventory. Delivered as executable coverage first, then
+the fixes that coverage forced.
+
+### What the tests found
+
+Four conservation bugs, each reproduced by a failing test before it was
+fixed.
+
+- **`Fuel.bank` minted currency.** It removed what it could from the
+  inventory, then credited the full amount it was asked for regardless, on
+  the documented assumption that the caller had already checked the carried
+  count. Banking 10 while carrying 3 credited 10. `spend` now returns what
+  `clearOrCountMatchingItems` actually took and `bank` credits only that.
+  The same hole let an untagged lookalike stack bank 64 fuel while being
+  consumed by nothing, which is PD-48 reopened through a different door.
+- **Teardown leaked slots permanently.** `processClears` and `drainClears`
+  both dropped the whole queue with a bare `pendingClears.clear()` when the
+  dungeon level was missing. A `PendingClear` is the only thing that ever
+  removes its slot from `InstanceRegistry.usedSlots`, so every abandoned
+  teardown leaked one slot for the life of the server, with nothing left to
+  free it. Both now route through `abandonClears`, which releases the slots
+  and logs why.
+- **A failed room save was invisible to the caller about to destroy the
+  room.** `RoomStore.save` swallowed its `IOException` and returned void.
+  It returns a boolean now, propagated through `RoomStore.capture`,
+  `RunLifecycle.saveRoom` and `saveRoomIfOwnerSync` to the two teardown
+  sites, which log a named recoverable record rather than clearing in
+  silence.
+- **An all-air capture could destroy a room twice.** This is PD-8 with the
+  race already lost: if a clear reaches the room cell first, `fillFromWorld`
+  succeeds and returns a blob of nothing but air. Writing it emptied the
+  live file, and the *next* save then copied that empty file over the good
+  backup. `capture` now refuses an all-air blob and leaves what is on disk
+  alone. A room is never legitimately empty, so this can only ever be a bug.
+
+### Recovery protocol
+
+Three layers, in the order they are consulted.
+
+1. **The tick invariant** (`InventorySwap.reconcile`). Converges on
+   "stashed if and only if in the dungeon dimension" regardless of which
+   events fired. Unchanged by this milestone except for where the journal
+   check sits.
+2. **The journal** (`InventoryJournal`, new). Repairs a stash record that
+   the saved data lost. Consulted once per player per server run, from
+   inside the reconciliation pass and *before* the invariant is read, so a
+   lost record cannot be mistaken for a player who was never stashed and
+   stashed a second time over an inventory already taken.
+3. **Lost and Found** (`LostAndFound`, unchanged). Plain text, for a human
+   with `/give`, when both of the above are gone. Spec 11.10 is explicit
+   that it is not an automatic restore; the journal is the automatic half
+   for the one case where automatic is provably safe.
+
+Operator steps when a player reports missing gear: check the server log for
+`Repaired a lost stash record` (layer 2 already handled it), then for
+`Could not save ... room before tearing down` (the room reverted to its
+previous save, and `/dungeon admin baserestore` is the next move), then read
+`world/data/pocketdungeons/lostandfound/<uuid>/` newest-first and `/give`
+from it.
+
+### Fault matrix
+
+| Fault | Behaviour | Covered by |
+|---|---|---|
+| Entry or exit with all 41 slots full and a stack on the cursor | Every item conserved across the round trip | `custody_game_test_full_inventory_round_trip_conserves_every_item` |
+| Orphan larger than the 35 slots it restores into | Overflow dropped at the player's feet, orphan cleared only once every stack is placed | `custody_game_test_orphan_overflow_is_dropped_not_voided` |
+| Room delivery that only partly fits | Delivered plus returned equals offered, caller's stacks not mutated | `custody_game_test_partial_room_delivery_returns_exactly_what_did_not_fit` |
+| Stash record lost to a non-atomic saved-data write | Repaired from the journal, idempotently | `custody_game_test_a_lost_stash_record_is_repaired_from_the_journal` |
+| Banking more fuel than is carried | Credits only what was removed | `economy_game_test_banking_more_than_carried_does_not_mint_fuel` |
+| Untagged lookalike offered as currency | Not fuel, not banked, not consumed | `economy_game_test_an_untagged_lookalike_is_not_fuel` |
+| Reward delivered to a full inventory | Dropped with components intact, exactly once | `economy_game_test_payout_overflow_drops_rather_than_voids` |
+| Stale station click after the gear left the player's hand | Nothing spent at either dialog station | `economy_game_test_stale_station_clicks_spend_nothing` |
+| Teardown queued with no dungeon level to write into | Queue abandoned, slots released | `teardown_game_test_a_clear_abandoned_for_amissing_level_still_frees_its_slot` |
+| Parent and child teardown drained together | Both slots released | `teardown_game_test_draining_clears_frees_every_slot_it_drops` |
+| Slot reuse after release | Freed slot is the next one allocated, claimed one is not | `teardown_game_test_afreed_slot_is_allocated_again_and_aclaimed_one_is_not` |
+| Room save that cannot write its file | Reports failure instead of swallowing it | `RoomStoreTest.testSaveReportsSuccessAndFailure` |
+
+### Residual limits
+
+Stated plainly, because the constraint on this milestone was to make no
+"failsafe under all circumstances" claim.
+
+- **Disk corruption of a completed file is not covered.** The journal and
+  the room store both write through a temp file and an atomic rename, so
+  neither can be left half written by a crash. Neither survives a
+  filesystem that loses or mangles a file it already accepted. Lost and
+  Found is the answer there, and it is manual by design.
+- **The saved data itself is still not atomic.** `SavedDataStorage` writes
+  `dungeon_log.dat` with a bare `NbtIo.writeCompressed` onto the live path
+  on `Util.ioPool()`: no temp file, no rename, no backup. Fixing that needs
+  a mixin into vanilla's storage layer and this mod's mixin budget is spent
+  (DISCOVERIES trap 9). The journal backstops the one field whose loss costs
+  a player their gear; every other field on the dungeon log (fuel balance,
+  task progress, bounties, extracted powers) would still be lost to a
+  truncated write, and would need either that mixin or a wider journal.
+- **The leaving branch is deliberately not journalled.** A void inventory
+  has two possible destinations, the room's containers or the orphan record,
+  and a full delivery clears the orphan on purpose. A recovery pass finding
+  a journal entry and an empty orphan could not distinguish "delivered, the
+  items are in a chest" from "the write was lost", and restoring on that
+  ambiguity would duplicate every delivered item. Inferring a committed
+  transfer from an absent record is the inference this milestone forbids.
+- **Process termination is not tested at every boundary.** The crash window
+  is staged in-process, by writing the journal record and then putting the
+  world into the state a kill would have left. A real kill between the
+  clear and the saved-data write, and the reload after it, remains a live
+  check.
+- **The gamble station's money path has no test.** `handleTrade` is a
+  private callback reachable only by clicking an SGUI merchant screen, and
+  DISCOVERIES trap 10 rules that out headlessly. Driving it artificially
+  would assert the harness, not the station. It is a `LIVE_TEST_PASS` row.
+- **Interoperability with another inventory-management mod is untested.**
+  Server-only branding is not compatibility, and nothing here proves a
+  second mod moving stacks mid-swap is safe.
+
+### Verification
+
+- `./gradlew.bat runGameTest --offline`: `All 19 required tests passed`, up
+  from 7. Every one of the twelve new scenarios was observed failing before
+  it passed, which is DISCOVERIES trap 19's rule for proving a gametest
+  actually runs rather than being silently unregistered.
+- `./gradlew.bat build --offline`: `BUILD SUCCESSFUL`, full suite including
+  `dungeonIntegrationTest`, run against a deleted scratch run directory so
+  trap 22's stale-lock false pass could not apply.
+
+## M64: Prove rooms as played, not merely selected
+
+Goal: every offered situation has a physically reachable answer and an
+honest resource contract. The selector's 6.6 subset invariant proves a
+cell's `requires` is satisfiable on the graph; M64 proves the blocks do
+what the metadata claims, and that spending an optional tool can never
+eliminate the mandatory exit.
+
+### What was added
+
+Four test classes, one production change to the supply tables, and one
+production visibility widening for testing.
+
+**`SituationSupplyTest`** (offline, pure JDK): synthetic manifests and
+shapes that pin down four cases where the selector's boolean capability
+model diverges from the physical world. Sapper TNT is finite, not
+reusable masonry. Shepherd leads do not guarantee a mob. Solo Pilgrim
+lacks `mob`, so Plate Pair falls back; a party of two grants `mob`
+through party size, so Plate Pair is selected. Removing a tool provider
+leaves the plan solvable: the mandatory spine does not depend on an
+optional finite tool.
+
+**`SituationGameTest`** (live, Fabric GameTest): `spentOptionalToolStillHasExit`
+places an iron door and a chest, arms an `ITEM_ANY` lock, opens the door
+with a stick, removes the stick, and asserts the door stays open. The
+door is the exit; the stick is the optional tool; the lock's
+persistence-after-spend rule is what keeps the exit open.
+
+**`HandlerGameTest`** (live, Fabric GameTest): block-level handler
+lifecycle coverage. Locks: `ITEM_KEY` opens for the correct item only,
+stale locks purge when their door is removed, duplicate arming replaces
+the old lock, and a cleared slot can be re-armed. RisingLavaHandler:
+pulling the lever drains the lava and drops the room from the active
+map, and a room whose lever is removed is purged as stale.
+CollapsingBridgeHandler: a room whose pistons are removed is purged as
+stale, and duplicate arming replaces the old bridge. ReturnPathValidator:
+a ladder column validates, a water column validates, a staircase with
+headroom validates, and a room with no climbable route does not
+validate.
+
+**`OmenGameTest`** (live, Fabric GameTest): four edge cases in
+`OmenSources.spurTaken`, which currently reads `container.isEmpty()`.
+Partial loot: false negative. Inserted junk: false negative. Initially
+empty: false positive. Alternate container (barrel): correct by
+construction. These are documented, not fixed; a fix is a separate
+milestone.
+
+**`SupplySeparationTest`** (offline, pure JDK plus Gson): reads each
+supply chest table and verifies food and light are in guaranteed pools
+(rolls = 1) while treasure stays weighted. The supply tables
+(`chests/supply_tier_1.json`, `supply_tier_2.json`, `supply_tier_3.json`)
+were split into three pools: guaranteed food, guaranteed light, and
+weighted everything else. Treasure stays weighted, so tool scarcity and
+treasure rarity are preserved.
+
+**`GraphSolvabilityTest.testTierSweep`** (offline, pure JDK): the 6.6
+invariant over seeds 0 through 499 for each admitted loot tier (1, 2,
+3), using solo Pilgrim. Each tier uses a manifest that includes only
+rooms whose `tier` field admits them at that level. The sweep asserts
+zero unresolved plans, zero inaccessible mandatory exits (checked by
+`RoomSelector.validate`), and the 6.6 subset invariant on every
+non-fallback cell. Results: 496 floors per tier, 0 fallback cells, 0
+unresolved, 0 inaccessible exits.
+
+### Production changes
+
+- `RisingLavaHandler.isArmed` and `CollapsingBridgeHandler.isArmed`:
+  package-private testing helpers so tests can inspect the static active
+  map without opening production visibility to other packages.
+- `OmenSources.spurTaken`: widened from `private` to package-private so
+  `OmenGameTest` can call it directly.
+- `chests/supply_tier_1.json`, `supply_tier_2.json`,
+  `supply_tier_3.json`: split the single weighted pool into three
+  pools (guaranteed food, guaranteed light, weighted everything else)
+  so a player who fights badly still walks out with food and light.
+
+### What is proven and what is not
+
+**Graph proof** (automated, headless): the selector's 6.6 subset
+invariant holds over 500 seeds and three tiers. Every cell's `requires`
+is a subset of what upstream `provides` plus the bag. The terminal is
+reachable. No consumable gates the spine. No unsatisfiable room lands.
+
+**Physical reachability** (automated, live world): the handler tests
+prove the blocks do what the metadata claims. The door opens, the lava
+drains, the bridge collapses and re-extends, the return path climbs.
+The spent-tool test proves the exit stays open after the optional item
+is spent.
+
+**Human player mastery** (not automated): readability, route-finding,
+combat difficulty, and the moment-to-moment experience of playing the
+room. The graph proof says the room is solvable; the physical proof
+says the blocks work; neither says a player will understand the room on
+first sight. That is a live-play check, recorded in
+`LIVE_TEST_PASS.md` section 38, not a test.
+
+### Verification
+
+- `./gradlew.bat runGameTest --offline`: `All 36 required tests passed`,
+  up from 20. The 16 new scenarios (one Situation, twelve Handler, one
+  staircase, two Omen barrel/chest) were observed failing before they
+  passed, per DISCOVERIES trap 19.
+- `./gradlew.bat graphSolvabilityTest --offline`: `GraphSolvabilityTest
+  passed`, including the new tier sweep (496 floors per tier, 0
+  unresolved, 0 inaccessible exits).
+- `./gradlew.bat supplySeparationTest --offline`:
+  `SupplySeparationTest passed`.
+- `./gradlew.bat situationSupplyTest --offline`:
+  `SituationSupplyTest passed`.
+- `./gradlew.bat build --offline`: `BUILD SUCCESSFUL`, full suite
+  including `dungeonIntegrationTest`.

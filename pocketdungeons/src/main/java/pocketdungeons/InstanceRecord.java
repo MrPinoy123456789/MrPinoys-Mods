@@ -77,6 +77,18 @@ final class InstanceRecord {
     final Set<PlanCell> clearedCells = new HashSet<>();
 
     /**
+     * Trial spawners that have been announced as cleared (at
+     * {@code COOLDOWN}) in chat to the party, for the per-spawner progress
+     * message. In-memory like every other field on the record; dies with the
+     * instance, never persisted. A spawner is added exactly once, when it
+     * first reaches COOLDOWN, so the progress message fires once per spawner
+     * per run. Cleared alongside the other per-run state in
+     * {@code Instances.generateBehindLobby}, so a second run behind the same
+     * lobby announces its spawners fresh.
+     */
+    final Set<BlockPos> announcedSpawners = new HashSet<>();
+
+    /**
      * M18-M22 review fix: the run's trial spawners grouped by cell, for the
      * spawner-cleared watcher ({@code Instances.watchSpawnerClears}). Built
      * once per layout instead of every watch tick;
@@ -423,6 +435,7 @@ final class InstanceRecord {
         // The spawner-cleared cue is per-run state too (M22): a cell added in
         // the run that just ended must cue again in the next one.
         clearedCells.clear();
+        announcedSpawners.clear();
         rewardChests = -1;
         expiresAtTick = 0;
         // PD-49: a run that timed out leaves this true; left uncleared, the

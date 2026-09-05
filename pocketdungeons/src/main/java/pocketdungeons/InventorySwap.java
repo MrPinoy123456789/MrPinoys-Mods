@@ -494,6 +494,13 @@ public final class InventorySwap {
         }
         boolean inVoid = player.level().dimension().equals(dungeonLevel);
         DungeonLog log = DungeonLog.forServer(server);
+        // M63: before the invariant is read, not after. If the saved data lost
+        // this player's stash record to a non-atomic write, the invariant would
+        // otherwise be evaluated against a record that is wrong rather than
+        // merely stale, and the entering branch would stash a second time over
+        // the top of an inventory that was already taken. Costs one hash lookup
+        // per player per tick after the first.
+        InventoryJournal.recoverIfNeeded(server, log, player);
         StashRecord stash = log.stashOf(player.getUUID());
         if (invariantHolds(inVoid, stash.stashed())) {
             // This is the common case and the only branch most ticks ever
@@ -539,6 +546,12 @@ public final class InventorySwap {
         PlayerSlots slots = new PlayerSlots(player);
         List<ItemStack> survival = snapshotPlayer(player, slots);
         LostAndFound.write(server, player, LostAndFound.ENTERING, survival);
+        // M63: the durable half of the same ordering. setStash below only puts
+        // the record in memory; SavedDataStorage writes it with a bare
+        // NbtIo.writeCompressed onto the live path, so a kill between the clear
+        // and that write loses it. The journal record is written with an atomic
+        // rename first, and retired once the hand-off is complete.
+        long op = InventoryJournal.prepare(server, player, survival);
         log.setStash(player.getUUID(), new StashRecord(true, survival));
         clear(slots);
         applyKeystoneItem(server, log, player);
@@ -548,6 +561,7 @@ public final class InventorySwap {
         }
         restoreOrphanIfAny(log, player, slots);
         slots.flush();
+        InventoryJournal.commit(server, player, op);
     }
 
     /**

@@ -135,6 +135,8 @@ final class TrialContent {
         MechanismSpecs.registerHandlers();
         PressureSpecs.registerHandlers();
         SpurSpecs.registerHandlers();
+        CollapsingBridgeHandler.register();
+        RisingLavaHandler.register();
     }
 
     // ---- encounter ----------------------------------------------------------

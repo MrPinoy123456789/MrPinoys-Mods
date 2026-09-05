@@ -325,6 +325,13 @@ final class RoomManifest {
     }
 
     private static Entry buildEntry(String name, DungeonRoomMeta meta, StructureTemplate template) {
+        // M61: a spanY > 1 room's capture origin sits (spanY-1)*STORY_HEIGHT
+        // below its cell origin, so its door jigsaws are at template-local
+        // y = 1 + doorYOffset .. DOOR_HEIGHT + doorYOffset. The canonical slot
+        // check has to read at that same offset or it sees empty wall and
+        // rejects the room as doorless (trap 20: the doorway plane belongs to
+        // the manifest, and its y shifts with the template's anchor).
+        int doorYOffset = RoomGeometry.storyOffset(meta.spanY);
         Set<Direction> edges = EnumSet.noneOf(Direction.class);
         List<JigsawBlockInfo> doorJigsaws = new ArrayList<>();
 
@@ -354,7 +361,7 @@ final class RoomManifest {
             byPos.put(info.info().pos(), info);
         }
         for (Direction edge : edges) {
-            for (BlockPos pos : canonicalDoorSlots(edge)) {
+            for (BlockPos pos : canonicalDoorSlots(edge, doorYOffset)) {
                 JigsawBlockInfo info = byPos.get(pos);
                 if (info == null) {
                     throw new IllegalStateException("partial door on " + edge
@@ -372,19 +379,20 @@ final class RoomManifest {
         return new Entry(name, meta, mask);
     }
 
-    private static List<BlockPos> canonicalDoorSlots(Direction edge) {
+    private static List<BlockPos> canonicalDoorSlots(Direction edge, int doorYOffset) {
         List<BlockPos> slots = new ArrayList<>();
         int min = RoomGeometry.DOOR_MIN;
         int max = RoomGeometry.DOOR_MAX;
         int height = RoomGeometry.DOOR_HEIGHT;
         int far = RoomGeometry.CELL - 1;
         for (int y = 1; y <= height; y++) {
+            int yy = y + doorYOffset;
             for (int i = min; i <= max; i++) {
                 slots.add(switch (edge) {
-                    case NORTH -> new BlockPos(i, y, 0);
-                    case SOUTH -> new BlockPos(i, y, far);
-                    case WEST  -> new BlockPos(0, y, i);
-                    case EAST  -> new BlockPos(far, y, i);
+                    case NORTH -> new BlockPos(i, yy, 0);
+                    case SOUTH -> new BlockPos(i, yy, far);
+                    case WEST  -> new BlockPos(0, yy, i);
+                    case EAST  -> new BlockPos(far, yy, i);
                     default -> throw new IllegalArgumentException("horizontal edge only: " + edge);
                 });
             }

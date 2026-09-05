@@ -30,10 +30,9 @@ import java.util.UUID;
  * now" ({@link Instances#roomOwnerAt}), which is one bounds check per live
  * instance and costs nothing when the answer is no. M31 9.2 adds a second
  * check on top: the dungeon cells (the quarry, T2.5) outside any room are
- * shell-protected too, but only while the run is still active
+ * shell-protected too, for the lifetime of the run
  * ({@link Instances#dungeonCellOriginAt}) -- the interior stays breakable and
- * placeable, same as a player room's interior, and the whole thing opens up
- * the moment the first member completes it.
+ * placeable, same as a player room's interior.
  *
  * <p>Container protection is a check inside {@link RitualListener#onUseBlock},
  * which already owns this mod's one {@code UseBlockCallback} registration and
@@ -123,7 +122,7 @@ final class RoomProtection {
             // run's dungeon cells. Like the player room, only the shell
             // (floor, walls, ceiling) is immutable; the interior stays
             // breakable so a player can dig, loot and fight their way through.
-            // Protection lifts entirely the moment the first member completes.
+            // Shell protection stays up for the lifetime of the run.
             BlockPos dungeonCellOrigin = Instances.dungeonCellOriginAt(pos);
             if (dungeonCellOrigin == null) {
                 return true;
@@ -199,20 +198,34 @@ final class RoomProtection {
      * it keeps working when a future skin swap (M24) changes the block types
      * there. The wall lodestone and the post-selection double doors sit in the
      * wall ring, so they are shell too, and cannot be broken or replaced.
+     *
+     * <p>M61: a room may own lower stories, each with the same shell pattern
+     * offset by STORY_HEIGHT. This checks every possible story up to
+     * MAX_SPAN_Y; over-protecting a single-story room is harmless because the
+     * positions below its floor are void or bedrock nobody can reach to break.
      */
     static boolean isShell(BlockPos pos, BlockPos roomOrigin) {
         int x = pos.getX() - roomOrigin.getX();
-        int y = pos.getY() - roomOrigin.getY();
         int z = pos.getZ() - roomOrigin.getZ();
-        if (x < 0 || x >= RoomGeometry.CELL || z < 0 || z >= RoomGeometry.CELL
-                || y < 0 || y > RoomGeometry.CEILING_Y) {
-            return false; // outside the room's own 16x16x7 box
+        if (x < 0 || x >= RoomGeometry.CELL || z < 0 || z >= RoomGeometry.CELL) {
+            return false;
         }
-        if (y == 0 || y == RoomGeometry.CEILING_Y) {
-            return true; // floor row and ceiling row, lamps included
+        int y = pos.getY() - roomOrigin.getY();
+        // Check the cell's own story and every possible lower story.
+        for (int story = 0; story < RoomGeometry.MAX_SPAN_Y; story++) {
+            int storyY = y + story * RoomGeometry.STORY_HEIGHT;
+            if (storyY < 0 || storyY > RoomGeometry.CEILING_Y) {
+                continue;
+            }
+            if (storyY == 0 || storyY == RoomGeometry.CEILING_Y) {
+                return true; // floor row and ceiling row, lamps included
+            }
+            if (x == 0 || x == RoomGeometry.CELL - 1
+                    || z == 0 || z == RoomGeometry.CELL - 1) {
+                return true; // the wall ring
+            }
         }
-        return x == 0 || x == RoomGeometry.CELL - 1
-                || z == 0 || z == RoomGeometry.CELL - 1; // the wall ring
+        return false;
     }
 
     /**

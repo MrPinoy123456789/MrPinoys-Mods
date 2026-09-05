@@ -239,7 +239,9 @@ for ((taskName, testClass) in mapOf(
     "omenMathTest" to "OmenMathTest",
     "floorShapeTest" to "FloorShapeTest",
     "situationTagsTest" to "SituationTagsTest",
-    "dungeonToolsTest" to "DungeonToolsTest"
+    "dungeonToolsTest" to "DungeonToolsTest",
+    "situationSupplyTest" to "SituationSupplyTest",
+    "supplySeparationTest" to "SupplySeparationTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -291,6 +293,8 @@ tasks.test {
     dependsOn("floorShapeTest")
     dependsOn("situationTagsTest")
     dependsOn("dungeonToolsTest")
+    dependsOn("situationSupplyTest")
+    dependsOn("supplySeparationTest")
     failOnNoDiscoveredTests = false
 }
 

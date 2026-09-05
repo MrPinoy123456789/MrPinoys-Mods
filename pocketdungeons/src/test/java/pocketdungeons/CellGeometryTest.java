@@ -137,7 +137,10 @@ public class CellGeometryTest {
         check(!CellGeometry.insideAnyCell(cellOrigin.offset(RoomGeometry.CELL, 0, 0), cells));
         check(!CellGeometry.insideAnyCell(cellOrigin.offset(0, RoomGeometry.CEILING_Y + 1, 0), cells));
         check(!CellGeometry.insideAnyCell(cellOrigin.offset(-1, 0, 0), cells));
-        check(!CellGeometry.insideAnyCell(cellOrigin.offset(0, -1, 0), cells));
+        // M61: y=-1 is now inside the cell's potential lower story volume.
+        // The boundary is below the max story offset.
+        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
+        check(!CellGeometry.insideAnyCell(cellOrigin.offset(0, -maxOffset - 1, 0), cells));
 
         // No cells at all: nothing is inside anything.
         check(!CellGeometry.insideAnyCell(cellOrigin, List.of()));

@@ -91,17 +91,28 @@ final class Fuel {
     }
 
     /**
-     * Moves {@code amount} units out of {@code player}'s inventory and into
-     * their banked balance: what the engine terminal does with a fed stack. The
-     * caller has already checked that this much is actually carried.
+     * Moves up to {@code amount} units out of {@code player}'s inventory and
+     * into their banked balance: what the engine terminal does with a fed
+     * stack.
+     *
+     * <p>Credits what was actually removed, not what was asked for. The caller
+     * is still expected to have checked the carried count, but M63's rule is
+     * that a conservation guarantee may not rest on a caller's promise: the
+     * inventory can change between the check and this call (a second click on
+     * the terminal, a swap, another inventory mod moving a stack), and crediting
+     * the requested amount regardless would mint fuel out of nothing rather
+     * than bank it. {@link #spend} already knows how many it took, so the
+     * honest number is free.
      */
     static void bank(ServerPlayer player, int amount) {
         MinecraftServer server = player.level().getServer();
         if (server == null || amount <= 0) {
             return;
         }
-        spend(player, amount);
-        DungeonLog.forServer(server).addFuel(player.getUUID(), amount);
+        int taken = spend(player, amount);
+        if (taken > 0) {
+            DungeonLog.forServer(server).addFuel(player.getUUID(), taken);
+        }
     }
 
     /** Debits {@code amount} from the banked balance, for a Greater door's cost. */
@@ -114,9 +125,9 @@ final class Fuel {
     }
 
     /**
-     * Removes {@code amount} units from {@code player}'s inventory. Caller's
-     * responsibility to have checked {@link #count} first; this does not
-     * refuse a short count; it just cannot remove more than exists.
+     * Removes up to {@code amount} units from {@code player}'s inventory and
+     * returns how many it actually took, which is fewer than asked for when
+     * fewer are carried.
      *
      * <p>{@code Inventory.clearOrCountMatchingItems}'s third parameter is an
      * extra container it clears from as well as the inventory itself and
@@ -125,11 +136,12 @@ final class Fuel {
      * count too). Nothing here should touch a crafting grid, so an empty,
      * unrelated {@link SimpleContainer} stands in for "nothing else."
      */
-    private static void spend(ServerPlayer player, int amount) {
+    private static int spend(ServerPlayer player, int amount) {
         if (FUEL_ITEM.get() == null || amount <= 0) {
-            return;
+            return 0;
         }
-        player.getInventory().clearOrCountMatchingItems(Fuel::isFuel, amount, new SimpleContainer(0));
+        return player.getInventory()
+                .clearOrCountMatchingItems(Fuel::isFuel, amount, new SimpleContainer(0));
     }
 
     /**

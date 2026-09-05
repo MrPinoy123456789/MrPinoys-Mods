@@ -214,6 +214,70 @@ bite.
     and the server thread reaches its normal tick loop, where the shutdown
     hook can actually make progress against it.
 
+24. **A gametest mock player is in creative, and `Inventory.add` voids
+    overflow in creative.** Verified in the 26.2 bytecode: `Inventory.add`
+    has a `Player.hasInfiniteMaterials` branch guarded by
+    `ItemStack.setCount(0)`, which empties a stack that will not fit and
+    reports success. That is right for a creative player, who needs no
+    remainder, but it means `Payout.deliver`'s `stack.isEmpty()` test passes
+    with the item having gone nowhere. An overflow scenario written against
+    a default mock player therefore cannot tell a working payout from a
+    voided one, whichever way the production code behaves. Call
+    `player.setGameMode(GameType.SURVIVAL)` on any mock player whose
+    scenario asserts on a drop or a remainder. Cost an hour in M63, reading
+    as a mod bug the whole time.
+
+25. **A mock player stands at the world origin, which is not a loaded
+    chunk.** `makeMockServerPlayerInLevel` does not place the player
+    anywhere near the test structure, and a gametest structure sits millions
+    of blocks out. `LivingEntity.drop` ends in `Level.addFreshEntity`, which
+    discards an entity destined for an unloaded chunk and returns false
+    rather than throwing, so every dropped item silently disappears.
+    Teleport the player to `helper.absolutePos(...)` first. Two further
+    wrinkles found the same way: a `setChunkForced` ticket is not honoured in
+    the tick it is added (the chunk source processes tickets on its own
+    tick), and in another dimension the matching chunk has never been
+    generated at all, so `getChunk` is needed to block until it exists.
+    Even then a freshly generated far-out chunk is not queryable through
+    `getEntitiesOfClass` for several ticks. If a scenario only needs the
+    entering branch and not real dungeon geometry, point
+    `InventorySwap.Probe.useDimensionForTesting` at the level the player is
+    already standing in and skip the whole problem.
+
+26. **Gametests run concurrently against one server, so any static test
+    seam is shared state.** `InventorySwap.Probe.useDimensionForTesting`
+    writes a single static field. A scenario that finishes and resets it to
+    `null` does so while sibling scenarios are still mid-flight, and their
+    next reconcile then decides the player was never in the dungeon and does
+    nothing, which reads as the swap declining to run. Two rules fall out:
+    set the field immediately before the pass that reads it, not once at the
+    top of the scenario, and do not reset it in cleanup. The same applies to
+    coordinates: two scenarios teleporting to one fixed position land in each
+    other's item sweeps, so derive per-scenario positions from
+    `helper.absolutePos`.
+
+27. **`SavedDataStorage` does not write atomically.** Verified in the 26.2
+    jar: it persists a `SavedData` with a bare `NbtIo.writeCompressed`
+    straight onto the live path, on `Util.ioPool()`, with no temp file, no
+    rename and no `.bak` (contrast `RoomStore.save`, which does all three).
+    A crash or kill part way through leaves `dungeon_log.dat` truncated, and
+    a truncated dungeon log is a player whose survival inventory was taken
+    and whose stash record no longer exists. M63 backstops the stash field
+    with `InventoryJournal`; every other field on the log (fuel balance, task
+    progress, bounties, extracted powers) is still exposed, and closing that
+    generally would need a mixin into vanilla's storage layer, which trap 9's
+    budget forbids. Do not assume a `SavedData` write is a durability
+    boundary.
+
+28. **UNVERIFIED: process termination between the inventory clear and the
+    saved-data write.** M63 stages the *state* a kill leaves and proves the
+    repair from it, but never kills a real process and reloads. Whether a
+    genuine `SIGKILL` at that instant leaves the journal record intact and
+    readable on the next boot, and whether the player-data write behaves the
+    same way, is untested in any harness here. `LIVE_TEST_PASS` 37.2 is the
+    row. Treat the journal as closing a named hole, not as proven against a
+    real crash.
+
 ---
 
 20. **The doorway plane belongs to the manifest, not to the template.**

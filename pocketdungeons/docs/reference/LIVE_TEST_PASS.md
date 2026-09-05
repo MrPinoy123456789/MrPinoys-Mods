@@ -1957,3 +1957,184 @@ writing real steps, not a claim that the feature is broken:
   row up needs to reconcile whether 26.3's cue is the thing "silence" means
   to remove, or whether "room movement" names something else (relocation
   between cells?) that hasn't shipped yet.
+
+## 37. M63 remaining client rows
+
+M63 closed most of the M44 custody gaps with gametests (the fault matrix in
+`plans/COMPLETED-MILESTONES.md` names each one and the test that covers it).
+These are what it could not reach headlessly, and why. Every row here is
+`current`: unverified, not assumed working.
+
+### 37.1 The gamble station's money path
+
+`GambleStation.handleTrade` deducts emeralds, rolls the gear table, delivers
+the item and credits the High Roller bounty. It is a private callback on an
+SGUI `MerchantGui`, reachable only by a player clicking a trade, and
+DISCOVERIES trap 10 rules that out headlessly. Calling it artificially would
+assert the harness rather than the station.
+
+Check, at a real client:
+
+- Buy one gamble with exactly the listed cost. Confirm the emeralds are
+  debited once, one item arrives, and the chat line names what arrived.
+- Buy one with a full inventory. Confirm the item drops at your feet rather
+  than vanishing, and that the emeralds were still debited exactly once.
+- Click the same trade repeatedly and quickly. Confirm one debit per item,
+  never two debits for one item and never one debit for two.
+- Open the screen, have a second player take your emeralds, then click.
+  Confirm the refusal spends nothing.
+- Gamble as a party member, not the host. Confirm the emeralds count toward
+  the **host's** High Roller bounty, which is the deliberate rule in
+  `GambleStation`, and confirm the item goes to the member who paid.
+
+### 37.2 A real process kill between the clear and the saved-data write
+
+M63's journal repairs a stash record lost to a non-atomic
+`SavedDataStorage` write, and a gametest proves the repair is correct and
+idempotent. What that test stages in-process is the *state* a kill leaves,
+not a kill. The reload path is unproven.
+
+Check, on a dev server:
+
+- Enter a dungeon with a recognisable survival inventory. Kill the server
+  process (not `stop`) within a second or two of entering.
+- Restart. Confirm the log carries `Repaired a lost stash record` if the
+  write was lost, or nothing if it landed. Either is correct; what must not
+  happen is the player logging in holding neither inventory.
+- Leave the dungeon. Confirm the survival inventory comes back exactly once,
+  with components intact.
+- Repeat, killing during the *exit* instead. The leaving branch is
+  deliberately not journalled, so the expected behaviour is different: the
+  stash flag is still set and the next tick retries the restore from a clean
+  state. Confirm no duplication.
+
+### 37.3 Orphan overflow at a real dungeon entrance
+
+The gametest for orphan overflow points the invariant at the overworld so
+the overflow drops in a chunk the harness has already loaded. That exercises
+the same branch, but not the real geometry: a genuine entry drops overflow
+inside `pocketdungeons:void`, at the room cell, where a teardown may be
+running.
+
+Check:
+
+- Arrange an orphan larger than 35 stacks (leave a dungeon carrying a full
+  void inventory, twice, without re-entering in between).
+- Re-enter. Confirm the overflow lands on the floor of the safe room and is
+  recoverable, rather than falling through a cell that is mid-clear.
+
+### 37.4 Another inventory-management mod alongside this one
+
+An explicit interoperability check, not a compatibility claim. Server-only
+branding does not make this safe.
+
+Check, with a second inventory mod installed (a sorter, a backpack mod, or
+anything that moves stacks on the server):
+
+- Enter and leave a dungeon. Confirm both inventories round trip.
+- Trigger the other mod's sorting while standing in the dungeon. Confirm the
+  swap still restores survival exactly on the way out.
+- Confirm the other mod's own slots (curios, backpack slots) behave as spec
+  11.12 says they will: they are outside the 41-slot snapshot and are not
+  stashed.
+
+### 37.5 Two-story and Pocket2 child teardown
+
+M63's teardown tests assert slot bookkeeping, which is the half that leaked.
+The block-writing half needs real geometry and is unchanged from M61's
+`blocked` row on room preservation, repeated here so it is not lost: confirm
+a two-story room and a Pocket2 child both tear down clean, with no orphaned
+lower-story blocks and no leftover bedrock, on purge and on leadership
+change.
+
+## 38. M64 acceptance: rooms as played, not merely selected
+
+M64 closes the gap between the selector's abstract capability graph and the
+physical world the player stands in. The automated evidence is in
+`SITUATIONS_AUDIT.md` section 5; this section is the live-only half that
+the automated tests cannot reach.
+
+### 38.1 The spent optional tool, by hand
+
+The gametest `spentOptionalToolStillHasExit` proves the door stays open
+after the optional item is spent, in a synthetic structure. The live
+check is the same shape against a real room: enter a room with an
+`ITEM_ANY` or `ITEM_KEY` gate, open it with the item, drop or use the
+item, and confirm the door does not close behind you.
+
+1. Enter a dungeon with a Frame Lock or similar item-gated room.
+2. Place the key item in the chest. **Expected:** the door opens.
+3. Remove the item from the chest. **Expected:** the door stays open.
+4. Walk through the door and back. **Expected:** the door does not close.
+
+### 38.2 Rising Lava, by hand
+
+The gametest proves the lever drains the lava and the room drops from
+the active map. The live check is the player's experience of the room:
+the lava spreads, the player pulls the lever, the lava recedes, and the
+room is safe to walk back through.
+
+1. Enter a Rising Lava room. **Expected:** lava spreads inward from the
+   walls while you stand in the room.
+2. Pull the lever. **Expected:** the lava drains, the room is marked
+   solved, and walking back through it is safe.
+3. Leave and re-enter the cell. **Expected:** the lava does not return.
+
+### 38.3 Collapsing Bridge, by hand
+
+The gametest proves the bridge arms and clears. The live check is the
+player's experience: the bridge collapses underfoot, the player falls,
+and the bridge re-extends after a delay so backtracking survives.
+
+1. Enter a Collapsing Bridge room. **Expected:** sticky pistons hold
+   planks across a gap.
+2. Stand on the planks. **Expected:** after a short delay, the pistons
+   retract and the planks drop.
+3. Wait. **Expected:** the pistons re-extend and the planks return.
+4. Walk back across. **Expected:** the bridge holds long enough to
+   cross, then collapses again.
+
+### 38.4 Return path, by hand
+
+The gametest proves the validator accepts a ladder column, a water
+column, and a staircase with headroom, and rejects a room with no
+climbable route. The live check is the player actually climbing: the
+validator checks block geometry, not that a player's hitbox and jump
+height can use the route.
+
+1. Enter a two-story room (`spanY > 1`). **Expected:** a climbable
+   route exists from the lower floor to the upper floor.
+2. Fall to the lower floor. **Expected:** you can climb back up using
+   the route the validator found.
+3. Check headroom on the route. **Expected:** no block prevents a
+   player's hitbox from passing through.
+
+### 38.5 Omen spur edge cases, by hand
+
+The gametest pins down four edge cases in `OmenSources.spurTaken`. The
+live check is the player's experience of the omen firing or not firing
+in each case. These are documented gaps, not fixes; a live pass confirms
+the behaviour matches what the test says.
+
+1. Take some but not all loot from a spur container. **Expected:** the
+   omen does not fire (false negative).
+2. Take all loot and put junk back. **Expected:** the omen does not
+   fire (false negative).
+3. Find a spur container that rolled nothing. **Expected:** the omen
+   fires on the first poll (false positive).
+4. Use a barrel instead of a chest. **Expected:** the omen behaves the
+   same as with a chest.
+
+### 38.6 Supply chest guaranteed food and light, by hand
+
+The headless test proves the supply tables now separate guaranteed food
+and light from weighted treasure. The live check is the player actually
+opening a supply chest and seeing food and light every time.
+
+1. Enter a dungeon and find a supply chest (the ungated chest in a
+   trial cell).
+2. Open it. **Expected:** food is present every time. Light (torches)
+   is present every time.
+3. Repeat across several runs and tiers. **Expected:** food and light
+   are always present, never absent. Treasure (iron, gold, experience
+   bottles) is sometimes present, never guaranteed.

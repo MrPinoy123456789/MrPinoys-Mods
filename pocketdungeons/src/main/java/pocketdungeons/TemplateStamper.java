@@ -130,9 +130,19 @@ final class TemplateStamper {
         StructureTemplate template = manager.get(templateId)
                 .orElseThrow(() -> new IllegalStateException("Missing structure template " + templateId));
 
+        // M61: a spanY > 1 room's template was captured from an origin below
+        // its cell, so it is placed the same way: the template origin lands
+        // (spanY-1)*STORY_HEIGHT below the cell origin, putting the upper story
+        // in the cell and each lower story in the volume beneath. The y offset
+        // is independent of rotation (rotation is around the y axis), so it
+        // applies on top of the x/z rotation offset unchanged.
+        Vec3i size = template.getSize();
+        int storyOffset = size.getY() - (RoomGeometry.CEILING_Y + 1);
+        BlockPos stampOrigin = storyOffset == 0 ? cellOrigin : cellOrigin.below(storyOffset);
+
         int q = ((quarterTurns % 4) + 4) % 4;
         Rotation rotation = ROTATIONS[q];
-        BlockPos placementPos = cellOrigin.offset(ROTATION_OFFSETS[q]);
+        BlockPos placementPos = stampOrigin.offset(ROTATION_OFFSETS[q]);
 
         StructurePlaceSettings settings = new StructurePlaceSettings();
         settings.setRotation(rotation);
@@ -147,7 +157,7 @@ final class TemplateStamper {
                 RandomSource.create(seed), STAMP_FLAGS);
 
         List<BlockPos> spawns = spawnPoints(template, placementPos, rotation);
-        JigsawFallback.replaceRemaining(level, cellOrigin, TEMPLATE_SIZE);
+        JigsawFallback.replaceRemaining(level, stampOrigin, size);
         return spawns;
     }
 

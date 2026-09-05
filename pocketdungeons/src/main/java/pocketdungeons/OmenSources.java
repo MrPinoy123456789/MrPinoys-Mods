@@ -264,7 +264,7 @@ final class OmenSources {
     }
 
     /** A spur pays its omen when its reward leaves the container. */
-    private static boolean spurTaken(ServerLevel level, BlockPos pos) {
+    static boolean spurTaken(ServerLevel level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof Container container && container.isEmpty();
     }
 }

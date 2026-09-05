@@ -162,15 +162,21 @@ final class CellGeometry {
         return out;
     }
 
-    /** Whether {@code pos} falls inside any of these cells' own 16x16 volumes. */
+    /**
+     * Whether {@code pos} falls inside any of these cells' own volumes.
+     * M61: a cell may own lower stories below its floor, so the y range extends
+     * downward by the max allowed story offset. Over-matching a single-story
+     * cell is harmless: it only prevents clearing into void below a keep cell.
+     */
     static boolean insideAnyCell(BlockPos pos, List<BlockPos> cellOrigins) {
+        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
         for (BlockPos cell : cellOrigins) {
             int dx = pos.getX() - cell.getX();
             int dy = pos.getY() - cell.getY();
             int dz = pos.getZ() - cell.getZ();
             if (dx >= 0 && dx < RoomGeometry.CELL
                     && dz >= 0 && dz < RoomGeometry.CELL
-                    && dy >= 0 && dy <= RoomGeometry.CEILING_Y) {
+                    && dy >= -maxOffset && dy <= RoomGeometry.CEILING_Y) {
                 return true;
             }
         }

@@ -9,6 +9,6 @@
   "tier": 2,
   "provides": ["blocks"],
   "requires": [],
-  "access": "gated",
+  "access": "open",
   "window": "bars"
 }

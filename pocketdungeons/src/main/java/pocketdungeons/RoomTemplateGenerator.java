@@ -91,7 +91,20 @@ final class RoomTemplateGenerator {
     static final int CELL = RoomGeometry.CELL;
     static final int WALL_HEIGHT = RoomGeometry.WALL_HEIGHT;
     private static final int CEILING_Y = RoomGeometry.CEILING_Y;
+    private static final int STORY_HEIGHT = RoomGeometry.STORY_HEIGHT;
     private static final Vec3i TEMPLATE_SIZE = new Vec3i(CELL, CEILING_Y + 1, CELL);
+
+    /**
+     * M61: the capture size for a room of vertical span {@code spanY}. The y
+     * extent grows by one {@link #STORY_HEIGHT} per extra story; x and z are
+     * always one cell. A one story room gets {@link #TEMPLATE_SIZE} back.
+     */
+    static Vec3i templateSize(int spanY) {
+        if (spanY <= 1) {
+            return TEMPLATE_SIZE;
+        }
+        return new Vec3i(CELL, CEILING_Y + 1 + RoomGeometry.storyOffset(spanY), CELL);
+    }
 
     // Shell palette lives on RoomBuilder now (M9 C2); this class used to carry
     // its own copy of all five constants.
@@ -701,9 +714,9 @@ final class RoomTemplateGenerator {
         forceChunks(level, o, true);
 
         if (spec.shellPalette != null) {
-            buildCellWithPalette(level, o, spec.doors, spec.shellPalette);
+            buildCellWithPalette(level, o, spec.doors, spec.shellPalette, spec.spanY);
         } else {
-            buildCell(level, o, spec.doors);
+            buildCell(level, o, spec.doors, spec.spanY);
         }
         if (spec.decor != null) {
             spec.decor.accept(level, o);
@@ -721,14 +734,17 @@ final class RoomTemplateGenerator {
             placeExitPad(level, o);
         }
 
+        int offset = RoomGeometry.storyOffset(spec.spanY);
+        BlockPos captureOrigin = offset == 0 ? o : o.below(offset);
+        Vec3i size = templateSize(spec.spanY);
         Path outFile = outDir.resolve(spec.name + ".nbt");
         queue.add(new Task(() -> {
             try {
-                captureAndSave(level, o, outFile);
+                captureAndSave(level, captureOrigin, size, outFile);
             } catch (Exception e) {
                 PocketDungeonsMod.LOG.error("Failed to save template {}", spec.name, e);
             } finally {
-                clear(level, o);
+                clear(level, captureOrigin, size);
                 forceChunks(level, o, false);
             }
         }, 1));
@@ -742,25 +758,10 @@ final class RoomTemplateGenerator {
      * marker for the generator to erase and reconnect at stamp time
      * ({@link JigsawFallback}).
      */
-    private static void buildCell(ServerLevel level, BlockPos o, Set<Direction> doors) {
+    private static void buildCell(ServerLevel level, BlockPos o, Set<Direction> doors, int spanY) {
         RoomBuilder.buildShell(level, o, RoomBuilder.FLOOR);
-        for (int x = 0; x < CELL; x++) {
-            for (int z = 0; z < CELL; z++) {
-                boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
-                if (!edge) {
-                    continue;
-                }
-                Direction doorDir = RoomGeometry.wallDirection(x, z);
-                if (doorDir == null || !doors.contains(doorDir)) {
-                    continue;
-                }
-                for (int y = 1; y <= WALL_HEIGHT; y++) {
-                    if (isDoorSlot(x, y, z, doorDir)) {
-                        placeJigsaw(level, o.offset(x, y, z), DOOR, orientationFor(doorDir));
-                    }
-                }
-            }
-        }
+        buildLowerStories(level, o, RoomBuilder.STONE_BRICK, spanY);
+        placeDoorJigsaws(level, o, doors);
     }
 
     /**
@@ -770,8 +771,46 @@ final class RoomTemplateGenerator {
      * jigsaw sits on top of, never where a door is.
      */
     private static void buildCellWithPalette(ServerLevel level, BlockPos o, Set<Direction> doors,
-                                             RoomBuilder.ShellPalette palette) {
+                                             RoomBuilder.ShellPalette palette, int spanY) {
         RoomBuilder.stampShell(level, o, palette);
+        buildLowerStories(level, o, palette, spanY);
+        placeDoorJigsaws(level, o, doors);
+    }
+
+    /**
+     * M61: stamps a plain shell for each story beneath the cell. A lower story
+     * is private interior with no doorways (spec 13.3), so it gets a full
+     * {@link RoomBuilder#stampShell} and no jigsaws.
+     *
+     * <p>Each lower story also gets solid over-ceiling filler from above its
+     * ceiling to below the story above's floor. With STORY_HEIGHT = CEILING_Y +
+     * 2, the floor-to-floor pitch leaves a 2-block gap between one story's
+     * ceiling and the story above's floor; filling it encloses the lower story,
+     * gives a ladder a solid block to attach to at the top of its shaft, and
+     * replaces the sub-floor bedrock the envelope would have placed for a
+     * single-story room. The room's decor carves the shaft holes through it.
+     */
+    private static void buildLowerStories(ServerLevel level, BlockPos o,
+                                          RoomBuilder.ShellPalette palette, int spanY) {
+        for (int story = 1; story < spanY; story++) {
+            BlockPos storyOrigin = o.below(story * STORY_HEIGHT);
+            RoomBuilder.stampShell(level, storyOrigin, palette);
+            // Fill from above this story's ceiling to below the story above's
+            // floor. For story 1 under the cell: local y = -2 and y = -1.
+            int fillStart = storyOrigin.getY() + RoomGeometry.CEILING_Y + 1;
+            int fillEnd = o.getY() - ((story - 1) * STORY_HEIGHT) - 1;
+            for (int y = fillStart; y <= fillEnd; y++) {
+                for (int x = 0; x < CELL; x++) {
+                    for (int z = 0; z < CELL; z++) {
+                        RoomBuilder.set(level, new BlockPos(o.getX() + x, y, o.getZ() + z),
+                                palette.wall());
+                    }
+                }
+            }
+        }
+    }
+
+    private static void placeDoorJigsaws(ServerLevel level, BlockPos o, Set<Direction> doors) {
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 boolean edge = x == 0 || x == CELL - 1 || z == 0 || z == CELL - 1;
@@ -936,9 +975,10 @@ final class RoomTemplateGenerator {
         }
     }
 
-    private static void captureAndSave(ServerLevel level, BlockPos o, Path outFile) throws IOException {
+    private static void captureAndSave(ServerLevel level, BlockPos origin, Vec3i size, Path outFile)
+            throws IOException {
         StructureTemplate template = new StructureTemplate();
-        template.fillFromWorld(level, o, TEMPLATE_SIZE, true, List.of());
+        template.fillFromWorld(level, origin, size, true, List.of());
         CompoundTag nbt = template.save(new CompoundTag());
         NbtIo.writeCompressed(nbt, outFile);
         PocketDungeonsMod.LOG.info("Saved room template to {}", outFile);
@@ -986,11 +1026,11 @@ final class RoomTemplateGenerator {
         return cleaned.isEmpty() ? "room" : cleaned;
     }
 
-    private static void clear(ServerLevel level, BlockPos o) {
-        for (int x = 0; x < CELL; x++) {
-            for (int z = 0; z < CELL; z++) {
-                for (int y = 0; y <= CEILING_Y; y++) {
-                    RoomBuilder.set(level, o.offset(x, y, z), RoomBuilder.AIR);
+    private static void clear(ServerLevel level, BlockPos origin, Vec3i size) {
+        for (int x = 0; x < size.getX(); x++) {
+            for (int z = 0; z < size.getZ(); z++) {
+                for (int y = 0; y < size.getY(); y++) {
+                    RoomBuilder.set(level, origin.offset(x, y, z), RoomBuilder.AIR);
                 }
             }
         }

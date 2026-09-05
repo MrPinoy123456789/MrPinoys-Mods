@@ -95,11 +95,18 @@ final class InstanceRegistry {
         return out;
     }
 
-    /** The bounding box of {@link #maximalCellOrigins}, for a layout-less entity sweep. */
+    /**
+     * The bounding box of {@link #maximalCellOrigins}, for a layout-less entity
+     * sweep. M61: the floor is lowered by the deepest a room is allowed to
+     * reach below its cell ({@code (MAX_SPAN_Y-1)*STORY_HEIGHT}), so a teardown
+     * with no layout still sweeps any lower story. Over-clearing an
+     * all-single-story slot is harmless: the volume below is void or bedrock.
+     */
     static AABB maximalBounds(BlockPos origin) {
         int span = PocketDungeonsConfig.maxGridSpan() * RoomGeometry.CELL;
+        int floorOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
         return new AABB(
-                origin.getX(), origin.getY(), origin.getZ(),
+                origin.getX(), origin.getY() - floorOffset, origin.getZ(),
                 origin.getX() + span,
                 origin.getY() + RoomGeometry.CEILING_Y + 1,
                 origin.getZ() + span);

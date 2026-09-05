@@ -450,3 +450,135 @@ rooms lean on datapack data rather than code (Bazaar's `piglin_bartering`
 override, the 4.4 `spawn_potentials` table), which is data by
 `DISCOVERIES.md` trap 14's reasoning. No situation wants a daylight
 sensor. The one-mixin budget (trap 9) is not touched.
+
+## 5 Q7 evidence: rooms as played, not merely selected
+
+M64 closes the gap between the selector's abstract capability graph and the
+physical world the player actually stands in. The selector proves that a
+cell's `requires` is a subset of what upstream `provides` and the bag carry;
+that is a graph proof, not a play proof. A room can pass the graph and still
+strand the player if the item it claims to provide is weighted treasure
+rather than guaranteed supply, or if the only exit depends on a finite tool
+the player already spent.
+
+### 5.1 Tag versus guaranteed supply
+
+`SituationSupplyTest` (offline, pure JDK) pins down four cases where the
+selector's boolean capability model diverges from the physical world:
+
+- **Sapper TNT is finite.** The Sapper bag is tagged `blocks`, but TNT is
+  not reusable masonry. A room that requires `blocks` and expects the
+  player to build with TNT is a room the player cannot clear after the
+  first blast. The test asserts the selector does not treat Sapper TNT as
+  a persistent `blocks` provider on the mandatory spine.
+- **Shepherd leads do not guarantee a mob.** The Shepherd bag is tagged
+  `mob`, but a lead is not a creature. The test asserts that a solo
+  Shepherd's `mob` tag does not satisfy a `mob` gate the way a party of
+  two does.
+- **Plate Pair needs two players.** A solo Pilgrim has no `mob` tag, so
+  the `plate_pair` corridor's `requires: mob` must fall back to a
+  role-only room. A party of two grants `mob` through party size, so the
+  same cell takes `plate_pair`. The test exercises both paths.
+- **Spent optional tools never gate the spine.** A finite tool on an
+  optional spur may influence treasure but must never be the only exit.
+  The test asserts that removing a tool provider leaves the plan
+  solvable: the mandatory spine does not depend on it.
+
+### 5.2 The spent optional tool GameTest
+
+`SituationGameTest.spentOptionalToolStillHasExit` (live, Fabric GameTest)
+places an iron door and a chest in a structure, arms an `ITEM_ANY` lock,
+inserts a stick, waits for `Locks.tick` to open the door, removes the
+stick, waits again, and asserts the door stays open. The door is the
+exit; the stick is the optional tool; the lock's persistence-after-spend
+rule is what keeps the exit open. This is the block-level proof that
+6.4's item-return rule is not the only thing standing between the player
+and a sealed room.
+
+### 5.3 Handler lifecycle: arm, tick, clear
+
+`HandlerGameTest` (live, Fabric GameTest) exercises the static-map
+lifecycle directly:
+
+- **Locks**: `ITEM_KEY` opens for the correct item only, stale locks
+  purge when their door is removed, duplicate arming replaces the old
+  lock, and a cleared slot can be re-armed.
+- **RisingLavaHandler**: pulling the lever drains the lava and drops the
+  room from the active map, and a room whose lever is removed is purged
+  as stale.
+- **CollapsingBridgeHandler**: a room whose pistons are removed is purged
+  as stale, and duplicate arming replaces the old bridge.
+- **ReturnPathValidator**: a ladder column validates, a water column
+  validates, a staircase with headroom validates, and a room with no
+  climbable route does not validate.
+
+### 5.4 Omen spur edge cases
+
+`OmenGameTest` (live, Fabric GameTest) pins down four edge cases in
+`OmenSources.spurTaken`, which currently reads `container.isEmpty()`:
+
+- **Partial loot**: the container is not empty, so the spur does not
+  fire. False negative: the player took reward but the omen does not
+  notice.
+- **Inserted junk**: the container is not empty, so the spur does not
+  fire. False negative: the reward was taken but junk masks it.
+- **Initially empty**: the container was never filled, so the spur
+  fires on the first poll. False positive: the omen fires without the
+  player taking anything.
+- **Alternate container**: a barrel works the same as a chest. Correct
+  by construction.
+
+These are documented, not fixed. A fix is a separate milestone; the
+test pins down what the code does today so a fix can prove it changed.
+
+### 5.5 Supply separation: guaranteed consumables versus weighted treasure
+
+`SupplySeparationTest` (offline, pure JDK plus Gson) reads each supply
+chest table and verifies food and light are in guaranteed pools (rolls
+= 1) while treasure stays weighted. The supply chest is the only
+container in a run that is gated on nothing, so a player who fights
+badly still walks out with food and light. That contract only holds
+while food and light are guaranteed to roll, which they were not when
+they shared a single weighted pool with iron ingots and experience
+bottles.
+
+The supply tables (`chests/supply_tier_1.json`,
+`chests/supply_tier_2.json`, `chests/supply_tier_3.json`) were split
+into three pools: guaranteed food, guaranteed light, and weighted
+everything else. Treasure stays weighted, so tool scarcity and treasure
+rarity are preserved.
+
+### 5.6 Graph solvability sweep: seeds 0 through 499, every admitted tier
+
+`GraphSolvabilityTest.testTierSweep` runs the 6.6 invariant over seeds
+0 through 499 for each admitted loot tier (1, 2, 3), using solo Pilgrim.
+Each tier uses a manifest that includes only rooms whose `tier` field
+admits them at that level. The sweep asserts:
+
+- zero unresolved plans (every floor resolves)
+- zero inaccessible mandatory exits (the terminal is reachable from the
+  entrance through open edges, checked by `RoomSelector.validate`)
+- the 6.6 subset invariant holds on every non-fallback cell
+
+Results: 496 floors per tier, 0 fallback cells, 0 unresolved, 0
+inaccessible exits. The Pilgrim sweep (596 floors, 6873 cells) remains
+unchanged.
+
+### 5.7 What is proven and what is not
+
+**Graph proof** (automated, headless): the selector's 6.6 subset
+invariant holds over 500 seeds and three tiers. Every cell's `requires`
+is a subset of what upstream `provides` plus the bag. The terminal is
+reachable. No consumable gates the spine. No unsatisfiable room lands.
+
+**Physical reachability** (automated, live world): the handler tests
+prove the blocks do what the metadata claims. The door opens, the lava
+drains, the bridge collapses and re-extends, the return path climbs.
+The spent-tool test proves the exit stays open after the optional item
+is spent.
+
+**Human player mastery** (not automated): readability, route-finding,
+combat difficulty, and the moment-to-moment experience of playing the
+room. The graph proof says the room is solvable; the physical proof
+says the blocks work; neither says a player will understand the room on
+first sight. That is a live-play check, not a test.

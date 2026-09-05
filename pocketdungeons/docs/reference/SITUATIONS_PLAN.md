@@ -627,13 +627,32 @@ stays two dimensional and the door mask stays four bits, so `LayoutPlanner`,
 `RoomSelector`, `DungeonShape` and the coverage floor are untouched. Spec
 13.5 records why the larger vertical-layout version is not adopted.
 
-Owns `DungeonRoomMeta.java`, `RoomSpec.java`, `RoomTemplateGenerator.java`,
-`BedrockEnvelope.java`, `RoomManifest.java` (door slot offset only), and one
-family spec file for the pilot room. Ships one room, not the catalogue: the
-point of the milestone is to prove the anchor, the envelope and the return
-path check on a single template before any other room declares `stories`.
+**Done.** The vertical span field is `spanY` (int, default 1, reject outside
+1..2), named to parallel `PlanGeometry.spanX`/`spanZ` and anticipate a
+future vertical layout dimension. `STORY_HEIGHT = CEILING_Y + 2` is the
+floor-to-floor pitch. The capture origin moves down by
+`(spanY-1) * STORY_HEIGHT` and the template height grows by the same
+amount; one-spanY rooms capture from the same anchor at the same size, and
+48 of 52 templates regenerate byte-identical (the 3 non-slime_pit diffs are
+pre-existing entity UUID/Motion non-determinism). Door slot validation in
+`RoomManifest.canonicalDoorSlots` offsets template-local y by the same
+amount (trap 20). `BedrockEnvelope` lowers the sub-floor to under the
+lowest story and extends wall rings through every story; the over-ceiling
+layer does not move. `PlanGeometry.bounds` and
+`InstanceRegistry.maximalBounds` lower the floor by the deepest spanY in
+the layout. `ReturnPathValidator` checks at stamp time that a climbable
+route (ladder, water, soul sand, or staircase) exists from the lowest story
+to the upper floor, refusing the stamp if absent (spec 13.4). Slime Pit
+(`spanY: 2`) is the pilot: slime floor and ledge on the upper level, chest
+on the lower level, ladder shaft against the north wall. `RoomProtection`,
+`CellGeometry`, `RoomContent`, `Instances`, `InstanceTeardown` and
+`TemplateStamper` updated for the expanded vertical extent. Headless
+verification: 49 rooms loaded (0 rejected), 53 (mask, role) pairs
+satisfied, 30/30 plan survey, door jigsaw audit passes. Live verification
+(falling into the pit and climbing the ladder) requires a client and is not
+headless-verified.
 
-Handoff: `docs/d3-handoffs/M61-handoff.md`.
+Handoff: `docs/d3-handoffs/M61-handoff-completed.md`.
 
 ---
 

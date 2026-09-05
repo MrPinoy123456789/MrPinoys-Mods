@@ -40,6 +40,7 @@ public class GraphSolvabilityTest {
     public static void main(String[] args) {
         testBagSeed();
         testPilgrimSweep();
+        testTierSweep();
         testScarceSweep();
         testLoopTakesTheShorterDistance();
         testBagIsDepthZero();
@@ -141,6 +142,68 @@ public class GraphSolvabilityTest {
                 + "%.3f ms per floor%n",
                 floors, cells, taggedPlacements, fallbackCells, backtrackedFloors, maxSteps,
                 nanos / 1_000_000.0, nanos / 1_000_000.0 / floors);
+    }
+
+    /**
+     * M64: the sweep run for every admitted loot tier (1, 2, 3), using solo
+     * Pilgrim. Each tier uses a manifest that includes only rooms whose
+     * {@code tier} field admits them at that level: tier 1 sees only tier-1
+     * rooms, tier 2 sees tiers 1 and 2, tier 3 sees all.
+     *
+     * <p>The invariant is the same as the Pilgrim sweep: zero unresolved plans
+     * and zero inaccessible mandatory exits (the terminal cell must be
+     * reachable from the entrance through open edges, which
+     * {@link RoomSelector#validate} checks).
+     *
+     * <p><strong>RoomSelector.preferred relaxes minDepth/maxPerDungeon today;
+     * never use preferences as safety gates.</strong> The depth and repeat
+     * filters in {@code preferred} are dropped when they would empty a non-empty
+     * match list, which is the right call for variety but means they cannot be
+     * relied on to prevent an unsolvable placement. The 6.6 subset filter is
+     * the safety gate, not the preferences.
+     */
+    private static void testTierSweep() {
+        for (int tier = 1; tier <= 3; tier++) {
+            RoomManifest manifest = tierManifest(tier);
+            Set<String> bag = BagTags.pilgrim();
+            int floors = 0;
+            int fallbackCells = 0;
+
+            for (long seed = 0; seed < 500; seed++) {
+                DungeonShape shape = LayoutGraphGenerator.generate(seed, 8, 12);
+                if (shape == null) {
+                    continue;
+                }
+                RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null, bag);
+
+                if (result.plan() == null) {
+                    throw new AssertionError("tier " + tier + " seed " + seed
+                            + ": resolution failed at " + result.failure());
+                }
+                floors++;
+                fallbackCells += result.fallbackCells().size();
+
+                // Zero inaccessible mandatory exits: the terminal must be
+                // reachable from the entrance through open edges.
+                List<String> problems = RoomSelector.validate(result.plan(), 16);
+                for (String problem : problems) {
+                    throw new AssertionError("tier " + tier + " seed " + seed
+                            + ": " + problem);
+                }
+
+                assertInvariant(seed, shape, result.plan(), manifest, bag,
+                        result.fallbackCells());
+            }
+
+            if (floors < 400) {
+                throw new AssertionError("tier " + tier + ": expected at least 400 resolvable "
+                        + "floors in seeds 0-499, got " + floors);
+            }
+            System.out.printf(
+                    "Tier %d sweep: %d floors, %d fallback cells, zero unresolved, "
+                            + "zero inaccessible exits%n",
+                    tier, floors, fallbackCells);
+        }
     }
 
     /**
@@ -813,7 +876,7 @@ public class GraphSolvabilityTest {
     private static DungeonRoomMeta meta(String template, List<String> roles, List<String> provides,
                                         List<String> requires, String access, int weight) {
         return new DungeonRoomMeta(template, 1, 1, roles, weight, 0, -1, null, List.of(), null,
-                1, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS);
+                1, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS, 1);
     }
 
     /**
@@ -854,6 +917,95 @@ public class GraphSolvabilityTest {
         entries.addAll(everyMask("unreachable_dock", List.of("encounter", "loot", "corridor"),
                 List.of(), List.of(UNREACHABLE_TAG), DungeonRoomMeta.ACCESS_OPEN, 20));
         return RoomManifest.create(entries, List.of());
+    }
+
+    /**
+     * A tier-specific manifest for the M64 tier sweep. Rooms whose
+     * {@code tier} field is above the given tier are excluded, mirroring how
+     * the catalogue admits rooms by loot tier: tier 1 sees only tier-1 rooms,
+     * tier 2 sees tiers 1 and 2, tier 3 sees all.
+     *
+     * <p>The room set is the same shape as {@link #sweepManifest}: a plain room
+     * for every role, providers for each tag, consumers including a
+     * multi-tag one, and an unreachable room. The tier-2 and tier-3 manifests
+     * add higher-tier rooms that provide additional tags, so the sweep
+     * exercises the filter at each tier level.
+     */
+    private static RoomManifest tierManifest(int tier) {
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        // Tier-1 rooms: always available.
+        entries.addAll(everyMaskTier("hall", List.of("entrance"), List.of(), List.of(), 1));
+        entries.addAll(everyMaskTier("way_out", List.of("exit"), List.of(), List.of(), 1));
+        entries.addAll(everyMaskTier("passage", List.of("corridor"), List.of(), List.of(), 1));
+        entries.addAll(everyMaskTier("plain_fight", List.of("encounter"), List.of(), List.of(), 1));
+        entries.addAll(everyMaskTier("hoard", List.of("loot"), List.of(), List.of(), 1));
+
+        entries.addAll(everyMaskTier("spring", List.of("loot", "corridor"),
+                List.of(SituationTags.WATER), List.of(), 1));
+        entries.addAll(everyMaskTier("workshop", List.of("loot"),
+                List.of(SituationTags.REDSTONE), List.of(), 1));
+        entries.addAll(everyMaskTier("quarry", List.of("corridor"),
+                List.of(SituationTags.BLOCKS), List.of(), 1));
+        entries.addAll(everyMaskTier("pot_room", List.of("loot"),
+                List.of(SituationTags.TRIAL_KEY), List.of(), 1));
+
+        entries.addAll(everyMaskTier("iron_door", List.of("encounter"), List.of(),
+                List.of(SituationTags.REDSTONE), DungeonRoomMeta.ACCESS_GATED, 6, 1));
+        entries.addAll(everyMaskTier("flow_puzzle", List.of("encounter"), List.of(),
+                List.of(SituationTags.WATER), DungeonRoomMeta.ACCESS_OPEN, 6, 1));
+        entries.addAll(everyMaskTier("pump_room", List.of("loot"), List.of(),
+                List.of(SituationTags.WATER, SituationTags.REDSTONE),
+                DungeonRoomMeta.ACCESS_OPEN, 6, 1));
+        entries.addAll(everyMaskTier("soft_wall", List.of("corridor"), List.of(),
+                List.of(SituationTags.BLOCKS), DungeonRoomMeta.ACCESS_OPEN, 6, 1));
+        entries.addAll(everyMaskTier("barred_vault", List.of("corridor"), List.of(),
+                List.of(SituationTags.TRIAL_KEY), DungeonRoomMeta.ACCESS_OPEN, 6, 1));
+
+        // Tier-2 rooms: available at tier 2 and 3.
+        if (tier >= 2) {
+            entries.addAll(everyMaskTier("ledge_archers", List.of("encounter"),
+                    List.of(SituationTags.BOW), List.of(), 2));
+            entries.addAll(everyMaskTier("ice_run", List.of("corridor"),
+                    List.of(SituationTags.WIND_CHARGE), List.of(), 2));
+            entries.addAll(everyMaskTier("breeze_arena", List.of("encounter"), List.of(),
+                    List.of(SituationTags.WIND_CHARGE), DungeonRoomMeta.ACCESS_GATED, 6, 2));
+        }
+
+        // Tier-3 rooms: available at tier 3 only.
+        if (tier >= 3) {
+            entries.addAll(everyMaskTier("elders_chamber", List.of("corridor"),
+                    List.of(SituationTags.WATER), List.of(), 3));
+            entries.addAll(everyMaskTier("the_raid", List.of("encounter"), List.of(),
+                    List.of(SituationTags.MOB), DungeonRoomMeta.ACCESS_GATED, 6, 3));
+        }
+
+        entries.addAll(everyMaskTier("unreachable_dock", List.of("encounter", "loot", "corridor"),
+                List.of(), List.of(UNREACHABLE_TAG), DungeonRoomMeta.ACCESS_OPEN, 20, 1));
+        return RoomManifest.create(entries, List.of());
+    }
+
+    /** One entry per door mask, with a tier field. */
+    private static List<RoomManifest.Entry> everyMaskTier(String name, List<String> roles,
+                                                          List<String> provides, List<String> requires,
+                                                          int tier) {
+        return everyMaskTier(name, roles, provides, requires, DungeonRoomMeta.ACCESS_OPEN, 1, tier);
+    }
+
+    private static List<RoomManifest.Entry> everyMaskTier(String name, List<String> roles,
+                                                          List<String> provides, List<String> requires,
+                                                          String access, int weight, int tier) {
+        List<RoomManifest.Entry> out = new ArrayList<>();
+        for (int mask = 1; mask <= 15; mask++) {
+            out.add(new RoomManifest.Entry(name + "_" + DoorMask.toLetters(mask),
+                    tierMeta(name, roles, provides, requires, access, weight, tier), mask));
+        }
+        return out;
+    }
+
+    private static DungeonRoomMeta tierMeta(String template, List<String> roles, List<String> provides,
+                                            List<String> requires, String access, int weight, int tier) {
+        return new DungeonRoomMeta(template, 1, 1, roles, weight, 0, -1, null, List.of(), null,
+                tier, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS, 1);
     }
 
     /**

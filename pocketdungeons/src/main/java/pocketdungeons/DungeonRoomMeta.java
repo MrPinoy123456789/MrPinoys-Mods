@@ -40,6 +40,16 @@ final class DungeonRoomMeta {
     /** M45 (spec 6.1): {@code open} or {@code gated}. Never null; defaults to {@code open}. */
     final String access;
 
+    /**
+     * M61 (spec 13.2): the number of cell-sized volumes this room stacks
+     * vertically, the topmost being its own cell and each one below owned
+     * privately by the same room. Defaults to {@code 1} (no lower story).
+     * {@code 2} means the room owns its cell plus the 16 x 16 x 9 volume
+     * directly beneath it. The lower story has no doorways and is not a
+     * {@link PlanCell}; see spec 13.3 and the {@code spanY} invariant in 13.4.
+     */
+    final int spanY;
+
     /** The only value {@link #access} may take besides {@link #ACCESS_GATED}. */
     static final String ACCESS_OPEN = "open";
 
@@ -72,7 +82,8 @@ final class DungeonRoomMeta {
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
                     int weight, int minDepth, int maxPerDungeon, String processors,
                     List<String> theme, String content, int tier, List<String> provides,
-                    List<String> requires, String pressure, String access, String window) {
+                    List<String> requires, String pressure, String access, String window,
+                    int spanY) {
         this.template = template;
         this.footprintX = footprintX;
         this.footprintZ = footprintZ;
@@ -89,6 +100,7 @@ final class DungeonRoomMeta {
         this.pressure = pressure;
         this.access = access;
         this.window = window;
+        this.spanY = spanY;
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
@@ -96,7 +108,7 @@ final class DungeonRoomMeta {
                     List<String> theme, String content) {
         this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon,
                 processors, theme, content, 1, List.of(), List.of(), null, ACCESS_OPEN,
-                WINDOW_BARS);
+                WINDOW_BARS, 1);
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
@@ -132,9 +144,10 @@ final class DungeonRoomMeta {
         String pressure = stringOrNull(obj.get("pressure"));
         String access = parseAccess(obj.get("access"), template);
         String window = parseWindow(obj.get("window"), template);
+        int spanY = parseSpanY(obj.get("spanY"), template);
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,
                 weight, minDepth, maxPerDungeon, processors, theme, content,
-                tier, provides, requires, pressure, access, window);
+                tier, provides, requires, pressure, access, window, spanY);
     }
 
     private static String requiredString(JsonObject obj, String key) {
@@ -249,5 +262,21 @@ final class DungeonRoomMeta {
         }
         String value = el.getAsString().trim();
         return value.isEmpty() ? null : value;
+    }
+
+    /**
+     * M61 (spec 13.2): {@code spanY} defaults to 1 and may only be 1 or 2 in
+     * this round. A value outside that range is a datapack typo, and a typo
+     * that silently read as 1 would hide a lower story the author meant to
+     * declare (or promise one the generator cannot yet honour), so it throws
+     * with the room named, the same way {@code access} and {@code window} do.
+     */
+    private static int parseSpanY(JsonElement el, String roomName) {
+        int value = intOr(el, 1);
+        if (value < 1 || value > RoomGeometry.MAX_SPAN_Y) {
+            throw new IllegalArgumentException("room " + roomName + ": spanY must be between 1 and "
+                    + RoomGeometry.MAX_SPAN_Y + ", not " + value);
+        }
+        return value;
     }
 }

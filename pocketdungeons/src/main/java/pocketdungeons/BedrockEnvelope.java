@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
@@ -41,55 +42,71 @@ final class BedrockEnvelope {
      * affix uses this so players who fall through carved floors reach the void
      * instead of bedrock. Wall rings and ceiling layers are still applied
      * normally. Pass {@link Set#of()} for a run with no voided cells.
+     *
+     * <p>M61: {@code cellSpanY} gives the vertical span of the room stamped in
+     * each cell (defaulting to 1 for cells not in the map). A span greater than
+     * 1 lowers the sub-floor bedrock to under the lowest story and extends the
+     * wall rings down to cover every story; the over-ceiling layer does not
+     * move. Pass {@link Map#of()} for a layout with no multi-story rooms.
      */
-    static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells) {
+    static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells,
+                      Map<PlanCell, Integer> cellSpanY) {
         Set<PlanCell> occupied = Set.copyOf(geometry.cells());
         for (PlanCell cell : geometry.cells()) {
-            applyToCell(level, geometry.cellOrigin(cell), occupied, cell, voidedCells);
+            int spanY = cellSpanY.getOrDefault(cell, 1);
+            applyToCell(level, geometry.cellOrigin(cell), occupied, cell, voidedCells, spanY);
         }
     }
 
     private static void applyToCell(ServerLevel level, BlockPos o, Set<PlanCell> occupied,
-                                     PlanCell cell, Set<PlanCell> voidedCells) {
+                                     PlanCell cell, Set<PlanCell> voidedCells, int spanY) {
         boolean voided = voidedCells.contains(cell);
+        // M61: the sub-floor sits under the lowest story, so a spanY > 1 room's
+        // sub-floor drops by (spanY-1)*STORY_HEIGHT. The over-ceiling stays at
+        // the cell's own top (CEILING_Y + 1); it does not move.
+        int storyOffset = RoomGeometry.storyOffset(spanY);
+        int subFloorY = -1 - storyOffset;
+        int wallTop = CEILING_Y + 1;
+        int wallBottom = subFloorY;
         // Sub-floor and over-ceiling: always, every cell. Except sub-floor
         // for voided cells: no bedrock so fallen players reach the void.
         for (int x = 0; x < CELL; x++) {
             for (int z = 0; z < CELL; z++) {
                 if (!voided) {
-                    set(level, o.offset(x, -1, z));
+                    set(level, o.offset(x, subFloorY, z));
                 }
-                set(level, o.offset(x, CEILING_Y + 1, z));
+                set(level, o.offset(x, wallTop, z));
             }
         }
 
         // Outer wall ring, one face at a time, only where there is no neighbour
         // to collide with -- see the class note for why an unconditional ring
-        // is wrong.
+        // is wrong. The ring covers every story: wallBottom (under the lowest
+        // floor) through wallTop (over the cell's ceiling).
         if (!occupied.contains(new PlanCell(cell.x(), cell.z() - 1))) { // north
             for (int x = 0; x < CELL; x++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
+                for (int y = wallBottom; y <= wallTop; y++) {
                     set(level, o.offset(x, y, -1));
                 }
             }
         }
         if (!occupied.contains(new PlanCell(cell.x(), cell.z() + 1))) { // south
             for (int x = 0; x < CELL; x++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
+                for (int y = wallBottom; y <= wallTop; y++) {
                     set(level, o.offset(x, y, CELL));
                 }
             }
         }
         if (!occupied.contains(new PlanCell(cell.x() - 1, cell.z()))) { // west
             for (int z = 0; z < CELL; z++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
+                for (int y = wallBottom; y <= wallTop; y++) {
                     set(level, o.offset(-1, y, z));
                 }
             }
         }
         if (!occupied.contains(new PlanCell(cell.x() + 1, cell.z()))) { // east
             for (int z = 0; z < CELL; z++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
+                for (int y = wallBottom; y <= wallTop; y++) {
                     set(level, o.offset(CELL, y, z));
                 }
             }

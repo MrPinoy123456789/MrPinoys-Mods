@@ -18,6 +18,35 @@ final class RoomGeometry {
     static final int DOOR_HEIGHT = 3;
 
     /**
+     * M61: the vertical pitch between consecutive cell floors when a room owns
+     * the volume below it ({@code DungeonRoomMeta.spanY}). A one story room
+     * occupies the cell's own nine blocks (sub-floor bedrock at y=-1 through
+     * over-ceiling bedrock at y=CEILING_Y+1). A second story sits directly
+     * beneath, and its over-ceiling layer is the upper story's sub-floor, so
+     * the two share one block and the floor-to-floor pitch is the interior
+     * ({@code CEILING_Y+1}) plus one bedrock layer, not two. Hence
+     * {@code CEILING_Y + 2}.
+     *
+     * <p>This is the offset applied to a template's capture origin and size, to
+     * the door-slot y in {@link RoomManifest#canonicalDoorSlots}, and to the
+     * bedrock envelope's sub-floor and wall rings.
+     */
+    static final int STORY_HEIGHT = CEILING_Y + 2;
+
+    /** M61: the largest {@code spanY} a room may declare. */
+    static final int MAX_SPAN_Y = 2;
+
+    /**
+     * M61: how many blocks a {@code spanY > 1} room's capture origin sits below
+     * its own cell origin. Each extra story adds one {@link #STORY_HEIGHT}
+     * (the floor-to-floor pitch), so a one story room has offset 0 and captures
+     * from its own cell origin, byte identical to before.
+     */
+    static int storyOffset(int spanY) {
+        return (spanY - 1) * STORY_HEIGHT;
+    }
+
+    /**
      * M45: the window band, the doorway lane widened by one block on each side
      * at eye height and nowhere else. Cells tile at 16 and each owns its whole
      * footprint, so two adjacent interiors are separated by two wall blocks,

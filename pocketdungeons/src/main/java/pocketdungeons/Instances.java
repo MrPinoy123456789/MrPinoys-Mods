@@ -1306,8 +1306,11 @@ final class Instances {
      * here.
      */
     static void clearCellSync(ServerLevel level, BlockPos origin, List<BlockPos> keepCells) {
+        // M61: clear below any lower story a cell may own. Over-clearing a
+        // single-story cell is harmless: the extra volume is dungeon void.
+        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
         for (int x = -1; x <= RoomGeometry.CELL; x++) {
-            for (int y = -1; y <= RoomGeometry.CEILING_Y + 1; y++) {
+            for (int y = -1 - maxOffset; y <= RoomGeometry.CEILING_Y + 1; y++) {
                 for (int z = -1; z <= RoomGeometry.CELL; z++) {
                     BlockPos pos = origin.offset(x, y, z);
                     if (CellGeometry.insideAnyCell(pos, keepCells)) {
@@ -1319,7 +1322,7 @@ final class Instances {
                 }
             }
         }
-        AABB bounds = new AABB(origin.getX() - 1, origin.getY() - 1, origin.getZ() - 1,
+        AABB bounds = new AABB(origin.getX() - 1, origin.getY() - 1 - maxOffset, origin.getZ() - 1,
                 origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
                 origin.getZ() + RoomGeometry.CELL + 1);
         for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
@@ -1819,6 +1822,31 @@ final class Instances {
             record.spawnerCellsByCell = byCell;
             record.spawnerCellsLayout = record.layout;
         }
+        // Per-spawner progress: detect each trial spawner transitioning to
+        // COOLDOWN and announce cleared/total to every member in chat. Runs
+        // before the per-cell clear check so the cell-clear cue still fires
+        // on the same tick its last spawner is announced.
+        int totalSpawners = record.layout.trialSpawners().size();
+        for (BlockPos pos : record.layout.trialSpawners()) {
+            if (record.announcedSpawners.contains(pos)) {
+                continue;
+            }
+            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
+                    && spawner.getState() == TrialSpawnerState.COOLDOWN) {
+                record.announcedSpawners.add(pos);
+                int cleared = record.announcedSpawners.size();
+                Component progress = Component.literal(
+                                "Trial spawner cleared: " + cleared + "/" + totalSpawners)
+                        .withStyle(ChatFormatting.AQUA);
+                for (UUID member : record.members.keySet()) {
+                    ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+                    if (memberPlayer != null
+                            && memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                        memberPlayer.sendSystemMessage(progress);
+                    }
+                }
+            }
+        }
         for (Map.Entry<PlanCell, List<BlockPos>> e : record.spawnerCellsByCell.entrySet()) {
             PlanCell cell = e.getKey();
             if (record.clearedCells.contains(cell)) {
@@ -2003,12 +2031,15 @@ final class Instances {
     private static DungeonCellLookup dungeonCellLookupAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             InstanceLayout layout = record.layout;
-            if (layout == null || !record.completed.isEmpty()) {
+            if (layout == null) {
                 continue;
             }
             PlanGeometry geometry = layout.geometry();
             int y = pos.getY() - geometry.origin().getY();
-            if (y < 0 || y > RoomGeometry.CEILING_Y) {
+            // M61: a multi-story room owns volumes below its cell floor, down
+            // to storyFloorOffset. The x/z lookup is unchanged (a lower story
+            // shares its cell's chunk column), so only the y guard widens.
+            if (y < -geometry.storyFloorOffset() || y > RoomGeometry.CEILING_Y) {
                 continue;
             }
             PlanCell cell = geometry.cellAt(pos);

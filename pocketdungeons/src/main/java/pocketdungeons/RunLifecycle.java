@@ -739,9 +739,12 @@ final class RunLifecycle {
      * {@code visitInstance} is a read-only copy of somebody else's, and a
      * record with no {@code roomCellOrigin} is an admin or untimed run.
      */
-    static void saveRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+    static boolean saveRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
         if (record.roomCellOrigin == null || record.visitInstance) {
-            return;
+            // Nothing to save is not a failed save: these two have no room of
+            // their own by design, and a caller must not read this as a reason
+            // to hold off a teardown.
+            return true;
         }
         // M55: the safe room holds only the owner's blob and the bag chest.
         // Selector doors, furniture and screens live in the staging room now,
@@ -752,8 +755,9 @@ final class RunLifecycle {
         // The safe room is always stamped at rotation 0 (its ee and MM walls
         // are sealed by stampSafeRoom regardless of what the blob was saved
         // with), so the capture rotation is always 0.
-        RoomStore.capture(level, server, record.owner, record.roomCellOrigin, 0);
+        boolean saved = RoomStore.capture(level, server, record.owner, record.roomCellOrigin, 0);
         Instances.placeBagChestForParty(level, server, record);
+        return saved;
     }
 
     /**
@@ -785,8 +789,15 @@ final class RunLifecycle {
         }
         server.execute(() -> {
             ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-            if (level != null) {
-                saveRoom(level, server, record);
+            if (level != null && !saveRoom(level, server, record)) {
+                // Nothing here can hold off a teardown: by the time this
+                // deferred body runs the caller has long since returned. The
+                // recoverable record is the log line plus the untouched
+                // previous blob on disk, which is what an operator restores
+                // from with baserestore.
+                PocketDungeonsMod.LOG.error("Deferred room save for {} failed; their previously "
+                        + "saved room is still on disk and is what they will get on re-entry",
+                        record.owner);
             }
         });
     }
@@ -800,13 +811,13 @@ final class RunLifecycle {
      * is written back as empty air (PD-8). Callers that are about to destroy
      * the room must save it now, before the clear is queued, not after.
      */
-    static void saveRoomIfOwnerSync(ServerLevel level, MinecraftServer server,
-                                    InstanceRecord record, UUID member) {
+    static boolean saveRoomIfOwnerSync(ServerLevel level, MinecraftServer server,
+                                       InstanceRecord record, UUID member) {
         if (record.owner == null || !record.owner.equals(member)
                 || record.roomCellOrigin == null || record.visitInstance) {
-            return;
+            return true;
         }
-        saveRoom(level, server, record);
+        return saveRoom(level, server, record);
     }
 
     /**
@@ -1019,7 +1030,6 @@ final class RunLifecycle {
                 record.timer.markCompleted();
             }
             completeDungeon(server, record);
-            announceShellLift(server, record);
 
             // M34: weekly bounty hooks. Bounties belong to the owner; a party
             // member's completion counts toward the owner's bounties, the
@@ -1136,30 +1146,6 @@ final class RunLifecycle {
      * persistent room is stamped behind the sealed far wall. The sealed door is
      * then opened so the player can walk into their room.
      */
-    /**
-     * M31 9.2: told once, at the moment the dungeon's shell protection lifts.
-     * Fired from {@link #completeRun}'s {@code firstCompletion} branch, so it
-     * runs exactly once per instance no matter how many members finish
-     * afterwards or how many times the dungeon is re-entered -- by then
-     * {@code record.completed} is already non-empty, so
-     * {@link Instances#dungeonRecordAt} has already stopped protecting
-     * anything for this run. Reaches every member currently standing in the
-     * dungeon dimension, not just the one who just finished: the whole party's
-     * cells opened up at once.
-     */
-    private static void announceShellLift(MinecraftServer server, InstanceRecord record) {
-        for (UUID member : record.members.keySet()) {
-            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
-            if (memberPlayer != null
-                    && memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                memberPlayer.sendSystemMessage(Component.literal(
-                                "The dungeon's shell has weakened. You can break blocks now.")
-                        .withStyle(ChatFormatting.GREEN));
-                Chime.shellWeakened(memberPlayer);
-            }
-        }
-    }
-
     private static void completeDungeon(MinecraftServer server, InstanceRecord record) {
         if (record.stagingCellOrigin == null) {
             return;

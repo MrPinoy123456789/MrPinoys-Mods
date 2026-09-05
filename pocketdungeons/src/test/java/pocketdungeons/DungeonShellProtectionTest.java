@@ -110,7 +110,7 @@ public class DungeonShellProtectionTest {
         check(Instances.dungeonRecordAt(origin.offset(20, 2, 5)) == record); // the quarry cell
     }
 
-    /** The first completion clears protection for every cell of that run, permanently. */
+    /** Shell protection stays up for the lifetime of the run, even after completion. */
     private static void testProtectionLiftsAfterCompletion() {
         InstanceRegistry.bySlot.clear();
         BlockPos origin = new BlockPos(1000, 64, 2000);
@@ -122,7 +122,8 @@ public class DungeonShellProtectionTest {
 
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record);
         record.completed.add(UUID.randomUUID());
-        check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == null);
+        check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record,
+                "shell protection stays up after completion");
     }
 
     /** {@code /dungeon admin build} (M31 constraint): same lookup, no room cell to skip. */
@@ -139,8 +140,8 @@ public class DungeonShellProtectionTest {
         check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) != null,
                 "shell position has a cell origin while active");
         record.completed.add(UUID.randomUUID());
-        check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) == null,
-                "shell position has no cell origin after completion");
+        check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) != null,
+                "shell position still has a cell origin after completion");
     }
 
     private static void check(boolean condition) {

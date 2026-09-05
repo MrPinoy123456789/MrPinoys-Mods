@@ -10,13 +10,14 @@ import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.HopperBlock;
-import net.minecraft.world.level.block.ObserverBlock;
+import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.ComparatorMode;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -81,7 +82,8 @@ final class PressureSpecs {
         Situations.register("rising_lava", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
         Situations.register("collapsing_bridge", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) ->
+                CollapsingBridgeHandler.arm(level, o));
     }
 
     // ---- shared helpers -----------------------------------------------------
@@ -139,89 +141,74 @@ final class PressureSpecs {
         }
     }
 
-    /** Fills 4 of a hopper's 5 slots with 64 of {@code item}, leaving slot 4 empty (vanilla item filter). */
-    private static void fillFilter(ServerLevel level, BlockPos o, int x, int y, int z, ItemStack item) {
-        BlockEntity be = level.getBlockEntity(o.offset(x, y, z));
-        if (be instanceof HopperBlockEntity hopper) {
-            for (int i = 0; i < 4; i++) {
-                hopper.setItem(i, new ItemStack(item.getItem(), 64));
-            }
-            hopper.setChanged();
-        }
-    }
+// ---- 1. Rising Lava -----------------------------------------------------
 
-    // ---- 1. Rising Lava -----------------------------------------------------
-
-    /**
-     * A kerbed lava channel runs the length of the room along the through-route
-     * (z=7..8). Dispensers in the south wall load lava buckets into the channel;
-     * a hopper clock in the north-west corner feeds them. A one-block dry margin
-     * along the north wall (z=1) keeps the cleared room crossable afterwards
-     * (audit 4.5), and the stone-brick kerb at z=6 and z=9 contains the lava so
-     * it cannot leak through the doorways (audit 4.3).
-     *
-     * <p>The channel floor is deepslate to read as a trench; the dry margin is
-     * chiseled stone brick to read as the safe path. Pillaring is capped at
-     * y=4 (interior is five tall, one block of headroom).
-     */
-    private static RoomSpec risingLava() {
-        return new RoomSpec("rising_lava", EnumSet.of(ENTRANCE, EXIT))
-                .decor((level, o) -> {
-                    BlockState trench = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
-                    BlockState dry = Blocks.CHISELED_STONE_BRICKS.defaultBlockState();
-                    BlockState kerb = RoomBuilder.WALL;
-                    // Channel floor (z=7..8) and dry margin (z=1) along the north wall.
-                    for (int x = 1; x < CELL - 1; x++) {
-                        set(level, o, x, 0, 7, trench);
-                        set(level, o, x, 0, 8, trench);
-                        set(level, o, x, 0, 1, dry);
+// Fixed 2026-09-04: replaced broken dispenser/hopper/redstone circuit
+// with code-driven lava spread (RisingLavaHandler). Lava now spreads
+// from both side walls toward the center while players are present,
+// stops when the lever is pulled, and recedes when the room is empty.
+// See docs/ROOM_FIXES.md.
+/**
+ * A trash-compactor corridor. The floor is a deepslate trench. While
+ * players are in the room, lava spreads inward from both side walls
+ * toward the center. A lever on the far wall stops the lava and drains
+ * the room. When no players remain, the lava recedes on its own.
+ *
+ * <p>The spread and recede are driven by {@link RisingLavaHandler} in
+ * code, not redstone. Vanilla redstone cannot detect players in a room
+ * or place/remove lava on a timer.
+ */
+private static RoomSpec risingLava() {
+    return new RoomSpec("rising_lava", EnumSet.of(ENTRANCE, EXIT))
+            .decor((level, o) -> {
+                BlockState trench = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
+                // Trench floor across the whole interior.
+                for (int x = 1; x < CELL - 1; x++) {
+                    for (int z = 1; z < CELL - 1; z++) {
+                        set(level, o, x, 0, z, trench);
                     }
-                    // Kerb lips at y=1 on z=6 and z=9 to contain the lava.
-                    for (int x = 1; x < CELL - 1; x++) {
-                        set(level, o, x, 1, 6, kerb);
-                        set(level, o, x, 1, 9, kerb);
-                    }
-                    // Dispensers in the south wall (z=15) facing north, loaded with
-                    // lava buckets. They place lava into the channel at z=14.
-                    ItemStack lavaBucket = new ItemStack(Items.LAVA_BUCKET);
-                    for (int x : new int[]{3, 6, 9, 12}) {
-                        placeDispenser(level, o, x, 1, CELL - 1, Direction.NORTH, lavaBucket, 1);
-                    }
-                    // Hopper clock in the north-west corner on the dry strip: two
-                    // hoppers facing each other, one pre-loaded with items.
-                    placeHopper(level, o, 2, 1, 1, Direction.EAST);
-                    placeHopper(level, o, 3, 1, 1, Direction.WEST);
-                    BlockEntity clock = level.getBlockEntity(o.offset(2, 1, 1));
-                    if (clock instanceof HopperBlockEntity hopper) {
-                        for (int i = 0; i < 5; i++) {
-                            hopper.setItem(i, new ItemStack(Items.REDSTONE, 32));
-                        }
-                        hopper.setChanged();
-                    }
-                    // Comparator reads the clock, dust carries the pulse south to
-                    // the dispenser row. Redstone is non-solid and may cross lanes.
-                    placeComparator(level, o, 3, 2, 1, Direction.SOUTH);
-                    placeDust(level, o, 3, 2, 2);
-                    placeDust(level, o, 3, 2, 3);
-                    placeDust(level, o, 3, 2, 4);
-                    placeDust(level, o, 3, 2, 5);
-                    placeRepeater(level, o, 3, 2, 6, Direction.SOUTH);
-                });
-    }
+                }
+                // Lever on the east wall at the exit, in the doorway lane.
+                // The player runs the length of the corridor and pulls it
+                // to stop the lava.
+                set(level, o, CELL - 2, 1, RoomGeometry.DOOR_MIN,
+                        Blocks.LEVER.defaultBlockState()
+                                .setValue(LeverBlock.FACE, AttachFace.WALL)
+                                .setValue(LeverBlock.FACING, Direction.WEST));
+            });
+}
 
     // ---- 2. Collapsing Bridge -----------------------------------------------
 
     /**
-     * A bridge of oak plank segments crosses a lava floor (audit 4.2: lava at
-     * y=0, not a pit). Sticky pistons in the kerb walls push each segment into
-     * place; observers behind the pistons detect the player stepping on and
-     * retract the segment. A repeater delay re-extends the piston afterwards
-     * (audit 4.4: timing hazard, not a permanent one-way, so backtracking
-     * survives).
+     * A bridge of oak plank segments crosses a lava floor. Each segment is a
+     * pair of sticky pistons facing each other across a two-block gap, with
+     * oak planks pushed into the gap to form the bridge. The pistons
+     * telegraph the hazard: the player can see the mechanism that will drop
+     * them.
      *
-     * <p>The bridge runs along z=7..8 (the through-route). Pistons sit in the
-     * z=6 kerb facing south and the z=9 kerb facing north, one pair per segment.
+     * <p>The pistons and retracted planks are enclosed by pillars from floor
+     * to ceiling, so the player cannot stand on a piston or a retracted
+     * plank to bypass the collapse. The only walkable path is through the
+     * bridge positions (z=7, z=8).
+     *
+     * <p>Per segment, the layout at y=1 is:
+     * <pre>
+     *   z=5  z=6  z=7  z=8  z=9  z=10
+     *   P    H    W    W    H    P      (extended: bridge formed)
+     *   P    W    .    .    W    P      (collapsed: two-block gap)
+     * </pre>
+     * P = sticky piston, H = piston head, W = oak plank, . = air.
+     *
+     * <p>Observers and repeaters cannot detect a player standing on a block
+     * (observers detect block state changes, not entities), so the collapse
+     * is driven by {@link CollapsingBridgeHandler} in code: it checks the
+     * player's position each tick, retracts the pistons after a delay, and
+     * re-extends after a longer delay so backtracking survives.
      */
+    // Fixed 2026-09-04: replaced broken observer/piston redstone with
+    // code-driven collapse (CollapsingBridgeHandler). Observers cannot detect
+    // players. Redesigned to PWSSWP with pillars. See docs/ROOM_FIXES.md.
     private static RoomSpec collapsingBridge() {
         return new RoomSpec("collapsing_bridge", EnumSet.of(ENTRANCE, EXIT))
                 .decor((level, o) -> {
@@ -236,29 +223,46 @@ final class PressureSpecs {
                         }
                         set(level, o, x, 0, 1, dry);
                     }
-                    // Bridge segments and piston pairs at every third block.
+                    // Bridge segments at every third block. Each segment is a
+                    // PWSSWP pair: pistons at z=5,10; planks at z=7,8 (extended);
+                    // piston heads at z=6,9 (extended). Pillars at z=5,6,9,10
+                    // from y=0 to the ceiling block the player from standing on
+                    // pistons or retracted planks.
                     BlockState planks = Blocks.OAK_PLANKS.defaultBlockState();
+                    BlockState pillar = RoomBuilder.WALL;
                     BlockState pistonSouth = Blocks.STICKY_PISTON.defaultBlockState()
-                            .setValue(PistonBaseBlock.FACING, Direction.SOUTH);
+                            .setValue(PistonBaseBlock.FACING, Direction.SOUTH)
+                            .setValue(PistonBaseBlock.EXTENDED, true);
                     BlockState pistonNorth = Blocks.STICKY_PISTON.defaultBlockState()
-                            .setValue(PistonBaseBlock.FACING, Direction.NORTH);
-                    BlockState observerSouth = Blocks.OBSERVER.defaultBlockState()
-                            .setValue(ObserverBlock.FACING, Direction.SOUTH);
-                    BlockState observerNorth = Blocks.OBSERVER.defaultBlockState()
-                            .setValue(ObserverBlock.FACING, Direction.NORTH);
+                            .setValue(PistonBaseBlock.FACING, Direction.NORTH)
+                            .setValue(PistonBaseBlock.EXTENDED, true);
+                    BlockState headSouth = Blocks.PISTON_HEAD.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.SOUTH)
+                            .setValue(net.minecraft.world.level.block.piston.PistonHeadBlock.TYPE,
+                                    net.minecraft.world.level.block.state.properties.PistonType.STICKY);
+                    BlockState headNorth = Blocks.PISTON_HEAD.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.NORTH)
+                            .setValue(net.minecraft.world.level.block.piston.PistonHeadBlock.TYPE,
+                                    net.minecraft.world.level.block.state.properties.PistonType.STICKY);
                     for (int x : new int[]{3, 6, 9, 12}) {
-                        // Bridge block at z=7 (pushed by south-facing piston at z=6)
-                        // and z=8 (pushed by north-facing piston at z=9).
-                        set(level, o, x, 1, 6, pistonSouth);
-                        set(level, o, x, 1, 9, pistonNorth);
+                        // Piston bases (extended) and heads.
+                        set(level, o, x, 1, 5, pistonSouth);
+                        set(level, o, x, 1, 6, headSouth);
+                        set(level, o, x, 1, 9, headNorth);
+                        set(level, o, x, 1, 10, pistonNorth);
+                        // Bridge planks in the extended position.
                         set(level, o, x, 1, 7, planks);
                         set(level, o, x, 1, 8, planks);
-                        // Observers behind the pistons detect the block update.
-                        set(level, o, x, 1, 5, observerSouth);
-                        set(level, o, x, 1, 10, observerNorth);
-                        // Repeater on top of each observer for the re-extend delay.
-                        placeRepeater(level, o, x, 2, 5, Direction.SOUTH);
-                        placeRepeater(level, o, x, 2, 10, Direction.NORTH);
+                        // Pillars at z=5,6,9,10: solid from y=0 (replacing lava,
+                        // so pistons have a base) up through y=2 to the ceiling,
+                        // blocking the player from standing on pistons or
+                        // retracted planks.
+                        for (int z : new int[]{5, 6, 9, 10}) {
+                            set(level, o, x, 0, z, pillar);
+                            for (int y = 2; y <= RoomGeometry.CEILING_Y; y++) {
+                                set(level, o, x, y, z, pillar);
+                            }
+                        }
                     }
                 });
     }

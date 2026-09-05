@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
+
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
@@ -105,10 +106,10 @@ final class MechanismSpecs {
      * and fall through to the role dispatch harmlessly.
      */
     static void registerHandlers() {
-        // The three rooms whose gate is "put anything in the chest". Owning the
+        // The two rooms whose gate is "put anything in the chest". Owning the
         // cell also keeps the corridor role's removeChests pass off the return
         // chest, which is the room.
-        for (String id : new String[]{"item_plate", "gallery", "flow_puzzle"}) {
+        for (String id : new String[]{"item_plate", "flow_puzzle"}) {
             Situations.register(id, (level, o, role, depth, profile, spawns, seed,
                     affixes, lootSuffix, theme, voidedFloor, content) ->
                     Locks.arm(level, o, Locks.Kind.ITEM_ANY, null));
@@ -395,38 +396,19 @@ final class MechanismSpecs {
     // ---- 5. Gallery ---------------------------------------------------------
 
     /**
-     * Three target blocks up the west wall, each on a hopper, each under a
-     * redstone lamp that lights when it is hit. Arrows, snowballs, eggs and
-     * wind charges all activate a target; the spent ammunition drops onto the
-     * hopper beneath, is funnelled east along z=6, and lands in the return
-     * chest, whose comparator opens the door.
-     *
-     * <p>That is audit 2.4's fix and the gate in one mechanism: the room gives
-     * back the arrows it took, so {@code bow} and {@code snowballs} are still
-     * in {@code available} at the next cell. The lamps are pure feedback, and
-     * the three targets read from the doorway as what the room wants.
-     *
-     * <p>Spec 4.2 gates this on three hits inside a hopper clock's window. A
-     * three-input latch with a timed reset does not fit a template that has to
-     * survive a stamp, so the gate is delivery rather than simultaneity: any
-     * one hit that returns its ammunition opens the door. Two dirt blocks by
-     * the entrance make good on {@code provides: blocks}.
+     * Three target blocks up the west wall, each under a redstone lamp that
+     * lights when it is hit. Arrows, snowballs, eggs and wind charges all
+     * activate a target. Open access: no door, no gate. The player walks
+     * up to the wall and recovers spent projectiles by hand. Two dirt
+     * blocks by the entrance make good on {@code provides: blocks}.
      */
+    // Fixed 2026-09-04: removed broken iron door, chest gate, hopper column,
+    // and hopper run. Arrows stick to targets in vanilla and never reach
+    // hoppers, so the gate never opened. See docs/ROOM_FIXES.md.
     private static RoomSpec gallery() {
         return new RoomSpec("gallery", EnumSet.of(ENTRANCE, EXIT))
                 .decor((level, o) -> {
-                    placeIronDoor(level, o);
-                    placeChestGate(level, o);
-                    // The catch: a hopper column up the west wall funnelling to z=6.
-                    placeHopper(level, o.offset(1, 1, 4), Direction.SOUTH);
-                    placeHopper(level, o.offset(1, 1, 5), Direction.SOUTH);
-                    placeHopper(level, o.offset(1, 1, 6), Direction.EAST);
-                    for (int z = 7; z <= 12; z++) {
-                        placeHopper(level, o.offset(1, 1, z), Direction.NORTH);
-                    }
-                    // The run east to the return chest.
-                    hopperRunEast(level, o, 2, 10, 6);
-                    // Three targets, each with its lamp.
+                    // Three targets up the west wall, each with its lamp.
                     for (int z : new int[]{4, 8, 12}) {
                         RoomBuilder.set(level, o.offset(1, 2, z), Blocks.TARGET.defaultBlockState());
                         RoomBuilder.set(level, o.offset(1, 3, z), Blocks.REDSTONE_LAMP.defaultBlockState());

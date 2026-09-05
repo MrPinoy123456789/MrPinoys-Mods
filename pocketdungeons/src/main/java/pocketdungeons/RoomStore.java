@@ -111,8 +111,8 @@ final class RoomStore {
      * {@code fillEntityList} already refuses to capture a {@link Player}, so
      * they were never going into the blob either way.
      */
-    static void capture(ServerLevel level, MinecraftServer server, UUID owner,
-                        BlockPos cellOrigin, int capturedQuarterTurns) {
+    static boolean capture(ServerLevel level, MinecraftServer server, UUID owner,
+                           BlockPos cellOrigin, int capturedQuarterTurns) {
         for (Entity entity : level.getEntities((Entity) null,
                 new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(), cellOrigin.getZ(),
                         cellOrigin.getX() + RoomGeometry.CELL, cellOrigin.getY() + RoomGeometry.CEILING_Y + 1,
@@ -126,7 +126,48 @@ final class RoomStore {
         CompoundTag tag = template.save(new CompoundTag());
         tag.putInt(ROTATION_KEY, ((capturedQuarterTurns % 4) + 4) % 4);
         tag.putInt(VERSION_KEY, CURRENT_VERSION);
-        save(server, owner, tag);
+
+        // M63: refuse an all-air capture rather than persisting it. This is the
+        // PD-8 failure with the race already lost: if a clear reaches the room
+        // cell before the capture reads it, fillFromWorld succeeds and returns
+        // a blob of nothing but air, and writing it destroys the player's room
+        // twice over. Once because the live file becomes empty, and again on
+        // the next save, when that empty file is what gets copied over the
+        // backup. A room is never legitimately empty (RoomBuilder always leaves
+        // a floor and a sealed shell), so an all-air capture is only ever a
+        // bug, and the safe response is to keep whatever is already on disk.
+        if (isAllAir(tag)) {
+            PocketDungeonsMod.LOG.error("Refusing to persist an all-air capture of {}'s room at {}; "
+                    + "the previously saved room has been left untouched", owner, cellOrigin);
+            return false;
+        }
+        return save(server, owner, tag);
+    }
+
+    /**
+     * Whether a saved blob's palette contains nothing but air.
+     *
+     * <p>Read off the palette rather than the block list because that is the
+     * cheap end: {@code fillFromWorld} records air as an ordinary block, so a
+     * cleared cell produces a full-length block list against a one-entry
+     * palette, and it is the palette that gives the answer in a handful of
+     * string comparisons.
+     */
+    private static boolean isAllAir(CompoundTag tag) {
+        net.minecraft.nbt.ListTag palette = tag.getListOrEmpty("palette");
+        if (palette.isEmpty()) {
+            // Either an empty template or a multi-palette shape this capture
+            // path never produces. Neither is something to overwrite a good
+            // room with.
+            return true;
+        }
+        for (int i = 0; i < palette.size(); i++) {
+            String name = palette.getCompoundOrEmpty(i).getStringOr("Name", "");
+            if (!name.equals("minecraft:air")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -190,8 +231,8 @@ final class RoomStore {
      * first. See the class note -- this ordering and the atomic move are the
      * whole of the "not optional" guarantee.
      */
-    static void save(MinecraftServer server, UUID owner, CompoundTag tag) {
-        save(dir(server), owner, tag);
+    static boolean save(MinecraftServer server, UUID owner, CompoundTag tag) {
+        return save(dir(server), owner, tag);
     }
 
     /**
@@ -200,8 +241,14 @@ final class RoomStore {
      * {@link MinecraftServer}, so {@code RoomStoreTest} can exercise the
      * backup-then-atomic-write guarantee against a plain temp directory with
      * no running server.
+     *
+     * <p>(M63) Returns whether the write actually landed. It used to swallow
+     * the {@link IOException} and return void, which meant a caller about to
+     * clear the room cell had no way to find out that the room it was about to
+     * destroy had not been saved. A disk that is full or read-only produced a
+     * log line and a deleted room.
      */
-    static void save(Path dir, UUID owner, CompoundTag tag) {
+    static boolean save(Path dir, UUID owner, CompoundTag tag) {
         try {
             Files.createDirectories(dir);
             Path live = liveFile(dir, owner);
@@ -211,8 +258,10 @@ final class RoomStore {
             Path tmp = dir.resolve(owner + ".dat.tmp");
             NbtIo.writeCompressed(tag, tmp);
             Files.move(tmp, live, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return true;
         } catch (IOException e) {
             PocketDungeonsMod.LOG.error("Could not persist the room for {}", owner, e);
+            return false;
         }
     }
 

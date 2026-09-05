@@ -493,13 +493,17 @@ final class KnowledgeSpecs {
     // ---- 12. Slime Pit (tier 1, open) --------------------------------------
 
     /**
-     * Slime block floor. The bounce reaches a ledge the room's REWARD is on,
-     * not the door (audit 4.6: doors are always at floor level). Spawner:
-     * slime x4.
+     * Slime block floor. The bounce reaches a ledge on the north wall. M61:
+     * the room owns a lower story (spanY 2) where the reward chest sits. The
+     * player drops through a shaft at (8, z=1) against the north wall, lands
+     * on the lower floor, loots the chest, and climbs a ladder back to the
+     * upper level. Spawner: slime x4.
      */
     private static RoomSpec slimePit() {
         return new RoomSpec("slime_pit", EnumSet.of(ENTRANCE, EXIT))
+                .spanY(2)
                 .spawner(new BlockPos(8, 1, 8))
+                .chests(new BlockPos(8, -8, 8))
                 .decor((level, o) -> {
                     BlockState slime = Blocks.SLIME_BLOCK.defaultBlockState();
                     for (int x = 3; x <= 12; x++) {
@@ -507,11 +511,30 @@ final class KnowledgeSpecs {
                             RoomBuilder.set(level, o.offset(x, 0, z), slime);
                         }
                     }
-                    // Ledge at y=3 on the north side, where the reward sits.
+                    // Ledge at y=3 on the north side. The bounce reaches it;
+                    // from the ledge the player can drop into the pit shaft.
                     BlockState plat = Blocks.STONE_BRICKS.defaultBlockState();
                     for (int x = 5; x <= 10; x++) {
                         RoomBuilder.set(level, o.offset(x, 3, 3), plat);
                         RoomBuilder.set(level, o.offset(x, 2, 3), plat);
+                    }
+                    // M61: pit shaft at (8, z=1) against the north wall. Carve
+                    // holes through the upper floor, the over-ceiling filler,
+                    // and the lower ceiling so the shaft is open from top to
+                    // bottom.
+                    BlockState air = Blocks.AIR.defaultBlockState();
+                    RoomBuilder.set(level, o.offset(8, 0, 1), air);
+                    RoomBuilder.set(level, o.offset(8, -1, 1), air);
+                    RoomBuilder.set(level, o.offset(8, -2, 1), air);
+                    RoomBuilder.set(level, o.offset(8, -3, 1), air);
+                    // Ladder from the lower floor to the upper floor, on the
+                    // north wall (z=0 is the shell wall, solid for the ladder
+                    // to attach to).
+                    BlockState ladder = Blocks.LADDER.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.LadderBlock.FACING,
+                                    Direction.NORTH);
+                    for (int y = -8; y <= -1; y++) {
+                        RoomBuilder.set(level, o.offset(8, y, 1), ladder);
                     }
                 });
     }

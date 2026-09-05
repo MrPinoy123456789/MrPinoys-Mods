@@ -9,7 +9,13 @@
   "entrypoints": {
     "fabric-gametest": [
       "pocketdungeons.gametest.HarnessGameTest",
-      "pocketdungeons.gametest.InventorySwapGameTest"
+      "pocketdungeons.gametest.InventorySwapGameTest",
+      "pocketdungeons.CustodyGameTest",
+      "pocketdungeons.EconomyGameTest",
+      "pocketdungeons.TeardownGameTest",
+      "pocketdungeons.SituationGameTest",
+      "pocketdungeons.HandlerGameTest",
+      "pocketdungeons.OmenGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint"

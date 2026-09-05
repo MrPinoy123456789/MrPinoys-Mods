@@ -10,9 +10,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -165,9 +167,14 @@ final class LayoutStamper {
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<Affix> affixes, UUID owner,
                                         boolean entranceAlreadyStamped, String theme) {
-        PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
+        // M61: the deepest any room in this layout reaches below its own cell
+        // floor, so PlanGeometry.bounds can extend down to cover lower stories
+        // for teardown, entity sweeps and protection.
+        Map<PlanCell, Integer> spanYByCell = cellSpanY(plan, manifest);
+        int storyFloorOffset = maxStoryOffset(spanYByCell);
+        PlanGeometry geometry = PlanGeometry.of(origin, plan.cells(), storyFloorOffset);
         DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
         PlanCell entranceCell = plan.entrance();
         // M10: every trial spawner this stamp places, for the spawner-clear
@@ -220,6 +227,19 @@ final class LayoutStamper {
                     placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
                     processors == null ? null : Identifier.parse(processors));
 
+            // M61 (spec 13.4): a multi-story room must have a climbable route
+            // from its lowest story back to the upper floor. The lower story
+            // has no doorways, so a room without a return path traps the player.
+            // The check is structural: it reads the blocks the template just
+            // placed, not the metadata. A failure refuses the stamp.
+            if (entry.meta.spanY > 1
+                    && !ReturnPathValidator.validate(level, cellOrigin, entry.meta.spanY)) {
+                throw new IllegalStateException("room " + placed.name()
+                        + " has spanY " + entry.meta.spanY
+                        + " but no climbable return path from its lower story"
+                        + " to the upper floor (spec 13.4)");
+            }
+
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
             BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
@@ -257,7 +277,7 @@ final class LayoutStamper {
         Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
         applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots);
 
-        BedrockEnvelope.apply(level, geometry, voidedCells);
+        BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell);
 
         return new InstanceLayout(
                 origin,
@@ -279,6 +299,32 @@ final class LayoutStamper {
                 Set.copyOf(trialSpawners),
                 pocket2Door,
                 Set.copyOf(ironDoorFarSideSlots));
+    }
+
+    /**
+     * M61: the vertical span of the room stamped in each cell, for
+     * {@link BedrockEnvelope} so it can lower the sub-floor and extend the wall
+     * rings of any multi-story room. Cells whose room declares no
+     * {@code spanY} default to 1 and are unaffected.
+     */
+    private static Map<PlanCell, Integer> cellSpanY(DungeonPlan plan, RoomManifest manifest) {
+        Map<PlanCell, Integer> out = new HashMap<>();
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : plan.rooms().entrySet()) {
+            RoomManifest.Entry entry = manifest.byName(e.getValue().name());
+            if (entry != null && entry.meta.spanY > 1) {
+                out.put(e.getKey(), entry.meta.spanY);
+            }
+        }
+        return out;
+    }
+
+    /** M61: the deepest any cell in {@code spanYByCell} reaches below its floor. */
+    private static int maxStoryOffset(Map<PlanCell, Integer> spanYByCell) {
+        int max = 0;
+        for (int spanY : spanYByCell.values()) {
+            max = Math.max(max, RoomGeometry.storyOffset(spanY));
+        }
+        return max;
     }
 
     /**

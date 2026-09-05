@@ -54,6 +54,27 @@ final class InstanceTeardown {
     }
 
     /**
+     * (M63) The recoverable record for a teardown whose last-chance room save
+     * did not land.
+     *
+     * <p>The teardown still proceeds. There is no version of this where the
+     * cell is kept: the run is over, the members have been ejected, and holding
+     * the slot open for a save that has already failed leaks the slot the way
+     * {@link #abandonClears} exists to prevent. What the operator gets instead
+     * is this line naming the owner, plus the guarantee that
+     * {@link RoomStore#save} leaves the previously saved room untouched when it
+     * fails, so {@code /dungeon admin baserestore} still has somewhere to
+     * recover from. What is lost is at most this run's decorating, never the
+     * room.
+     */
+    private static void warnRoomNotSaved(InstanceRecord record, String reason) {
+        PocketDungeonsMod.LOG.error("Could not save {}'s room before tearing down slot {} ({}); "
+                        + "their previously saved room is still on disk and is what they will get "
+                        + "on re-entry. Changes made during this run are lost.",
+                record.owner, record.slot, reason);
+    }
+
+    /**
      * The reward-room grace period ran out (T2.5). If this run's room has
      * already moved to the terminal cell (T2.4 completed), the dungeon becomes a
      * lingering quarry instead of a normal purge: force-load tickets are
@@ -88,8 +109,8 @@ final class InstanceTeardown {
         // because purge (below) queues a PendingClear that can race a deferred
         // save (PD-8).
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level != null) {
-            RunLifecycle.saveRoomIfOwnerSync(level, server, record, record.owner);
+        if (level != null && !RunLifecycle.saveRoomIfOwnerSync(level, server, record, record.owner)) {
+            warnRoomNotSaved(record, reason);
         }
         if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
             purge(server, record, reason);
@@ -137,8 +158,9 @@ final class InstanceTeardown {
         // will erase the room cell; a deferred save could race with it
         // (PD-8).
         ServerLevel purgeLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (purgeLevel != null) {
-            RunLifecycle.saveRoomIfOwnerSync(purgeLevel, server, record, record.owner);
+        if (purgeLevel != null
+                && !RunLifecycle.saveRoomIfOwnerSync(purgeLevel, server, record, record.owner)) {
+            warnRoomNotSaved(record, reason);
         }
         // PD-34: capture the room origin for teardown's extraCellOrigin below,
         // then null the field on the record itself. The member loop right
@@ -228,6 +250,8 @@ final class InstanceTeardown {
             for (BlockPos cellOrigin : layout.geometry().cellOrigins()) {
                 Locks.clear(cellOrigin);
                 OmenSources.clear(cellOrigin);
+                CollapsingBridgeHandler.clear(cellOrigin);
+                RisingLavaHandler.clear(cellOrigin);
             }
         }
 
@@ -287,6 +311,25 @@ final class InstanceTeardown {
         pendingClears.add(new PendingClear(slot, bounds, cellOrigins, reason));
     }
 
+    /**
+     * (M63) Queues a clear without standing up an {@link InstanceRecord} or a
+     * real dungeon, so {@code TeardownGameTest} can drive
+     * {@link #processClears} and {@link #drainClears} on a gametest server,
+     * which never has {@code pocketdungeons:void} (DISCOVERIES trap 18).
+     *
+     * <p>The seam is the queue, not the behaviour: what these two build is a
+     * {@link PendingClear} identical to the one {@link #purge} builds, so the
+     * slot-release path under test is the production one.
+     */
+    static void enqueueClearForTesting(int slot, AABB bounds, List<BlockPos> cellOrigins, String reason) {
+        pendingClears.add(new PendingClear(slot, bounds, cellOrigins, reason));
+    }
+
+    /** (M63) How many clears are still queued. See {@link #enqueueClearForTesting}. */
+    static int pendingClearCountForTesting() {
+        return pendingClears.size();
+    }
+
     static boolean isClearing(int slot) {
         for (PendingClear clear : pendingClears) {
             if (clear.slot == slot) {
@@ -307,7 +350,7 @@ final class InstanceTeardown {
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
-            pendingClears.clear();
+            abandonClears("the dungeon level is not loaded");
             return;
         }
 
@@ -337,11 +380,33 @@ final class InstanceTeardown {
         PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", clear.slot, clear.reason);
     }
 
+    /**
+     * Gives up on every queued clear, releasing the slots they were holding.
+     *
+     * <p>M63: dropping the block-writing work when there is no level to write
+     * it into is correct, but dropping the bookkeeping with it is not. A
+     * {@code PendingClear} is the only thing that ever removes its slot from
+     * {@link InstanceRegistry#usedSlots}, so a queue cleared without this leaks
+     * one slot per abandoned teardown, permanently:
+     * {@link InstanceRegistry#allocateSlot} walks past a slot that no live
+     * instance owns and no future teardown will ever free. The blocks are
+     * unreachable anyway once the level is gone, so releasing the slot costs
+     * nothing and is the only outcome that leaves the registry honest.
+     */
+    private static void abandonClears(String why) {
+        for (PendingClear clear : pendingClears) {
+            InstanceRegistry.usedSlots.remove(clear.slot);
+            PocketDungeonsMod.LOG.warn("Abandoned the clear for dungeon slot {} ({}): {}; "
+                    + "the slot has been released", clear.slot, clear.reason, why);
+        }
+        pendingClears.clear();
+    }
+
     /** Runs every queued clear to completion at once, ignoring the tick budget. */
     static void drainClears(MinecraftServer server) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
-            pendingClears.clear();
+            abandonClears("the dungeon level is not loaded");
             return;
         }
         for (PendingClear clear : new ArrayList<>(pendingClears)) {
@@ -385,8 +450,12 @@ final class InstanceTeardown {
             // sub-floor, over-ceiling, and the outer wall ring. Shared faces between
             // adjacent cells are cleared twice, which is harmless and cheaper than
             // computing the outer hull of the whole geometry.
+            // M61: the clear also reaches below any lower story a cell may own.
+            // Over-clearing a single-story cell is harmless: the extra volume is
+            // dungeon void (air or bedrock this stamp placed).
+            final int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
             final int sizeX = RoomGeometry.CELL + 2;
-            final int sizeY = RoomGeometry.CEILING_Y + 3;
+            final int sizeY = RoomGeometry.CEILING_Y + 3 + maxOffset;
             final int sizeZ = RoomGeometry.CELL + 2;
             final int cellVolume = sizeX * sizeY * sizeZ;
             int written = 0;
@@ -396,7 +465,7 @@ final class InstanceTeardown {
                 int rest = index % (sizeY * sizeZ);
                 int z = rest / sizeY;
                 int y = rest % sizeY;
-                RoomBuilder.set(level, origin.offset(x - 1, y - 1, z - 1), AIR);
+                RoomBuilder.set(level, origin.offset(x - 1, y - 1 - maxOffset, z - 1), AIR);
                 written++;
                 if (++index >= cellVolume) {
                     index = 0;
