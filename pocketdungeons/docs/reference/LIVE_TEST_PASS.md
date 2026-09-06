@@ -2138,3 +2138,50 @@ opening a supply chest and seeing food and light every time.
 3. Repeat across several runs and tiers. **Expected:** food and light
    are always present, never absent. Treasure (iron, gold, experience
    bottles) is sometimes present, never guaranteed.
+
+## M65 supersession: old live clock and homecoming checks
+
+### Old live clock checks (superseded)
+
+The old live clock checks verified that a timed-out run depletes the
+keystone and the dungeon stays open in overtime. M65 removes
+ordinary-floor timeout depletion entirely: the clock still ticks for
+display, but no longer depletes the keystone. The omen system replaces
+the clock as the penalty.
+
+Superseded checks:
+- "Wait for the clock to run out. Expected: keystone depletes, dungeon
+  stays open." Now: the clock runs out with no depletion. The omen
+  system determines the settlement at the safe visit.
+- "Complete a floor after timeout. Expected: SPEEDRUNNER bounty does
+  not fire." Now: SPEEDRUNNER is low-omen completion (band 0, 3
+  chests), not finished before the clock.
+
+### Old homecoming checks (superseded)
+
+The old homecoming checks verified that returnToSafe teleports the
+party into the safe room and plays Chime.roomRelocated. M65 replaces
+this with a silent homecoming: the saved room is stamped behind the
+final staging door, the door opens, and the party walks through
+physically.
+
+Superseded checks:
+- "Select the safe door. Expected: teleport into the safe room,
+  relocation chime plays." Now: no teleport, no chime. The party walks
+  through the staging door into the room.
+- "Verify the relocation message appears." Now: no message. The room
+  is simply there.
+
+### New live checks (M65)
+
+These are live-only and cannot be verified headless:
+1. Walk through the final homecoming. Expected: the party walks
+   through the staging door into the room. Zero teleport.
+2. Verify the room contains recognizable furnishing. Expected: the
+   saved room's furniture is present, not a seed reconstruction.
+3. Verify a party can participate. Expected: all members cross
+   physically.
+4. Verify zero sound cue at the reveal. Expected: no
+   Chime.roomRelocated.
+5. Verify zero explanation at the reveal. Expected: no chat message
+   or UI text announcing the room move.

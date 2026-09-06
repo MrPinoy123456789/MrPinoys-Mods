@@ -378,3 +378,32 @@ Two gotchas, worth not re-discovering:
   used to carry an invalid `20` has been fixed to `8192`.
 - Manifest loads on `SERVER_STARTED` — no need to run
   `/dungeon admin manifest reload` by hand on a fresh server.
+
+## UNVERIFIED M65 API surface
+
+20. UNVERIFIED: RunSession.derivePhase is used by the RECOVERY exit
+    path but has not been exercised in a live reconnect scenario. The
+    join path in Instances.admit does not yet call derivePhase to
+    reconstruct the phase after a disconnect; the phase field persists
+    on the record and is read as-is on reconnect. A server restart
+    that loses the in-memory record (and reconstructs it from
+    InstanceRegistry's persisted state) would need derivePhase to
+    rebuild the phase. This is not a live bug today because the record
+    is in-memory only, but it is an API surface that M65 introduces
+    and does not yet wire end-to-end.
+
+21. UNVERIFIED: The silent homecoming's completeHomecomingCleanup in
+    Instances.onTick has not been exercised in a live multi-player
+    scenario. The logic checks whether all members have left the old
+    staging room and entered the new room, then releases old cells.
+    A party member who disconnects during the crossing is treated as
+    "crossed" (does not block cleanup), and the M63 recovery path
+    handles their return. This has not been live-tested with an
+    actual disconnect during the crossing window.
+
+22. UNVERIFIED: The fallbackTeleportHomecoming path in returnToSafe
+    has not been triggered in a live scenario. It fires only when
+    stampSafeRoom throws a RuntimeException, which requires a
+    StructureTemplate or chunk-loading failure. The path exists as a
+    safety net but its behavior (teleport, chime, message) has not
+    been live-verified.

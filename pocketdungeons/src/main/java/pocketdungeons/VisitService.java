@@ -200,7 +200,7 @@ final class VisitService {
     static String statusOf(UUID owner) {
         InstanceRecord current = InstanceRegistry.byMember.get(owner);
         if (current != null && owner.equals(current.owner) && !current.visitInstance
-                && !current.lingering && !current.awaitingDoorChoice) {
+                && !current.lingering && !RunSession.isHome(current)) {
             return "run in progress";
         }
         return findOwnedLiveRoom(owner) != null ? "open" : "away";

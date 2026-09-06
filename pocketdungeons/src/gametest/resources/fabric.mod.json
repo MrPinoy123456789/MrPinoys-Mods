@@ -15,7 +15,8 @@
       "pocketdungeons.TeardownGameTest",
       "pocketdungeons.SituationGameTest",
       "pocketdungeons.HandlerGameTest",
-      "pocketdungeons.OmenGameTest"
+      "pocketdungeons.OmenGameTest",
+      "pocketdungeons.FloorLoopGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint"

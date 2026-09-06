@@ -327,7 +327,7 @@ final class RitualListener {
      */
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record != null && record.awaitingDoorChoice && record.stagingCellOrigin != null) {
+        if (record != null && RunSession.canChooseDoor(record) && record.stagingCellOrigin != null) {
             // M57: if this is a safe staging room, the lever returns the
             // party to the safe room. No door selection or preview needed.
             if (record.safeStaging) {
@@ -379,7 +379,7 @@ final class RitualListener {
      */
     private static void selectDoor(ServerPlayer player, int step) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
+        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)
                 || record.stagingCellOrigin == null) {
             return;
         }

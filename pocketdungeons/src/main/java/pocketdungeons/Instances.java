@@ -579,6 +579,7 @@ final class Instances {
         record.roomCellOrigin = origin;
         record.stagingCellOrigin = CellGeometry.offsetInDirection(
                 origin, DoorMask.Direction.SOUTH, RoomGeometry.CELL);
+        record.phase = RunSession.Phase.HOME;
         InstanceRegistry.bySlot.put(slot, record);
 
         admit(server, record, player);
@@ -849,7 +850,7 @@ final class Instances {
      */
     static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
             return null;
         }
         BlockPos o = record.stagingCellOrigin;
@@ -900,7 +901,7 @@ final class Instances {
      */
     static boolean isCommitLever(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
+        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)
                 || record.stagingCellOrigin == null) {
             return false;
         }
@@ -934,13 +935,32 @@ final class Instances {
      */
     static boolean previewDoor(MinecraftServer server, ServerLevel level,
                                InstanceRecord record, Keystone.Offer offer, int step) {
+        // M65: the phase must be HOME or FLOOR_CLEARED (standing in a
+        // staging room with the door available). Any other phase is a
+        // programming error, not a player error.
+        if (!RunSession.require(record, RunSession.Phase.HOME, RunSession.Phase.FLOOR_CLEARED)) {
+            return false;
+        }
         // Purge any existing preview before generating the new one.
         clearPreview(level, record);
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
         String bagId = DungeonLog.forServer(server).bagOf(record.owner);
-        Set<String> bagTags = BagTags.seed(bagId, record.members.size());
+        // M65: use conservative live capabilities on later floors. On
+        // floor 0 (HOME phase), the original bag enum is a fair proof:
+        // the party just chose it and has not entered yet. On later
+        // floors (FLOOR_CLEARED phase), tools may have been spent, lost
+        // or used up, so the bag enum is no longer proof. Use the live
+        // party size (members actually present and online) for the mob
+        // tag, and keep the bag tags as a conservative baseline: the
+        // generator still proves solvability with them, but the live
+        // party size reflects who is actually here.
+        int livePartySize = record.members.size();
+        if (record.phase == RunSession.Phase.FLOOR_CLEARED) {
+            livePartySize = countLiveMembers(server, record);
+        }
+        Set<String> bagTags = BagTags.seed(bagId, livePartySize);
 
         // Try up to 4 base seeds; each one runs the full attempt budget
         // inside LayoutPlanner.plan. A single base seed can fail all its
@@ -1015,6 +1035,7 @@ final class Instances {
 
         record.previewPlan = plan;
         record.previewCellOrigin = entranceOrigin;
+        RunSession.transition(record, RunSession.Phase.PREVIEW);
         return true;
     }
 
@@ -1034,6 +1055,11 @@ final class Instances {
                 record.roomDungeonDoor);
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        // M65: return to the phase that preceded the preview. If the safe
+        // room is loaded and floorIndex is 0, that is HOME; otherwise the
+        // party is between floors and the phase is FLOOR_CLEARED.
+        RunSession.transition(record, record.floorIndex > 0
+                ? RunSession.Phase.FLOOR_CLEARED : RunSession.Phase.HOME);
     }
 
     /**
@@ -1047,6 +1073,12 @@ final class Instances {
      */
     static boolean commitDoor(MinecraftServer server, ServerLevel level,
                               InstanceRecord record, Keystone.Offer offer, int step) {
+        // M65: the phase must be PREVIEW. commitDoor consumes the preview
+        // and starts the floor; calling it from any other phase is a
+        // programming error.
+        if (!RunSession.require(record, RunSession.Phase.PREVIEW)) {
+            return false;
+        }
         DungeonPlan plan = record.previewPlan;
         if (plan == null || record.previewCellOrigin == null) {
             return false;
@@ -1127,6 +1159,7 @@ final class Instances {
         record.freeDoor = offer.free();
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        RunSession.transition(record, RunSession.Phase.ACTIVE);
 
         // M11: a boss-themed run gets its one proof encounter.
         AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(offer.theme());
@@ -1478,6 +1511,137 @@ final class Instances {
     }
 
     /**
+     * M65: counts party members who are online and in the dungeon
+     * dimension right now. Used by {@link #previewDoor} to derive
+     * conservative live capabilities on later floors: the mob tag
+     * (party size >= 2) should reflect who is actually present, not
+     * the original party size, since a member who disconnected is
+     * not standing on the other plate.
+     */
+    private static int countLiveMembers(MinecraftServer server, InstanceRecord record) {
+        int count = 0;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * M65: whether all online members have left the old staging room
+     * and entered the safe room during a silent homecoming. A member
+     * who is offline, in another dimension, or still in the old
+     * staging room has not crossed yet. An empty party (everyone
+     * disconnected) is treated as crossed so the cleanup is not held
+     * forever; the M63 recovery path handles their return.
+     */
+    private static boolean allMembersCrossed(MinecraftServer server, InstanceRecord record) {
+        if (record.members.isEmpty()) {
+            return true;
+        }
+        if (record.oldStagingCellOrigin == null || record.roomCellOrigin == null) {
+            return true;
+        }
+        net.minecraft.world.phys.AABB oldStagingBounds = CellGeometry.cellBounds(record.oldStagingCellOrigin);
+        net.minecraft.world.phys.AABB roomBounds = CellGeometry.cellBounds(record.roomCellOrigin);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                // Offline: does not block cleanup. M63 recovery handles
+                // their return.
+                continue;
+            }
+            if (!memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                // Not in the dungeon dimension: does not block cleanup.
+                continue;
+            }
+            net.minecraft.world.phys.Vec3 pos = net.minecraft.world.phys.Vec3.atCenterOf(memberPlayer.blockPosition());
+            if (oldStagingBounds.contains(pos) && !roomBounds.contains(pos)) {
+                // Still in the old staging room, not in the room yet.
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * M65: releases the old staging room and old floor cells after all
+     * members have crossed into the safe room during a silent
+     * homecoming, then sets up the new staging room adjacent to the
+     * room. Also summons fresh screens at the new staging room and
+     * clears the pending cleanup flag.
+     */
+    private static void completeHomecomingCleanup(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+
+        // Release the old layout's force-load tickets.
+        if (record.oldLayoutForCleanup != null) {
+            forceLoad(level, record.oldLayoutForCleanup.geometry().chunks(), false);
+        }
+
+        // Clear every cell of the old dungeon layout except the old
+        // staging room (handled separately below) and the new room
+        // (which is now record.roomCellOrigin).
+        List<BlockPos> keepCells = new java.util.ArrayList<>();
+        if (record.roomCellOrigin != null) {
+            keepCells.add(record.roomCellOrigin);
+        }
+        if (record.oldLayoutForCleanup != null) {
+            for (BlockPos cellOrigin : record.oldLayoutForCleanup.geometry().cellOrigins()) {
+                // Skip the old staging room (it gets its own cleanup).
+                if (record.oldStagingCellOrigin != null && cellOrigin.equals(record.oldStagingCellOrigin)) {
+                    continue;
+                }
+                // Skip the new room (it is the party's actual room now).
+                if (record.roomCellOrigin != null && cellOrigin.equals(record.roomCellOrigin)) {
+                    continue;
+                }
+                clearCellSync(level, cellOrigin, keepCells);
+            }
+        }
+
+        // Clear the old staging room.
+        if (record.oldStagingCellOrigin != null) {
+            clearCellSync(level, record.oldStagingCellOrigin, keepCells);
+            level.setChunkForced(record.oldStagingCellOrigin.getX() >> 4,
+                    record.oldStagingCellOrigin.getZ() >> 4, false);
+        }
+
+        // Set up the new staging room adjacent to the room, on the
+        // opposite side from the old staging room. The room's dungeon
+        // door direction (record.roomDungeonDoor) points back toward
+        // the old staging room, so the new staging room goes on the
+        // opposite side.
+        DoorMask.Direction newDungeonDir = record.roomDungeonDoor;
+        BlockPos newStagingOrigin = CellGeometry.offsetInDirection(
+                record.roomCellOrigin, newDungeonDir, RoomGeometry.CELL);
+        level.setChunkForced(newStagingOrigin.getX() >> 4, newStagingOrigin.getZ() >> 4, true);
+        stampStagingRoom(level, newStagingOrigin, newDungeonDir);
+        RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(newDungeonDir));
+        BedrockEnvelope.clearFace(level, record.roomCellOrigin, newDungeonDir);
+        record.stagingCellOrigin = newStagingOrigin;
+        record.roomDungeonDoor = newDungeonDir;
+
+        // Summon fresh screens at the new staging room.
+        DungeonScreen.summonDoor(level, newStagingOrigin, newDungeonDir,
+                DungeonScreen.idleContent(level, record.owner));
+        DungeonScreen.summonEngine(level, newStagingOrigin, newDungeonDir,
+                DungeonScreen.engineContent(null));
+        DungeonScreen.summonTracker(level, newStagingOrigin, newDungeonDir,
+                DungeonScreen.trackerContent(server, record.owner));
+
+        // Clear the cleanup flag and old references.
+        record.pendingHomecomingCleanup = false;
+        record.oldStagingCellOrigin = null;
+        record.oldLayoutForCleanup = null;
+    }
+
+    /**
      * Whether anybody on this record is online, standing in the dungeon
      * dimension, and not away from the keyboard. Deliberately stricter than
      * {@code members.isEmpty()} on all three counts: membership survives a
@@ -1650,20 +1814,34 @@ final class Instances {
                 record.timer.tick(interval);
             }
 
+            // M65: silent homecoming cleanup. After returnToSafe stamps
+            // the saved room behind the final staging door and opens it,
+            // the party walks through physically. Once all members have
+            // left the old staging room, release the old floor cells and
+            // the old staging room, then set up the new staging room
+            // adjacent to the room.
+            if (record.pendingHomecomingCleanup) {
+                if (allMembersCrossed(server, record)) {
+                    completeHomecomingCleanup(server, record);
+                }
+                // Skip the rest of the loop for this record while
+                // cleanup is pending: the run is not active, the grace
+                // window does not apply, and the member sweep below
+                // would interfere with the crossing detection.
+                continue;
+            }
+
             // U8 Stage 1: the two end conditions, both independent of membership.
             if (record.isKeystoneRun()) {
-                if (record.timer != null && record.timer.overTime() && record.completed.isEmpty()
-                        && !record.timedOutPenaltyApplied) {
-                    RunLifecycle.expireTimedOut(server, record);
-                }
-                // PD-7: timeout no longer closes the dungeon, so a timed out but
-                // never completed run still needs a grace window or the slot is
-                // held forever. Reuses the same grace config as the post
-                // completion window.
-                if (record.timedOutPenaltyApplied && record.completed.isEmpty()
-                        && record.expiresAtTick == 0) {
-                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
-                }
+                // M65: ordinary-floor timeout depletion is gone. The clock
+                // still ticks (for display and the SPEEDRUNNER bounty, now
+                // "low-omen completion" rather than "finished before the
+                // clock"), but it no longer depletes the keystone. The
+                // omen system replaces the clock as the penalty: a bad
+                // floor (high omen) means fewer chests and no level up at
+                // the safe visit. The quitDoor path still depletes
+                // voluntarily; expireTimedOut is no longer called from
+                // onTick.
                 if (!record.completed.isEmpty() && record.expiresAtTick == 0) {
                     record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }

@@ -3087,3 +3087,82 @@ first sight. That is a live-play check, recorded in
   `SituationSupplyTest passed`.
 - `./gradlew.bat build --offline`: `BUILD SUCCESSFUL`, full suite
   including `dungeonIntegrationTest`.
+
+
+## M65: one floor lifecycle, one silent homecoming
+
+Goal: each floor advances once; the safe visit banks once; the last door
+opens onto the player's actual room without announcing it.
+
+### Settlement and restart table
+
+| Event | Phase transition | Settlement | Restart |
+|---|---|---|---|
+| Door preview | HOME or FLOOR_CLEARED to PREVIEW | none | none |
+| Door commit | PREVIEW to ACTIVE | none | none |
+| Floor complete (pad) | ACTIVE to FLOOR_CLEARED | per-floor only: omen banked, chests placed, completion logged | M63 recovery |
+| Safe door selected | FLOOR_CLEARED to SAFE_RETURN | interval-level: keystone level up, payout, prestige, bounty, diary | M63 recovery |
+| Safe room entered | SAFE_RETURN to HOME | omen cleared, floor index reset, record reset for next visit | M63 recovery |
+| Stamp failure | SAFE_RETURN to FLOOR_CLEARED (fallback) | none (staging stays usable) | fallback teleport |
+| Reconnect during ACTIVE | RECOVERY to ACTIVE | none | M63 recovery |
+| Reconnect during FLOOR_CLEARED | RECOVERY to FLOOR_CLEARED | none | M63 recovery |
+| Reconnect during HOME | RECOVERY to HOME | none | M63 recovery |
+| Duplicate completion | rejected (phase is not ACTIVE) | none | none |
+| Reordered completion | rejected (phase is not ACTIVE) | none | none |
+| Double safe visit | rejected (phase is HOME, not FLOOR_CLEARED) | none | none |
+
+### What changed
+
+- RunSession: new state machine with six phases (HOME, PREVIEW,
+  ACTIVE, FLOOR_CLEARED, SAFE_RETURN, RECOVERY) and a closed transition
+  table. Every lifecycle method checks or transitions the phase before
+  doing its work.
+- FloorLoopGameTest: three scenarios covering every legal and illegal
+  edge, the safe-visit settlement contract, and omen bands at floor
+  counts 1, 3 and 5.
+- Instances.onTick: ordinary-floor timeout depletion removed. The
+  clock still ticks for display, but no longer depletes the keystone.
+  The omen system replaces the clock as the penalty.
+- RunLifecycle.completeRun: per-floor observations only. Keystone
+  level up, payout, prestige, bounty and diary delivery moved to
+  settleSafeVisit, called once from eturnToSafe.
+- RunLifecycle.advanceFloor: extracted from completeDungeon.
+  Physical floor advance only: increment floor index, bank omen, place
+  chests, stamp new staging room, transition to FLOOR_CLEARED.
+- RunLifecycle.settleSafeVisit: new method. Interval-level
+  settlement once per safe visit. SPEEDRUNNER bounty is now low-omen
+  completion (band 0, 3 chests) rather than finished before the clock.
+- RunLifecycle.returnToSafe: silent homecoming. The saved room is
+  stamped behind the final staging door, the door opens, and the party
+  walks through physically. No teleport, no Chime.roomRelocated, no
+  explanation message. Falls back to the old teleport path if stamping
+  fails.
+- Instances.onTick: homecoming cleanup. After eturnToSafe stamps
+  the room and opens the door, onTick checks whether all members have
+  crossed. Once crossed, old floor cells and old staging room are
+  released, and a new staging room is set up adjacent to the room.
+- Instances.previewDoor: conservative live capabilities on later
+  floors. The mob tag (party size >= 2) uses the live party size, not
+  the original party size, since a disconnected member is not standing
+  on the other plate.
+- RunLifecycle.commitDoor: staging readiness gate now fires on every
+  floor advance, not only the first one.
+- VisitService.statusOf: tests HOME explicitly via
+  RunSession.isHome rather than inferring home status from
+  waitingDoorChoice.
+- DialogScreens: door-chosen state tests RunSession.isActive
+  rather than !awaitingDoorChoice.
+
+### Verification
+
+- ./gradlew.bat omenMathTest --offline: OmenMathTest passed.
+- ./gradlew.bat bountyTrackerTest --offline:
+  BountyTrackerTest passed.
+- ./gradlew.bat taskTrackerTest --offline: TaskTrackerTest passed.
+- ./gradlew.bat pocket2Test --offline: Pocket2Test passed.
+- ./gradlew.bat runGameTest --offline: All 39 required tests passed
+  (36 from M64 plus 3 new FloorLoopGameTest scenarios).
+- ./gradlew.bat dungeonIntegrationTest --offline: loaded 5 themes, 5
+  adventure nodes, 7 diary entries, 49 rooms.
+- ./gradlew.bat build --offline: BUILD SUCCESSFUL in 1m 32s, full
+  suite including all unit tests, GameTests and dungeonIntegrationTest.

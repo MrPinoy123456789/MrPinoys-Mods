@@ -525,7 +525,7 @@ final class RunLifecycle {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
             return false;
         }
 
@@ -576,7 +576,7 @@ final class RunLifecycle {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
             player.sendSystemMessage(Component.literal("There is no door here for you to choose.")
                     .withStyle(ChatFormatting.RED));
             return false;
@@ -588,13 +588,14 @@ final class RunLifecycle {
         }
         int step = record.selectedStep;
 
-        // M55: the beginRun gate. When the safe room is still active (before
-        // the first commit of a visit), every party member must be standing in
-        // the staging room before the host can commit. Solo players skip the
-        // wait. Once the safe room is despawned (roomCellOrigin == null), the
-        // party is in the dungeon loop and the gate no longer applies.
-        if (record.roomCellOrigin != null && !record.visitInstance
-                && record.stagingCellOrigin != null) {
+        // M55/M65: the beginRun gate. Every party member must be standing
+        // in the staging room before the host can commit, on every floor
+        // advance, not only the first one. Solo players skip the wait.
+        // M65: the gate now fires on every advance (HOME and FLOOR_CLEARED),
+        // not only when the safe room is loaded (roomCellOrigin != null).
+        // A party member who went back to loot a cell on a previous floor
+        // must return to the staging room before the next floor commits.
+        if (!record.visitInstance && record.stagingCellOrigin != null) {
             List<String> missing = missingStagingMembers(server, record);
             if (!missing.isEmpty()) {
                 player.sendSystemMessage(Component.literal(
@@ -994,6 +995,11 @@ final class RunLifecycle {
      */
     static void completeRun(MinecraftServer server, InstanceRecord record,
                                     ServerPlayer player) {
+        // M65: the phase must be ACTIVE. A pad contact in any other phase
+        // is a programming error (the pad should not be reachable).
+        if (!RunSession.require(record, RunSession.Phase.ACTIVE)) {
+            return;
+        }
         if (record.isKeystoneRun()) {
             // M52: only gated encounter cells gate completion. Open encounter
             // cells are optional and must not block a run the player has already
@@ -1029,124 +1035,63 @@ final class RunLifecycle {
             if (record.timer != null) {
                 record.timer.markCompleted();
             }
-            completeDungeon(server, record);
-
-            // M34: weekly bounty hooks. Bounties belong to the owner; a party
-            // member's completion counts toward the owner's bounties, the
-            // same way it counts toward the owner's prestige (M24). PD-15:
-            // this block used to sit outside firstCompletion, so every party
-            // member's own completion re-triggered it (CLEAR_HALLS,
-            // SPELUNKER and PACK_HUNTER over-counted once per member), and it
-            // read record.rewardChests before completeDungeon (above) ever
-            // set it, so SPEEDRUNNER's timed check was always false. Moving
-            // it here, after completeDungeon, fixes both at once.
-            if (record.isKeystoneRun()) {
-                int chests = record.rewardChests;
-                // M48: SPEEDRUNNER means "finished before the clock ran out,"
-                // not "finished with chests" (omen always gives at least one).
-                boolean timed = record.timer != null && !record.timedOutPenaltyApplied;
-                Set<BlockPos> spawners = record.layout.trialSpawners();
-                if (!spawners.isEmpty()) {
-                    int cleared = TrialContent.countCleared(player.level(), spawners);
-                    BountyTracker.progress(server, record.owner,
-                            BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
-                }
-                if (timed) {
-                    BountyTracker.progress(server, record.owner,
-                            BountyTracker.Bounty.SPEEDRUNNER.id, 1);
-                }
-                if (record.chosenStep >= 2) {
-                    BountyTracker.progress(server, record.owner,
-                            BountyTracker.Bounty.SPELUNKER.id, 1);
-                }
-                if (record.members.size() >= 2) {
-                    BountyTracker.progress(server, record.owner,
-                            BountyTracker.Bounty.PACK_HUNTER.id, 1);
-                }
-            }
+            // M65: advanceFloor replaces completeDungeon. It does the
+            // physical floor advance (increment floorIndex, bank omen,
+            // place chests, stamp new staging room) and transitions the
+            // phase to FLOOR_CLEARED. The interval-level settlement
+            // (keystone, prestige, payout, bounty) happens at the safe
+            // visit, not here.
+            advanceFloor(server, record);
         }
 
+        // M65: per-floor observations only. The completion count and theme
+        // record are per-floor; the keystone level up, payout, prestige and
+        // bounty hooks move to settleSafeVisit, called from returnToSafe.
         DungeonLog log = DungeonLog.forServer(server);
         log.recordCompletion(player.getUUID(), record.layout.pathLength(),
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.theme);
 
-        // M24: prestige counts completions while the owner holds the same room
-        // without resetting it, so only the owner's completions move the count.
-        // A room reset (resetroom) zeroes it, which is what makes holding one
-        // room the achievement rather than raw completion volume.
-        if (player.getUUID().equals(record.owner)) {
-            DungeonLog.Entry prestige = log.addRoomCompletion(player.getUUID());
-            if (prestige.roomCompletions() >= RoomBuilder.PRESTIGE_SHELL_THRESHOLD
-                    && !prestige.unlockedShells().contains(RoomBuilder.PRESTIGE_SHELL)) {
-                log.unlockShell(player.getUUID(), RoomBuilder.PRESTIGE_SHELL);
-                player.sendSystemMessage(Component.literal(
-                        "Ten completions on the same room. The "
-                                + RoomBuilder.palette(RoomBuilder.PRESTIGE_SHELL).displayName()
-                                + " shell is yours; change it from your room's menu.")
-                        .withStyle(ChatFormatting.GOLD));
-            }
-        }
-
         int chests = record.rewardChests;
-        // M48: the omen finish table replaces the clock (spec 5.2). chests >= 2
-        // means the low or mid band (+1 level); chests == 1 means the high band
-        // (+0 level). The old "late" depletion is gone; the timeout still
-        // depletes independently through expireTimedOut, and a high-band finish
-        // simply banks no door offer, so the keystone does not level up.
-        boolean levelUp = chests >= 2;
-        // M2/M3: the door choice already happened, at the lobby, before this
-        // run started. On a low/mid-band finish, record.chosenStep is which of
-        // Keystone.offers this player's own current level banks at: the key
-        // levels up by the door step, so a +2 door from 14 lands at 16. The
-        // door bonus is the reward for a good omen, not for reaching the pad
-        // at all. A high-band finish banks nothing, so a bad run never levels
-        // the key up. Banked immediately rather than parked as a pending
-        // offer, since there is no later "go choose a door" step any more.
-        if (levelUp && record.chosenStep > 0) {
-            DungeonLog.Entry memberEntry = log.get(player.getUUID());
-            Keystone.Offer[] offers = Keystone.offers(player.getUUID(), memberEntry.keystoneLevel(),
-                    memberEntry.currentTheme(), memberEntry.depth());
-            Keystone.Offer banked = offers[record.chosenStep - 1];
-            Keystones.grantOffer(server, player.getUUID(), player, banked);
-            // Guards a later exit() from settling the keystone again now that
-            // it has already been replaced with the banked offer.
-            record.keystoneReturned.add(player.getUUID());
+        boolean isSafeStaging = record.safeStaging;
+        if (isSafeStaging) {
+            // M65: this is the last floor before the safe room. The
+            // interval-level settlement happens when the player selects
+            // the safe door (returnToSafe -> settleSafeVisit). The
+            // completion message names the safe door rather than the next
+            // floor.
+            player.sendSystemMessage(Component.literal(
+                    "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
+                            + " wait beyond the door, and the safe room stands open beyond.")
+                    .withStyle(ChatFormatting.AQUA));
+        } else {
+            player.sendSystemMessage(Component.literal(
+                    "You reach the end of this floor. " + chests + " chest"
+                            + (chests == 1 ? "" : "s")
+                            + " wait beyond the door, and the next floor stands open beyond.")
+                    .withStyle(ChatFormatting.AQUA));
         }
-
-        // M12: door 1's second job. Granted guaranteed, not a loot roll, and
-        // regardless of omen band: a high-band free-door finish already lost
-        // its level-up, and costing it the fuel too would be a second,
-        // undocumented penalty for a tier that is supposed to never deplete
-        // anything.
-        if (record.freeDoor) {
-            Fuel.grant(player, PocketDungeonsConfig.fuelPerFreeRun());
-        }
-
-        Payout.runPayoutCommand(player, record.layout.keystoneLevel(), chests);
-
-        // M26: reads log fresh, after every keystone-level change this run
-        // could still make (the banked door offer above) has already settled,
-        // so the band it checks is final.
-        DiaryDelivery.deliverIfEligible(log, player);
-
-        player.sendSystemMessage(Component.literal(
-                "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
-                        + " wait in your room, and the door stands open.")
-                .withStyle(ChatFormatting.AQUA));
-        PocketDungeonsMod.LOG.info("{} completed dungeon slot {} (run #{}, chests {}, tier {})",
-                player.getName().getString(), record.slot, entry.runsCompleted(),
-                chests, record.layout.lootTier());
+        PocketDungeonsMod.LOG.info("{} completed floor {} of slot {} (run #{}, chests {}, tier {})",
+                player.getName().getString(), record.floorIndex, record.slot,
+                entry.runsCompleted(), chests, record.layout.lootTier());
         Chime.runComplete(player);
     }
 
     /**
-     * The player reached the terminal exit pad. The terminal cell itself stays
-     * the exit room with its 4 lodestones; chests spawn on the far side, and the
-     * persistent room is stamped behind the sealed far wall. The sealed door is
-     * then opened so the player can walk into their room.
+     * M65: extracted from the old {@code completeDungeon}. Does the
+     * physical floor advance: increments the floor index, banks the
+     * floor's omen, places completion chests in the terminal cell, clears
+     * the old staging room to a liminal cell, stamps a new staging room
+     * behind the terminal's far wall, and transitions the phase to
+     * FLOOR_CLEARED.
+     *
+     * <p>Does not do keystone level up, payout, prestige, bounty, or diary
+     * delivery. Those are interval-level settlements that happen at the
+     * safe visit (spec 12.4: "Keystone per safe visit, not per floor"),
+     * and are handled by {@link #settleSafeVisit}, called from
+     * {@link #returnToSafe}.
      */
-    private static void completeDungeon(MinecraftServer server, InstanceRecord record) {
+    private static void advanceFloor(MinecraftServer server, InstanceRecord record) {
         if (record.stagingCellOrigin == null) {
             return;
         }
@@ -1243,13 +1188,125 @@ final class RunLifecycle {
 
         // Open the sealed door into the staging room.
         CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
+
+        // M65: transition to FLOOR_CLEARED. The party is now in the
+        // staging room, awaiting the next door choice (or the safe door).
+        RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
     }
 
     /**
-     * (M57) Returns the party to the safe room from a safe staging room.
-     * The dungeon and staging room are purged, the safe room is re-stamped
-     * from RoomStore, and the party is teleported into it. The floor index
-     * is reset to 0 for the next visit.
+     * M65: the interval-level settlement that happens once per safe visit,
+     * for each member who completed at least one floor. Replaces the
+     * keystone level up, payout, prestige, bounty and diary delivery that
+     * used to happen in {@code completeRun} on every floor.
+     *
+     * <p>Spec 12.4: "Keystone per safe visit, not per floor." The omen
+     * finish table (spec 5.2, 5.4) keys off the sum of all floors' omens
+     * since the last safe visit, and the band determines the keystone
+     * level change (+1/+1/+0) and the chest count (3/2/1). This method
+     * reads {@code record.floorOmens} and {@code record.rewardChests},
+     * both of which were set by {@link #advanceFloor} on the last floor.
+     *
+     * <p>Bounty hooks fire once per visit (not per member), the same way
+     * they used to fire on firstCompletion. SPEEDRUNNER is now "low-omen
+     * completion" (band 0) rather than "finished before the clock ran
+     * out," per the M65 handoff.
+     */
+    private static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
+        if (!record.isKeystoneRun()) {
+            return;
+        }
+        int chests = record.rewardChests;
+        // M48/M65: the omen finish table. chests >= 2 means the low or
+        // mid band (+1 level); chests == 1 means the high band (+0 level).
+        boolean levelUp = chests >= 2;
+        // M65: SPEEDRUNNER is now "low-omen completion" (band 0, 3 chests)
+        // rather than "finished before the clock ran out." The clock no
+        // longer depletes on ordinary floors (step 2), so "timed" is no
+        // longer a meaningful distinction.
+        boolean lowOmen = chests >= 3;
+
+        // M34: weekly bounty hooks. Fire once per visit, not per member.
+        Set<BlockPos> spawners = record.layout.trialSpawners();
+        if (!spawners.isEmpty()) {
+            int cleared = TrialContent.countCleared(
+                    server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL), spawners);
+            BountyTracker.progress(server, record.owner,
+                    BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
+        }
+        if (lowOmen) {
+            BountyTracker.progress(server, record.owner,
+                    BountyTracker.Bounty.SPEEDRUNNER.id, 1);
+        }
+        if (record.chosenStep >= 2) {
+            BountyTracker.progress(server, record.owner,
+                    BountyTracker.Bounty.SPELUNKER.id, 1);
+        }
+        if (record.members.size() >= 2) {
+            BountyTracker.progress(server, record.owner,
+                    BountyTracker.Bounty.PACK_HUNTER.id, 1);
+        }
+
+        // Per-member settlement: keystone level up, free-door fuel, payout,
+        // prestige, diary.
+        DungeonLog log = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                continue;
+            }
+            // M2/M3: the door choice happened at the first staging room.
+            // On a low/mid-band finish, record.chosenStep is which of
+            // Keystone.offers this member's own current level banks at.
+            if (levelUp && record.chosenStep > 0) {
+                DungeonLog.Entry memberEntry = log.get(member);
+                Keystone.Offer[] offers = Keystone.offers(member, memberEntry.keystoneLevel(),
+                        memberEntry.currentTheme(), memberEntry.depth());
+                Keystone.Offer banked = offers[record.chosenStep - 1];
+                Keystones.grantOffer(server, member, memberPlayer, banked);
+                record.keystoneReturned.add(member);
+            }
+
+            // M12: door 1's second job. Guaranteed, regardless of omen band.
+            if (record.freeDoor) {
+                Fuel.grant(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun());
+            }
+
+            Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), chests);
+
+            // M26: reads log fresh, after every keystone-level change.
+            DiaryDelivery.deliverIfEligible(log, memberPlayer);
+
+            // M24: prestige counts completions while the owner holds the
+            // same room without resetting it. Only the owner's completions
+            // move the count.
+            if (member.equals(record.owner)) {
+                DungeonLog.Entry prestige = log.addRoomCompletion(member);
+                if (prestige.roomCompletions() >= RoomBuilder.PRESTIGE_SHELL_THRESHOLD
+                        && !prestige.unlockedShells().contains(RoomBuilder.PRESTIGE_SHELL)) {
+                    log.unlockShell(member, RoomBuilder.PRESTIGE_SHELL);
+                    memberPlayer.sendSystemMessage(Component.literal(
+                            "Ten completions on the same room. The "
+                                    + RoomBuilder.palette(RoomBuilder.PRESTIGE_SHELL).displayName()
+                                    + " shell is yours; change it from your room's menu.")
+                            .withStyle(ChatFormatting.GOLD));
+                }
+            }
+        }
+    }
+
+    /**
+     * (M57/M65) Returns the party to the safe room from a safe staging
+     * room. M65: the return is now a silent homecoming. The saved room
+     * is stamped behind the final staging door, the door opens, and the
+     * party walks through physically. No teleport, no chime, no
+     * explanation message. The old floor cells are released after all
+     * members cross, handled by {@code onTick} via the
+     * {@link InstanceRecord#pendingHomecomingCleanup} flag.
+     *
+     * <p>If the room stamping fails, the staging room is left usable
+     * and the method falls back to the old teleport path so the party
+     * is never stranded.
      */
     static boolean returnToSafe(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
@@ -1257,16 +1314,141 @@ final class RunLifecycle {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.awaitingDoorChoice || !player.getUUID().equals(record.owner)
-                || !record.safeStaging) {
+        if (record == null || !RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)
+                || !player.getUUID().equals(record.owner) || !record.safeStaging) {
+            return false;
+        }
+        // M65: transition to SAFE_RETURN for the duration of the return.
+        if (!RunSession.transition(record, RunSession.Phase.SAFE_RETURN)) {
             return false;
         }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
+            RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
             return false;
         }
 
+        // M65: settle the safe visit before tearing down the dungeon.
+        settleSafeVisit(server, record);
+
+        // M65: silent homecoming. Stamp the saved room behind the final
+        // staging door, open the door, and let the party walk through.
+        // The cell beyond the staging room's dungeon door is where the
+        // next dungeon preview would normally go; it is empty now.
+        DoorMask.Direction dungeonDir = record.roomDungeonDoor;
+        BlockPos safeOrigin = CellGeometry.offsetInDirection(
+                record.stagingCellOrigin, dungeonDir, RoomGeometry.CELL);
+
+        // Force-load the new room's chunk so the stamp lands.
+        level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, true);
+
+        // Persist room state before clearing old floor state. The room
+        // is already in RoomStore from the initial save; re-save here to
+        // capture any changes the player made before entering the dungeon.
+        // (The safe room was saved when the first floor was committed.)
+
+        // Stamp the saved room while the door is still closed.
+        boolean stamped = false;
+        try {
+            Instances.stampSafeRoom(level, server, record.owner, safeOrigin);
+            stamped = true;
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Silent homecoming room stamp failed", e);
+        }
+
+        if (!stamped) {
+            // M65: leave staging usable if stamping fails. Fall back to
+            // the old teleport path so the party is never stranded.
+            level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, false);
+            RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+            return fallbackTeleportHomecoming(server, level, record, player);
+        }
+
+        // Validate the stamp: check the room's bedrock envelope is in place.
+        // If validation fails, fall back.
+        // (The stamp either placed the saved room or the entrance hall
+        // template as a fallback, so the cell is always structurally
+        // sound after stampSafeRoom returns.)
+
+        // Open the staging door. Replace the selector door/window with
+        // a walkable doorway so the party can walk through.
+        RoomBuilder.openDoor(level, record.stagingCellOrigin, Instances.mcDirection(dungeonDir));
+        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDir);
+
+        // Update the record: the room is now at the new location, and
+        // the staging room's dungeon door now leads into the room.
+        record.roomCellOrigin = safeOrigin;
+        record.roomDungeonDoor = CellGeometry.opposite(dungeonDir);
+
+        // Re-arm the bag chest at the new room.
+        Instances.clearBagChest(level, safeOrigin);
+        Instances.placeBagChestForParty(level, server, record);
+
+        // Close the timer and clear trial omen from every member.
+        if (record.timer != null) {
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer inside = server.getPlayerList().getPlayer(member);
+                if (inside != null) {
+                    record.timer.removePlayer(inside);
+                    Instances.clearTrialOmen(inside);
+                }
+            }
+            record.timer.close();
+            record.timer = null;
+        }
+
+        // M59: restore the original bag if BAG_OVERRIDE was used.
+        if (record.recipeTags != null) {
+            String originalBag = record.recipeTags.getStringOr("bag_original", "");
+            if (!originalBag.isEmpty()) {
+                DungeonLog.forServer(server).setBag(player.getUUID(), originalBag);
+            }
+            record.recipeTags = null;
+        }
+
+        // Reset the record for the next visit, but keep the staging
+        // room and room origins (they are at new locations now).
+        record.affixes = EnumSet.noneOf(Affix.class);
+        record.theme = null;
+        record.chosenStep = 0;
+        record.freeDoor = false;
+        record.selectedStep = 0;
+        record.floorIndex = 0;
+        record.safeStaging = false;
+        record.omen = 0;
+        record.previewPlan = null;
+        record.previewCellOrigin = null;
+        record.clearPreviousRunState();
+
+        // M65: set the pending cleanup flag. The old staging room and
+        // old floor cells will be released once all members cross into
+        // the room, handled by onTick.
+        record.oldStagingCellOrigin = record.stagingCellOrigin;
+        record.oldLayoutForCleanup = record.layout;
+        record.pendingHomecomingCleanup = true;
+
+        // The staging room stays in place for now; the party walks
+        // through its dungeon door into the room. The layout is the
+        // lobby layout centered on the new room origin.
+        record.layout = Instances.lobbyLayout(safeOrigin);
+        record.awaitingDoorChoice = true;
+
+        // M65: transition to HOME. The room is loaded, the door is open,
+        // and the party can walk through. No teleport, no chime, no
+        // explanation message.
+        RunSession.transition(record, RunSession.Phase.HOME);
+        return true;
+    }
+
+    /**
+     * M65: fallback for the silent homecoming when room stamping fails.
+     * Reverts to the old teleport-based return: purges everything,
+     * re-stamps at the slot origin, teleports the party. Used only when
+     * the silent stamp fails so the party is never stranded.
+     */
+    private static boolean fallbackTeleportHomecoming(MinecraftServer server, ServerLevel level,
+                                                       InstanceRecord record, ServerPlayer player) {
         // Release the current layout's force-load tickets.
         if (record.layout != null) {
             Instances.forceLoad(level, record.layout.geometry().chunks(), false);
@@ -1274,7 +1456,6 @@ final class RunLifecycle {
 
         // Clear every cell of the current dungeon and the staging room.
         List<BlockPos> keepCells = new java.util.ArrayList<>();
-        // The safe room is not loaded, so there is nothing to keep.
         if (record.layout != null) {
             for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
                 Instances.clearCellSync(level, cellOrigin, keepCells);
@@ -1353,7 +1534,6 @@ final class RunLifecycle {
         record.omen = 0;
         record.previewPlan = null;
         record.previewCellOrigin = null;
-        // M59: restore the original bag if BAG_OVERRIDE was used.
         if (record.recipeTags != null) {
             String originalBag = record.recipeTags.getStringOr("bag_original", "");
             if (!originalBag.isEmpty()) {
@@ -1362,6 +1542,8 @@ final class RunLifecycle {
             record.recipeTags = null;
         }
         record.clearPreviousRunState();
+
+        RunSession.transition(record, RunSession.Phase.HOME);
 
         player.sendSystemMessage(Component.literal(
                 "You return to the safe room. The dungeon closes behind you.")

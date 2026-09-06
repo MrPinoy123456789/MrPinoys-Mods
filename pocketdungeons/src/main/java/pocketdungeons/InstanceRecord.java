@@ -132,6 +132,16 @@ final class InstanceRecord {
     boolean awaitingDoorChoice;
 
     /**
+     * M65: the run's current phase in the floor loop state machine
+     * ({@link RunSession.Phase}). Replaces the implicit phase that was
+     * scattered across {@code awaitingDoorChoice}, {@code previewPlan},
+     * {@code timer}, {@code safeStaging} and {@code floorIndex}. Every
+     * lifecycle method checks or transitions this before doing its work;
+     * see {@link RunSession} for the transition table.
+     */
+    RunSession.Phase phase = RunSession.Phase.HOME;
+
+    /**
      * Which of {@code Keystone.offers(level)}'s three doors (1, 2 or 3) was
      * chosen to open this run, or {@code 0} before that happens. Carried so a
      * completing member's own banked level/affix (T2.4-adjacent) can be
@@ -373,6 +383,33 @@ final class InstanceRecord {
     boolean safeStaging;
 
     /**
+     * M65: set by {@code returnToSafe} after the saved room is stamped
+     * behind the final staging door and the door is opened. The party
+     * walks through physically; no teleport. {@code onTick} checks this
+     * flag and, once all members have crossed into the room, releases
+     * the old staging room and any remaining old floor cells, then sets
+     * up the new staging room adjacent to the room. Cleared when cleanup
+     * completes.
+     */
+    boolean pendingHomecomingCleanup;
+
+    /**
+     * M65: the old staging room origin that needs to be released once
+     * all members cross into the safe room during a silent homecoming.
+     * Set alongside {@link #pendingHomecomingCleanup} and cleared when
+     * cleanup completes.
+     */
+    BlockPos oldStagingCellOrigin;
+
+    /**
+     * M65: the old layout whose cells need to be released once all
+     * members cross into the safe room during a silent homecoming.
+     * Set alongside {@link #pendingHomecomingCleanup} and cleared when
+     * cleanup completes.
+     */
+    InstanceLayout oldLayoutForCleanup;
+
+    /**
      * (M59) The recipe tags read from the keystone at commit time, stored as
      * a CompoundTag under the {@code recipe} key. The generation path reads
      * these to adjust the plan. Cleared after the first floor of a visit.
@@ -442,6 +479,12 @@ final class InstanceRecord {
         // next run behind the same lobby skips its own timeout penalty and
         // arms the reward-room grace window on its very first watcher tick.
         timedOutPenaltyApplied = false;
+        // M65: clear the homecoming cleanup state. A new visit starts
+        // fresh; any pending cleanup from the previous visit was either
+        // completed or the record was purged.
+        pendingHomecomingCleanup = false;
+        oldStagingCellOrigin = null;
+        oldLayoutForCleanup = null;
     }
 
     /** Whether a keystone was spent to open this run. False for {@code /dungeon admin build}. */
