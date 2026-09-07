@@ -73,17 +73,18 @@ final class PressureSpecs {
      */
     static void registerHandlers() {
         Situations.register("hold_the_plate", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> {
-            TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
-                    "hold_the_plate", true);
-        });
+                affixes, lootSuffix, theme, voidedFloor, content) ->
+                TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
+                        "hold_the_plate", true));
         // M58: template-only pressure rooms. The decor in the RoomSpec is
         // the whole of the content; the handler owns the cell.
         Situations.register("rising_lava", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
         Situations.register("collapsing_bridge", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                CollapsingBridgeHandler.arm(level, o));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            CollapsingBridgeHandler.arm(level, o);
+            return null;
+        });
     }
 
     // ---- shared helpers -----------------------------------------------------
@@ -279,12 +280,20 @@ private static RoomSpec risingLava() {
      * <p>The clock is a standard two-hopper ethereal clock: one hopper pre-loaded
      * with enough items for a 30-second cycle. A comparator reads the clock and
      * powers the iron door at the east exit when the cycle completes.
+     *
+     * <p>The iron door itself is NOT placed here. It used to be baked into the
+     * template at the east (EXIT) doorway, but the layout can rotate the room
+     * 180 degrees, which puts the door on the entrance side and locks the
+     * player out. The redstone circuit (hopper clock, comparator, dust,
+     * repeater, power block) stays in the template because it rotates
+     * correctly as a unit. The door is placed at runtime by
+     * {@link LayoutStamper#applyDirectionalGates} on the exit side, next to
+     * the power block the repeater drives.
      */
     private static RoomSpec holdThePlate() {
         return new RoomSpec("hold_the_plate", EnumSet.of(ENTRANCE, EXIT))
                 .spawner(new BlockPos(8, 1, 4))
                 .decor((level, o) -> {
-                    placeIronDoor(level, o);
                     // Pressure plate in the room centre.
                     set(level, o, 8, 1, 8, Blocks.STONE_PRESSURE_PLATE.defaultBlockState());
                     // Hopper clock: two hoppers facing each other at z=11, one
@@ -311,7 +320,10 @@ private static RoomSpec risingLava() {
                     }
                     // The gate: a repeater into the block beside the door's
                     // north leaf. A strongly powered block next to an iron door
-                    // opens it.
+                    // opens it. The power block and repeater stay in the
+                    // template because they rotate correctly with the redstone
+                    // dust path. Only the iron door leaves and lintel are placed
+                    // at runtime.
                     set(level, o, 14, 1, 6, RoomBuilder.WALL);
                     set(level, o, 13, 1, 6, Blocks.REPEATER.defaultBlockState()
                             .setValue(RepeaterBlock.FACING, Direction.EAST));

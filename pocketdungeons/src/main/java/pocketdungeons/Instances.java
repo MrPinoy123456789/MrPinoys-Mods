@@ -11,7 +11,9 @@ import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.network.chat.Component;
@@ -935,14 +937,15 @@ final class Instances {
      */
     static boolean previewDoor(MinecraftServer server, ServerLevel level,
                                InstanceRecord record, Keystone.Offer offer, int step) {
-        // M65: the phase must be HOME or FLOOR_CLEARED (standing in a
-        // staging room with the door available). Any other phase is a
-        // programming error, not a player error.
-        if (!RunSession.require(record, RunSession.Phase.HOME, RunSession.Phase.FLOOR_CLEARED)) {
+        // M65: the phase must be HOME, FLOOR_CLEARED, or PREVIEW (switching
+        // doors during an active preview). Any other phase is a programming
+        // error, not a player error. In PREVIEW, clearPreview below purges
+        // the old preview and transitions back to HOME or FLOOR_CLEARED
+        // before the new preview stamps and transitions to PREVIEW again.
+        if (!RunSession.require(record, RunSession.Phase.HOME, RunSession.Phase.FLOOR_CLEARED,
+                RunSession.Phase.PREVIEW)) {
             return false;
         }
-        // Purge any existing preview before generating the new one.
-        clearPreview(level, record);
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
@@ -962,6 +965,59 @@ final class Instances {
         }
         Set<String> bagTags = BagTags.seed(bagId, livePartySize);
 
+        // M66: read the keystone's recipe tags (without clearing them) and
+        // resolve a RunRecipePlan. The plan carries every recipe effect the
+        // floor is previewed against. An impossible guarantee (Deep Dark at
+        // tier below 3) refuses here, before the catalyst is spent.
+        ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
+        CompoundTag recipeTags = new CompoundTag();
+        if (owner != null) {
+            ItemStack keystone = Keystone.findHeld(owner);
+            if (keystone != null) {
+                recipeTags = CubeRecipe.recipesOf(keystone);
+            }
+        }
+        EnumSet<Affix> baseAffixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+        RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
+        long previewSeed = level.getRandom().nextLong();
+        RunRecipePlan recipePlan = RunRecipePlan.resolve(previewSeed, offer.level(),
+                baseAffixes, bagTags, recipeTags, refusal);
+        if (recipePlan == null) {
+            // The recipe refuses. Restore the escrowed catalyst and report.
+            if (owner != null) {
+                ItemStack keystone = Keystone.findHeld(owner);
+                if (keystone != null) {
+                    CubeRecipe.restoreCatalyst(owner, keystone);
+                }
+            }
+            String reason = refusal[0] != null ? refusal[0].reason : "unknown refusal";
+            if (owner != null) {
+                owner.sendSystemMessage(Component.literal(reason)
+                        .withStyle(ChatFormatting.RED));
+            }
+            PocketDungeonsMod.LOG.warn("Recipe refused for door {} preview: {}", step, reason);
+            return false;
+        }
+
+        // M66: a second click on the same offer with the same inputs does not
+        // farm random entrances. If the existing preview is for the same step
+        // and the recipe revision matches, reuse the frozen plan.
+        if (record.previewCellOrigin != null
+                && record.previewOfferStep == step
+                && record.previewRecipePlan != null
+                && record.previewRecipePlan.matchesRevision(recipePlan.revision)
+                && record.previewRecipePlan.offerLevel == offer.level()) {
+            // Same offer, same inputs: the frozen preview is still valid.
+            return true;
+        }
+
+        // Purge any existing preview before generating the new one.
+        clearPreview(level, record);
+
+        // M66: apply the recipe's path length bonus to the planning bounds.
+        int minPath = PocketDungeonsConfig.pathLengthMin() + recipePlan.pathLengthBonus();
+        int maxPath = PocketDungeonsConfig.pathLengthMax() + recipePlan.pathLengthBonus();
+
         // Try up to 4 base seeds; each one runs the full attempt budget
         // inside LayoutPlanner.plan. A single base seed can fail all its
         // attempts on an unlucky room-library interaction, but a different
@@ -974,10 +1030,10 @@ final class Instances {
             long seed = level.getRandom().nextLong();
             LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                     seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
-                    PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
+                    minPath, maxPath,
                     PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
                     PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
-                    dungeonDoor, bagTags);
+                    dungeonDoor, bagTags, recipePlan);
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();
             lastAttempts = outcome.attemptsUsed();
@@ -1006,7 +1062,8 @@ final class Instances {
         // Force-load the entrance cell's chunk so the stamp lands.
         forceLoad(level, Set.of(entranceOrigin), true);
 
-        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+        // M66: use the recipe plan's effective affixes (ominous, feral added).
+        EnumSet<Affix> affixes = recipePlan.effectiveAffixes(baseAffixes);
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
                     offer.theme());
@@ -1035,6 +1092,8 @@ final class Instances {
 
         record.previewPlan = plan;
         record.previewCellOrigin = entranceOrigin;
+        record.previewRecipePlan = recipePlan;
+        record.previewOfferStep = step;
         RunSession.transition(record, RunSession.Phase.PREVIEW);
         return true;
     }
@@ -1042,6 +1101,9 @@ final class Instances {
     /**
      * (M56) Purges the current preview cell and restores the selector door
      * that was replaced by the window. No-op if no preview is active.
+     *
+     * <p>M66: also clears the recipe plan and restores any escrowed catalyst
+     * to the owner. A cancelled preview does not charge for nothing.
      */
     static void clearPreview(ServerLevel level, InstanceRecord record) {
         if (record.previewCellOrigin == null) {
@@ -1055,11 +1117,48 @@ final class Instances {
                 record.roomDungeonDoor);
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        // M66: clear the recipe plan and restore the escrowed catalyst.
+        if (record.previewRecipePlan != null) {
+            restoreEscrowedCatalyst(level.getServer(), record);
+            record.previewRecipePlan = null;
+        }
+        record.previewOfferStep = 0;
         // M65: return to the phase that preceded the preview. If the safe
         // room is loaded and floorIndex is 0, that is HOME; otherwise the
         // party is between floors and the phase is FLOOR_CLEARED.
         RunSession.transition(record, record.floorIndex > 0
                 ? RunSession.Phase.FLOOR_CLEARED : RunSession.Phase.HOME);
+    }
+
+    /**
+     * M66: Converts a {@link RunRecipePlan} back to a {@link CompoundTag} for
+     * {@link InstanceRecord#recipeTags}, so the generation path that reads
+     * recipe tags during the run continues to work. The tag set is the plan's
+     * active recipe keys, each set to {@code true}.
+     */
+    private static CompoundTag recipeTagsFromPlan(RunRecipePlan plan) {
+        CompoundTag tags = new CompoundTag();
+        for (String key : plan.activeRecipes) {
+            tags.putBoolean(key, true);
+        }
+        return tags;
+    }
+
+    /**
+     * M66: Restores the escrowed catalyst to the record's owner. Called when
+     * a preview is cancelled, so a consumed catalyst does not charge for
+     * nothing. Finds the owner's held keystone and restores via
+     * {@link CubeRecipe#restoreCatalyst}.
+     */
+    private static void restoreEscrowedCatalyst(MinecraftServer server, InstanceRecord record) {
+        ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
+        if (owner == null) {
+            return;
+        }
+        ItemStack keystone = Keystone.findHeld(owner);
+        if (keystone != null) {
+            CubeRecipe.restoreCatalyst(owner, keystone);
+        }
     }
 
     /**
@@ -1095,14 +1194,11 @@ final class Instances {
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
 
-        // M59: apply recipe-tag effects that modify the affix set.
-        if (record.recipeTags != null && !record.recipeTags.isEmpty()) {
-            if (record.recipeTags.getBooleanOr("ominous", false)) {
-                affixes.add(Affix.OMINOUS);
-            }
-            if (record.recipeTags.getBooleanOr("feral", false)) {
-                affixes.add(Affix.FERAL);
-            }
+        // M66: apply recipe effects from the frozen preview plan, not from
+        // re-read recipe tags. The preview resolved the affix set; commit
+        // uses the same set the player saw.
+        if (record.previewRecipePlan != null) {
+            affixes = record.previewRecipePlan.effectiveAffixes(affixes);
         }
 
         // Recompute the plan origin the same way previewDoor did.
@@ -1159,6 +1255,26 @@ final class Instances {
         record.freeDoor = offer.free();
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        // M66: the recipe plan is consumed. The catalyst escrow is cleared
+        // (the catalyst is permanently spent on successful commit). Store
+        // the recipe plan on the record for the generation path to read
+        // during the run (compass study list, etc.).
+        record.recipeTags = record.previewRecipePlan != null
+                ? recipeTagsFromPlan(record.previewRecipePlan) : null;
+        // M66: populate the completion study list for the compass recipe.
+        // The list is the run's room names, which the completion line
+        // reports when the compass effect is active.
+        record.situations.clear();
+        for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
+            RoomManifest.Entry entry = RoomManifest.current().byName(room.name());
+            if (entry != null && entry.meta.content != null && !entry.meta.content.isBlank()) {
+                record.situations.add(entry.meta.content);
+            } else {
+                record.situations.add(room.name());
+            }
+        }
+        record.previewRecipePlan = null;
+        record.previewOfferStep = 0;
         RunSession.transition(record, RunSession.Phase.ACTIVE);
 
         // M11: a boss-themed run gets its one proof encounter.
@@ -1319,6 +1435,8 @@ final class Instances {
         record.omen = 0;
         record.floorOmens.clear();
         record.recipeTags = null;
+        record.previewRecipePlan = null;
+        record.previewOfferStep = 0;
         record.clearPreviousRunState();
     }
 
@@ -2004,7 +2122,12 @@ final class Instances {
         // COOLDOWN and announce cleared/total to every member in chat. Runs
         // before the per-cell clear check so the cell-clear cue still fires
         // on the same tick its last spawner is announced.
-        int totalSpawners = record.layout.trialSpawners().size();
+        // M67: the counter uses every trial spawner on the floor, matching
+        // the completion gate in RunLifecycle.completeRun. The threshold
+        // (default 0.75) lets the player skip some spawners, but the
+        // displayed counter reflects the same denominator the gate uses.
+        Set<BlockPos> gatedSpawners = TrialContent.activeSpawners(record.layout, level);
+        int totalGated = gatedSpawners.size();
         for (BlockPos pos : record.layout.trialSpawners()) {
             if (record.announcedSpawners.contains(pos)) {
                 continue;
@@ -2012,9 +2135,17 @@ final class Instances {
             if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
                     && spawner.getState() == TrialSpawnerState.COOLDOWN) {
                 record.announcedSpawners.add(pos);
-                int cleared = record.announcedSpawners.size();
+                if (!gatedSpawners.contains(pos)) {
+                    continue;
+                }
+                int cleared = 0;
+                for (BlockPos g : gatedSpawners) {
+                    if (record.announcedSpawners.contains(g)) {
+                        cleared++;
+                    }
+                }
                 Component progress = Component.literal(
-                                "Trial spawner cleared: " + cleared + "/" + totalSpawners)
+                                "Trial spawner cleared: " + cleared + "/" + totalGated)
                         .withStyle(ChatFormatting.AQUA);
                 for (UUID member : record.members.keySet()) {
                     ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
@@ -2430,6 +2561,8 @@ final class Instances {
         // admit lands on the lobby layout's corner entrance; centre the author.
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                 Vec3.atBottomCenterOf(RoomBuilder.cellCentre(origin, 0, 0)), 0.0f, 0.0f);
+        // Issue the Room Editor Kit automatically on entry.
+        RoomEditorKit.issueKit(player);
         return slot;
     }
 

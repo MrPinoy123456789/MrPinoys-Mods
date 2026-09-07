@@ -90,6 +90,17 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // Room Editor Inspector: right-click a placed gameplay object with
+        // the inspector tool to open its properties GUI. Only in a build room.
+        if (RoomEditorKit.isInspector(serverPlayer.getMainHandItem())) {
+            InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+            if (record != null && record.adminBuild) {
+                if (RoomEditorInspector.open(serverPlayer, (ServerLevel) level, pos)) {
+                    return InteractionResult.SUCCESS_SERVER;
+                }
+            }
+        }
+
         // M48: the bag chest. A member of a non-visit instance who has not yet
         // chosen a bag right-clicks the ender chest at the safe room's centre
         // to open the bag picker, independently of every other member. This
@@ -415,10 +426,23 @@ final class RitualListener {
                 RoomTemplateGenerator.setBulb(level, o, wall,
                         RoomTemplateGenerator.bulbAlongForStep(step), false);
             }
-            DungeonScreen.updateDoor(level, record,
-                    previous >= 1 && previous <= 3
-                            ? DungeonScreen.previewContent(level, record.owner, previous)
-                            : DungeonScreen.idleContent(level, record.owner));
+            // Show why this door cannot be previewed. The doorRefusal
+            // method knows the exact reason (level gate or fuel gate).
+            // Without this, a player who right-clicks a greater door they
+            // cannot afford gets no feedback at all: the bulb does not
+            // light, the screen does not change, and they have no idea
+            // why nothing happened.
+            String refusal = doorRefusal(player, step);
+            if (refusal != null) {
+                Chime.doorLocked(player);
+                DungeonScreen.updateDoor(level, record,
+                        DungeonScreen.refusalContent(refusal));
+            } else {
+                DungeonScreen.updateDoor(level, record,
+                        previous >= 1 && previous <= 3
+                                ? DungeonScreen.previewContent(level, record.owner, previous)
+                                : DungeonScreen.idleContent(level, record.owner));
+            }
             return;
         }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));

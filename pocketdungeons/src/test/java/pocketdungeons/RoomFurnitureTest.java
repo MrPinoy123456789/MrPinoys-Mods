@@ -4,11 +4,13 @@ import net.minecraft.core.BlockPos;
 
 /**
  * Pure coordinate regression for {@link RoomProtection#isFurniture} (M19
- * 19.7): the mod-placed furniture is the commit lever and its sign in the
- * row in front of the selector wall, the three copper bulbs and the black
- * concrete door screen set into that wall, and the engine block with its
- * screen on the wall to the left of the selector wall. Nothing else in the
- * room is furniture. Runs headless like {@link RoomShellTest}.
+ * 19.7): the mod-placed furniture is the three selector doors at Y=1..2
+ * standing one block in front of the selector wall, the commit lever and
+ * its sign in the same row beside the third door, the three copper bulbs
+ * and the black concrete door screen set into that wall, and the engine
+ * block with its screen on the wall to the left of the selector wall.
+ * Nothing else in the room is furniture. Runs headless like
+ * {@link RoomShellTest}.
  *
  * <p>The positions here must stay in lockstep with
  * {@code RoomTemplateGenerator.placeFurniture} and
@@ -35,7 +37,8 @@ public class RoomFurnitureTest {
 
     /**
      * The lever at Y=2 and its sign at Y=3, one block in front of the wall,
-     * and the three bulbs at Y=3 set into the wall itself, one over each door.
+     * the three selector doors at Y=1..2 in the same row, and the three
+     * bulbs at Y=3 set into the wall itself, one over each door.
      */
     private static void testBulbsAndLever(DoorMask.Direction wall) {
         for (int along = 7; along <= 9; along++) {
@@ -46,11 +49,12 @@ public class RoomFurnitureTest {
         // Nothing stands over the lever in the wall any more: the fourth bulb
         // came out when the sign went up.
         check(!isFurniture(wallRing(wall, 10, 3), wall), "no bulb over the lever " + wall);
-        // The door row itself (Y=1..2, along 7..9) is a door, not furniture,
-        // and neither is the air above it in front of the wall.
+        // The three selector doors themselves (Y=1..2, along 7..9) are
+        // furniture: the owner cannot break them. The air above them at Y=3
+        // in front of the wall is not furniture.
         for (int along = 7; along <= 9; along++) {
-            check(!isFurniture(doorPlane(wall, along, 1), wall), "door " + wall + " " + along);
-            check(!isFurniture(doorPlane(wall, along, 2), wall), "door " + wall + " " + along);
+            check(isFurniture(doorPlane(wall, along, 1), wall), "selector door " + wall + " " + along);
+            check(isFurniture(doorPlane(wall, along, 2), wall), "selector door " + wall + " " + along);
             check(!isFurniture(doorPlane(wall, along, 3), wall), "over door " + wall + " " + along);
         }
     }
@@ -87,23 +91,29 @@ public class RoomFurnitureTest {
         check(!isFurniture(wallRing(engineWall, 11, 4), wall), "engine screen edge " + wall);
     }
 
-    /** Interior build space is never furniture, whatever the selector wall. */
+    /**
+     * Interior build space is never furniture, whatever the selector wall,
+     * except for the selector doors, the lever, and the lever sign on the
+     * door plane one block in front of the selector wall.
+     */
     private static void testInteriorIsNeverFurniture(DoorMask.Direction wall) {
         for (int x = 1; x <= 14; x++) {
             for (int z = 1; z <= 14; z++) {
                 for (int y = 1; y <= 5; y++) {
                     if (isFurniture(new BlockPos(x, 64 + y, z), ORIGIN, wall)) {
-                        // The only interior cells that are furniture are the
-                        // lever and its sign on the door plane, one block in
-                        // front of the selector wall. The bulbs, the engine and
-                        // both screens sit in the wall ring, never in the
-                        // interior.
+                        // The only interior cells that are furniture are on
+                        // the door plane, one block in front of the selector
+                        // wall: the three selector doors (along 7..9, Y=1..2),
+                        // the lever (along 10, Y=2), and its sign (along 10,
+                        // Y=3). The bulbs, the engine and both screens sit in
+                        // the wall ring, never in the interior.
                         int along = alongOf(wall, x, z);
                         int perp = (wall == DoorMask.Direction.NORTH || wall == DoorMask.Direction.SOUTH) ? z : x;
                         boolean onDoorPlane = perp == doorPlaneOf(wall);
+                        boolean selectorDoor = onDoorPlane && (y == 1 || y == 2) && along >= 7 && along <= 9;
                         boolean lever = onDoorPlane && y == 2 && along == 10;
                         boolean sign = onDoorPlane && y == 3 && along == 10;
-                        if (!lever && !sign) {
+                        if (!selectorDoor && !lever && !sign) {
                             throw new AssertionError("interior should never be furniture: "
                                     + wall + " at " + x + "," + y + "," + z);
                         }

@@ -1,0 +1,141 @@
+{
+  "slotPitch": 2048,
+  "slotsPerRow": 64,
+  "watchIntervalTicks": 20,
+  "voidGuardDepth": 10,
+  "maxPartyMembers": 6,
+  "inviteTtlSeconds": 120,
+  "pathLengthMin": 8,
+  "pathLengthMax": 12,
+  "branchProbability": 0.55,
+  "loopProbability": 0.3,
+  "planAttemptBudget": 32,
+  "maxGridSpan": 12,
+  "clearBlocksPerTick": 8192,
+  "floorsPerSafeVisit": 3,
+  "ritualEnabled": true,
+  "payoutCommand": "",
+  "vaultKeyItem": "minecraft:trial_key",
+  "ominousVaultKeyItem": "minecraft:ominous_trial_key",
+  "trialSpawnerCooldownTicks": 36000,
+  "keystoneItem": "minecraft:recovery_compass",
+  "keystoneMaxLevel": 100,
+  "timerBaseSeconds": 180,
+  "timerPerRoomSeconds": 60,
+  "rewardRoomGraceSeconds": 600,
+  "afkSeconds": 300,
+  "threeChestPercent": 60,
+  "twoChestPercent": 80,
+  "timedOutDepletion": 2,
+  "lateCompletionDepletion": 2,
+  "overclockedCooldownFactor": 0.4,
+  "swarmingMobFactor": 1.5,
+  "silencedPlayerRange": 6,
+  "moltenHazardsPerCell": 4,
+  "feralWolvesPerCell": 2,
+  "explosiveHazardsPerCell": 4,
+  "voidedCellChance": 0.3,
+  "mobScalePerLevel": 0.008,
+  "mobScaleBase": 0.65,
+  "breezeHpMultiplier": 0.5,
+  "spawnerClearThreshold": 0.75,
+  "fuelItem": "minecraft:echo_shard",
+  "door1TimerSeconds": 300,
+  "fuelCostPerGreaterDoor": 3,
+  "fuelPerFreeRun": 1,
+  "greaterDoorMinLevel": 15,
+  "pocket2TimerSeconds": 60,
+  "pocket2DoorChance": 0.2,
+  "anomalyRoomChance": 0.08,
+  "rerollBlock": "minecraft:smithing_table",
+  "rerollLapisPerTier": 4,
+  "rerollUnlockLevel": 5,
+  "trimBonuses": [
+    {
+      "material": "minecraft:diamond",
+      "attribute": "minecraft:armor_toughness",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:netherite",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:gold",
+      "attribute": "minecraft:movement_speed",
+      "amount": 0.02,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:iron",
+      "attribute": "minecraft:armor",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:copper",
+      "attribute": "minecraft:mining_efficiency",
+      "amount": 0.5,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:redstone",
+      "attribute": "minecraft:attack_speed",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:emerald",
+      "attribute": "minecraft:luck",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:lapis",
+      "attribute": "minecraft:safe_fall_distance",
+      "amount": 3.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:amethyst",
+      "attribute": "minecraft:entity_interaction_range",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:quartz",
+      "attribute": "minecraft:max_health",
+      "amount": 2.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:resin",
+      "attribute": "minecraft:fall_damage_multiplier",
+      "amount": -0.1,
+      "operation": "add_value"
+    }
+  ],
+  "trimBonusDungeonOnly": false,
+  "gambleBlock": "minecraft:waxed_oxidized_copper_chest",
+  "gambleEmeraldsPerTier": 6,
+  "gambleSlotMultiplier": 1.5,
+  "gambleWeightedSlot": "weapon",
+  "gambleUnlockLevel": 10,
+  "cubeBlock": "minecraft:beacon",
+  "cubeUnlockLevel": 15,
+  "powerBonuses": [
+    {
+      "id": "warden_ward",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.2,
+      "operation": "add_value"
+    }
+  ],
+  "imbueMaterial": "minecraft:iron_ingot",
+  "imbueCost": 4,
+  "equipCap": 3,
+  "extractionReversible": false
+}

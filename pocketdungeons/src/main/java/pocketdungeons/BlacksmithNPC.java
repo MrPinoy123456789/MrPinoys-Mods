@@ -119,6 +119,10 @@ final class BlacksmithNPC {
     /**
      * For each live instance with a room, scans for a smithing table and
      * spawns, despawns, or anchors the blacksmith villager as needed.
+     *
+     * <p>If more than one tagged blacksmith is found near the room (which can
+     * happen if the villager wandered out of the scan radius and a new one
+     * spawned), the extras are discarded so only one remains.
      */
     private static void sweep(MinecraftServer server) {
         ServerLevel dungeonLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -131,19 +135,22 @@ final class BlacksmithNPC {
             }
             BlockPos roomOrigin = record.roomCellOrigin;
             BlockPos tablePos = findSmithingTable(dungeonLevel, roomOrigin);
+            List<Villager> blacksmiths = findAllBlacksmiths(dungeonLevel, roomOrigin);
             if (tablePos == null) {
-                // No table: despawn any blacksmith still lingering in this room.
-                Villager existing = findBlacksmith(dungeonLevel, roomOrigin);
-                if (existing != null) {
-                    existing.discard();
+                // No table: despawn any blacksmith still lingering near this room.
+                for (Villager v : blacksmiths) {
+                    v.discard();
                 }
                 continue;
             }
-            Villager blacksmith = findBlacksmith(dungeonLevel, roomOrigin);
-            if (blacksmith == null) {
+            if (blacksmiths.isEmpty()) {
                 spawnBlacksmith(dungeonLevel, tablePos);
             } else {
-                anchorBlacksmith(blacksmith, tablePos);
+                // Keep only the first; discard any duplicates.
+                for (int i = 1; i < blacksmiths.size(); i++) {
+                    blacksmiths.get(i).discard();
+                }
+                anchorBlacksmith(blacksmiths.get(0), tablePos);
             }
         }
     }
@@ -171,12 +178,21 @@ final class BlacksmithNPC {
      * Finds an existing blacksmith villager near the room, or {@code null}.
      */
     private static Villager findBlacksmith(ServerLevel level, BlockPos roomOrigin) {
+        List<Villager> villagers = findAllBlacksmiths(level, roomOrigin);
+        return villagers.isEmpty() ? null : villagers.get(0);
+    }
+
+    /**
+     * Finds all tagged blacksmith villagers near the room. Used by the sweep
+     * to detect and clean up duplicates that can appear when a blacksmith
+     * wanders out of the scan radius and a new one spawns.
+     */
+    private static List<Villager> findAllBlacksmiths(ServerLevel level, BlockPos roomOrigin) {
         BlockPos centre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         AABB box = AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(centre),
                 SCAN_RADIUS * 2, SCAN_RADIUS * 2, SCAN_RADIUS * 2);
-        List<Villager> villagers = level.getEntitiesOfClass(Villager.class, box,
+        return level.getEntitiesOfClass(Villager.class, box,
                 v -> v.entityTags().contains(BLACKSMITH_TAG));
-        return villagers.isEmpty() ? null : villagers.get(0);
     }
 
     /**
@@ -229,6 +245,13 @@ final class BlacksmithNPC {
      * Pulls the blacksmith back if it has wandered too far from the smithing
      * table. The villager's own AI handles normal wandering; this is only a
      * safety net for when it drifts out of the room entirely.
+     *
+     * <p>Also re-applies the profession, name, invulnerability and persistence
+     * every sweep. Vanilla villager AI can change a villager's profession when
+     * it claims a job site block (a brewing stand turns it into a cleric, a
+     * lectern into a librarian, etc.), and the custom name does not change
+     * with it. Without re-applying, a blacksmith that found a brewing stand
+     * would look like a cleric but still be named "Blacksmith".
      */
     private static void anchorBlacksmith(Villager villager, BlockPos tablePos) {
         double dx = villager.getX() - (tablePos.getX() + 0.5);
@@ -240,5 +263,17 @@ final class BlacksmithNPC {
         // Re-apply invulnerability and persistence in case something stripped them.
         villager.setInvulnerable(true);
         villager.setPersistenceRequired();
+        // Re-apply the weaponsmith profession so vanilla job-site claiming
+        // cannot turn the blacksmith into a cleric or other profession while
+        // keeping the "Blacksmith" name tag. Applied unconditionally every
+        // sweep because the vanilla brain can change it back between sweeps.
+        villager.setVillagerData(villager.getVillagerData()
+                .withProfession(villager.level().registryAccess(), VillagerProfession.WEAPONSMITH));
+        // Re-apply the custom name in case it was cleared.
+        if (villager.getCustomName() == null
+                || !villager.getCustomName().getString().equals("Blacksmith")) {
+            villager.setCustomName(Component.literal("Blacksmith"));
+            villager.setCustomNameVisible(true);
+        }
     }
 }

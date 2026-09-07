@@ -3166,3 +3166,144 @@ opens onto the player's actual room without announcing it.
   adventure nodes, 7 diary entries, 49 rooms.
 - ./gradlew.bat build --offline: BUILD SUCCESSFUL in 1m 32s, full
   suite including all unit tests, GameTests and dungeonIntegrationTest.
+
+## M66: Cube Recipe Reliability
+
+A consumed catalyst changes exactly the floor previewed, or remains
+recoverable without charging for nothing.
+
+### Recipe effect coverage
+
+Every promised recipe effect now influences layout planning, room
+selection, and completion reporting:
+
+- Ominous: adds Affix.OMINOUS to the effective affix set at preview
+  and commit.
+- Feral: adds Affix.FERAL to the effective affix set at preview and
+  commit.
+- Infested guarantee: forces infested_wall or creeper_kennel onto an
+  eligible non-entrance, non-terminal cell during room selection.
+- Flooded/Chasm weighting: flagged on the RunRecipePlan; the
+  selection pass receives the plan (wiring point for future
+  weight tuning).
+- Deep Dark guarantee: forces deep_dark_landing onto an eligible
+  cell. RunRecipePlan.resolve refuses below tier 3 (level 10) before
+  the catalyst is spent.
+- Compass: populates record.situations at commit and emits a
+  completion study list on the first floor completion.
+- Store spur: forces the_store onto an eligible cell during room
+  selection.
+- Bounded supply: flagged on the plan; the new BOUNDED_SUPPLY recipe
+  (keystone + string) replaces BAG_OVERRIDE.
+- Path extension (+2): applied to minPath and maxPath before shape
+  generation, so the shape itself is longer. The new PATH_EXTENSION
+  recipe (keystone + amethyst shard) replaces DOUBLE_KEY.
+
+### Catalyst escrow and recovery
+
+The catalyst is escrowed in the keystone custom data
+(pending_catalyst) at recipe application time. On successful commit,
+the escrow is cleared (the catalyst is permanently spent). On
+preview cancellation (clearPreview) or commit failure, the escrowed
+catalyst is restored to the owner via Payout.deliver. This follows
+the M63 prepare/commit/recover pattern.
+
+### Legacy pending-item migration
+
+- BAG_OVERRIDE: no longer matched by any new catalyst. Legacy tags
+  decode as bounded supply in RunRecipePlan. A legacy tag on commit
+  produces a visible owner notice with the original bag id and a
+  refund suggestion. The old bag swap is no longer performed for new
+  runs; the bag_original restore path remains as a safety net for
+  pre-M66 runs.
+- DOUBLE_KEY: no longer matched by a second keystone. Legacy tags
+  decode as +2 path length at the committed offer level. The old
+  lower-key level was never stored and is not invented; the migration
+  uses the current offer level with explicit notice.
+
+### Costs that cannot be reconstructed
+
+- The original BAG_OVERRIDE catalyst (a bag headline item) is not
+  recoverable from the legacy tag. The tag stores the bag id, not the
+  item id. The refund path is owner-approved and manual.
+- The original DOUBLE_KEY catalyst (a second keystone) is not
+  recoverable from the legacy tag. The tag does not store the
+  keystone level or item. The refund path is owner-approved and
+  manual.
+- The lower-key level for legacy DOUBLE_KEY was never stored. M66
+  does not invent it; the migration extends at the current offer
+  level only.
+
+### Verification
+
+- ./gradlew.bat cubeStationTest --offline: CubeStationTest passed.
+- ./gradlew.bat graphSolvabilityTest --offline:
+  GraphSolvabilityTest passed (596 floors, 0 fallbacks).
+- ./gradlew.bat keystoneOfferTest --offline: KeystoneOfferTest
+  passed.
+- ./gradlew.bat runGameTest --offline: All 55 required tests passed
+  (39 from M65 plus 16 new CubeRecipeGameTest scenarios).
+- ./gradlew.bat dungeonIntegrationTest --offline: loaded 5 themes, 5
+  adventure nodes, 7 diary entries, 49 rooms.
+- ./gradlew.bat build --offline: BUILD SUCCESSFUL in 1m 33s, full
+  suite including all unit tests, GameTests and
+  dungeonIntegrationTest.
+
+## M67: Close the live pass and teach only the verbs
+
+M67 is a human gate milestone. The code-side work is complete; the human
+pass (tester recruitment, live observation, honest dispositions) is not.
+This entry records the code-side changes only.
+
+### What shipped
+
+1. **Chime.roomRelocated removed.** Two call sites in RunLifecycle.java
+   (post-completion relocation at L1189, safe return at L1580) and the
+   method in Chime.java are deleted. The room relocation is now silent,
+   honouring both the M67 constraint "No sound for room movement" and
+   VISION.md section 4: "No message, no sound, no lore entry." The M62
+   disposition index row "Silence about room movement" is resolved: the
+   STONE_PLACE cue was the thing "silence" meant to remove, and it is
+   removed.
+
+2. **OMINOUS affix coloured in door screen (Q5).** DungeonScreen.affixLine
+   refactored from returning a plain String to returning a Component.
+   The OMINOUS affix label is styled DARK_PURPLE, matching the chat
+   message at run start. This gives a sound-off player a visible
+   environmental signal beyond the Trial Omen HUD icon: the purple
+   "Cooked" text on the door screen during the run. No numeric HUD
+   added, per the handoff constraint.
+
+3. **First-time idle prompt fixed.** The level-1 idle door screen said
+   "Select the Oak Door" without mentioning right-clicking. It now says
+   "Right-click the Oak Door", matching the returning-player prompt's
+   clarity. A first-time player who has never interacted with a
+   selector door now has the verb they need.
+
+### Chime audit
+
+All 47 Chime call sites across 9 files audited. No recipient errors, no
+duplicate playback, no significant competition with vanilla hazard
+sounds (all chimes use SoundSource.RECORDS, hazard sounds use HOSTILE
+or NEUTRAL, volumes 0.2 to 0.5). The one constraint violation
+(roomRelocated) is fixed. All other chimes are correct.
+
+### What did not ship
+
+The human pass. M67's implementation plan steps 1 (recruit testers), 2
+(observe fresh players), and 4 (close the pass with honest dispositions)
+require human testers on a live client. No fake player evidence is
+presented. Every current row in the M62 disposition index stays
+current until the human pass runs. Round II waits for the human gate,
+not just the build.
+
+### Verification
+
+- ./gradlew.bat lodestoneMenuTest: LodestoneMenuTest passed.
+- ./gradlew.bat lobbyBrowserTest: LobbyBrowserTest passed.
+- ./gradlew.bat taskTrackerTest: TaskTrackerTest passed.
+- ./gradlew.bat runGameTest: All 55 required tests passed.
+- ./gradlew.bat dungeonIntegrationTest: PASS (5 themes, 5 adventure
+  nodes, 7 diary entries, 49 rooms, 6 anomaly rooms, 40 core loot
+  tables).
+- ./gradlew.bat build: BUILD SUCCESSFUL in 1m 40s, full suite green.

@@ -16,7 +16,8 @@
       "pocketdungeons.SituationGameTest",
       "pocketdungeons.HandlerGameTest",
       "pocketdungeons.OmenGameTest",
-      "pocketdungeons.FloorLoopGameTest"
+      "pocketdungeons.FloorLoopGameTest",
+      "pocketdungeons.CubeRecipeGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint"

@@ -171,6 +171,10 @@ final class DungeonCommands {
                                             .executes(ctx -> roomWhitelistList(
                                                     ctx.getSource().getPlayerOrException())))))
 
+                    // M67: room builder commands for creating, editing, loading
+                    // and deleting room templates from inside the game.
+                    .then(RoomBuilderCommands.branch())
+
                     .then(Commands.literal("admin")
                             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 

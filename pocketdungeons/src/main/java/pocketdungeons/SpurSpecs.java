@@ -77,25 +77,26 @@ final class SpurSpecs {
      */
     static void registerHandlers() {
         Situations.register("barred_vault", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> {
-            TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
-                    "barred_vault", false);
-        });
+                affixes, lootSuffix, theme, voidedFloor, content) ->
+                TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
+                        "barred_vault", false));
         Situations.register("ominous_bargain", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
             // Own the cell so the corridor role dispatch does not strip the
             // reward chest behind the iron door. The room is pure template.
+            return null;
         });
         Situations.register("store", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
             StoreShop.build(level, o, seed);
             StoreNPC.spawn(level, o, seed);
+            return null;
         });
         // M58: The Altar. Pure template room with a trial key reward chest.
         // The handler owns the cell so the corridor role dispatch does not
         // strip the reward chest.
         Situations.register("the_altar", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
     }
 
     // ---- shared helpers -----------------------------------------------------

@@ -407,3 +407,38 @@ Two gotchas, worth not re-discovering:
     StructureTemplate or chunk-loading failure. The path exists as a
     safety net but its behavior (teleport, chime, message) has not
     been live-verified.
+
+## UNVERIFIED M66 API surface
+
+23. UNVERIFIED: CubeRecipe.restoreCatalyst uses
+    Payout.deliver(player, new ItemStack(item)) to return the
+    escrowed catalyst on cancellation. Payout.deliver calls
+    player.getInventory().add(stack) and drops overflow at the
+    player's feet. This path has not been exercised in a live
+    scenario where the player's inventory is full. The drop should
+    work (it uses player.drop, which spawns an ItemEntity), but the
+    exact behavior with a full inventory and a nearby void dimension
+    has not been live-verified.
+
+24. UNVERIFIED: The catalyst escrow (pending_catalyst in the
+    keystone custom data) is a durable store, but it is not a
+    transactional boundary like M63's InventoryJournal. If the server
+    crashes between Catalyst shrink (in CubeRecipe.apply) and the
+    escrow write (in the same CustomData.update call), the catalyst
+    is lost. The CustomData.update call is atomic, but the
+    offHand.shrink(1) call happens after the update, so a crash
+    between the two would leave the catalyst escrowed but not
+    consumed. This is a narrow window and has not been
+    crash-tested.
+
+25. UNVERIFIED: RoomSelector.applyRecipeGuarantees forces a specific
+    room onto an eligible cell after the main selection pass. The
+    forced room's requires is checked against the available tags at
+    that depth, but the forced room's provides is not re-propagated
+    to downstream cells. If a downstream cell depended on a provide
+    from the original room that the forced room does not provide,
+    the plan could become unsolvable. The main pass already
+    resolved the plan, so this is a replacement, not a new
+    allocation. The risk is that the forced room changes the
+    provides graph. This has not been observed in testing but is an
+    API surface that M66 introduces.

@@ -118,6 +118,25 @@ final class LayoutPlanner {
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme,
+                requiredEntranceDirection, bagTags, null);
+    }
+
+    /**
+     * M66: the full form with recipe effects. The recipe plan carries
+     * guarantees (infested, Deep Dark, Store), weightings (flooded/chasm),
+     * and the path length bonus. {@code null} means no recipe effects, which
+     * is the same as the 11-argument form.
+     *
+     * @param bagTags    the depth-0 solvability seed, from {@link BagTags#seed}
+     * @param recipePlan the recipe effects to wire into the selector, or {@code null}
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
+                        Set<String> bagTags, RunRecipePlan recipePlan) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -153,7 +172,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan);
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()

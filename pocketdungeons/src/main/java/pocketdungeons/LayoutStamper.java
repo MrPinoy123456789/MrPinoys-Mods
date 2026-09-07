@@ -1,12 +1,15 @@
 package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.ArrayList;
@@ -242,13 +245,11 @@ final class LayoutStamper {
 
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
-            BlockPos spawnerAnchor = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
+            List<BlockPos> spawnerAnchors = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
             OmenSources.arm(level, cellOrigin, entry.meta);
-            if (spawnerAnchor != null) {
-                trialSpawners.add(spawnerAnchor);
-            }
+            trialSpawners.addAll(spawnerAnchors);
 
             // M25: the pocket door lives in the run's first cleared encounter
             // cell. A cell with no sealed wall cannot host one (every wall
@@ -276,6 +277,8 @@ final class LayoutStamper {
 
         Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
         applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots);
+
+        applyDirectionalGates(level, geometry, plan, manifest);
 
         BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell);
 
@@ -325,6 +328,164 @@ final class LayoutStamper {
             max = Math.max(max, RoomGeometry.storyOffset(spanY));
         }
         return max;
+    }
+
+    /**
+     * Places directional doorway gates at runtime on the side facing away from
+     * the entrance (higher depth). Three rooms bake their gate into the
+     * template at the EXIT (east) doorway: infested_wall, elders_chamber, and
+     * dont_look. The layout can rotate a room 180 degrees, which swaps
+     * ENTRANCE and EXIT and puts the gate on the player's entrance side,
+     * trapping them outside their own room. Placing the gate here, after the
+     * plan's door edges are known, ensures the gate always faces the right way
+     * regardless of rotation.
+     *
+     * <p>The gate goes one block inside the wall (not in the doorway plane
+     * itself), the same convention the template decor used, so the doorway's
+     * jigsaw blocks survive and the room keeps its door in the manifest mask.
+     */
+    private static void applyDirectionalGates(ServerLevel level, PlanGeometry geometry,
+                                              DungeonPlan plan, RoomManifest manifest) {
+        for (var entry : plan.rooms().entrySet()) {
+            PlanCell cell = entry.getKey();
+            String roomName = entry.getValue().name();
+            DoorMask.Direction gateSide = exitSide(plan, cell);
+            if (gateSide == null) {
+                continue;
+            }
+            BlockPos origin = geometry.cellOrigin(cell);
+            switch (roomName) {
+                case "infested_wall" -> placeInfestedGate(level, origin, gateSide);
+                case "elders_chamber" -> placeSealedGate(level, origin, gateSide,
+                        Blocks.GRAVEL.defaultBlockState());
+                case "dont_look" -> placeDoorwayTopGate(level, origin, gateSide);
+                case "hold_the_plate" -> placeIronDoorGate(level, origin, gateSide);
+                default -> { }
+            }
+        }
+    }
+
+    /**
+     * Finds the side of {@code cell} that faces away from the entrance (the
+     * exit side), by looking for the door edge whose other cell has a higher
+     * depth. Returns {@code null} if the cell has no door edge to a
+     * higher-depth neighbour (e.g. the terminal cell or a dead-end branch).
+     */
+    private static DoorMask.Direction exitSide(DungeonPlan plan, PlanCell cell) {
+        int myDepth = plan.depths().getOrDefault(cell, 0);
+        DoorMask.Direction best = null;
+        int bestDepth = myDepth;
+        for (PlanEdge edge : plan.doors()) {
+            if (!edge.touches(cell)) {
+                continue;
+            }
+            PlanCell other = edge.other(cell);
+            int otherDepth = plan.depths().getOrDefault(other, 0);
+            if (otherDepth > bestDepth) {
+                bestDepth = otherDepth;
+                best = cell.directionTo(other);
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Places infested stone bricks (y=1) and normal stone bricks (y=2..3) one
+     * block inside the wall on the exit side, matching the original template
+     * decor's material mix.
+     */
+    private static void placeInfestedGate(ServerLevel level, BlockPos origin,
+                                          DoorMask.Direction wall) {
+        BlockState infested = Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
+        BlockState normal = Blocks.STONE_BRICKS.defaultBlockState();
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
+            for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
+                BlockPos pos = interiorDoorPos(origin, wall, z, y);
+                level.setBlock(pos, y == 1 ? infested : normal, flags);
+            }
+        }
+    }
+
+    /**
+     * Places a full doorway plug (y=1..3) of the given material one block
+     * inside the wall on the exit side.
+     */
+    private static void placeSealedGate(ServerLevel level, BlockPos origin,
+                                        DoorMask.Direction wall, BlockState material) {
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
+            for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
+                level.setBlock(interiorDoorPos(origin, wall, z, y), material, flags);
+            }
+        }
+    }
+
+    /**
+     * Places a single lintel block at y=3 one block inside the wall on the
+     * exit side, dropping the doorway to two blocks high so a 3-tall mob
+     * cannot path through.
+     */
+    private static void placeDoorwayTopGate(ServerLevel level, BlockPos origin,
+                                            DoorMask.Direction wall) {
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+        BlockState wallBlock = RoomBuilder.WALL;
+        for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
+            level.setBlock(interiorDoorPos(origin, wall, z, 3), wallBlock, flags);
+        }
+    }
+
+    /**
+     * One block inside the wall on the given side, at doorway column {@code z}
+     * and height {@code y}. Matches the {@code WALL_X - 1} convention the
+     * template decor used for the east side, generalised to all four walls.
+     */
+    private static BlockPos interiorDoorPos(BlockPos origin, DoorMask.Direction wall,
+                                            int z, int y) {
+        return switch (wall) {
+            case NORTH -> origin.offset(z, y, 1);
+            case SOUTH -> origin.offset(z, y, RoomGeometry.CELL - 2);
+            case EAST -> origin.offset(RoomGeometry.CELL - 2, y, z);
+            case WEST -> origin.offset(1, y, z);
+        };
+    }
+
+    /**
+     * Places a pair of iron doors (and their y=3 lintel) one block inside the
+     * wall on the exit side, matching the original template decor's convention.
+     * The door faces into the room (opposite of the wall direction). The
+     * redstone circuit's power block, which the repeater in the template
+     * drives, is already next to this position because the circuit rotates
+     * with the template. So placing the door here connects it to the existing
+     * redstone gate without any additional wiring.
+     *
+     * <p>The hinge sides are chosen so the two leaves meet in the middle when
+     * closed, the same convention {@link ConnectorStamper#applyIronDoor} uses
+     * for connector iron doors.
+     */
+    private static void placeIronDoorGate(ServerLevel level, BlockPos origin,
+                                          DoorMask.Direction wall) {
+        Direction facing = Instances.mcDirection(CellGeometry.opposite(wall));
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
+                | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+            DoorHingeSide hinge = i == RoomGeometry.DOOR_MIN ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
+            BlockState lower = Blocks.IRON_DOOR.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.DoorBlock.FACING, facing)
+                    .setValue(net.minecraft.world.level.block.DoorBlock.HINGE, hinge)
+                    .setValue(net.minecraft.world.level.block.DoorBlock.HALF,
+                            net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER)
+                    .setValue(net.minecraft.world.level.block.DoorBlock.OPEN, false);
+            BlockState upper = lower.setValue(
+                    net.minecraft.world.level.block.DoorBlock.HALF,
+                    net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+            level.setBlock(interiorDoorPos(origin, wall, i, 1), lower, flags);
+            level.setBlock(interiorDoorPos(origin, wall, i, 2), upper, flags);
+            level.setBlock(interiorDoorPos(origin, wall, i, 3), RoomBuilder.WALL, flags);
+        }
     }
 
     /**

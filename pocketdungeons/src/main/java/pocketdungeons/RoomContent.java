@@ -14,6 +14,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.loot.LootTable;
 
@@ -81,15 +82,18 @@ final class RoomContent {
     private RoomContent() {}
 
     /**
-     * @return the trial spawner anchor placed for an {@code encounter} cell, or
-     *         {@code null} for every other role (M10: the caller collects these
-     *         into the run's layout for the spawner-clear completion gate)
+     * @return the trial spawner anchors placed for an {@code encounter} cell
+     *         (one or more for authored spawners, one for legacy placement),
+     *         or an empty list for every other role. M10: the caller collects
+     *         these into the run's layout for the spawner-clear completion gate.
+     *         ROOM_AUTHORING_SPEC Phase A: returns a list to support multiple
+     *         authored trial spawners per cell.
      */
-    static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+    static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
                       Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
                       boolean anomalyCell, String content) {
-        BlockPos spawnerAnchor = null;
+        List<BlockPos> spawnerAnchors = new ArrayList<>();
         if (anomalyCell) {
             if ("store".equals(content)) {
                 // M35 store anomaly: build a village shop interior and spawn a
@@ -97,7 +101,7 @@ final class RoomContent {
                 // store is a safe room the player finds along the critical path.
                 StoreShop.build(level, cellOrigin, seed);
                 StoreNPC.spawn(level, cellOrigin, seed);
-                return null;
+                return List.of();
             }
             // M35: a loose chest off the anomaly table regardless of role -- never
             // a vault, never a keystone or a completion pad. An encounter-role
@@ -105,23 +109,35 @@ final class RoomContent {
             // room around it is what is wrong), themeless like the chest.
             applyAnomalyChest(level, cellOrigin, seed);
             if ("encounter".equals(role)) {
-                spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
+                BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                         profile.lootTier(), affixes, null);
+                if (anchor != null) {
+                    spawnerAnchors.add(anchor);
+                }
             }
-        } else if (Situations.apply(level, cellOrigin, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content)) {
+        } else if (Situations.isRegistered(content)) {
             // M45: the one branch this class carries for the situation
             // catalogue. A registered handler owns its cell outright, so the
-            // role switch below never sees it. No handler is registered today,
-            // and Situations.apply returns false for a null or unknown content
-            // id, so every cell still falls through to the role dispatch.
-            return null;
+            // role switch below never sees it. The handler returns the trial
+            // spawner anchor it placed (if any), which travels back to
+            // LayoutStamper for the layout's trialSpawners set. Without this,
+            // spawners placed by situation handlers would be missing from the
+            // layout's spawner set, breaking the spawner-clear completion gate.
+            BlockPos anchor = Situations.apply(level, cellOrigin, role, depth, profile, spawns, seed,
+                    affixes, lootSuffix, theme, voidedFloor, content);
+            if (anchor != null) {
+                return List.of(anchor);
+            }
+            return List.of();
         } else if (role != null) {
             switch (role) {
                 case "encounter" -> {
                     removeChests(level, cellOrigin);
-                    spawnerAnchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
+                    BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                             profile.lootTier(), affixes, theme);
+                    if (anchor != null) {
+                        spawnerAnchors.add(anchor);
+                    }
                 }
                 case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
                         affixes.contains(Affix.OMINOUS), seed, lootSuffix);
@@ -161,7 +177,7 @@ final class RoomContent {
         if (affixes.contains(Affix.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
             FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), profile.keystoneLevel(), seed);
         }
-        return spawnerAnchor;
+        return spawnerAnchors;
     }
 
     /**
@@ -396,6 +412,11 @@ final class RoomContent {
             if (!inCell(pos, cellOrigin)) {
                 continue;
             }
+            // Authored vaults are not chests: exclude them so they are not
+            // double-promoted or retargeted as supply chests.
+            if (entry.getValue() instanceof VaultBlockEntity) {
+                continue;
+            }
             if (entry.getValue() instanceof RandomizableContainer) {
                 found.add(pos.immutable());
             }
@@ -422,9 +443,11 @@ final class RoomContent {
 
     private static void removeChests(ServerLevel level, BlockPos cellOrigin) {
         for (BlockPos pos : containers(level, cellOrigin)) {
-            // SUPPRESS_DROPS matters here for the same reason RoomBuilder documents
-            // it: breaking a container normally scatters its contents as item
-            // entities, which then outlive the room they came from.
+            // containers() already excludes vaults, so authored vaults survive
+            // the encounter-role chest removal. SUPPRESS_DROPS matters here for
+            // the same reason RoomBuilder documents it: breaking a container
+            // normally scatters its contents as item entities, which then
+            // outlive the room they came from.
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
         }
     }

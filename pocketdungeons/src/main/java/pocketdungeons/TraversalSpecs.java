@@ -45,15 +45,15 @@ final class TraversalSpecs {
     static {
         Situations.register("flooded_hall", TraversalSpecs::floodedHall);
         Situations.register("thicket", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
         Situations.register("ice_run", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
         // M58: template-only traversal rooms. The decor in the RoomSpec is
         // the whole of the content; the handler just owns the cell.
         Situations.register("chasm", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
         Situations.register("powder_snow_field", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
     }
 
     /** The traversal family's templates. */
@@ -180,7 +180,7 @@ final class TraversalSpecs {
      * held by a kerb, so the doorway itself is sealed with a door the player
      * opens on demand.
      */
-    private static void floodedHall(ServerLevel level, BlockPos cellOrigin, String role,
+    private static BlockPos floodedHall(ServerLevel level, BlockPos cellOrigin, String role,
                                     int depth, DifficultyProfile profile, List<BlockPos> spawns,
                                     long seed, Set<Affix> affixes, String lootSuffix,
                                     String theme, boolean voidedFloor, String content) {
@@ -191,6 +191,7 @@ final class TraversalSpecs {
         }
         RoomContent.spawnMobs(level, cellOrigin, EntityTypes.DROWNED, 2,
                 spawns.isEmpty() ? defaultDrownedSpawns(cellOrigin) : spawns, seed, null);
+        return null;
     }
 
     /**

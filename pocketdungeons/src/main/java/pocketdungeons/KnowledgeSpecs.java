@@ -93,27 +93,38 @@ final class KnowledgeSpecs {
         }
         handlersRegistered = true;
 
-        // Knowledge rooms that use spawnMobs (spec 4.3).
+        // Knowledge rooms that use spawnMobs (spec 4.3). These handlers place
+        // no trial spawner, so they return null.
         Situations.register("bazaar", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.PIGLIN, 8, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.PIGLIN, 8, spawns, seed,
                         entity -> {
                             if (entity instanceof Piglin piglin) {
                                 piglin.setImmuneToZombification(true);
                             }
-                        }));
+                        });
+            return null;
+        });
         Situations.register("dont_look", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.ENDERMAN, 4, spawns, seed, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.ENDERMAN, 4, spawns, seed, null);
+            return null;
+        });
         Situations.register("the_herd", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.ZOMBIFIED_PIGLIN, 12, spawns, seed, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.ZOMBIFIED_PIGLIN, 12, spawns, seed, null);
+            return null;
+        });
         Situations.register("elders_chamber", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.ELDER_GUARDIAN, 1, spawns, seed, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.ELDER_GUARDIAN, 1, spawns, seed, null);
+            return null;
+        });
         Situations.register("blaze_loft", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.BLAZE, 3, spawns, seed, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.BLAZE, 3, spawns, seed, null);
+            return null;
+        });
 
         // Combat rooms (spec 4.4). Each handler places a trial spawner with a
         // room-specific config and records the cell's gated flag.
@@ -151,14 +162,16 @@ final class KnowledgeSpecs {
         // The template decor places the sculk; the handler spawns a warden
         // when the first player steps in.
         Situations.register("deep_dark_landing", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                RoomContent.spawnMobs(level, o, EntityTypes.WARDEN, 1, spawns, seed, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            RoomContent.spawnMobs(level, o, EntityTypes.WARDEN, 1, spawns, seed, null);
+            return null;
+        });
         // Infested Wall: gated room with infested stone blocks. A stone
         // pickaxe in a pot (audit fix 2.3) lets the Pilgrim bag break through.
         // The template decor places the infested blocks and the pot; the
         // handler owns the cell for the gated flag.
         Situations.register("infested_wall", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { /* template owns the room */ });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
     }
 
     // ---- shared helpers -----------------------------------------------------
@@ -253,13 +266,19 @@ final class KnowledgeSpecs {
     /**
      * Pitch dark. Four endermen. The exit is a two-block-high gap that an
      * enderman cannot path through. Tinted glass window so light does not leak.
+     *
+     * <p>The doorway top (y=3 lintel that makes the exit two blocks high) is
+     * NOT placed here. It used to be baked into the template at the east
+     * (EXIT) doorway, but the layout can rotate the room 180 degrees, which
+     * puts the low gap on the entrance side. The lintel is now placed at
+     * runtime by {@link LayoutStamper} on the side facing away from the
+     * entrance (higher depth).
      */
     private static RoomSpec dontLook() {
         return new RoomSpec("dont_look", EnumSet.of(ENTRANCE, EXIT))
                 .spawns(QUAD_SPAWNS)
                 .decor((level, o) -> {
                     removeLamps(level, o, RoomBuilder.CEILING);
-                    fillDoorwayTop(level, o);
                 });
     }
 
@@ -319,6 +338,12 @@ final class KnowledgeSpecs {
      * enter. The exit is bricked with a one-block soft wall of gravel (audit
      * 2.11: hand-breakable, still punishing under Fatigue III). Glass window
      * for water containment. {@code provides: ["water"]}.
+     *
+     * <p>The gravel gate is NOT placed here. It used to be baked into the
+     * template at the east (EXIT) doorway, but the layout can rotate the room
+     * 180 degrees, which puts the gravel wall on the entrance side. The gate
+     * is now placed at runtime by {@link LayoutStamper} on the side facing
+     * away from the entrance (higher depth).
      */
     private static RoomSpec eldersChamber() {
         return new RoomSpec("elders_chamber", EnumSet.of(ENTRANCE, EXIT))
@@ -330,7 +355,6 @@ final class KnowledgeSpecs {
                                     Blocks.WATER.defaultBlockState());
                         }
                     }
-                    sealExitDoorway(level, o, Blocks.GRAVEL.defaultBlockState());
                 });
     }
 
@@ -372,23 +396,20 @@ final class KnowledgeSpecs {
     // ---- 7. Infested Wall (tier 2, gated) ----------------------------------
 
     /**
-     * The exit is bricked over with stone bricks, some infested. A stone
-     * pickaxe in a pot (audit 2.10) supplies the tool that breaks the wall.
-     * {@code provides: ["blocks"]}. Template only, no handler.
+     * A stone pickaxe in a pot (audit 2.10) supplies the tool that breaks the
+     * infested wall. {@code provides: ["blocks"]}. Template only, no handler.
+     *
+     * <p>The infested blocks themselves are NOT placed here. They used to be
+     * baked into the template at the east (EXIT) doorway, but the layout can
+     * rotate the room 180 degrees, which swaps ENTRANCE and EXIT and puts the
+     * blocked wall on the player's entrance side. The infested blocks are now
+     * placed at runtime by {@link LayoutStamper} on the side facing away from
+     * the entrance (higher depth), so the gate always faces the right way
+     * regardless of rotation.
      */
     private static RoomSpec infestedWall() {
-        BlockState normal = Blocks.STONE_BRICKS.defaultBlockState();
-        BlockState infested = Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
         return new RoomSpec("infested_wall", EnumSet.of(ENTRANCE, EXIT))
                 .decor((level, o) -> {
-                    // One block inside the doorway, so the doorway's jigsaws
-                    // survive and the room keeps its east door in the mask.
-                    for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
-                        for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                            RoomBuilder.set(level, o.offset(WALL_X - 1, y, z),
-                                    y == 1 ? infested : normal);
-                        }
-                    }
                     placePot(level, o.offset(4, 1, 4), new ItemStack(Items.STONE_PICKAXE));
                 });
     }
@@ -422,6 +443,15 @@ final class KnowledgeSpecs {
                         RoomBuilder.set(level, o.offset(x, 0, 7), plat);
                         RoomBuilder.set(level, o.offset(x, 0, 8), plat);
                     }
+                    // Fighting platform under the spawner so the breeze has
+                    // solid ground to stand on. Without this the spawner sits
+                    // over lava and the breeze falls in and dies on spawn.
+                    // The platform is small (2x2) so knockback into the
+                    // surrounding lava is still the room's danger.
+                    RoomBuilder.set(level, o.offset(7, 0, 7), plat);
+                    RoomBuilder.set(level, o.offset(8, 0, 8), plat);
+                    RoomBuilder.set(level, o.offset(7, 0, 8), plat);
+                    RoomBuilder.set(level, o.offset(8, 0, 7), plat);
                 });
     }
 

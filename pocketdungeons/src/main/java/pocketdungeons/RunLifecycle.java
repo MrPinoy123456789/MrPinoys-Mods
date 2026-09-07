@@ -652,37 +652,48 @@ final class RunLifecycle {
             BedrockEnvelope.applyToCell(level, record.stagingCellOrigin, Set.of(dungeonDir));
         }
 
-        // M59: read the keystone's recipe tags and store them on the record
-        // for the generation path to use. The tags are cleared from the
-        // keystone after reading, so a single-use recipe does not persist.
+        // M66: the recipe tags were read in previewDoor and resolved into
+        // previewRecipePlan. The keystone still carries them (preview does
+        // not clear them). Legacy BAG_OVERRIDE is no longer a bag swap; it
+        // is a pending legacy operation for owner-approved refund. The new
+        // BOUNDED_SUPPLY recipe does not touch the bag. Do NOT clear recipe
+        // tags or the catalyst escrow yet: a failed commit must restore the
+        // catalyst, not charge for nothing.
         ItemStack keystone = Keystone.findHeld(player);
+        String legacyBagOverrideId = null;
         if (keystone != null) {
-            record.recipeTags = CubeRecipe.recipesOf(keystone);
-            if (!record.recipeTags.isEmpty()) {
-                CubeRecipe.clearRecipes(keystone);
-            }
-            // M59: BAG_OVERRIDE overrides the bag for this run. The bag is
-            // stored in DungeonLog, so override it before the generation
-            // reads it. The original bag is restored after the run by the
-            // safe-room return path (which re-reads from the log).
-            String overrideBagId = CubeRecipe.bagOverrideId(keystone);
-            if (overrideBagId != null) {
-                DungeonLog recipeLog = DungeonLog.forServer(server);
-                String originalBag = recipeLog.bagOf(player.getUUID());
-                recipeLog.setBag(player.getUUID(), overrideBagId);
-                // Store the original bag so returnToSafe can restore it.
-                if (record.recipeTags == null) {
-                    record.recipeTags = new net.minecraft.nbt.CompoundTag();
-                }
-                record.recipeTags.putString("bag_original", originalBag);
+            // M66: detect a legacy BAG_OVERRIDE tag. It is a pending legacy
+            // operation: notify the owner and offer a refund, but do not
+            // silently reinterpret it as a bag swap.
+            legacyBagOverrideId = CubeRecipe.bagOverrideId(keystone);
+            if (legacyBagOverrideId != null) {
+                player.sendSystemMessage(Component.literal(
+                        "Legacy bag_override detected (bag: " + legacyBagOverrideId
+                                + "). This recipe is retired. The run will proceed"
+                                + " as a bounded supply run. Use /dungeon admin refund"
+                                + " to recover the original catalyst.")
+                        .withStyle(ChatFormatting.YELLOW));
             }
         }
 
         if (!Instances.commitDoor(server, level, record, offer, step)) {
+            // M66: commit failed. Restore the catalyst so the player is not
+            // charged for nothing.
+            if (keystone != null) {
+                CubeRecipe.restoreCatalyst(player, keystone);
+                CubeRecipe.clearRecipes(keystone);
+            }
             player.sendSystemMessage(Component.literal(
                     "The dungeon failed to build. Try another door.")
                     .withStyle(ChatFormatting.RED));
             return false;
+        }
+
+        // M66: commit succeeded. The catalyst is permanently spent: clear
+        // the recipe tags and the catalyst escrow from the keystone.
+        if (keystone != null) {
+            CubeRecipe.clearRecipes(keystone);
+            CubeRecipe.clearCatalystEscrow(keystone);
         }
 
         // The spend happens only once the commit has actually succeeded.
@@ -1001,10 +1012,11 @@ final class RunLifecycle {
             return;
         }
         if (record.isKeystoneRun()) {
-            // M52: only gated encounter cells gate completion. Open encounter
-            // cells are optional and must not block a run the player has already
-            // fought their way through.
-            Set<BlockPos> spawners = TrialContent.gatedSpawners(record.layout, player.level());
+            // M67: every trial spawner on the floor counts toward the
+            // completion gate, not just gated encounter cells. The threshold
+            // (default 0.75) lets the player skip some spawners without
+            // letting them sprint past the entire floor.
+            Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
             int cleared = TrialContent.countCleared(player.level(), spawners);
             if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
                     PocketDungeonsConfig.spawnerClearThreshold())) {
@@ -1070,6 +1082,17 @@ final class RunLifecycle {
                             + (chests == 1 ? "" : "s")
                             + " wait beyond the door, and the next floor stands open beyond.")
                     .withStyle(ChatFormatting.AQUA));
+        }
+        // M66: the compass recipe promises a completion study list. The
+        // list is the run's situations by name, emitted on the first
+        // completion of the floor.
+        if (firstCompletion && record.recipeTags != null
+                && record.recipeTags.getBooleanOr("compass", false)
+                && !record.situations.isEmpty()) {
+            String studyList = String.join(", ", record.situations);
+            player.sendSystemMessage(Component.literal(
+                    "Completion study list: " + studyList + ".")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
         PocketDungeonsMod.LOG.info("{} completed floor {} of slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.floorIndex, record.slot,
@@ -1161,11 +1184,10 @@ final class RunLifecycle {
         record.stagingCellOrigin = newStagingOrigin;
         record.roomDungeonDoor = farWall;
 
-        // M22: the post-completion relocation stamp, heard by the owner.
-        ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(record.owner);
-        if (ownerPlayer != null) {
-            Chime.roomRelocated(ownerPlayer);
-        }
+        // M67: no sound for room movement. VISION.md §4: "No message, no
+        // sound, no lore entry." The room relocation is the trick; the
+        // silence is the effect. The previous Chime.roomRelocated call is
+        // removed to honour both the vision and this milestone's constraint.
 
         // Summon fresh screens at the new staging room.
         record.selectedStep = 0;
@@ -1398,7 +1420,9 @@ final class RunLifecycle {
             record.timer = null;
         }
 
-        // M59: restore the original bag if BAG_OVERRIDE was used.
+        // M66: restore the original bag if a legacy BAG_OVERRIDE was used.
+        // M66 no longer swaps bags for new runs, but a legacy tag may still
+        // carry bag_original from a pre-M66 run.
         if (record.recipeTags != null) {
             String originalBag = record.recipeTags.getStringOr("bag_original", "");
             if (!originalBag.isEmpty()) {
@@ -1534,6 +1558,9 @@ final class RunLifecycle {
         record.omen = 0;
         record.previewPlan = null;
         record.previewCellOrigin = null;
+        // M66: restore the original bag if a legacy BAG_OVERRIDE was used.
+        // M66 no longer swaps bags for new runs, but a legacy tag may still
+        // carry bag_original from a pre-M66 run.
         if (record.recipeTags != null) {
             String originalBag = record.recipeTags.getStringOr("bag_original", "");
             if (!originalBag.isEmpty()) {
@@ -1541,6 +1568,8 @@ final class RunLifecycle {
             }
             record.recipeTags = null;
         }
+        record.previewRecipePlan = null;
+        record.previewOfferStep = 0;
         record.clearPreviousRunState();
 
         RunSession.transition(record, RunSession.Phase.HOME);
@@ -1548,7 +1577,7 @@ final class RunLifecycle {
         player.sendSystemMessage(Component.literal(
                 "You return to the safe room. The dungeon closes behind you.")
                 .withStyle(ChatFormatting.GREEN));
-        Chime.roomRelocated(player);
+        // M67: no sound for room movement (VISION.md §4, milestone constraint).
         return true;
     }
 

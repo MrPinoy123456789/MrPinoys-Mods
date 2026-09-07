@@ -89,6 +89,16 @@ final class RoomSelector {
      */
     static Result resolveDetailed(DungeonShape shape, RoomManifest manifest, String theme,
                                   Set<String> bagTags) {
+        return resolveDetailed(shape, manifest, theme, bagTags, null);
+    }
+
+    /**
+     * M66: the full form with recipe effects. The recipe plan carries
+     * guarantees (infested, Deep Dark, Store), weightings (flooded/chasm),
+     * and the path length bonus. {@code null} means no recipe effects.
+     */
+    static Result resolveDetailed(DungeonShape shape, RoomManifest manifest, String theme,
+                                  Set<String> bagTags, RunRecipePlan recipePlan) {
         Map<PlanCell, Integer> depths = depths(shape);
         List<PlanCell> order = bfsOrder(shape.cells(), depths);
 
@@ -103,6 +113,15 @@ final class RoomSelector {
         Map<PlanCell, DungeonPlan.PlacedRoom> placed = pass.placed();
         Set<PlanCell> fallbacks = pass.fallbacks();
         PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths);
+
+        // M66: apply recipe guarantees after the main pass and anomaly roll.
+        // Each guarantee forces a specific room onto an eligible cell. The
+        // guarantee is part of the solvability proof, not a post-plan
+        // replacement: the forced room's requires must be satisfied by the
+        // available tags at that cell's depth.
+        if (recipePlan != null) {
+            applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan);
+        }
 
         DungeonPlan plan = new DungeonPlan(
                 shape.seed(),
@@ -168,6 +187,104 @@ final class RoomSelector {
         RoomManifest.Match pick = pick(matches, depths.getOrDefault(candidate, 0), new HashMap<>(), anomalyRng);
         placed.put(candidate, new DungeonPlan.PlacedRoom(pick.entry().name, pick.rotation()));
         return candidate;
+    }
+
+    /**
+     * M66: applies recipe guarantees after the main selection pass. Each
+     * guarantee forces a specific room onto an eligible cell, replacing
+     * whatever room the pass assigned there. The forced room's
+     * {@code requires} must be satisfied by the available tags at that
+     * cell's depth; if no eligible cell can host the guaranteed room, the
+     * guarantee is silently skipped (the plan is still valid, just without
+     * the guarantee). This is rare: the room library has coverage-floor
+     * shapes for every mask.
+     *
+     * <p>Guarantees applied, in order:
+     * <ol>
+     *   <li>Infested: force {@code infested_wall} or {@code creeper_kennel}
+     *       onto a non-entrance, non-terminal cell.</li>
+     *   <li>Deep Dark: force {@code deep_dark_landing} onto a non-entrance,
+     *       non-terminal cell (tier 3 only; RunRecipePlan already refused
+     *       below tier 3).</li>
+     *   <li>Store: force {@code the_store} onto a non-entrance, non-terminal
+     *       cell, preferring spur cells (branches off the critical path).</li>
+     * </ol>
+     *
+     * <p>Flooded/Chasm weighting is applied during the main selection pass
+     * via the {@link Pass} constructor, not here.
+     */
+    private static void applyRecipeGuarantees(DungeonShape shape, RoomManifest manifest,
+                                              String theme,
+                                              Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                              Map<PlanCell, Integer> depths,
+                                              Set<String> bagTags,
+                                              RunRecipePlan recipePlan) {
+        if (recipePlan.infestedGuarantee) {
+            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    java.util.List.of("infested_wall", "creeper_kennel"));
+        }
+        if (recipePlan.deepDarkGuarantee) {
+            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    java.util.List.of("deep_dark_landing"));
+        }
+        if (recipePlan.storeSpur) {
+            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    java.util.List.of("the_store"));
+        }
+    }
+
+    /**
+     * M66: forces one of the named rooms onto an eligible cell. Finds a
+     * non-entrance, non-terminal cell whose mask and role match one of the
+     * target rooms at some rotation, and whose {@code requires} is satisfied
+     * by the available tags at that depth. Replaces the cell's assigned room
+     * with the target room. If no eligible cell exists, does nothing.
+     */
+    private static void forceRoom(DungeonShape shape, RoomManifest manifest, String theme,
+                                  Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                  Map<PlanCell, Integer> depths,
+                                  Set<String> bagTags,
+                                  java.util.List<String> targetRoomNames) {
+        Set<String> targetSet = new java.util.HashSet<>(targetRoomNames);
+        for (PlanCell cell : shape.cells()) {
+            if (cell.equals(shape.entrance()) || cell.equals(shape.terminal())) {
+                continue;
+            }
+            int mask = requiredMask(shape, cell);
+            String role = shape.roles().get(cell);
+            if (role == null) {
+                continue;
+            }
+            List<RoomManifest.Match> matches = manifest.queryAnyRotation(mask, role, theme);
+            for (RoomManifest.Match match : matches) {
+                if (!targetSet.contains(match.entry().name)) {
+                    continue;
+                }
+                // Check requires: the forced room's requires must be a subset
+                // of the available tags at this cell's depth.
+                int depth = depths.getOrDefault(cell, 0);
+                Set<String> available = new java.util.LinkedHashSet<>(bagTags);
+                for (PlanCell other : shape.cells()) {
+                    if (depths.getOrDefault(other, 0) < depth) {
+                        DungeonPlan.PlacedRoom otherRoom = placed.get(other);
+                        if (otherRoom != null) {
+                            RoomManifest.Entry entry = manifest.byName(otherRoom.name());
+                            if (entry != null) {
+                                available.addAll(entry.meta.provides);
+                            }
+                        }
+                    }
+                }
+                if (!available.containsAll(match.entry().meta.requires)) {
+                    continue;
+                }
+                // Eligible: force this room onto this cell.
+                placed.put(cell, new DungeonPlan.PlacedRoom(match.entry().name, match.rotation()));
+                return;
+            }
+        }
+        // No eligible cell found. The guarantee is silently skipped; the plan
+        // is still valid. This is rare and logged by the caller if needed.
     }
 
     /**

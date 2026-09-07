@@ -2185,3 +2185,203 @@ These are live-only and cannot be verified headless:
    Chime.roomRelocated.
 5. Verify zero explanation at the reveal. Expected: no chat message
    or UI text announcing the room move.
+
+### Recipe checks (M66)
+
+These are live-only and cannot be verified headless:
+1. Hold a keystone in the main hand and string in the off-hand.
+   Right-click the Cube. Expected: BOUNDED_SUPPLY confirmation
+   message. The catalyst is consumed and escrowed.
+2. Preview a door. Expected: the preview reflects the bounded supply
+   effect. The recipe plan is frozen.
+3. Cancel the preview (click a different door or leave). Expected:
+   the escrowed string is returned to the player. A yellow message
+   confirms the return.
+4. Commit the preview. Expected: the dungeon stamps with the recipe
+   effect. The catalyst escrow is cleared (permanently spent).
+5. Hold a keystone and an amethyst shard. Right-click the Cube.
+   Expected: PATH_EXTENSION confirmation. The next run is two rooms
+   longer.
+6. Hold a keystone and a compass. Right-click the Cube. Expected:
+   COMPASS confirmation. On floor completion, the completion line
+   lists the run situations by name.
+7. Hold a keystone and an ominous bottle. Right-click the Cube.
+   Expected: OMINOUS confirmation. The next run starts ominous.
+8. Hold a keystone and wool. Right-click the Cube at keystone level
+   10+. Expected: DEEP_DARK confirmation. At level below 10, the
+   recipe refuses and the catalyst is not consumed.
+9. Load a keystone with a legacy bag_override tag. Commit a door.
+   Expected: a yellow notice names the legacy bag id and suggests
+   /dungeon admin refund. The run proceeds as bounded supply.
+10. Load a keystone with a legacy double_key tag. Commit a door.
+    Expected: the run is two rooms longer at the committed offer
+    level. No lower-key level is invented.
+
+Headless verification (passed):
+- previewFreezesRecipeMembership: recipe membership, effect set,
+  and seed survive. Changed catalyst, party capability, and offer
+  level invalidate the revision. Unrelated changes do not.
+- deepDarkRefusesBelowTier3: Deep Dark refuses at tier 1 and 2,
+  resolves at tier 3.
+- legacyBagOverrideDecodesAsBoundedSupply: legacy tag decodes as
+  boundedSupply, not a bag swap.
+- legacyDoubleKeyDecodesAsPathExtension: legacy tag decodes as +2
+  path length.
+- ominousAndFeralAddAffixes: affixes added without mutating the
+  base set.
+- emptyRecipesResolveToNoEffects: null and empty tags resolve to
+  no effects.
+- infestedAndFloodedCoexist: both effects active without refusal.
+- allEffectsResolveAtTier3: all nine effects resolve at tier 3.
+- effectSummaryIsLegible: summary is a comma-separated list.
+- fixedCatalystNoDuplicateActiveRecipes: no duplicate active
+  recipes.
+- catalystEscrowReadWrite: escrow write and read work without a
+  server.
+- freshKeystoneHasNoEscrow: no false positives on a fresh keystone.
+- recipeTagsSurviveUntilCommit: reading does not clear; clearing
+  removes.
+- boundedSupplyMatchesString: keystone + string matches
+  BOUNDED_SUPPLY. BAG_OVERRIDE no longer matches.
+- pathExtensionMatchesAmethystShard: keystone + amethyst shard
+  matches PATH_EXTENSION. DOUBLE_KEY no longer matches.
+- legacyDoubleKeyMigratesToCurrentLevelExtension: legacy tag
+  migrates to current-level +2 extension.
+
+Live-only (blocked, unverified):
+- Right-clicking the Cube with each catalyst. Blocked: no client.
+- GUI interaction with the Cube. Blocked: no client.
+- Player positioning for preview/commit. Blocked: no client.
+- Human catalyst use and recovery. Blocked: no client.
+- Study-list meaning on completion. Blocked: no client.
+
+## 39. M67 closure: code-side pass and Q5 outcome
+
+M67 is a human gate. The code-side work is complete; the human pass
+(tester recruitment, live observation, honest dispositions) is not. This
+section records what was done in code, what it found, and what remains for
+the human gate. Round II waits for the human pass, not just this code-side
+appendix.
+
+### Chime audit (step 3)
+
+All 47 `Chime.*` call sites across 9 files were audited for recipient
+correctness, duplicate playback, and competition with vanilla hazard
+sounds.
+
+**Recipient correctness:** all chimes are sent to the correct player
+via `player.connection.send`. The one intentionally non-self chime is
+`visitorArrives(ownerPlayer)`, heard by the room owner when a visitor
+enters, which is by design (M22). No recipient errors found.
+
+**Duplicate playback:** no code path triggers the same chime twice for
+the same event. The three `visitStarts` calls in `VisitService.java`
+(L74, L86, L140) are on mutually exclusive branches (owned instance,
+existing visit, new visit). The two `runStarts` calls (RitualListener
+L363 for lever commit, DialogRouter L187 for lodestone pull) are
+different entry points. No duplicates found.
+
+**Competition with vanilla hazard sounds:** all chimes use
+`SoundSource.RECORDS` (Chime.java L157), while vanilla hazard sounds
+(creeper hiss, skeleton bow, zombie groan) use `SoundSource.HOSTILE` or
+`SoundSource.NEUTRAL`. Different channels, low volumes (0.2 to 0.5). No
+significant competition.
+
+**Constraint violation found and fixed:** `Chime.roomRelocated` played
+`STONE_PLACE` at two call sites (RunLifecycle.java L1189 for
+post-completion relocation, L1580 for safe return). This violated both
+the M67 constraint "No sound for room movement" and VISION.md section 4:
+"Nothing explains this. No message, no sound, no lore entry." Both call
+sites and the method itself are removed. The room relocation is now
+silent, as the vision intended.
+
+### Q5 outcome: omen environmental feedback
+
+Q5 asked whether a player understands they are in an ominous run without
+being told, and whether a sound-off player has a visible environmental
+signal.
+
+**Existing signals (code-verified):**
+1. Chat message at run start (DARK_PURPLE): "The run is ominous. Every
+   spawner and every vault bites harder, and the payout is worth more
+   for it." (RunLifecycle.java L476 to L479)
+2. Trial Omen potion effect (MobEffects.TRIAL_OMEN) applied to the
+   player (Instances.java L511 to L515). This is a vanilla HUD icon
+   that persists throughout the run. A sound-off player sees it.
+3. Ominous trial spawners and vaults have visually distinct blockstates
+   (vanilla behaviour, stamped by LayoutStamper).
+4. Door screen affix line includes "Cooked" (the OMINOUS label).
+
+**Improvement applied (M67):** the OMINOUS affix is now coloured
+DARK_PURPLE in the door screen's affix line, matching the chat message
+colour. Previously `affixLine` returned a plain string with no
+formatting; it now returns a `Component` with the OMINOUS label styled
+DARK_PURPLE. This gives a sound-off player a second visible signal
+beyond the Trial Omen HUD icon: the purple "Cooked" text on the door
+screen during the run.
+
+**No numeric HUD added.** The handoff constraint "no numeric HUD" is
+honoured. The Trial Omen effect icon and the coloured affix text are
+the visible signals; both are environmental, not numeric.
+
+**No bounded vanilla ambient cue trialled.** The existing signals
+(chat, HUD icon, coloured affix, ominous spawner visuals) are assessed
+as adequate environmental feedback for a sound-off player. The
+escalation path (trialling one bounded vanilla ambient cue) is not
+needed at this code-side stage. If the human pass finds the signals
+inadequate, the escalation path remains open for the human gate.
+
+### First-time verb fix (step 2, code side)
+
+The idle door screen's first-time prompt (keystone level 1) said
+"Select the Oak Door" without mentioning right-clicking. A first-time
+player who has never interacted with a selector door may not know to
+right-click it. The prompt now says "Right-click the Oak Door",
+matching the returning-player prompt's "Right-click a door to preview"
+clarity. The returning-player prompt and the preview-content tutorial
+line ("Pull the lever to descend!") are unchanged.
+
+### Appendix corrections
+
+The following sections contain instructions made obsolete by M67's
+code-side changes. They are not rewritten; the corrections are noted
+here so a reader knows which lines to discount.
+
+- **Section 26.3, steps 7 to 8:** "Complete a run so the room is
+  re-placed behind the terminal cell. Expected: the owner hears
+  STONE_PLACE as the room re-stamps." **Obsolete.** M67 removed
+  `Chime.roomRelocated`. The room relocation is now silent. The
+  expected behaviour is: no sound plays. This aligns with VISION.md
+  section 4 and the M65 supersession note at line 2184 ("Verify zero
+  sound cue at the reveal. Expected: no Chime.roomRelocated").
+- **Section 34.2, step 1:** "Select the Oak Door" is now "Right-click
+  the Oak Door" in the shipped code. The check's intent (a level-1
+  player sees a tutorial prompt) is unchanged; the exact text is
+  updated.
+- **Section 36, M62 disposition index, "Silence about room movement"
+  row:** was `blocked`, asking whether 26.3's STONE_PLACE cue is the
+  thing "silence" means to remove. **Resolved by M67:** yes, it was.
+  The cue is removed. The row is now `passed` (code-side): the
+  roomRelocated chime no longer exists, and the room movement is
+  silent in code. The human pass confirms the silence is heard (or
+  rather, not heard) on a live client.
+
+### Human pass: remaining rows
+
+The code-side work is complete. The human pass remains. Every row in
+the M62 disposition index (section 36) that is `current` stays
+`current` until a human tester runs it on a live client. M67 does not
+coerce any `current` row to `passed`. The rows M67 can disposition from
+code-side evidence are:
+
+- "Silence about room movement": `passed` (code-side). The chime is
+  removed; the silence is enforced in code. The human pass confirms
+  the absence of sound on a live client.
+- All other `current` rows: unchanged, pending the human pass.
+- All `blocked` rows: unchanged, pending investigation or the human
+  pass as noted in section 36.
+- All `superseded` rows: unchanged, pointing to their successors.
+- All `passed` rows: unchanged, their headless evidence still stands.
+
+The human gate closes when a tester has run every applicable `current`
+row and recorded an honest disposition. Until then, Round II waits.

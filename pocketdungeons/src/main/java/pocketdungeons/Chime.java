@@ -121,11 +121,6 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_BELL, 0.3f, 1.2f);
     }
 
-    /** The room was re-stamped behind the terminal cell (M2 closed loop). */
-    public static void roomRelocated(ServerPlayer player) {
-        play(player, Holder.direct(SoundEvents.STONE_PLACE), 0.4f, 1.0f);
-    }
-
     /** The lobby directory opened (M20). */
     public static void lobbyOpens(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_HAT, 0.2f, 1.0f);

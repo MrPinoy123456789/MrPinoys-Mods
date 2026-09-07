@@ -33,8 +33,11 @@ enum CubeRecipe {
             "Feral affix guaranteed.",
             "The next run is Feral."),
     BAG_OVERRIDE("bag_override", null,
-            "Overrides the door's bag with the bag whose headline item you hold.",
-            "The next run uses the bag you framed."),
+            "Legacy: overrides the door's bag. M66 migrates to bounded_supply.",
+            "Legacy bag_override. M66 will migrate this to a bounded supply run."),
+    BOUNDED_SUPPLY("bounded_supply", Items.STRING,
+            "One guaranteed tool cache. Bounded supply, not a full kit.",
+            "The next run guarantees one tool cache."),
     INFESTED("infested", Items.TNT,
             "At least one Infested Wall or Creeper Kennel guaranteed.",
             "The next run guarantees an infested room."),
@@ -48,7 +51,10 @@ enum CubeRecipe {
             "The completion line lists the run's situations by name afterward.",
             "The next run will name its rooms on completion."),
     DOUBLE_KEY("double_key", null,
-            "Path length +2 at the lower key's level.",
+            "Legacy: path length +2 at the lower key's level. M66 migrates to path_extension.",
+            "Legacy double_key. M66 will migrate this to a path extension run."),
+    PATH_EXTENSION("path_extension", Items.AMETHYST_SHARD,
+            "Path length +2 at the committed offer's level.",
             "The next run is two rooms longer."),
     STORE("store", Items.EMERALD,
             "A Store spur guaranteed.",
@@ -78,9 +84,11 @@ enum CubeRecipe {
      * Matches a recipe against the held keystone and the off-hand catalyst.
      * Returns the matching recipe, or {@code null} if none matches.
      *
-     * <p>{@code BAG_OVERRIDE} matches any bag headline item (resolved via
-     * {@link Bags#headlineItems()}). {@code DOUBLE_KEY} matches a second
-     * keystone in the off-hand.
+     * <p>M66: {@code BAG_OVERRIDE} and {@code DOUBLE_KEY} no longer match any
+     * new catalyst. They are legacy tags only, decoded by {@link RunRecipePlan}
+     * as bounded supply and path extension respectively. The new recipes are
+     * {@code BOUNDED_SUPPLY} (catalyst {@code Items.STRING}) and
+     * {@code PATH_EXTENSION} (catalyst {@code Items.AMETHYST_SHARD}).
      */
     static CubeRecipe match(ItemStack keystone, ItemStack offHand) {
         if (!Keystone.isKeystone(keystone) || offHand.isEmpty()) {
@@ -97,26 +105,22 @@ enum CubeRecipe {
         if (Items.WOOL.asList().contains(offItem)) {
             return DEEP_DARK;
         }
-        // BAG_OVERRIDE: any bag's headline item.
-        if (BAG_OVERRIDE.catalyst == null) {
-            for (Bags bag : Bags.values()) {
-                for (Item headline : bag.headlineItems()) {
-                    if (headline == offItem) {
-                        return BAG_OVERRIDE;
-                    }
-                }
-            }
-        }
-        // DOUBLE_KEY: a second keystone in the off-hand.
-        if (DOUBLE_KEY.catalyst == null && Keystone.isKeystone(offHand)) {
-            return DOUBLE_KEY;
-        }
+        // BAG_OVERRIDE and DOUBLE_KEY: no new catalysts. They are legacy tags
+        // only, decoded by RunRecipePlan.
         return null;
     }
 
     /**
      * Applies this recipe: writes the tag into the keystone's custom data,
      * consumes the catalyst, and sends a confirmation message.
+     *
+     * <p>M66: the catalyst is escrowed, not just consumed. The consumed item's
+     * registry id is stored as {@code pending_catalyst} in the keystone's
+     * custom data, so a cancelled preview can restore it. The escrow is
+     * cleared on successful commit ({@link #clearCatalystEscrow}) and restored
+     * on cancellation ({@link #restoreCatalyst}). This is the tagged recovery
+     * escrow: the keystone's custom data is the durable store, following the
+     * same prepare/commit/recover pattern as M63's InventoryJournal.
      */
     void apply(ServerPlayer player, ItemStack keystone, ItemStack offHand) {
         // Write the recipe tag into the keystone's custom data.
@@ -130,14 +134,14 @@ enum CubeRecipe {
                 recipes = new CompoundTag();
             }
             recipes.putBoolean(tagKey, true);
-            // For BAG_OVERRIDE, also store which bag to use.
-            if (this == BAG_OVERRIDE) {
-                String bagId = bagIdForCatalyst(offHand);
-                if (bagId != null) {
-                    recipes.putString("bag_override_id", bagId);
-                }
-            }
+            // M66: BAG_OVERRIDE is legacy. It is no longer matched by a new
+            // catalyst, but if a legacy tag exists on a keystone, the
+            // generation path decodes it as bounded supply. BOUNDED_SUPPLY
+            // is the new recipe; it does not store a bag id.
             root.put("recipe", recipes);
+            // M66: escrow the consumed catalyst for recovery on cancel.
+            root.putString("pending_catalyst",
+                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(offHand.getItem()).toString());
             tag.put(PocketDungeonsMod.MOD_ID, root);
         });
         // Consume one catalyst. The keystone is never consumed.
@@ -217,5 +221,67 @@ enum CubeRecipe {
             root.remove("recipe");
             tag.put(PocketDungeonsMod.MOD_ID, root);
         });
+    }
+
+    /**
+     * M66: Clears the catalyst escrow from the keystone. Called on successful
+     * commit, when the catalyst is permanently spent and no longer recoverable.
+     */
+    static void clearCatalystEscrow(ItemStack keystone) {
+        CustomData.update(DataComponents.CUSTOM_DATA, keystone, tag -> {
+            CompoundTag root = tag.getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
+            if (root == null) {
+                return;
+            }
+            root.remove("pending_catalyst");
+            tag.put(PocketDungeonsMod.MOD_ID, root);
+        });
+    }
+
+    /**
+     * M66: Reads the pending catalyst item id from the keystone's escrow, or
+     * {@code null} if no catalyst is escrowed.
+     */
+    static String pendingCatalystId(ItemStack keystone) {
+        if (!Keystone.isKeystone(keystone)) {
+            return null;
+        }
+        CustomData data = keystone.get(DataComponents.CUSTOM_DATA);
+        if (data == null || data.isEmpty()) {
+            return null;
+        }
+        CompoundTag root = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
+        if (root == null) {
+            return null;
+        }
+        String id = root.getStringOr("pending_catalyst", "");
+        return id.isBlank() ? null : id;
+    }
+
+    /**
+     * M66: Restores the escrowed catalyst to the player and clears the escrow.
+     * Called when a preview is cancelled, so a consumed catalyst does not
+     * charge for nothing. The catalyst is delivered via {@link Payout#deliver}
+     * so overflow drops at the player's feet rather than being voided.
+     */
+    static void restoreCatalyst(ServerPlayer player, ItemStack keystone) {
+        String catalystId = pendingCatalystId(keystone);
+        if (catalystId == null) {
+            return;
+        }
+        net.minecraft.resources.Identifier loc =
+                net.minecraft.resources.Identifier.tryParse(catalystId);
+        if (loc == null) {
+            return;
+        }
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(loc).orElse(null);
+        if (item == null || item == Items.AIR) {
+            return;
+        }
+        Payout.deliver(player, new ItemStack(item));
+        clearCatalystEscrow(keystone);
+        player.sendSystemMessage(Component.literal(
+                "The preview was cancelled. Your catalyst is returned.")
+                .withStyle(ChatFormatting.YELLOW));
     }
 }

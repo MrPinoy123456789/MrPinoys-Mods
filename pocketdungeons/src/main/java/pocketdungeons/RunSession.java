@@ -188,13 +188,18 @@ final class RunSession {
 
     /**
      * Whether the record is in a phase where the party is standing in a
-     * staging room and the host can select a door. This covers both the
-     * initial safe-room staging room (HOME) and the floor-cleared staging
-     * room (FLOOR_CLEARED). Used by the door selection and commit lever
-     * checks.
+     * staging room and the host can interact with the door selection
+     * furniture. This covers both the initial safe-room staging room
+     * (HOME) and the floor-cleared staging room (FLOOR_CLEARED), plus
+     * the preview phase (PREVIEW) where the host can either pull the
+     * lever to commit the current preview or right-click a different
+     * selector door to switch previews. Used by the door selection,
+     * commit lever, and commit door checks.
      */
     static boolean canChooseDoor(InstanceRecord record) {
-        return record.phase == Phase.HOME || record.phase == Phase.FLOOR_CLEARED;
+        return record.phase == Phase.HOME
+                || record.phase == Phase.FLOOR_CLEARED
+                || record.phase == Phase.PREVIEW;
     }
 
     /**

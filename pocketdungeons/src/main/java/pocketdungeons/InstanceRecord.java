@@ -375,6 +375,22 @@ final class InstanceRecord {
     BlockPos previewCellOrigin;
 
     /**
+     * (M66) The recipe plan resolved at preview time, carrying every recipe
+     * effect the floor was previewed against. Stored so {@code commitDoor}
+     * uses the same effects the player saw, and so a second click on the
+     * same offer does not farm random entrances. {@code null} when no preview
+     * is active or the preview carried no recipe.
+     */
+    RunRecipePlan previewRecipePlan;
+
+    /**
+     * (M66) The door step (1, 2, or 3) of the current preview, or {@code 0}
+     * if no preview is active. Used to detect a second click on the same
+     * offer and reuse the frozen plan rather than re-planning.
+     */
+    int previewOfferStep;
+
+    /**
      * (M57) Whether the current staging room is a safe staging room, which
      * offers a safe door back to the safe room instead of three dungeon
      * doors. Set by {@code completeDungeon} when {@code floorIndex + 1} is a

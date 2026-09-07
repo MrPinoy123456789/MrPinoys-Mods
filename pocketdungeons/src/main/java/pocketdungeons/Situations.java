@@ -36,6 +36,14 @@ final class Situations {
      * <p>The handler owns everything the cell gets: no chest is removed for it
      * and no trial spawner is placed, because a situation is not a role. If a
      * situation wants a fight, it builds one.
+     *
+     * <p>Returns the trial spawner anchor the handler placed, or {@code null}
+     * if it placed none. The anchor travels back through {@link #apply} and
+     * {@link RoomContent#apply} to {@link LayoutStamper}, which collects it
+     * into the layout's {@code trialSpawners} set. Without this, spawners
+     * placed by situation handlers (breeze_arena, the_raid, wither_loft,
+     * hold_the_plate, etc.) would be missing from the layout's spawner set,
+     * and the spawner-clear completion gate would lose track of them.
      */
     @FunctionalInterface
     interface SituationHandler {
@@ -53,8 +61,9 @@ final class Situations {
          * @param theme       the run's theme id, or null for an unthemed run
          * @param voidedFloor whether the Voided affix carved this cell's floor
          * @param content     the situation id that selected this handler
+         * @return the trial spawner anchor placed, or {@code null} if none
          */
-        void apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+        BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                    DifficultyProfile profile, List<BlockPos> spawns, long seed,
                    Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
                    String content);
@@ -99,22 +108,24 @@ final class Situations {
     /**
      * Runs the handler registered for {@code content}, if there is one.
      *
-     * @return true if a handler ran and owns this cell, false to let the
-     *         ordinary role dispatch have it
+     * @return the trial spawner anchor the handler placed, or {@code null} if
+     *         no handler ran or the handler placed no spawner. A {@code null}
+     *         return lets the caller fall through to the ordinary role
+     *         dispatch; a non-null return means the handler owns the cell and
+     *         the anchor should be collected into the layout's spawner set.
      */
-    static boolean apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+    static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                          DifficultyProfile profile, List<BlockPos> spawns, long seed,
                          Set<Affix> affixes, String lootSuffix, String theme,
                          boolean voidedFloor, String content) {
         if (content == null) {
-            return false;
+            return null;
         }
         SituationHandler handler = HANDLERS.get(content);
         if (handler == null) {
-            return false;
+            return null;
         }
-        handler.apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
+        return handler.apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
                 lootSuffix, theme, voidedFloor, content);
-        return true;
     }
 }

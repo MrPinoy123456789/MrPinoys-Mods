@@ -136,6 +136,32 @@ The floor loop. Three floors per safe-visit interval, spawner-clear gate,
 terminal exit. Detailed in `SITUATIONS_SPEC` sections 5 and 12. This spec does
 not repeat it.
 
+**Claustrophobic flavour:** a theme variant of the standard format where room
+templates ship with lower ceilings and narrower corridors. The cell geometry
+is unchanged (16 x 16, walls 5 high, ceiling at Y=6): the cell contract stays
+intact, door masks stay 4 bits, and the planner does not change. The
+difference is entirely in the room templates. Interior ceilings sit at Y=3 or
+Y=4 instead of Y=5, with wall material filling the space above. Corridors and
+doorways narrow to 2 wide by 3 tall instead of the default 3 to 4 wide,
+matching the doorway plane's own footprint (`RoomManifest.deriveMask` reads
+the door jigsaws at y=1..3, z=7..8; see `DISCOVERIES.md` trap 20). A Y=3
+interior ceiling then has no dead space above the door: the corridor is the
+doorway, carried through the room. Rooms are smaller, tighter, and more
+oppressive.
+
+This is a theme, not a format. It uses the standard format's win condition,
+pressure source, and phase structure. The only thing that changes is how the
+rooms look and feel. A claustrophobic theme ships its own room templates
+(`dungeon_room/*.json` entries with narrower interiors and lower ceilings)
+and its own processor list (if palette changes are needed). The 53-pair
+coverage floor applies: enough claustrophobic tiles must exist to cover every
+mask/role combination.
+
+The pressure shift is atmospheric, not mechanical. Lower ceilings mean less
+room to dodge projectiles. Narrower corridors mean mobs are harder to bypass.
+The spawner-clear gate and omen system are unchanged, but the physical space
+makes the same encounters feel more cramped and dangerous.
+
 ### 4.2 Endless Mine (Survival)
 
 > Warframe parallel: Survival.
@@ -733,7 +759,94 @@ player's choice.
 
 ---
 
-## 6. Format selection on the door
+## 6. Theme and room concepts
+
+These are not formats. They are theme and room content ideas that compose
+with any format. A theme defines palette, roster, processors, and loot. A
+room is a template plus a `content` id. Both are data, not engine work.
+
+### 6.1 Containment Lab (SCP laboratory)
+
+> Tone: clinical, uncanny, containment-breach. Vanilla blocks only.
+
+A theme where the dungeon is a research facility containing anomalous
+exhibits behind observation glass. The aesthetic is clean and sterile: smooth
+nether quartz walls, quartz pillars, white concrete floors, glass panes, iron
+doors, and redstone lamps providing flat even lighting. The feeling is a
+laboratory, not a dungeon.
+
+**Room concept: observation cell.** A room whose central feature is a tall
+glass enclosure (glass panes or glass blocks, 3 to 5 blocks high) containing
+an exhibit. The player walks a narrow quartz corridor along the observation
+window, looking in. The exhibit behind the glass is one of:
+
+- A hostile mob in a sealed enclosure (a vindicator, a creeper, a warden
+  enclosed in deepslate). The mob is visible but cannot reach the player
+  unless the glass breaks.
+- A strange block arrangement: a crying obsidian pillar, a spore blossom on
+  moss, a soul sand patch with soul fire, a sculk catalyst surrounded by
+  sculk sensors. Decorative, atmospheric, not hostile.
+- A contained hazard: a lava tank, a water column, a powder snow pit. The
+  glass contains it; breaking the glass releases it into the room.
+- An empty cell with a broken glass panel and an open door. Something was
+  here. It is not here now. The spawner in the corridor behind you activates.
+
+**Room concept: breach corridor.** A corridor where one or more observation
+cells have broken glass. The exhibits are loose. Hostile mobs from the
+theme's roster patrol the corridor. The player must push through or sneak
+past. Broken glass on the floor (glass panes laid flat as decoration, or
+just absent panes where the enclosure failed) signals which cells breached.
+
+**Room concept: containment control.** A room with levers and redstone lamps
+that control doors to adjacent cells. Pulling a lever opens or closes a
+containment door, releasing or sealing a mob. The player can use this
+tactically: release a mob to fight another mob, or seal a mob to bypass it.
+The levers are vanilla levers on iron doors, same redstone the mod already
+uses.
+
+**Theme definition:**
+
+| Field | Value |
+|---|---|
+| Palette | Smooth nether quartz, quartz pillars, white concrete, glass panes, iron doors, redstone lamps, light gray concrete |
+| Roster | Any vanilla mob, chosen for uncanny effect: creepers, vindicators, wardens (display only), skeletons, silverfish, endermites |
+| Processors | Quartz palette replacement for standard stone/deepslate templates |
+| Loot | Lab supplies: redstone, quartz, glass, iron, glowstone, occasional anomalous items (named vanilla items with custom data) |
+| Lighting | Redstone lamps providing flat even light, no torches |
+
+**As a theme on any format:** the Containment Lab theme applies to the
+standard format, Endless Mine, or any cell-grid format. The rooms are
+lab-themed observation cells, corridors, and control rooms. The win
+condition and pressure source come from the format; the theme only changes
+what the rooms look like and what is inside them.
+
+**As a standalone dungeon concept:** a Containment Lab dungeon uses the
+standard format (or a variant) with the lab theme throughout. The narrative
+is implicit: the player has entered a facility where something went wrong.
+Broken glass, empty cells, loose exhibits. No lore text explains this. The
+environment tells the story the same way the silent homecoming tells its
+story: through the space itself, not through messages.
+
+**Vanilla fit:** every block is vanilla. Smooth nether quartz, quartz
+pillars, glass panes, iron doors, redstone lamps, white concrete, light gray
+concrete. Mobs are vanilla entities. Levers and iron doors are vanilla
+redstone. No custom blocks, items, or client assets. The containment control
+room uses the same redstone mechanics the mod already supports in its room
+templates.
+
+**The three-way test** (from `SITUATIONS_SPEC` section 0): the glass
+enclosure is a hazard (breaking it releases the exhibit), a tool (the player
+can break it to release a mob on another mob), and a resource (glass blocks
+are mineable and carry forward). A containment cell passes the test.
+
+**Coverage:** the lab theme needs its own room templates for the 53-pair
+coverage floor, same as any theme. Observation cells, breach corridors, and
+control rooms must cover every mask/role combination the layout can produce.
+This is content authoring, not engine work.
+
+---
+
+## 7. Format selection on the door
 
 A door offer composes level + affix + theme + format. The standard format is
 the default. Other formats are offered when:
@@ -755,7 +868,7 @@ theme, still faces affixes. The format changes what they do with all three.
 
 ---
 
-## 7. What stays the same across all formats
+## 8. What stays the same across all formats
 
 - **Server-side only.** No custom blocks, items, sounds, or client mod.
 - **Vanilla content.** Trial spawners, vaults, mobs, blocks, items. No custom
@@ -778,7 +891,7 @@ theme, still faces affixes. The format changes what they do with all three.
 
 ---
 
-## 8. What this changes in the roadmap
+## 9. What this changes in the roadmap
 
 The current roadmap has M78 as the single bounded rule-breaking dungeon
 (Endless Mine), conditional on M77 adoption evidence. This spec proposes a
@@ -814,7 +927,7 @@ standard. Formats are post-release variety, not release blockers.
 
 ---
 
-## 9. Open questions for the owner
+## 10. Open questions for the owner
 
 1. **Is format a fourth axis on the door, or a separate selection?** This
    spec assumes format composes on the door offer alongside level, affix, and

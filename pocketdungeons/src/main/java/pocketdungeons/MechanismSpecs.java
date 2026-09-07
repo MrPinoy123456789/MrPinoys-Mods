@@ -111,18 +111,24 @@ final class MechanismSpecs {
         // chest, which is the room.
         for (String id : new String[]{"item_plate", "flow_puzzle"}) {
             Situations.register(id, (level, o, role, depth, profile, spawns, seed,
-                    affixes, lootSuffix, theme, voidedFloor, content) ->
-                    Locks.arm(level, o, Locks.Kind.ITEM_ANY, null));
+                    affixes, lootSuffix, theme, voidedFloor, content) -> {
+                Locks.arm(level, o, Locks.Kind.ITEM_ANY, null);
+                return null;
+            });
         }
         // Frame Lock wants one specific item, which is the thing no comparator
         // can tell you and the reason the lock is code (audit 2.1).
         Situations.register("frame_lock", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                Locks.arm(level, o, Locks.Kind.ITEM_KEY, KEY_ITEM.getItem()));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            Locks.arm(level, o, Locks.Kind.ITEM_KEY, KEY_ITEM.getItem());
+            return null;
+        });
         // Plate Pair is the AND: both plates at once, never either alone.
         Situations.register("plate_pair", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                Locks.arm(level, o, Locks.Kind.PLATES_ALL, null));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            Locks.arm(level, o, Locks.Kind.PLATES_ALL, null);
+            return null;
+        });
     }
 
     // ---- shared helpers -----------------------------------------------------

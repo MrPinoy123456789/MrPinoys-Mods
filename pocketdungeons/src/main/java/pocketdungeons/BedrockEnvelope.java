@@ -182,6 +182,14 @@ final class BedrockEnvelope {
      * gap the player falls through. The sub-floor bedrock ({@code y=-1})
      * and the wall/ceiling bedrock ({@code y=1..CEILING_Y+1}) are cleared
      * as before.
+     *
+     * <p>Only clears blocks that are currently bedrock. The adjacent cell's
+     * own wall and ceiling blocks occupy the same one-block-outside
+     * position, and an unconditional clear to air would destroy them,
+     * leaving the seam between two cells open to the void. This was the
+     * M67 seam bug: the staging room's north wall was rebuilt after the
+     * safe room's bedrock envelope placed bedrock at the seam, then
+     * clearFace destroyed both the bedrock and the wall.
      */
     static void clearFace(ServerLevel level, BlockPos o, DoorMask.Direction face) {
         BlockState air = Blocks.AIR.defaultBlockState();
@@ -189,25 +197,25 @@ final class BedrockEnvelope {
             case NORTH -> {
                 for (int x = 0; x < CELL; x++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0)
+                        if (y != 0 && level.getBlockState(o.offset(x, y, -1)).is(Blocks.BEDROCK))
                             level.setBlock(o.offset(x, y, -1), air, STAMP_FLAGS);
             }
             case SOUTH -> {
                 for (int x = 0; x < CELL; x++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0)
+                        if (y != 0 && level.getBlockState(o.offset(x, y, CELL)).is(Blocks.BEDROCK))
                             level.setBlock(o.offset(x, y, CELL), air, STAMP_FLAGS);
             }
             case WEST -> {
                 for (int z = 0; z < CELL; z++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0)
+                        if (y != 0 && level.getBlockState(o.offset(-1, y, z)).is(Blocks.BEDROCK))
                             level.setBlock(o.offset(-1, y, z), air, STAMP_FLAGS);
             }
             case EAST -> {
                 for (int z = 0; z < CELL; z++)
                     for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0)
+                        if (y != 0 && level.getBlockState(o.offset(CELL, y, z)).is(Blocks.BEDROCK))
                             level.setBlock(o.offset(CELL, y, z), air, STAMP_FLAGS);
             }
         }

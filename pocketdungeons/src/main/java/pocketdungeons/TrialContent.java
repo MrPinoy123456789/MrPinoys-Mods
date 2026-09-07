@@ -84,6 +84,14 @@ import java.util.Set;
 final class TrialContent {
 
     /**
+     * The NBT key written to authored trial spawner and vault block entities
+     * by the room editor. The stamp pipeline checks this flag to distinguish
+     * editor-placed blocks from stamp-placed ones in reused chunks. See
+     * {@code docs/reference/ROOM_AUTHORING_SPEC.md} section 6.
+     */
+    static final String PD_AUTHORED = "pd_authored";
+
+    /**
      * Same flag set {@code RoomContent} uses, and for the same hard-won reason:
      * {@code UPDATE_SUPPRESS_DROPS} only suppresses a removed block's own item
      * drop, while a container's <em>contents</em> are dropped separately by
@@ -107,17 +115,18 @@ final class TrialContent {
             "ominous vaults will fall back to minecraft:ominous_trial_key.");
 
     /**
-     * M52: trial spawners placed by situation handlers, mapped to whether the
-     * cell they sit in is {@code gated}. The clear-gate check (spec 6.4 open
-     * question 11) counts only gated encounter cells, so the filter in
-     * {@link #gatedSpawners} reads this map. Base-room encounter cells that go
+     * M52: trial spawners placed by encounter placement, mapped to whether the
+     * cell they sit in is {@code gated}. Base-room encounter cells that go
      * through the ordinary role dispatch are recorded here as {@code false}
      * (open); situation-handler combat rooms pass their own {@code access} value.
      *
+     * <p>M67: this map is no longer read by the completion gate or the
+     * displayed counter, which now use {@link #activeSpawners} (all trial
+     * spawners in the layout). The map is retained for any future per-cell
+     * gating logic that needs to distinguish gated from open encounters.
+     *
      * <p>Keyed by the spawner's world position. Instance slots reuse the same
-     * origins, so re-stamping overwrites stale entries naturally. The
-     * {@link #gatedSpawners} filter also checks for a live trial spawner block
-     * entity, which drops any remaining stale positions from the denominator.
+     * origins, so re-stamping overwrites stale entries naturally.
      */
     private static final Map<BlockPos, Boolean> SITUATION_SPAWNERS = new LinkedHashMap<>();
 
@@ -161,6 +170,28 @@ final class TrialContent {
         boolean silenced = affixes.contains(Affix.SILENCED);
         ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
         String spawnerPrefix = runTheme == null ? null : runTheme.meta().spawnerPrefix;
+
+        // Authored trial spawners: reconfigure in place, do not move or replace.
+        List<BlockPos> authored = authoredTrialSpawners(level, cellOrigin);
+        if (!authored.isEmpty()) {
+            clearClassicSpawners(level, cellOrigin);
+            BlockPos anchor = null;
+            int cooldown = PocketDungeonsConfig.trialSpawnerCooldownTicks();
+            if (overclocked) {
+                cooldown = (int) Math.round(cooldown * PocketDungeonsConfig.overclockedCooldownFactor());
+            }
+            for (BlockPos pos : authored) {
+                reconfigureTrialSpawner(level, pos, spawnerPrefix, tier, ominous,
+                        swarming, silenced, overclocked, cooldown);
+                if (anchor == null) {
+                    anchor = pos;
+                }
+            }
+            SITUATION_SPAWNERS.put(anchor, false);
+            return anchor;
+        }
+
+        // Legacy path: no authored trial spawners, fall through to anchor-based placement.
         BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
         if (anchor == null) {
             PocketDungeonsMod.LOG.warn(
@@ -238,6 +269,28 @@ final class TrialContent {
         boolean swarming = affixes.contains(Affix.SWARMING);
         boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
         boolean silenced = affixes.contains(Affix.SILENCED);
+
+        // Authored trial spawners: reconfigure in place with the situation's prefix.
+        List<BlockPos> authored = authoredTrialSpawners(level, cellOrigin);
+        if (!authored.isEmpty()) {
+            clearClassicSpawners(level, cellOrigin);
+            BlockPos anchor = null;
+            int cooldown = PocketDungeonsConfig.trialSpawnerCooldownTicks();
+            if (overclocked) {
+                cooldown = (int) Math.round(cooldown * PocketDungeonsConfig.overclockedCooldownFactor());
+            }
+            for (BlockPos pos : authored) {
+                reconfigureTrialSpawnerById(level, pos, configPrefix, tier, ominous,
+                        swarming, silenced, overclocked, cooldown);
+                if (anchor == null) {
+                    anchor = pos;
+                }
+            }
+            SITUATION_SPAWNERS.put(anchor, gated);
+            return anchor;
+        }
+
+        // Legacy path: no authored trial spawners, fall through to anchor-based placement.
         BlockPos anchor = encounterAnchor(level, cellOrigin, spawns);
         if (anchor == null) {
             PocketDungeonsMod.LOG.warn(
@@ -282,27 +335,25 @@ final class TrialContent {
     }
 
     /**
-     * M52 (spec 6.4): the subset of this layout's trial spawners that sit in
-     * {@code gated} encounter cells, for the spawner-clear completion gate.
-     * Open encounter cells are excluded so a floor full of skippable open cells
-     * cannot block completion. Stale positions (a slot reused by a later run
-     * whose new layout has no spawner there) are dropped by the block-entity
-     * check, which keeps the denominator honest.
+     * M67: every trial spawner in this layout that still has a live
+     * {@code TrialSpawnerBlockEntity}, regardless of whether its cell is
+     * gated or open. This is the denominator for the spawner-clear
+     * completion gate and the displayed counter. The layout's
+     * {@code trialSpawners} set is the source of truth: it is rebuilt per
+     * run and carries only the spawners the current stamping pass placed,
+     * so stale positions from previous runs cannot leak in.
+     *
+     * <p>The live block-entity check drops any position whose spawner was
+     * broken or never placed (a stamping failure that returned null but
+     * was still added to the set, or a player who broke the spawner
+     * itself), keeping the denominator honest.
      */
-    static Set<BlockPos> gatedSpawners(InstanceLayout layout, ServerLevel level) {
+    static Set<BlockPos> activeSpawners(InstanceLayout layout, ServerLevel level) {
         Set<BlockPos> out = new LinkedHashSet<>();
-        for (Map.Entry<BlockPos, Boolean> entry : SITUATION_SPAWNERS.entrySet()) {
-            if (!entry.getValue()) {
-                continue;
+        for (BlockPos pos : layout.trialSpawners()) {
+            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity) {
+                out.add(pos);
             }
-            BlockPos pos = entry.getKey();
-            if (layout.geometry().cellAt(pos) == null) {
-                continue;
-            }
-            if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity)) {
-                continue;
-            }
-            out.add(pos);
         }
         return out;
     }
@@ -407,6 +458,144 @@ final class TrialContent {
         }
     }
 
+    // ---- authored block helpers (ROOM_AUTHORING_SPEC Phase A) --------------
+
+    /**
+     * Finds all trial spawners in the cell whose block entity carries the
+     * {@link #PD_AUTHORED} flag. These are editor-placed spawners that the
+     * stamp pipeline reconfigures in place rather than replacing.
+     */
+    private static List<BlockPos> authoredTrialSpawners(ServerLevel level, BlockPos cellOrigin) {
+        List<BlockPos> found = new ArrayList<>();
+        for (Map.Entry<BlockPos, BlockEntity> entry : cellBlockEntities(level, cellOrigin)) {
+            if (entry.getValue() instanceof TrialSpawnerBlockEntity) {
+                CompoundTag tag = entry.getValue().saveWithoutMetadata(level.registryAccess());
+                if (tag.getBooleanOr(PD_AUTHORED, false)) {
+                    found.add(entry.getKey().immutable());
+                }
+            }
+        }
+        found.sort(TrialContent::compare);
+        return found;
+    }
+
+    /**
+     * Reconfigures an authored trial spawner in place: sets the ominous
+     * blockstate, loads the run's config ids, cooldown, and range into the
+     * existing block entity without replacing the block.
+     */
+    private static void reconfigureTrialSpawner(ServerLevel level, BlockPos pos,
+                                                 String prefix, int tier, boolean ominous,
+                                                 boolean swarming, boolean silenced,
+                                                 boolean overclocked, int cooldown) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.TRIAL_SPAWNER) && state.getValue(TrialSpawnerBlock.OMINOUS) != ominous) {
+            level.setBlock(pos, state.setValue(TrialSpawnerBlock.OMINOUS, ominous), FLAGS);
+        }
+        if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner)) {
+            PocketDungeonsMod.LOG.warn("Authored trial spawner at {} has no block entity",
+                    pos.toShortString());
+            return;
+        }
+        CompoundTag tag = new CompoundTag();
+        if (swarming) {
+            writeInlineConfig(level, tag, "normal_config", prefix, tier, false);
+            writeInlineConfig(level, tag, "ominous_config", prefix, tier, true);
+        } else {
+            tag.putString("normal_config", configId(prefix, tier, false));
+            tag.putString("ominous_config", configId(prefix, tier, true));
+        }
+        tag.putInt("target_cooldown_length", cooldown);
+        tag.putInt("required_player_range",
+                silenced ? PocketDungeonsConfig.silencedPlayerRange() : 14);
+        ValueInput input = TagValueInput.create(
+                ProblemReporter.DISCARDING, level.registryAccess(), tag);
+        spawner.getTrialSpawner().load(input);
+        spawner.setChanged();
+        spawner.markUpdated();
+    }
+
+    /**
+     * Reconfigures an authored trial spawner with a fixed situation prefix
+     * (e.g. {@code "breeze_arena"}) instead of the run theme's prefix.
+     */
+    private static void reconfigureTrialSpawnerById(ServerLevel level, BlockPos pos,
+                                                     String configPrefix, int tier, boolean ominous,
+                                                     boolean swarming, boolean silenced,
+                                                     boolean overclocked, int cooldown) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.TRIAL_SPAWNER) && state.getValue(TrialSpawnerBlock.OMINOUS) != ominous) {
+            level.setBlock(pos, state.setValue(TrialSpawnerBlock.OMINOUS, ominous), FLAGS);
+        }
+        if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner)) {
+            PocketDungeonsMod.LOG.warn("Authored trial spawner at {} has no block entity",
+                    pos.toShortString());
+            return;
+        }
+        String normalId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/normal";
+        String ominousId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/ominous";
+        CompoundTag tag = new CompoundTag();
+        if (swarming) {
+            writeInlineConfigById(level, tag, "normal_config", Identifier.parse(normalId));
+            writeInlineConfigById(level, tag, "ominous_config", Identifier.parse(ominousId));
+        } else {
+            tag.putString("normal_config", normalId);
+            tag.putString("ominous_config", ominousId);
+        }
+        tag.putInt("target_cooldown_length", cooldown);
+        tag.putInt("required_player_range",
+                silenced ? PocketDungeonsConfig.silencedPlayerRange() : 14);
+        ValueInput input = TagValueInput.create(
+                ProblemReporter.DISCARDING, level.registryAccess(), tag);
+        spawner.getTrialSpawner().load(input);
+        spawner.setChanged();
+        spawner.markUpdated();
+    }
+
+    /**
+     * Finds all vaults in the cell whose block entity carries the
+     * {@link #PD_AUTHORED} flag. These are editor-placed vaults that the
+     * stamp pipeline reconfigures in place rather than promoting a chest.
+     */
+    private static List<BlockPos> authoredVaults(ServerLevel level, BlockPos cellOrigin) {
+        List<BlockPos> found = new ArrayList<>();
+        for (Map.Entry<BlockPos, BlockEntity> entry : cellBlockEntities(level, cellOrigin)) {
+            if (entry.getValue() instanceof VaultBlockEntity) {
+                CompoundTag tag = entry.getValue().saveWithoutMetadata(level.registryAccess());
+                if (tag.getBooleanOr(PD_AUTHORED, false)) {
+                    found.add(entry.getKey().immutable());
+                }
+            }
+        }
+        found.sort(TrialContent::compare);
+        return found;
+    }
+
+    /**
+     * Reconfigures an authored vault in place: sets the ominous blockstate
+     * and loads the run's loot table, key item, and activation range into
+     * the existing block entity without replacing the block.
+     */
+    private static void reconfigureVault(ServerLevel level, BlockPos pos, int tier,
+                                         boolean ominous, String lootSuffix) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.VAULT) && state.getValue(VaultBlock.OMINOUS) != ominous) {
+            level.setBlock(pos, state.setValue(VaultBlock.OMINOUS, ominous), FLAGS);
+        }
+        if (!(level.getBlockEntity(pos) instanceof VaultBlockEntity vault)) {
+            PocketDungeonsMod.LOG.warn("Authored vault at {} has no block entity",
+                    pos.toShortString());
+            return;
+        }
+        ResourceKey<LootTable> table = resolveLootTable(level,
+                LootTables.vaultTable(tier, ominous), lootSuffix);
+        vault.setConfig(new VaultConfig(table, ACTIVATION_RANGE, DEACTIVATION_RANGE,
+                keyStack(ominous), Optional.empty()));
+        vault.setChanged();
+    }
+
+    // ---- encounter anchor ---------------------------------------------------
+
     private static BlockPos encounterAnchor(ServerLevel level, BlockPos cellOrigin,
                                             List<BlockPos> spawns) {
         for (BlockPos pos : classicSpawners(level, cellOrigin)) {
@@ -460,6 +649,23 @@ final class TrialContent {
      */
     static boolean applyLoot(ServerLevel level, BlockPos cellOrigin, int tier, boolean ominous,
                              long seed, String lootSuffix) {
+        // Authored vaults: reconfigure in place, do not move or replace.
+        List<BlockPos> authored = authoredVaults(level, cellOrigin);
+        if (!authored.isEmpty()) {
+            for (BlockPos pos : authored) {
+                reconfigureVault(level, pos, tier, ominous, lootSuffix);
+            }
+            // Remaining chests (non-vault containers) become supply chests.
+            for (BlockPos pos : RoomContent.containers(level, cellOrigin)) {
+                if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
+                    c.setLootTable(lootTable(LootTables.supplyTable(tier)));
+                    c.setLootTableSeed(seed ^ pos.asLong());
+                }
+            }
+            return true;
+        }
+
+        // Legacy path: no authored vaults, promote the first chest.
         List<BlockPos> containers = RoomContent.containers(level, cellOrigin);
         containers.sort(TrialContent::compare);
         if (containers.isEmpty()) {

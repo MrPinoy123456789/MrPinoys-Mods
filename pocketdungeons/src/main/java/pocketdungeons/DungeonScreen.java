@@ -191,7 +191,7 @@ final class DungeonScreen {
         if (level != null && owner != null
                 && DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1) {
             content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
-                    .append(Component.literal("\nSelect the Oak Door\nThen pull the lever to descend"));
+                    .append(Component.literal("\nRight-click the Oak Door\nThen pull the lever to descend"));
         } else {
             content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
                     .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
@@ -208,7 +208,7 @@ final class DungeonScreen {
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         EnumSet<Affix> effective = AffixMath.effective(owner, offer.level(), offer.affixes());
         MutableComponent content = Component.literal("KEYSTONE " + offer.level() + "\n"
-                + themeName(offer.theme()) + "\n" + affixLine(effective));
+                + themeName(offer.theme()) + "\n").append(affixLine(effective));
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             content.append(Component.literal("\nCAUTION: EXPERIMENTAL").withStyle(ChatFormatting.RED));
@@ -225,7 +225,8 @@ final class DungeonScreen {
                 ? "Untimed"
                 : "Time: " + KeystoneMath.formatClock(record.timer.secondsRemaining());
         MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
-                + themeName(record.theme) + "\n" + affixLine(record.affixes) + "\n" + timeLine);
+                + themeName(record.theme) + "\n").append(affixLine(record.affixes))
+                .append(Component.literal("\n" + timeLine));
         return content;
     }
 
@@ -495,18 +496,29 @@ final class DungeonScreen {
         return entry == null ? theme : entry.meta().name;
     }
 
-    private static String affixLine(Set<Affix> affixes) {
+    /**
+     * The affix line for a door or run screen. The OMINOUS affix is coloured
+     * {@link ChatFormatting#DARK_PURPLE} to match the chat message at run
+     * start, so a sound-off player has a visible environmental signal that
+     * the run is ominous even if they missed the chat line (M67 Q5).
+     */
+    private static Component affixLine(Set<Affix> affixes) {
         List<Affix> ordered = AffixMath.ordered(affixes);
         if (ordered.isEmpty()) {
-            return "Oak";
+            return Component.literal("Oak");
         }
-        StringBuilder sb = new StringBuilder();
-        for (Affix affix : ordered) {
-            if (sb.length() > 0) {
-                sb.append(", ");
+        MutableComponent line = Component.empty();
+        for (int i = 0; i < ordered.size(); i++) {
+            if (i > 0) {
+                line.append(Component.literal(", "));
             }
-            sb.append(affix.label);
+            Affix affix = ordered.get(i);
+            MutableComponent label = Component.literal(affix.label);
+            if (affix == Affix.OMINOUS) {
+                label.withStyle(ChatFormatting.DARK_PURPLE);
+            }
+            line.append(label);
         }
-        return sb.toString();
+        return line;
     }
 }
