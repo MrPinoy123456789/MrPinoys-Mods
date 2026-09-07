@@ -1,0 +1,85 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/dungeon_room.schema.json",
+    "$comment": "M68: versioned content contract for data/<namespace>/dungeon_room/*.json. Identity is the resource id namespace + the relative path with the .json suffix stripped (for example data/mypack/dungeon_room/hall_tee.json is the room mypack:hall_tee, and data/mypack/dungeon_room/sub/deep.json is mypack:sub/deep). Two packs may ship the same local name in different namespaces and both load; two packs shipping the same namespaced id resolve by pack priority, the higher priority pack winning and the loser reported as superseded. The parser is DungeonRoomMeta.fromJson; this schema documents that contract, it is not enforced by a runtime JSON Schema validator.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["template", "roles"],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation this round ships. A mismatched version is rejected at load with the file named, never silently coerced."
+        },
+        "template": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "Structure template id, a fully qualified resource location such as pocketdungeons:rooms/hall_tee. Must resolve to a loaded structure or the room is rejected with 'template not found: <template>'. A third party room points at its own namespace's template; it does not secretly require a pocketdungeons template."
+        },
+        "footprint": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 2,
+            "maxItems": 2,
+            "default": [1, 1],
+            "$comment": "[x, z] cell count. Only [1, 1] is generated today; multi cell footprints are a later generation."
+        },
+        "roles": {
+            "type": "array",
+            "items": {
+                "enum": ["entrance", "exit", "encounter", "loot", "corridor"]
+            },
+            "minItems": 1,
+            "$comment": "Closed set of five. The generator's own switch logic understands exactly these; a sixth string is rejected at load."
+        },
+        "theme": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "$comment": "Theme ids this room is eligible for. Empty matches every theme. Each entry is a theme id: a qualified id (namespace:path, for example mypack:deepslate) or a legacy unqualified id (for example deepslate) that resolves to pocketdungeons:deepslate when that built in exists. A bare name that is not a pocketdungeons built in is an unresolved legacy reference and is reported, never silently last file wins."
+        },
+        "weight": { "type": "integer", "default": 1, "minimum": 1 },
+        "minDepth": { "type": "integer", "default": 0, "minimum": 0 },
+        "maxPerDungeon": { "type": "integer", "default": -1 },
+        "processors": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "Id of a vanilla processor_list. Rejected at load with 'processor list not found: <processors>' if it is not in the registry."
+        },
+        "content": {
+            "type": "string",
+            "$comment": "Situation id dispatched by RoomContent at stamp time. A situation id is itself a namespaced content reference with the same legacy resolution rules as a theme id; the shipped situations live under the pocketdungeons namespace."
+        },
+        "tier": { "type": "integer", "default": 1, "minimum": 1 },
+        "provides": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/situationTag" },
+            "default": []
+        },
+        "requires": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/situationTag" },
+            "default": []
+        },
+        "pressure": { "enum": ["local", "omen"] },
+        "access": { "enum": ["open", "gated"], "default": "open" },
+        "window": { "enum": ["bars", "glass", "tinted_glass", "none"], "default": "bars" },
+        "spanY": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 2,
+            "$comment": "M61: the number of cell sized volumes this room stacks vertically, the topmost being its own cell. 1 is no lower story, 2 owns the cell plus the 16x16x9 volume beneath. The legacy field name 'stories' is NOT an alias for spanY and is never silently substituted; a file carrying 'stories' instead of 'spanY' is read as spanY 1 with 'stories' preserved as an unknown field for recovery."
+        }
+    },
+    "$defs": {
+        "situationTag": {
+            "enum": [
+                "blocks", "water", "lava", "lead", "mob", "trial_key", "boat",
+                "gold", "snowballs", "shears", "pearl", "wind_charge", "milk",
+                "bow", "redstone"
+            ],
+            "$comment": "Closed vocabulary of fifteen. Anything else is rejected at load with the room and the offending tag named."
+        }
+    }
+}

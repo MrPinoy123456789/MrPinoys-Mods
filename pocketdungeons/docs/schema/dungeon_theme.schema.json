@@ -1,0 +1,52 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/dungeon_theme.schema.json",
+    "$comment": "M68: versioned content contract for data/<namespace>/dungeon_theme/*.json. Identity is the resource id namespace + the relative path with the .json suffix stripped (data/mypack/dungeon_theme/deepslate.json is the theme mypack:deepslate). The parser is DungeonThemeMeta.fromJson. A theme in another namespace must not secretly require data under pocketdungeons: the legacy loot_suffix and spawner_prefix fields resolve against the pocketdungeons namespace only, so a third party theme that wants its own loot or spawner configs MUST use the namespaced loot_table, normal_spawner and ominous_spawner fields instead. Both shapes may appear together for backward compatibility; the namespaced fields take precedence when present.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "processors"],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation this round ships."
+        },
+        "name": {
+            "type": "string",
+            "minLength": 1,
+            "$comment": "Display name shown in door choices and the lobby. A label, not the identity; the identity is the resource id."
+        },
+        "processors": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "Id of a vanilla processor_list this theme's rooms stamp with. Rejected at load if not in the registry."
+        },
+        "room_theme": {
+            "type": "string",
+            "$comment": "A theme id used as a room filter: only rooms whose 'theme' list is empty or contains this id are eligible. A qualified id (mypack:deepslate) resolves directly; a legacy unqualified id (deepslate) resolves to pocketdungeons:deepslate when that built in exists, otherwise it is an unresolved legacy reference and is reported."
+        },
+        "loot_suffix": {
+            "type": "string",
+            "$comment": "Legacy field. A bare suffix appended to the pocketdungeons loot table path (for example 'drowned' yields pocketdungeons:chests/tier_1_drowned). Resolves against the pocketdungeons namespace ONLY, so a third party theme using this field secretly requires pocketdungeons loot tables. Third party themes should use 'loot_table' instead. Kept for backward compatibility; never removed."
+        },
+        "loot_table": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "M68: a fully qualified loot table id the reward room and vaults use for this theme, overriding the tier base table when it exists in the loot table registry. Takes precedence over loot_suffix when present. A third party theme points at its own namespace's table here. The base tier table is still the fallback when this id is not loaded."
+        },
+        "spawner_prefix": {
+            "type": "string",
+            "$comment": "Legacy field. A bare prefix composed with the tier to build a pocketdungeons trial spawner config id (for example 'crypt' yields pocketdungeons:crypt_tier_1/normal). Resolves against the pocketdungeons namespace ONLY, so a third party theme using this field secretly requires pocketdungeons spawner configs. Third party themes should use 'normal_spawner' and 'ominous_spawner' instead. Kept for backward compatibility; never removed."
+        },
+        "normal_spawner": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "M68: a fully qualified trial spawner config id for normal mode encounters in this theme. Takes precedence over spawner_prefix when present. A third party theme points at its own namespace's config. Validated against the trial spawner config registry at load; a missing id is reported (trap 6: a misspelt spawner config id does not throw at the block entity, so the manifest validates it up front instead)."
+        },
+        "ominous_spawner": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "M68: a fully qualified trial spawner config id for ominous mode encounters in this theme. Takes precedence over spawner_prefix when present. Same validation as normal_spawner."
+        }
+    }
+}

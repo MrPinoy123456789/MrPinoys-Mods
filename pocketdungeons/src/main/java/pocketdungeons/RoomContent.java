@@ -93,6 +93,20 @@ final class RoomContent {
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
                       Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
                       boolean anomalyCell, String content) {
+        return apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
+                lootSuffix, null, theme, voidedFloor, anomalyCell, content);
+    }
+
+    /**
+     * M68: apply with an optional namespaced loot table override carried from
+     * the run theme's {@code loot_table} field. The override flows down to
+     * {@link TrialContent#applyLoot} so a third party theme can point at its
+     * own namespace's vault table.
+     */
+    static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+                      DifficultyProfile profile, List<BlockPos> spawns, long seed,
+                      Set<Affix> affixes, String lootSuffix, String lootTableOverride,
+                      String theme, boolean voidedFloor, boolean anomalyCell, String content) {
         List<BlockPos> spawnerAnchors = new ArrayList<>();
         if (anomalyCell) {
             if ("store".equals(content)) {
@@ -140,7 +154,7 @@ final class RoomContent {
                     }
                 }
                 case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
-                        affixes.contains(Affix.OMINOUS), seed, lootSuffix);
+                        affixes.contains(Affix.OMINOUS), seed, lootSuffix, lootTableOverride);
                 case "corridor" -> removeChests(level, cellOrigin);
                 default -> { /* entrance and exit carry no chest and no spawn points */ }
             }

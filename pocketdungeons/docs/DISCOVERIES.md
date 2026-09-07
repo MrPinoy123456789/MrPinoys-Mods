@@ -442,3 +442,30 @@ Two gotchas, worth not re-discovering:
     allocation. The risk is that the forced room changes the
     provides graph. This has not been observed in testing but is an
     API surface that M66 introduces.
+
+
+## UNVERIFIED M68 API surface
+
+26. UNVERIFIED: The 26.2 reload-listener execution order was not confirmed
+    against the jar. ContentReload.register registers a
+    SimpleSynchronousResourceReloadListener and relies on
+    ServerLifecycleEvents.SERVER_STARTED firing after the startup
+    resource reload completes, the same handoff the pre-M68 listeners
+    used. The listener sees a null server on the startup pass and defers
+    to the explicit ContentReload.reload(server) call in
+    Instances.register()'s SERVER_STARTED hook. This ordering was
+    inferred from the pre-M68 behaviour, not re-verified by bytecode
+    inspection of the 26.2 jar.
+
+27. UNVERIFIED: ContentReload.reconcileActiveFloors reads
+    InstanceRegistry.bySlot and clears previewPlan,
+    previewCellOrigin, previewRecipePlan, and previewOfferStep on
+    instances whose preview references a room or theme the new snapshot
+    no longer carries. The field lifetimes and the thread safety of
+    reading ySlot from the reload thread (which is the server thread
+    for SimpleSynchronousResourceReloadListener) were inferred from
+    the pre-M68 code, not verified against the 26.2 jar's reload
+    threading model. The generation prohibition gate
+    (generationAllowed()) is the guard that prevents a new floor from
+    racing the swap, but the exact thread the reload listener fires on
+    was not confirmed by javap or bytecode inspection.

@@ -1,0 +1,40 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/dungeon_adventure.schema.json",
+    "$comment": "M68: versioned content contract for data/<namespace>/dungeon_adventure/*.json. One file per theme, named for that theme's own id, describing which themes a run can transition into from here. Identity is the resource id namespace + the relative path with the .json suffix stripped, and that id MUST match a loaded dungeon_theme id (a node whose id has no theme is a dead end and is dropped with a rejection). The parser is AdventureGraphs.parseNode. A transition's 'theme' is a theme id with the same legacy resolution rules as a dungeon_room 'theme' entry: a qualified id resolves directly, a legacy unqualified id resolves to pocketdungeons:<name> when that built in exists, otherwise it is an unresolved legacy reference and the transition is dropped with a rejection rather than silently last file wins.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["kind"],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation this round ships."
+        },
+        "kind": { "enum": ["entry", "descent", "boss"] },
+        "next": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/transition" },
+            "$comment": "Weighted transitions out of this node. A boss node must declare none; an entry or descent node must declare at least one. Every transition target must resolve to a loaded theme that itself has an adventure node, or the transition is dropped (and the node with it, transitively, until a fixpoint)."
+        },
+        "reward": {
+            "type": "string",
+            "minLength": 1,
+            "$comment": "The Herobrine Cube power id a rare drop from this node's encounters grants, or omitted for a node with no extractable reward. A blank but present value is rejected."
+        }
+    },
+    "$defs": {
+        "transition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["theme"],
+            "properties": {
+                "theme": {
+                    "type": "string",
+                    "$comment": "Target theme id. Qualified (mypack:deepslate) or legacy unqualified (deepslate, resolving to pocketdungeons:deepslate)."
+                },
+                "weight": { "type": "integer", "default": 1, "minimum": 1 }
+            }
+        }
+    }
+}

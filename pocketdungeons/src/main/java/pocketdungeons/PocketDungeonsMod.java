@@ -40,8 +40,10 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomTemplateGenerator.register();
         Locks.register();
         OmenSources.register();
-        ThemeManifest.register();
-        RoomManifest.register();
+        // M68: a single reload listener owns the atomic build then commit of
+        // all five content surfaces, replacing the per loader listeners
+        // ThemeManifest and RoomManifest each registered for themselves.
+        ContentReload.register();
         TrimListener.register();
         PowerListener.register();
         DiaryReading.register();

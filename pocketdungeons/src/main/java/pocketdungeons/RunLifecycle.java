@@ -1150,12 +1150,14 @@ final class RunLifecycle {
 
         // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
         // pad and in front of the sealed door.
+        ThemeManifest.Entry completionTheme = record.theme == null ? null
+                : ThemeManifest.current().byId(record.theme);
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                         .lootTier(),
                 record.affixes.contains(Affix.OMINOUS), record.layout.seed(),
-                record.theme == null || ThemeManifest.current().byId(record.theme) == null ? null
-                        : ThemeManifest.current().byId(record.theme).meta().lootSuffix);
+                completionTheme == null ? null : completionTheme.meta().lootSuffix,
+                completionTheme == null ? null : completionTheme.meta().lootTable);
 
         // Sealed door in the far wall, behind the chests.
         CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);

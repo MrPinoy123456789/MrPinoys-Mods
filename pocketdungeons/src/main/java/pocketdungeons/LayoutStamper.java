@@ -128,8 +128,9 @@ final class LayoutStamper {
 
         int depth = plan.depths().getOrDefault(entranceCell, 0);
         String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
+        String lootTableOverride = runTheme == null ? null : runTheme.meta().lootTable;
         RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
-                depth, profile, spawns, plan.seed(), affixes, lootSuffix, theme,
+                depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
             OmenSources.arm(level, cellOrigin, entry.meta);
 
@@ -245,8 +246,10 @@ final class LayoutStamper {
 
             int depth = plan.depths().getOrDefault(cell, 0);
             String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
+            String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
             List<BlockPos> spawnerAnchors = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, isAnomalyCell ? null : theme,
+                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
+                    isAnomalyCell ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
             OmenSources.arm(level, cellOrigin, entry.meta);
             trialSpawners.addAll(spawnerAnchors);

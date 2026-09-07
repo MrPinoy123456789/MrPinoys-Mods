@@ -61,6 +61,20 @@ final class Diaries {
     }
 
     static Diaries load(MinecraftServer server) {
+        Diaries loaded = parse(server);
+        current = loaded;
+        PocketDungeonsMod.LOG.info("Loaded {} diary entry(ies) ({} rejected)",
+                loaded.entries.size(), loaded.rejections.size());
+        return loaded;
+    }
+
+    /**
+     * M68: parses every {@code diary} resource without publishing it, the
+     * build half of {@link ContentReload}'s atomic reload. Keys entries by
+     * namespaced id ({@code namespace:path}) so two packs with the same local
+     * diary name coexist; the band and number collision check is unchanged.
+     */
+    static Diaries parse(MinecraftServer server) {
         List<Entry> parsed = new ArrayList<>();
         List<String> rejections = new ArrayList<>();
         Map<Identifier, Resource> resources = server.getResourceManager().listResources(
@@ -68,7 +82,7 @@ final class Diaries {
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
-            String id = JsonPackSupport.baseName(resource.getKey());
+            String id = JsonPackSupport.resourceId(resource.getKey(), "diary");
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 Entry entry = parseEntry(id, JsonParser.parseReader(reader).getAsJsonObject());
                 parsed.add(entry);
@@ -106,15 +120,21 @@ final class Diaries {
             }
         }
         valid.sort(Comparator.comparingInt(Entry::number));
+        return new Diaries(valid, rejections);
+    }
 
-        Diaries loaded = new Diaries(valid, rejections);
-        current = loaded;
+    /**
+     * M68: commits a resolved diary set as the live {@link #current}, the
+     * publish half of {@link ContentReload}'s atomic build then commit.
+     */
+    static void publish(Diaries diaries) {
+        current = diaries;
         PocketDungeonsMod.LOG.info("Loaded {} diary entry(ies) ({} rejected)",
-                valid.size(), rejections.size());
-        return loaded;
+                diaries.entries.size(), diaries.rejections.size());
     }
 
     private static Entry parseEntry(String id, JsonObject obj) {
+        JsonPackSupport.parseVersion(obj, id);
         int number = requiredInt(obj, "number");
         int band = requiredInt(obj, "band");
         String title = JsonPackSupport.requiredString(obj, "title");

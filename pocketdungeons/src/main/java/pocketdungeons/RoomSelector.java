@@ -245,7 +245,13 @@ final class RoomSelector {
                                   Map<PlanCell, Integer> depths,
                                   Set<String> bagTags,
                                   java.util.List<String> targetRoomNames) {
-        Set<String> targetSet = new java.util.HashSet<>(targetRoomNames);
+        // M68: room names are now namespaced ids. Qualify the target names so
+        // a legacy bare target ("infested_wall") matches the namespaced room
+        // name ("pocketdungeons:infested_wall") the manifest now carries.
+        Set<String> targetSet = new java.util.HashSet<>();
+        for (String target : targetRoomNames) {
+            targetSet.add(JsonPackSupport.qualify(target));
+        }
         for (PlanCell cell : shape.cells()) {
             if (cell.equals(shape.entrance()) || cell.equals(shape.terminal())) {
                 continue;

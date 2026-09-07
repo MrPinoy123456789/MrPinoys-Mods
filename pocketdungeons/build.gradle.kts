@@ -241,7 +241,9 @@ for ((taskName, testClass) in mapOf(
     "situationTagsTest" to "SituationTagsTest",
     "dungeonToolsTest" to "DungeonToolsTest",
     "situationSupplyTest" to "SituationSupplyTest",
-    "supplySeparationTest" to "SupplySeparationTest"
+    "supplySeparationTest" to "SupplySeparationTest",
+    // M68: namespaced content identity, legacy resolution, snapshot validation.
+    "contentSnapshotTest" to "ContentSnapshotTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -295,6 +297,7 @@ tasks.test {
     dependsOn("dungeonToolsTest")
     dependsOn("situationSupplyTest")
     dependsOn("supplySeparationTest")
+    dependsOn("contentSnapshotTest")
     failOnNoDiscoveredTests = false
 }
 

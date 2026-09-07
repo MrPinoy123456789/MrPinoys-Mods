@@ -239,3 +239,92 @@ Naming these so nobody spends a weekend on them before they are datapack-driven:
 None of the above changes player-facing commands. `/dungeon`, `/dungeon exit`,
 and the lodestone ritual all work exactly as before regardless of which
 datapack rooms, loot tables, or spawners are currently loaded.
+
+
+## 5. M68: namespaced content contracts and reload behaviour
+
+### Namespaced identity
+
+Every content manifest is now keyed by 
+amespace:path instead of the bare
+filename. Two datapacks that define the same local filename (e.g. both ship
+data/<ns>/dungeon_room/hall_tee.json) both load; they coexist as
+pack_a:hall_tee and pack_b:hall_tee.
+
+### Legacy reference compatibility
+
+A reference that does not contain a colon (a legacy bare name like
+deepslate) resolves to the pocketdungeons namespace. This applies to:
+
+- Room names in plans and force-room guarantees.
+- Theme ids in adventure graph transitions and room theme lists.
+- Theme ids read from a pre-M68 dungeon_log.dat (current_theme,
+  completed_themes, ecent_themes).
+
+A bare name that is not a pocketdungeons built-in returns null at lookup
+time. Third-party content that relied on last-file-wins behaviour for a bare
+name must either use an explicit namespaced id or provide a unique alias.
+
+### Versioned content contracts
+
+Each content type declares a ersion field (default 1 when absent). A file
+that declares a version other than 1 is rejected at load with the file named.
+This build supports version 1 only.
+
+### Theme references: legacy vs namespaced
+
+A theme's loot_suffix and spawner_prefix compose ids under the
+pocketdungeons namespace only. A third-party theme using them secretly
+requires pocketdungeons data. The optional namespaced fields loot_table,
+
+ormal_spawner, and ominous_spawner override the legacy composition and
+let a third-party theme point at its own namespace. The namespaced spawner
+config ids are validated against the trial spawner config registry at load
+time.
+
+### Reload behaviour and rollback
+
+A /reload or /dungeon admin manifest reload builds a candidate
+ContentSnapshot from all five content surfaces, validates it as a whole,
+and either publishes all five manifests atomically or keeps the last valid
+snapshot.
+
+- **Required coverage gate.** The snapshot must contain at least one
+  entrance role room and one exit role room. A reload that drops the
+  pocketdungeons pack (or rejects every entrance/exit room) fails this
+  gate and is not published. The last valid snapshot stands.
+
+- **Optional content rejection.** A rejected room, theme, adventure node,
+  or diary entry is reported in the rejections list but does not sink the
+  snapshot as long as the required coverage survives. A rejected room is
+  one fewer room, not a failed reload.
+
+- **Cross-resource validation.** Adventure graph transitions are resolved
+  against the snapshot's own theme set before the graph is published. A
+  transition to a theme this candidate never loaded is dropped; if the
+  fixpoint leaves no entry-kind node, the graph is rejected.
+
+- **Generation prohibition.** New floor generation (door preview and door
+  commit) is refused while a content build is in progress, so a floor is
+  never stamped against a half-published manifest.
+
+- **Active-floor pinning.** An already-stamped floor is pinned to the
+  geometry already in the world; it is not torn down by a reload. A door
+  preview whose plan references a room or theme the new snapshot no longer
+  carries is invalidated, so a stale preview can never commit against
+  definitions the player never saw.
+
+- **Vanilla registry references.** Processor lists, loot tables, and trial
+  spawner configs are vanilla reloadable registries. Their references are
+  validated at snapshot build time. A theme whose 
+ormal_spawner or
+  ominous_spawner id does not resolve in the trial spawner config
+  registry is rejected at load with the theme named.
+
+### Save compatibility
+
+DungeonLog preserves every existing codec field. A pre-M68 save with bare
+completed_themes keys loads unchanged. When a post-M68 qualified completion
+arrives for the same theme, the legacy bare count is migrated into the
+namespaced key and merged, so the theme is not double-counted. Unknown
+references in a save are kept for recovery.

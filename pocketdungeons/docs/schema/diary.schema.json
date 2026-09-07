@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/diary.schema.json",
+    "$comment": "M68: versioned content contract for data/<namespace>/diary/*.json. One file per diary entry. Identity is the resource id namespace + the relative path with the .json suffix stripped (data/mypack/diary/entry_1.json is the diary mypack:entry_1). The parser is Diaries.parseEntry. Two entries claiming the same band or the same display number both drop, the same reject loudly discipline AdventureGraphs uses for a dangling transition; the rejection names every entry involved rather than silently picking one.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["number", "band", "title", "pages"],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation this round ships."
+        },
+        "number": {
+            "type": "integer",
+            "minimum": 1,
+            "$comment": "Display number. The lodestone reader orders entries by this and it must be unique across the loaded set."
+        },
+        "band": {
+            "type": "integer",
+            "minimum": 0,
+            "$comment": "The intensifier band index (AffixMath.intensifierBandIndex) that drops this entry. Must be unique across the loaded set; two entries claiming the same band both drop."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "pages": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1,
+            "$comment": "The canonical, correctly ordered page text the lodestone reader shows. A book's physical page order is shuffled at drop time; this list stays canonical."
+        },
+        "unlock_shell": {
+            "type": "string",
+            "$comment": "Optional shell palette id unlocked when this entry is found. A namespaced reference with the same legacy resolution rules as other content ids; omitted or blank means no shell unlock."
+        }
+    }
+}

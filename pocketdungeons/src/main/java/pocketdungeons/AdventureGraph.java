@@ -115,7 +115,20 @@ final class AdventureGraph {
     }
 
     Node node(String theme) {
-        return theme == null ? null : nodes.get(theme);
+        if (theme == null) {
+            return null;
+        }
+        Node direct = nodes.get(theme);
+        if (direct != null) {
+            return direct;
+        }
+        // M68: resolve a legacy bare theme id to the pocketdungeons namespace,
+        // so a dungeon_log.dat written before M68 (carrying a bare currentTheme)
+        // still drives the graph pick after nodes became namespaced.
+        if (theme.indexOf(':') < 0) {
+            return nodes.get(PocketDungeonsMod.MOD_ID + ":" + theme);
+        }
+        return null;
     }
 
     /** Total node count, for the admin reload command's summary. */

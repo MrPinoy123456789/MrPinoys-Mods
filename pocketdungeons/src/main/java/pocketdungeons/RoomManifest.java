@@ -2,18 +2,13 @@ package pocketdungeons;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.Rotation;
@@ -61,46 +56,18 @@ final class RoomManifest {
     private static volatile RoomManifest currentAnomaly = new RoomManifest(Map.of(), List.of());
 
     /**
-     * Set once by {@link ServerLifecycleEvents#SERVER_STARTED} and cleared on
-     * shutdown. The vanilla data-pack reload listener below only receives a
-     * {@link ResourceManager}, not the {@link MinecraftServer} that {@link #load}
-     * needs for the overworld and registry access -- this is where that comes
-     * from. Startup itself reloads resources <em>before</em> {@code
-     * SERVER_STARTED} fires, so this is null on the very first pass; the
-     * existing explicit {@code RoomManifest.load(server)} call in
-     * {@code Instances.register()} covers that first load, and the guard below
-     * simply defers to it instead of racing it.
-     */
-    private static volatile MinecraftServer server;
-
-    /**
      * Wires {@link #load} to fire on every {@code /reload}, not just the
      * {@code /dungeon admin manifest reload} command. Call once from
      * {@code onInitialize}.
+     *
+     * <p>M68: the reload listener this used to register is now owned by
+     * {@link ContentReload}, which builds all five surfaces into one
+     * {@link ContentSnapshot} and publishes them atomically. This method is
+     * kept as a no op so any caller that still reaches for it does not double
+     * register a listener.
      */
     static void register() {
-        ServerLifecycleEvents.SERVER_STARTED.register(s -> server = s);
-        ServerLifecycleEvents.SERVER_STOPPING.register(s -> server = null);
-
-        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
-                new SimpleSynchronousResourceReloadListener() {
-                    @Override
-                    public Identifier getFabricId() {
-                        return Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "room_manifest");
-                    }
-
-                    @Override
-                    public void onResourceManagerReload(ResourceManager manager) {
-                        MinecraftServer s = server;
-                        if (s == null) {
-                            // Startup's own reload, before SERVER_STARTED has run. The
-                            // explicit call in Instances.register() covers this pass.
-                            return;
-                        }
-                        load(s);
-                        loadAnomaly(s);
-                    }
-                });
+        // ContentReload.register() owns the reload listener now.
     }
 
     private final Map<String, Entry> byName;
@@ -134,6 +101,36 @@ final class RoomManifest {
         return loaded;
     }
 
+    /**
+     * M68: commits a resolved room manifest and anomaly manifest as the live
+     * {@link #current} / {@link #currentAnomaly} in one step, the publish half
+     * of {@link ContentReload}'s atomic build then commit. The build half is
+     * {@link #loadFrom}, which parses without publishing; this is what makes a
+     * rejected candidate leave the last valid snapshot standing.
+     */
+    static void publish(RoomManifest rooms, RoomManifest anomaly) {
+        current = rooms;
+        currentAnomaly = anomaly;
+        if (rooms.rejections.isEmpty()) {
+            PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms", rooms.rooms.size());
+        } else {
+            PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms ({} rejected; run /dungeon admin gentemplates to generate missing templates)",
+                    rooms.rooms.size(), rooms.rejections.size());
+        }
+        PocketDungeonsMod.LOG.info("Loaded {} anomaly rooms ({} rejected)",
+                anomaly.rooms.size(), anomaly.rejections.size());
+    }
+
+    /** M68: parses the room manifest without publishing, for {@link ContentSnapshot}. */
+    static RoomManifest parse(MinecraftServer server) {
+        return loadFrom(server, ROOM_PATH);
+    }
+
+    /** M68: parses the anomaly room manifest without publishing, for {@link ContentSnapshot}. */
+    static RoomManifest parseAnomaly(MinecraftServer server) {
+        return loadFrom(server, ANOMALY_PATH);
+    }
+
     private static RoomManifest loadFrom(MinecraftServer server, String resourcePath) {
         List<Entry> entries = new ArrayList<>();
         List<String> rejections = new ArrayList<>();
@@ -152,14 +149,14 @@ final class RoomManifest {
 
         for (Map.Entry<Identifier, Resource> e : sorted) {
             Identifier loc = e.getKey();
-            String name = JsonPackSupport.baseName(loc);
-            if (name.isEmpty() || name.startsWith("_")) {
+            String name = JsonPackSupport.resourceId(loc, resourcePath);
+            if (name.isEmpty() || JsonPackSupport.baseName(loc).startsWith("_")) {
                 continue;
             }
 
             try (BufferedReader reader = e.getValue().openAsReader()) {
                 JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
-                DungeonRoomMeta meta = DungeonRoomMeta.fromJson(obj);
+                DungeonRoomMeta meta = DungeonRoomMeta.fromJson(obj, name);
                 Identifier templateId = Identifier.parse(meta.template);
                 Optional<StructureTemplate> optTemplate = manager.get(templateId);
                 if (optTemplate.isEmpty()) {
@@ -209,9 +206,27 @@ final class RoomManifest {
     }
 
     /** The loaded room with this name, or null. Used by the stamper to turn a
-     *  plan's room name back into a template id and its metadata. */
+     *  plan's room name back into a template id and its metadata.
+     *
+     *  <p>M68: the manifest is keyed by namespaced id ({@code namespace:path}).
+     *  A bare lookup with no colon resolves to the {@code pocketdungeons}
+     *  namespace, the rule the M68 schema set publishes for legacy unqualified
+     *  built ins, so existing call sites that pass a bare name keep working. A
+     *  qualified lookup is used as is. A bare name that is not a
+     *  {@code pocketdungeons} built in returns null, the deterministic
+     *  rejection the schema promises in place of last file wins. */
     Entry byName(String name) {
-        return byName.get(name);
+        if (name == null) {
+            return null;
+        }
+        Entry direct = byName.get(name);
+        if (direct != null) {
+            return direct;
+        }
+        if (name.indexOf(':') < 0) {
+            return byName.get(PocketDungeonsMod.MOD_ID + ":" + name);
+        }
+        return null;
     }
 
     /**
@@ -294,7 +309,21 @@ final class RoomManifest {
         if (requested == null) {
             return true;
         }
-        return roomThemes.isEmpty() || roomThemes.contains(requested);
+        if (roomThemes.isEmpty()) {
+            return true;
+        }
+        // M68: qualify both sides so a room authored with a legacy bare theme
+        // list ("deepslate") still matches a namespaced requested theme
+        // ("pocketdungeons:deepslate") and vice versa. qualify is idempotent on
+        // already qualified ids, so a third party namespaced room theme list
+        // matches a third party namespaced requested theme unchanged.
+        String qRequested = JsonPackSupport.qualify(requested);
+        for (String roomTheme : roomThemes) {
+            if (JsonPackSupport.qualify(roomTheme).equals(qRequested)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Package-private test factory; production code uses {@link #load}. */

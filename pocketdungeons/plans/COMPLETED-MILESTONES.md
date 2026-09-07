@@ -3307,3 +3307,85 @@ not just the build.
   nodes, 7 diary entries, 49 rooms, 6 anomaly rooms, 40 core loot
   tables).
 - ./gradlew.bat build: BUILD SUCCESSFUL in 1m 40s, full suite green.
+
+
+## M68: Namespaced versioned content contracts
+
+Two packs with the same local names coexist, and reload never mixes
+incompatible generations.
+
+### What changed
+
+- **Namespaced identity.** Every content manifest (rooms, anomaly rooms,
+  themes, adventure graphs, diaries) is now keyed by 
+amespace:path
+  instead of the bare filename. JsonPackSupport.resourceId strips the
+  content-type folder prefix and the .json suffix, producing ids like
+  pocketdungeons:hall_tee or mypack:sub/dir/entry. Two packs with the
+  same local name in different namespaces both load.
+
+- **Legacy reference resolution.** JsonPackSupport.qualify maps a legacy
+  bare reference (no colon) to the pocketdungeons namespace. The lookup
+  methods (RoomManifest.byName, ThemeManifest.byId,
+  AdventureGraph.node) resolve a bare id to pocketdungeons:<name> when
+  the direct lookup misses, so existing call sites that pass a bare name
+  keep working and a pre-M68 dungeon_log.dat with a bare currentTheme
+  still drives the graph pick. A bare name that is not a pocketdungeons
+  built-in returns null, the deterministic rejection the schema promises
+  in place of last-file-wins.
+
+- **Versioned schemas.** Five JSON schemas published in docs/schema/:
+  dungeon_room, dungeon_theme, dungeon_adventure, nomaly_room,
+  diary. Each declares a ersion field (default 1 when absent). The
+  parsers call JsonPackSupport.parseVersion to reject an unsupported
+  generation up front with the file named.
+
+- **Namespaced theme references.** DungeonThemeMeta adds three optional
+  fields alongside the legacy loot_suffix and spawner_prefix:
+  loot_table, 
+ormal_spawner, ominous_spawner. Each is a fully
+  qualified id that overrides the legacy composition. A third-party theme
+  can now point at its own namespace's loot table and trial spawner configs
+  instead of secretly requiring pocketdungeons data. The namespaced
+  spawner configs are validated against the trial spawner config registry
+  at load time (trap 6: a misspelt id does not throw at the block entity).
+
+- **ContentSnapshot and ContentReload.** A single reload listener
+  (ContentReload) owns the atomic build-then-commit of all five content
+  surfaces. ContentSnapshot.build parses all five without publishing,
+  runs the cross-resource validation (adventure graph transitions resolved
+  against the snapshot's own theme set), and checks the required coverage
+  gate (at least one entrance and one exit room). A candidate that fails
+  the gate is discarded; the last valid snapshot's manifests stay
+  published so active floors keep resolving. The per-loader reload
+  listeners (RoomManifest.register, ThemeManifest.register) are now
+  no-ops; ContentReload.register is the single listener.
+
+- **Generation prohibition during reload.**
+  ContentReload.generationAllowed() is false while a build is in
+  progress. Instances.previewDoor and Instances.commitDoor check it
+  and refuse to start a new floor, so a floor is never stamped against a
+  half-published manifest.
+
+- **Active-floor pinning.** After a coherent reload,
+  ContentReload.reconcileActiveFloors walks the live instances and
+  invalidates any preview whose plan references a room or theme the new
+  snapshot no longer carries. An already-stamped floor is left in place:
+  it is pinned to the geometry already in the world, and the generation
+  prohibition above is what kept a new generation from racing the swap.
+
+- **DungeonLog legacy migration.** DungeonLog.recordTheme migrates a
+  legacy bare completedThemes key into the namespaced key when a
+  qualified completion arrives for the same theme, merging the count so
+  the theme is not double-counted. Old saved fields are preserved; unknown
+  references are kept for recovery.
+
+### Verification
+
+- contentSnapshotTest: namespaced identity, legacy qualification,
+  version parser, DungeonLog legacy migration.
+- unGameTest: 60 tests (55 original + 5 M68 live server checks for
+  snapshot validity, legacy lookup resolution, and generation gate).
+- dungeonIntegrationTest: PASS (5 themes, 5 adventure nodes, 7 diaries,
+  49 rooms, 6 anomaly rooms, 40 core loot tables, 0 rejections).
+- uild: BUILD SUCCESSFUL, full suite green.

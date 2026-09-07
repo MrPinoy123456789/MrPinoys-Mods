@@ -682,7 +682,27 @@ final class DungeonLog extends SavedData {
         }
         Entry previous = get(player);
         Map<String, Integer> counts = new HashMap<>(previous.completedThemes());
-        counts.merge(theme, 1, Integer::sum);
+        // M68: migrate a legacy bare completedThemes key that resolves to the
+        // same namespaced id as this completion, merging its count into the
+        // namespaced key so a pre M68 save does not double count a theme the
+        // player is still completing. Only triggers when the incoming theme is
+        // already qualified (the shape the namespaced adventure graph produces
+        // post M68); a bare incoming theme is stored as is, preserving the pre
+        // M68 save round trip and the headless test that drives it.
+        int migrated = 0;
+        if (theme.indexOf(':') >= 0) {
+            String legacy = null;
+            for (String key : counts.keySet()) {
+                if (key.indexOf(':') < 0 && JsonPackSupport.qualify(key).equals(theme)) {
+                    legacy = key;
+                    break;
+                }
+            }
+            if (legacy != null) {
+                migrated = counts.remove(legacy);
+            }
+        }
+        counts.merge(theme, 1 + migrated, Integer::sum);
 
         AdventureGraph graph = AdventureGraphs.current().graph();
         AdventureGraph.Node node = graph.node(theme);

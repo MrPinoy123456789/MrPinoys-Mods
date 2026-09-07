@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/anomaly_room.schema.json",
+    "$comment": "M68: versioned content contract for data/<namespace>/anomaly_room/*.json. Same JSON shape as dungeon_room.schema.json: loaded by the same DungeonRoomMeta.fromJson parser and the same door jigsaw validation, into a separate manifest (RoomManifest.currentAnomaly) so a themed query never surfaces a deliberately foreign room. Identity is the resource id namespace + the relative path with the .json suffix stripped. All field semantics, including spanY, content dispatch and the situation tag vocabulary, are identical to dungeon_room.schema.json; see that file for the full field table.",
+    "allOf": [{ "$ref": "dungeon_room.schema.json" }],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation this round ships."
+        }
+    }
+}

@@ -17,7 +17,8 @@
       "pocketdungeons.HandlerGameTest",
       "pocketdungeons.OmenGameTest",
       "pocketdungeons.FloorLoopGameTest",
-      "pocketdungeons.CubeRecipeGameTest"
+      "pocketdungeons.CubeRecipeGameTest",
+      "pocketdungeons.ContentReloadGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint"

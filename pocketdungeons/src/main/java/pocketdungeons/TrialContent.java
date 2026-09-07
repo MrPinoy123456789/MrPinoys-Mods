@@ -170,6 +170,13 @@ final class TrialContent {
         boolean silenced = affixes.contains(Affix.SILENCED);
         ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
         String spawnerPrefix = runTheme == null ? null : runTheme.meta().spawnerPrefix;
+        // M68: a theme's namespaced normal_spawner / ominous_spawner override
+        // the legacy spawner_prefix composition. A third party theme can now
+        // point at its own namespace's trial spawner configs instead of
+        // secretly requiring pocketdungeons configs the prefix composition
+        // always built.
+        String normalSpawnerId = runTheme == null ? null : runTheme.meta().normalSpawner;
+        String ominousSpawnerId = runTheme == null ? null : runTheme.meta().ominousSpawner;
 
         // Authored trial spawners: reconfigure in place, do not move or replace.
         List<BlockPos> authored = authoredTrialSpawners(level, cellOrigin);
@@ -181,8 +188,15 @@ final class TrialContent {
                 cooldown = (int) Math.round(cooldown * PocketDungeonsConfig.overclockedCooldownFactor());
             }
             for (BlockPos pos : authored) {
-                reconfigureTrialSpawner(level, pos, spawnerPrefix, tier, ominous,
-                        swarming, silenced, overclocked, cooldown);
+                if (normalSpawnerId != null || ominousSpawnerId != null) {
+                    reconfigureTrialSpawnerByIds(level, pos,
+                            normalSpawnerId != null ? normalSpawnerId : configId(spawnerPrefix, tier, false),
+                            ominousSpawnerId != null ? ominousSpawnerId : configId(spawnerPrefix, tier, true),
+                            ominous, swarming, silenced, overclocked, cooldown);
+                } else {
+                    reconfigureTrialSpawner(level, pos, spawnerPrefix, tier, ominous,
+                            swarming, silenced, overclocked, cooldown);
+                }
                 if (anchor == null) {
                     anchor = pos;
                 }
@@ -228,7 +242,19 @@ final class TrialContent {
         // back out with its mob counts scaled, rather than needing a JSON file
         // per affix per tier (M4 5.1/T4.5).
         CompoundTag tag = new CompoundTag();
-        if (swarming) {
+        if (normalSpawnerId != null || ominousSpawnerId != null) {
+            // M68: namespaced overrides. Each side falls back to the legacy
+            // composition when the theme only overrode one of the two.
+            String normalId = normalSpawnerId != null ? normalSpawnerId : configId(spawnerPrefix, tier, false);
+            String ominousId = ominousSpawnerId != null ? ominousSpawnerId : configId(spawnerPrefix, tier, true);
+            if (swarming) {
+                writeInlineConfigById(level, tag, "normal_config", Identifier.parse(normalId));
+                writeInlineConfigById(level, tag, "ominous_config", Identifier.parse(ominousId));
+            } else {
+                tag.putString("normal_config", normalId);
+                tag.putString("ominous_config", ominousId);
+            }
+        } else if (swarming) {
             writeInlineConfig(level, tag, "normal_config", spawnerPrefix, tier, false);
             writeInlineConfig(level, tag, "ominous_config", spawnerPrefix, tier, true);
         } else {
@@ -523,6 +549,22 @@ final class TrialContent {
                                                      String configPrefix, int tier, boolean ominous,
                                                      boolean swarming, boolean silenced,
                                                      boolean overclocked, int cooldown) {
+        String normalId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/normal";
+        String ominousId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/ominous";
+        reconfigureTrialSpawnerByIds(level, pos, normalId, ominousId, ominous,
+                swarming, silenced, overclocked, cooldown);
+    }
+
+    /**
+     * M68: reconfigures an authored trial spawner with explicit normal and
+     * ominous config ids, the path a theme's namespaced
+     * {@code normal_spawner} / {@code ominous_spawner} overrides take. Each id
+     * is a fully qualified {@code namespace:path} string.
+     */
+    private static void reconfigureTrialSpawnerByIds(ServerLevel level, BlockPos pos,
+                                                      String normalId, String ominousId, boolean ominous,
+                                                      boolean swarming, boolean silenced,
+                                                      boolean overclocked, int cooldown) {
         BlockState state = level.getBlockState(pos);
         if (state.is(Blocks.TRIAL_SPAWNER) && state.getValue(TrialSpawnerBlock.OMINOUS) != ominous) {
             level.setBlock(pos, state.setValue(TrialSpawnerBlock.OMINOUS, ominous), FLAGS);
@@ -532,8 +574,6 @@ final class TrialContent {
                     pos.toShortString());
             return;
         }
-        String normalId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/normal";
-        String ominousId = PocketDungeonsMod.MOD_ID + ":" + configPrefix + "/ominous";
         CompoundTag tag = new CompoundTag();
         if (swarming) {
             writeInlineConfigById(level, tag, "normal_config", Identifier.parse(normalId));
@@ -578,6 +618,12 @@ final class TrialContent {
      */
     private static void reconfigureVault(ServerLevel level, BlockPos pos, int tier,
                                          boolean ominous, String lootSuffix) {
+        reconfigureVault(level, pos, tier, ominous, lootSuffix, null);
+    }
+
+    /** M68: reconfigureVault with an optional namespaced loot table override. */
+    private static void reconfigureVault(ServerLevel level, BlockPos pos, int tier,
+                                         boolean ominous, String lootSuffix, String lootTableOverride) {
         BlockState state = level.getBlockState(pos);
         if (state.is(Blocks.VAULT) && state.getValue(VaultBlock.OMINOUS) != ominous) {
             level.setBlock(pos, state.setValue(VaultBlock.OMINOUS, ominous), FLAGS);
@@ -588,7 +634,7 @@ final class TrialContent {
             return;
         }
         ResourceKey<LootTable> table = resolveLootTable(level,
-                LootTables.vaultTable(tier, ominous), lootSuffix);
+                LootTables.vaultTable(tier, ominous), lootSuffix, lootTableOverride);
         vault.setConfig(new VaultConfig(table, ACTIVATION_RANGE, DEACTIVATION_RANGE,
                 keyStack(ominous), Optional.empty()));
         vault.setChanged();
@@ -649,11 +695,22 @@ final class TrialContent {
      */
     static boolean applyLoot(ServerLevel level, BlockPos cellOrigin, int tier, boolean ominous,
                              long seed, String lootSuffix) {
+        return applyLoot(level, cellOrigin, tier, ominous, seed, lootSuffix, null);
+    }
+
+    /**
+     * M68: applyLoot with an optional namespaced loot table override. The
+     * override, when present and resolvable, wins over the legacy
+     * {@code lootSuffix} composition so a third party theme can point at its
+     * own namespace's vault table.
+     */
+    static boolean applyLoot(ServerLevel level, BlockPos cellOrigin, int tier, boolean ominous,
+                             long seed, String lootSuffix, String lootTableOverride) {
         // Authored vaults: reconfigure in place, do not move or replace.
         List<BlockPos> authored = authoredVaults(level, cellOrigin);
         if (!authored.isEmpty()) {
             for (BlockPos pos : authored) {
-                reconfigureVault(level, pos, tier, ominous, lootSuffix);
+                reconfigureVault(level, pos, tier, ominous, lootSuffix, lootTableOverride);
             }
             // Remaining chests (non-vault containers) become supply chests.
             for (BlockPos pos : RoomContent.containers(level, cellOrigin)) {
@@ -681,7 +738,7 @@ final class TrialContent {
         // of holding it in 27 slots, so it wants a short table. See
         // LootTables.vaultTable.
         placeVault(level, vaultPos, facing, ominous,
-                resolveLootTable(level, LootTables.vaultTable(tier, ominous), lootSuffix),
+                resolveLootTable(level, LootTables.vaultTable(tier, ominous), lootSuffix, lootTableOverride),
                 keyStack(ominous), ItemStack.EMPTY);
 
         // Everything else in the cell stays a chest, retargeted to the supply
@@ -720,8 +777,16 @@ final class TrialContent {
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix) {
+        placeCompletionChests(level, origin, entranceDir, chests, tier, ominous, seed, lootSuffix, null);
+    }
+
+    /** M68: placeCompletionChests with an optional namespaced loot table override. */
+    static void placeCompletionChests(ServerLevel level, BlockPos origin,
+                                        DoorMask.Direction entranceDir, int chests,
+                                        int tier, boolean ominous, long seed, String lootSuffix,
+                                        String lootTableOverride) {
         ResourceKey<LootTable> table = resolveLootTable(level,
-                LootTables.tierTable(tier, ominous), lootSuffix);
+                LootTables.tierTable(tier, ominous), lootSuffix, lootTableOverride);
 
         // Three chests on the far side of the terminal cell, beyond the 2x2
         // lodestone pad and in front of the sealed door. Spots are mirrored by
@@ -815,6 +880,27 @@ final class TrialContent {
 
     private static ResourceKey<LootTable> resolveLootTable(ServerLevel level, String basePath,
                                                             String suffix) {
+        return resolveLootTable(level, basePath, suffix, null);
+    }
+
+    /**
+     * M68: resolves a loot table, honouring a theme's namespaced
+     * {@code loot_table} override ahead of the legacy {@code loot_suffix}
+     * composition. The override is a fully qualified id
+     * ({@code mypack:vaults/my_vault}); when present and the table exists, it
+     * wins, so a third party theme can point at its own namespace's loot table
+     * instead of secretly requiring a {@code pocketdungeons} table the suffix
+     * composition always built. The legacy suffix path is the fallback.
+     */
+    private static ResourceKey<LootTable> resolveLootTable(ServerLevel level, String basePath,
+                                                            String suffix, String overrideId) {
+        if (overrideId != null && !overrideId.isBlank()) {
+            ResourceKey<LootTable> candidate = ResourceKey.create(Registries.LOOT_TABLE,
+                    Identifier.parse(overrideId));
+            if (LootTables.exists(level.getServer(), candidate)) {
+                return candidate;
+            }
+        }
         if (suffix != null && !suffix.isBlank()) {
             ResourceKey<LootTable> candidate = ResourceKey.create(Registries.LOOT_TABLE,
                     Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, basePath + suffix));

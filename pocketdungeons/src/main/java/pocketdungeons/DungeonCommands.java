@@ -1345,11 +1345,15 @@ final class DungeonCommands {
      */
     private static int manifestReload(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
-        ThemeManifest themes = ThemeManifest.load(server);
-        AdventureGraphs adventure = AdventureGraphs.load(server);
-        Diaries diaries = Diaries.load(server);
-        RoomManifest manifest = RoomManifest.load(server);
-        RoomManifest anomaly = RoomManifest.loadAnomaly(server);
+        // M68: a single ContentReload.reload builds all five surfaces into one
+        // snapshot and publishes them atomically, or keeps the last valid
+        // snapshot if the candidate fails required coverage.
+        ContentSnapshot snapshot = ContentReload.reload(server);
+        ThemeManifest themes = snapshot.themes();
+        AdventureGraphs adventure = snapshot.adventure();
+        Diaries diaries = snapshot.diaries();
+        RoomManifest manifest = snapshot.rooms();
+        RoomManifest anomaly = snapshot.anomalyRooms();
 
         int loaded = manifest.rooms().size();
         List<String> rejections = new ArrayList<>();
@@ -1358,12 +1362,17 @@ final class DungeonCommands {
         rejections.addAll(diaries.rejections());
         rejections.addAll(manifest.rejections());
         rejections.addAll(anomaly.rejections());
+        rejections.addAll(snapshot.errors());
 
         source.sendSuccess(() -> Component.literal(
                 "Loaded " + loaded + " room(s), " + anomaly.rooms().size() + " anomaly room(s), "
                         + themes.themes().size() + " theme(s), " + adventure.graph().size()
                         + " adventure node(s), " + diaries.entries().size() + " diar"
                         + (diaries.entries().size() == 1 ? "y" : "ies") + "."), false);
+        if (!snapshot.valid()) {
+            source.sendFailure(Component.literal(
+                    "Reload rejected: required coverage failed. Last valid content kept."));
+        }
         if (!rejections.isEmpty()) {
             source.sendFailure(Component.literal(rejections.size() + " rejected:"));
             for (String reason : rejections) {

@@ -271,26 +271,27 @@ final class Instances {
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
         // freshly started server silently gets the static fallback. This is the
-        // one load that RoomManifest.register()'s own /reload listener cannot
+        // one load that ContentReload.register()'s own /reload listener cannot
         // cover -- startup reloads resources before SERVER_STARTED fires, so
         // that listener sees a null server and defers to this call instead.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            ThemeManifest.load(server);
-            AdventureGraphs.load(server);
-            Diaries.load(server);
-            RoomManifest manifest = RoomManifest.load(server);
+            ContentSnapshot snapshot = ContentReload.reload(server);
+            RoomManifest manifest = snapshot.rooms();
             if (!manifest.rejections().isEmpty()) {
                 PocketDungeonsMod.LOG.error("{} dungeon room(s) were rejected at startup; "
                         + "run /dungeon admin manifest reload for the reasons",
                         manifest.rejections().size());
             }
-            RoomManifest anomalyManifest = RoomManifest.loadAnomaly(server);
+            RoomManifest anomalyManifest = snapshot.anomalyRooms();
             if (!anomalyManifest.rejections().isEmpty()) {
                 PocketDungeonsMod.LOG.error("{} anomaly room(s) were rejected at startup; "
                         + "run /dungeon admin manifest reload for the reasons",
                         anomalyManifest.rejections().size());
             }
-            LootTables.validateAtStartup(server);
+            if (!snapshot.valid()) {
+                PocketDungeonsMod.LOG.error("Startup content snapshot failed required coverage; "
+                        + "dungeon generation will use whatever loaded. Errors: {}", snapshot.errors());
+            }
             reconcileAfterUncleanShutdown(server);
         });
 
@@ -937,6 +938,12 @@ final class Instances {
      */
     static boolean previewDoor(MinecraftServer server, ServerLevel level,
                                InstanceRecord record, Keystone.Offer offer, int step) {
+        // M68: refuse to plan a new floor while a content reload is in flight,
+        // so a preview is never built against a half published manifest.
+        if (!ContentReload.generationAllowed()) {
+            PocketDungeonsMod.LOG.warn("Refusing door preview: content reload in progress");
+            return false;
+        }
         // M65: the phase must be HOME, FLOOR_CLEARED, or PREVIEW (switching
         // doors during an active preview). Any other phase is a programming
         // error, not a player error. In PREVIEW, clearPreview below purges
@@ -1172,6 +1179,14 @@ final class Instances {
      */
     static boolean commitDoor(MinecraftServer server, ServerLevel level,
                               InstanceRecord record, Keystone.Offer offer, int step) {
+        // M68: refuse to stamp a new floor while a content reload is in flight.
+        // The preview this commit consumes was reconciled away if its
+        // references went stale, so a reload that removed a referenced room
+        // leaves nothing to commit.
+        if (!ContentReload.generationAllowed()) {
+            PocketDungeonsMod.LOG.warn("Refusing door commit: content reload in progress");
+            return false;
+        }
         // M65: the phase must be PREVIEW. commitDoor consumes the preview
         // and starts the floor; calling it from any other phase is a
         // programming error.

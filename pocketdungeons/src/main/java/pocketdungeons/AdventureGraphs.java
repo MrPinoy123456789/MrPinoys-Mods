@@ -36,6 +36,27 @@ final class AdventureGraphs {
     }
 
     static AdventureGraphs load(MinecraftServer server) {
+        AdventureGraphs loaded = parse(server, themeId -> ThemeManifest.current().byId(themeId) != null);
+        current = loaded;
+        PocketDungeonsMod.LOG.info("Loaded {} dungeon adventure node(s) ({} rejected)",
+                loaded.graph.size(), loaded.rejections.size());
+        return loaded;
+    }
+
+    /**
+     * M68: parses every {@code dungeon_adventure} resource into a graph
+     * without publishing it, the build half of {@link ContentReload}'s atomic
+     * reload. Keys nodes by namespaced id ({@code namespace:path}) and
+     * qualifies each transition's theme reference the same way a room theme
+     * list is qualified, so a legacy bare transition ({@code "deepslate"})
+     * resolves to {@code pocketdungeons:deepslate} and a third party qualified
+     * transition ({@code "mypack:deepslate"}) is used as is. The fixpoint
+     * unresolved transition removal takes a {@code themeExists} predicate the
+     * caller owns, so {@link ContentSnapshot} can validate transitions against
+     * the snapshot's own theme set before either the themes or the graph is
+     * published.
+     */
+    static AdventureGraphs parse(MinecraftServer server, java.util.function.Predicate<String> themeExists) {
         Map<String, AdventureGraph.Node> nodes = new HashMap<>();
         List<String> rejections = new ArrayList<>();
         Map<Identifier, Resource> resources = server.getResourceManager().listResources(
@@ -43,7 +64,7 @@ final class AdventureGraphs {
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
-            String id = JsonPackSupport.baseName(resource.getKey());
+            String id = JsonPackSupport.resourceId(resource.getKey(), "dungeon_adventure");
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 AdventureGraph.Node node = parseNode(id,
                         JsonParser.parseReader(reader).getAsJsonObject());
@@ -58,16 +79,22 @@ final class AdventureGraphs {
         // ThemeManifest never loaded (typo, unloaded datapack) and a theme this
         // graph itself never declared a node for are both dead ends a door could
         // still be offered into.
-        removeUnresolvedTransitions(nodes, rejections, themeId -> ThemeManifest.current().byId(themeId) != null);
+        removeUnresolvedTransitions(nodes, rejections, themeExists);
         AdventureGraph graph = AdventureGraph.of(nodes);
         if (graph.entryThemes().isEmpty() && !nodes.isEmpty()) {
             rejections.add("no ENTRY-kind theme in the graph; a boss run would have nowhere to reset to");
         }
-        AdventureGraphs loaded = new AdventureGraphs(graph, rejections);
-        current = loaded;
+        return new AdventureGraphs(graph, rejections);
+    }
+
+    /**
+     * M68: commits a resolved adventure graph as the live {@link #current},
+     * the publish half of {@link ContentReload}'s atomic build then commit.
+     */
+    static void publish(AdventureGraphs adventure) {
+        current = adventure;
         PocketDungeonsMod.LOG.info("Loaded {} dungeon adventure node(s) ({} rejected)",
-                nodes.size(), rejections.size());
-        return loaded;
+                adventure.graph.size(), adventure.rejections.size());
     }
 
     /**
@@ -114,6 +141,7 @@ final class AdventureGraphs {
     }
 
     private static AdventureGraph.Node parseNode(String theme, JsonObject obj) {
+        JsonPackSupport.parseVersion(obj, theme);
         String kindWord = JsonPackSupport.requiredString(obj, "kind");
         AdventureGraph.Kind kind = switch (kindWord) {
             case "entry" -> AdventureGraph.Kind.ENTRY;
@@ -127,7 +155,7 @@ final class AdventureGraphs {
             JsonArray array = nextElement.getAsJsonArray();
             for (JsonElement element : array) {
                 JsonObject edge = element.getAsJsonObject();
-                String edgeTheme = JsonPackSupport.requiredString(edge, "theme");
+                String edgeTheme = JsonPackSupport.qualify(JsonPackSupport.requiredString(edge, "theme"));
                 int weight = edge.has("weight") ? edge.get("weight").getAsInt() : 1;
                 next.add(new AdventureGraph.Transition(edgeTheme, weight));
             }

@@ -125,6 +125,17 @@ final class DungeonRoomMeta {
     }
 
     static DungeonRoomMeta fromJson(JsonObject obj) {
+        return fromJson(obj, "<unknown room>");
+    }
+
+    /**
+     * M68: parses a room file, validating its declared {@code version} first
+     * (defaulting to 1 when absent, the pre M68 generation) so an incompatible
+     * generation is rejected up front with the file named rather than parsed
+     * into an in memory shape this build cannot honour.
+     */
+    static DungeonRoomMeta fromJson(JsonObject obj, String fileIdentity) {
+        JsonPackSupport.parseVersion(obj, fileIdentity);
         String template = requiredString(obj, "template");
         int[] footprint = parseFootprint(obj.get("footprint"));
         List<String> roles = parseRoles(obj.get("roles"));
