@@ -6,7 +6,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -43,7 +42,7 @@ final class StaticLayout {
      * firing at all means the planner or the room library needs looking at.
      */
     static InstanceLayout layout(BlockPos origin) {
-        return layout(origin, 0, EnumSet.noneOf(Affix.class));
+        return layout(origin, 0, Set.of());
     }
 
     /**
@@ -51,7 +50,7 @@ final class StaticLayout {
      * whose dungeon collapsed into the M0 four-room line is still paid and still
      * handed their keystone back on the terms they paid for.
      */
-    static InstanceLayout layout(BlockPos origin, int keystoneLevel, Set<Affix> affixes) {
+    static InstanceLayout layout(BlockPos origin, int keystoneLevel, Set<String> affixes) {
         List<PlanCell> cells = new ArrayList<>(CELL_COUNT);
         for (int i = 0; i < CELL_COUNT; i++) {
             cells.add(new PlanCell(i, 0));

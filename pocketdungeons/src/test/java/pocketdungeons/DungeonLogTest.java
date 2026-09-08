@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,7 +35,7 @@ public class DungeonLogTest {
         check(log.recordTheme(player, null).depth(), 2, "null theme ignored");
 
         // currentTheme/depth survive every other mutation untouched.
-        log.setKeystone(player, 5, java.util.EnumSet.noneOf(Affix.class));
+        log.setKeystone(player, 5, Set.of());
         check(log.get(player).currentTheme(), "prismarine", "setKeystone preserves currentTheme");
         log.recordCompletion(player, 7, 5);
         check(log.get(player).depth(), 2, "recordCompletion preserves depth");

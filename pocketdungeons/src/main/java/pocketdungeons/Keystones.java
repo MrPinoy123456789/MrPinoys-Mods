@@ -5,7 +5,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,23 +54,24 @@ final class Keystones {
      *               happens, only the chat line is skipped
      */
     static void returnTo(MinecraftServer server, UUID member, ServerPlayer player,
-                         int level, Set<Affix> affixes, Outcome outcome) {
+                         int level, Set<String> affixes, Outcome outcome) {
         if (level <= 0) {
             return;
         }
-        // M4 T4.3: the max across the set, capped at 2x -- never the sum and never
+        // M4 T4.3: the max across the set, capped at 2x, never the sum and never
         // the product. Two doubling affixes on one key still cost a double, or a
         // level-20 key would shed most of a ladder on one bad night.
         int returned = KeystoneMath.deplete(level, outcome.depletion(),
-                AffixMath.depletionMultiplier(affixes), PocketDungeonsConfig.keystoneMaxLevel());
+                AffixMath.depletionMultiplier(affixes, AffixManifest.current().definitions()),
+                PocketDungeonsConfig.keystoneMaxLevel());
 
         // The elective affixes do not survive: they were the price of the extra
         // levels the player already banked when they took the offer, and carrying
         // Big L forward forever would compound one bad night into every night
-        // after it. The seeded ones are not stored at all -- they follow from the
+        // after it. The seeded ones are not stored at all: they follow from the
         // level, so the returned key simply re-derives whatever its new level
         // earns.
-        EnumSet<Affix> none = EnumSet.noneOf(Affix.class);
+        Set<String> none = Set.of();
         DungeonLog.forServer(server).setKeystone(member, returned, none);
 
         if (player == null) {
@@ -80,7 +80,8 @@ final class Keystones {
             return;
         }
 
-        Keystone.reconcile(player, returned, AffixMath.effective(member, returned, none));
+        Keystone.reconcile(player, returned,
+                AffixMath.effective(member, returned, none, AffixManifest.current().definitions()));
         if (returned < level) {
             if (outcome == Outcome.TIMED_OUT || outcome == Outcome.LATE) {
                 Chime.keystoneDepleted(player);
@@ -122,7 +123,8 @@ final class Keystones {
             return;
         }
         Keystone.reconcile(player, offer.level(),
-                AffixMath.effective(member, offer.level(), offer.affixes()));
+                AffixMath.effective(member, offer.level(), offer.affixes(),
+                        AffixManifest.current().definitions()));
         Chime.keystoneLevelUp(player);
     }
 }

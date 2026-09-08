@@ -1,0 +1,23 @@
+{
+    "type": "minecraft:chest",
+    "pools": [
+        {
+            "entries": [
+                { "type": "minecraft:item", "name": "minecraft:iron_pickaxe", "weight": 4 },
+                { "type": "minecraft:item", "name": "minecraft:iron_axe", "weight": 3 },
+                { "type": "minecraft:item", "name": "minecraft:iron_shovel", "weight": 2 },
+                { "type": "minecraft:item", "name": "minecraft:shield", "weight": 2 },
+                { "type": "minecraft:item", "name": "minecraft:bow", "weight": 2 },
+                { "type": "minecraft:item", "name": "minecraft:stone_pickaxe", "weight": 1 }
+            ],
+            "rolls": 1
+        },
+        {
+            "entries": [
+                { "type": "minecraft:item", "name": "minecraft:bread", "functions": [ { "function": "minecraft:set_count", "count": { "min": 2, "max": 4 } } ] },
+                { "type": "minecraft:item", "name": "minecraft:torch", "functions": [ { "function": "minecraft:set_count", "count": { "min": 4, "max": 8 } } ] }
+            ],
+            "rolls": 1
+        }
+    ]
+}

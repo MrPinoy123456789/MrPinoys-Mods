@@ -16,7 +16,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -198,8 +197,9 @@ final class RunLifecycle {
         // The elective half comes off the stack; the seeded half is re-derived
         // from the level rather than trusted, so a remote the watcher has not
         // caught up with yet still opens the run its level actually earns.
-        EnumSet<Affix> affixes = AffixMath.effective(player.getUUID(), level,
-                AffixMath.elective(Keystone.affixOf(keystone)));
+        Set<String> affixes = AffixMath.effective(player.getUUID(), level,
+                AffixMath.elective(Keystone.affixOf(keystone)),
+                AffixManifest.current().definitions());
 
         if (!enter(player, level, affixes)) {
             return false;
@@ -296,7 +296,7 @@ final class RunLifecycle {
         return !InstanceRegistry.hasInstance(player) && reenterableInstance(player.getUUID()) != null;
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes) {
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<String> affixes) {
         return enter(player, keystoneLevel, affixes, false);
     }
 
@@ -314,15 +314,16 @@ final class RunLifecycle {
         // walk a level 16 run without owning a level 16 key, and a level 16 run
         // is two seeded affixes whether or not a keystone paid for it.
         return enter(player, level, AffixMath.effective(player.getUUID(), level,
-                ominous ? EnumSet.of(Affix.OMINOUS) : EnumSet.noneOf(Affix.class)), true, theme);
+                ominous ? Set.of(AffixIds.OMINOUS) : Set.of(),
+                AffixManifest.current().definitions()), true, theme);
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes,
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<String> affixes,
                          boolean untimed) {
         return enter(player, keystoneLevel, affixes, untimed, null);
     }
 
-    static boolean enter(ServerPlayer player, int keystoneLevel, Set<Affix> affixes,
+    static boolean enter(ServerPlayer player, int keystoneLevel, Set<String> affixes,
                          boolean untimed, String theme) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
@@ -701,12 +702,14 @@ final class RunLifecycle {
             Fuel.spendBanked(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }
 
-        EnumSet<Affix> granted = AffixMath.effective(player.getUUID(), offer.level(),
-                offer.affixes());
+        Set<String> granted = AffixMath.effective(player.getUUID(), offer.level(),
+                offer.affixes(), AffixManifest.current().definitions());
         player.sendSystemMessage(Component.literal(
-                AffixMath.name(offer.level(), granted) + ". The door opens.")
+                AffixMath.name(offer.level(), granted, AffixManifest.current().definitions())
+                        + ". The door opens.")
                 .withStyle(Keystone.colourOf(
-                        AffixMath.ordered(granted).stream().findFirst().orElse(null))));
+                        AffixMath.ordered(granted, AffixManifest.current().definitions())
+                                .stream().map(d -> d.id).findFirst().orElse(null))));
         TaskTracker.progress(player, TaskTracker.Task.DESCEND, 1);
         if (step >= 2) {
             TaskTracker.progress(player, TaskTracker.Task.GREATER_DOOR, 1);
@@ -1155,7 +1158,7 @@ final class RunLifecycle {
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                         .lootTier(),
-                record.affixes.contains(Affix.OMINOUS), record.layout.seed(),
+                record.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable);
 
@@ -1435,7 +1438,7 @@ final class RunLifecycle {
 
         // Reset the record for the next visit, but keep the staging
         // room and room origins (they are at new locations now).
-        record.affixes = EnumSet.noneOf(Affix.class);
+        record.affixes = Set.of();
         record.theme = null;
         record.chosenStep = 0;
         record.freeDoor = false;
@@ -1549,7 +1552,7 @@ final class RunLifecycle {
 
         // Reset the record for the next visit.
         record.layout = Instances.lobbyLayout(safeOrigin);
-        record.affixes = EnumSet.noneOf(Affix.class);
+        record.affixes = Set.of();
         record.theme = null;
         record.awaitingDoorChoice = true;
         record.chosenStep = 0;

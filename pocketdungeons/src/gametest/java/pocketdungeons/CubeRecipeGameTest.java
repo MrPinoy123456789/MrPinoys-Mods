@@ -5,7 +5,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.Set;
 
 /**
@@ -32,7 +32,7 @@ public final class CubeRecipeGameTest {
     public void previewFreezesRecipeMembership(GameTestHelper helper) {
         long seed = 12345L;
         int offerLevel = 5;
-        Set<Affix> affixes = EnumSet.noneOf(Affix.class);
+        Set<String> affixes = Set.of();
         Set<String> capabilities = Set.of("blocks", "torch");
 
         // Build recipe tags for a store + compass run.
@@ -186,7 +186,7 @@ public final class CubeRecipeGameTest {
 
         // Tier 1 (level 1-4): should refuse.
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan tier1 = RunRecipePlan.resolve(42L, 3, EnumSet.noneOf(Affix.class),
+        RunRecipePlan tier1 = RunRecipePlan.resolve(42L, 3, Set.of(),
                 Set.of(), deepDarkTags, refusal);
         if (tier1 != null) {
             helper.fail("Deep Dark at tier 1 should refuse, not resolve");
@@ -199,7 +199,7 @@ public final class CubeRecipeGameTest {
 
         // Tier 2 (level 5-9): should also refuse.
         refusal[0] = null;
-        RunRecipePlan tier2 = RunRecipePlan.resolve(42L, 7, EnumSet.noneOf(Affix.class),
+        RunRecipePlan tier2 = RunRecipePlan.resolve(42L, 7, Set.of(),
                 Set.of(), deepDarkTags, refusal);
         if (tier2 != null) {
             helper.fail("Deep Dark at tier 2 should refuse, not resolve");
@@ -208,7 +208,7 @@ public final class CubeRecipeGameTest {
 
         // Tier 3 (level 10+): should resolve.
         refusal[0] = null;
-        RunRecipePlan tier3 = RunRecipePlan.resolve(42L, 10, EnumSet.noneOf(Affix.class),
+        RunRecipePlan tier3 = RunRecipePlan.resolve(42L, 10, Set.of(),
                 Set.of(), deepDarkTags, refusal);
         if (tier3 == null) {
             helper.fail("Deep Dark at tier 3 should resolve: "
@@ -234,7 +234,7 @@ public final class CubeRecipeGameTest {
         legacyTags.putString("bag_override_id", "mason");
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(99L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(99L, 5, Set.of(),
                 Set.of("blocks"), legacyTags, refusal);
         if (plan == null) {
             helper.fail("Legacy bag_override should resolve as bounded supply: "
@@ -254,7 +254,7 @@ public final class CubeRecipeGameTest {
         // The new bounded_supply tag also works.
         CompoundTag newTags = new CompoundTag();
         newTags.putBoolean("bounded_supply", true);
-        RunRecipePlan newPlan = RunRecipePlan.resolve(99L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan newPlan = RunRecipePlan.resolve(99L, 5, Set.of(),
                 Set.of("blocks"), newTags, refusal);
         if (newPlan == null) {
             helper.fail("bounded_supply should resolve");
@@ -283,7 +283,7 @@ public final class CubeRecipeGameTest {
         legacyTags.putBoolean("double_key", true);
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(77L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(77L, 5, Set.of(),
                 Set.of(), legacyTags, refusal);
         if (plan == null) {
             helper.fail("Legacy double_key should resolve as path extension");
@@ -301,7 +301,7 @@ public final class CubeRecipeGameTest {
         // The new path_extension tag also works.
         CompoundTag newTags = new CompoundTag();
         newTags.putBoolean("path_extension", true);
-        RunRecipePlan newPlan = RunRecipePlan.resolve(77L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan newPlan = RunRecipePlan.resolve(77L, 5, Set.of(),
                 Set.of(), newTags, refusal);
         if (newPlan == null) {
             helper.fail("path_extension should resolve");
@@ -330,7 +330,7 @@ public final class CubeRecipeGameTest {
         tags.putBoolean("feral", true);
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        Set<Affix> base = EnumSet.noneOf(Affix.class);
+        Set<String> base = Set.of();
         RunRecipePlan plan = RunRecipePlan.resolve(55L, 5, base, Set.of(), tags, refusal);
         if (plan == null) {
             helper.fail("Ominous + feral should resolve");
@@ -341,12 +341,12 @@ public final class CubeRecipeGameTest {
             return;
         }
 
-        Set<Affix> effective = plan.effectiveAffixes(base);
-        if (!effective.contains(Affix.OMINOUS)) {
+        Set<String> effective = plan.effectiveAffixes(base);
+        if (!effective.contains(AffixIds.OMINOUS)) {
             helper.fail("Effective affixes should contain OMINOUS");
             return;
         }
-        if (!effective.contains(Affix.FERAL)) {
+        if (!effective.contains(AffixIds.FERAL)) {
             helper.fail("Effective affixes should contain FERAL");
             return;
         }
@@ -365,7 +365,7 @@ public final class CubeRecipeGameTest {
     @GameTest(maxTicks = 20)
     public void emptyRecipesResolveToNoEffects(GameTestHelper helper) {
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(33L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(33L, 5, Set.of(),
                 Set.of(), new CompoundTag(), refusal);
         if (plan == null) {
             helper.fail("Empty recipes should resolve");
@@ -381,7 +381,7 @@ public final class CubeRecipeGameTest {
         }
 
         // Null recipe tags also resolve to no effects.
-        RunRecipePlan nullPlan = RunRecipePlan.resolve(33L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan nullPlan = RunRecipePlan.resolve(33L, 5, Set.of(),
                 Set.of(), null, refusal);
         if (nullPlan == null) {
             helper.fail("Null recipe tags should resolve");
@@ -406,7 +406,7 @@ public final class CubeRecipeGameTest {
         tags.putBoolean("flooded", true);
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(88L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(88L, 5, Set.of(),
                 Set.of(), tags, refusal);
         if (plan == null) {
             helper.fail("Infested + flooded should coexist without refusal: "
@@ -447,7 +447,7 @@ public final class CubeRecipeGameTest {
         tags.putBoolean("path_extension", true);
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(111L, 10, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(111L, 10, Set.of(),
                 Set.of("blocks"), tags, refusal);
         if (plan == null) {
             helper.fail("All effects at tier 3 should resolve: "
@@ -475,7 +475,7 @@ public final class CubeRecipeGameTest {
     @GameTest(maxTicks = 20)
     public void effectSummaryIsLegible(GameTestHelper helper) {
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan empty = RunRecipePlan.resolve(1L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan empty = RunRecipePlan.resolve(1L, 5, Set.of(),
                 Set.of(), new CompoundTag(), refusal);
         if (empty == null || !"none".equals(empty.effectSummary())) {
             helper.fail("Empty plan summary should be 'none'");
@@ -485,7 +485,7 @@ public final class CubeRecipeGameTest {
         CompoundTag tags = new CompoundTag();
         tags.putBoolean("store", true);
         tags.putBoolean("compass", true);
-        RunRecipePlan plan = RunRecipePlan.resolve(1L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(1L, 5, Set.of(),
                 Set.of(), tags, refusal);
         if (plan == null) {
             helper.fail("Store+compass should resolve");
@@ -515,7 +515,7 @@ public final class CubeRecipeGameTest {
         tags.putBoolean("store", true);
 
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(1L, 5, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(1L, 5, Set.of(),
                 Set.of(), tags, refusal);
         if (plan == null) {
             helper.fail("Store should resolve");
@@ -713,7 +713,7 @@ public final class CubeRecipeGameTest {
         // The old DOUBLE_KEY did not store the lower-key level. The migration
         // uses the committed offer's level, which is the current level.
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan plan = RunRecipePlan.resolve(42L, 7, EnumSet.noneOf(Affix.class),
+        RunRecipePlan plan = RunRecipePlan.resolve(42L, 7, Set.of(),
                 Set.of(), legacyTags, refusal);
         if (plan == null) {
             helper.fail("Legacy double_key should resolve as path extension");
@@ -731,7 +731,7 @@ public final class CubeRecipeGameTest {
         // The new path_extension tag also works and uses the new name.
         CompoundTag newTags = new CompoundTag();
         newTags.putBoolean("path_extension", true);
-        RunRecipePlan newPlan = RunRecipePlan.resolve(42L, 7, EnumSet.noneOf(Affix.class),
+        RunRecipePlan newPlan = RunRecipePlan.resolve(42L, 7, Set.of(),
                 Set.of(), newTags, refusal);
         if (newPlan == null) {
             helper.fail("path_extension should resolve");

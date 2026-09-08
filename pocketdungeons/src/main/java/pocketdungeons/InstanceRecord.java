@@ -3,7 +3,6 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -112,7 +111,7 @@ final class InstanceRecord {
      * Not {@code final} for the same reason {@link #layout} is not:
      * unknown until a door is chosen out of the lobby.
      */
-    Set<Affix> affixes;
+    Set<String> affixes;
 
     /** The dungeon theme id selected for this run, or null for an unthemed run. */
     String theme;
@@ -433,23 +432,23 @@ final class InstanceRecord {
     net.minecraft.nbt.CompoundTag recipeTags;
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner, boolean untimed) {
+                   Set<String> affixes, UUID owner, boolean untimed) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, false);
     }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner, boolean untimed, boolean adminBuild) {
+                   Set<String> affixes, UUID owner, boolean untimed, boolean adminBuild) {
         this(slot, origin, createdAtTick, layout, affixes, owner, untimed, adminBuild, -1, null);
     }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
-                   Set<Affix> affixes, UUID owner, boolean untimed, boolean adminBuild,
+                   Set<String> affixes, UUID owner, boolean untimed, boolean adminBuild,
                    int parentSlot, BlockPos returnPos) {
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
         this.layout = layout;
-        this.affixes = affixes == null ? EnumSet.noneOf(Affix.class) : affixes;
+        this.affixes = affixes == null ? Set.of() : affixes;
         this.owner = owner;
         this.untimed = untimed;
         this.adminBuild = adminBuild;

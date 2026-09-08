@@ -1,0 +1,1 @@
+{"version": 1, "label": "Overclocked", "blurb": "Overclocked: the waves come back fast, so a fast clear is faster.", "order": 3, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"cooldown_factor": 0.4}}

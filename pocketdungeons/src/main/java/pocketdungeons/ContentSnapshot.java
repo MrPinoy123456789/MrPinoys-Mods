@@ -49,17 +49,19 @@ final class ContentSnapshot {
     private final ThemeManifest themes;
     private final AdventureGraphs adventure;
     private final Diaries diaries;
+    private final AffixManifest affixes;
     private final List<String> errors;
     private final boolean valid;
 
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
                             ThemeManifest themes, AdventureGraphs adventure, Diaries diaries,
-                            List<String> errors, boolean valid) {
+                            AffixManifest affixes, List<String> errors, boolean valid) {
         this.rooms = rooms;
         this.anomalyRooms = anomalyRooms;
         this.themes = themes;
         this.adventure = adventure;
         this.diaries = diaries;
+        this.affixes = affixes;
         this.errors = List.copyOf(errors);
         this.valid = valid;
     }
@@ -83,6 +85,7 @@ final class ContentSnapshot {
         AdventureGraphs adventure = AdventureGraphs.parse(server,
                 themeId -> themes.byId(themeId) != null);
         Diaries diaries = Diaries.parse(server);
+        AffixManifest affixes = AffixManifest.parse(server);
 
         List<String> errors = new ArrayList<>();
         boolean hasEntrance = false;
@@ -110,8 +113,18 @@ final class ContentSnapshot {
             }
             errors.add(reason.toString().trim());
         }
+        // M69: the affix manifest must cover every built-in affix id. A pack
+        // that drops the pocketdungeons pack cannot silently remove Ominous,
+        // the way the room manifest cannot drop entrance and exit. A candidate
+        // that fails this gate is not published.
+        if (!affixes.hasBuiltInCoverage()) {
+            valid = false;
+            errors.add("required coverage failed: missing built-in affix definitions "
+                    + "(expected " + AffixIds.BUILT_IN_ORDER + ", have " + affixes.ids() + ")");
+        }
 
-        return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, diaries, errors, valid);
+        return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, diaries, affixes,
+                errors, valid);
     }
 
     RoomManifest rooms() {
@@ -132,6 +145,11 @@ final class ContentSnapshot {
 
     Diaries diaries() {
         return diaries;
+    }
+
+    /** M69: the affix definition manifest this snapshot parsed. */
+    AffixManifest affixes() {
+        return affixes;
     }
 
     /** Cross resource and coverage errors that made this candidate invalid. */
@@ -156,6 +174,7 @@ final class ContentSnapshot {
         all.addAll(themes.rejections());
         all.addAll(adventure.rejections());
         all.addAll(diaries.rejections());
+        all.addAll(affixes.rejections());
         all.addAll(errors);
         return all;
     }

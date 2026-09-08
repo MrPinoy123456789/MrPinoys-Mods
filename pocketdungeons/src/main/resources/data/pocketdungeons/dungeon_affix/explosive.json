@@ -1,0 +1,1 @@
+{"version": 1, "label": "Explosive", "blurb": "Explosive: TNT underfoot, and the only TNT you will ever find.", "order": 6, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"hazard_kind": "TNT", "hazards_per_cell": 4}}

@@ -219,19 +219,21 @@ final class DialogScreens {
     static Dialog keystoneInfo(ItemStack held, DungeonLog.Entry entry, ActionButton exit) {
         List<DialogBody> body = new ArrayList<>();
         int level = Keystone.levelOf(held).orElse(0);
-        java.util.EnumSet<Affix> affixes = Keystone.affixOf(held);
-        java.util.List<Affix> ordered = AffixMath.ordered(affixes);
-        Affix title = ordered.isEmpty() ? null : ordered.get(0);
-        body.add(DialogKit.text(Component.literal(AffixMath.name(level, affixes))
-                .withStyle(Keystone.colourOf(title))));
+        Set<String> affixes = Keystone.affixOf(held);
+        List<AffixDefinition> ordered = AffixMath.ordered(affixes,
+                AffixManifest.current().definitions());
+        String titleId = ordered.isEmpty() ? null : ordered.get(0).id;
+        body.add(DialogKit.text(Component.literal(AffixMath.name(level, affixes,
+                AffixManifest.current().definitions()))
+                .withStyle(Keystone.colourOf(titleId))));
         // One blurb per affix, the same "curse and kiss" sentence the item's lore
-        // carries -- see the design rule at Affix's class note.
+        // carries, see the design rule at the AffixEffects class note.
         if (ordered.isEmpty()) {
             body.add(DialogKit.text(Component.literal("Beat the clock to trade up.")
                     .withStyle(ChatFormatting.GRAY)));
         } else {
-            for (Affix affix : ordered) {
-                body.add(DialogKit.text(Component.literal(affix.blurb).withStyle(ChatFormatting.GRAY)));
+            for (AffixDefinition def : ordered) {
+                body.add(DialogKit.text(Component.literal(def.blurb).withStyle(ChatFormatting.GRAY)));
             }
         }
         body.add(DialogKit.text(""));

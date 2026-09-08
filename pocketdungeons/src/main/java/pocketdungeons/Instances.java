@@ -45,7 +45,6 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -387,9 +386,9 @@ final class Instances {
      * than reading a keystone -- the item may be sitting in a chest, and the
      * question is what the run itself is doing right now.
      */
-    static Set<Affix> affixesFor(UUID member) {
+    static Set<String> affixesFor(UUID member) {
         InstanceRecord record = InstanceRegistry.byMember.get(member);
-        return record == null ? EnumSet.noneOf(Affix.class) : record.affixes;
+        return record == null ? Set.of() : record.affixes;
     }
 
 
@@ -423,7 +422,7 @@ final class Instances {
      */
     static InstanceLayout buildLayout(MinecraftServer server, ServerLevel level,
                                               int slot, BlockPos origin, long seed,
-                                              int keystoneLevel, Set<Affix> affixes,
+                                              int keystoneLevel, Set<String> affixes,
                                               String theme, UUID owner) {
         // M48: seed the solvability pass from the owner's bag. buildLayout is
         // the untimed/admin path with no party, so the party size is one.
@@ -577,7 +576,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), player.getUUID(), false);
+                Set.of(), player.getUUID(), false);
         record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
         record.stagingCellOrigin = CellGeometry.offsetInDirection(
@@ -838,7 +837,7 @@ final class Instances {
         // is for admin output only.
         BlockPos exitPad = origin.offset(1, 1, 1);
         return new InstanceLayout(origin, geometry, entrance, 0.0f, exitPad, geometry.bounds(),
-                0L, 1, 1, 1, false, EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null, Set.of());
+                0L, 1, 1, 1, false, Set.of(), 0, origin, 0, 0, Set.of(), null, Set.of());
     }
 
     /**
@@ -984,7 +983,8 @@ final class Instances {
                 recipeTags = CubeRecipe.recipesOf(keystone);
             }
         }
-        EnumSet<Affix> baseAffixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+        Set<String> baseAffixes = AffixMath.effective(record.owner, offer.level(), offer.affixes(),
+                AffixManifest.current().definitions());
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
         long previewSeed = level.getRandom().nextLong();
         RunRecipePlan recipePlan = RunRecipePlan.resolve(previewSeed, offer.level(),
@@ -1070,7 +1070,7 @@ final class Instances {
         forceLoad(level, Set.of(entranceOrigin), true);
 
         // M66: use the recipe plan's effective affixes (ominous, feral added).
-        EnumSet<Affix> affixes = recipePlan.effectiveAffixes(baseAffixes);
+        Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
                     offer.theme());
@@ -1207,7 +1207,8 @@ final class Instances {
         }
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
-        EnumSet<Affix> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes());
+        Set<String> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes(),
+                AffixManifest.current().definitions());
 
         // M66: apply recipe effects from the frozen preview plan, not from
         // re-read recipe tags. The preview resolved the affix set; commit
@@ -1440,7 +1441,7 @@ final class Instances {
 
         // Reset the record to lobby state.
         record.layout = lobbyLayout(safeOrigin);
-        record.affixes = EnumSet.noneOf(Affix.class);
+        record.affixes = Set.of();
         record.theme = null;
         record.awaitingDoorChoice = true;
         record.chosenStep = 0;
@@ -1902,7 +1903,8 @@ final class Instances {
             }
             Keystone.reconcile(player, entry.keystoneLevel(),
                     AffixMath.effective(player.getUUID(), entry.keystoneLevel(),
-                            AffixMath.parse(entry.keystoneAffix())));
+                            AffixMath.parse(entry.keystoneAffix()),
+                            AffixManifest.current().definitions()));
         }
     }
 
@@ -2519,7 +2521,7 @@ final class Instances {
 
         InstanceLayout layout = buildLayout(server, level, slot, origin,
                 seed != null ? seed : level.getRandom().nextLong(), keystoneLevel,
-                ominous ? EnumSet.of(Affix.OMINOUS) : EnumSet.noneOf(Affix.class), null, null);
+                ominous ? Set.of(AffixIds.OMINOUS) : Set.of(), null, null);
         if (layout == null) {
             // Slot release is deferred to the clear buildLayout already queued
             // for whatever it wrote -- see buildLayout's note.
@@ -2527,7 +2529,7 @@ final class Instances {
         }
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(slot, record);
         return slot;
     }
@@ -2570,7 +2572,7 @@ final class Instances {
             return -1;
         }
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), lobbyLayout(origin),
-                EnumSet.noneOf(Affix.class), player.getUUID(), false, true);
+                Set.of(), player.getUUID(), false, true);
         InstanceRegistry.bySlot.put(slot, record);
         admit(server, record, player);
         // admit lands on the lobby layout's corner entrance; centre the author.

@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +28,7 @@ public class ResetCampaignTest {
 
         // Populate every keystone-progress field, plus the unlockables and room
         // settings that must survive the reset.
-        log.setKeystone(player, 7, EnumSet.of(Affix.OMINOUS));
+        log.setKeystone(player, 7, Set.of(AffixIds.OMINOUS));
         log.setPendingOffer(player, 5);
         log.recordCompletion(player, 9, 7);
         log.recordTheme(player, "deepslate");

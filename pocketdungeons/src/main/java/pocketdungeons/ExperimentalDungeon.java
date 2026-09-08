@@ -1,6 +1,6 @@
 package pocketdungeons;
 
-import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * M27 27.1: the operator-set offer that stands in for door 3 while it is
@@ -22,7 +22,7 @@ final class ExperimentalDungeon {
      *                  loot and mob difficulty for this run; {@code null} keeps
      *                  door 3's normal upgraded level.
      */
-    record Offer(String theme, EnumSet<Affix> affixes, Integer lootLevel) {}
+    record Offer(String theme, Set<String> affixes, Integer lootLevel) {}
 
     private static volatile Offer active;
 
@@ -30,7 +30,7 @@ final class ExperimentalDungeon {
         return active;
     }
 
-    static void set(String theme, EnumSet<Affix> affixes, Integer lootLevel) {
+    static void set(String theme, Set<String> affixes, Integer lootLevel) {
         active = new Offer(theme, affixes, lootLevel);
     }
 

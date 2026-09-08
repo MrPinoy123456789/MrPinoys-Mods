@@ -27,7 +27,6 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.phys.AABB;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -206,7 +205,8 @@ final class DungeonScreen {
         int offerLevel = Math.max(1, entry.keystoneLevel());
         Keystone.Offer[] offers = Keystone.offers(owner, offerLevel, entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-        EnumSet<Affix> effective = AffixMath.effective(owner, offer.level(), offer.affixes());
+        Set<String> effective = AffixMath.effective(owner, offer.level(), offer.affixes(),
+                AffixManifest.current().definitions());
         MutableComponent content = Component.literal("KEYSTONE " + offer.level() + "\n"
                 + themeName(offer.theme()) + "\n").append(affixLine(effective));
         // M27 27.1: the caution indicator for an operator's fixed test offer.
@@ -502,8 +502,9 @@ final class DungeonScreen {
      * start, so a sound-off player has a visible environmental signal that
      * the run is ominous even if they missed the chat line (M67 Q5).
      */
-    private static Component affixLine(Set<Affix> affixes) {
-        List<Affix> ordered = AffixMath.ordered(affixes);
+    private static Component affixLine(Set<String> affixes) {
+        List<AffixDefinition> ordered = AffixMath.ordered(affixes,
+                AffixManifest.current().definitions());
         if (ordered.isEmpty()) {
             return Component.literal("Oak");
         }
@@ -512,9 +513,9 @@ final class DungeonScreen {
             if (i > 0) {
                 line.append(Component.literal(", "));
             }
-            Affix affix = ordered.get(i);
-            MutableComponent label = Component.literal(affix.label);
-            if (affix == Affix.OMINOUS) {
+            AffixDefinition def = ordered.get(i);
+            MutableComponent label = Component.literal(def.label);
+            if (def.id.equals(AffixIds.OMINOUS)) {
                 label.withStyle(ChatFormatting.DARK_PURPLE);
             }
             line.append(label);

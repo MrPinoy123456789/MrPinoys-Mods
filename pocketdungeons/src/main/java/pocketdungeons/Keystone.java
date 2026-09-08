@@ -11,7 +11,6 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -54,22 +53,26 @@ final class Keystone {
     private Keystone() {}
 
     /**
-     * The colour a rendered affix gets. Lives here rather than on {@link Affix}
-     * because the enum is deliberately Minecraft-free -- see its class note.
+     * The colour a rendered affix gets. Lives here rather than on the
+     * definition because the colour is a presentation concern, and the
+     * data-driven definition carries no colour field (the schema keeps client
+     * concerns out, per the no-client-asset constraint).
      */
-    static ChatFormatting colourOf(Affix affix) {
-        if (affix == null) {
+    static ChatFormatting colourOf(String affixId) {
+        if (affixId == null) {
             return ChatFormatting.AQUA;
         }
-        return switch (affix) {
-            case OMINOUS -> ChatFormatting.LIGHT_PURPLE;
-            case FERAL -> ChatFormatting.WHITE;
-            case SWARMING -> ChatFormatting.DARK_GREEN;
-            case OVERCLOCKED -> ChatFormatting.YELLOW;
-            case MOLTEN -> ChatFormatting.GOLD;
-            case SILENCED -> ChatFormatting.DARK_AQUA;
-            case EXPLOSIVE -> ChatFormatting.RED;
-            case VOIDED -> ChatFormatting.DARK_PURPLE;
+        return switch (affixId) {
+            case AffixIds.OMINOUS -> ChatFormatting.LIGHT_PURPLE;
+            case AffixIds.FERAL -> ChatFormatting.WHITE;
+            case AffixIds.SWARMING -> ChatFormatting.DARK_GREEN;
+            case AffixIds.OVERCLOCKED -> ChatFormatting.YELLOW;
+            case AffixIds.MOLTEN -> ChatFormatting.GOLD;
+            case AffixIds.SILENCED -> ChatFormatting.DARK_AQUA;
+            case AffixIds.EXPLOSIVE -> ChatFormatting.RED;
+            case AffixIds.VOIDED -> ChatFormatting.DARK_PURPLE;
+            case AffixIds.LOADED -> ChatFormatting.DARK_RED;
+            default -> ChatFormatting.AQUA;
         };
     }
 
@@ -90,9 +93,9 @@ final class Keystone {
      * thresholds hand them on top is derived, never chosen and never stored
      * (see {@link AffixMath}).
      */
-    record Offer(int level, EnumSet<Affix> affixes, int step, String theme, Tier tier) {
+    record Offer(int level, Set<String> affixes, int step, String theme, Tier tier) {
         boolean ominous() {
-            return affixes.contains(Affix.OMINOUS);
+            return affixes.contains(AffixIds.OMINOUS);
         }
 
         /**
@@ -146,13 +149,14 @@ final class Keystone {
             doorThree = new Offer(expLevel, experimental.affixes(), 3, experimental.theme(),
                     Tier.EXPERIMENTAL);
         } else {
-            doorThree = new Offer(KeystoneMath.upgrade(level, 3, max), EnumSet.noneOf(Affix.class),
+            doorThree = new Offer(KeystoneMath.upgrade(level, 3, max), Set.of(),
                     3, third, Tier.GREATER);
         }
 
         return new Offer[] {
-                new Offer(KeystoneMath.upgrade(level, 1, max), EnumSet.noneOf(Affix.class), 1, first, Tier.FREE),
-                new Offer(KeystoneMath.upgrade(level, 2, max), EnumSet.of(Affix.OMINOUS), 2, second, Tier.GREATER),
+                new Offer(KeystoneMath.upgrade(level, 1, max), Set.of(), 1, first, Tier.FREE),
+                new Offer(KeystoneMath.upgrade(level, 2, max), Set.of(AffixIds.OMINOUS),
+                        2, second, Tier.GREATER),
                 doorThree,
         };
     }
@@ -160,7 +164,7 @@ final class Keystone {
     // ---- minting ------------------------------------------------------------
 
     static ItemStack mint(int level) {
-        return mint(level, EnumSet.noneOf(Affix.class));
+        return mint(level, Set.of());
     }
 
     /**
@@ -172,22 +176,24 @@ final class Keystone {
      * stores the same set, so a read back off the stack needs no player to derive
      * from.
      */
-    static ItemStack mint(int level, Set<Affix> affixes) {
+    static ItemStack mint(int level, Set<String> affixes) {
         int clamped = KeystoneMath.clampLevel(level, PocketDungeonsConfig.keystoneMaxLevel());
-        List<Affix> ordered = AffixMath.ordered(affixes);
+        List<AffixDefinition> ordered = AffixMath.ordered(affixes,
+                AffixManifest.current().definitions());
         ItemStack stack = new ItemStack(resolve(KEYSTONE_ITEM));
 
         CompoundTag mine = new CompoundTag();
         mine.putInt("keystone", 1);
         mine.putInt("level", clamped);
         if (!ordered.isEmpty()) {
-            mine.putString("affix", AffixMath.join(affixes));
+            mine.putString("affix", AffixMath.join(affixes, AffixManifest.current().definitions()));
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(ROOT, mine));
 
-        ChatFormatting colour = colourOf(ordered.isEmpty() ? null : ordered.get(0));
+        ChatFormatting colour = colourOf(ordered.isEmpty() ? null : ordered.get(0).id);
         stack.set(DataComponents.CUSTOM_NAME,
-                Component.literal(AffixMath.name(clamped, affixes))
+                Component.literal(AffixMath.name(clamped, affixes,
+                        AffixManifest.current().definitions()))
                         .withStyle(colour).withStyle(s -> s.withItalic(false)));
 
         // One line per affix, in the same order the name renders them. Each one is
@@ -199,8 +205,8 @@ final class Keystone {
         if (ordered.isEmpty()) {
             lore.add(grey("Beat the clock to trade up."));
         } else {
-            for (Affix affix : ordered) {
-                lore.add(grey(affix.blurb));
+            for (AffixDefinition def : ordered) {
+                lore.add(grey(def.blurb));
             }
         }
         stack.set(DataComponents.LORE, new ItemLore(lore));
@@ -250,9 +256,9 @@ final class Keystone {
      * The affixes shown on this stack. Empty for a plain remote, and empty for a
      * stack that is not one of ours.
      */
-    static EnumSet<Affix> affixOf(ItemStack stack) {
+    static Set<String> affixOf(ItemStack stack) {
         CompoundTag mine = mine(stack);
-        return mine == null ? EnumSet.noneOf(Affix.class)
+        return mine == null ? Set.of()
                 : AffixMath.parse(mine.getStringOr("affix", ""));
     }
 
@@ -279,7 +285,7 @@ final class Keystone {
      * inventory, and a remote pointing at "no keystone" is legible on use.
      */
     static void reconcile(net.minecraft.server.level.ServerPlayer player,
-                          int level, Set<Affix> affixes) {
+                          int level, Set<String> affixes) {
         if (level <= 0) {
             return;
         }
@@ -288,7 +294,7 @@ final class Keystone {
     }
 
     private static void reconcileContainer(net.minecraft.world.Container container,
-                                           int level, Set<Affix> affixes) {
+                                           int level, Set<String> affixes) {
         for (int i = 0; i < container.getContainerSize(); i++) {
             ItemStack stack = container.getItem(i);
             OptionalInt shown = levelOf(stack);

@@ -3389,3 +3389,113 @@ ormal_spawner, ominous_spawner. Each is a fully
 - dungeonIntegrationTest: PASS (5 themes, 5 adventure nodes, 7 diaries,
   49 rooms, 6 anomaly rooms, 40 core loot tables, 0 rejections).
 - uild: BUILD SUCCESSFUL, full suite green.
+
+## M69: Data-driven affixes
+
+A new namespaced affix works without adding a Java enum constant. The
+Affix enum is deleted; every affix is a JSON definition loaded from
+data/<namespace>/dungeon_affix/*.json.
+
+### What changed
+
+- **AffixDefinition and AffixEffects.** A definition carries its
+  namespaced id, label, blurb, stable order, min level, weight,
+  depletion multiplier, incompatibilities, and a bounded AffixEffects
+  payload. The effects model covers: ominous blockstate, trial count
+  multiplier, cooldown factor, player range, consumable rule, neutral
+  wolf spawn, interior hazard kind and count, voided floor, extra trial
+  bodies, bonus tool pool, and decor pool. Every field is bounded and
+  validated at load; an unsupported operation is silently ignored by
+  the parser, and a definition that bends nothing is rejected outright.
+
+- **AffixManifest.** A reloadable manifest that scans
+  dungeon_affix/*.json across every namespace, parses each file into an
+  AffixDefinition, validates incompatibility symmetry, validates loot
+  table references against the server reloadable registries, and
+  publishes atomically through ContentSnapshot. A pack that drops the
+  pocketdungeons pack cannot silently remove Ominous: the built-in
+  coverage gate fails the candidate and the last valid snapshot stands.
+
+- **AffixIds.** Namespaced id constants for every built-in affix, plus
+  the legacy bare-name to namespaced-id bridge. A pre-M69 save that
+  holds "ominous" loads as "pocketdungeons:ominous" without a codec
+  migration. A third-party id ("theirpack:their_affix") flows through
+  every site the built-ins do.
+
+- **AffixMath migration.** AffixMath no longer depends on
+  Affix.values() or EnumSet<Affix>. It takes a stable
+  List<AffixDefinition> as a parameter, keeping the class pure Java
+  (no Minecraft imports) so the plain-javac test builds fixtures
+  without the server classpath. Seeding, naming, depletion, and the
+  no-weekly-rotation contract are preserved. Depletion remains the
+  max multiplier, capped at 2.
+
+- **Set<String> carriers.** Every carrier type (Keystone.Offer,
+  InstanceRecord, InstanceLayout, RunRecipePlan, ExperimentalDungeon,
+  DungeonLog) stores affixes as Set<String> namespaced ids. EnumSet is
+  gone from the affix path. The Affix enum is deleted.
+
+- **Built-in JSON data.** Nine JSON files under
+  data/pocketdungeons/dungeon_affix/ define Ominous, Feral, Swarming,
+  Overclocked, Molten, Silenced, Explosive, Voided, and Loaded. Each
+  carries real effect operations, not just a label rename. The Loaded
+  bonus tool pool draws from
+  data/pocketdungeons/loot_table/affixes/loaded_tools.json.
+
+- **Loaded affix.** A data-only affix that grants extra trial bodies
+  and a guaranteed bonus tool cache in loot cells. Works through the
+  JSON/effect system; no Java enum constant was added.
+
+- **Unified post-content phase.** RoomContent.apply no longer returns
+  early for situation cells before affix effects. The situation
+  handler anchor is collected and the cell falls through to the
+  post-content affix phase, so a Molten/Explosive/Voided run still
+  stamps its hazards in a situation cell. The store anomaly (a safe
+  room) still returns early, since a hazard there would make it
+  impassable.
+
+- **Content revision pinning.** The affix manifest participates in
+  the M68 atomic snapshot and reload contract. A presented offer
+  affix set is frozen at preview time through the existing
+  previewRecipePlan revision; a reload that changes affix definitions
+  invalidates stale previews through the existing
+  reconcileActiveFloors path, extended to the affix surface.
+
+### Supported operations and extension limits
+
+A third-party affix may declare any combination of the bounded
+operations in AffixEffects. The supported set is closed: a JSON field
+the parser does not read is silently ignored, and a definition that
+declares no operation is rejected. Genuinely new operations (a new
+hazard kind, a new consumable rule, a new effect type) still require
+reviewed engine work. The bounds are:
+
+- trial_count_multiplier: [1.0, 4.0]
+- cooldown_factor: [0.25, 1.0]
+- player_range: [4, 14]
+- hazards_per_cell: [0, 16]
+- depletion_multiplier: 1 or 2
+- hazard_kind: NONE, LAVA, TNT
+- consumable_rule: ALLOW, BLOCK
+
+### Frozen caller list
+
+The exhaustive caller list at migration time:
+
+  TrialContent, RunLifecycle, LayoutStamper, RoomContent, DungeonLog,
+  Instances, Keystone, Keystones, AffixMath, ExperimentalDungeon,
+  SilenceListener, InstanceLayout, StaticLayout, Pocket2,
+  RunRecipePlan, VisitService, DungeonScreen, DialogScreens,
+  DungeonCommands, InventorySwap, Situations, TraversalSpecs.
+
+### Verification
+
+- affixMathTest: parse compat, join round trip, seeded count
+  thresholds, seeded stability, depletion multiplier, name, third-party
+  id. All passed.
+- keystoneMathTest: passed.
+- keystoneOfferTest: passed.
+- difficultyProfileTest: passed.
+- runGameTest: compileGameTestJava passed.
+- dungeonIntegrationTest: build passed.
+- build: BUILD SUCCESSFUL in 1m 30s, full suite green.

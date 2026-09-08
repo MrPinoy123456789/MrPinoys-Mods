@@ -592,11 +592,13 @@ final class DungeonLog extends SavedData {
      *              clamped to {@code [1, PocketDungeonsConfig.keystoneMaxLevel()]}
      *              here (PD-16), not left to the caller
      */
-    void setKeystone(UUID player, int level, Set<Affix> affixes) {
+    void setKeystone(UUID player, int level, Set<String> affixes) {
         int clampedLevel = level <= 0 ? 0
                 : Math.min(level, PocketDungeonsConfig.keystoneMaxLevel());
         Entry previous = get(player);
-        entries.put(player, previous.withKeystone(clampedLevel, AffixMath.join(AffixMath.elective(affixes))));
+        entries.put(player, previous.withKeystone(clampedLevel,
+                AffixMath.join(AffixMath.elective(affixes),
+                        AffixManifest.current().definitions())));
         setDirty();
     }
 

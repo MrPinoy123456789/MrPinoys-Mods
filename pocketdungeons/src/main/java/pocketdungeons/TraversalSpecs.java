@@ -182,7 +182,7 @@ final class TraversalSpecs {
      */
     private static BlockPos floodedHall(ServerLevel level, BlockPos cellOrigin, String role,
                                     int depth, DifficultyProfile profile, List<BlockPos> spawns,
-                                    long seed, Set<Affix> affixes, String lootSuffix,
+                                    long seed, Set<String> affixes, String lootSuffix,
                                     String theme, boolean voidedFloor, String content) {
         for (Direction wall : new Direction[]{Direction.NORTH, Direction.SOUTH,
                 Direction.EAST, Direction.WEST}) {

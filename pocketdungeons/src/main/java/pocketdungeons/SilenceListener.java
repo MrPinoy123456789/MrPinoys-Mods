@@ -53,7 +53,7 @@ final class SilenceListener {
         if (!stack.has(DataComponents.CONSUMABLE)) {
             return InteractionResult.PASS;
         }
-        if (!Instances.affixesFor(serverPlayer.getUUID()).contains(Affix.SILENCED)) {
+        if (!Instances.affixesFor(serverPlayer.getUUID()).contains(AffixIds.SILENCED)) {
             return InteractionResult.PASS;
         }
         serverPlayer.sendSystemMessage(Component.literal(

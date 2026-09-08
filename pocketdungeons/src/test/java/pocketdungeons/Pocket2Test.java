@@ -2,7 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,10 +35,10 @@ public class Pocket2Test {
         InstanceLayout layout = Instances.lobbyLayout(origin);
         UUID owner = UUID.randomUUID();
         InstanceRecord parent = new InstanceRecord(7, origin, 1000L, layout,
-                EnumSet.noneOf(Affix.class), owner, false);
+                Set.of(), owner, false);
         BlockPos door = new BlockPos(8, 65, 0);
         InstanceRecord child = new InstanceRecord(8, origin.offset(2048, 0, 0), 2000L, layout,
-                EnumSet.noneOf(Affix.class), owner, false, false, 7, door);
+                Set.of(), owner, false, false, 7, door);
         check(child.parentSlot, 7);
         check(child.isChild());
         check(!parent.isChild());
@@ -54,7 +54,7 @@ public class Pocket2Test {
         BlockPos origin = new BlockPos(0, 64, 0);
         InstanceLayout layout = Instances.lobbyLayout(origin);
         InstanceRecord child = new InstanceRecord(3, origin, 0L, layout,
-                EnumSet.noneOf(Affix.class), null, false, false, 2, origin);
+                Set.of(), null, false, false, 2, origin);
         check(!child.isKeystoneRun());
         check(child.layout.keystoneLevel(), 0);
     }
@@ -85,9 +85,9 @@ public class Pocket2Test {
         BlockPos origin = new BlockPos(0, 64, 0);
         InstanceLayout layout = Instances.lobbyLayout(origin);
         InstanceRecord unrelated = new InstanceRecord(20, origin, 0L, layout,
-                EnumSet.noneOf(Affix.class), null, false, false, 21, origin);
+                Set.of(), null, false, false, 21, origin);
         InstanceRecord child = new InstanceRecord(22, origin, 0L, layout,
-                EnumSet.noneOf(Affix.class), null, false, false, 23, origin);
+                Set.of(), null, false, false, 23, origin);
         InstanceRegistry.bySlot.put(20, unrelated);
         InstanceRegistry.bySlot.put(22, child);
 
@@ -122,7 +122,7 @@ public class Pocket2Test {
         PlanGeometry geometry = singleCellGeometry(origin);
         InstanceLayout layout = InstanceLayout.forClearingOnly(origin, geometry);
         InstanceRecord parent = new InstanceRecord(30, origin, 0L, layout,
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
 
         BlockPos northDoor = origin.offset(7, 1, 0);
         BlockPos returnFromNorth = Pocket2.returnPos(parent, northDoor);

@@ -91,7 +91,7 @@ final class RoomContent {
      */
     static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
+                      Set<String> affixes, String lootSuffix, String theme, boolean voidedFloor,
                       boolean anomalyCell, String content) {
         return apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
                 lootSuffix, null, theme, voidedFloor, anomalyCell, content);
@@ -105,7 +105,7 @@ final class RoomContent {
      */
     static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                       DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<Affix> affixes, String lootSuffix, String lootTableOverride,
+                      Set<String> affixes, String lootSuffix, String lootTableOverride,
                       String theme, boolean voidedFloor, boolean anomalyCell, String content) {
         List<BlockPos> spawnerAnchors = new ArrayList<>();
         if (anomalyCell) {
@@ -137,12 +137,15 @@ final class RoomContent {
             // LayoutStamper for the layout's trialSpawners set. Without this,
             // spawners placed by situation handlers would be missing from the
             // layout's spawner set, breaking the spawner-clear completion gate.
+            // M69: falls through to the post-content affix phase rather than
+            // returning early, so a Molten/Explosive/Voided run still stamps
+            // its hazards in a situation cell. The handler's anchor is
+            // collected into spawnerAnchors.
             BlockPos anchor = Situations.apply(level, cellOrigin, role, depth, profile, spawns, seed,
                     affixes, lootSuffix, theme, voidedFloor, content);
             if (anchor != null) {
-                return List.of(anchor);
+                spawnerAnchors.add(anchor);
             }
-            return List.of();
         } else if (role != null) {
             switch (role) {
                 case "encounter" -> {
@@ -154,7 +157,7 @@ final class RoomContent {
                     }
                 }
                 case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
-                        affixes.contains(Affix.OMINOUS), seed, lootSuffix, lootTableOverride);
+                        affixes.contains(AffixIds.OMINOUS), seed, lootSuffix, lootTableOverride);
                 case "corridor" -> removeChests(level, cellOrigin);
                 default -> { /* entrance and exit carry no chest and no spawn points */ }
             }
@@ -165,14 +168,14 @@ final class RoomContent {
         // deliberately excluded: they carry the lobby door and the lodestone
         // pad, and a hazard placed there would make either impassable rather
         // than merely dangerous.
-        if (affixes.contains(Affix.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
+        if (affixes.contains(AffixIds.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
                 || "corridor".equals(role))) {
             placeMoltenHazards(level, cellOrigin, spawns, seed);
         }
         // Explosive: TNT underfoot with pressure pads on top. Same placement
         // rules as Molten: encounter, loot, corridor only. Entrance and exit
         // excluded to keep lodestone pad and lobby door passable.
-        if (affixes.contains(Affix.EXPLOSIVE) && ("encounter".equals(role) || "loot".equals(role)
+        if (affixes.contains(AffixIds.EXPLOSIVE) && ("encounter".equals(role) || "loot".equals(role)
                 || "corridor".equals(role))) {
             placeExplosiveHazards(level, cellOrigin, spawns, seed);
         }
@@ -188,8 +191,16 @@ final class RoomContent {
         // T17 deleted the old spawn path over. Entrance and exit are excluded for
         // the same reason Molten excludes them: one is the player's own room, the
         // other the lodestone pad and the reward chests.
-        if (affixes.contains(Affix.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
+        if (affixes.contains(AffixIds.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
             FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), profile.keystoneLevel(), seed);
+        }
+        // M69 Loaded: a guaranteed bonus tool cache in loot cells, drawn from
+        // the affix's namespaced bonus_tool_pool loot table. The gift that pays
+        // for the extra trial bodies the affix also grants. Placed only in loot
+        // cells so it does not clutter encounter or corridor cells, and never
+        // in entrance/exit to keep the lobby door and lodestone pad clear.
+        if (affixes.contains(AffixIds.LOADED) && "loot".equals(role)) {
+            placeLoadedToolCache(level, cellOrigin, seed);
         }
         return spawnerAnchors;
     }
@@ -355,6 +366,34 @@ final class RoomContent {
             carveHoles(level, cellOrigin, spawns, random);
         } else {
             carveNoFloor(level, cellOrigin, spawns);
+        }
+    }
+
+    /**
+     * M69 Loaded: places a guaranteed bonus tool chest in a loot cell, drawn
+     * from the Loaded affix's {@code bonus_tool_pool} loot table. The gift that
+     * pays for the extra trial bodies the affix also grants. Placed at a fixed
+     * interior corner so it does not collide with authored content or the
+     * vault's promoted position.
+     */
+    private static void placeLoadedToolCache(ServerLevel level, BlockPos cellOrigin, long seed) {
+        AffixDefinition loaded = AffixManifest.current().byId(AffixIds.LOADED);
+        if (loaded == null || loaded.effects.bonusToolPool == null) {
+            return;
+        }
+        BlockPos pos = cellOrigin.offset(2, 1, 2);
+        if (!level.getBlockState(pos).isAir()) {
+            pos = cellOrigin.offset(13, 1, 13);
+            if (!level.getBlockState(pos).isAir()) {
+                return;
+            }
+        }
+        level.setBlock(pos, Blocks.CHEST.defaultBlockState(), FLAGS);
+        if (level.getBlockEntity(pos) instanceof RandomizableContainer chest) {
+            ResourceKey<LootTable> table = ResourceKey.create(Registries.LOOT_TABLE,
+                    Identifier.parse(loaded.effects.bonusToolPool));
+            chest.setLootTable(table);
+            chest.setLootTableSeed(seed ^ pos.asLong());
         }
     }
 

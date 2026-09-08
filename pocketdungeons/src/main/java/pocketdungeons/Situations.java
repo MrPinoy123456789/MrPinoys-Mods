@@ -65,7 +65,7 @@ final class Situations {
          */
         BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                    DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                   Set<Affix> affixes, String lootSuffix, String theme, boolean voidedFloor,
+                   Set<String> affixes, String lootSuffix, String theme, boolean voidedFloor,
                    String content);
     }
 
@@ -116,7 +116,7 @@ final class Situations {
      */
     static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
                          DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                         Set<Affix> affixes, String lootSuffix, String theme,
+                         Set<String> affixes, String lootSuffix, String theme,
                          boolean voidedFloor, String content) {
         if (content == null) {
             return null;

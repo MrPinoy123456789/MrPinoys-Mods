@@ -7,7 +7,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -131,7 +131,7 @@ final class VisitService {
 
         InstanceLayout layout = Instances.lobbyLayout(origin);
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                EnumSet.noneOf(Affix.class), owner, false);
+                Set.of(), owner, false);
         record.visitInstance = true;
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);

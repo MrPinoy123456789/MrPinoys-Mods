@@ -1,0 +1,1 @@
+{"version": 1, "label": "Molten", "blurb": "Molten: lava underfoot, and the only lava you will ever find.", "order": 4, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"hazard_kind": "LAVA", "hazards_per_cell": 4}}

@@ -163,11 +163,11 @@ final class TrialContent {
      *         was (M10: {@link InstanceRecord#trialSpawners} collects this)
      */
     static BlockPos applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                                  int tier, Set<Affix> affixes, String theme) {
-        boolean ominous = affixes.contains(Affix.OMINOUS);
-        boolean swarming = affixes.contains(Affix.SWARMING);
-        boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
-        boolean silenced = affixes.contains(Affix.SILENCED);
+                                  int tier, Set<String> affixes, String theme) {
+        boolean ominous = affixes.contains(AffixIds.OMINOUS);
+        boolean swarming = affixes.contains(AffixIds.SWARMING);
+        boolean overclocked = affixes.contains(AffixIds.OVERCLOCKED);
+        boolean silenced = affixes.contains(AffixIds.SILENCED);
         ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
         String spawnerPrefix = runTheme == null ? null : runTheme.meta().spawnerPrefix;
         // M68: a theme's namespaced normal_spawner / ominous_spawner override
@@ -290,11 +290,11 @@ final class TrialContent {
      * question 11).
      */
     static BlockPos applyEncounter(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
-                                  int tier, Set<Affix> affixes, String configPrefix, boolean gated) {
-        boolean ominous = affixes.contains(Affix.OMINOUS);
-        boolean swarming = affixes.contains(Affix.SWARMING);
-        boolean overclocked = affixes.contains(Affix.OVERCLOCKED);
-        boolean silenced = affixes.contains(Affix.SILENCED);
+                                  int tier, Set<String> affixes, String configPrefix, boolean gated) {
+        boolean ominous = affixes.contains(AffixIds.OMINOUS);
+        boolean swarming = affixes.contains(AffixIds.SWARMING);
+        boolean overclocked = affixes.contains(AffixIds.OVERCLOCKED);
+        boolean silenced = affixes.contains(AffixIds.SILENCED);
 
         // Authored trial spawners: reconfigure in place with the situation's prefix.
         List<BlockPos> authored = authoredTrialSpawners(level, cellOrigin);

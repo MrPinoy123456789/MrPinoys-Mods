@@ -52,7 +52,7 @@ final class LayoutStamper {
      *                      keystone's own affix, with no other route into it
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                int keystoneLevel, Set<Affix> affixes) {
+                                int keystoneLevel, Set<String> affixes) {
         return stamp(level, origin, plan, keystoneLevel, affixes, null);
     }
 
@@ -63,7 +63,7 @@ final class LayoutStamper {
      * ({@code /dungeon admin build}/{@code untimed}).
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                int keystoneLevel, Set<Affix> affixes, UUID owner) {
+                                int keystoneLevel, Set<String> affixes, UUID owner) {
         return stamp(level, origin, plan, keystoneLevel, affixes, owner, false);
     }
 
@@ -80,7 +80,7 @@ final class LayoutStamper {
      * to match the walls around it.
      */
     static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                           int keystoneLevel, Set<Affix> affixes, UUID owner,
+                                           int keystoneLevel, Set<String> affixes, UUID owner,
                                            String theme) {
         return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme);
     }
@@ -99,7 +99,7 @@ final class LayoutStamper {
      *         force-loading
      */
     static PlanGeometry stampEntranceOnly(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                          int keystoneLevel, Set<Affix> affixes, String theme) {
+                                          int keystoneLevel, Set<String> affixes, String theme) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
@@ -163,13 +163,13 @@ final class LayoutStamper {
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                        int keystoneLevel, Set<Affix> affixes, UUID owner,
+                                        int keystoneLevel, Set<String> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
         return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null);
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                        int keystoneLevel, Set<Affix> affixes, UUID owner,
+                                        int keystoneLevel, Set<String> affixes, UUID owner,
                                         boolean entranceAlreadyStamped, String theme) {
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
@@ -496,8 +496,8 @@ final class LayoutStamper {
      * Entrance and terminal cells are always excluded. Each remaining cell
      * is independently rolled against {@link PocketDungeonsConfig#voidedCellChance}.
      */
-    private static Set<PlanCell> computeVoidedCells(DungeonPlan plan, Set<Affix> affixes) {
-        if (!affixes.contains(Affix.VOIDED)) {
+    private static Set<PlanCell> computeVoidedCells(DungeonPlan plan, Set<String> affixes) {
+        if (!affixes.contains(AffixIds.VOIDED)) {
             return Set.of();
         }
         Random rng = new Random(plan.seed() ^ 0xB01DL);

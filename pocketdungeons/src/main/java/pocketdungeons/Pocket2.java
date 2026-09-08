@@ -28,7 +28,7 @@ import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -263,7 +263,7 @@ final class Pocket2 {
             // No keystone (level 0), no affixes, no owner room: the child has no
             // spawner gate, no completion pad, and nothing to pay for entry.
             layout = LayoutStamper.stamp(level, childOrigin, plan, 0,
-                    EnumSet.noneOf(Affix.class), null);
+                    Set.of(), null);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Stamping the Pocket2 at {} failed",
                     childOrigin.toShortString(), e);
@@ -280,7 +280,7 @@ final class Pocket2 {
 
         long now = level.getGameTime();
         InstanceRecord child = new InstanceRecord(childSlot, childOrigin, now, layout,
-                EnumSet.noneOf(Affix.class), null, false, false, parent.slot, returnPos(parent, door));
+                Set.of(), null, false, false, parent.slot, returnPos(parent, door));
         child.deadlineTick = now + PocketDungeonsConfig.pocket2TimerSeconds() * 20L;
         child.timer = new RunTimer("Pocket", PocketDungeonsConfig.pocket2TimerSeconds(),
                 layout.roomCount());

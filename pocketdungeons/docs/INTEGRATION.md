@@ -328,3 +328,75 @@ completed_themes keys loads unchanged. When a post-M68 qualified completion
 arrives for the same theme, the legacy bare count is migrated into the
 namespaced key and merged, so the theme is not double-counted. Unknown
 references in a save are kept for recovery.
+
+## M69: Affix schema
+
+Affixes are data-driven. A new namespaced affix works without adding a
+Java enum constant. The Affix enum is deleted; every affix is a JSON
+definition loaded from data/<namespace>/dungeon_affix/*.json.
+
+### Schema
+
+Each file under data/<namespace>/dungeon_affix/*.json defines one
+affix. The file name (minus .json) under its namespace becomes the
+affix id. Required fields: version, label, blurb, effects. Optional
+fields: order (default 0), min_level (default 0), weight (default 1),
+depletion_multiplier (default 1, must be 1 or 2), incompatible
+(default empty).
+
+The effects object carries the bounded operation set. Every field is
+optional; the defaults are the no-op values. A definition that
+declares no operation is rejected at load.
+
+Supported effect fields:
+
+- ominous (boolean, default false): the whole run stamps ominous.
+- trial_count_multiplier (double, default 1.0, range [1.0, 4.0]):
+  multiplier on trial spawner mob counts.
+- cooldown_factor (double, default 1.0, range [0.25, 1.0]):
+  multiplier on the spawner cooldown.
+- player_range (int, default 14, range [4, 14]): the trial spawner
+  required_player_range.
+- consumable_rule (string, default ALLOW, one of ALLOW, BLOCK):
+  whether consumables are blocked for this run.
+- neutral_wolf_spawn (boolean, default false): neutral wolves spawn
+  in non-encounter cells.
+- hazard_kind (string, default NONE, one of NONE, LAVA, TNT): the
+  interior hazard placed underfoot.
+- hazards_per_cell (int, default 0, range [0, 16]): how many hazard
+  blocks per cell. Must be > 0 when hazard_kind is set.
+- voided_floor (boolean, default false): the floor is ripped open in
+  scattered cells.
+- extra_trial_bodies (boolean, default false): extra trial bodies are
+  placed (Loaded).
+- bonus_tool_pool (string, default null): a namespaced loot table id
+  for a guaranteed bonus tool pool. Validated against the server
+  reloadable registries at load.
+- decor_pool (string, default null): a namespaced loot table id for a
+  decor pool.
+
+### Extension limits
+
+The supported operation set is closed. A JSON field the parser does
+not read is silently ignored. A definition that declares no operation
+is rejected. Genuinely new operations (a new hazard kind, a new
+consumable rule, a new effect type) still require reviewed engine
+work. The bounds are enforced in AffixEffects.build, the single
+chokepoint for the supported operations gate.
+
+### Legacy migration
+
+A pre-M69 save that holds a bare affix name ("ominous") loads as the
+namespaced id ("pocketdungeons:ominous") through AffixIds.resolve,
+without a codec migration. A namespaced id parses as is. An unknown
+bare name is dropped, the same login-safe lenience the enum parser
+had.
+
+### Reload contract
+
+The affix manifest participates in the M68 atomic snapshot and reload
+contract. ContentSnapshot.build parses the affix manifest alongside
+the other five surfaces and checks the built-in coverage gate (every
+built-in affix id must be present). A candidate that fails the gate is
+not published; the last valid snapshot stands. ContentReload publishes
+the affix manifest in the same atomic commit as the other surfaces.

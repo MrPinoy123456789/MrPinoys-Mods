@@ -108,6 +108,7 @@ final class ContentReload {
                 ThemeManifest.publish(candidate.themes());
                 AdventureGraphs.publish(candidate.adventure());
                 Diaries.publish(candidate.diaries());
+                AffixManifest.publish(candidate.affixes());
                 LootTables.validateAtStartup(server);
                 reconcileActiveFloors(server, candidate);
             } else {

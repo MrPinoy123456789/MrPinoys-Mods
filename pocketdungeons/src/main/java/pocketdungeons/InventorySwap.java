@@ -784,7 +784,8 @@ public final class InventorySwap {
         }
         player.getInventory().setItem(0, Keystone.mint(level,
                 AffixMath.effective(player.getUUID(), level,
-                        AffixMath.parse(entry.keystoneAffix()))));
+                        AffixMath.parse(entry.keystoneAffix()),
+                        AffixManifest.current().definitions())));
     }
 
     // ---- the player adapter -------------------------------------------------

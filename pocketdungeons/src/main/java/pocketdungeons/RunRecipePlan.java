@@ -125,7 +125,7 @@ final class RunRecipePlan {
      * @param recipeTags        the recipe tags read from the keystone
      * @return the resolved plan, or {@code null} if the effects refuse
      */
-    static RunRecipePlan resolve(long seed, int offerLevel, Set<Affix> affixes,
+    static RunRecipePlan resolve(long seed, int offerLevel, Set<String> affixes,
                                  Set<String> partyCapabilities, CompoundTag recipeTags,
                                  Refusal[] refusalOut) {
         Set<String> activeRecipes = new LinkedHashSet<>();
@@ -211,9 +211,7 @@ final class RunRecipePlan {
 
         Set<String> affixNames = new LinkedHashSet<>();
         if (affixes != null) {
-            for (Affix a : affixes) {
-                affixNames.add(a.name());
-            }
+            affixNames.addAll(affixes);
         }
 
         int revision = computeRevision(offerLevel, affixNames, partyCapabilities, activeRecipes);
@@ -267,14 +265,16 @@ final class RunRecipePlan {
      * The effective affix set including recipe-driven additions (ominous,
      * feral). Returns a new set; does not mutate the input.
      */
-    java.util.EnumSet<Affix> effectiveAffixes(Set<Affix> base) {
-        java.util.EnumSet<Affix> result = java.util.EnumSet.noneOf(Affix.class);
-        result.addAll(base);
+    Set<String> effectiveAffixes(Set<String> base) {
+        Set<String> result = new LinkedHashSet<>();
+        if (base != null) {
+            result.addAll(base);
+        }
         if (ominous) {
-            result.add(Affix.OMINOUS);
+            result.add(AffixIds.OMINOUS);
         }
         if (feral) {
-            result.add(Affix.FERAL);
+            result.add(AffixIds.FERAL);
         }
         return result;
     }

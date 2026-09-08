@@ -469,3 +469,15 @@ Two gotchas, worth not re-discovering:
     (generationAllowed()) is the guard that prevents a new floor from
     racing the swap, but the exact thread the reload listener fires on
     was not confirmed by javap or bytecode inspection.
+28. UNVERIFIED: AffixManifest.validateLootRef validates bonus_tool_pool
+    and decor_pool references against
+    server.reloadableRegistries().lookup(), the same path LootTables.exists
+    uses. The alternative (server.registryAccess().lookupOrThrow
+    (Registries.LOOT_TABLE)) throws "Missing registry" unconditionally
+    because that registry key is never present on the frozen dynamic
+    registry manager. The reloadableRegistries path was inferred from
+    LootTables.exists, not verified against the 26.2 jar's registry
+    hierarchy. If the 26.2 API moves loot table lookups off
+    reloadableRegistries, the validation will silently report every
+    bonus_tool_pool as missing and reject every definition that carries
+    one.

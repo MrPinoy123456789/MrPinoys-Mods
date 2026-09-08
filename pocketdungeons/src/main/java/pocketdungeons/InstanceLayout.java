@@ -89,7 +89,7 @@ record InstanceLayout(
         int roomCount,
         int lootTier,
         boolean procedural,
-        Set<Affix> affixes,
+        Set<String> affixes,
         int keystoneLevel,
         BlockPos terminal,
         int entranceRotation,
@@ -110,7 +110,7 @@ record InstanceLayout(
      * and this is the one member of it that half the mod asks about by name.
      */
     boolean ominous() {
-        return affixes.contains(Affix.OMINOUS);
+        return affixes.contains(AffixIds.OMINOUS);
     }
 
     /**
@@ -140,6 +140,6 @@ record InstanceLayout(
     static InstanceLayout forClearingOnly(BlockPos origin, PlanGeometry geometry) {
         return new InstanceLayout(origin, geometry, origin, 0.0f, origin,
                 geometry.bounds(), 0L, 0, geometry.cells().size(), 0, false,
-                java.util.EnumSet.noneOf(Affix.class), 0, origin, 0, 0, Set.of(), null, Set.of());
+                Set.of(), 0, origin, 0, 0, Set.of(), null, Set.of());
     }
 }

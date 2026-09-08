@@ -451,14 +451,15 @@ final class DungeonCommands {
         // a way to lose a keystone.
         if (level > 0) {
             Payout.deliver(player, Keystone.mint(level, AffixMath.effective(player.getUUID(), level,
-                    AffixMath.parse(entry.keystoneAffix()))));
+                    AffixMath.parse(entry.keystoneAffix()),
+                    AffixManifest.current().definitions())));
             player.sendSystemMessage(Component.literal(
                     "A replacement keystone [" + level + "]. Your progress was never on the item.")
                     .withStyle(ChatFormatting.AQUA));
             return 1;
         }
 
-        log.setKeystone(player.getUUID(), 1, java.util.EnumSet.noneOf(Affix.class));
+        log.setKeystone(player.getUUID(), 1, Set.of());
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
                 "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
@@ -1230,7 +1231,7 @@ final class DungeonCommands {
         //    applyKeystoneItem skips level 0. Without this, the player enters
         //    the dungeon with no compass after a resetkey.
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 1,
-                java.util.EnumSet.noneOf(Affix.class));
+                Set.of());
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
                 "Keystone progress reset. Bag cleared. Keystone [1] in hand."
@@ -1318,7 +1319,7 @@ final class DungeonCommands {
         // PD-36: echo what AffixMath.parse actually kept, not the operator's
         // raw string. parse silently drops an unrecognized token, so the raw
         // string could confirm an affix that was never applied.
-        String appliedAffixes = AffixMath.join(parsedAffixes);
+        String appliedAffixes = AffixMath.join(parsedAffixes, AffixManifest.current().definitions());
         source.sendSuccess(() -> Component.literal(
                 "Door 3 now offers the experimental dungeon: theme " + theme
                         + (appliedAffixes.isEmpty() ? "" : ", affixes " + appliedAffixes)

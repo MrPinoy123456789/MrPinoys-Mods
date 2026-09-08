@@ -2,7 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +36,7 @@ public class DungeonShellProtectionTest {
                 List.of(new PlanCell(0, 0), new PlanCell(1, 0)));
         InstanceRecord record = new InstanceRecord(90, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(90, record);
 
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record);
@@ -54,7 +54,7 @@ public class DungeonShellProtectionTest {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceRecord record = new InstanceRecord(95, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(95, record);
 
         BlockPos cellOrigin = Instances.dungeonCellOriginAt(origin.offset(8, 3, 8));
@@ -86,7 +86,7 @@ public class DungeonShellProtectionTest {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceRecord record = new InstanceRecord(91, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(91, record);
 
         check(Instances.dungeonRecordAt(origin.offset(50, 2, 50)) == null); // unoccupied cell
@@ -102,7 +102,7 @@ public class DungeonShellProtectionTest {
                 List.of(new PlanCell(0, 0), new PlanCell(1, 0)));
         InstanceRecord record = new InstanceRecord(92, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), UUID.randomUUID(), false);
+                Set.of(), UUID.randomUUID(), false);
         record.roomCellOrigin = geometry.cellOrigin(new PlanCell(0, 0));
         InstanceRegistry.bySlot.put(92, record);
 
@@ -117,7 +117,7 @@ public class DungeonShellProtectionTest {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceRecord record = new InstanceRecord(93, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(93, record);
 
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record);
@@ -133,7 +133,7 @@ public class DungeonShellProtectionTest {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceRecord record = new InstanceRecord(94, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(94, record);
 
         // Shell position is protected while the run is active.

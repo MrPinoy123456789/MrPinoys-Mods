@@ -3,7 +3,7 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Items;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.List;
 import java.util.UUID;
 
@@ -81,7 +81,7 @@ public class DungeonToolsTest {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceRecord record = new InstanceRecord(70, origin, 0L,
                 InstanceLayout.forClearingOnly(origin, geometry),
-                EnumSet.noneOf(Affix.class), null, false);
+                Set.of(), null, false);
         InstanceRegistry.bySlot.put(70, record);
         InstanceRegistry.byMember.put(placer, record);
 

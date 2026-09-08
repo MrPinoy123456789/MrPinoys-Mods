@@ -2,7 +2,7 @@ package pocketdungeons;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * Affix set arithmetic: parsing, the level thresholds, the seeded pick, the
- * depletion multiplier and the keystone's name. No Minecraft imports -- same
+ * depletion multiplier and the keystone's name. No Minecraft imports, same
  * discipline as {@link KeystoneMath}, {@link DoorMask} and
  * {@link DifficultyProfile}, and for the same reason: this is the part that is
  * easy to get subtly wrong and trivial to test with plain {@code javac}.
@@ -18,23 +18,37 @@ import java.util.UUID;
  * <h2>Two questions, one mechanism</h2>
  *
  * <p><em>How many</em> affixes a key carries is one every 20 levels past a
- * level-5 start ({@link #seededCount}). <em>Which</em> ones fill those slots is seeded from
- * the key itself ({@link #seededFor}). M10 removes the third piece this section
- * used to describe: a door choice no longer adds an elective affix on top.
- * {@code Affix.Kind.ELECTIVE} is gone, and every affix left is seeded.
+ * level-5 start ({@link #seededCount}). <em>Which</em> ones fill those slots is
+ * seeded from the key itself ({@link #seededFor}). M10 removed the third piece
+ * this section used to describe: a door choice no longer adds an elective
+ * affix on top. Every affix is seeded.
  *
  * <p>There is deliberately <strong>no weekly rotation</strong>
- * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed would make
- * the keystone's name drift under the instance watcher, which rewrites stale
- * remotes in place; seeding from the key keeps the name a pure function of
- * {@code (level, affixSet)}.
+ * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed
+ * would make the keystone's name drift under the instance watcher, which
+ * rewrites stale remotes in place; seeding from the key keeps the name a pure
+ * function of {@code (level, affixSet)}.
+ *
+ * <h2>M69: data-driven definitions</h2>
+ *
+ * <p>Before M69 the affixes were a Java enum, and these methods iterated
+ * {@code Affix.values()}. Now the affixes are data-driven
+ * {@link AffixDefinition}s loaded by {@link AffixManifest}, and the maths
+ * receive the stable-ordered definition list as a parameter. This keeps the
+ * class import-free (the manifest needs the server; the maths do not) and
+ * lets the plain-{@code javac} test build fixtures without a classpath.
+ *
+ * <p>Identity is a namespaced id string ({@code "pocketdungeons:ominous"}). A
+ * legacy bare name ({@code "ominous"}, a pre-M69 save) is resolved to its id
+ * by {@link AffixIds#resolve} on parse, so a save written before M69 loads
+ * without a codec migration.
  *
  * <h2>Why the seeded affixes are not persisted</h2>
  *
- * <p>{@link DungeonLog} stores the <em>elective</em> affixes only. The seeded ones
- * are re-derived from {@code (owner, level)} on every read, which costs nothing
- * and buys two things: no codec field to migrate, and a depleted key that
- * correctly stops carrying affixes its new level no longer earns.
+ * <p>{@link DungeonLog} stores the <em>elective</em> affixes only. The seeded
+ * ones are re-derived from {@code (owner, level)} on every read, which costs
+ * nothing and buys two things: no codec field to migrate, and a depleted key
+ * that correctly stops carrying affixes its new level no longer earns.
  */
 final class AffixMath {
 
@@ -62,52 +76,62 @@ final class AffixMath {
      * Parses the comma-joined form {@link DungeonLog} and the item tag store.
      *
      * <p>Lenient by design, and that is what makes M4 migration-free: a save
-     * written before affixes stacked holds {@code "ominous"}, which reads back as
-     * a one-element set, and {@code ""} reads back as an empty one. An unknown
-     * word -- a renamed affix, a hand-edited save -- is dropped rather than
-     * thrown on, because the alternative is a player who cannot log in.
+     * written before affixes stacked holds {@code "ominous"}, which reads back
+     * as a one-element set, and {@code ""} reads back as an empty one. An
+     * unknown word, a renamed affix, or a hand-edited save is dropped rather
+     * than thrown on, because the alternative is a player who cannot log in.
+     *
+     * <p>M69: each token is resolved through {@link AffixIds#resolve}, so a
+     * legacy bare name ({@code "ominous"}) and a namespaced id
+     * ({@code "pocketdungeons:ominous"}) both parse to the same id. A
+     * third-party id ({@code "theirpack:their_affix"}) parses as is; if its
+     * definition is not loaded the id is still carried, the way an unknown
+     * enum name was dropped before.
      */
-    static EnumSet<Affix> parse(String joined) {
-        EnumSet<Affix> set = EnumSet.noneOf(Affix.class);
+    static Set<String> parse(String joined) {
+        Set<String> set = new LinkedHashSet<>();
         if (joined == null || joined.isBlank()) {
             return set;
         }
         for (String part : joined.split(",")) {
-            String name = part.trim();
-            if (name.isEmpty()) {
-                continue;
-            }
-            for (Affix affix : Affix.values()) {
-                if (affix.name().equalsIgnoreCase(name)) {
-                    set.add(affix);
-                    break;
-                }
+            String resolved = AffixIds.resolve(part);
+            if (resolved != null) {
+                set.add(resolved);
             }
         }
         return set;
     }
 
-    /** The inverse of {@link #parse}, in enum order so the string is stable. */
-    static String join(Set<Affix> affixes) {
+    /**
+     * The inverse of {@link #parse}, in stable order so the string is stable.
+     * Emits the namespaced id for each affix; a pre-M69 save that held
+     * {@code "ominous"} now round-trips through {@code "pocketdungeons:ominous"},
+     * which {@link #parse} accepts back.
+     */
+    static String join(Set<String> affixes, List<AffixDefinition> all) {
         StringBuilder out = new StringBuilder();
-        for (Affix affix : ordered(affixes)) {
+        for (AffixDefinition def : ordered(affixes, all)) {
             if (!out.isEmpty()) {
                 out.append(",");
             }
-            out.append(affix.name().toLowerCase());
+            out.append(def.id);
         }
         return out.toString();
     }
 
-    /** The set in enum declaration order -- the only order anything renders in. */
-    static List<Affix> ordered(Set<Affix> affixes) {
-        List<Affix> out = new ArrayList<>();
-        if (affixes == null || affixes.isEmpty()) {
+    /**
+     * The definitions for the given ids, in stable render/seed order. The
+     * only order anything renders in. An id with no loaded definition is
+     * skipped, the way an unknown enum name was dropped on parse.
+     */
+    static List<AffixDefinition> ordered(Set<String> affixes, List<AffixDefinition> all) {
+        List<AffixDefinition> out = new ArrayList<>();
+        if (affixes == null || affixes.isEmpty() || all == null) {
             return out;
         }
-        for (Affix affix : Affix.values()) {
-            if (affixes.contains(affix)) {
-                out.add(affix);
+        for (AffixDefinition def : all) {
+            if (affixes.contains(def.id)) {
+                out.add(def);
             }
         }
         return out;
@@ -118,7 +142,7 @@ final class AffixMath {
     /**
      * How many seeded affixes a key of this level carries: {@code 0} below 5,
      * {@code 1} at 5-24, {@code 2} at 25-44, and one more every 20 levels after
-     * that, reaching {@code 5} out of the {@code Kind.SEEDED} pool at level 85.
+     * that, reaching {@code 5} out of the seeded pool at level 85.
      *
      * <p>Monotonic and uncapped here: {@link #seededFor} already clamps to the
      * pool's own size, so a cap raised past what the pool can fill just means
@@ -129,37 +153,45 @@ final class AffixMath {
     }
 
     /**
-     * The seeded affixes for one player's key at one level.
+     * The seeded affix ids for one player's key at one level.
      *
-     * <p>Takes {@code owner} and {@code level} rather than a seed so that no caller
-     * can feed it run randomness by accident: the answer has to be the same every
-     * time the watcher asks, and the layout's seed is freshly rolled per run.
+     * <p>Takes {@code owner} and {@code level} rather than a seed so that no
+     * caller can feed it run randomness by accident: the answer has to be the
+     * same every time the watcher asks, and the layout's seed is freshly
+     * rolled per run.
+     *
+     * @param definitions the stable-ordered definition list (from
+     *                    {@link AffixManifest#definitions()}); only definitions
+     *                    with {@code minLevel <= level} enter the seeded pool
      */
-    static EnumSet<Affix> seededFor(UUID owner, int level) {
-        EnumSet<Affix> picked = EnumSet.noneOf(Affix.class);
+    static Set<String> seededFor(UUID owner, int level, List<AffixDefinition> definitions) {
+        Set<String> picked = new LinkedHashSet<>();
         int count = seededCount(level);
         if (count <= 0) {
             return picked;
         }
-        List<Affix> pool = new ArrayList<>();
-        for (Affix affix : Affix.values()) {
-            if (affix.kind == Affix.Kind.SEEDED && level >= affix.minLevel) {
-                pool.add(affix);
+        List<AffixDefinition> pool = new ArrayList<>();
+        if (definitions != null) {
+            for (AffixDefinition def : definitions) {
+                if (level >= def.minLevel) {
+                    pool.add(def);
+                }
             }
         }
         Collections.shuffle(pool, new Random(seed(owner, level)));
         for (int i = 0; i < Math.min(count, pool.size()); i++) {
-            picked.add(pool.get(i));
+            picked.add(pool.get(i).id);
         }
         return picked;
     }
 
     /**
-     * Everything riding on a key: what the player opted into, plus what the level
-     * hands them. This is what every consumer actually wants.
+     * Everything riding on a key: what the player opted into, plus what the
+     * level hands them. This is what every consumer actually wants.
      */
-    static EnumSet<Affix> effective(UUID owner, int level, Set<Affix> elective) {
-        EnumSet<Affix> set = seededFor(owner, level);
+    static Set<String> effective(UUID owner, int level, Set<String> elective,
+                                 List<AffixDefinition> definitions) {
+        Set<String> set = seededFor(owner, level, definitions);
         if (elective != null) {
             set.addAll(elective);
         }
@@ -169,23 +201,22 @@ final class AffixMath {
     /**
      * Only the affixes a player chose, which is all {@link DungeonLog} stores.
      *
-     * @deprecated M10 removes {@code Affix.Kind.ELECTIVE}: nothing is chosen at a
-     * door any more, so this always returns the empty set. Kept, rather than
-     * deleted or inlined, because every call site ({@link DungeonLog#setKeystone},
-     * {@code Keystones.grantOffer}, {@code Keystones.returnTo}) still reads as "the
-     * part of the set that gets persisted", and a future elective affix (if one
+     * @deprecated M10 removes elective affixes: nothing is chosen at a door
+     * any more, so this always returns the empty set. Kept, rather than
+     * deleted or inlined, because every call site still reads as "the part
+     * of the set that gets persisted", and a future elective affix (if one
      * ever ships again) has exactly one method to change back.
      */
     @Deprecated
-    static EnumSet<Affix> elective(Set<Affix> affixes) {
-        return EnumSet.noneOf(Affix.class);
+    static Set<String> elective(Set<String> affixes) {
+        return new LinkedHashSet<>();
     }
 
     /**
      * A stable, well-spread seed for {@code (owner, level)}.
      *
      * <p>{@code java.util.Random} correlates badly on low-entropy seeds and the
-     * pick here is a shuffle of five elements, so the UUID's two halves and the
+     * pick here is a shuffle of the pool, so the UUID's two halves and the
      * level go through a SplitMix64-style finaliser before they reach the
      * constructor rather than straight into it.
      */
@@ -204,16 +235,18 @@ final class AffixMath {
      * What a failure costs, as a multiplier over the whole set.
      *
      * <p><strong>The max, capped at two. Never the sum, never the product.</strong>
-     * A level-20 key must not shed most of a ladder on one bad night: loss aversion
-     * already runs at roughly twice the felt weight of an equivalent gain, so a
-     * doubled depletion is felt as roughly quadrupled, and a product of two
-     * doubling affixes would be unrecoverable in an evening.
+     * A level-20 key must not shed most of a ladder on one bad night: loss
+     * aversion already runs at roughly twice the felt weight of an equivalent
+     * gain, so a doubled depletion is felt as roughly quadrupled, and a product
+     * of two doubling affixes would be unrecoverable in an evening.
      */
-    static int depletionMultiplier(Set<Affix> affixes) {
+    static int depletionMultiplier(Set<String> affixes, List<AffixDefinition> all) {
         int max = 1;
-        if (affixes != null) {
-            for (Affix affix : affixes) {
-                max = Math.max(max, affix.depletionMultiplier);
+        if (affixes != null && all != null) {
+            for (AffixDefinition def : all) {
+                if (affixes.contains(def.id)) {
+                    max = Math.max(max, def.depletionMultiplier);
+                }
             }
         }
         return Math.min(2, max);
@@ -227,7 +260,7 @@ final class AffixMath {
      * Transcendent (91-100), M10's extension of the ladder past the old cap of
      * 25.
      *
-     * <p>Kamu Totems' <em>convention</em>, with entirely separate words -- same
+     * <p>Kamu Totems' <em>convention</em>, with entirely separate words, same
      * machinery, no shared code and no shared vocabulary, per
      * ({@code kamutotems/INTEGRATION.md}'s stranger rule).
      */
@@ -313,17 +346,17 @@ final class AffixMath {
     }
 
     /**
-     * {@code <intensifier> <affix> Keystone [<level>]}, with any remaining affixes
-     * in a bracketed subtitle -- the {@code <title> [<subtitle>]} shape
+     * {@code <intensifier> <affix> Keystone [<level>]}, with any remaining
+     * affixes in a bracketed subtitle, the {@code <title> [<subtitle>]} shape
      * {@code BossNames.build} uses next door.
      *
-     * <p>A pure function of its arguments, with no randomness anywhere in it. The
-     * watcher rewrites remotes in place, so a label that rolled anything would
-     * churn on every reconciliation.
+     * <p>A pure function of its arguments, with no randomness anywhere in it.
+     * The watcher rewrites remotes in place, so a label that rolled anything
+     * would churn on every reconciliation.
      */
-    static String name(int level, Set<Affix> affixes) {
+    static String name(int level, Set<String> affixes, List<AffixDefinition> all) {
         String head = intensifier(level);
-        List<Affix> ordered = ordered(affixes);
+        List<AffixDefinition> ordered = ordered(affixes, all);
         if (ordered.isEmpty()) {
             return head + " Keystone [" + level + "]";
         }
