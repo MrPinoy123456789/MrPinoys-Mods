@@ -2469,3 +2469,79 @@ until the engine work lands.
 - runGameTest: 61 tests passed. Live load confirmed 11 themes (0
   rejected), 11 adventure nodes (0 rejected), 40 core loot tables.
 - build: BUILD SUCCESSFUL, full suite green.
+## 41. M74 acceptance: six situation rooms, lower stories
+
+M74 adds six situation rooms using private lower stories rather than a new
+layout engine. The automated evidence is in `SITUATIONS_AUDIT.md` section 6;
+this section is the live-only half the automated tests cannot reach.
+
+### 41.1 Sump, by hand
+
+The gametest proves the return-path validator accepts a staircase. The
+live check is the player actually swimming in the sump, redirecting the
+current, and climbing the dry stair.
+
+1. Enter a Sump room. **Expected:** a shaft drops you into flooded lower
+   story. Water current pushes you away from the reward chest.
+2. Place loose blocks to redirect the current. **Expected:** the flow
+   bends and you can swim to the chest.
+3. Climb the dry staircase. **Expected:** you reach the upper floor
+   without a tool.
+
+### 41.2 Ropewalk, by hand
+
+1. Enter a Ropewalk room. **Expected:** a plank bridge crosses a chasm.
+2. Cross the bridge. **Expected:** you reach the far side.
+3. Alternatively, drop into the chasm. **Expected:** you can bridge the
+   gap with loose blocks and climb the far side.
+
+### 41.3 Sorting Floor, by hand
+
+1. Enter a Sorting Floor room. **Expected:** a water channel splits, an
+   iron door blocks the exit, a stick sits on a pedestal.
+2. Pick up the stick, drop it in the water, and place a block to divert
+   the flow south. **Expected:** the item reaches the filter hopper and
+   the door opens.
+3. Walk through the door. **Expected:** the item is in the return chest
+   past the door.
+
+### 41.4 Sensor Gallery, by hand
+
+1. Enter a Sensor Gallery room. **Expected:** three sculk sensors span
+   the room, zombies patrol, an iron door blocks the exit.
+2. Throw snowballs near the sensors. **Expected:** the sensors activate
+   and the door opens.
+3. Alternatively, wait for zombies to wander onto the sensors. **Expected:
+   the door opens from mob footsteps.
+
+### 41.5 Kennel Crossing, by hand
+
+1. Enter a Kennel Crossing room. **Expected:** wolves behind a fence
+   gate, zombies on the far side, a low cobblestone wall along the south
+   side.
+2. Open the fence gate. **Expected:** wolves attack the zombies.
+3. Alternatively, jump over the cobblestone wall and take the bypass.
+   **Expected:** you reach the exit without releasing the wolves.
+
+### 41.6 Blaze Cellar, by hand
+
+1. Enter a Blaze Cellar room. **Expected:** a shaft drops you into a
+   lower cellar with a blaze spawner, a chest in the corner, a pot of
+   snowballs on the upper floor.
+2. Use snowballs or water against the blaze. **Expected:** the blaze
+   takes damage and dies.
+3. Loot the chest and climb the staircase. **Expected:** you reach the
+   upper floor without a tool.
+
+### Headless verification (passed)
+
+- graphSolvabilityTest: passed (0 unresolved, 0 inaccessible exits, 0
+  fallback cells for standard tier sweeps).
+- dungeonRoomMetaTest: passed.
+- packValidationTest: passed (no findings).
+- runGameTest: 61 tests passed. Live load confirmed 61 rooms (0
+  rejected), 6 anomaly rooms, 11 themes, 40 core loot tables.
+- plansurvey 1000: 1000 succeeded, 0 failed.
+- 15 admin builds across seeds 1 to 500: all succeeded, zero
+  return-path failures.
+- build: BUILD SUCCESSFUL, full suite green.

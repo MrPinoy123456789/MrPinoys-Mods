@@ -573,3 +573,26 @@ Two gotchas, worth not re-discovering:
     wants `jumpy` or `clingy` must first add an engine operation that
     applies `decor_pool` (or a new spawner-rewrite operation for
     `jumpy`) to third-party affixes, not just the Loaded built-in.
+## UNVERIFIED M74 API surface
+
+35. UNVERIFIED: SculkSensorBlock redstone output to a dust line opening an
+    iron door. The jar confirms `SculkSensorBlock` has a `POWER`
+    `IntegerProperty` and `ownSignal` method, and the block stamps and
+    loads without error. The full redstone chain (sensor activates on
+    vibration, powers dust, dust reaches the iron door, door opens) is
+    vanilla behaviour that the headless server cannot exercise without a
+    player creating vibrations. The `ReturnPathValidator` and
+    `LayoutStamper` checks confirm the blocks are placed correctly, not
+    that the redstone circuit fires. A live client check is needed to
+    confirm the Sensor Gallery door opens when a player or mob creates
+    vibrations near the sensors.
+
+36. UNVERIFIED: Wolf aggression toward zombies in a trial spawner context.
+    The jar confirms `net.minecraft.world.entity.animal.Wolf` exists and
+    the trial spawner config loads. Vanilla wolves attack hostile mobs
+    when provoked or when their owner is attacked, but a trial-spawned
+    wolf may have different AI goals (trial spawner mobs are often
+    restricted to a spawn range). The Kennel Crossing design relies on
+    wolves aggroing zombies when the fence gate opens; this needs a live
+    client check to confirm the wolves actually path to and attack the
+    zombies rather than idling in the kennel.

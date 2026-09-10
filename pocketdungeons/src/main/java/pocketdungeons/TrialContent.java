@@ -146,6 +146,7 @@ final class TrialContent {
         SpurSpecs.registerHandlers();
         CollapsingBridgeHandler.register();
         RisingLavaHandler.register();
+        SituationSpecs.registerHandlers();
     }
 
     // ---- encounter ----------------------------------------------------------

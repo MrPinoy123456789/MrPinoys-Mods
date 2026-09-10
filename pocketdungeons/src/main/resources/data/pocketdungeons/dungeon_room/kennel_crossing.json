@@ -1,0 +1,14 @@
+﻿{
+  "template": "pocketdungeons:rooms/kennel_crossing",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "kennel_crossing",
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

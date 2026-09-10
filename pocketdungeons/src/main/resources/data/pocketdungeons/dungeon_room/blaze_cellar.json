@@ -1,0 +1,15 @@
+﻿{
+  "template": "pocketdungeons:rooms/blaze_cellar",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "blaze_cellar",
+  "tier": 3,
+  "provides": ["snowballs"],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "spanY": 2
+}

@@ -1,0 +1,14 @@
+﻿{
+  "template": "pocketdungeons:rooms/sensor_gallery",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "sensor_gallery",
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

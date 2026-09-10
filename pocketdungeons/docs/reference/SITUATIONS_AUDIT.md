@@ -582,3 +582,90 @@ combat difficulty, and the moment-to-moment experience of playing the
 room. The graph proof says the room is solvable; the physical proof
 says the blocks work; neither says a player will understand the room on
 first sight. That is a live-play check, not a test.
+## 6 M74 evidence: six new situation rooms
+
+M74 adds six situation rooms using private lower stories rather than a new
+layout engine. Each room is a `RoomSpec` in `SituationSpecs.java` with a
+matching `dungeon_room` JSON, a generated `.nbt` template, and (for combat
+rooms) a `trial_spawner` config. No new engine operation was added.
+
+### 6.1 The six rooms
+
+- **Sump** (tier 1, corridor, spanY 2): water and current redirection in a
+  flooded lower story, dry staircase return. Two solutions: redirect the
+  current with loose blocks, or swim against it. Two of three: water is
+  hazard, weapon, resource.
+- **Ropewalk** (tier 2, corridor, spanY 2): high crossing on a plank bridge
+  over a chasm, slower lower path through the chasm. Two solutions: cross
+  the bridge, or drop down and bridge the chasm. Two of three: the chasm
+  is hazard, the bridge is a weapon (push mobs off), planks are a resource.
+- **Sorting Floor** (tier 2, corridor, gated): water channel routes a
+  returned item through a hopper filter to open the iron door. Two
+  solutions: divert the water with a loose block, or throw the item over
+  the barrier. Two of three: water is hazard, weapon, resource.
+- **Sensor Gallery** (tier 2, encounter, gated): three sculk sensors open
+  the iron door when activated by vibrations. Two solutions: throw
+  snowballs to activate sensors from a distance, or wait for mob footsteps
+  to activate them. Two of three: sensors are hazard and weapon (mob
+  footsteps open the door), wool is a resource.
+- **Kennel Crossing** (tier 2, encounter, open): wolves behind a fence
+  gate as a steerable contained hazard, tool-free bypass along the south
+  wall. Two solutions: release the wolves to clear zombies, or take the
+  bypass. Two of three: wolves are hazard, weapon, resource (tameable).
+- **Blaze Cellar** (tier 3, encounter, spanY 2, open): blaze spawner in a
+  lower story, snowball or water advantage, permanent staircase return.
+  Two solutions: snowballs from range, or water to douse the blaze. Two
+  of three: blaze is hazard and weapon (fire hits other mobs), snowballs
+  are a resource.
+
+### 6.2 Return path validation
+
+Sump, Ropewalk, and Blaze Cellar use `spanY: 2`. Each has a permanent
+staircase from the lower floor to the upper floor, verified by
+`ReturnPathValidator.validate` after template stamping. The validator
+reads actual stamped blocks, not metadata. A failure throws
+`IllegalStateException` and refuses the stamp.
+
+Live evidence: 15 admin builds across seeds 1 through 500, plus
+`/dungeon admin validate`, all completed with zero return-path failures.
+The `LayoutStamper` return-path check (spec 13.4) fired on every spanY 2
+stamp and passed.
+
+### 6.3 Composition measurement
+
+`/dungeon admin plansurvey 1000`: 1000 seeds, 1000 succeeded, 0 failed
+(2156 total attempts). The plan success rate is unchanged from the M73
+baseline.
+
+Each M74 room has `maxPerDungeon: 1`, so no room can repeat within a
+single dungeon. The rooms are spread across tiers (tier 1: Sump; tier 2:
+Ropewalk, Sorting Floor, Sensor Gallery, Kennel Crossing; tier 3: Blaze
+Cellar), so no single dungeon can contain all six. The natural tier
+distribution limits pressure streaks without invalidating any guaranteed
+provider.
+
+No bounded composition constraint was added. The evidence does not
+require one: `maxPerDungeon: 1` already bounds repetition, and the tier
+spread prevents all six from appearing in the same dungeon.
+
+### 6.4 What is proven and what is not
+
+**Graph proof** (automated, headless): `graphSolvabilityTest` passed.
+496 floors per tier, 0 fallback cells, 0 unresolved, 0 inaccessible exits.
+The Pilgrim sweep (596 floors, 6873 cells) is unchanged.
+
+**Physical stamping** (automated, live world): 15 admin builds and
+`/dungeon admin validate` all completed with zero stamping failures and
+zero return-path failures. All 61 rooms loaded with 0 rejections.
+
+**Handler and spawner placement** (automated): `runGameTest` passed (61
+tests). The combat rooms (Sensor Gallery, Kennel Crossing, Blaze Cellar)
+place trial spawners via `TrialContent.applyEncounter` with
+situation-specific config prefixes. The non-combat rooms (Sump, Ropewalk,
+Sorting Floor) own their cells without placing spawners.
+
+**Human player mastery** (not automated): readability, route-finding,
+combat difficulty, and the moment-to-moment experience of playing each
+room. The graph proof says the room is solvable; the physical proof says
+the blocks work; neither says a player will understand the room on first
+sight. That is a live-play check, not a test.

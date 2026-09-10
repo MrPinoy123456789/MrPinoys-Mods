@@ -1,0 +1,14 @@
+﻿{
+  "template": "pocketdungeons:rooms/sorting_floor",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "content": "sorting_floor",
+  "tier": 2,
+  "provides": ["water", "blocks"],
+  "requires": [],
+  "access": "gated",
+  "window": "bars"
+}

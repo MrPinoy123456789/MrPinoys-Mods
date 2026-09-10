@@ -3962,3 +3962,67 @@ The deferral is recorded in `docs/DISCOVERIES.md` as trap 34.
   rejected), 11 adventure nodes (0 rejected), 9 affixes, 9 bags, 4 roles,
   13 recipes, 40 core loot tables.
 - build: BUILD SUCCESSFUL, full suite green.
+## M74: six situation rooms from private lower stories
+
+Six new situation rooms ship using private lower stories rather than a new
+layout engine. Each room is a `RoomSpec` in `SituationSpecs.java` with a
+matching `dungeon_room` JSON, a generated `.nbt` template, and (for combat
+rooms) a `trial_spawner` config. No new engine operation was added.
+
+### The six rooms
+
+Each pair is contrasted on situation, solution, and lower-story use. A
+room that failed admission would have been rejected; none did.
+
+- **Sump** (tier 1, corridor, spanY 2) versus **Ropewalk** (tier 2,
+  corridor, spanY 2). Sump offers water and current redirection with a
+  dry stair return. Ropewalk offers a high crossing and a slower lower
+  path. Both use `spanY: 2` with a permanent staircase return path,
+  verified by `ReturnPathValidator` after stamping.
+- **Sorting Floor** (tier 2, corridor, gated) versus **Sensor Gallery**
+  (tier 2, encounter, gated). Sorting Floor routes a returned item
+  through water to a hopper filter. Sensor Gallery uses sculk sensors
+  activated by vibrations (snowballs or mob footsteps) to open the door.
+  Each owes doorway readability, two useful solutions, a real slow path,
+  and two-of-three utility.
+- **Kennel Crossing** (tier 2, encounter, open) versus **Blaze Cellar**
+  (tier 3, encounter, spanY 2, open). Kennel Crossing offers a steerable
+  contained hazard (wolves behind a fence gate) with a tool-free bypass.
+  Blaze Cellar offers the snowball or water advantage over a lower-story
+  blaze threat with a permanent staircase. Blaze Cellar uses `spanY: 2`
+  with a permanent return path, verified by `ReturnPathValidator`.
+
+### What shipped
+
+- `src/main/java/pocketdungeons/SituationSpecs.java`: six `RoomSpec`
+  definitions with `decor` callbacks, `spanY`, `spawner`, and `chests`
+  fields. Shared helpers for iron doors, hoppers, comparators, dust, pots,
+  and filter hoppers.
+- `dungeon_room/{sump,ropewalk,sorting_floor,sensor_gallery,kennel_crossing,blaze_cellar}.json`
+  room metadata.
+- `structure/rooms/{sump,ropewalk,sorting_floor,sensor_gallery,kennel_crossing,blaze_cellar}.nbt`
+  generated templates.
+- `trial_spawner/{sensor_gallery,kennel_crossing,blaze_cellar}/{normal,ominous}.json`
+  spawner configs (6 files). Sump, Ropewalk, and Sorting Floor are
+  non-combat and need no spawner config.
+
+### Composition measurement
+
+`/dungeon admin plansurvey 1000`: 1000 succeeded, 0 failed. Each room
+has `maxPerDungeon: 1`, so no room repeats within a single dungeon. The
+rooms are spread across tiers, so no single dungeon contains all six.
+No bounded composition constraint was added; the evidence does not
+require one.
+
+### Verification
+
+- graphSolvabilityTest: passed (0 unresolved, 0 inaccessible exits, 0
+  fallback cells for standard tier sweeps).
+- dungeonRoomMetaTest: passed.
+- packValidationTest: passed (no findings).
+- runGameTest: 61 tests passed. Live load confirmed 61 rooms (0
+  rejected), 6 anomaly rooms, 11 themes, 40 core loot tables.
+- plansurvey 1000: 1000 succeeded, 0 failed.
+- 15 admin builds across seeds 1 to 500: all succeeded, zero
+  return-path failures.
+- build: BUILD SUCCESSFUL, full suite green.

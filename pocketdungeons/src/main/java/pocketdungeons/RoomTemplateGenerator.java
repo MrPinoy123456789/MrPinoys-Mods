@@ -233,6 +233,7 @@ final class RoomTemplateGenerator {
         specs.addAll(PressureSpecs.list());
         specs.addAll(SpurSpecs.list());
         specs.addAll(StagingSpecs.list());
+        specs.addAll(SituationSpecs.list());
         return specs;
     }
 
