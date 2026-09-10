@@ -38,6 +38,12 @@ public class GraphSolvabilityTest {
     private static final String UNREACHABLE_TAG = SituationTags.BOAT;
 
     public static void main(String[] args) {
+        // M70: publish a synthetic bag manifest so BagTags.seed reads the
+        // same tags the live server would load from dungeon_bag/*.json. The
+        // headless test has no Minecraft server, so the manifest is built by
+        // hand from the built-in ids and their pre-M70 tag sets.
+        publishSyntheticBagManifest();
+        publishSyntheticRoleManifest();
         testBagSeed();
         testPilgrimSweep();
         testTierSweep();
@@ -375,12 +381,12 @@ public class GraphSolvabilityTest {
                 new PlanEdge(corner, far), new PlanEdge(far, back),
                 new PlanEdge(back, south), new PlanEdge(south, entrance)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(east, "corridor");
-        roles.put(corner, "encounter");
-        roles.put(far, "loot");
-        roles.put(back, "corridor");
-        roles.put(south, "corridor");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(east, RoleIds.CORRIDOR);
+        roles.put(corner, RoleIds.ENCOUNTER);
+        roles.put(far, RoleIds.LOOT);
+        roles.put(back, RoleIds.CORRIDOR);
+        roles.put(south, RoleIds.CORRIDOR);
 
         DungeonShape shape = new DungeonShape(7, cells, edges, entrance, far,
                 List.of(entrance, east, corner, far), roles);
@@ -470,10 +476,10 @@ public class GraphSolvabilityTest {
                 new PlanEdge(entrance, sibling), new PlanEdge(entrance, peer),
                 new PlanEdge(peer, below)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(sibling, "loot");
-        roles.put(peer, "encounter");
-        roles.put(below, "corridor");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(sibling, RoleIds.LOOT);
+        roles.put(peer, RoleIds.ENCOUNTER);
+        roles.put(below, RoleIds.CORRIDOR);
 
         DungeonShape shape = new DungeonShape(11, cells, edges, entrance, below,
                 List.of(entrance, peer, below), roles);
@@ -517,8 +523,8 @@ public class GraphSolvabilityTest {
         PlanCell provider = new PlanCell(1, 0);
         PlanCell consumer = new PlanCell(2, 0);
         Map<PlanCell, String> roles = new LinkedHashMap<>(shape.roles());
-        roles.put(provider, "loot");
-        roles.put(consumer, "encounter");
+        roles.put(provider, RoleIds.LOOT);
+        roles.put(consumer, RoleIds.ENCOUNTER);
         shape = new DungeonShape(13, shape.cells(), shape.openEdges(), shape.entrance(),
                 consumer, shape.criticalPath(), roles);
 
@@ -578,10 +584,10 @@ public class GraphSolvabilityTest {
                 new PlanEdge(entrance, wiring), new PlanEdge(wiring, firstDoor),
                 new PlanEdge(firstDoor, secondDoor)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(wiring, "loot");
-        roles.put(firstDoor, "encounter");
-        roles.put(secondDoor, "encounter");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(wiring, RoleIds.LOOT);
+        roles.put(firstDoor, RoleIds.ENCOUNTER);
+        roles.put(secondDoor, RoleIds.ENCOUNTER);
 
         DungeonShape shape = new DungeonShape(17, cells, edges, entrance, secondDoor,
                 List.of(entrance, wiring, firstDoor, secondDoor), roles);
@@ -645,9 +651,9 @@ public class GraphSolvabilityTest {
             Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
                     new PlanEdge(entrance, supply), new PlanEdge(supply, gate)));
             Map<PlanCell, String> roles = new LinkedHashMap<>();
-            roles.put(entrance, "entrance");
-            roles.put(supply, "loot");
-            roles.put(gate, "encounter");
+            roles.put(entrance, RoleIds.ENTRANCE);
+            roles.put(supply, RoleIds.LOOT);
+            roles.put(gate, RoleIds.ENCOUNTER);
             DungeonShape shape = new DungeonShape(seed, cells, edges, entrance, gate,
                     List.of(entrance, supply, gate), roles);
 
@@ -728,10 +734,10 @@ public class GraphSolvabilityTest {
                 new PlanEdge(entrance, pots), new PlanEdge(pots, onPath),
                 new PlanEdge(pots, spur)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(pots, "loot");
-        roles.put(onPath, "encounter");
-        roles.put(spur, "corridor");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(pots, RoleIds.LOOT);
+        roles.put(onPath, RoleIds.ENCOUNTER);
+        roles.put(spur, RoleIds.CORRIDOR);
 
         DungeonShape shape = new DungeonShape(23, cells, edges, entrance, onPath,
                 List.of(entrance, pots, onPath), roles);
@@ -839,11 +845,18 @@ public class GraphSolvabilityTest {
         Set<PlanCell> cells = new LinkedHashSet<>();
         List<PlanCell> path = new ArrayList<>();
         Map<PlanCell, String> roles = new LinkedHashMap<>();
+        // M70: namespaced role ids, matching the generator.
+        String entrance = RoleIds.ENTRANCE;
+        String exit = RoleIds.EXIT;
+        String middle = RoleIds.resolve(middleRole);
+        if (middle == null) {
+            middle = middleRole;
+        }
         for (int i = 0; i < n; i++) {
             PlanCell cell = new PlanCell(i, 0);
             cells.add(cell);
             path.add(cell);
-            roles.put(cell, i == 0 ? "entrance" : (i == n - 1 ? "exit" : middleRole));
+            roles.put(cell, i == 0 ? entrance : (i == n - 1 ? exit : middle));
         }
         Set<PlanEdge> edges = new LinkedHashSet<>();
         for (int i = 0; i < n - 1; i++) {
@@ -875,8 +888,24 @@ public class GraphSolvabilityTest {
 
     private static DungeonRoomMeta meta(String template, List<String> roles, List<String> provides,
                                         List<String> requires, String access, int weight) {
-        return new DungeonRoomMeta(template, 1, 1, roles, weight, 0, -1, null, List.of(), null,
+        // M70: qualify bare role names to namespaced ids, the same way
+        // DungeonRoomMeta.parseRoles does for JSON files, so the test's
+        // hand-built rooms match the namespaced ids the generator assigns.
+        return new DungeonRoomMeta(template, 1, 1, qualify(roles), weight, 0, -1, null, List.of(), null,
                 1, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS, 1);
+    }
+
+    /**
+     * M70: qualifies a list of bare role names to namespaced ids. A name
+     * that already contains a colon is returned as-is.
+     */
+    private static List<String> qualify(List<String> roles) {
+        List<String> out = new ArrayList<>(roles.size());
+        for (String role : roles) {
+            String resolved = RoleIds.resolve(role);
+            out.add(resolved == null ? role : resolved);
+        }
+        return List.copyOf(out);
     }
 
     /**
@@ -1004,7 +1033,7 @@ public class GraphSolvabilityTest {
 
     private static DungeonRoomMeta tierMeta(String template, List<String> roles, List<String> provides,
                                             List<String> requires, String access, int weight, int tier) {
-        return new DungeonRoomMeta(template, 1, 1, roles, weight, 0, -1, null, List.of(), null,
+        return new DungeonRoomMeta(template, 1, 1, qualify(roles), weight, 0, -1, null, List.of(), null,
                 tier, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS, 1);
     }
 
@@ -1105,5 +1134,59 @@ public class GraphSolvabilityTest {
         }
         out.sort(java.util.Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
         return out;
+    }
+
+    // ---- M70: synthetic manifests for the headless test ----
+
+    /**
+     * Publishes a synthetic {@link BagManifest} built from the eight built-in
+     * {@link BagIds} with their pre-M70 tag sets, so {@link BagTags#seed}
+     * reads the same tags the live server would load from
+     * {@code dungeon_bag/*.json}. The headless test has no Minecraft server.
+     */
+    private static void publishSyntheticBagManifest() {
+        Map<String, BagManifest.Entry> entries = new LinkedHashMap<>();
+        Object[][] bags = {
+                {BagIds.MASON, java.util.Set.of(SituationTags.BLOCKS), 0},
+                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 1},
+                {BagIds.SAPPER, java.util.Set.of(SituationTags.BLOCKS), 2},
+                {BagIds.MAGICIAN, java.util.Set.of(SituationTags.PEARL, SituationTags.WIND_CHARGE), 3},
+                {BagIds.RANGER, java.util.Set.of(SituationTags.BOW), 4},
+                {BagIds.SHEPHERD, java.util.Set.of(SituationTags.LEAD, SituationTags.MOB), 5},
+                {BagIds.INNKEEPER, java.util.Set.of(SituationTags.MILK), 6},
+                {BagIds.PILGRIM, java.util.Set.of(), 7},
+        };
+        for (Object[] b : bags) {
+            String id = (String) b[0];
+            @SuppressWarnings("unchecked")
+            Set<String> tags = (Set<String>) b[1];
+            int order = (int) b[2];
+            BagDefinition def = new BagDefinition(id, id, "", order, List.of(), tags,
+                    BagMeta.defaultLootTable(id));
+            entries.put(id, new BagManifest.Entry(id, def));
+        }
+        BagManifest.publish(BagManifest.create(entries, List.of()));
+    }
+
+    /**
+     * Publishes a synthetic {@link RoleManifest} with the three built-in
+     * population roles, so the selector's unknown-role check passes for the
+     * built-in ids the generator assigns.
+     */
+    private static void publishSyntheticRoleManifest() {
+        Map<String, RoleManifest.Entry> entries = new LinkedHashMap<>();
+        Object[][] roles = {
+                {RoleIds.ENCOUNTER, 45, RoomRoleDefinition.Operation.TRIAL_ENCOUNTER},
+                {RoleIds.LOOT, 25, RoomRoleDefinition.Operation.TOOL_CACHE},
+                {RoleIds.CORRIDOR, 30, RoomRoleDefinition.Operation.NONE},
+        };
+        for (Object[] r : roles) {
+            String id = (String) r[0];
+            int weight = (int) r[1];
+            RoomRoleDefinition.Operation op = (RoomRoleDefinition.Operation) r[2];
+            RoomRoleDefinition def = new RoomRoleDefinition(id, "interior", weight, 0, -1, List.of(), op);
+            entries.put(id, new RoleManifest.Entry(id, def));
+        }
+        RoleManifest.publish(RoleManifest.create(entries, List.of()));
     }
 }

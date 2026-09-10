@@ -1,0 +1,17 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "ender_archive",
+      "weight": 2
+    },
+    {
+      "theme": "blackstone",
+      "weight": 2
+    },
+    {
+      "theme": "deepslate",
+      "weight": 2
+    }
+  ]
+}

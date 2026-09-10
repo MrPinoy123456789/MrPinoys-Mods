@@ -1,0 +1,1 @@
+{"version": 1, "label": "Example Bag", "blurb": "An example starting bag. Rename the namespace and edit the headline and tags.", "order": 100, "headline": ["minecraft:cobblestone", "minecraft:stone_pickaxe", "minecraft:torch"], "tags": ["blocks"], "loot_table": "pocketdungeons:bags/mason"}

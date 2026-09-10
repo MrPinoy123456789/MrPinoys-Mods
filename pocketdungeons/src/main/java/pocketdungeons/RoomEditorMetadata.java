@@ -36,7 +36,7 @@ final class RoomEditorMetadata {
      * Defaults match a new room: loot role, 1x1 footprint, tier 1, etc.
      */
     static final class EditorMeta {
-        Set<String> roles = new HashSet<>(Set.of("loot"));
+        Set<String> roles = new HashSet<>(Set.of(RoleIds.LOOT));
         int footprintX = 1;
         int footprintZ = 1;
         int tier = 1;
@@ -75,12 +75,14 @@ final class RoomEditorMetadata {
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, player, false);
         gui.setTitle(Component.literal("Room Metadata"));
 
-        // Row 0 (slots 0-8): Roles
-        gui.setSlot(0, roleToggle(meta, "encounter"));
-        gui.setSlot(1, roleToggle(meta, "loot"));
-        gui.setSlot(2, roleToggle(meta, "corridor"));
-        gui.setSlot(3, roleToggle(meta, "entrance"));
-        gui.setSlot(4, roleToggle(meta, "exit"));
+        // Row 0 (slots 0-8): Roles. M70: namespaced ids, matching the
+        // generator and selector. The display strips the namespace for
+        // readability.
+        gui.setSlot(0, roleToggle(meta, RoleIds.ENCOUNTER));
+        gui.setSlot(1, roleToggle(meta, RoleIds.LOOT));
+        gui.setSlot(2, roleToggle(meta, RoleIds.CORRIDOR));
+        gui.setSlot(3, roleToggle(meta, RoleIds.ENTRANCE));
+        gui.setSlot(4, roleToggle(meta, RoleIds.EXIT));
         for (int i = 5; i < 9; i++) {
             gui.setSlot(i, filler());
         }
@@ -147,8 +149,12 @@ final class RoomEditorMetadata {
 
     private static GuiElementBuilder roleToggle(EditorMeta meta, String role) {
         boolean on = meta.roles.contains(role);
+        // M70: strip the namespace for display, so "pocketdungeons:encounter"
+        // reads as "encounter" in the GUI.
+        String display = role.indexOf(':') >= 0
+                ? role.substring(role.indexOf(':') + 1) : role;
         return new GuiElementBuilder(on ? Items.EMERALD : Items.COAL)
-                .setName(Component.literal("Role: " + role)
+                .setName(Component.literal("Role: " + display)
                         .withStyle(on ? ChatFormatting.GREEN : ChatFormatting.GRAY)
                         .withStyle(s -> s.withItalic(false)))
                 .addLoreLine(Component.literal(on ? "Enabled. Click to disable." : "Disabled. Click to enable.")

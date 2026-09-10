@@ -1,0 +1,17 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "copper_works",
+      "weight": 2
+    },
+    {
+      "theme": "prismarine",
+      "weight": 2
+    },
+    {
+      "theme": "infestation",
+      "weight": 2
+    }
+  ]
+}

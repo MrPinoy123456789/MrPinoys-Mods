@@ -1,7 +1,9 @@
 package pocketdungeons;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -13,6 +15,11 @@ import java.util.UUID;
  * pinned at the pure {@link DialogScreens#bagPickerDialog} and
  * {@link DialogScreens#bagConfirmDialog} halves, the same split
  * {@code LodestoneMenuTest} uses.
+ *
+ * <p>M70: the picker now reads the data-driven {@link BagManifest} rather than
+ * the deleted {@code Bags} enum. This test publishes a synthetic manifest
+ * built from {@link BagIds} before running, so the headless test sees the same
+ * eight bags the live server would load from {@code dungeon_bag/*.json}.
  */
 public class BagSelectionTest {
 
@@ -21,6 +28,10 @@ public class BagSelectionTest {
         // initializers, the same bootstrap LobbyBrowserTest needs.
         net.minecraft.SharedConstants.setVersion(net.minecraft.DetectedVersion.BUILT_IN);
         net.minecraft.server.Bootstrap.bootStrap();
+
+        // M70: publish a synthetic bag manifest from the built-in ids, so
+        // the picker reads the same eight bags the live server would load.
+        publishSyntheticManifest();
 
         UUID owner = UUID.fromString("00000000-0000-0000-0000-0000000000c2");
 
@@ -35,9 +46,7 @@ public class BagSelectionTest {
             check(option.tooltip().isEmpty(), false, "bag tooltip is non-empty: " + option.bagId());
             check(Bags.byId(option.bagId()) != null, true, "bag id resolves: " + option.bagId());
         }
-        check(ids, List.of("mason", "plumber", "sapper", "magician",
-                        "ranger", "shepherd", "innkeeper", "pilgrim"),
-                "bag ids in declaration order");
+        check(ids, BagIds.BUILT_IN_ORDER, "bag ids in declaration order");
 
         // The picker dialog is a MultiActionDialog with one button per bag,
         // each carrying the owner UUID and the bag id under the bag action.
@@ -60,7 +69,7 @@ public class BagSelectionTest {
         // The confirm dialog carries the bag id on its Confirm button and the
         // owner UUID on its Back button (the no-bag-id signal to re-open the
         // picker).
-        net.minecraft.server.dialog.Dialog confirm = DialogScreens.bagConfirmDialog(owner, "ranger");
+        net.minecraft.server.dialog.Dialog confirm = DialogScreens.bagConfirmDialog(owner, BagIds.RANGER);
         check(confirm instanceof net.minecraft.server.dialog.ConfirmationDialog, true,
                 "confirm is a ConfirmationDialog");
         net.minecraft.server.dialog.ConfirmationDialog confirmDialog =
@@ -68,7 +77,7 @@ public class BagSelectionTest {
         net.minecraft.server.dialog.action.CustomAll yes = (net.minecraft.server.dialog.action.CustomAll)
                 confirmDialog.yesButton().action().orElseThrow();
         net.minecraft.nbt.CompoundTag yesPayload = yes.additions().orElseThrow();
-        check(yesPayload.getStringOr(DialogScreens.KEY_BAG_ID, ""), "ranger",
+        check(yesPayload.getStringOr(DialogScreens.KEY_BAG_ID, ""), BagIds.RANGER,
                 "confirm button carries the bag id");
         check(yesPayload.getStringOr(DialogScreens.KEY_OWNER, ""), owner.toString(),
                 "confirm button carries the owner UUID");
@@ -81,6 +90,48 @@ public class BagSelectionTest {
                 "back button carries the owner UUID");
 
         System.out.println("BagSelectionTest passed");
+    }
+
+    /**
+     * Publishes a synthetic {@link BagManifest} built from the eight built-in
+     * {@link BagIds}, so the headless picker reads the same bags the live
+     * server would load from {@code dungeon_bag/*.json}. The definitions carry
+     * the label and blurb the JSON files ship, so the dialog text matches.
+     */
+    private static void publishSyntheticManifest() {
+        Map<String, BagManifest.Entry> entries = new LinkedHashMap<>();
+        String[][] bags = {
+                {BagIds.MASON, "Mason's Bag", "Stone, a pick, and the patience to use them."},
+                {BagIds.PLUMBER, "Plumber's Bag", "Two buckets. Everything else is what you do with them."},
+                {BagIds.SAPPER, "Sapper's Bag", "Three sticks of the loudest answer there is."},
+                {BagIds.MAGICIAN, "Magician's Bag", "Pearls and wind. Doors are for other people."},
+                {BagIds.RANGER, "Ranger's Bag", "Reach. See it first, hit it from there."},
+                {BagIds.SHEPHERD, "Shepherd's Bag", "Leads and bones. Something down here will follow you."},
+                {BagIds.INNKEEPER, "Innkeeper's Bag", "Milk, an apple, and a warm light. You will keep."},
+                {BagIds.PILGRIM, "Pilgrim's Bag", "Bread. The rooms owe you the rest."},
+        };
+        for (int i = 0; i < bags.length; i++) {
+            String id = bags[i][0];
+            String label = bags[i][1];
+            String blurb = bags[i][2];
+            BagDefinition def = new BagDefinition(id, label, blurb, i,
+                    List.of(), java.util.Set.of(),
+                    BagMeta.defaultLootTable(id));
+            entries.put(id, new BagManifest.Entry(id, def));
+        }
+        // BagManifest has a package-private constructor; use a reflection-free
+        // approach by parsing into it through the same path the live loader
+        // would. Since the constructor is package-private and this test is in
+        // the same package, we can build it directly.
+        BagManifest manifest = buildManifest(entries);
+        BagManifest.publish(manifest);
+    }
+
+    private static BagManifest buildManifest(Map<String, BagManifest.Entry> entries) {
+        // The BagManifest constructor is package-private; this test is in the
+        // pocketdungeons package so it can call it. The rejections list is
+        // empty for a synthetic manifest.
+        return BagManifest.create(entries, List.of());
     }
 
     private static void check(Object actual, Object expected, String what) {

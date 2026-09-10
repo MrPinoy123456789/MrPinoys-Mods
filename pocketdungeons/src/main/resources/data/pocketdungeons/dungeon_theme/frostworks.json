@@ -1,0 +1,7 @@
+{
+  "name": "Frostworks",
+  "processors": "pocketdungeons:theme_frostworks",
+  "spawner_prefix": "frostworks",
+  "loot_suffix": "frostworks",
+  "room_theme": "frostworks"
+}

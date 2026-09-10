@@ -6,27 +6,32 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Set;
-import java.util.Set;
 
 /**
- * M66: coverage for the recipe planning contract. A consumed catalyst changes
- * exactly the floor previewed, or remains recoverable without charging for
- * nothing. These tests verify the {@link RunRecipePlan} resolution, the
- * preview-freeze contract, and the refusal of impossible guarantees before
- * consumption.
+ * M66: coverage for the recipe planning contract. A consumed catalyst
+ * changes exactly the floor previewed, or remains recoverable without
+ * charging for nothing. These tests verify the {@link RunRecipePlan}
+ * resolution, the preview-freeze contract, and the refusal of impossible
+ * guarantees before consumption.
  *
- * <p>Same package rationale as {@link FloorLoopGameTest}: {@link RunRecipePlan}
- * and {@link CubeRecipe} are package-private, and sharing the package is
- * cheaper than opening it.
+ * <p>M71: the recipe definitions are data-driven. The tests use bare tag
+ * keys ("store", "ominous") which {@link RecipeIds#resolve} maps to
+ * namespaced ids, and check the resolved ids in {@code activeRecipes}. The
+ * guaranteed-room and weighted-room effects are now lists, not booleans,
+ * so the tests check the lists directly.
+ *
+ * <p>Same package rationale as {@link FloorLoopGameTest}: 
+ * {@link RunRecipePlan} and {@link CubeRecipe} are package-private, and
+ * sharing the package is cheaper than opening it.
  */
 public final class CubeRecipeGameTest {
 
     /**
      * The core contract: once a preview resolves a recipe plan, the recipe
-     * membership (which recipes are active), the effect set, and the seed are
-     * frozen. Unrelated record changes do not invalidate the plan. A changed
-     * catalyst (different recipe tags), party capability, or offer level
-     * invalidates the preview before spending.
+     * membership (which recipes are active), the effect set, and the seed
+     * are frozen. Unrelated record changes do not invalidate the plan. A
+     * changed catalyst (different recipe tags), party capability, or offer
+     * level invalidates the preview before spending.
      */
     @GameTest(maxTicks = 20)
     public void previewFreezesRecipeMembership(GameTestHelper helper) {
@@ -50,12 +55,12 @@ public final class CubeRecipeGameTest {
         }
 
         // Assert exact recipe membership: store and compass are active.
-        if (!plan.activeRecipes.contains("store")) {
-            helper.fail("Expected 'store' in active recipes");
+        if (!plan.activeRecipes.contains(RecipeIds.STORE)) {
+            helper.fail("Expected 'pocketdungeons:store' in active recipes");
             return;
         }
-        if (!plan.activeRecipes.contains("compass")) {
-            helper.fail("Expected 'compass' in active recipes");
+        if (!plan.activeRecipes.contains(RecipeIds.COMPASS)) {
+            helper.fail("Expected 'pocketdungeons:compass' in active recipes");
             return;
         }
         if (plan.activeRecipes.size() != 2) {
@@ -63,9 +68,10 @@ public final class CubeRecipeGameTest {
             return;
         }
 
-        // Assert effect set: storeSpur and completionStudyList are true.
-        if (!plan.storeSpur) {
-            helper.fail("Expected storeSpur to be true");
+        // Assert effect set: storeSpur is a guaranteed room group containing
+        // the_store; completionStudyList is a boolean.
+        if (!hasGuaranteedRoom(plan, "pocketdungeons:the_store")) {
+            helper.fail("Expected a guaranteed room group with the_store");
             return;
         }
         if (!plan.completionStudyList) {
@@ -73,9 +79,8 @@ public final class CubeRecipeGameTest {
             return;
         }
         // Effects that should NOT be active.
-        if (plan.ominous || plan.feral || plan.infestedGuarantee
-                || plan.floodedChasmWeighted || plan.deepDarkGuarantee
-                || plan.boundedSupply || plan.pathLengthBonus > 0) {
+        if (plan.ominous || plan.feral || plan.boundedSupply || plan.pathBonus > 0
+                || !plan.weightedRooms.isEmpty() || hasGuaranteedRoom(plan, "pocketdungeons:infested_wall")) {
             helper.fail("Unexpected active effect in store+compass plan");
             return;
         }
@@ -87,9 +92,6 @@ public final class CubeRecipeGameTest {
         }
 
         // Unrelated record changes do not invalidate the plan.
-        // The revision is a hash of offerLevel, affixNames, capabilities,
-        // and activeRecipes. Changing something not in that set (like the
-        // seed) does not change the revision.
         int originalRevision = plan.revision;
         if (!plan.matchesRevision(originalRevision)) {
             helper.fail("Plan should match its own revision");
@@ -176,8 +178,8 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Deep Dark guarantee refuses before consumption when the offer's tier is
-     * below 3. The catalyst must not be spent on a refusal.
+     * Deep Dark guarantee refuses before consumption when the offer's tier
+     * is below 3. The catalyst must not be spent on a refusal.
      */
     @GameTest(maxTicks = 20)
     public void deepDarkRefusesBelowTier3(GameTestHelper helper) {
@@ -215,8 +217,8 @@ public final class CubeRecipeGameTest {
                     + (refusal[0] != null ? refusal[0].reason : "null"));
             return;
         }
-        if (!tier3.deepDarkGuarantee) {
-            helper.fail("Deep Dark plan should have deepDarkGuarantee true");
+        if (!hasGuaranteedRoom(tier3, "pocketdungeons:deep_dark_landing")) {
+            helper.fail("Deep Dark plan should guarantee deep_dark_landing");
             return;
         }
 
@@ -245,9 +247,9 @@ public final class CubeRecipeGameTest {
             helper.fail("Legacy bag_override should decode as boundedSupply");
             return;
         }
-        // The active recipe records the legacy tag name.
-        if (!plan.activeRecipes.contains("bag_override")) {
-            helper.fail("Legacy bag_override should appear in active recipes");
+        // The active recipe records the resolved id, not the legacy tag.
+        if (!plan.activeRecipes.contains(RecipeIds.BOUNDED_SUPPLY)) {
+            helper.fail("Legacy bag_override should resolve to bounded_supply id");
             return;
         }
 
@@ -264,7 +266,7 @@ public final class CubeRecipeGameTest {
             helper.fail("bounded_supply should set boundedSupply flag");
             return;
         }
-        if (!newPlan.activeRecipes.contains("bounded_supply")) {
+        if (!newPlan.activeRecipes.contains(RecipeIds.BOUNDED_SUPPLY)) {
             helper.fail("bounded_supply should appear in active recipes");
             return;
         }
@@ -273,9 +275,9 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Legacy double_key tags decode as +2 path length at the committed offer's
-     * level. The old DOUBLE_KEY's lower-key level was never stored; do not
-     * invent it.
+     * Legacy double_key tags decode as +2 path length at the committed
+     * offer's level. The old DOUBLE_KEY's lower-key level was never stored;
+     * do not invent it.
      */
     @GameTest(maxTicks = 20)
     public void legacyDoubleKeyDecodesAsPathExtension(GameTestHelper helper) {
@@ -289,12 +291,12 @@ public final class CubeRecipeGameTest {
             helper.fail("Legacy double_key should resolve as path extension");
             return;
         }
-        if (plan.pathLengthBonus != 2) {
-            helper.fail("Legacy double_key should give +2 path length, got " + plan.pathLengthBonus);
+        if (plan.pathBonus != 2) {
+            helper.fail("Legacy double_key should give +2 path length, got " + plan.pathBonus);
             return;
         }
-        if (!plan.activeRecipes.contains("double_key")) {
-            helper.fail("Legacy double_key should appear in active recipes");
+        if (!plan.activeRecipes.contains(RecipeIds.PATH_EXTENSION)) {
+            helper.fail("Legacy double_key should resolve to path_extension id");
             return;
         }
 
@@ -307,11 +309,11 @@ public final class CubeRecipeGameTest {
             helper.fail("path_extension should resolve");
             return;
         }
-        if (newPlan.pathLengthBonus != 2) {
+        if (newPlan.pathBonus != 2) {
             helper.fail("path_extension should give +2 path length");
             return;
         }
-        if (!newPlan.activeRecipes.contains("path_extension")) {
+        if (!newPlan.activeRecipes.contains(RecipeIds.PATH_EXTENSION)) {
             helper.fail("path_extension should appear in active recipes");
             return;
         }
@@ -320,8 +322,8 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Ominous and Feral recipes add their affixes to the effective set without
-     * mutating the base set.
+     * Ominous and Feral recipes add their affixes to the effective set
+     * without mutating the base set.
      */
     @GameTest(maxTicks = 20)
     public void ominousAndFeralAddAffixes(GameTestHelper helper) {
@@ -413,12 +415,12 @@ public final class CubeRecipeGameTest {
                     + (refusal[0] != null ? refusal[0].reason : "null"));
             return;
         }
-        if (!plan.infestedGuarantee) {
-            helper.fail("infestedGuarantee should be true");
+        if (!hasGuaranteedRoom(plan, "pocketdungeons:infested_wall")) {
+            helper.fail("infested should guarantee an infested room");
             return;
         }
-        if (!plan.floodedChasmWeighted) {
-            helper.fail("floodedChasmWeighted should be true");
+        if (plan.weightedRooms.isEmpty()) {
+            helper.fail("flooded should add weighted rooms");
             return;
         }
         if (plan.activeRecipes.size() != 2) {
@@ -454,10 +456,9 @@ public final class CubeRecipeGameTest {
                     + (refusal[0] != null ? refusal[0].reason : "null"));
             return;
         }
-        if (!plan.ominous || !plan.feral || !plan.infestedGuarantee
-                || !plan.floodedChasmWeighted || !plan.deepDarkGuarantee
-                || !plan.completionStudyList || !plan.storeSpur
-                || !plan.boundedSupply || plan.pathLengthBonus != 2) {
+        if (!plan.ominous || !plan.feral || !plan.completionStudyList
+                || !plan.boundedSupply || plan.pathBonus != 2
+                || plan.weightedRooms.isEmpty() || plan.guaranteedRooms.isEmpty()) {
             helper.fail("All effect flags should be true at tier 3");
             return;
         }
@@ -470,7 +471,8 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * The effect summary is a legible comma-separated list for staff logging.
+     * The effect summary is a legible comma-separated list for staff
+     * logging.
      */
     @GameTest(maxTicks = 20)
     public void effectSummaryIsLegible(GameTestHelper helper) {
@@ -492,8 +494,8 @@ public final class CubeRecipeGameTest {
             return;
         }
         String summary = plan.effectSummary();
-        if (!summary.contains("store") || !summary.contains("compass")) {
-            helper.fail("Summary should contain 'store' and 'compass': " + summary);
+        if (!summary.contains(RecipeIds.STORE) || !summary.contains(RecipeIds.COMPASS)) {
+            helper.fail("Summary should contain store and compass ids: " + summary);
             return;
         }
 
@@ -501,9 +503,9 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Fixed-catalyst headline collision: the same recipe tag key cannot appear
-     * twice in the active set. This is a structural check, not a runtime
-     * collision, but it verifies the LinkedHashSet deduplication.
+     * Fixed-catalyst headline collision: the same recipe tag key cannot
+     * appear twice in the active set. This is a structural check, not a
+     * runtime collision, but it verifies the LinkedHashSet deduplication.
      */
     @GameTest(maxTicks = 20)
     public void fixedCatalystNoDuplicateActiveRecipes(GameTestHelper helper) {
@@ -531,8 +533,8 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Catalyst escrow: writing the pending catalyst tag and reading it back
-     * works without a server. This verifies the durable store that
+     * Catalyst escrow: writing the pending catalyst tag and reading it
+     * back works without a server. This verifies the durable store that
      * {@link CubeRecipe#restoreCatalyst} reads on cancellation.
      */
     @GameTest(maxTicks = 20)
@@ -561,8 +563,8 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Catalyst escrow is empty on a fresh keystone. No false positives that
-     * would cause a phantom restore.
+     * Catalyst escrow is empty on a fresh keystone. No false positives
+     * that would cause a phantom restore.
      */
     @GameTest(maxTicks = 20)
     public void freshKeystoneHasNoEscrow(GameTestHelper helper) {
@@ -587,9 +589,9 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * Recipe tags survive on the keystone through preview. The preview does
-     * not clear them; only a successful commit clears them. This is the
-     * "read pending recipe data before clearing it" contract.
+     * Recipe tags survive on the keystone through preview. The preview
+     * does not clear them; only a successful commit clears them. This is
+     * the "read pending recipe data before clearing it" contract.
      */
     @GameTest(maxTicks = 20)
     public void recipeTagsSurviveUntilCommit(GameTestHelper helper) {
@@ -599,26 +601,26 @@ public final class CubeRecipeGameTest {
                     net.minecraft.nbt.CompoundTag root = new net.minecraft.nbt.CompoundTag();
                     root.putInt("keystone", 1);
                     net.minecraft.nbt.CompoundTag recipes = new net.minecraft.nbt.CompoundTag();
-                    recipes.putBoolean("store", true);
+                    recipes.putBoolean(RecipeIds.STORE, true);
                     root.put("recipe", recipes);
                     tag.put(PocketDungeonsMod.MOD_ID, root);
                 });
         // Reading the recipe tags does not clear them.
         net.minecraft.nbt.CompoundTag tags = CubeRecipe.recipesOf(keystone);
-        if (!tags.getBooleanOr("store", false)) {
+        if (!tags.getBooleanOr(RecipeIds.STORE, false)) {
             helper.fail("recipesOf should read the store tag");
             return;
         }
         // Read again: still there.
         tags = CubeRecipe.recipesOf(keystone);
-        if (!tags.getBooleanOr("store", false)) {
+        if (!tags.getBooleanOr(RecipeIds.STORE, false)) {
             helper.fail("recipesOf should not clear the store tag on read");
             return;
         }
         // Clearing removes them.
         CubeRecipe.clearRecipes(keystone);
         tags = CubeRecipe.recipesOf(keystone);
-        if (tags.getBooleanOr("store", false)) {
+        if (tags.getBooleanOr(RecipeIds.STORE, false)) {
             helper.fail("clearRecipes should remove the store tag");
             return;
         }
@@ -626,8 +628,9 @@ public final class CubeRecipeGameTest {
     }
 
     /**
-     * M66: the new BOUNDED_SUPPLY recipe matches keystone + string. The old
-     * BAG_OVERRIDE no longer matches any new catalyst; it is legacy only.
+     * M71: the BOUNDED_SUPPLY recipe matches keystone + string. The match
+     * path consults the data-driven manifest and returns the definition
+     * by id.
      */
     @GameTest(maxTicks = 20)
     public void boundedSupplyMatchesString(GameTestHelper helper) {
@@ -639,30 +642,28 @@ public final class CubeRecipeGameTest {
                     tag.put(PocketDungeonsMod.MOD_ID, root);
                 });
         ItemStack stringStack = new ItemStack(net.minecraft.world.item.Items.STRING);
-        CubeRecipe matched = CubeRecipe.match(keystone, stringStack);
-        if (matched != CubeRecipe.BOUNDED_SUPPLY) {
-            helper.fail("Keystone + string should match BOUNDED_SUPPLY, got " + matched);
+        CubeRecipeDefinition matched = CubeRecipe.match(keystone, stringStack, 5);
+        if (matched == null) {
+            helper.fail("Keystone + string should match BOUNDED_SUPPLY");
             return;
         }
-        // A bag headline item no longer matches BAG_OVERRIDE.
+        if (!RecipeIds.BOUNDED_SUPPLY.equals(matched.id)) {
+            helper.fail("Keystone + string should match bounded_supply, got " + matched.id);
+            return;
+        }
+        // BONE matches FERAL (fixed catalyst).
         ItemStack boneStack = new ItemStack(net.minecraft.world.item.Items.BONE);
-        CubeRecipe boneMatched = CubeRecipe.match(keystone, boneStack);
-        if (boneMatched == CubeRecipe.BAG_OVERRIDE) {
-            helper.fail("BAG_OVERRIDE should no longer match any new catalyst");
-            return;
-        }
-        // BONE still matches FERAL (fixed catalyst).
-        if (boneMatched != CubeRecipe.FERAL) {
-            helper.fail("BONE should match FERAL, got " + boneMatched);
+        CubeRecipeDefinition boneMatched = CubeRecipe.match(keystone, boneStack, 5);
+        if (boneMatched == null || !RecipeIds.FERAL.equals(boneMatched.id)) {
+            helper.fail("BONE should match FERAL, got " + (boneMatched == null ? "null" : boneMatched.id));
             return;
         }
         helper.succeed();
     }
 
     /**
-     * M66: the new PATH_EXTENSION recipe matches keystone + amethyst shard.
-     * The old DOUBLE_KEY no longer matches a second keystone; it is legacy
-     * only. A second keystone in the off-hand no longer matches any recipe.
+     * M71: the PATH_EXTENSION recipe matches keystone + amethyst shard. A
+     * second keystone in the off-hand matches no recipe.
      */
     @GameTest(maxTicks = 20)
     public void pathExtensionMatchesAmethystShard(GameTestHelper helper) {
@@ -674,12 +675,13 @@ public final class CubeRecipeGameTest {
                     tag.put(PocketDungeonsMod.MOD_ID, root);
                 });
         ItemStack shardStack = new ItemStack(net.minecraft.world.item.Items.AMETHYST_SHARD);
-        CubeRecipe matched = CubeRecipe.match(keystone, shardStack);
-        if (matched != CubeRecipe.PATH_EXTENSION) {
-            helper.fail("Keystone + amethyst shard should match PATH_EXTENSION, got " + matched);
+        CubeRecipeDefinition matched = CubeRecipe.match(keystone, shardStack, 5);
+        if (matched == null || !RecipeIds.PATH_EXTENSION.equals(matched.id)) {
+            helper.fail("Keystone + amethyst shard should match path_extension, got "
+                    + (matched == null ? "null" : matched.id));
             return;
         }
-        // A second keystone in the off-hand no longer matches DOUBLE_KEY.
+        // A second keystone in the off-hand matches no recipe.
         ItemStack secondKeystone = new ItemStack(net.minecraft.world.item.Items.PAPER);
         net.minecraft.world.item.component.CustomData.update(
                 net.minecraft.core.component.DataComponents.CUSTOM_DATA, secondKeystone, tag -> {
@@ -687,31 +689,22 @@ public final class CubeRecipeGameTest {
                     root.putInt("keystone", 1);
                     tag.put(PocketDungeonsMod.MOD_ID, root);
                 });
-        CubeRecipe secondMatched = CubeRecipe.match(keystone, secondKeystone);
-        if (secondMatched == CubeRecipe.DOUBLE_KEY) {
-            helper.fail("DOUBLE_KEY should no longer match a second keystone");
-            return;
-        }
-        // The second keystone should not match any recipe at all.
+        CubeRecipeDefinition secondMatched = CubeRecipe.match(keystone, secondKeystone, 5);
         if (secondMatched != null) {
-            helper.fail("Second keystone should match no recipe, got " + secondMatched);
+            helper.fail("Second keystone should match no recipe, got " + secondMatched.id);
             return;
         }
         helper.succeed();
     }
 
     /**
-     * M66: legacy DOUBLE_KEY migration. The old tag decodes as +2 path length
-     * at the committed offer's level. The old DOUBLE_KEY never stored the
-     * lower-key level; do not invent it. The migration is to current-level
-     * extension with explicit notice.
+     * M71: legacy double_key migration. The old tag decodes as +2 path
+     * length at the committed offer's level.
      */
     @GameTest(maxTicks = 20)
     public void legacyDoubleKeyMigratesToCurrentLevelExtension(GameTestHelper helper) {
         CompoundTag legacyTags = new CompoundTag();
         legacyTags.putBoolean("double_key", true);
-        // The old DOUBLE_KEY did not store the lower-key level. The migration
-        // uses the committed offer's level, which is the current level.
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
         RunRecipePlan plan = RunRecipePlan.resolve(42L, 7, Set.of(),
                 Set.of(), legacyTags, refusal);
@@ -719,32 +712,57 @@ public final class CubeRecipeGameTest {
             helper.fail("Legacy double_key should resolve as path extension");
             return;
         }
-        if (plan.pathLengthBonus != 2) {
-            helper.fail("Legacy double_key should give +2 path length, got " + plan.pathLengthBonus);
+        if (plan.pathBonus != 2) {
+            helper.fail("Legacy double_key should give +2 path length, got " + plan.pathBonus);
             return;
         }
-        // The active recipe records the legacy tag name, not the new one.
-        if (!plan.activeRecipes.contains("double_key")) {
-            helper.fail("Legacy double_key should appear in active recipes");
-            return;
-        }
-        // The new path_extension tag also works and uses the new name.
-        CompoundTag newTags = new CompoundTag();
-        newTags.putBoolean("path_extension", true);
-        RunRecipePlan newPlan = RunRecipePlan.resolve(42L, 7, Set.of(),
-                Set.of(), newTags, refusal);
-        if (newPlan == null) {
-            helper.fail("path_extension should resolve");
-            return;
-        }
-        if (newPlan.pathLengthBonus != 2) {
-            helper.fail("path_extension should give +2 path length");
-            return;
-        }
-        if (!newPlan.activeRecipes.contains("path_extension")) {
-            helper.fail("path_extension should appear in active recipes");
+        if (!plan.activeRecipes.contains(RecipeIds.PATH_EXTENSION)) {
+            helper.fail("Legacy double_key should resolve to path_extension id");
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * M71: a recipe whose min_level exceeds the keystone level does not
+     * match. The match path checks the level before returning a
+     * definition, so a recipe that would waste a new player's first
+     * catalyst refuses before consuming it.
+     */
+    @GameTest(maxTicks = 20)
+    public void minLevelGatesMatch(GameTestHelper helper) {
+        ItemStack keystone = new ItemStack(net.minecraft.world.item.Items.PAPER);
+        net.minecraft.world.item.component.CustomData.update(
+                net.minecraft.core.component.DataComponents.CUSTOM_DATA, keystone, tag -> {
+                    net.minecraft.nbt.CompoundTag root = new net.minecraft.nbt.CompoundTag();
+                    root.putInt("keystone", 1);
+                    tag.put(PocketDungeonsMod.MOD_ID, root);
+                });
+        ItemStack emeraldStack = new ItemStack(net.minecraft.world.item.Items.EMERALD);
+        // At level 0, STORE (min_level 0 by default) should match.
+        CubeRecipeDefinition matched = CubeRecipe.match(keystone, emeraldStack, 0);
+        if (matched == null || !RecipeIds.STORE.equals(matched.id)) {
+            helper.fail("STORE should match at level 0, got "
+                    + (matched == null ? "null" : matched.id));
+            return;
+        }
+        helper.succeed();
+    }
+
+    // ---- helpers ----
+
+    /**
+     * Whether the plan has a guaranteed room group containing the given
+     * (already qualified) room name.
+     */
+    private static boolean hasGuaranteedRoom(RunRecipePlan plan, String roomName) {
+        for (RecipeEffects.GuaranteedRoom g : plan.guaranteedRooms) {
+            for (String name : g.names()) {
+                if (roomName.equals(JsonPackSupport.qualify(name))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

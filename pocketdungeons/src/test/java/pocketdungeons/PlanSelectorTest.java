@@ -15,6 +15,9 @@ import java.util.Set;
 public class PlanSelectorTest {
 
     public static void main(String[] args) {
+        // M70: publish synthetic role manifest so the selector's unknown-role
+        // check passes for the built-in ids.
+        publishSyntheticRoleManifest();
         testStraightResolves();
         testBranchFailsLegibly();
         testBudgetValidation();
@@ -122,7 +125,7 @@ public class PlanSelectorTest {
         }
 
         RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, "deepslate");
-        if (!"encounter".equals(result.failure().role())) {
+        if (!RoleIds.ENCOUNTER.equals(result.failure().role())) {
             throw new AssertionError("expected theme failure to name encounter role, got " + result.failure());
         }
     }
@@ -137,13 +140,13 @@ public class PlanSelectorTest {
             critical.add(c);
             String role;
             if (i == 0) {
-                role = "entrance";
+                role = RoleIds.ENTRANCE;
             } else if (i == n - 1) {
-                role = "exit";
+                role = RoleIds.EXIT;
             } else if (i % 2 == 1) {
-                role = "encounter";
+                role = RoleIds.ENCOUNTER;
             } else {
-                role = "loot";
+                role = RoleIds.LOOT;
             }
             roles.put(c, role);
         }
@@ -164,10 +167,10 @@ public class PlanSelectorTest {
             cells.add(c);
             critical.add(c);
             String role = switch (i) {
-                case 0 -> "entrance";
-                case 3 -> "exit";
-                case 1 -> "encounter";
-                default -> "loot";
+                case 0 -> RoleIds.ENTRANCE;
+                case 3 -> RoleIds.EXIT;
+                case 1 -> RoleIds.ENCOUNTER;
+                default -> RoleIds.LOOT;
             };
             roles.put(c, role);
         }
@@ -178,7 +181,7 @@ public class PlanSelectorTest {
         PlanCell branch = new PlanCell(1, 1);
         cells.add(branch);
         edges.add(new PlanEdge(critical.get(1), branch));
-        roles.put(branch, "loot");
+        roles.put(branch, RoleIds.LOOT);
         return new DungeonShape(1, cells, edges, critical.get(0), critical.get(3),
                 critical, roles);
     }
@@ -186,25 +189,25 @@ public class PlanSelectorTest {
     private static RoomManifest makeManifest() {
         List<RoomManifest.Entry> entries = new ArrayList<>();
         entries.add(new RoomManifest.Entry("entrance_hall",
-                meta("entrance_hall", List.of("entrance")), DoorMask.EAST));
+                meta("entrance_hall", List.of(RoleIds.ENTRANCE)), DoorMask.EAST));
         entries.add(new RoomManifest.Entry("encounter_zombie",
-                meta("encounter_zombie", List.of("encounter")), DoorMask.EAST | DoorMask.WEST));
+                meta("encounter_zombie", List.of(RoleIds.ENCOUNTER)), DoorMask.EAST | DoorMask.WEST));
         entries.add(new RoomManifest.Entry("loot_vault",
-                meta("loot_vault", List.of("loot")), DoorMask.EAST | DoorMask.WEST));
+                meta("loot_vault", List.of(RoleIds.LOOT)), DoorMask.EAST | DoorMask.WEST));
         entries.add(new RoomManifest.Entry("exit_hall",
-                meta("exit_hall", List.of("exit")), DoorMask.WEST));
+                meta("exit_hall", List.of(RoleIds.EXIT)), DoorMask.WEST));
         return RoomManifest.create(entries, List.of());
     }
 
     private static RoomManifest makeThemedManifest() {
         List<RoomManifest.Entry> entries = new ArrayList<>();
         entries.add(new RoomManifest.Entry("entrance_hall",
-                meta("entrance_hall", List.of("entrance"), List.of("deepslate")), DoorMask.EAST));
+                meta("entrance_hall", List.of(RoleIds.ENTRANCE), List.of("deepslate")), DoorMask.EAST));
         entries.add(new RoomManifest.Entry("encounter_zombie",
-                meta("encounter_zombie", List.of("encounter"), List.of("prismarine")),
+                meta("encounter_zombie", List.of(RoleIds.ENCOUNTER), List.of("prismarine")),
                 DoorMask.EAST | DoorMask.WEST));
         entries.add(new RoomManifest.Entry("exit_hall",
-                meta("exit_hall", List.of("exit"), List.of("deepslate")), DoorMask.WEST));
+                meta("exit_hall", List.of(RoleIds.EXIT), List.of("deepslate")), DoorMask.WEST));
         return RoomManifest.create(entries, List.of());
     }
 
@@ -214,5 +217,27 @@ public class PlanSelectorTest {
 
     private static DungeonRoomMeta meta(String template, List<String> roles, List<String> theme) {
         return new DungeonRoomMeta(template, 1, 1, roles, 1, 0, -1, null, theme);
+    }
+
+    /**
+     * M70: publishes a synthetic role manifest with the three built-in
+     * population roles, so the selector's unknown-role check passes for the
+     * built-in ids the test's shapes assign.
+     */
+    private static void publishSyntheticRoleManifest() {
+        Map<String, RoleManifest.Entry> roles = new LinkedHashMap<>();
+        Object[][] roleData = {
+                {RoleIds.ENCOUNTER, 45, RoomRoleDefinition.Operation.TRIAL_ENCOUNTER},
+                {RoleIds.LOOT, 25, RoomRoleDefinition.Operation.TOOL_CACHE},
+                {RoleIds.CORRIDOR, 30, RoomRoleDefinition.Operation.NONE},
+        };
+        for (Object[] r : roleData) {
+            String id = (String) r[0];
+            int weight = (int) r[1];
+            RoomRoleDefinition.Operation op = (RoomRoleDefinition.Operation) r[2];
+            RoomRoleDefinition def = new RoomRoleDefinition(id, "interior", weight, 0, -1, List.of(), op);
+            roles.put(id, new RoleManifest.Entry(id, def));
+        }
+        RoleManifest.publish(RoleManifest.create(roles, List.of()));
     }
 }

@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run guarantees one tool cache.", "catalyst": "minecraft:string", "cost": 1, "priority": 0, "min_level": 0, "effects": {"bounded_supply": true}}

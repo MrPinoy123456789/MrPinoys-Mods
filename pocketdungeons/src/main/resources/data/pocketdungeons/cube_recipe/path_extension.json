@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run is two rooms longer.", "catalyst": "minecraft:amethyst_shard", "cost": 1, "priority": 0, "min_level": 0, "effects": {"path_length_bonus": 2}}

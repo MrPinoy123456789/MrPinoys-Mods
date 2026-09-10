@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run will name its rooms on completion.", "catalyst": "minecraft:compass", "cost": 1, "priority": 0, "min_level": 0, "effects": {"completion_study_list": true}}

@@ -50,18 +50,26 @@ final class ContentSnapshot {
     private final AdventureGraphs adventure;
     private final Diaries diaries;
     private final AffixManifest affixes;
+    private final BagManifest bags;
+    private final RoleManifest roles;
+    private final CubeRecipeManifest recipes;
     private final List<String> errors;
     private final boolean valid;
 
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
                             ThemeManifest themes, AdventureGraphs adventure, Diaries diaries,
-                            AffixManifest affixes, List<String> errors, boolean valid) {
+                            AffixManifest affixes, BagManifest bags, RoleManifest roles,
+                            CubeRecipeManifest recipes,
+                            List<String> errors, boolean valid) {
         this.rooms = rooms;
         this.anomalyRooms = anomalyRooms;
         this.themes = themes;
         this.adventure = adventure;
         this.diaries = diaries;
         this.affixes = affixes;
+        this.bags = bags;
+        this.roles = roles;
+        this.recipes = recipes;
         this.errors = List.copyOf(errors);
         this.valid = valid;
     }
@@ -86,15 +94,20 @@ final class ContentSnapshot {
                 themeId -> themes.byId(themeId) != null);
         Diaries diaries = Diaries.parse(server);
         AffixManifest affixes = AffixManifest.parse(server);
+        BagManifest bags = BagManifest.parse(server);
+        RoleManifest roles = RoleManifest.parse(server);
+        CubeRecipeManifest recipes = CubeRecipeManifest.parse(server);
 
         List<String> errors = new ArrayList<>();
         boolean hasEntrance = false;
         boolean hasExit = false;
         for (RoomManifest.Entry room : rooms.rooms()) {
-            if (room.meta.roles.contains("entrance")) {
+            // M70: roles are now namespaced ids; the entrance and exit rooms
+            // carry "pocketdungeons:entrance" and "pocketdungeons:exit".
+            if (room.meta.roles.contains(RoleIds.ENTRANCE)) {
                 hasEntrance = true;
             }
-            if (room.meta.roles.contains("exit")) {
+            if (room.meta.roles.contains(RoleIds.EXIT)) {
                 hasExit = true;
             }
         }
@@ -122,9 +135,36 @@ final class ContentSnapshot {
             errors.add("required coverage failed: missing built-in affix definitions "
                     + "(expected " + AffixIds.BUILT_IN_ORDER + ", have " + affixes.ids() + ")");
         }
+        // M70: the bag manifest must cover every built-in bag id. A pack that
+        // drops the pocketdungeons pack cannot silently remove Mason, the way
+        // the room manifest cannot drop entrance and exit. A candidate that
+        // fails this gate is not published.
+        if (!bags.hasBuiltInCoverage()) {
+            valid = false;
+            errors.add("required coverage failed: missing built-in bag definitions "
+                    + "(expected " + BagIds.BUILT_IN_ORDER + ", have " + bags.ids() + ")");
+        }
+        // M70: the role manifest must cover every built-in population role id.
+        // A pack that drops the pocketdungeons pack cannot silently remove
+        // encounter, loot, or corridor, the way the room manifest cannot drop
+        // entrance and exit. A candidate that fails this gate is not published.
+        if (!roles.hasBuiltInCoverage()) {
+            valid = false;
+            errors.add("required coverage failed: missing built-in role definitions "
+                    + "(expected " + RoleIds.BUILT_IN_POPULATION_ORDER + ", have " + roles.ids() + ")");
+        }
+        // M71: the recipe manifest must cover every built-in recipe id. A
+        // pack that drops the pocketdungeons pack cannot silently remove
+        // Ominous or Store, the way the room manifest cannot drop entrance
+        // and exit. A candidate that fails this gate is not published.
+        if (!recipes.hasBuiltInCoverage()) {
+            valid = false;
+            errors.add("required coverage failed: missing built-in recipe definitions "
+                    + "(expected " + RecipeIds.BUILT_IN_ORDER + ", have " + recipes.ids() + ")");
+        }
 
         return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, diaries, affixes,
-                errors, valid);
+                bags, roles, recipes, errors, valid);
     }
 
     RoomManifest rooms() {
@@ -152,6 +192,21 @@ final class ContentSnapshot {
         return affixes;
     }
 
+    /** M70: the bag definition manifest this snapshot parsed. */
+    BagManifest bags() {
+        return bags;
+    }
+
+    /** M70: the room role definition manifest this snapshot parsed. */
+    RoleManifest roles() {
+        return roles;
+    }
+
+    /** M71: the Cube recipe definition manifest this snapshot parsed. */
+    CubeRecipeManifest recipes() {
+        return recipes;
+    }
+
     /** Cross resource and coverage errors that made this candidate invalid. */
     List<String> errors() {
         return errors;
@@ -175,6 +230,9 @@ final class ContentSnapshot {
         all.addAll(adventure.rejections());
         all.addAll(diaries.rejections());
         all.addAll(affixes.rejections());
+        all.addAll(bags.rejections());
+        all.addAll(roles.rejections());
+        all.addAll(recipes.rejections());
         all.addAll(errors);
         return all;
     }

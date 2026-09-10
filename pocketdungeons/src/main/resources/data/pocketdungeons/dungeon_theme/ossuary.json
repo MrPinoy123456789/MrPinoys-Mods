@@ -1,0 +1,7 @@
+{
+  "name": "Ossuary",
+  "processors": "pocketdungeons:theme_ossuary",
+  "spawner_prefix": "ossuary",
+  "loot_suffix": "ossuary",
+  "room_theme": "ossuary"
+}

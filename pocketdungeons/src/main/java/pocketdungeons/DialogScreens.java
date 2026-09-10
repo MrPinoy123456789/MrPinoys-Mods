@@ -911,11 +911,16 @@ final class DialogScreens {
      */
     record BagOption(String label, String tooltip, String bagId) {}
 
-    /** The bag picker's button list, one per {@link Bags} constant, in declaration order. */
+    /**
+     * The bag picker's button list, one per loaded bag definition, in stable
+     * manifest order (order then id). M70: previously iterated the {@code Bags}
+     * enum; now reads the data-driven {@link BagManifest} so a third-party bag
+     * appears without a Java edit.
+     */
     static List<BagOption> bagOptions() {
-        List<BagOption> out = new ArrayList<>(Bags.values().length);
-        for (Bags bag : Bags.values()) {
-            out.add(new BagOption(bag.displayName.getString(), bag.blurb.getString(), bag.id));
+        List<BagOption> out = new ArrayList<>();
+        for (BagDefinition bag : BagManifest.current().definitions()) {
+            out.add(new BagOption(bag.label, bag.blurb, bag.id));
         }
         return out;
     }
@@ -970,9 +975,9 @@ final class DialogScreens {
      * signal to re-open the picker.
      */
     static Dialog bagConfirmDialog(UUID owner, String bagId) {
-        Bags bag = Bags.byId(bagId);
-        String name = bag == null ? bagId : bag.displayName.getString();
-        String blurb = bag == null ? "" : bag.blurb.getString();
+        BagDefinition bag = Bags.byId(bagId);
+        String name = bag == null ? bagId : bag.label;
+        String blurb = bag == null ? "" : bag.blurb;
         List<DialogBody> body = new ArrayList<>();
         body.add(DialogKit.text(name));
         body.add(DialogKit.text(blurb));

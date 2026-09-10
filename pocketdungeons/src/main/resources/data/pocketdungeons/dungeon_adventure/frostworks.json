@@ -1,0 +1,17 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "rootworks",
+      "weight": 2
+    },
+    {
+      "theme": "blackstone",
+      "weight": 2
+    },
+    {
+      "theme": "infestation",
+      "weight": 2
+    }
+  ]
+}

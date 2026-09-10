@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run is longer and watches.", "catalyst": "minecraft:redstone", "cost": 1, "priority": 20, "min_level": 0, "effects": {"path_length_bonus": 2, "completion_study_list": true}}

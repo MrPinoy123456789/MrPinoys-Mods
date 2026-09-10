@@ -103,6 +103,70 @@ public class DungeonLogTest {
         prestige.setRoomCompletions(player, -3);
         check(prestige.get(player).roomCompletions(), 0, "negative prestige clamps at zero");
 
+        // M71: recipe discovery round trips through the codec.
+        DungeonLog recipes = new DungeonLog();
+        recipes.recordRecipeDiscovery(player, "pocketdungeons:store");
+        recipes.recordRecipeDiscovery(player, "pocketdungeons:compass");
+        recipes.recordIngredientEncountered(player, "minecraft:emerald");
+        com.google.gson.JsonElement recipeJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, recipes).result().orElseThrow();
+        DungeonLog recipeDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, recipeJson).result().orElseThrow().getFirst();
+        check(recipeDecoded.discoveryOf(player).hasDiscovered("pocketdungeons:store"),
+                true, "discovered recipe round trips");
+        check(recipeDecoded.discoveryOf(player).hasDiscovered("pocketdungeons:compass"),
+                true, "second discovered recipe round trips");
+        check(recipeDecoded.discoveryOf(player).ingredientsEncountered()
+                        .contains("minecraft:emerald"),
+                true, "encountered ingredient round trips");
+
+        // Duplicate discovery is a no-op: the set never grows twice.
+        recipes.recordRecipeDiscovery(player, "pocketdungeons:store");
+        check(recipes.discoveryOf(player).discoveredRecipes().size(), 2,
+                "duplicate discovery is a no-op");
+
+        // A pre-M71 save (no recipe_discoveries field) loads with empty
+        // discovery state, the same way a pre-M20 save defaults publicListed.
+        DungeonLog legacy2 = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, old).result().orElseThrow().getFirst();
+        check(legacy2.discoveryOf(player).discoveredRecipes().isEmpty(), true,
+                "pre-M71 save defaults discovered recipes to empty");
+        check(legacy2.discoveryOf(player).ingredientsEncountered().isEmpty(), true,
+                "pre-M71 save defaults ingredients to empty");
+        check(legacy2.discoveryOf(player).floorDelivered(), false,
+                "pre-M71 save defaults floorDelivered to false");
+
+        // A removed-pack recipe id stays in the discovery set: knowledge
+        // survives removal, even if the recipe is no longer in the manifest.
+        // The discovery is personal history, not a live recipe reference.
+        DungeonLog removed = new DungeonLog();
+        removed.recordRecipeDiscovery(player, "theirpack:their_recipe");
+        com.google.gson.JsonElement removedJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, removed).result().orElseThrow();
+        DungeonLog removedDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, removedJson).result().orElseThrow().getFirst();
+        check(removedDecoded.discoveryOf(player).hasDiscovered("theirpack:their_recipe"),
+                true, "removed-pack recipe id survives save and reload");
+
+        // Knowledge surviving save and reload does not unlock undiscovered
+        // entries: a player who discovered "store" does not also discover
+        // "compass" by reloading.
+        check(recipeDecoded.discoveryOf(player).hasDiscovered("pocketdungeons:ominous"),
+                false, "save and reload does not unlock undiscovered entries");
+
+        // The floor-delivered flag round trips and is idempotent.
+        DungeonLog floor = new DungeonLog();
+        floor.markFloorDelivered(player);
+        floor.markFloorDelivered(player);
+        check(floor.discoveryOf(player).floorDelivered(), true,
+                "floor delivered flag is set");
+        com.google.gson.JsonElement floorJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, floor).result().orElseThrow();
+        DungeonLog floorDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, floorJson).result().orElseThrow().getFirst();
+        check(floorDecoded.discoveryOf(player).floorDelivered(), true,
+                "floor delivered flag round trips");
+
         System.out.println("DungeonLogTest passed");
     }
 

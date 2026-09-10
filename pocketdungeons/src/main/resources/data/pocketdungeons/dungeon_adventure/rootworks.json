@@ -1,0 +1,17 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "frostworks",
+      "weight": 2
+    },
+    {
+      "theme": "deepslate",
+      "weight": 2
+    },
+    {
+      "theme": "prismarine",
+      "weight": 2
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/treasure_alcove",
+  "processors": "pocketdungeons:theme_basalt_foundry_crucible",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "loot"
+  ],
+  "theme": [
+    "basalt_foundry"
+  ],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2
+}

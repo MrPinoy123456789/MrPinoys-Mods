@@ -186,7 +186,16 @@ final class DungeonRoomMeta {
         JsonArray arr = el.getAsJsonArray();
         List<String> roles = new ArrayList<>(arr.size());
         for (JsonElement e : arr) {
-            roles.add(e.getAsString());
+            // M70: qualify bare role names to the pocketdungeons namespace so
+            // a room file's "encounter" matches the namespaced
+            // "pocketdungeons:encounter" the data-driven generator assigns.
+            // A qualified id is returned as-is, so a third-party room can
+            // declare "theirpack:their_role" and match a third-party role.
+            String resolved = RoleIds.resolve(e.getAsString());
+            if (resolved == null) {
+                throw new IllegalArgumentException("unknown role in roles array: " + e.getAsString());
+            }
+            roles.add(resolved);
         }
         if (roles.isEmpty()) {
             throw new IllegalArgumentException("roles array must not be empty");

@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run favours fire.", "catalyst": "minecraft:snowball", "cost": 1, "priority": 10, "min_level": 0, "effects": {"weighted_rooms": ["blaze_loft"]}}

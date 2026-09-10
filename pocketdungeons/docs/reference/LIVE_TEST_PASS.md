@@ -2385,3 +2385,87 @@ code-side evidence are:
 
 The human gate closes when a tester has run every applicable `current`
 row and recorded an honest disposition. Until then, Round II waits.
+
+## 40. M73 acceptance: six new identities, data only
+
+M73 doubles the composition space without a new `.nbt` template. The
+automated evidence is the build and the four content tests; this section
+is the live-only half the automated tests cannot reach.
+
+### 40.1 Theme recognition, by hand
+
+The whole point of M73 is that a player recognises a theme from its
+composition, not from its name. The automated tests confirm the data
+loads and the graph is solvable; only a human confirms the identity
+reads.
+
+1. Enter a Rootworks floor. **Expected:** moss, rooted dirt, shroomlight;
+   spiders and witches; vine, string, moss loot.
+2. Enter a Frostworks floor. **Expected:** packed and blue ice; strays
+   and zombies; snowball and ice loot. The footing should feel slippery
+   where ice replaces floor.
+3. Enter a Copper Works floor. **Expected:** copper and cut copper;
+   zombies and creepers; redstone and piston loot.
+4. Enter an Ossuary floor. **Expected:** bone blocks and soul lanterns;
+   skeletons and strays; arrow and bow loot, sustained ranged pressure.
+5. Enter a Basalt Foundry floor. **Expected:** nether bricks, basalt,
+   glowstone; blazes and magma cubes; magma cream and blaze rod loot.
+6. Enter an Ender Archive floor. **Expected:** end stone, crying
+   obsidian, end rods (dim); endermen and silverfish; ender pearl and
+   chorus loot.
+
+### 40.2 Signature rooms, by hand
+
+Each theme has one signature room with its own processor list. The
+automated tests confirm the room metadata loads; only a human confirms
+the room reads as a signature.
+
+1. Find a `rootworks_grove` room. **Expected:** mossy tee under a grove
+   processor, denser overgrowth than the base theme.
+2. Find a `frostworks_glaze` room. **Expected:** mossy tee under a glaze
+   processor, ice glaze distinct from the base frost.
+3. Find a `copper_works_forge` room. **Expected:** a forge palette
+   distinct from the base copper theme.
+4. Find an `ossuary_crypt` room. **Expected:** a crypt palette distinct
+   from the base bone theme.
+5. Find a `basalt_foundry_crucible` room. **Expected:** a crucible
+   palette distinct from the base nether theme.
+6. Find an `ender_archive_vault` room. **Expected:** a vault palette
+   distinct from the base end theme.
+
+### 40.3 Pair distinctness, by hand
+
+The handoff required each pair to play differently, not just look
+different. The automated tests cannot judge "plays differently"; a human
+must.
+
+1. Play a Rootworks run and a Frostworks run back to back. **Expected:**
+   overgrowth versus footing reads in the roster, the loot, and the
+   floor feel, not just the colour.
+2. Play a Copper Works run and an Ossuary run back to back. **Expected:**
+   melee and explosion management versus sustained ranged pressure.
+3. Play a Basalt Foundry run and an Ender Archive run back to back.
+   **Expected:** heat and splitting mobs versus displacement and
+   darkness.
+
+### 40.4 Affix deferral, noted
+
+`jumpy` and `clingy` were requested as data-only affixes. Both are
+deferred: the M69 operation set cannot express a spawner roster rewrite
+(`jumpy`) or a web hazard with guaranteed shears (`clingy`) without new
+engine work, and the milestone forbids smuggling engine work into data.
+This is recorded in `docs/DISCOVERIES.md` trap 34. No live check applies
+until the engine work lands.
+
+### Headless verification (passed)
+
+- packValidationTest: passed.
+- adventureGraphTest: 11 themes, 11 adventure nodes, 0 rejected, all
+  six new themes reachable from both entry edges.
+- trialContentConfigIdTest: passed (all 36 new spawner configs
+  resolve).
+- graphSolvabilityTest: 0 unresolved transitions, 0 inaccessible
+  exits, 0 fallback cells for standard tier sweeps.
+- runGameTest: 61 tests passed. Live load confirmed 11 themes (0
+  rejected), 11 adventure nodes (0 rejected), 40 core loot tables.
+- build: BUILD SUCCESSFUL, full suite green.

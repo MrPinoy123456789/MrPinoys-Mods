@@ -18,185 +18,81 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
- * The eight bag archetypes of SITUATIONS_SPEC 3.2: the kit a player carries in,
- * and the only pre-run information a door gives them.
+ * M70: the bag lookup and application surface, now backed by the data-driven
+ * {@link BagManifest} rather than a Java enum. The enum is deleted; every
+ * constant became a {@code dungeon_bag/*.json} file. This class is the thin
+ * facade the existing call sites keep: {@link #byId}, {@link #tagsFor},
+ * {@link #apply}, {@link #ids}, {@link #paths}, and the headline-item
+ * resolution the cube catalyst and the door frames need.
  *
- * <p>Each constant is a lookup, not behaviour. The contents live in the loot
- * table under {@code data/pocketdungeons/loot_table/bags/<id>.json} so a pack
- * author can replace a bag without touching Java; this class only knows the
- * table's path, the name and blurb the door dialog prints, the three items the
- * door's frames show, and the situation tags the generator seeds its
- * availability pass from.
+ * <p>Selection and application remain separate calls, as before.
+ * {@link #byId} answers "which bag is this door selling", which the door
+ * preview needs before the player commits and before any inventory exists
+ * to write to; {@link #apply} rolls the table into a player. The bag is
+ * chosen once at the staging room and persists until the next safe room, so
+ * the two happen at different times and cannot be one method.
  *
- * <p><strong>Selection and application are deliberately separate calls.</strong>
- * {@link #byId} answers "which bag is this door selling", which the door preview
- * needs before the player commits and before any inventory exists to write to;
- * {@link #apply} rolls the table into a player. Per SITUATIONS_PLAN open question
- * 12 the bag is chosen once at the staging room and persists until the next safe
- * room, so the two happen at different times and cannot be one method. Nothing
- * calls {@link #apply} yet: the door commit path is wired at the wave 1
- * integration gate, once M46 owns the inventory.
- *
- * <p><strong>Static-init note.</strong> Nothing in this enum's construction may
- * reach {@link LootTables}. {@code LootTables.ALL} calls {@link #ids()} so a
- * missing bag table is caught at startup like every other table, and if the
- * constructor called back into {@code LootTables} the two class initialisers
- * would deadlock or read each other half-built. {@link #path} is therefore
- * built from the id here rather than through {@code LootTables}.
+ * <p><strong>Static-init note.</strong> Nothing in this class's construction
+ * may reach {@link LootTables}. {@code LootTables.ALL} calls {@link #ids()}
+ * and {@link #paths()} so a missing bag table is caught at startup like every
+ * other table, and if this class called back into {@code LootTables} the two
+ * class initialisers would deadlock or read each other half-built. The
+ * manifest is loaded by {@link ContentReload} after the server starts, so the
+ * {@code current} manifest is empty until the first reload lands; the
+ * built-in ids and paths are read from {@link BagIds} directly, not from the
+ * live manifest, so {@link LootTables} has its list at class-init time.
  */
-enum Bags {
+final class Bags {
 
-    /** Stone and a pick. The oldest answer to a hole in the floor. */
-    MASON("Mason's Bag", "Stone, a pick, and the patience to use them.",
-            List.of("minecraft:cobblestone", "minecraft:stone_pickaxe", "minecraft:torch"),
-            Set.of(Tag.BLOCKS)),
-
-    /** Two buckets, and everything two buckets can be made to mean. */
-    PLUMBER("Plumber's Bag", "Two buckets. Everything else is what you do with them.",
-            List.of("minecraft:water_bucket", "minecraft:lava_bucket", "minecraft:bread"),
-            Set.of(Tag.WATER, Tag.LAVA)),
+    private Bags() {}
 
     /**
-     * TNT removes a wall, which is what the {@code blocks} tag means to the
-     * generator: this bag can get through something solid. Deliberately not
-     * tagged {@code redstone}. Flint and steel lights TNT and it lights a fire,
-     * but it powers nothing, and a bag that claims to solve a wiring situation
-     * it cannot solve is worse for the solvability pass than one that claims
-     * too little.
+     * Every built-in bag id, in declaration order. Read by {@code LootTables}
+     * at startup, before the manifest has loaded, so this list is sourced from
+     * {@link BagIds} rather than the live manifest.
      */
-    SAPPER("Sapper's Bag", "Three sticks of the loudest answer there is.",
-            List.of("minecraft:tnt", "minecraft:flint_and_steel", "minecraft:bread"),
-            Set.of(Tag.BLOCKS)),
-
-    /** Distance, without walking it. */
-    MAGICIAN("Magician's Bag", "Pearls and wind. Doors are for other people.",
-            List.of("minecraft:ender_pearl", "minecraft:wind_charge", "minecraft:bread"),
-            Set.of(Tag.PEARL, Tag.WIND_CHARGE)),
-
-    /** Reach, and the eyes to use it before the room notices. */
-    RANGER("Ranger's Bag", "Reach. See it first, hit it from there.",
-            List.of("minecraft:bow", "minecraft:arrow", "minecraft:spyglass"),
-            Set.of(Tag.BOW)),
-
-    /** Something down here will follow you if you ask it correctly. */
-    SHEPHERD("Shepherd's Bag", "Leads and bones. Something down here will follow you.",
-            List.of("minecraft:lead", "minecraft:bone", "minecraft:bread"),
-            Set.of(Tag.LEAD, Tag.MOB)),
-
-    /** Staying alive is a tool like any other. */
-    INNKEEPER("Innkeeper's Bag", "Milk, an apple, and a warm light. You will keep.",
-            List.of("minecraft:milk_bucket", "minecraft:golden_apple", "minecraft:torch"),
-            Set.of(Tag.MILK)),
-
-    /**
-     * Bread and nothing else. Spec 3.2 calls this the hardest bag and the one
-     * that most tests the generator, and its empty tag set is the whole point:
-     * every tool has to come out of a room, so a floor that is solvable for
-     * Pilgrim is solvable for everyone.
-     */
-    PILGRIM("Pilgrim's Bag", "Bread. The rooms owe you the rest.",
-            List.of("minecraft:bread"),
-            Set.of());
-
-    /**
-     * The situation-tag strings, held in a nested class only because an enum
-     * constant may not forward-reference a static field of its own enum.
-     *
-     * <p>M45 SituationTags constants; wire to them at the integration gate.
-     * They are plain literals here because M45 lands in the same wave and
-     * cannot be seen from this branch. The merge is a rename, not a redesign:
-     * delete this class and point the constants at {@code SituationTags}.
-     */
-    static final class Tag {
-        static final String BLOCKS = "blocks";
-        static final String WATER = "water";
-        static final String LAVA = "lava";
-        static final String PEARL = "pearl";
-        static final String WIND_CHARGE = "wind_charge";
-        static final String BOW = "bow";
-        static final String LEAD = "lead";
-        static final String MOB = "mob";
-        static final String MILK = "milk";
-
-        private Tag() {}
-    }
-
-    /** The datapack id, and the id a door, a config or a command names this bag by. */
-    final String id;
-
-    /** The loot table path under this mod's namespace, e.g. {@code bags/mason}. */
-    final String path;
-
-    /** What the door dialog calls this bag. */
-    final Component displayName;
-
-    /** One sentence of flavour under the name. Never the design intent column. */
-    final Component blurb;
-
-    /**
-     * The three items the door's item frames show, most characteristic first.
-     * Spec 3.3: three frames per door, one per headline item. Pilgrim has one,
-     * because it has one item; the remaining frames stay empty rather than
-     * being padded with bread twice over.
-     */
-    final List<String> headline;
-
-    /**
-     * What this bag lets the generator assume the party can already do, used as
-     * the seed of M47's {@code available} set. Not a list of the bag's items: a
-     * spyglass is in Ranger and grants nothing, and TNT grants {@code blocks}
-     * without being one.
-     */
-    final Set<String> tags;
-
-    Bags(String displayName, String blurb, List<String> headline, Set<String> tags) {
-        this.id = name().toLowerCase(Locale.ROOT);
-        this.path = "bags/" + this.id;
-        this.displayName = Component.literal(displayName);
-        this.blurb = Component.literal(blurb);
-        this.headline = List.copyOf(headline);
-        this.tags = Set.copyOf(tags);
-    }
-
-    /** Every bag id, in declaration order. Read by {@code LootTables} at startup. */
     static List<String> ids() {
-        List<String> out = new ArrayList<>(values().length);
-        for (Bags bag : values()) {
-            out.add(bag.id);
-        }
-        return List.copyOf(out);
+        return BagIds.BUILT_IN_ORDER.stream()
+                .map(id -> id.substring(id.indexOf(':') + 1))
+                .toList();
     }
 
-    /** Every bag's loot table path, in declaration order. */
+    /**
+     * Every built-in bag's loot table path, in declaration order. The path is
+     * the part after the namespace, so {@code bags/mason} for
+     * {@code pocketdungeons:mason}. Read by {@code LootTables} at startup.
+     */
     static List<String> paths() {
-        List<String> out = new ArrayList<>(values().length);
-        for (Bags bag : values()) {
-            out.add(bag.path);
+        List<String> out = new ArrayList<>(BagIds.BUILT_IN_ORDER.size());
+        for (String id : BagIds.BUILT_IN_ORDER) {
+            out.add("bags/" + id.substring(id.indexOf(':') + 1));
         }
         return List.copyOf(out);
     }
 
     /**
-     * The bag with this id, or {@code null} if nothing matches. Null rather than
-     * a Pilgrim default: a typo in a config or a door should surface as a log
-     * line at the call site, not as the hardest bag in the game handed out
-     * silently.
+     * The bag definition with this id, or {@code null} if nothing matches.
+     * Resolves a legacy bare id to the {@code pocketdungeons} namespace.
+     *
+     * <p>Null rather than a Pilgrim default: a typo in a config or a door
+     * should surface as a log line at the call site, not as the hardest bag
+     * in the game handed out silently.
      */
-    static Bags byId(String bagId) {
+    static BagDefinition byId(String bagId) {
         if (bagId == null) {
             return null;
         }
-        String wanted = bagId.trim().toLowerCase(Locale.ROOT);
-        for (Bags bag : values()) {
-            if (bag.id.equals(wanted)) {
-                return bag;
-            }
+        String resolved = BagIds.resolve(bagId);
+        if (resolved == null) {
+            // A bare unknown name: try it as-is against the manifest, in case
+            // a third-party bag was authored with a bare id (it should not be,
+            // but the lenience matches the pre-M70 enum lookup).
+            return BagManifest.current().byId(bagId);
         }
-        return null;
+        return BagManifest.current().byId(resolved);
     }
 
     /**
@@ -206,34 +102,56 @@ enum Bags {
      * harder, never leave a floor unsolvable.
      */
     static Set<String> tagsFor(String bagId) {
-        Bags bag = byId(bagId);
+        BagDefinition bag = byId(bagId);
         return bag == null ? Set.of() : bag.tags;
     }
 
-    /** This bag's full loot table {@link Identifier}. */
-    Identifier tableId() {
-        return Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, path);
-    }
-
     /**
-     * The headline items resolved against the item registry, for whoever fills
-     * the door's frames. An id that does not resolve is skipped with a log line
-     * rather than silently becoming air: a bag table and this list are edited
-     * separately and can drift.
+     * The headline items resolved against the item registry, for whoever
+     * fills the door's frames. An id that does not resolve is skipped with a
+     * log line rather than silently becoming air: a bag table and this list
+     * are edited separately and can drift.
      */
-    List<Item> headlineItems() {
-        List<Item> out = new ArrayList<>(headline.size());
-        for (String itemId : headline) {
+    static List<Item> headlineItems(String bagId) {
+        BagDefinition bag = byId(bagId);
+        if (bag == null) {
+            return List.of();
+        }
+        List<Item> out = new ArrayList<>(bag.headline.size());
+        for (String itemId : bag.headline) {
             Identifier parsed = Identifier.tryParse(itemId);
             Item item = parsed == null ? null : BuiltInRegistries.ITEM.getOptional(parsed).orElse(null);
             if (item == null) {
                 PocketDungeonsMod.LOG.error("Bag {} lists headline item {}, which is not a registered item",
-                        id, itemId);
+                        bagId, itemId);
                 continue;
             }
             out.add(item);
         }
         return out;
+    }
+
+    /**
+     * The display name for this bag, or the raw id if the bag is unknown.
+     */
+    static Component displayName(String bagId) {
+        BagDefinition bag = byId(bagId);
+        return bag == null ? Component.literal(bagId) : Component.literal(bag.label);
+    }
+
+    /** The blurb for this bag, or empty if the bag is unknown. */
+    static Component blurb(String bagId) {
+        BagDefinition bag = byId(bagId);
+        return bag == null ? Component.literal("") : Component.literal(bag.blurb);
+    }
+
+    /**
+     * The namespaced loot table id for this bag, or {@code null} if the bag
+     * is unknown.
+     */
+    static Identifier tableId(String bagId) {
+        BagDefinition bag = byId(bagId);
+        return bag == null ? null : Identifier.parse(bag.lootTable);
     }
 
     /**
@@ -253,22 +171,18 @@ enum Bags {
      * move any of this", so a half-fitting stack reports success and leaves the
      * remainder behind to be destroyed.
      *
-     * <p>Nothing calls this yet. The door commit path is the integration gate's
-     * fifteen lines, and needs M46's inventory ownership present in the same
-     * tree.
-     *
-     * @return how many stacks reached the inventory, or {@code -1} if the table
-     *         is missing, which is a datapack fault and not a quiet zero
+     * @return how many stacks reached the inventory, or {@code -1} if the
+     *         table is missing, which is a datapack fault and not a quiet zero
      */
     static int apply(ServerPlayer player, String bagId) {
-        Bags bag = byId(bagId);
+        BagDefinition bag = byId(bagId);
         if (bag == null) {
             PocketDungeonsMod.LOG.error("No bag with id '{}'; nothing handed to {}",
                     bagId, player.getName().getString());
             return -1;
         }
         ServerLevel level = player.level();
-        Identifier table = bag.tableId();
+        Identifier table = Identifier.parse(bag.lootTable);
         ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, table);
         if (!LootTables.exists(level.getServer(), key)) {
             PocketDungeonsMod.LOG.error("Bag table {} is missing; {} enters with nothing",

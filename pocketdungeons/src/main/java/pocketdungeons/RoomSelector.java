@@ -102,8 +102,9 @@ final class RoomSelector {
         Map<PlanCell, Integer> depths = depths(shape);
         List<PlanCell> order = bfsOrder(shape.cells(), depths);
 
+        Set<String> weighted = recipePlan == null ? Set.of() : Set.copyOf(recipePlan.weightedRooms);
         Pass pass = new Pass(shape, manifest, theme, depths, order,
-                bagTags == null ? Set.of() : bagTags);
+                bagTags == null ? Set.of() : bagTags, weighted);
         Failure failure = pass.prepare();
         if (failure != null) {
             return new Result(null, failure);
@@ -219,17 +220,11 @@ final class RoomSelector {
                                               Map<PlanCell, Integer> depths,
                                               Set<String> bagTags,
                                               RunRecipePlan recipePlan) {
-        if (recipePlan.infestedGuarantee) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                    java.util.List.of("infested_wall", "creeper_kennel"));
-        }
-        if (recipePlan.deepDarkGuarantee) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                    java.util.List.of("deep_dark_landing"));
-        }
-        if (recipePlan.storeSpur) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                    java.util.List.of("the_store"));
+        // M71: guaranteed rooms are data-driven. Each group carries its
+        // alternative room names; the tier gate was already checked at
+        // resolve time, so every group here is tier-eligible for this offer.
+        for (RecipeEffects.GuaranteedRoom g : recipePlan.guaranteedRooms) {
+            forceRoom(shape, manifest, theme, placed, depths, bagTags, g.names());
         }
     }
 
@@ -448,6 +443,7 @@ final class RoomSelector {
         private final Map<PlanCell, Integer> depths;
         private final List<PlanCell> order;
         private final Set<String> bagTags;
+        private final Set<String> weightedRooms;
 
         private Set<PlanCell> onSpine = Set.of();
         private Map<PlanCell, Integer> branches = Map.of();
@@ -468,13 +464,15 @@ final class RoomSelector {
         private int deepestEmpty = -1;
 
         Pass(DungeonShape shape, RoomManifest manifest, String theme,
-             Map<PlanCell, Integer> depths, List<PlanCell> order, Set<String> bagTags) {
+             Map<PlanCell, Integer> depths, List<PlanCell> order, Set<String> bagTags,
+             Set<String> weightedRooms) {
             this.shape = shape;
             this.manifest = manifest;
             this.theme = theme;
             this.depths = depths;
             this.order = order;
             this.bagTags = bagTags;
+            this.weightedRooms = weightedRooms == null ? Set.of() : Set.copyOf(weightedRooms);
         }
 
         /**
@@ -494,6 +492,14 @@ final class RoomSelector {
                 String role = shape.roles().get(cell);
                 if (role == null) {
                     return new Failure(cell, mask, "missing role");
+                }
+                // M70: a role the manifest does not recognise is a named
+                // validation error, not a silent fallthrough to generic room
+                // behaviour. Structural roles (entrance, exit) are
+                // engine-owned and not in the role manifest, so they are
+                // accepted here; every population role must be loaded.
+                if (!isStructuralRole(role) && RoleManifest.current().byId(role) == null) {
+                    return new Failure(cell, mask, "unknown role: " + role);
                 }
                 List<RoomManifest.Match> found = manifest.queryAnyRotation(mask, role, theme);
                 if (found.isEmpty()) {
@@ -761,16 +767,35 @@ final class RoomSelector {
                 }
                 int total = 0;
                 for (RoomManifest.Match match : remaining) {
-                    total += Math.max(1, match.entry().meta.weight);
+                    total += weightOf(match);
                 }
                 int roll = rng.nextInt(total);
                 for (int i = 0; i < remaining.size(); i++) {
-                    roll -= Math.max(1, remaining.get(i).entry().meta.weight);
+                    roll -= weightOf(remaining.get(i));
                     if (roll < 0) {
                         return remaining.remove(i);
                     }
                 }
                 return remaining.remove(remaining.size() - 1);
+            }
+
+            /**
+             * M71: the effective weight of a match, with a recipe's
+             * weighted rooms boosted. A room named in the recipe plan's
+             * {@code weightedRooms} set draws three times its declared
+             * weight, so a bias is a noticeable nudge rather than a
+             * guarantee. The boost is applied here rather than in the
+             * room's own {@code weight} field so a reload that removes
+             * the recipe restores the room's original distribution without
+             * a manifest republish.
+             */
+            private int weightOf(RoomManifest.Match match) {
+                int base = Math.max(1, match.entry().meta.weight);
+                if (!weightedRooms.isEmpty()
+                        && weightedRooms.contains(match.entry().name)) {
+                    return base * 3;
+                }
+                return base;
             }
         }
 
@@ -1071,6 +1096,15 @@ final class RoomSelector {
             }
         }
         return DoorMask.fromEdges(dirs);
+    }
+
+    /**
+     * M70: whether a role id is one of the engine-owned structural roles
+     * (entrance, exit). Structural roles are not loaded from the role
+     * manifest, so the selector's unknown-role check accepts them here.
+     */
+    private static boolean isStructuralRole(String role) {
+        return RoleIds.ENTRANCE.equals(role) || RoleIds.EXIT.equals(role);
     }
 
     private static Set<PlanCell> reachableCells(DungeonPlan plan) {

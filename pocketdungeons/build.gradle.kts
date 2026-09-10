@@ -243,7 +243,12 @@ for ((taskName, testClass) in mapOf(
     "situationSupplyTest" to "SituationSupplyTest",
     "supplySeparationTest" to "SupplySeparationTest",
     // M68: namespaced content identity, legacy resolution, snapshot validation.
-    "contentSnapshotTest" to "ContentSnapshotTest"
+    "contentSnapshotTest" to "ContentSnapshotTest",
+    // M72: pack validation and release-safe author export (PackValidator).
+    "packValidationTest" to "PackValidatorTest",
+    // M72: verifies the jar: filesystem walk used by PackValidator.copyResourceTree
+    // against a packaged release jar (closes DISCOVERIES item 33).
+    "jarFileSystemWalkTest" to "JarFileSystemWalkTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -298,6 +303,8 @@ tasks.test {
     dependsOn("situationSupplyTest")
     dependsOn("supplySeparationTest")
     dependsOn("contentSnapshotTest")
+    dependsOn("packValidationTest")
+    dependsOn("jarFileSystemWalkTest")
     failOnNoDiscoveredTests = false
 }
 
@@ -321,6 +328,8 @@ tasks.register<Copy>("dist") {
 
 tasks.named("build") {
     finalizedBy("dist")
+    // M72: a build that does not pass pack validation is not a release.
+    dependsOn("packValidationTest")
 }
 
 tasks.register<JavaExec>("pipelineProof") {

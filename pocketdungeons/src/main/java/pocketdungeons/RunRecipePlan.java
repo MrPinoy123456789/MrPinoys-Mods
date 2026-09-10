@@ -2,8 +2,9 @@ package pocketdungeons;
 
 import net.minecraft.nbt.CompoundTag;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -13,39 +14,30 @@ import java.util.Set;
  * nothing. This class is the contract between the Cube (where the player frames
  * a recipe) and the planner (where the effects land).
  *
- * <p>Supported effects, each derived from a recipe tag on the keystone:
- * <ul>
- *   <li><strong>ominous</strong>: the run starts ominous (affix added).</li>
- *   <li><strong>feral</strong>: the Feral affix is guaranteed.</li>
- *   <li><strong>infested guarantee</strong>: at least one Infested Wall or
- *       Creeper Kennel is forced into the plan.</li>
- *   <li><strong>flooded or chasm weighting</strong>: Flooded Hall and Chasm
- *       rooms are weighted up in the selector.</li>
- *   <li><strong>tier-eligible Deep Dark guarantee</strong>: Deep Dark Landing
- *       is forced when the offer's loot tier is 3; refused before consumption
- *       otherwise.</li>
- *   <li><strong>completion study list</strong>: the completion line lists the
- *       run's situations by name afterward.</li>
- *   <li><strong>Store spur</strong>: a Store spur is guaranteed.</li>
- *   <li><strong>bounded supply</strong>: one guaranteed tool cache supplied in
- *       the dungeon (replaces the old BAG_OVERRIDE; class identity never
- *       changes).</li>
- *   <li><strong>+2 path length</strong>: the plan's path length bounds grow by
- *       two (replaces the old DOUBLE_KEY; at the committed offer's level).</li>
- * </ul>
+ * <p>M71 generalises the room-shaping effects from hardcoded booleans to
+ * data-driven lists. The weighted and guaranteed room operations M66
+ * introduced as fixed booleans ({@code floodedChasmWeighted},
+ * {@code infestedGuarantee}, {@code deepDarkGuarantee}, {@code storeSpur})
+ * are now {@link #weightedRooms} and {@link #guaranteedRooms} lists, so a
+ * third-party recipe names its own rooms without a Java edit. The boolean
+ * and integer effects ({@link #ominous}, {@link #feral},
+ * {@link #completionStudyList}, {@link #boundedSupply},
+ * {@link #pathLengthBonus}) are the typed effects M66 shipped; M71 lifts
+ * them into {@link RecipeEffects} data and accumulates every active
+ * definition's effects here.
  *
- * <p>Conflict order is explicit. An impossible guarantee (Deep Dark at tier
- * below 3, or two guarantees that cannot coexist on the same floor) refuses
- * before consumption: {@link #resolve} returns {@code null} with a reason in
- * {@link Refusal#reason}, and the caller must not spend the catalyst.
+ * <p>Conflict order is explicit. An impossible guarantee (a guaranteed room
+ * whose {@code min_tier} the offer's loot tier cannot satisfy) refuses
+ * before consumption: {@link #resolve} returns {@code null} with a reason
+ * in {@link Refusal#reason}, and the caller must not spend the catalyst.
  *
  * <p>Class identity never changes: the bag the player chose stays the bag they
  * enter with. Bounded supply adds a tool cache inside the dungeon; it does not
  * swap the bag.
  *
  * <p>The {@link #revision} field is a stable hash of every input that could
- * change the plan's membership: the recipe tag set, the offer level, and the
- * party capability set. A preview stores its revision; a re-preview is required
+ * change the plan's membership: the recipe id set, the offer level, and
+ * the party capability set. A preview stores its revision; a re-preview is required
  * when the current revision differs. This is what prevents a second click on
  * the same offer from farming random entrances.
  */
@@ -59,18 +51,20 @@ final class RunRecipePlan {
 
     final boolean ominous;
     final boolean feral;
-    final boolean infestedGuarantee;
-    final boolean floodedChasmWeighted;
-    final boolean deepDarkGuarantee;
     final boolean completionStudyList;
-    final boolean storeSpur;
     final boolean boundedSupply;
-    final int pathLengthBonus;
+    final int pathBonus;
+
+    /** Room names to weight up in the selection pass, qualified. */
+    final List<String> weightedRooms;
+
+    /** Room groups to force onto eligible cells after the main pass. */
+    final List<RecipeEffects.GuaranteedRoom> guaranteedRooms;
 
     /** The planning seed captured at resolution time. Freezes the plan membership. */
     final long seed;
 
-    /** The offer level captured at resolution time. Deep Dark tier check keys off this. */
+    /** The offer level captured at resolution time. Tier checks key off this. */
     final int offerLevel;
 
     /** The affix names captured at resolution time, sorted. Part of the revision. */
@@ -86,24 +80,23 @@ final class RunRecipePlan {
      */
     final int revision;
 
-    /** The recipe tag keys that are active, in declaration order. */
+    /** The recipe ids that are active, in resolution order. */
     final Set<String> activeRecipes;
 
-    private RunRecipePlan(boolean ominous, boolean feral, boolean infestedGuarantee,
-                          boolean floodedChasmWeighted, boolean deepDarkGuarantee,
-                          boolean completionStudyList, boolean storeSpur, boolean boundedSupply,
-                          int pathLengthBonus, long seed, int offerLevel,
-                          Set<String> affixNames, Set<String> partyCapabilities,
-                          int revision, Set<String> activeRecipes) {
+    private RunRecipePlan(boolean ominous, boolean feral, boolean completionStudyList,
+                         boolean boundedSupply, int pathBonus,
+                         List<String> weightedRooms,
+                         List<RecipeEffects.GuaranteedRoom> guaranteedRooms,
+                         long seed, int offerLevel,
+                         Set<String> affixNames, Set<String> partyCapabilities,
+                         int revision, Set<String> activeRecipes) {
         this.ominous = ominous;
         this.feral = feral;
-        this.infestedGuarantee = infestedGuarantee;
-        this.floodedChasmWeighted = floodedChasmWeighted;
-        this.deepDarkGuarantee = deepDarkGuarantee;
         this.completionStudyList = completionStudyList;
-        this.storeSpur = storeSpur;
         this.boundedSupply = boundedSupply;
-        this.pathLengthBonus = pathLengthBonus;
+        this.pathBonus = pathBonus;
+        this.weightedRooms = List.copyOf(weightedRooms);
+        this.guaranteedRooms = List.copyOf(guaranteedRooms);
         this.seed = seed;
         this.offerLevel = offerLevel;
         this.affixNames = Set.copyOf(affixNames);
@@ -118,11 +111,17 @@ final class RunRecipePlan {
      * a {@link Refusal} when the effects conflict or are impossible at the
      * offer's tier. The caller must not consume the catalyst on a refusal.
      *
+     * <p>M71: the recipe tags are recipe ids (namespaced, or legacy bare keys
+     * resolved via {@link RecipeIds#resolve}). Each id is looked up in the
+     * live {@link CubeRecipeManifest} and its {@link RecipeEffects} are
+     * accumulated. An id the manifest does not carry is dropped silently,
+     * the same login-safe lenience a removed pack gets everywhere else.
+     *
      * @param seed              the planning seed
      * @param offerLevel        the keystone level of the chosen door
      * @param affixes           the effective affix set (before recipe additions)
      * @param partyCapabilities the bag tags and party-size tags
-     * @param recipeTags        the recipe tags read from the keystone
+     * @param recipeTags        the recipe id tags read from the keystone
      * @return the resolved plan, or {@code null} if the effects refuse
      */
     static RunRecipePlan resolve(long seed, int offerLevel, Set<String> affixes,
@@ -131,83 +130,63 @@ final class RunRecipePlan {
         Set<String> activeRecipes = new LinkedHashSet<>();
         boolean ominous = false;
         boolean feral = false;
-        boolean infestedGuarantee = false;
-        boolean floodedChasmWeighted = false;
-        boolean deepDarkGuarantee = false;
         boolean completionStudyList = false;
-        boolean storeSpur = false;
         boolean boundedSupply = false;
-        int pathLengthBonus = 0;
+        int bonus = 0;
+        List<String> weightedRooms = new ArrayList<>();
+        List<RecipeEffects.GuaranteedRoom> guaranteedRooms = new ArrayList<>();
 
         if (recipeTags != null && !recipeTags.isEmpty()) {
-            if (recipeTags.getBooleanOr("ominous", false)) {
-                ominous = true;
-                activeRecipes.add("ominous");
-            }
-            if (recipeTags.getBooleanOr("feral", false)) {
-                feral = true;
-                activeRecipes.add("feral");
-            }
-            if (recipeTags.getBooleanOr("infested", false)) {
-                infestedGuarantee = true;
-                activeRecipes.add("infested");
-            }
-            if (recipeTags.getBooleanOr("flooded", false)) {
-                floodedChasmWeighted = true;
-                activeRecipes.add("flooded");
-            }
-            if (recipeTags.getBooleanOr("deep_dark", false)) {
-                deepDarkGuarantee = true;
-                activeRecipes.add("deep_dark");
-            }
-            if (recipeTags.getBooleanOr("compass", false)) {
-                completionStudyList = true;
-                activeRecipes.add("compass");
-            }
-            if (recipeTags.getBooleanOr("store", false)) {
-                storeSpur = true;
-                activeRecipes.add("store");
-            }
-            // M66: bounded_supply replaces BAG_OVERRIDE. Legacy bag_override
-            // tags are decoded as bounded supply for continuity, but the bag
-            // identity never changes: the original bag stays, and a tool cache
-            // is supplied in the dungeon instead.
-            if (recipeTags.getBooleanOr("bounded_supply", false)
-                    || recipeTags.getBooleanOr("bag_override", false)) {
-                boundedSupply = true;
-                activeRecipes.add(recipeTags.getBooleanOr("bag_override", false)
-                        ? "bag_override" : "bounded_supply");
-            }
-            // M66: path_extension replaces DOUBLE_KEY. Legacy double_key tags
-            // are decoded as +2 path length at the committed offer's level.
-            // The old DOUBLE_KEY's lower-key level was never stored; do not
-            // invent it.
-            if (recipeTags.getBooleanOr("path_extension", false)
-                    || recipeTags.getBooleanOr("double_key", false)) {
-                pathLengthBonus = 2;
-                activeRecipes.add(recipeTags.getBooleanOr("double_key", false)
-                        ? "double_key" : "path_extension");
+            for (String key : recipeTags.keySet()) {
+                if (!recipeTags.getBooleanOr(key, false)) {
+                    continue;
+                }
+                String recipeId = RecipeIds.resolve(key);
+                if (recipeId == null) {
+                    continue;
+                }
+                CubeRecipeDefinition def = CubeRecipeManifest.current().byId(recipeId);
+                if (def == null) {
+                    // A recipe id the manifest does not carry (a removed
+                    // pack, or a legacy tag with no replacement) is dropped
+                    // silently, the same lenience every other manifest has.
+                    continue;
+                }
+                activeRecipes.add(recipeId);
+                RecipeEffects fx = def.effects;
+                ominous |= fx.ominous;
+                feral |= fx.feral;
+                completionStudyList |= fx.completionStudyList;
+                boundedSupply |= fx.boundedSupply;
+                bonus += fx.pathLengthBonus;
+                for (String room : fx.weightedRooms) {
+                    String qualified = JsonPackSupport.qualify(room);
+                    if (!weightedRooms.contains(qualified)) {
+                        weightedRooms.add(qualified);
+                    }
+                }
+                for (RecipeEffects.GuaranteedRoom g : fx.guaranteedRooms) {
+                    guaranteedRooms.add(g);
+                }
             }
         }
 
-        // Conflict order: Deep Dark is tier 3 only. Refuse before consumption.
-        if (deepDarkGuarantee) {
-            int tier = KeystoneMath.lootTier(offerLevel);
-            if (tier < 3) {
+        // Conflict order: a guaranteed room whose min_tier the offer's loot
+        // tier cannot satisfy refuses before consumption. Generalises M66's
+        // hardcoded "Deep Dark requires tier 3" check to any guaranteed room
+        // that declares a min_tier.
+        int offerTier = KeystoneMath.lootTier(offerLevel);
+        for (RecipeEffects.GuaranteedRoom g : guaranteedRooms) {
+            if (g.minTier() > offerTier) {
                 if (refusalOut != null && refusalOut.length > 0) {
                     refusalOut[0] = new Refusal(
-                            "Deep Dark Landing requires tier 3 (keystone level 10+); "
-                                    + "this door is level " + offerLevel + " (tier " + tier + ").");
+                            "A guaranteed room requires tier " + g.minTier()
+                                    + " (keystone level " + (g.minTier() * 5) + "+); "
+                                    + "this door is level " + offerLevel + " (tier " + offerTier + ").");
                 }
                 return null;
             }
         }
-
-        // Conflict: infested guarantee and Deep Dark guarantee both force a
-        // specific room onto the critical path. They can coexist on different
-        // cells, so this is not a refusal; the planner handles both.
-        // No explicit conflict refuses today. The order above is the
-        // resolution order; new conflicts go here.
 
         Set<String> affixNames = new LinkedHashSet<>();
         if (affixes != null) {
@@ -216,9 +195,9 @@ final class RunRecipePlan {
 
         int revision = computeRevision(offerLevel, affixNames, partyCapabilities, activeRecipes);
 
-        return new RunRecipePlan(ominous, feral, infestedGuarantee, floodedChasmWeighted,
-                deepDarkGuarantee, completionStudyList, storeSpur, boundedSupply,
-                pathLengthBonus, seed, offerLevel, affixNames, partyCapabilities,
+        return new RunRecipePlan(ominous, feral, completionStudyList, boundedSupply,
+                bonus, weightedRooms, guaranteedRooms,
+                seed, offerLevel, affixNames, partyCapabilities,
                 revision, activeRecipes);
     }
 
@@ -283,16 +262,15 @@ final class RunRecipePlan {
      * Whether this plan carries any recipe effect at all.
      */
     boolean hasEffects() {
-        return ominous || feral || infestedGuarantee || floodedChasmWeighted
-                || deepDarkGuarantee || completionStudyList || storeSpur
-                || boundedSupply || pathLengthBonus > 0;
+        return ominous || feral || completionStudyList || boundedSupply || pathBonus > 0
+                || !weightedRooms.isEmpty() || !guaranteedRooms.isEmpty();
     }
 
     /**
      * The path length bonus to add to both min and max path bounds.
      */
     int pathLengthBonus() {
-        return pathLengthBonus;
+        return pathBonus;
     }
 
     /**

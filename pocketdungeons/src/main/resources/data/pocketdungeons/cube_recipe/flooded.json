@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run favours water and lava.", "catalyst": "minecraft:water_bucket", "cost": 1, "priority": 0, "min_level": 0, "effects": {"weighted_rooms": ["flooded_hall", "chasm"]}}

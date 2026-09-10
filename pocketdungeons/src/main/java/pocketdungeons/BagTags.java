@@ -21,12 +21,11 @@ import java.util.Set;
  * Pilgrim gets nothing, which is exactly the case spec 6.3 makes the
  * generator's test.
  *
- * <p><strong>Where the bag data lives.</strong> {@link Bags} already holds each
- * archetype's tag set, so this class delegates rather than keeping a second
- * copy that would drift. {@code Bags} is an enum of Minecraft-facing lookups
- * and this is the one place the headless solvability path touches it; the touch
- * is a plain static call over a {@code Set<String>} and pulls in no server
- * state.
+ * <p><strong>Where the bag data lives.</strong> The data-driven
+ * {@link BagManifest} holds each bag's tag set, and {@link Bags#tagsFor}
+ * is the lookup this class delegates to rather than keeping a second copy
+ * that would drift. The touch is a plain static call over a
+ * {@code Set<String>} and pulls in no server state.
  */
 final class BagTags {
 

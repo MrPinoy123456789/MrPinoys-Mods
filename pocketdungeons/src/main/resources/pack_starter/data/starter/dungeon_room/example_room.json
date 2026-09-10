@@ -1,0 +1,1 @@
+{"version": 1, "template": "pocketdungeons:rooms/hall_dead_end", "footprint": [1, 1], "roles": ["encounter"], "theme": ["starter:example_theme"], "weight": 1, "minDepth": 0, "maxPerDungeon": -1, "access": "open", "window": "bars"}

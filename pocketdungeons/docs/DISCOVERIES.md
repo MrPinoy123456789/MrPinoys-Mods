@@ -381,103 +381,195 @@ Two gotchas, worth not re-discovering:
 
 ## UNVERIFIED M65 API surface
 
-20. UNVERIFIED: RunSession.derivePhase is used by the RECOVERY exit
-    path but has not been exercised in a live reconnect scenario. The
-    join path in Instances.admit does not yet call derivePhase to
-    reconstruct the phase after a disconnect; the phase field persists
-    on the record and is read as-is on reconnect. A server restart
-    that loses the in-memory record (and reconstructs it from
-    InstanceRegistry's persisted state) would need derivePhase to
-    rebuild the phase. This is not a live bug today because the record
-    is in-memory only, but it is an API surface that M65 introduces
-    and does not yet wire end-to-end.
+20. PARTIALLY RESOLVED: RunSession.derivePhase is tested by
+    FloorLoopGameTest, which confirms the phase it would derive (HOME,
+    not FLOOR_CLEARED, for a record with awaitingDoorChoice=true and
+    floorIndex=0) does not allow a second SAFE_RETURN transition. The
+    derivePhase logic is verified headlessly. What remains unverified is
+    the full live reconnect scenario: a server restart that loses the
+    in-memory record and reconstructs it from InstanceRegistry's persisted
+    state. The item notes this is not a live bug today because the record
+    is in-memory only. The derivePhase method itself is correct; the
+    wiring end-to-end (Instances.admit calling derivePhase on reconnect
+    after a server restart) is the remaining gap.
 
-21. UNVERIFIED: The silent homecoming's completeHomecomingCleanup in
-    Instances.onTick has not been exercised in a live multi-player
-    scenario. The logic checks whether all members have left the old
-    staging room and entered the new room, then releases old cells.
-    A party member who disconnects during the crossing is treated as
-    "crossed" (does not block cleanup), and the M63 recovery path
-    handles their return. This has not been live-tested with an
-    actual disconnect during the crossing window.
+21. PARTIALLY RESOLVED: The silent homecoming's
+    completeHomecomingCleanup in Instances.onTick was verified by code
+    analysis. The logic (line 1964-1966) checks
+    pendingHomecomingCleanup and calls allMembersCrossed, which
+    treats a disconnected member as "crossed" (does not block
+    cleanup). The M63 recovery path handles their return. The code
+    path is sound and the logic is correct. What remains unverified is
+    the live multi-player scenario: an actual disconnect during the
+    crossing window, with a real player dropping and reconnecting. This
+    needs a two-player live test, which is a genuine Astra computer-use
+    candidate (item 21 is one of the 20-25 visual/interactive items
+    identified in the cost analysis).
 
-22. UNVERIFIED: The fallbackTeleportHomecoming path in returnToSafe
-    has not been triggered in a live scenario. It fires only when
-    stampSafeRoom throws a RuntimeException, which requires a
-    StructureTemplate or chunk-loading failure. The path exists as a
-    safety net but its behavior (teleport, chime, message) has not
-    been live-verified.
+22. RESOLVED (code analysis): The fallbackTeleportHomecoming path
+    in returnToSafe was verified by code analysis. The path fires only
+    when stampSafeRoom throws a RuntimeException (line 1380-1385),
+    which requires a StructureTemplate or chunk-loading failure. The
+    fallback (line 1479-1538) clears cells, re-stamps at the slot
+    origin, stamps a fresh staging room, teleports every member into
+    the safe room, and closes the timer. The code path is sound and
+    handles the failure case correctly. The path is hard to trigger
+    live because stampSafeRoom has its own internal fallback
+    (TemplateStamper.ENTRANCE_HALL at line 687-688), so the outer
+    fallback only fires if both RoomStore.place AND the entrance hall
+    template fail. A live test would need to corrupt both paths, which
+    is not practical. The code analysis is sufficient.
 
-## UNVERIFIED M66 API surface
-
-23. UNVERIFIED: CubeRecipe.restoreCatalyst uses
+23. PARTIALLY RESOLVED: CubeRecipe.restoreCatalyst uses
     Payout.deliver(player, new ItemStack(item)) to return the
-    escrowed catalyst on cancellation. Payout.deliver calls
-    player.getInventory().add(stack) and drops overflow at the
-    player's feet. This path has not been exercised in a live
-    scenario where the player's inventory is full. The drop should
-    work (it uses player.drop, which spawns an ItemEntity), but the
-    exact behavior with a full inventory and a nearby void dimension
-    has not been live-verified.
+    escrowed catalyst on cancellation. Payout.deliver (lines 34-45)
+    calls player.getInventory().add(stack), then checks stack.isEmpty()
+    and calls player.drop(stack, false) for the overflow. Verified
+    against the 26.2 jar: Inventory.add(ItemStack) returns boolean
+    and modifies the stack in place (reduces count by what fits).
+    Player.drop(ItemStack, boolean) returns ItemEntity, delegating
+    to Player.drop(ItemStack, boolean, boolean), which spawns an
+    ItemEntity at the player's position (same pattern as
+    Entity.spawnAtLocation: new ItemEntity + addFreshEntity). The API
+    behavior is confirmed: overflow drops as an item entity at the
+    player's feet. What remains unverified is the edge case where the
+    player is standing near a void drop in a dungeon dimension: the
+    item entity may fall into the void before the player can pick it
+    up. That is a level design question, not an API question.
 
-24. UNVERIFIED: The catalyst escrow (pending_catalyst in the
-    keystone custom data) is a durable store, but it is not a
-    transactional boundary like M63's InventoryJournal. If the server
-    crashes between Catalyst shrink (in CubeRecipe.apply) and the
-    escrow write (in the same CustomData.update call), the catalyst
-    is lost. The CustomData.update call is atomic, but the
-    offHand.shrink(1) call happens after the update, so a crash
-    between the two would leave the catalyst escrowed but not
-    consumed. This is a narrow window and has not been
-    crash-tested.
+24. RESOLVED (code analysis): The catalyst escrow write and the
+    catalyst shrink ordering was verified by reading CubeRecipe.apply
+    (lines 145-162). The CustomData.update call (line 145) writes the
+    pending_catalyst escrow AND the recipe id in one atomic update.
+    The offHand.shrink(1) call (line 162) happens AFTER the escrow
+    write, not before it. So a crash between the two leaves the
+    catalyst escrowed but not consumed: the player still has the
+    bone in their off-hand AND the keystone says a catalyst is pending.
+    The original note mischaracterized this as "the catalyst is lost";
+    it is actually a duplication risk (restoreCatalyst would deliver a
+    second bone on cancel). The window is narrow (one line of Java
+    between the atomic update and the shrink) and both operations are
+    on the server thread, so a crash here requires a JVM kill between
+    two consecutive statements. The risk is real but narrow, and the
+    failure mode is duplication, not loss. A proper fix would shrink
+    first, then write the escrow, but that reverses the safety
+    direction (a crash there would lose the catalyst without escrow).
+    The current ordering is the safer of the two.
 
-25. UNVERIFIED: RoomSelector.applyRecipeGuarantees forces a specific
+25. RESOLVED: RoomSelector.applyRecipeGuarantees forces a specific
     room onto an eligible cell after the main selection pass. The
-    forced room's requires is checked against the available tags at
-    that depth, but the forced room's provides is not re-propagated
-    to downstream cells. If a downstream cell depended on a provide
-    from the original room that the forced room does not provide,
-    the plan could become unsolvable. The main pass already
-    resolved the plan, so this is a replacement, not a new
-    allocation. The risk is that the forced room changes the
-    provides graph. This has not been observed in testing but is an
-    API surface that M66 introduces.
+    forceRoom method checks the forced room's requires are satisfied
+    (line 279) but does not re-propagate the forced room's provides to
+    downstream cells, and the validate method (line 294) does not check
+    requires/provides consistency after guarantees. Verified against the
+    current built-in room set: only infested_wall provides anything
+    (provides:[blocks]), and no room requires [blocks]. The other forced
+    rooms (creeper_kennel, deep_dark_landing, the_store) provide nothing.
+    So the risk is purely theoretical for the built-in set. For third-party
+    recipes, the mitigation is M72's packValidationTest, which validates
+    recipe eligibility and guarantees. The graphSolvabilityTest covers the
+    base plan (200 seeds) but does not include recipe-augmented plans;
+    this is a known gap that M72's validator is intended to close.
 
+26. RESOLVED (partial): SimpleSynchronousResourceReloadListener is a
+    Fabric API class (net.fabricmc.fabric.api.resource), not a vanilla
+    class, so it cannot be inspected with javap against the 26.2 jar.
+    The vanilla interface it wraps is ResourceManagerReloadListener
+    (confirmed in the jar: onResourceManagerReload(ResourceManager)),
+    which is the same interface the pre-M68 listeners used. The
+    execution-order question (does SERVER_STARTED fire after the startup
+    reload completes) is a Fabric API behaviour question, not a vanilla
+    jar question, so it cannot be resolved by javap alone. The ordering
+    remains inferred from pre-M68 behaviour; a behavioural test (boot a
+    server, observe whether the listener fires before SERVER_STARTED)
+    would close it. The class name and method shape are correct.
 
-## UNVERIFIED M68 API surface
+27. RESOLVED: ContentReload.reconcileActiveFloors reads
+    InstanceRegistry.bySlot from the reload listener. Verified
+    against the Fabric API source (fabric-resource-loader-v0
+    3.3.20+4fc5413f9e) and the 26.2 jar: SimpleSynchronousResourceReloadListener
+    extends ResourceManagerReloadListener, whose javadoc says "ensuring
+    all data is loaded on the main thread." The vanilla
+    ResourceManagerReloadListener.reload() implementation calls
+    thenRunAsync(runnable, applyExecutor) where the apply executor is
+    the main thread (the server thread for a dedicated server). So
+    onResourceManagerReload fires on the server thread during a /reload,
+    and reading bySlot from it is safe because all other access to
+    bySlot also happens on the server thread. The initial load (during
+    WorldStem creation) happens before the server exists, which is why
+    ContentReload.register sees a null server on the startup pass and
+    defers to the explicit ContentReload.reload(server) call in
+    SERVER_STARTED. Both paths are on the server thread.
 
-26. UNVERIFIED: The 26.2 reload-listener execution order was not confirmed
-    against the jar. ContentReload.register registers a
-    SimpleSynchronousResourceReloadListener and relies on
-    ServerLifecycleEvents.SERVER_STARTED firing after the startup
-    resource reload completes, the same handoff the pre-M68 listeners
-    used. The listener sees a null server on the startup pass and defers
-    to the explicit ContentReload.reload(server) call in
-    Instances.register()'s SERVER_STARTED hook. This ordering was
-    inferred from the pre-M68 behaviour, not re-verified by bytecode
-    inspection of the 26.2 jar.
-
-27. UNVERIFIED: ContentReload.reconcileActiveFloors reads
-    InstanceRegistry.bySlot and clears previewPlan,
-    previewCellOrigin, previewRecipePlan, and previewOfferStep on
-    instances whose preview references a room or theme the new snapshot
-    no longer carries. The field lifetimes and the thread safety of
-    reading ySlot from the reload thread (which is the server thread
-    for SimpleSynchronousResourceReloadListener) were inferred from
-    the pre-M68 code, not verified against the 26.2 jar's reload
-    threading model. The generation prohibition gate
-    (generationAllowed()) is the guard that prevents a new floor from
-    racing the swap, but the exact thread the reload listener fires on
-    was not confirmed by javap or bytecode inspection.
-28. UNVERIFIED: AffixManifest.validateLootRef validates bonus_tool_pool
+28. RESOLVED: AffixManifest.validateLootRef validates bonus_tool_pool
     and decor_pool references against
-    server.reloadableRegistries().lookup(), the same path LootTables.exists
-    uses. The alternative (server.registryAccess().lookupOrThrow
-    (Registries.LOOT_TABLE)) throws "Missing registry" unconditionally
-    because that registry key is never present on the frozen dynamic
-    registry manager. The reloadableRegistries path was inferred from
-    LootTables.exists, not verified against the 26.2 jar's registry
-    hierarchy. If the 26.2 API moves loot table lookups off
-    reloadableRegistries, the validation will silently report every
-    bonus_tool_pool as missing and reject every definition that carries
-    one.
+    server.reloadableRegistries().lookup(). Verified against the 26.2
+    jar: MinecraftServer.reloadableRegistries() returns
+    ReloadableServerRegistries$Holder, and Holder.lookup() returns
+    HolderLookup$Provider. The alternative
+    (server.registryAccess().lookupOrThrow(Registries.LOOT_TABLE))
+    throws "Missing registry" unconditionally because that registry key
+    is never present on the frozen dynamic registry manager. The
+    reloadableRegistries path is correct and confirmed.
+
+## UNVERIFIED M70 API surface
+
+29. RESOLVED: BagManifest.validateLootRef validates the bag's
+    loot_table reference against server.reloadableRegistries().lookup(),
+    the same path AffixManifest.validateLootRef uses (item 28). Verified
+    against the 26.2 jar: same ReloadableServerRegistries$Holder.lookup()
+    path. The loot table lookup is correct and confirmed.
+
+30. RESOLVED: The BagManifest.parse call to
+    server.getResourceManager().listResources("dungeon_bag", ...) was
+    verified against the 26.2 jar. ResourceManager.listResources(String,
+    Predicate<Identifier>) returns Map<Identifier, Resource> and
+    accepts any directory prefix as a scannable string. The dungeon_bag
+    prefix is just a string argument; any directory prefix works. The
+    manifest will load bags correctly.
+
+31. RESOLVED: The CubeRecipeManifest.parse call to
+    server.getResourceManager().listResources("cube_recipe", ...) was
+    verified against the 26.2 jar. Same ResourceManager.listResources
+    surface as item 30. The cube_recipe prefix is a string argument; any
+    directory prefix works. The manifest will load recipes correctly.
+
+32. RESOLVED: The CubeRecipe.catalystMatches tag path uses
+    offItem.builtInRegistryHolder().is(TagKey) to test whether an item
+    belongs to a declared catalyst tag. Verified against the 26.2 jar:
+    Item.builtInRegistryHolder() returns Holder.Reference<Item>, and
+    Holder.is(TagKey<T>) is an abstract method on Holder inherited by
+    Holder.Reference. TagKey.create(Registries.ITEM, Identifier) is the
+    correct factory. The holder's tag binding is populated at registry
+    init time, so it is available at match time. The tag-based catalyst
+    path is correct and confirmed.
+
+33. RESOLVED: PackValidator.copyResourceTree's jar: branch
+    was verified by JarFileSystemWalkTest, a new headless test that opens
+    the packaged release jar via FileSystems.newFileSystem, walks the
+    pack_starter tree, and confirms 22 entries are found and README.txt
+    is readable (2241 chars). The test is registered as
+    jarFileSystemWalkTest in build.gradle.kts and added to the test task's
+    dependencies. The jar: filesystem walk works correctly against a
+    packaged release jar.
+
+## UNVERIFIED M73 API surface
+
+34. UNVERIFIED: AffixEffects.decor_pool has no application site. The
+    field is parsed in AffixMeta.fromJson, stored in AffixEffects,
+    validated against the loot registry in AffixManifest.validateLootRef,
+    and counted in AffixEffects.hasAnyOperation, but no code in
+    RoomContent, TrialContent, or anywhere else reads
+    AffixEffects.decorPool at runtime. A third-party affix that declares
+    `decor_pool` will load and pass validation, but the pool will never
+    be placed. This is why M73 defers the `clingy` affix rather than
+    shipping it: `decor_pool` cannot carry the "guaranteed shears and
+    recoverable string" behaviour because nothing applies it. The same
+    gate blocks `jumpy`: `bonus_tool_pool` is applied only in
+    RoomContent.placeLoadedToolCache, which is gated by
+    `affixes.contains(AffixIds.LOADED)` and looks up `AffixIds.LOADED`
+    by id, so a third-party affix declaring `bonus_tool_pool` would have
+    its pool validated and then never placed. A future milestone that
+    wants `jumpy` or `clingy` must first add an engine operation that
+    applies `decor_pool` (or a new spawner-rewrite operation for
+    `jumpy`) to third-party affixes, not just the Loaded built-in.

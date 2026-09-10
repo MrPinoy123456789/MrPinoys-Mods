@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/treasure_alcove",
+  "processors": "pocketdungeons:theme_ender_archive_vault",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "loot"
+  ],
+  "theme": [
+    "ender_archive"
+  ],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2
+}

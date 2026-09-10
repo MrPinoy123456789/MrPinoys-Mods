@@ -3125,7 +3125,8 @@ opens onto the player's actual room without announcing it.
   The omen system replaces the clock as the penalty.
 - RunLifecycle.completeRun: per-floor observations only. Keystone
   level up, payout, prestige, bounty and diary delivery moved to
-  settleSafeVisit, called once from eturnToSafe.
+  settleSafeVisit, called once from 
+eturnToSafe.
 - RunLifecycle.advanceFloor: extracted from completeDungeon.
   Physical floor advance only: increment floor index, bank omen, place
   chests, stamp new staging room, transition to FLOOR_CLEARED.
@@ -3137,7 +3138,8 @@ opens onto the player's actual room without announcing it.
   walks through physically. No teleport, no Chime.roomRelocated, no
   explanation message. Falls back to the old teleport path if stamping
   fails.
-- Instances.onTick: homecoming cleanup. After eturnToSafe stamps
+- Instances.onTick: homecoming cleanup. After 
+eturnToSafe stamps
   the room and opens the door, onTick checks whether all members have
   crossed. Once crossed, old floor cells and old staging room are
   released, and a new staging room is set up adjacent to the room.
@@ -3384,7 +3386,8 @@ ormal_spawner, ominous_spawner. Each is a fully
 
 - contentSnapshotTest: namespaced identity, legacy qualification,
   version parser, DungeonLog legacy migration.
-- unGameTest: 60 tests (55 original + 5 M68 live server checks for
+- 
+unGameTest: 60 tests (55 original + 5 M68 live server checks for
   snapshot validity, legacy lookup resolution, and generation gate).
 - dungeonIntegrationTest: PASS (5 themes, 5 adventure nodes, 7 diaries,
   49 rooms, 6 anomaly rooms, 40 core loot tables, 0 rejections).
@@ -3499,3 +3502,463 @@ The exhaustive caller list at migration time:
 - runGameTest: compileGameTestJava passed.
 - dungeonIntegrationTest: build passed.
 - build: BUILD SUCCESSFUL in 1m 30s, full suite green.
+
+## M70: Author roles and bags, keep geometry honest
+
+An author adds a supply-room role and a bag without modifying a role
+switch or enum. The Bags enum is deleted; every bag is a JSON definition
+loaded from `data/<namespace>/dungeon_bag/*.json`. The hard-coded role
+switch in RoomContent and the role-string checks in LayoutStamper are
+replaced with data-driven `RoomRoleDefinition`s loaded from
+`data/<namespace>/dungeon_role/*.json`. A third-party role or bag flows
+through every site the built-ins do, with no Java edit.
+
+### What changed
+
+- **BagDefinition, BagMeta, BagIds, BagManifest.** The bag side mirrors
+  the M69 affix pattern. `BagManifest.parse` loads every
+  `dungeon_bag/*.json` resource into a `BagDefinition` keyed by namespaced
+  id, validates the capability tag vocabulary against `SituationTags` and
+  the loot table reference against the server's reloadable registries, and
+  publishes atomically through `ContentSnapshot`. `BagIds` holds the
+  built-in id constants and the legacy bare-name bridge; `BagMeta` is the
+  JSON parser.
+
+- **RoomRoleDefinition, RoleMeta, RoleIds, RoleManifest.** The role side
+  mirrors the bag side. `RoleManifest.parse` loads every
+  `dungeon_role/*.json` resource into a `RoomRoleDefinition` keyed by
+  namespaced id, rejects `stage: "structural"` (engine-owned), and
+  validates the `operation` against a closed set: `TRIAL_ENCOUNTER`,
+  `TOOL_CACHE`, `NONE`. `RoleIds` holds the structural and built-in
+  population role id constants and the legacy bare-name bridge.
+
+- **Bags facade.** The `Bags` enum is replaced with a final class that
+  delegates to `BagManifest.current()`. `byId`, `tagsFor`,
+  `headlineItems`, `displayName`, `blurb`, `tableId`, and `apply` all read
+  from the manifest. `ids()` and `paths()` read from `BagIds` directly so
+  `LootTables` has its list at class-init time, before the manifest loads.
+
+- **LayoutGraphGenerator.** `assignRoles` draws from a
+  `List<RoomRoleDefinition>` by weight. The 5-argument `generate` overload
+  uses the built-in definitions (encounter 45, loot 25, corridor 30) so
+  pure-JDK tests need no server. The 6-argument overload takes the loaded
+  manifest, so a third-party role is assigned without a Java edit. The
+  guarantee and balance passes still force an encounter and a loot cell
+  onto the critical path by their built-in ids.
+
+- **RoomContent.** The role `switch` is replaced by operation dispatch:
+  `TRIAL_ENCOUNTER` stamps a trial spawner, `TOOL_CACHE` stamps a vault,
+  `NONE` removes the chest. The affix hazard checks (Molten, Explosive,
+  Feral, Loaded) read the role's operation rather than the role string,
+  so a third-party role with any of the three operations is eligible.
+
+- **LayoutStamper.** The pocket-door placement check reads the role's
+  operation rather than `"encounter".equals(role)`.
+
+- **RoomSelector.** The selector's `prepare` method rejects an unknown
+  role id with a named validation error (`"unknown role: <id>"`) rather
+  than silently falling through to generic room behaviour. Structural
+  roles (entrance, exit) are accepted; every population role must be in
+  the loaded `RoleManifest`.
+
+- **DungeonRoomMeta.parseRoles.** Bare role names in room JSON files
+  are qualified to namespaced ids at parse time, so a room file's
+  `"encounter"` matches the `"pocketdungeons:encounter"` the generator
+  assigns. A qualified id is returned as-is, so a third-party room can
+  declare `"theirpack:their_role"`.
+
+- **ContentSnapshot.** The snapshot now carries eight surfaces: rooms,
+  anomaly rooms, themes, adventure, diaries, affixes, bags, and roles.
+  The coverage gate requires every built-in bag id and every built-in
+  population role id to be present; a candidate that fails is not
+  published.
+
+### Bounded operations
+
+A population role composes one of three bounded operations:
+`TRIAL_ENCOUNTER`, `TOOL_CACHE`, `NONE`. The set is closed; a JSON file
+that declares an operation outside it is rejected at load. Genuinely new
+operations still require reviewed engine work. This is the same gate
+`AffixEffects` holds for affix operations: JSON composes existing bounded
+operations, it does not define new ones.
+
+A role never changes topology. Structural roles (entrance, exit) are
+engine-owned and not loaded from JSON. A pack cannot add a structural
+role, and naming one in a `dungeon_role` file is rejected at load.
+
+### Built-in data files
+
+Eight bag definitions in `data/pocketdungeons/dungeon_bag/` (mason,
+plumber, sapper, magician, ranger, shepherd, innkeeper, pilgrim) and
+four role definitions in `data/pocketdungeons/dungeon_role/` (encounter,
+loot, corridor, field_cache). The `field_cache` role demonstrates
+author-extensible supply-room content: a `TOOL_CACHE` operation with
+`min_depth: 2` and weight 10, so it appears on deeper floors without a
+Java edit.
+
+A test-only foreign bag (`data/pocketdungeons-gametest/dungeon_bag/
+foreign.json`) proves a namespaced third-party bag loads without Java
+changes. It loads alongside the eight built-ins in the game test server
+(9 bags, 0 rejected).
+
+### Frozen caller list
+
+The exhaustive bag caller list at migration time:
+
+  DialogScreens, DialogRouter, CubeRecipe, BagTags, InventorySwap,
+  LootTables, Bags.
+
+The exhaustive role caller list at migration time:
+
+  LayoutGraphGenerator, LayoutPlanner, RoomSelector, RoomContent,
+  LayoutStamper, DungeonCommands, RoomValidator, RoomEditorMetadata,
+  DungeonRoomMeta, ContentSnapshot, ContentReload.
+
+### Verification
+
+- bagSelectionTest: 8 bags in stable order, picker and confirm dialog.
+- bagTableTest: 8 bags, food floor, power ceiling, tag rules.
+- graphSolvabilityTest: 596 floors, 6873 cells, 0 fallback cells.
+- situationSupplyTest: bag supplies, finite tool, party size, access.
+- supplySeparationTest: passed.
+- contentSnapshotTest: namespaced identity, legacy qualification.
+- planSelectorTest: straight resolves, branch fails, theme filter.
+- pipelineProof: 200 of 200 seeds planned.
+- runGameTest: 60 tests passed (9 bags, 4 roles loaded).
+- build: BUILD SUCCESSFUL in 1m 56s, full suite green.
+## M71: Data recipes with a discovery floor
+
+A pack author adds a real recipe; a player has a dependable first
+experiment without being handed the catalogue. The `CubeRecipe` enum is
+deleted; every recipe is a JSON definition loaded from
+`data/<namespace>/cube_recipe/*.json`. A third-party recipe flows through
+every site the built-ins do, with no Java edit. The Cube station
+interception stays in Java because component-aware keystone validation
+cannot be expressed by ordinary `Ingredient` matching. There is no
+crafting mixin.
+
+### Recipe schema
+
+Each `cube_recipe/*.json` file defines one recipe with: a namespaced id
+(from the file path), a confirmation message, a catalyst predicate (item
+id or item tag id, mutually exclusive), a cost, a priority, a keystone
+level eligibility, and a closed set of typed effects.
+
+The supported effect set:
+- `ominous`, `feral`, `completion_study_list`, `bounded_supply`
+  (booleans): the M66 typed effects, lifted into data.
+- `path_length_bonus` (integer 0 to 8): added to both min and max path
+  bounds.
+- `weighted_rooms` (array of room names): rooms to weight up in the
+  selection pass. A named room draws three times its declared weight.
+  Generalises M66's hardcoded flooded/chasm weighting.
+- `guaranteed_rooms` (array of groups): room groups to force onto an
+  eligible cell after the main pass. Each group has `names` and
+  `min_tier`. A group whose `min_tier` the offer cannot satisfy refuses
+  before the catalyst is spent. Generalises M66's hardcoded infested,
+  Deep Dark, and Store guarantees.
+
+A recipe that declares no effect is rejected at load. Two recipes whose
+catalyst predicates can match the same stack is an ambiguity the match
+path refuses at use time. The manifest catches the static case at load.
+
+### Personal discovery rules
+
+A recipe is discovered the first time a player successfully applies it at
+the Cube. The discovery is personal, never broadcast, and never browsed.
+A recipe the player has not discovered is never listed, never
+auto-completed, and never shown in any catalogue, because no catalogue
+exists (VISION 5.4).
+
+The discovery floor guarantees a catalyst (a bone, the Feral recipe's
+catalyst) by the first eligible safe visit (lobby entry at the Cube
+unlock level) and presents a terse "A bone. Try this at the Cube."
+message. After that the floor never fires again. A player who drops the
+catalyst gets no second floor; the floor is a dependable first
+experiment, not a supply line.
+
+Knowledge spreads through conversation, not through server-wide
+discovery broadcasts. Optional handwritten books and cards may carry
+player knowledge, but are never required keys or mandatory clues (VISION
+9). Failed experiments do not destroy essential progression supplies:
+the catalyst escrow restores a cancelled catalyst, and a refused recipe
+does not consume one at all.
+
+The personal state (discovered recipes, ingredients encountered, floor
+delivered flag) is held as a sidecar on `DungeonLog` and survives save
+and reload. A pre-M71 save loads with empty discovery state. A
+removed-pack recipe id stays in the discovery set: knowledge survives
+removal, even if the recipe is no longer in the manifest.
+
+### What changed
+
+- **RecipeEffects, CubeRecipeDefinition, CubeRecipeMeta, CubeRecipeManifest,
+  RecipeIds.** The recipe side mirrors the M69/M70 manifest pattern.
+  `CubeRecipeManifest.parse` loads every `cube_recipe/*.json` resource
+  into a `CubeRecipeDefinition` keyed by namespaced id, validates catalyst
+  references, checks for duplicate catalyst declarations, and publishes
+  atomically through `ContentSnapshot`.
+- **RunRecipePlan generalised.** The hardcoded boolean effects
+  (`infestedGuarantee`, `deepDarkGuarantee`, `storeSpur`,
+  `floodedChasmWeighted`) are replaced with data-driven lists
+  (`weightedRooms`, `guaranteedRooms`). The tier gate is generalised:
+  any guaranteed room group with a `min_tier` the offer cannot satisfy
+  refuses before the catalyst is spent.
+- **RoomSelector weighted rooms.** The selection pass boosts the weight
+  of rooms named in the recipe plan's `weightedRooms` set by 3x, applied
+  in `CellState.next()` so a reload that removes the recipe restores the
+  room's original distribution without a manifest republish.
+- **CubeRecipe rewritten.** The enum is replaced with a final class. The
+  match path iterates the live manifest's definitions in priority order,
+  checks the keystone level, and rejects an ambiguous match. The apply
+  path writes the namespaced recipe id into the keystone tag, escrows the
+  catalyst, records the discovery, and records the ingredient. The
+  keystone tag readers and catalyst escrow helpers are preserved for M63
+  custody.
+- **RecipeDiscovery sidecar on DungeonLog.** A per-player sidecar map
+  (like task progress and bounties) holding discovered recipes,
+  ingredients encountered, and the floor-delivered flag. The codec uses
+  `optionalFieldOf` so a pre-M71 save loads unchanged.
+- **DiscoveryFloor.** Fires once on lobby entry at the Cube unlock level,
+  delivers a bone, sends a terse message, and marks the floor delivered.
+- **ContentSnapshot, ContentReload.** The recipe manifest is parsed
+  alongside the other surfaces, checked for built-in coverage (all 9
+  built-in recipe ids must be present), and published atomically.
+
+### Built-in data files
+
+Nine built-in recipe definitions in `data/pocketdungeons/cube_recipe/`
+(ominous, feral, bounded_supply, infested, flooded, deep_dark, compass,
+path_extension, store). Three shipped experiments (blaze_bias, bazaar_bias,
+slime_guarantee) demonstrate weighted and guaranteed room effects using
+existing M66 operations without new effect types. A test-only foreign
+recipe (`data/pocketdungeons-gametest/cube_recipe/foreign.json`) proves a
+namespaced third-party recipe combining existing effects (path length
+bonus + completion study list) loads without Java changes.
+
+### Verification
+
+- cubeStationTest: passed.
+- taskTrackerTest: passed.
+- dungeonLogTest: passed (discovered-recipe codec round trips, pre-M71
+  save defaults, removed-pack recipe id survival, duplicate discovery
+  no-op, floor delivered flag round trips).
+- runGameTest: 61 tests passed (13 recipes loaded: 9 built-ins, 3
+  experiments, 1 foreign).
+- build: BUILD SUCCESSFUL in 1m 56s, full suite green.
+
+## M72: the first external pack
+
+M72 closes the loop for a non-developer author: author, validate, distribute
+and upgrade a pack using only a release jar. No source-tree workflow is
+advertised as pack tooling. The bundled `DatapackExporter` bulk export stays
+available for operators, unchanged; PackValidator adds the authoring surface
+on top of it.
+
+### What changed
+
+- **PackValidator.** A new final class that does three jobs the bulk exporter
+  does not. (1) `validate` builds a candidate `ContentSnapshot` from the live
+  server and reports every actionable finding as `file / field: cause`, with a
+  trailing `(seed=N)` for plan-level findings the operator can replay with
+  `/dungeon admin plan N`. The checks are: parse rejections from all nine
+  surfaces, required coverage and the (mask, role) pairs, reachable adventure
+  nodes (BFS from entry themes; a node nothing reaches is a dead branch),
+  Cube recipe eligibility and guarantees (every weighted and guaranteed room
+  reference must resolve; a guarantee group with no resolvable room can never
+  fire), missing loot (a theme's namespaced `loot_table`, which ThemeManifest
+  does not validate at load, is checked against the reloadable loot registry
+  here), and a door/return-path plan check that generates a shape, validates
+  it (the return path is the BFS from the entrance reaching every cell), and
+  resolves a room for every cell, sweeping the first 16 seeds. (2)
+  `exportStarter` writes a small namespaced starter pack to a fresh
+  destination. (3) `exportAuthorWorkspace` ships the rooms an author captured
+  with buildroom/saveroom as a distributable pack. Both exports refuse to
+  overwrite an existing destination; an explicit, destination-specific
+  `confirm` backs the existing destination up to a timestamped sibling first.
+- **Starter pack.** A bundled resource tree under `/pack_starter` (outside
+  `data/`, so the game never loads it as live content), with one working
+  example of every content type under the `starter` namespace, each referencing
+  real built-in resources so the pack loads cleanly as a starting point. A
+  README in the root walks the author through renaming the namespace and
+  editing.
+- **Validation command.** `/dungeon admin validate [seed]` runs the validator
+  and prints findings; a seed argument runs the plan check against that one
+  seed for reproducing a specific failure. `/dungeon admin exportstarter` and
+  `/dungeon admin exportworkspace` (each with a `confirm` literal) invoke the
+  two exports.
+- **packValidationTest.** A headless `JavaExec` test (`PackValidatorTest`)
+  covering the pure-JDK surface: the Finding seed rule, the safe-replace
+  decision, the pack.mcmeta format (it boots the game's constants the way the
+  other headless tests do and asserts the written `pack_format` equals
+  `SharedConstants.DATA_PACK_FORMAT_MAJOR`, the 26.2 format for this build),
+  and that the starter resource tree is bundled and reachable on the
+  classpath (which holds in both the development file: and packaged jar:
+  paths). Registered in `build.gradle.kts` and wired so both `test` and
+  `build` depend on it.
+- **AdventureGraph.nodeThemes.** A small accessor so the validator can
+  enumerate every node for its reachability sweep.
+- **LICENSE.** The workspace-root MIT licence is copied to
+  `pocketdungeons/LICENSE` for standalone distribution.
+
+### Built-in data files
+
+The starter pack in `src/main/resources/pack_starter/`: a README and one
+example file per content surface (dungeon_room, dungeon_theme,
+dungeon_adventure, dungeon_affix, dungeon_bag, dungeon_role, cube_recipe,
+diary, anomaly_room) under the `starter` namespace. The author worksheet is
+`docs/AUTHOR-EXERCISE.md`.
+
+### Verification
+
+- packValidationTest: passed (Finding seed rule, safe-replace decision,
+  pack.mcmeta format equals SharedConstants.DATA_PACK_FORMAT_MAJOR, starter
+  resources bundled and readable on the classpath).
+- dungeonIntegrationTest: PASS (all nine surfaces loaded, 0 rejected; the
+  starter tree is outside `data/` so it adds no live content).
+- runGameTest: 61 tests passed.
+- build: BUILD SUCCESSFUL in 2m 19s, full suite green.
+
+### Independent author exercise
+
+The author worksheet (`docs/AUTHOR-EXERCISE.md`) is ready for an independent
+author to run against the published jar. The exercise's observed authoring
+failures and fixes will be appended here once a human author has run it; that
+report is the beta-ready gate for the API.
+
+### Run 1 (2026-09-09): observed authoring failures and fixes
+
+A human author ran the exercise against the published jar. The API is
+beta-ready: every step completed from the worksheet and diagnostics alone,
+with no source access. Five issues were found and fixed during the run.
+
+1. **No in-game namespace rename.** The initial `exportstarter` wrote the
+   `starter` namespace verbatim, forcing the author to rename directories and
+   edit files by hand. Fixed: `exportstarter` now takes an optional namespace
+   argument and rewrites `starter:` into file paths and contents during
+   export. The author runs `/dungeon admin exportstarter mypack` and gets a
+   pack under `mypack:` with no file editing.
+2. **Backup directory loaded as a live pack.** The backup went to
+   `<world>/datapacks/<name>.backup-<millis>/` with a `pack.mcmeta`, so
+   Minecraft loaded it alongside the new pack, causing diary band and catalyst
+   collisions. Fixed: backups now go to `<world>/pocketdungeons_backups/`
+   (outside `datapacks/`), so Minecraft never scans them.
+3. **Plan check false failure on custom roles.** The starter role shipped with
+   `weight: 10` but no room supported it, so the planner tried to place it and
+   failed. The plan check reported the first failing seed instead of checking
+   whether any seed succeeds. Fixed: starter role uses `weight: 0` (never
+   assigned to a cell), and the plan check only reports if every seed fails.
+4. **Starter diary band collision.** The starter diary used `band: 1`,
+   colliding with the built-in `entry_1`. Fixed: starter diary uses
+   `band: 100`.
+5. **Worksheet gaps.** Steps 2, 3, and 5 lacked concrete examples (no affix
+   JSON, no processor list, no catalyst list). Fixed: the worksheet now
+   includes a Molten affix example, the five built-in processor lists, and the
+   full built-in catalyst table.
+
+The author also discovered that `minecraft:gold_nugget` is a duplicate
+catalyst (used by built-in `bazaar_bias`). The validator correctly rejected
+it and named the collision. The author switched to `minecraft:gold_ingot` and
+passed. This is the validator working as designed.
+
+The `/reload` silence (no success message) was confusing on first encounter.
+It is a vanilla Minecraft limitation; adding a success message would require
+spending the mod's one mixin on a vanilla command, which the conventions
+forbid. Noted in the worksheet.
+
+## M73: six new identities from the existing geometry
+
+The composition space doubles without a single new `.nbt` template. Six
+themes ship as data only: theme metadata, adventure nodes, decorative
+processor lists, theme-specific trial spawner rosters, layered chest loot,
+and one signature room each. Every identity reuses the existing 14-template
+geometry and the M69/M70 affix and role operation sets. No engine operation
+was added.
+
+### The six themes
+
+Each pair is contrasted on palette, roster, loot, and signature room. A
+pair that played identically would have been rejected; none did.
+
+- **Rootworks** (overgrowth) versus **Frostworks** (footing). Rootworks
+  recolours shell to moss, rooted dirt, and shroomlight; its roster leans
+  spider plus witch, its loot is vine, string, moss, shears, spore
+  blossoms. Frostworks recolours to packed and blue ice; its roster leans
+  stray plus zombie, its loot is snowballs, ice, packed ice. The signature
+  rooms are `rootworks_grove` (mossy tee under a grove processor) and
+  `frostworks_glaze` (mossy tee under a glaze processor).
+- **Copper Works** (mechanisms) versus **Ossuary** (ranged threats).
+  Copper Works recolours to copper, cut copper, and a redstone lamp; its
+  roster leans zombie plus creeper, its loot is redstone, repeaters,
+  pistons, copper. Ossuary recolours to bone blocks and soul lanterns;
+  its roster leans skeleton plus stray, its loot is arrows, bows, bones.
+  The signature rooms are `copper_works_forge` and `ossuary_crypt`.
+- **Basalt Foundry** (heat) versus **Ender Archive** (displacement and
+  darkness). Basalt Foundry recolours to nether bricks, basalt, blackstone,
+  glowstone; its roster leans blaze plus magma cube, its loot is nether
+  bricks, magma cream, blaze rods. Ender Archive recolours to end stone
+  bricks, end stone, crying obsidian, end rods; its roster leans enderman
+  plus silverfish, its loot is ender pearls, chorus fruit, end rods. The
+  signature rooms are `basalt_foundry_crucible` and `ender_archive_vault`.
+
+### What shipped
+
+- `dungeon_theme/{rootworks,frostworks,copper_works,ossuary,basalt_foundry,ender_archive}.json`
+  with `processors`, `spawner_prefix`, `loot_suffix`, and `room_theme`.
+- `dungeon_adventure/{rootworks,frostworks,copper_works,ossuary,basalt_foundry,ender_archive}.json`
+  as `descent` nodes, plus updated `deepslate.json` and `prismarine.json`
+  entry edges so all six are reachable from both entry themes.
+- `worldgen/processor_list/theme_{rootworks,frostworks,copper_works,ossuary,basalt_foundry,ender_archive}.json`
+  and a `_grove`, `_glaze`, `_forge`, `_crypt`, `_crucible`, `_vault`
+  signature variant per theme. All processors target only shell blocks
+  (`stone_bricks`, `polished_andesite`, `mossy_stone_bricks`,
+  `sea_lantern`), so functional blocks, doors, and provider blocks are
+  never rewritten.
+- `trial_spawner/{theme}_tier_{1,2,3}/{normal,ominous}.json` for all six
+  themes (36 files), each with a theme-specific roster and tier-scaled
+  counts.
+- `loot_table/chests/tier_{1,2,3}_{theme}.json` and
+  `loot_table/chests/tier_{1,2,3}_ominous_{theme}.json` (36 files), each
+  layering a base chest or ominous table with a themed pool.
+- `dungeon_room/{rootworks_grove,frostworks_glaze,copper_works_forge,ossuary_crypt,basalt_foundry_crucible,ender_archive_vault}.json`
+  signature rooms, each reusing an existing template under a
+  room-specific processor list (M1 room-specific precedence).
+
+### Affixes deferred
+
+The handoff asked for two data-only affixes, `jumpy` and `clingy`. Both
+are deferred, not shipped, because the M69 operation set cannot express
+their intended behaviour without new engine work, and the milestone
+forbids smuggling engine work into data authoring.
+
+- `jumpy` (breeze-heavy roster exchanged for wind charges): a spawner
+  roster change is a theme-content concern, not an affix operation. The
+  M69 `AffixEffects` set has no field that rewrites a trial spawner's
+  `spawn_potentials`. `bonus_tool_pool` could carry wind charges as a
+  gift, but its only application site (`RoomContent.placeLoadedToolCache`)
+  is gated by `affixes.contains(AffixIds.LOADED)` and looks up
+  `AffixIds.LOADED` by id, so a third-party affix declaring
+  `bonus_tool_pool` would have its pool validated at load and then never
+  placed. Shipping `jumpy` as data would hide non-behaviour.
+- `clingy` (webs exchanged for guaranteed shears and recoverable string):
+  `HazardKind` is closed at `NONE`, `LAVA`, `TNT`; there is no `WEB`
+  hazard. `decor_pool` is parsed and validated against the loot registry
+  but has no application site in `RoomContent` or anywhere else; it is a
+  stored field with no runtime effect. `bonus_tool_pool` could carry
+  shears, but the same Loaded-gate problem applies. Shipping `clingy` as
+  data would hide non-behaviour.
+
+The deferral is recorded in `docs/DISCOVERIES.md` as trap 34.
+
+### Verification
+
+- packValidationTest: passed.
+- adventureGraphTest: all checks passed (11 themes, 11 adventure nodes,
+  0 rejected, all six new themes reachable from both entry edges).
+- trialContentConfigIdTest: passed (all 36 new spawner configs resolve).
+- graphSolvabilityTest: passed (0 unresolved transitions, 0
+  inaccessible exits, 0 fallback cells for standard tier sweeps).
+- runGameTest: 61 tests passed. Live load confirmed 11 themes (0
+  rejected), 11 adventure nodes (0 rejected), 9 affixes, 9 bags, 4 roles,
+  13 recipes, 40 core loot tables.
+- build: BUILD SUCCESSFUL, full suite green.

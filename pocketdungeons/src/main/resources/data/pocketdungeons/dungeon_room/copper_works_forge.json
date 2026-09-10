@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/crypt_corner",
+  "processors": "pocketdungeons:theme_copper_works_forge",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter"
+  ],
+  "theme": [
+    "copper_works"
+  ],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 2
+}

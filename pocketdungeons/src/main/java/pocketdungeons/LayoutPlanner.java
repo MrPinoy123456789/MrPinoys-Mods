@@ -142,8 +142,13 @@ final class LayoutPlanner {
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
             long attemptSeed = seed + attempt;
 
+            // M70: pass the loaded role definitions so a third-party role is
+            // assigned without a Java edit. The generator's pure-JDK overload
+            // uses the built-in definitions; the live caller passes the
+            // manifest's.
+            List<RoomRoleDefinition> populationRoles = RoleManifest.current().definitions();
             DungeonShape shape = LayoutGraphGenerator.generate(
-                    attemptSeed, minPath, maxPath, branchProbability, loopProbability);
+                    attemptSeed, minPath, maxPath, branchProbability, loopProbability, populationRoles);
             if (shape == null) {
                 lastReason = "shape generation exhausted its backtracking budget";
                 continue;

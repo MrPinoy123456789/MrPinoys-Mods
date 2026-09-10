@@ -112,15 +112,15 @@ final class CubeStation {
         if (Keystone.isKeystone(held)) {
             ItemStack offHand = player.getOffhandItem();
             if (!offHand.isEmpty()) {
-                CubeRecipe recipe = CubeRecipe.match(held, offHand);
+                int keystoneLevel = DungeonLog.forServer(player.level().getServer())
+                        .get(player.getUUID()).keystoneLevel();
+                CubeRecipeDefinition recipe = CubeRecipe.match(held, offHand, keystoneLevel);
                 if (recipe != null) {
-                    int level = DungeonLog.forServer(player.level().getServer())
-                            .get(player.getUUID()).keystoneLevel();
                     int unlock = PocketDungeonsConfig.cubeUnlockLevel();
-                    if (StationSupport.levelTooLow(player, level, unlock, "Herobrine Cube")) {
+                    if (StationSupport.levelTooLow(player, keystoneLevel, unlock, "Herobrine Cube")) {
                         return true;
                     }
-                    recipe.apply(player, held, offHand);
+                    CubeRecipe.apply(player, held, offHand, recipe);
                     return true;
                 }
             }

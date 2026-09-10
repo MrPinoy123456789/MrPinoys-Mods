@@ -1,0 +1,7 @@
+{
+  "name": "Basalt Foundry",
+  "processors": "pocketdungeons:theme_basalt_foundry",
+  "spawner_prefix": "basalt_foundry",
+  "loot_suffix": "basalt_foundry",
+  "room_theme": "basalt_foundry"
+}

@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run guarantees an infested room.", "catalyst": "minecraft:tnt", "cost": 1, "priority": 0, "min_level": 0, "effects": {"guaranteed_rooms": [{"names": ["infested_wall", "creeper_kennel"], "min_tier": 0}]}}

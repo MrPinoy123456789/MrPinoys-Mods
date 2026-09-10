@@ -310,6 +310,15 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, InventorySwap.OrphanRecord> orphans = new HashMap<>();
 
+    /**
+     * (M71) Per-player Cube recipe discovery state. A sidecar map for the
+     * same reason {@link #taskProgress} and {@link #bounties} are ones: the
+     * discovery state is read and written on the Cube interaction path, has
+     * nothing in common with a player's run-completion history, and would
+     * push {@link Entry}'s codec past its two-group split for no benefit.
+     */
+    private final Map<UUID, RecipeDiscovery> recipeDiscoveries = new HashMap<>();
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -459,6 +468,16 @@ final class DungeonLog extends SavedData {
             InventorySwap.OrphanRecord.CODEC.fieldOf("orphan").forGetter(PlayerOrphan::orphan)
     ).apply(instance, PlayerOrphan::new));
 
+    /** (M71) One player's recipe discovery sidecar, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerRecipeDiscovery(UUID player, RecipeDiscovery discovery) {}
+
+    private static final Codec<PlayerRecipeDiscovery> PLAYER_RECIPE_DISCOVERY_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerRecipeDiscovery::player),
+            RecipeDiscovery.CODEC.fieldOf("discovery").forGetter(PlayerRecipeDiscovery::discovery)
+    ).apply(instance, PlayerRecipeDiscovery::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
@@ -486,12 +505,19 @@ final class DungeonLog extends SavedData {
             // simply starting with nothing orphaned.
             PLAYER_ORPHAN_CODEC.listOf().optionalFieldOf("orphans", List.of())
                     .forGetter(log -> log.orphans.entrySet().stream()
-                            .map(e -> new PlayerOrphan(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerOrphan(e.getKey(), e.getValue())).toList()),
+            // M71: optional so a dungeon_log.dat written before this
+            // milestone loads unchanged, every player simply starting with
+            // no recipes discovered and no ingredients encountered.
+            PLAYER_RECIPE_DISCOVERY_CODEC.listOf().optionalFieldOf("recipe_discoveries", List.of())
+                    .forGetter(log -> log.recipeDiscoveries.entrySet().stream()
+                            .map(e -> new PlayerRecipeDiscovery(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
                                           List<PlayerBounties> bounties, List<PlayerStash> stashes,
-                                          List<PlayerOrphan> orphans) {
+                                          List<PlayerOrphan> orphans,
+                                          List<PlayerRecipeDiscovery> recipeDiscoveries) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -507,6 +533,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerOrphan o : orphans) {
             log.orphans.put(o.player(), o.orphan());
+        }
+        for (PlayerRecipeDiscovery d : recipeDiscoveries) {
+            log.recipeDiscoveries.put(d.player(), d.discovery());
         }
         return log;
     }
@@ -920,6 +949,68 @@ final class DungeonLog extends SavedData {
     }
 
     /**
+     * (M71) This player's Cube recipe discovery state, or
+     * {@link RecipeDiscovery#NONE} if nothing is recorded. A player with no
+     * record has discovered no recipes and encountered no ingredients,
+     * which is the same answer a {@code dungeon_log.dat} written before M71
+     * gives.
+     */
+    RecipeDiscovery discoveryOf(UUID player) {
+        return recipeDiscoveries.getOrDefault(player, RecipeDiscovery.NONE);
+    }
+
+    /**
+     * (M71) Records that {@code player} has successfully applied the recipe
+     * {@code recipeId} at the Cube. A no-op if the recipe is already
+     * discovered, the same reconciliation discipline as
+     * {@link #addExtractedPower}, so a duplicate call cannot hand out a
+     * second discovery. Records only on success: a refused or cancelled
+     * attempt never reaches this method.
+     */
+    void recordRecipeDiscovery(UUID player, String recipeId) {
+        RecipeDiscovery previous = discoveryOf(player);
+        RecipeDiscovery next = previous.withDiscovered(recipeId);
+        if (next == previous) {
+            return;
+        }
+        recipeDiscoveries.put(player, next);
+        setDirty();
+    }
+
+    /**
+     * (M71) Records that {@code player} has held the catalyst
+     * {@code catalystItemId} at the Cube. A no-op if the ingredient is
+     * already encountered, the same never-shrinks shape. This is the
+     * discovery floor's ingredient surface: the set of catalysts a player
+     * has touched, so the floor can guarantee a catalyst and a terse
+     * "try this at the Cube" opportunity without handing out a recipe list.
+     */
+    void recordIngredientEncountered(UUID player, String catalystItemId) {
+        RecipeDiscovery previous = discoveryOf(player);
+        RecipeDiscovery next = previous.withIngredient(catalystItemId);
+        if (next == previous) {
+            return;
+        }
+        recipeDiscoveries.put(player, next);
+        setDirty();
+    }
+
+    /**
+     * (M71) Marks that the discovery floor has delivered a catalyst to
+     * this player. The floor fires once, on the first eligible safe visit;
+     * after that the flag stays set and the floor never fires again.
+     */
+    void markFloorDelivered(UUID player) {
+        RecipeDiscovery previous = discoveryOf(player);
+        RecipeDiscovery next = previous.withFloorDelivered();
+        if (next == previous) {
+            return;
+        }
+        recipeDiscoveries.put(player, next);
+        setDirty();
+    }
+
+    /**
      * (M48) A full campaign reset: clears every keystone-progress field on this
      * player's entry while preserving the unlockables, then drops any stashed
      * survival inventory and any orphaned void inventory. The bag is cleared
@@ -928,8 +1019,9 @@ final class DungeonLog extends SavedData {
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
      * {@code publicListed}, {@code recentVisitors}. The sidecar maps
-     * ({@code taskProgress}, {@code bounties}) are untouched: a task's count
-     * and a weekly bounty are meta-progression, not keystone progress.
+     * ({@code taskProgress}, {@code bounties}, {@code recipeDiscoveries})
+     * are untouched: a task's count, a weekly bounty, and a discovered
+     * recipe are meta-progression, not keystone progress.
      *
      * <p>Called by {@code /dungeon resetkey} and its admin twin, after the
      * caller has moved the player out of any live inventory swap. Building the

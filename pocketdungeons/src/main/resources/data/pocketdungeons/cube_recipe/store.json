@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run guarantees a Store.", "catalyst": "minecraft:emerald", "cost": 1, "priority": 0, "min_level": 0, "effects": {"guaranteed_rooms": [{"names": ["the_store"], "min_tier": 0}]}}

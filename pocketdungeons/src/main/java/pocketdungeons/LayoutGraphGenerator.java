@@ -40,11 +40,20 @@ public final class LayoutGraphGenerator {
     private static final int LOOT_WEIGHT = 25;
     // corridor takes the remaining 30.
 
-    static final String ROLE_ENTRANCE = "entrance";
-    static final String ROLE_EXIT = "exit";
-    static final String ROLE_ENCOUNTER = "encounter";
-    static final String ROLE_LOOT = "loot";
-    static final String ROLE_CORRIDOR = "corridor";
+    /** M70: structural role ids, engine-owned and not loaded from JSON. */
+    static final String ROLE_ENTRANCE = RoleIds.ENTRANCE;
+    static final String ROLE_EXIT = RoleIds.EXIT;
+    /**
+     * M70: built-in population role ids. The generator's guarantee and
+     * balance passes reference these by id; the data-driven
+     * {@link #assignRoles} draws from the loaded {@link RoleManifest}, but
+     * the guarantee pass still forces an encounter and a loot cell onto the
+     * critical path by their built-in ids, so a run always has a fight and a
+     * vault regardless of what a third-party pack adds.
+     */
+    static final String ROLE_ENCOUNTER = RoleIds.ENCOUNTER;
+    static final String ROLE_LOOT = RoleIds.LOOT;
+    static final String ROLE_CORRIDOR = RoleIds.CORRIDOR;
 
     private static final int MIN_BRANCH_DEPTH = 1;
     private static final int MAX_BRANCH_DEPTH = 3;
@@ -74,15 +83,41 @@ public final class LayoutGraphGenerator {
      * As {@link #generate(long, int, int)}, with the branch and loop rates supplied
      * by the caller. Both are config-driven in live play; the 3-argument form keeps
      * the original constants so the pure-JDK tests are not tied to a config file.
+     *
+     * <p>M70: this overload uses the built-in population roles with their
+     * pre-M70 weights (encounter 45, loot 25, corridor 30). The live caller
+     * uses {@link #generate(long, int, int, double, double, List)} and passes
+     * the loaded {@link RoleManifest} definitions, so a third-party role is
+     * assigned without a Java edit. The pure-JDK tests use this overload so
+     * they do not need a Minecraft server.
      */
     public static DungeonShape generate(long seed, int minPathLength, int maxPathLength,
                                         double branchProbability, double loopProbability) {
+        return generate(seed, minPathLength, maxPathLength, branchProbability, loopProbability,
+                builtInPopulationRoles());
+    }
+
+    /**
+     * M70: the data-driven overload. {@code populationRoles} is the loaded
+     * set of interior role definitions, in stable manifest order; the
+     * generator assigns them to interior critical-path cells by weight. A
+     * third-party role in the list is assigned the same way the built-ins
+     * are, with no Java edit.
+     *
+     * @throws IllegalArgumentException if {@code populationRoles} is empty
+     */
+    public static DungeonShape generate(long seed, int minPathLength, int maxPathLength,
+                                        double branchProbability, double loopProbability,
+                                        List<RoomRoleDefinition> populationRoles) {
         if (minPathLength < 2) {
             throw new IllegalArgumentException("minPathLength must be at least 2: " + minPathLength);
         }
         if (maxPathLength < minPathLength) {
             throw new IllegalArgumentException(
                 "maxPathLength (" + maxPathLength + ") must be >= minPathLength (" + minPathLength + ")");
+        }
+        if (populationRoles == null || populationRoles.isEmpty()) {
+            throw new IllegalArgumentException("populationRoles must not be null or empty");
         }
 
         Random rng = new Random(seed);
@@ -131,7 +166,7 @@ public final class LayoutGraphGenerator {
         addBranches(rng, storedPath, cells, openEdges, branchProbability, entranceDir);
         addLoops(rng, cells, openEdges, loopProbability, entrance, terminal);
 
-        Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges);
+        Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges, populationRoles);
 
         // M45 (spec 6.6): the one BFS from the entrance. validate() reads it back
         // off the shape for its reachability check rather than walking again.
@@ -525,19 +560,28 @@ public final class LayoutGraphGenerator {
     /**
      * Roles for every cell.
      *
-     * <p>Interior critical-path cells draw {@code encounter}/{@code loot}/
-     * {@code corridor} by weight -- corridors exist so a run does not read as an
-     * unbroken string of fights. Off-path cells split on degree: the <em>tip</em>
-     * of a spur (degree 1) is always {@code loot}, because a spur that pays
-     * nothing punishes the player for exploring it, while the cells leading to it
-     * are corridor.
+     * <p>Interior critical-path cells draw their role from
+     * {@code populationRoles} by weight; corridors exist so a run does not
+     * read as an unbroken string of fights. Off-path cells split on degree:
+     * the <em>tip</em> of a spur (degree 1) is always {@code loot}, because a
+     * spur that pays nothing punishes the player for exploring it, while the
+     * cells leading to it are corridor.
      *
      * <p>A final guarantee pass forces at least one {@code encounter} and one
-     * {@code loot} onto the critical path, so a run always has both regardless of
-     * how the weighted draw fell.
+     * {@code loot} onto the critical path, so a run always has both regardless
+     * of how the weighted draw fell.
+     *
+     * <p>M70: the role set and weights come from the data-driven
+     * {@code populationRoles} list. The built-in overload passes the three
+     * pre-M70 definitions (encounter 45, loot 25, corridor 30); the live
+     * caller passes the loaded {@link RoleManifest} definitions, so a
+     * third-party role is assigned without a Java edit. Structural roles
+     * (entrance, exit) are engine-owned and never appear in
+     * {@code populationRoles}.
      */
     private static Map<PlanCell, String> assignRoles(Random rng, List<PlanCell> criticalPath,
-                                                       Set<PlanCell> cells, Set<PlanEdge> openEdges) {
+                                                       Set<PlanCell> cells, Set<PlanEdge> openEdges,
+                                                       List<RoomRoleDefinition> populationRoles) {
         Map<PlanCell, String> roles = new HashMap<>(cells.size());
         PlanCell entrance = criticalPath.get(0);
         PlanCell terminal = criticalPath.get(criticalPath.size() - 1);
@@ -545,11 +589,17 @@ public final class LayoutGraphGenerator {
         roles.put(entrance, ROLE_ENTRANCE);
         roles.put(terminal, ROLE_EXIT);
 
+        // M70: build the weighted draw from the data-driven definitions. The
+        // total weight is the sum of every population role's weight; a roll
+        // under a role's cumulative band picks it. A role with weight 0 is
+        // never picked by the draw but is still a valid definition a caller
+        // can force through a situation or a future explicit-assignment API.
+        int totalWeight = 0;
+        for (RoomRoleDefinition role : populationRoles) {
+            totalWeight += role.weight;
+        }
         for (int i = 1; i < criticalPath.size() - 1; i++) {
-            int roll = rng.nextInt(100);
-            String role = roll < ENCOUNTER_WEIGHT ? ROLE_ENCOUNTER
-                    : roll < ENCOUNTER_WEIGHT + LOOT_WEIGHT ? ROLE_LOOT
-                    : ROLE_CORRIDOR;
+            String role = totalWeight <= 0 ? ROLE_CORRIDOR : weightedRole(rng, populationRoles, totalWeight);
             roles.put(criticalPath.get(i), role);
         }
 
@@ -564,6 +614,45 @@ public final class LayoutGraphGenerator {
         guaranteeOnPath(roles, criticalPath);
         balanceKeyBudget(roles, criticalPath);
         return roles;
+    }
+
+    /**
+     * M70: rolls one population role by weight. {@code totalWeight} is the
+     * precomputed sum of every role's {@link RoomRoleDefinition#weight} in
+     * {@code populationRoles}. A roll in a role's cumulative band picks it.
+     * Returns the role's namespaced id, or {@link #ROLE_CORRIDOR} for an
+     * empty list (the safe no-content default).
+     */
+    private static String weightedRole(Random rng, List<RoomRoleDefinition> populationRoles, int totalWeight) {
+        int roll = rng.nextInt(totalWeight);
+        int cumulative = 0;
+        for (RoomRoleDefinition role : populationRoles) {
+            cumulative += role.weight;
+            if (roll < cumulative) {
+                return role.id;
+            }
+        }
+        // Unreachable when totalWeight matches the sum; fall back to the last
+        // role rather than throwing inside generation, which must not crash a
+        // live run on a definition list it already validated.
+        return populationRoles.get(populationRoles.size() - 1).id;
+    }
+
+    /**
+     * M70: the built-in population roles with their pre-M70 weights, so the
+     * pure-JDK {@link #generate(long, int, int, double, double)} overload
+     * keeps its original assignment distribution without a Minecraft server.
+     * The live caller passes the loaded {@link RoleManifest} definitions
+     * instead, so this list is only the test and fallback path.
+     */
+    private static List<RoomRoleDefinition> builtInPopulationRoles() {
+        return List.of(
+                new RoomRoleDefinition(RoleIds.ENCOUNTER, "interior", 45, 0, -1, List.of(),
+                        RoomRoleDefinition.Operation.TRIAL_ENCOUNTER),
+                new RoomRoleDefinition(RoleIds.LOOT, "interior", 25, 0, -1, List.of(),
+                        RoomRoleDefinition.Operation.TOOL_CACHE),
+                new RoomRoleDefinition(RoleIds.CORRIDOR, "interior", 30, 0, -1, List.of(),
+                        RoomRoleDefinition.Operation.NONE));
     }
 
     /**

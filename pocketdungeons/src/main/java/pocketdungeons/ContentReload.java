@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * M68: the single owner of a Pocket Dungeons content reload. Builds a candidate
  * {@link ContentSnapshot} from the live resource manager, validates it as a
- * whole, and either publishes all five manifests atomically or keeps the last
+ * whole, and either publishes all manifests atomically or keeps the last
  * valid snapshot standing. Replaces the four independent reload listeners
  * {@code RoomManifest}, {@code ThemeManifest}, {@code AdventureGraphs} and
  * {@code Diaries} each registered for themselves before M68.
@@ -109,6 +109,9 @@ final class ContentReload {
                 AdventureGraphs.publish(candidate.adventure());
                 Diaries.publish(candidate.diaries());
                 AffixManifest.publish(candidate.affixes());
+                BagManifest.publish(candidate.bags());
+                RoleManifest.publish(candidate.roles());
+                CubeRecipeManifest.publish(candidate.recipes());
                 LootTables.validateAtStartup(server);
                 reconcileActiveFloors(server, candidate);
             } else {

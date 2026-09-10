@@ -1,0 +1,17 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "basalt_foundry",
+      "weight": 2
+    },
+    {
+      "theme": "prismarine",
+      "weight": 2
+    },
+    {
+      "theme": "infestation",
+      "weight": 2
+    }
+  ]
+}

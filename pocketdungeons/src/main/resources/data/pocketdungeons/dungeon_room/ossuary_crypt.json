@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/crypt_corner",
+  "processors": "pocketdungeons:theme_ossuary_crypt",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter"
+  ],
+  "theme": [
+    "ossuary"
+  ],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 2
+}

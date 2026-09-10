@@ -136,6 +136,19 @@ final class AdventureGraph {
         return nodes.size();
     }
 
+    /**
+     * M72: every node's theme id, sorted, for the pack validator's
+     * reachability sweep. The validator BFS from the entry themes and reports
+     * any node this never reaches, so a third party author learns their node is
+     * a dead branch (no door ever offers it) rather than finding out by never
+     * seeing it in play.
+     */
+    List<String> nodeThemes() {
+        List<String> themes = new ArrayList<>(nodes.keySet());
+        Collections.sort(themes);
+        return List.copyOf(themes);
+    }
+
     List<String> entryThemes() {
         return entryThemes;
     }

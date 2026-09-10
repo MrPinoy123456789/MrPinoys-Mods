@@ -1,0 +1,7 @@
+{
+  "name": "Copper Works",
+  "processors": "pocketdungeons:theme_copper_works",
+  "spawner_prefix": "copper_works",
+  "loot_suffix": "copper_works",
+  "room_theme": "copper_works"
+}

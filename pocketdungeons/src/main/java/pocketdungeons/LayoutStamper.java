@@ -257,9 +257,11 @@ final class LayoutStamper {
             // M25: the pocket door lives in the run's first cleared encounter
             // cell. A cell with no sealed wall cannot host one (every wall
             // leads to a neighbour), so the roll falls through to the next
-            // encounter cell rather than failing the run.
+            // encounter cell rather than failing the run. M70: the check
+            // reads the role's operation, so a third-party role with
+            // operation TRIAL_ENCOUNTER also hosts a pocket door.
             if (pocket2Rolled && pocket2Door == null
-                    && "encounter".equals(plan.roles().get(cell))) {
+                    && isEncounterOperation(plan.roles().get(cell))) {
                 pocket2Door = Pocket2.placeDoor(level, cellOrigin, geometry);
             }
 
@@ -489,6 +491,20 @@ final class LayoutStamper {
             level.setBlock(interiorDoorPos(origin, wall, i, 2), upper, flags);
             level.setBlock(interiorDoorPos(origin, wall, i, 3), RoomBuilder.WALL, flags);
         }
+    }
+
+    /**
+     * M70: whether a cell's role has the TRIAL_ENCOUNTER operation, so the
+     * pocket door can be placed there. Replaces the pre-M70
+     * {@code "encounter".equals(role)} check, so a third-party role with
+     * operation TRIAL_ENCOUNTER also hosts a pocket door.
+     */
+    private static boolean isEncounterOperation(String role) {
+        if (role == null) {
+            return false;
+        }
+        RoomRoleDefinition def = RoleManifest.current().byId(role);
+        return def != null && def.operation == RoomRoleDefinition.Operation.TRIAL_ENCOUNTER;
     }
 
     /**

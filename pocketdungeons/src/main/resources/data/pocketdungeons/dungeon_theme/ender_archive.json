@@ -1,0 +1,7 @@
+{
+  "name": "Ender Archive",
+  "processors": "pocketdungeons:theme_ender_archive",
+  "spawner_prefix": "ender_archive",
+  "loot_suffix": "ender_archive",
+  "room_theme": "ender_archive"
+}

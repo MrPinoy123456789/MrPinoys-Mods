@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run guarantees a Deep Dark room.", "catalyst_tag": "#minecraft:wool", "cost": 1, "priority": 0, "min_level": 0, "effects": {"guaranteed_rooms": [{"names": ["deep_dark_landing"], "min_tier": 3}]}}

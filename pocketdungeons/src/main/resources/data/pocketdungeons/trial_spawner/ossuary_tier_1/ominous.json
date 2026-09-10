@@ -1,0 +1,45 @@
+{
+  "spawn_range": 4,
+  "total_mobs": 6.0,
+  "simultaneous_mobs": 3.0,
+  "total_mobs_added_per_player": 2.0,
+  "simultaneous_mobs_added_per_player": 1.0,
+  "ticks_between_spawn": 40,
+  "spawn_potentials": [
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:skeleton"
+        },
+        "equipment": {
+          "loot_table": "pocketdungeons:equipment/tier_1_ranged",
+          "slot_drop_chances": 0.0
+        }
+      },
+      "weight": 5
+    },
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:stray"
+        },
+        "equipment": {
+          "loot_table": "pocketdungeons:equipment/tier_1_ranged",
+          "slot_drop_chances": 0.0
+        }
+      },
+      "weight": 3
+    }
+  ],
+  "loot_tables_to_eject": [
+    {
+      "data": "pocketdungeons:spawners/ominous_trial_key",
+      "weight": 5
+    },
+    {
+      "data": "pocketdungeons:spawners/emeralds",
+      "weight": 5
+    }
+  ],
+  "items_to_drop_when_ominous": "minecraft:spawners/trial_chamber/items_to_drop_when_ominous"
+}

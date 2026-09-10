@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run guarantees a slime pit.", "catalyst": "minecraft:slime_ball", "cost": 1, "priority": 10, "min_level": 0, "effects": {"guaranteed_rooms": [{"names": ["slime_pit"], "min_tier": 0}]}}

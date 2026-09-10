@@ -272,6 +272,41 @@ final class DungeonCommands {
                             .then(Commands.literal("exportdata")
                                     .executes(ctx -> DatapackExporter.export(ctx.getSource())))
 
+                            // M72: pack authoring surface. validate runs every
+                            // cross-resource check and reports file, field, cause
+                            // and a reproducible seed; exportstarter writes a
+                            // small namespaced starter; exportworkspace ships the
+                            // rooms an author captured with buildroom/saveroom.
+                            // Both exports refuse overwrite unless "confirm" is
+                            // passed, and back the existing destination up first.
+                            .then(Commands.literal("validate")
+                                    .executes(ctx -> validatePack(ctx.getSource(), null))
+                                    .then(Commands.argument("seed", LongArgumentType.longArg())
+                                            .executes(ctx -> validatePack(ctx.getSource(),
+                                                    LongArgumentType.getLong(ctx, "seed")))))
+
+                            .then(Commands.literal("exportstarter")
+                                    .then(Commands.argument("packname", StringArgumentType.string())
+                                            .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "packname"),
+                                                    StringArgumentType.getString(ctx, "packname"), false))
+                                            .then(Commands.argument("namespace", StringArgumentType.string())
+                                                    .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "packname"),
+                                                            StringArgumentType.getString(ctx, "namespace"), false))
+                                                    .then(Commands.literal("confirm")
+                                                            .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
+                                                                    StringArgumentType.getString(ctx, "packname"),
+                                                                    StringArgumentType.getString(ctx, "namespace"), true))))))
+
+                            .then(Commands.literal("exportworkspace")
+                                    .then(Commands.argument("name", StringArgumentType.string())
+                                            .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "name"), false))
+                                            .then(Commands.literal("confirm")
+                                                    .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "name"), true)))))
+
                             // M2 T2.1: not optional for a room blob. Restores this
                             // owner's live room from its backup file -- for a
                             // corrupted or accidentally-deleted live blob, or a
@@ -1432,8 +1467,12 @@ final class DungeonCommands {
         int checked = 0;
         for (int mask = 1; mask < 16; mask++) {
             boolean singleDoor = Integer.bitCount(mask) == 1;
-            for (String role : List.of("encounter", "loot", "corridor", "entrance", "exit")) {
-                if (!singleDoor && (role.equals("entrance") || role.equals("exit"))) {
+            // M70: use the namespaced role ids the generator and selector now
+            // use. The coverage check queries the room manifest the same way
+            // the selector does, so it must use the same qualified ids.
+            for (String role : List.of(RoleIds.ENCOUNTER, RoleIds.LOOT, RoleIds.CORRIDOR,
+                    RoleIds.ENTRANCE, RoleIds.EXIT)) {
+                if (!singleDoor && (role.equals(RoleIds.ENTRANCE) || role.equals(RoleIds.EXIT))) {
                     continue;
                 }
                 checked++;
@@ -1470,10 +1509,14 @@ final class DungeonCommands {
         // Single seed, no retry: this command exists to show one seed's exact
         // outcome, success or failure. The retry budget lives in LayoutPlanner
         // and is exercised by `plansurvey`.
+        // M70: pass the loaded role definitions so the preview reflects the
+        // data-driven role set, including any third-party roles.
+        List<RoomRoleDefinition> populationRoles = RoleManifest.current().definitions();
         DungeonShape shape = LayoutGraphGenerator.generate(
                 seed,
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
-                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability());
+                PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                populationRoles);
         if (shape == null) {
             source.sendFailure(Component.literal(
                     "Seed " + seed + " exhausted the shape generator's backtracking budget."));
@@ -1510,6 +1553,28 @@ final class DungeonCommands {
             }
             return 0;
         }
+    }
+
+    /**
+     * M72: runs {@link PackValidator#validate} and prints each finding as
+     * {@code file / field: cause}, with a trailing {@code (seed=<seed>)} for
+     * plan-level findings so the operator can replay the failure with
+     * {@code /dungeon admin plan <seed>}.
+     */
+    private static int validatePack(CommandSourceStack source, Long singleSeed) {
+        List<PackValidator.Finding> findings = PackValidator.validate(source.getServer(), singleSeed);
+        if (findings.isEmpty()) {
+            source.sendSuccess(() -> Component.literal(
+                    "Pack validation passed: no findings.").withStyle(ChatFormatting.GREEN), false);
+            return 1;
+        }
+        source.sendFailure(Component.literal(findings.size() + " finding(s):"));
+        for (PackValidator.Finding f : findings) {
+            String line = f.file() + " / " + f.field() + ": " + f.cause()
+                    + (f.hasSeed() ? " (seed=" + f.seed() + ")" : "");
+            source.sendFailure(Component.literal("  " + line));
+        }
+        return 0;
     }
 
     /**

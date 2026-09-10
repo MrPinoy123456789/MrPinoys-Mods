@@ -47,6 +47,9 @@ import java.util.Set;
 public class SituationSupplyTest {
 
     public static void main(String[] args) {
+        // M70: publish synthetic bag and role manifests so BagTags.seed
+        // reads the same tags the live server would load.
+        publishSyntheticManifests();
         testBagSuppliesAreWhatTheCatalogueClaims();
         testSappersTntIsNotReusableMasonry();
         testShepherdsLeadsAreNotAGuaranteedCreature();
@@ -263,10 +266,10 @@ public class SituationSupplyTest {
                 new PlanEdge(entrance, pots), new PlanEdge(pots, onPath),
                 new PlanEdge(pots, spur)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(pots, "loot");
-        roles.put(onPath, "encounter");
-        roles.put(spur, "corridor");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(pots, RoleIds.LOOT);
+        roles.put(onPath, RoleIds.ENCOUNTER);
+        roles.put(spur, RoleIds.CORRIDOR);
 
         DungeonShape shape = new DungeonShape(41, cells, edges, entrance, onPath,
                 List.of(entrance, pots, onPath), roles);
@@ -324,9 +327,9 @@ public class SituationSupplyTest {
         Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
                 new PlanEdge(entrance, provider), new PlanEdge(provider, gate)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
-        roles.put(entrance, "entrance");
-        roles.put(provider, "loot");
-        roles.put(gate, "corridor");
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(provider, RoleIds.LOOT);
+        roles.put(gate, RoleIds.CORRIDOR);
 
         DungeonShape shape = new DungeonShape(43, cells, edges, entrance, gate,
                 List.of(entrance, provider, gate), roles);
@@ -391,11 +394,18 @@ public class SituationSupplyTest {
         Set<PlanCell> cells = new LinkedHashSet<>();
         List<PlanCell> path = new ArrayList<>();
         Map<PlanCell, String> roles = new LinkedHashMap<>();
+        // M70: namespaced role ids, matching the generator.
+        String entrance = RoleIds.ENTRANCE;
+        String exit = RoleIds.EXIT;
+        String middle = RoleIds.resolve(middleRole);
+        if (middle == null) {
+            middle = middleRole;
+        }
         for (int i = 0; i < n; i++) {
             PlanCell cell = new PlanCell(i, 0);
             cells.add(cell);
             path.add(cell);
-            roles.put(cell, i == 0 ? "entrance" : (i == n - 1 ? "exit" : middleRole));
+            roles.put(cell, i == 0 ? entrance : (i == n - 1 ? exit : middle));
         }
         Set<PlanEdge> edges = new LinkedHashSet<>();
         for (int i = 0; i < n - 1; i++) {
@@ -426,7 +436,14 @@ public class SituationSupplyTest {
 
     private static DungeonRoomMeta meta(String template, List<String> roles, List<String> provides,
                                         List<String> requires, String access, int weight) {
-        return new DungeonRoomMeta(template, 1, 1, roles, weight, 0, -1, null, List.of(), null,
+        // M70: qualify bare role names to namespaced ids, matching the
+        // generator's namespaced assignment.
+        List<String> qualified = new ArrayList<>(roles.size());
+        for (String role : roles) {
+            String resolved = RoleIds.resolve(role);
+            qualified.add(resolved == null ? role : resolved);
+        }
+        return new DungeonRoomMeta(template, 1, 1, List.copyOf(qualified), weight, 0, -1, null, List.of(), null,
                 1, provides, requires, null, access, DungeonRoomMeta.WINDOW_BARS, 1);
     }
 
@@ -435,5 +452,50 @@ public class SituationSupplyTest {
         if (!equal) {
             throw new AssertionError(what + ": expected " + expected + " but was " + actual);
         }
+    }
+
+    /**
+     * M70: publishes synthetic bag and role manifests with the built-in
+     * definitions and their pre-M70 tag sets, so {@link BagTags#seed}
+     * reads the same tags the live server would load from
+     * {@code dungeon_bag/*.json}. The headless test has no Minecraft server.
+     */
+    private static void publishSyntheticManifests() {
+        Map<String, BagManifest.Entry> bags = new LinkedHashMap<>();
+        Object[][] bagData = {
+                {BagIds.MASON, java.util.Set.of(SituationTags.BLOCKS), 0},
+                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 1},
+                {BagIds.SAPPER, java.util.Set.of(SituationTags.BLOCKS), 2},
+                {BagIds.MAGICIAN, java.util.Set.of(SituationTags.PEARL, SituationTags.WIND_CHARGE), 3},
+                {BagIds.RANGER, java.util.Set.of(SituationTags.BOW), 4},
+                {BagIds.SHEPHERD, java.util.Set.of(SituationTags.LEAD, SituationTags.MOB), 5},
+                {BagIds.INNKEEPER, java.util.Set.of(SituationTags.MILK), 6},
+                {BagIds.PILGRIM, java.util.Set.of(), 7},
+        };
+        for (Object[] b : bagData) {
+            String id = (String) b[0];
+            @SuppressWarnings("unchecked")
+            Set<String> tags = (Set<String>) b[1];
+            int order = (int) b[2];
+            BagDefinition def = new BagDefinition(id, id, "", order, List.of(), tags,
+                    BagMeta.defaultLootTable(id));
+            bags.put(id, new BagManifest.Entry(id, def));
+        }
+        BagManifest.publish(BagManifest.create(bags, List.of()));
+
+        Map<String, RoleManifest.Entry> roles = new LinkedHashMap<>();
+        Object[][] roleData = {
+                {RoleIds.ENCOUNTER, 45, RoomRoleDefinition.Operation.TRIAL_ENCOUNTER},
+                {RoleIds.LOOT, 25, RoomRoleDefinition.Operation.TOOL_CACHE},
+                {RoleIds.CORRIDOR, 30, RoomRoleDefinition.Operation.NONE},
+        };
+        for (Object[] r : roleData) {
+            String id = (String) r[0];
+            int weight = (int) r[1];
+            RoomRoleDefinition.Operation op = (RoomRoleDefinition.Operation) r[2];
+            RoomRoleDefinition def = new RoomRoleDefinition(id, "interior", weight, 0, -1, List.of(), op);
+            roles.put(id, new RoleManifest.Entry(id, def));
+        }
+        RoleManifest.publish(RoleManifest.create(roles, List.of()));
     }
 }

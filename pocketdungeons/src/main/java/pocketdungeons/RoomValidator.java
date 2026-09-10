@@ -112,13 +112,13 @@ final class RoomValidator {
         }
 
         // Check 2: room has zero door jigsaws and is not an entrance room.
-        if (doorJigsawCount == 0 && !meta.roles.contains("entrance")) {
+        if (doorJigsawCount == 0 && !meta.roles.contains(RoleIds.ENTRANCE)) {
             errors.add("Room has no door jigsaws. It will be unreachable in a dungeon. "
                     + "Place door jigsaws on at least one wall, or set the role to entrance.");
         }
 
         // Check 3: encounter role with no spawner or spawn jigsaw.
-        if (meta.roles.contains("encounter") && spawnerCount == 0) {
+        if (meta.roles.contains(RoleIds.ENCOUNTER) && spawnerCount == 0) {
             // Check for spawn jigsaws too.
             boolean hasSpawnJigsaw = false;
             for (int x = 0; x < RoomGeometry.CELL && !hasSpawnJigsaw; x++) {
@@ -140,7 +140,7 @@ final class RoomValidator {
         }
 
         // Check 4: loot role with no vault or chest.
-        if (meta.roles.contains("loot") && vaultCount == 0 && chestCount == 0) {
+        if (meta.roles.contains(RoleIds.LOOT) && vaultCount == 0 && chestCount == 0) {
             warnings.add("Loot room has no vault or chest. Stamp will skip the loot.");
         }
 

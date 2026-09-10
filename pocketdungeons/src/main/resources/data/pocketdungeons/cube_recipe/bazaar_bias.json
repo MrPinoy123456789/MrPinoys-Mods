@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run favours trade.", "catalyst": "minecraft:gold_nugget", "cost": 1, "priority": 10, "min_level": 0, "effects": {"weighted_rooms": ["bazaar"]}}

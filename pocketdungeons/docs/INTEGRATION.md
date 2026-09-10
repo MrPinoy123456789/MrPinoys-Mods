@@ -224,13 +224,15 @@ outside that range and carries no jigsaws.
 
 Naming these so nobody spends a weekend on them before they are datapack-driven:
 
-1. **Affixes are a Java enum** (top-level `pocketdungeons.Affix`: `OMINOUS`,
-   `FERAL`, `SWARMING`, `OVERCLOCKED`, `MOLTEN`, `SILENCED`, `EXPLOSIVE`,
-   `VOIDED`). There is no datapack surface for adding a new one.
-2. **Room roles are a Java concept**, not a registry — `entrance`, `exit`,
-   `encounter`, `loot`, `corridor` are the fixed set the generator's own
-   `switch`-shaped logic understands. A `dungeon_room` file may only use these
-   five strings in its `roles` array; inventing a sixth does nothing.
+1. **Situation handlers are a Java registry** (`Situations`). A
+   `dungeon_room` file may name a registered situation in its `content`
+   field, but adding a new situation handler requires Java. The situation
+   tag vocabulary (`SituationTags`) is also a closed set.
+
+Structural geometry (entrance and exit placement, door masks, the grid
+contract) remains engine-owned. A `dungeon_role` file may not declare
+`stage: "structural"`; only the built-in `entrance` and `exit` roles
+control topology, and a pack cannot add a new one.
 
 ---
 
@@ -259,7 +261,8 @@ deepslate) resolves to the pocketdungeons namespace. This applies to:
 - Room names in plans and force-room guarantees.
 - Theme ids in adventure graph transitions and room theme lists.
 - Theme ids read from a pre-M68 dungeon_log.dat (current_theme,
-  completed_themes, ecent_themes).
+  completed_themes, 
+ecent_themes).
 
 A bare name that is not a pocketdungeons built-in returns null at lookup
 time. Third-party content that relied on last-file-wins behaviour for a bare
@@ -400,3 +403,341 @@ the other five surfaces and checks the built-in coverage gate (every
 built-in affix id must be present). A candidate that fails the gate is
 not published; the last valid snapshot stands. ContentReload publishes
 the affix manifest in the same atomic commit as the other surfaces.
+
+## M70: Bag schema
+
+A bag is a data-driven definition loaded from
+data/<namespace>/dungeon_bag/*.json. The Bags enum is deleted; every
+bag is a JSON file. A third-party bag flows through the picker, the
+solvability seed, the cube catalyst lookup, and the loot roll, with no
+Java edit.
+
+### Schema
+
+Each file under data/<namespace>/dungeon_bag/*.json defines one bag:
+
+```json
+{
+  "version": 1,
+  "label": "Mason's Bag",
+  "blurb": "Stone, a pick, and the patience to use them.",
+  "order": 0,
+  "headline": ["minecraft:cobblestone", "minecraft:stone_pickaxe", "minecraft:torch"],
+  "tags": ["blocks"],
+  "loot_table": "pocketdungeons:bags/mason"
+}
+```
+
+Fields:
+
+- `version` (int, default 1): the schema generation. Only 1 is accepted.
+- `label` (string, required): the display name in the picker.
+- `blurb` (string, required): the tooltip in the picker.
+- `order` (int, default 0): the stable picker order. Bags sort by order
+  then id; the built-ins use 0 through 7.
+- `headline` (array of strings, default []): the catalyst items the cube
+  recipe matches against the player's off-hand. Each string is a
+  namespaced item id.
+- `tags` (array of strings, default []): the capability tags this bag
+  seeds at depth 0. Each must be one of the fifteen `SituationTags`; an
+  unknown tag is rejected at load.
+- `loot_table` (string, default derived): the namespaced loot table id
+  the bag rolls. Defaults to `<namespace>:bags/<path>`, so a bag at
+  data/mypack/dungeon_bag/my_bag.json rolls from mypack:bags/my_bag
+  unless it names its own table.
+
+### Extension limits
+
+The capability tag vocabulary is closed (`SituationTags`). A bag that
+declares a tag outside the set is rejected at load with the bag and the
+offending tag named. The loot table reference is validated against the
+server's reloadable registries; a missing table is rejected at load.
+
+### Legacy migration
+
+A pre-M70 save or config that holds a bare bag id ("mason") resolves to
+"pocketdungeons:mason" through the legacy bridge in `BagIds.resolve`.
+A qualified id ("theirpack:their_bag") is returned as-is.
+
+### Reload contract
+
+The bag manifest participates in the M68 atomic snapshot and reload
+contract. ContentSnapshot.build parses the bag manifest alongside the
+other surfaces and checks the built-in coverage gate (every built-in
+bag id must be present). A candidate that fails the gate is not
+published; the last valid snapshot stands.
+
+## M70: Role schema
+
+A room role is a data-driven definition loaded from
+data/<namespace>/dungeon_role/*.json. The hard-coded role switch in
+RoomContent is deleted; every population role is a JSON file. A
+third-party role flows through assignment, selection, and dispatch,
+with no Java edit.
+
+### Schema
+
+Each file under data/<namespace>/dungeon_role/*.json defines one role:
+
+```json
+{
+  "version": 1,
+  "stage": "interior",
+  "weight": 45,
+  "min_depth": 0,
+  "max_depth": -1,
+  "operation": "TRIAL_ENCOUNTER"
+}
+```
+
+Fields:
+
+- `version` (int, default 1): the schema generation. Only 1 is accepted.
+- `stage` (string, required): must be `"interior"`. Structural roles
+  (`entrance`, `exit`) are engine-owned; a file that declares
+  `stage: "structural"` is rejected at load.
+- `weight` (int, default 1): the assignment weight. The generator draws
+  interior critical-path roles by weight; a role with weight 0 is never
+  picked by the draw.
+- `min_depth` (int, default 0): the minimum BFS depth at which this role
+  may be assigned.
+- `max_depth` (int, default -1): the maximum BFS depth, or -1 for
+  unbounded.
+- `operation` (string, default NONE): one of `TRIAL_ENCOUNTER`,
+  `TOOL_CACHE`, `NONE`. The set is closed; an unknown operation is
+  rejected at load.
+
+### Bounded operations
+
+A population role composes one of three bounded operations:
+
+- `TRIAL_ENCOUNTER`: remove the placeholder chest and stamp a trial
+  spawner (the built-in encounter operation).
+- `TOOL_CACHE`: stamp a vault (the built-in loot operation).
+- `NONE`: remove the placeholder chest and place no content (the
+  built-in corridor operation).
+
+Genuinely new operations still require reviewed engine work. This is
+the same gate AffixEffects holds for affix operations: JSON composes
+existing bounded operations, it does not define new ones.
+
+A role never changes topology. Structural roles are engine-owned and
+not loaded from JSON. A pack cannot add a structural role.
+
+### Legacy migration
+
+A pre-M70 room file that holds a bare role name ("encounter") in its
+`roles` array is qualified to "pocketdungeons:encounter" at parse time.
+A qualified id ("theirpack:their_role") is returned as-is.
+
+### Reload contract
+
+The role manifest participates in the M68 atomic snapshot and reload
+contract. ContentSnapshot.build parses the role manifest alongside the
+other surfaces and checks the built-in coverage gate (every built-in
+population role id must be present). A candidate that fails the gate is
+not published; the last valid snapshot stands.
+
+## M71: Cube recipe schema
+
+Each file under `data/<namespace>/cube_recipe/*.json` defines one Cube
+recipe. The `CubeRecipe` enum is deleted; every recipe is data-driven,
+keyed by namespaced id (`pocketdungeons:store`). A third-party recipe is
+`theirpack:their_recipe` and flows through every site the built-ins do,
+with no Java edit.
+
+### Schema
+
+Each file under `data/<namespace>/cube_recipe/*.json` defines one recipe:
+
+```json
+{
+  "version": 1,
+  "confirmation": "The next run guarantees a Store.",
+  "catalyst": "minecraft:emerald",
+  "cost": 1,
+  "priority": 0,
+  "min_level": 0,
+  "effects": {
+    "guaranteed_rooms": [
+      {"names": ["the_store"], "min_tier": 0}
+    ]
+  }
+}
+```
+
+Fields:
+- `version`: must be `1`.
+- `confirmation`: the chat message sent on a successful apply. Terse;
+  does not explain the mechanic.
+- `catalyst`: the item id that matches this recipe in the off-hand.
+  Mutually exclusive with `catalyst_tag`.
+- `catalyst_tag`: an item tag id (with `#` prefix) that matches this
+  recipe. Mutually exclusive with `catalyst`.
+- `cost`: how many of the catalyst are consumed (default 1, minimum 1).
+- `priority`: match order; lower numbers checked first (default 0).
+  Two recipes with the same priority that both match the same stack is an
+  ambiguous match and is refused.
+- `min_level`: the keystone level required before this recipe matches
+  (default 0). The Cube station's own unlock level still gates the station
+  as a whole; this is the per-recipe gate.
+- `effects`: the recipe's typed effects (see below).
+
+### Effect fields
+
+The supported effect set is closed. A recipe that declares an effect
+outside this set is rejected at load. A recipe that bends nothing is
+rejected outright.
+
+- `ominous` (boolean): the run starts ominous.
+- `feral` (boolean): the Feral affix is guaranteed.
+- `completion_study_list` (boolean): the completion line lists the run's
+  situations by name afterward.
+- `bounded_supply` (boolean): one guaranteed tool cache is supplied.
+- `path_length_bonus` (integer, 0 to 8): added to both min and max path
+  bounds.
+- `weighted_rooms` (array of room names): rooms to weight up in the
+  selection pass. A named room draws three times its declared weight.
+  Generalises M66's hardcoded flooded/chasm weighting.
+- `guaranteed_rooms` (array of groups): room groups to force onto an
+  eligible cell after the main pass. Each group has `names` (array of
+  alternative room names) and `min_tier` (0 to 3). A group whose
+  `min_tier` the offer's loot tier cannot satisfy refuses before the
+  catalyst is spent. Generalises M66's hardcoded infested, Deep Dark,
+  and Store guarantees.
+
+### Extension limits
+
+The supported effect set is closed. Genuinely new operations still
+require reviewed engine work. A recipe that declares no effect is
+rejected at load: a definition that bends nothing has no business
+shipping.
+
+Two recipes whose catalyst predicates can match the same off-hand
+stack is an ambiguity the match path refuses at use time rather than
+silently picking one. The manifest catches the static case at load
+(two definitions naming the same catalyst item or tag).
+
+### Legacy migration
+
+Before M71 a recipe was a Java enum constant (`CubeRecipe.OMINOUS`) and
+the on-keystone form was the enum's tag key (`"ominous"`). M71 replaces
+the enum with data-driven definitions keyed by namespaced id
+(`"pocketdungeons:ominous"`). A legacy bare tag on a keystone is resolved
+by `RecipeIds.resolve` to its namespaced id. The two M66 legacy tags
+(`bag_override`, `double_key`) map to their replacements
+(`bounded_supply`, `path_extension`).
+
+### Reload contract
+
+The recipe manifest participates in the M68 atomic snapshot and reload
+contract. ContentSnapshot.build parses the recipe manifest alongside the
+other surfaces and checks the built-in coverage gate (every built-in
+recipe id must be present). A candidate that fails the gate is not
+published; the last valid snapshot stands.
+
+### Personal discovery
+
+A recipe is discovered the first time a player successfully applies it
+at the Cube. The discovery is personal, never broadcast, and never
+browsed. A recipe the player has not discovered is never listed, never
+auto-completed, and never shown in any catalogue, because no catalogue
+exists (VISION 5.4: "you can see the items, not the recipe").
+
+The discovery floor guarantees a catalyst by the first eligible safe
+visit (lobby entry at the Cube unlock level) and presents a terse "try
+this at the Cube" opportunity. After that the floor never fires again.
+
+Knowledge spreads through conversation, not through server-wide
+discovery broadcasts. Optional handwritten books and cards may carry
+player knowledge, but are never required keys or mandatory clues
+(VISION 9).
+
+## M72: pack authoring, validation and distribution
+
+A non-developer author can author, validate, distribute and upgrade a pack
+using only a release jar. No Java import, no source-tree workflow, no client
+resource pack. Three admin commands cover the loop.
+
+### Authoring
+
+`/dungeon admin exportstarter <packname> [namespace] [confirm]` writes a small
+namespaced starter pack to `<world>/datapacks/<packname>/` with every file
+rewritten to use `<namespace>` (or `<packname>` if the namespace is omitted)
+instead of `starter`. It ships one working
+example of every content surface (room, theme, adventure node, affix, bag,
+role, recipe, diary, anomaly room), each referencing real built-in resources
+so the pack loads cleanly as a starting point. The namespace is rewritten
+into file paths and file contents during export, so no manual file editing is
+needed to rename a namespace. The starter is bundled
+inside the jar under `/pack_starter` (outside `data/`, so the game never loads
+it as live content until you export it).
+
+`/dungeon admin exportworkspace <name> [confirm]` ships the rooms an author
+captured in-world with `/dungeon admin buildroom` and
+`/dungeon admin saveroom <name>` as a distributable datapack, with a
+`pack.mcmeta` for the current pack format. The live saveroom datapack is left
+untouched.
+
+Both exports refuse to overwrite an existing destination. Re-run with the
+`confirm` literal to back the existing destination up to a timestamped
+`.backup-<millis>` sibling and replace it. The existing
+`/dungeon admin exportdata` bulk export stays available for operators and is
+unchanged.
+
+### Validation
+
+`/dungeon admin validate [seed]` builds a candidate snapshot from the live
+server and reports every finding as `file / field: cause`, with a trailing
+`(seed=N)` for plan-level findings you can replay with `/dungeon admin plan N`.
+A `seed` argument runs the plan check against that one seed, for reproducing a
+specific failure. The checks:
+
+- Parse rejections from every surface (file and cause).
+- Required coverage: entrance and exit rooms, and every built-in affix, bag,
+  role and recipe id must be present.
+- The (mask, role) pairs the planner can ask for: a pair with no room is a
+  content gap.
+- Reachable adventure nodes: a node no entry theme can reach is a dead branch
+  no door ever offers; a theme with no adventure node is never offered as a
+  door choice.
+- Cube recipe eligibility and guarantees: every weighted and guaranteed room
+  reference must resolve; a guarantee group with no resolvable room can never
+  fire.
+- Missing loot: a theme's namespaced `loot_table` is checked against the
+  reloadable loot registry (a typo here would otherwise fail at run time, not
+  load time).
+- Door and return-path validation: a plan is generated, validated (the
+  return path is the BFS from the entrance reaching every cell), and a room
+  is resolved for every cell, sweeping the first 16 seeds.
+
+### Versioned compatibility examples
+
+The starter pack's example files are the compatibility contract for this
+build. Each one is the minimal valid shape a content file takes under the
+M68 to M71 schemas, all `version: 1`:
+
+| Surface | Example file | Key fields |
+|---|---|---|
+| room | `dungeon_room/example_room.json` | `template`, `footprint`, `roles`, `theme`, `access`, `window` |
+| theme | `dungeon_theme/example_theme.json` | `name`, `processors`, `room_theme` |
+| adventure | `dungeon_adventure/example_theme.json` | `kind`, `next` (weighted transitions) |
+| affix | `dungeon_affix/example_affix.json` | `label`, `blurb`, `order`, `effects` (closed set) |
+| bag | `dungeon_bag/example_bag.json` | `label`, `headline`, `tags`, `loot_table` |
+| role | `dungeon_role/example_role.json` | `stage`, `weight`, `operation` (closed set) |
+| recipe | `cube_recipe/example_recipe.json` | `catalyst`, `cost`, `priority`, `effects.guaranteed_rooms` |
+| diary | `diary/example_diary.json` | `number`, `band`, `title`, `pages` |
+| anomaly | `anomaly_room/example_anomaly.json` | same shape as `dungeon_room` |
+
+A reference that does not contain a colon (a legacy bare name like
+`the_store`) resolves to the `pocketdungeons` namespace; an explicit
+namespaced id (`pocketdungeons:the_store`) means exactly the same thing and
+is the form an upgrading pack should move to. The starter recipe's
+`guaranteed_rooms` uses the bare form on purpose, to show both.
+
+### Pack format
+
+The `pack.mcmeta` both exports write uses the game's current data pack
+format (`SharedConstants.DATA_PACK_FORMAT_MAJOR`), which is the 26.2 format
+for this build. A release jar for a future Minecraft version writes that
+version's format automatically; no pack author edits `pack_format` by hand.

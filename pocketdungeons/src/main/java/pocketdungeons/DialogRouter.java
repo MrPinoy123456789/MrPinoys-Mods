@@ -440,7 +440,7 @@ public final class DialogRouter {
      * enters with the keystone alone and gets the chest back next lobby.
      */
     private static void confirmBag(ServerPlayer player, MinecraftServer server, String bagId) {
-        Bags bag = Bags.byId(bagId);
+        BagDefinition bag = Bags.byId(bagId);
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (bag == null || record == null || record.visitInstance || record.roomCellOrigin == null
                 || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
@@ -474,7 +474,7 @@ public final class DialogRouter {
             }
         }
         player.sendSystemMessage(Component.literal(
-                "You chose " + bag.displayName.getString()
+                "You chose " + bag.label
                         + ". It is yours until you reset your keystone.")
                 .withStyle(ChatFormatting.GOLD));
     }

@@ -117,12 +117,14 @@ final class RoomContent {
                 StoreNPC.spawn(level, cellOrigin, seed);
                 return List.of();
             }
-            // M35: a loose chest off the anomaly table regardless of role -- never
+            // M35: a loose chest off the anomaly table regardless of role; never
             // a vault, never a keystone or a completion pad. An encounter-role
             // anomaly cell still gets its trial spawner (the fight is real; the
-            // room around it is what is wrong), themeless like the chest.
+            // room around it is what is wrong), themeless like the chest. M70:
+            // the check reads the role's operation, so a third-party role with
+            // operation TRIAL_ENCOUNTER also stamps a spawner here.
             applyAnomalyChest(level, cellOrigin, seed);
-            if ("encounter".equals(role)) {
+            if (isEncounterOperation(role)) {
                 BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                         profile.lootTier(), affixes, null);
                 if (anchor != null) {
@@ -147,8 +149,18 @@ final class RoomContent {
                 spawnerAnchors.add(anchor);
             }
         } else if (role != null) {
-            switch (role) {
-                case "encounter" -> {
+            // M70: dispatch by the role's declared operation, not by the
+            // role string. A third-party role with operation TRIAL_ENCOUNTER
+            // stamps the same trial spawner the built-in encounter role does,
+            // without a Java edit. Structural roles (entrance, exit) have no
+            // operation and fall through to the default (no content); a
+            // population role not in the manifest also falls through, since
+            // the selector's unknown-role check rejects it before stamping.
+            RoomRoleDefinition def = RoleManifest.current().byId(role);
+            RoomRoleDefinition.Operation op = def == null
+                    ? RoomRoleDefinition.Operation.NONE : def.operation;
+            switch (op) {
+                case TRIAL_ENCOUNTER -> {
                     removeChests(level, cellOrigin);
                     BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                             profile.lootTier(), affixes, theme);
@@ -156,27 +168,26 @@ final class RoomContent {
                         spawnerAnchors.add(anchor);
                     }
                 }
-                case "loot" -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
+                case TOOL_CACHE -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
                         affixes.contains(AffixIds.OMINOUS), seed, lootSuffix, lootTableOverride);
-                case "corridor" -> removeChests(level, cellOrigin);
-                default -> { /* entrance and exit carry no chest and no spawn points */ }
+                case NONE -> removeChests(level, cellOrigin);
             }
         }
         // Molten (M4 T4.5): lava underfoot, and the only source of lava in the
-        // game -- a sealed dungeon has none otherwise, and it gates furnace fuel
+        // game; a sealed dungeon has none otherwise, and it gates furnace fuel
         // and, with water, obsidian (docs/VISION.md 3.7). Entrance and exit are
         // deliberately excluded: they carry the lobby door and the lodestone
         // pad, and a hazard placed there would make either impassable rather
-        // than merely dangerous.
-        if (affixes.contains(AffixIds.MOLTEN) && ("encounter".equals(role) || "loot".equals(role)
-                || "corridor".equals(role))) {
+        // than merely dangerous. M70: the eligibility check reads the role's
+        // operation rather than the role string, so a third-party role with
+        // operation TRIAL_ENCOUNTER or TOOL_CACHE is also eligible.
+        if (affixes.contains(AffixIds.MOLTEN) && isHazardEligible(role)) {
             placeMoltenHazards(level, cellOrigin, spawns, seed);
         }
         // Explosive: TNT underfoot with pressure pads on top. Same placement
-        // rules as Molten: encounter, loot, corridor only. Entrance and exit
-        // excluded to keep lodestone pad and lobby door passable.
-        if (affixes.contains(AffixIds.EXPLOSIVE) && ("encounter".equals(role) || "loot".equals(role)
-                || "corridor".equals(role))) {
+        // rules as Molten. Entrance and exit excluded to keep lodestone pad
+        // and lobby door passable.
+        if (affixes.contains(AffixIds.EXPLOSIVE) && isHazardEligible(role)) {
             placeExplosiveHazards(level, cellOrigin, spawns, seed);
         }
         // Voided: floor ripped open, bedrock gone below. Same cell eligibility
@@ -186,23 +197,89 @@ final class RoomContent {
             placeVoidedFloor(level, cellOrigin, spawns, seed);
         }
         // Feral (M5 T5.1/T5.2): wolves as a feature, not a fight. Encounter cells
-        // are deliberately excluded -- TrialContent owns those, and a wolf pack
+        // are deliberately excluded; TrialContent owns those, and a wolf pack
         // beside a live trial spawner is exactly the two-difficulty-curves problem
         // T17 deleted the old spawn path over. Entrance and exit are excluded for
         // the same reason Molten excludes them: one is the player's own room, the
-        // other the lodestone pad and the reward chests.
-        if (affixes.contains(AffixIds.FERAL) && ("loot".equals(role) || "corridor".equals(role))) {
+        // other the lodestone pad and the reward chests. M70: the eligibility
+        // check reads the role's operation, so a third-party role with operation
+        // TOOL_CACHE or NONE is also eligible.
+        if (affixes.contains(AffixIds.FERAL) && isFeralEligible(role)) {
             FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), profile.keystoneLevel(), seed);
         }
         // M69 Loaded: a guaranteed bonus tool cache in loot cells, drawn from
         // the affix's namespaced bonus_tool_pool loot table. The gift that pays
         // for the extra trial bodies the affix also grants. Placed only in loot
         // cells so it does not clutter encounter or corridor cells, and never
-        // in entrance/exit to keep the lobby door and lodestone pad clear.
-        if (affixes.contains(AffixIds.LOADED) && "loot".equals(role)) {
+        // in entrance/exit to keep the lobby door and lodestone pad clear. M70:
+        // the eligibility check reads the role's operation, so a third-party
+        // role with operation TOOL_CACHE is also eligible.
+        if (affixes.contains(AffixIds.LOADED) && isLootOperation(role)) {
             placeLoadedToolCache(level, cellOrigin, seed);
         }
         return spawnerAnchors;
+    }
+
+    /**
+     * M70: whether a cell's role is eligible for Molten/Explosive hazards.
+     * A population role is eligible when its operation is TRIAL_ENCOUNTER,
+     * TOOL_CACHE, or NONE (the three interior operations); structural roles
+     * (entrance, exit) are not eligible. This replaces the pre-M70
+     * {@code "encounter".equals(role) || "loot".equals(role) || "corridor".equals(role)}
+     * check, so a third-party role with any of the three operations is also
+     * eligible.
+     */
+    private static boolean isHazardEligible(String role) {
+        if (role == null) {
+            return false;
+        }
+        if (RoleIds.ENTRANCE.equals(role) || RoleIds.EXIT.equals(role)) {
+            return false;
+        }
+        RoomRoleDefinition def = RoleManifest.current().byId(role);
+        return def != null;
+    }
+
+    /**
+     * M70: whether a cell's role is eligible for Feral wolves. A population
+     * role is eligible when its operation is TOOL_CACHE or NONE; a role with
+     * operation TRIAL_ENCOUNTER is not, because TrialContent owns the fight.
+     */
+    private static boolean isFeralEligible(String role) {
+        if (role == null) {
+            return false;
+        }
+        if (RoleIds.ENTRANCE.equals(role) || RoleIds.EXIT.equals(role)) {
+            return false;
+        }
+        RoomRoleDefinition def = RoleManifest.current().byId(role);
+        if (def == null) {
+            return false;
+        }
+        return def.operation != RoomRoleDefinition.Operation.TRIAL_ENCOUNTER;
+    }
+
+    /**
+     * M70: whether a cell's role has the TRIAL_ENCOUNTER operation.
+     */
+    private static boolean isEncounterOperation(String role) {
+        if (role == null) {
+            return false;
+        }
+        RoomRoleDefinition def = RoleManifest.current().byId(role);
+        return def != null && def.operation == RoomRoleDefinition.Operation.TRIAL_ENCOUNTER;
+    }
+
+    /**
+     * M70: whether a cell's role has the TOOL_CACHE operation, so the Loaded
+     * affix's bonus tool cache is placed there.
+     */
+    private static boolean isLootOperation(String role) {
+        if (role == null) {
+            return false;
+        }
+        RoomRoleDefinition def = RoleManifest.current().byId(role);
+        return def != null && def.operation == RoomRoleDefinition.Operation.TOOL_CACHE;
     }
 
     /**
