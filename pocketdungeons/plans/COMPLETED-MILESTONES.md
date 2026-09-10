@@ -4238,3 +4238,146 @@ releases the slot.
 - packValidationTest: passed.
 - dungeonLoadTest: PASS at 8, 16 and 32 instances.
 - build: BUILD SUCCESSFUL, full suite green.
+
+## M78: the Endless Mine, bounded in memory
+
+M78 unholds the one deferred "rule-breaking dungeon" item from `ROADMAP.md`
+M8 Deferred, conditionally. Its goal was to prove one special dungeon rule
+without maintaining an infinite loaded corridor: an unbounded sequence of
+floors with no compulsory final floor, where each checkpoint offers continue
+or a voluntary cash-out, previous floors are released and can never be
+revisited, and only the current floor plus its bounded transition work stay
+loaded.
+
+### M77 gate and the owner override
+
+The handoff required stopping if M77 adoption evidence, owner approval, or
+repeat-player demand were absent. M77 is not completed: no
+`M77-handoff-completed.md` exists, no M77 entry is in this file, and no
+pilot-host, release-jar, adoption or retention evidence was found. The owner
+explicitly overrode that gate and selected "build M78" anyway. That override
+is recorded here so the missing evidence stays visible: M78 is built on an
+owner-approved exception, not on demonstrated M77 adoption or repeat-player
+demand.
+
+### Did the exception improve repeat play enough to retain?
+
+Not yet determinable. Automated verification proves the Mine is bounded in
+memory and that its transition policy is separate from ordinary three-floor
+settlement, but it cannot prove repeat-play retention. The two human checks
+the handoff names (voluntary cash-out behaviour and long-run constant-residency
+evidence) are still pending live sessions. The Mine is retained in the codebase
+on the owner's override; whether it stays past the next roadmap decision
+depends on those live checks showing repeat play that the ordinary loop alone
+does not produce. No automatic sequel milestones follow from M78.
+
+### What changed
+
+- **EndlessMineRules.** A new final class holding the Mine's pure policy
+  half: the Mine theme id, `isMine` predicates for a record and a resolved
+  recipe plan, `effectiveTheme` (a Mine run or Mine recipe plan forces the
+  Mine theme on every floor, so the recipe being cleared after the first
+  commit does not drop the Mine look on later floors), `shouldForceSafeStaging`
+  (the Mine never forces a safe staging room, so every checkpoint offers
+  continue doors and the cash-out stays voluntary), `completionLootTier` (the
+  Mine escalates the loot tier one step per `floorsPerSafeVisit` floors, capped
+  at tier 3, so the materials get better but never leave the table the
+  ordinary loop draws from), `cashOutDepth` (the floor index reached, for the
+  displayable Mine record), and the commitment-surface strings. No Minecraft
+  state lives here; the lifecycle hooks read these helpers so the Mine's
+  transition policy stays separate from ordinary three-floor settlement.
+- **Recipe flag.** `RecipeEffects` gains an `endless_mine` boolean (a run
+  mode, not a room-shaping operation); `CubeRecipeMeta` parses
+  `effects.endless_mine`; `RunRecipePlan` accumulates it in `resolve` and
+  carries it as a field; `hasAnyOperation` and `hasEffects` count it so a
+  Mine-only recipe is not rejected for bending nothing.
+- **InstanceRecord.endlessMine.** Set on the first floor's commit when the
+  resolved recipe plan opens the Mine, and held for the rest of the run so the
+  Mine transition policy stays active after the recipe tags are cleared. Reset
+  alongside `theme` when the run ends (returnToSafe, fallback homecoming,
+  resetToLobby). The record stays in memory for the server process lifetime,
+  the same as every other InstanceRecord, so the flag needs no NBT sidecar;
+  M63 reconnect recovery finds it intact.
+- **Instances hooks.** `previewDoor` and `commitDoor` resolve the effective
+  theme through `EndlessMineRules.effectiveTheme` and stamp at it, so a Mine
+  floor uses the Mine theme on every floor. `commitDoor` sets
+  `record.endlessMine` on the first Mine commit and publishes the Mine start
+  message to the owner, the commitment surface that names the risk (no final
+  floor, previous floors close) and the reward (voluntary cash-out) without
+  explaining the spatial room movement.
+- **RunLifecycle hooks.** `advanceFloor` asks `shouldForceSafeStaging` (the
+  Mine never forces a safe visit) and `completionLootTier` (the Mine
+  escalates). `completeRun` publishes the Mine checkpoint message (depth and
+  tier) at the commitment surface. `returnToSafe` relaxes its `safeStaging`
+  gate to accept a Mine cash-out, so the Mine reuses the M65 silent physical
+  exit and the ordinary `settleSafeVisit` settlement; the Mine's keystone
+  progression therefore keys off the same omen finish table as an ordinary
+  safe visit, so a deep cash-out (large omen sum, high band) yields no level
+  change and the Mine cannot raise the power ceiling. `settleSafeVisit`
+  records `cashOutDepth` on the run record. A new `cashOutMine` entry method
+  validates the Mine context and delegates to `returnToSafe`.
+- **/dungeon cashout.** A new command, owner-only, that calls
+  `cashOutMine`. The Mine never forces a safe staging room, so this is the
+  voluntary exit between floors.
+- **RunMemento.RunRecord.depth.** An additive optional codec field (default
+  0) so older saved records decode unchanged. A positive depth means a Mine
+  cash-out; the memento's pages and lore render "Mine depth: N". It grants no
+  power. A legacy 6-arg constructor keeps the existing test passing.
+- **Data.** `dungeon_theme/endless_mine.json` (reuses the deepslate processor
+  and room theme for the mining look), `dungeon_adventure/endless_mine.json`
+  (a descent node so the Mine theme is a valid graph node), and
+  `cube_recipe/endless_mine.json` (catalyst `minecraft:raw_iron`, `min_level`
+  5, `effects.endless_mine`). The deepslate adventure node gains a weight-1
+  transition to `endless_mine` so the bundled pack validates clean (the Mine
+  node is reachable, not a dead branch). The Mine recipe is an optional
+  bundled recipe, not added to `RecipeIds.BUILT_IN_ORDER`, so a third-party
+  pack is not forced to ship it.
+- **endlessMineRulesTest.** A headless `JavaExec` test covering the policy
+  helpers, the commitment-surface strings (including the no-double-hyphen
+  rule), and the recipe flag's accumulation through `RunRecipePlan.resolve`
+  via a `CubeRecipeManifest.create` fixture. Registered in `build.gradle.kts`
+  and wired so `test` depends on it.
+
+### Why the Mine is bounded in memory
+
+The Mine reuses the ordinary loop's per-floor release: `Instances.commitDoor`
+already clears the previous floor's cells (via `resetForNextDungeon`) and
+releases its force-load tickets before the next floor is stamped. The Mine
+only removes the forced safe visit that would otherwise interrupt the chain,
+so chaining Mine floors never retains more than the current floor, the
+transition cell, and the bounded prepared preview work. Previous floors are
+cleared, not merely force-unloaded, so they cannot be revisited.
+Current-floor topology and return-path guarantees stay unchanged because the
+Mine reuses the same planner and stamper. M76's capacity caps and bounded
+teardown still apply unchanged.
+
+### Verification
+
+- endlessMineRulesTest: passed (policy helpers, strings, recipe flag
+  accumulation).
+- runMementoTest: passed (6-arg legacy constructor and new depth field).
+- floorShapeTest: passed.
+- graphSolvabilityTest: passed (Pilgrim and tier sweeps clean with the new
+  adventure node).
+- adventureGraphTest: passed (the deepslate to endless_mine transition
+  resolves).
+- packValidationTest: passed.
+- runGameTest: passed.
+- dungeonIntegrationTest: PASS (real dedicated server, 12 themes, 12
+  adventure nodes, 14 cube recipes loaded, 0 rejected).
+- dungeonLoadTest: PASS (constant-residency at 8 instances; the Mine adds no
+  retained corridor because it reuses the ordinary per-floor release).
+- build: BUILD SUCCESSFUL, full suite green.
+
+### Pending human checks
+
+- Voluntary cash-out: apply the Mine recipe at the Cube, descend, and confirm
+  `/dungeon cashout` between floors returns the party to the room with the
+  banked haul and a depth-carrying memento, with no teleport, sound or lore
+  on the successful path.
+- Long-run constant-residency: chain many Mine floors and confirm only the
+  current floor plus the transition cell remain loaded (forced-chunk count
+  stays bounded, heap does not grow per floor).
+- No new 26.2 API surface was left unconfirmed; M78 reused only existing,
+  already-verified API surfaces, so no new UNVERIFIED trap was added to
+  `DISCOVERIES.md`.

@@ -1,0 +1,6 @@
+{
+  "name": "Endless Mine",
+  "processors": "pocketdungeons:theme_deepslate",
+  "spawner_prefix": "crypt",
+  "room_theme": "deepslate"
+}

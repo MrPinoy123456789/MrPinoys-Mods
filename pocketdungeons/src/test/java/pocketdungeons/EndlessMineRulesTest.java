@@ -1,0 +1,191 @@
+package pocketdungeons;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * M78: headless regression for {@link EndlessMineRules}, the Endless Mine's
+ * pure policy half. Covers the theme-override, safe-staging, escalating loot
+ * tier and cash-out depth helpers, the commitment-surface strings, and the
+ * recipe flag's accumulation through {@link RunRecipePlan#resolve}.
+ *
+ * <p>The {@link InstanceRecord} and {@link CompoundTag} fixtures need the
+ * one-time registry bootstrap the other headless tests use; no server or world
+ * is required.
+ */
+public class EndlessMineRulesTest {
+
+    private static final UUID OWNER = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+    private static final String MINE = EndlessMineRules.MINE_THEME_ID;
+
+    public static void main(String[] args) {
+        net.minecraft.SharedConstants.setVersion(net.minecraft.DetectedVersion.BUILT_IN);
+        net.minecraft.server.Bootstrap.bootStrap();
+
+        testIsMineRecord();
+        testEffectiveThemeRecordDriven();
+        testEffectiveThemeNonMine();
+        testShouldForceSafeStaging();
+        testCompletionLootTierEscalates();
+        testCompletionLootTierNonMine();
+        testCashOutDepth();
+        testCommitmentSurfaceStrings();
+        testRecipeFlagAccumulates();
+
+        System.out.println("EndlessMineRulesTest passed");
+    }
+
+    private static InstanceRecord newRecord() {
+        return new InstanceRecord(0, BlockPos.ZERO, 0L, null, Set.of(), OWNER, false);
+    }
+
+    /** isMine reads the record flag and tolerates null. */
+    private static void testIsMineRecord() {
+        InstanceRecord mine = newRecord();
+        mine.endlessMine = true;
+        check(EndlessMineRules.isMine(mine), "a flagged record is a Mine");
+        check(!EndlessMineRules.isMine(newRecord()), "an unflagged record is not a Mine");
+        check(!EndlessMineRules.isMine((InstanceRecord) null), "null is not a Mine");
+    }
+
+    /** A Mine record forces the Mine theme regardless of the offered theme. */
+    private static void testEffectiveThemeRecordDriven() {
+        InstanceRecord mine = newRecord();
+        mine.endlessMine = true;
+        check(EndlessMineRules.effectiveTheme("pocketdungeons:deepslate", mine, null).equals(MINE),
+                "a Mine record forces the Mine theme");
+        check(EndlessMineRules.effectiveTheme(MINE, mine, null).equals(MINE),
+                "a Mine record keeps the Mine theme");
+    }
+
+    /** A non-Mine record with no Mine plan keeps the offered theme. */
+    private static void testEffectiveThemeNonMine() {
+        InstanceRecord plain = newRecord();
+        check(EndlessMineRules.effectiveTheme("pocketdungeons:deepslate", plain, null)
+                        .equals("pocketdungeons:deepslate"),
+                "a non-Mine record keeps the offered theme");
+    }
+
+    /**
+     * The Mine never forces a safe staging room; the ordinary loop forces one
+     * every floorsPerSafeVisit floors.
+     */
+    private static void testShouldForceSafeStaging() {
+        InstanceRecord mine = newRecord();
+        mine.endlessMine = true;
+        for (int floor = 1; floor <= 9; floor++) {
+            mine.floorIndex = floor;
+            check(!EndlessMineRules.shouldForceSafeStaging(mine, 3),
+                    "Mine never forces safe staging at floor " + floor);
+        }
+        InstanceRecord plain = newRecord();
+        plain.floorIndex = 3;
+        check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 3");
+        plain.floorIndex = 6;
+        check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 6");
+        plain.floorIndex = 4;
+        check(!EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop skips at floor 4");
+    }
+
+    /** The Mine escalates the loot tier with depth, capped at 3. */
+    private static void testCompletionLootTierEscalates() {
+        InstanceRecord mine = newRecord();
+        mine.endlessMine = true;
+        mine.floorIndex = 0;
+        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 1, "Mine floor 0 keeps base tier");
+        mine.floorIndex = 3;
+        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 2, "Mine floor 3 escalates to tier 2");
+        mine.floorIndex = 6;
+        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine floor 6 escalates to tier 3");
+        mine.floorIndex = 12;
+        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine tier caps at 3");
+        mine.floorIndex = 3;
+        check(EndlessMineRules.completionLootTier(mine, 3, 3) == 3, "Mine at base tier 3 stays 3");
+    }
+
+    /** A non-Mine floor returns the base tier unchanged. */
+    private static void testCompletionLootTierNonMine() {
+        InstanceRecord plain = newRecord();
+        plain.floorIndex = 9;
+        check(EndlessMineRules.completionLootTier(plain, 2, 3) == 2,
+                "non-Mine returns the base tier regardless of depth");
+    }
+
+    /** cashOutDepth returns the floor index for a Mine, 0 otherwise. */
+    private static void testCashOutDepth() {
+        InstanceRecord mine = newRecord();
+        mine.endlessMine = true;
+        mine.floorIndex = 7;
+        check(EndlessMineRules.cashOutDepth(mine) == 7, "Mine depth is the floor index");
+        mine.floorIndex = 0;
+        check(EndlessMineRules.cashOutDepth(mine) == 0, "Mine at floor 0 has depth 0");
+        InstanceRecord plain = newRecord();
+        plain.floorIndex = 5;
+        check(EndlessMineRules.cashOutDepth(plain) == 0, "non-Mine cash-out depth is 0");
+    }
+
+    /** The commitment-surface strings name the risk, the reward and the cash-out. */
+    private static void testCommitmentSurfaceStrings() {
+        String start = EndlessMineRules.mineStartMessage();
+        check(start.contains("no final floor") && start.contains("/dungeon cashout"),
+                "start message names the risk and the cash-out");
+        String checkpoint = EndlessMineRules.mineCheckpointMessage(4, 2);
+        check(checkpoint.contains("Mine floor 4") && checkpoint.contains("tier 2")
+                        && checkpoint.contains("/dungeon cashout"),
+                "checkpoint message names the depth, tier and cash-out");
+        check(!start.contains("--") && !checkpoint.contains("--"),
+                "no double hyphen as punctuation in Mine strings");
+        check(EndlessMineRules.cashOutMessage(1).equals("You leave the Mine with 1 floor banked."),
+                "cash-out message singular");
+        check(EndlessMineRules.cashOutMessage(5).equals("You leave the Mine with 5 floors banked."),
+                "cash-out message plural");
+        check(EndlessMineRules.notInMineMessage().contains("not in the Endless Mine"),
+                "not-in-mine refusal");
+        check(EndlessMineRules.cashOutBetweenFloorsMessage().contains("between Mine floors"),
+                "between-floors refusal");
+    }
+
+    /**
+     * A recipe definition whose effects carry endless_mine accumulates into a
+     * RunRecipePlan whose endlessMine flag is true, and effectiveTheme honours
+     * that plan even before the record is flagged.
+     */
+    private static void testRecipeFlagAccumulates() {
+        RecipeEffects fx = RecipeEffects.build(false, false, false, false, true,
+                0, java.util.List.of(), java.util.List.of());
+        check(fx.endlessMine && fx.hasAnyOperation(),
+                "endless_mine is a valid effect and counts as an operation");
+        CubeRecipeDefinition def = new CubeRecipeDefinition(
+                "pocketdungeons:endless_mine", "mine", "minecraft:raw_iron", null,
+                1, 0, 0, fx);
+        Map<String, CubeRecipeManifest.Entry> entries = new LinkedHashMap<>();
+        entries.put(def.id, new CubeRecipeManifest.Entry(def.id, def));
+        CubeRecipeManifest.publish(CubeRecipeManifest.create(entries, java.util.List.of()));
+
+        CompoundTag recipeTags = new CompoundTag();
+        recipeTags.putBoolean("pocketdungeons:endless_mine", true);
+        RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
+        RunRecipePlan plan = RunRecipePlan.resolve(1234L, 5, Set.of(), Set.of(),
+                recipeTags, refusal);
+        check(plan != null, "the Mine recipe resolves");
+        check(plan != null && plan.endlessMine, "the resolved plan opens the Mine");
+        check(EndlessMineRules.isMine(plan), "isMine(plan) reads the flag");
+        check(refusal[0] == null, "the Mine recipe does not refuse");
+
+        // effectiveTheme honours the preview plan before the record is flagged.
+        InstanceRecord plain = newRecord();
+        check(EndlessMineRules.effectiveTheme("pocketdungeons:deepslate", plain, plan).equals(MINE),
+                "a Mine preview plan forces the Mine theme before the record is flagged");
+    }
+
+    private static void check(boolean condition, String what) {
+        if (!condition) {
+            throw new AssertionError(what);
+        }
+    }
+}

@@ -53,6 +53,8 @@ final class RunRecipePlan {
     final boolean feral;
     final boolean completionStudyList;
     final boolean boundedSupply;
+    /** M78: whether this plan opens the Endless Mine. See {@link EndlessMineRules}. */
+    final boolean endlessMine;
     final int pathBonus;
 
     /** Room names to weight up in the selection pass, qualified. */
@@ -84,7 +86,7 @@ final class RunRecipePlan {
     final Set<String> activeRecipes;
 
     private RunRecipePlan(boolean ominous, boolean feral, boolean completionStudyList,
-                         boolean boundedSupply, int pathBonus,
+                         boolean boundedSupply, boolean endlessMine, int pathBonus,
                          List<String> weightedRooms,
                          List<RecipeEffects.GuaranteedRoom> guaranteedRooms,
                          long seed, int offerLevel,
@@ -94,6 +96,7 @@ final class RunRecipePlan {
         this.feral = feral;
         this.completionStudyList = completionStudyList;
         this.boundedSupply = boundedSupply;
+        this.endlessMine = endlessMine;
         this.pathBonus = pathBonus;
         this.weightedRooms = List.copyOf(weightedRooms);
         this.guaranteedRooms = List.copyOf(guaranteedRooms);
@@ -132,6 +135,7 @@ final class RunRecipePlan {
         boolean feral = false;
         boolean completionStudyList = false;
         boolean boundedSupply = false;
+        boolean endlessMine = false;
         int bonus = 0;
         List<String> weightedRooms = new ArrayList<>();
         List<RecipeEffects.GuaranteedRoom> guaranteedRooms = new ArrayList<>();
@@ -158,6 +162,7 @@ final class RunRecipePlan {
                 feral |= fx.feral;
                 completionStudyList |= fx.completionStudyList;
                 boundedSupply |= fx.boundedSupply;
+                endlessMine |= fx.endlessMine;
                 bonus += fx.pathLengthBonus;
                 for (String room : fx.weightedRooms) {
                     String qualified = JsonPackSupport.qualify(room);
@@ -196,7 +201,7 @@ final class RunRecipePlan {
         int revision = computeRevision(offerLevel, affixNames, partyCapabilities, activeRecipes);
 
         return new RunRecipePlan(ominous, feral, completionStudyList, boundedSupply,
-                bonus, weightedRooms, guaranteedRooms,
+                endlessMine, bonus, weightedRooms, guaranteedRooms,
                 seed, offerLevel, affixNames, partyCapabilities,
                 revision, activeRecipes);
     }
@@ -262,7 +267,8 @@ final class RunRecipePlan {
      * Whether this plan carries any recipe effect at all.
      */
     boolean hasEffects() {
-        return ominous || feral || completionStudyList || boundedSupply || pathBonus > 0
+        return ominous || feral || completionStudyList || boundedSupply || endlessMine
+                || pathBonus > 0
                 || !weightedRooms.isEmpty() || !guaranteedRooms.isEmpty();
     }
 

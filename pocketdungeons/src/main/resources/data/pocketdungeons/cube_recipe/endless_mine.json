@@ -1,0 +1,1 @@
+{"version": 1, "confirmation": "The next run descends into the Endless Mine. There is no final floor; cash out with /dungeon cashout whenever you wish.", "catalyst": "minecraft:raw_iron", "cost": 1, "priority": 0, "min_level": 5, "effects": {"endless_mine": true}}

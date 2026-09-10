@@ -1099,7 +1099,19 @@ final class RunLifecycle {
 
         int chests = record.rewardChests;
         boolean isSafeStaging = record.safeStaging;
-        if (isSafeStaging) {
+        if (EndlessMineRules.isMine(record)) {
+            // M78: the Mine checkpoint is the commitment surface. The player
+            // sees the depth reached and the escalating loot tier before
+            // choosing a door deeper or cashing out. The spatial movement
+            // stays silent, the same as the ordinary loop.
+            int tier = EndlessMineRules.completionLootTier(record,
+                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
+                            .lootTier(),
+                    PocketDungeonsConfig.floorsPerSafeVisit());
+            player.sendSystemMessage(Component.literal(
+                    EndlessMineRules.mineCheckpointMessage(record.floorIndex, tier))
+                    .withStyle(ChatFormatting.AQUA));
+        } else if (isSafeStaging) {
             // M65: this is the last floor before the safe room. The
             // interval-level settlement happens when the player selects
             // the safe door (returnToSafe -> settleSafeVisit). The
@@ -1166,8 +1178,11 @@ final class RunLifecycle {
 
         // M57: determine whether this is a safe staging room. Every
         // floorsPerSafeVisit floors, the staging room offers a safe door
-        // instead of three dungeon doors.
-        boolean isSafeStaging = record.floorIndex % PocketDungeonsConfig.floorsPerSafeVisit() == 0;
+        // instead of three dungeon doors. M78: a Mine run never forces a safe
+        // staging room, so every checkpoint offers continue doors and the
+        // cash-out stays voluntary.
+        boolean isSafeStaging = EndlessMineRules.shouldForceSafeStaging(record,
+                PocketDungeonsConfig.floorsPerSafeVisit());
         record.safeStaging = isSafeStaging;
 
         // M48: the omen finish table replaces the clock (spec 5.2, 5.4).
@@ -1186,8 +1201,10 @@ final class RunLifecycle {
         ThemeManifest.Entry completionTheme = record.theme == null ? null
                 : ThemeManifest.current().byId(record.theme);
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
-                DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
-                        .lootTier(),
+                EndlessMineRules.completionLootTier(record,
+                        DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
+                                .lootTier(),
+                        PocketDungeonsConfig.floorsPerSafeVisit()),
                 record.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable);
@@ -1374,9 +1391,49 @@ final class RunLifecycle {
                         record.layout.keystoneLevel(),
                         KeystoneMath.lootTier(record.layout.keystoneLevel()),
                         record.affixes,
-                        System.currentTimeMillis()));
+                        System.currentTimeMillis(),
+                        EndlessMineRules.cashOutDepth(record)));
             }
         }
+    }
+
+    /**
+     * M78: the Endless Mine's voluntary cash-out. The Mine never forces a
+     * safe staging room, so the owner uses {@code /dungeon cashout} between
+     * floors to leave with the haul banked so far. This is the Mine's
+     * commitment surface on the exit side: it refuses outside a Mine or
+     * outside a staging checkpoint, then delegates to {@link #returnToSafe},
+     * which settles the safe visit (keystone level, payout, depth record)
+     * and performs the M65 silent physical homecoming. The Mine reuses the
+     * ordinary safe-visit settlement on purpose, so its keystone progression
+     * keys off the same omen finish table and cannot raise the power ceiling.
+     *
+     * @return 1 if the cash-out succeeded, 0 otherwise (for brigadier)
+     */
+    static int cashOutMine(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !EndlessMineRules.isMine(record)) {
+            player.sendSystemMessage(Component.literal(EndlessMineRules.notInMineMessage())
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        if (!RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)) {
+            player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutBetweenFloorsMessage())
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        if (!player.getUUID().equals(record.owner)) {
+            player.sendSystemMessage(Component.literal("Only the party leader can cash out.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        int depth = EndlessMineRules.cashOutDepth(record);
+        if (!returnToSafe(player)) {
+            return 0;
+        }
+        player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutMessage(depth))
+                .withStyle(ChatFormatting.GOLD));
+        return 1;
     }
 
     /**
@@ -1399,7 +1456,8 @@ final class RunLifecycle {
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)
-                || !player.getUUID().equals(record.owner) || !record.safeStaging) {
+                || !player.getUUID().equals(record.owner)
+                || !(record.safeStaging || record.endlessMine)) {
             return false;
         }
         // M65: transition to SAFE_RETURN for the duration of the return.
@@ -1497,6 +1555,7 @@ final class RunLifecycle {
         // room and room origins (they are at new locations now).
         record.affixes = Set.of();
         record.theme = null;
+        record.endlessMine = false;
         record.chosenStep = 0;
         record.freeDoor = false;
         record.selectedStep = 0;
@@ -1611,6 +1670,7 @@ final class RunLifecycle {
         record.layout = Instances.lobbyLayout(safeOrigin);
         record.affixes = Set.of();
         record.theme = null;
+        record.endlessMine = false;
         record.awaitingDoorChoice = true;
         record.chosenStep = 0;
         record.freeDoor = false;

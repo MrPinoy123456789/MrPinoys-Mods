@@ -92,6 +92,13 @@ final class DungeonCommands {
                                     .executes(ctx -> choose(ctx.getSource().getPlayerOrException(),
                                             IntegerArgumentType.getInteger(ctx, "step")))))
 
+                    // M78: the Endless Mine's voluntary cash-out. The Mine never
+                    // forces a safe staging room, so the owner uses this between
+                    // floors to leave with the haul banked so far. See
+                    // RunLifecycle.cashOutMine.
+                    .then(Commands.literal("cashout")
+                            .executes(ctx -> RunLifecycle.cashOutMine(ctx.getSource().getPlayerOrException())))
+
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
                             // replacement: before this there was no way to see a party at

@@ -1012,6 +1012,15 @@ final class Instances {
             return false;
         }
 
+        // M78: a Mine recipe (or a run already flagged Mine) forces the Mine
+        // theme on every floor. The recipe tags are cleared after the first
+        // commit, so a later floor's preview would otherwise lose the Mine
+        // look; record.endlessMine carries the flag forward instead.
+        String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record, recipePlan);
+        if (!effectiveThemeId.equals(offer.theme())) {
+            theme = ThemeManifest.current().byId(effectiveThemeId);
+        }
+
         // M66: a second click on the same offer with the same inputs does not
         // farm random entrances. If the existing preview is for the same step
         // and the recipe revision matches, reuse the frozen plan.
@@ -1079,7 +1088,7 @@ final class Instances {
         Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
-                    offer.theme());
+                    effectiveThemeId);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Preview stamp failed for door {}", step, e);
             clearCellSync(level, entranceOrigin, List.of(record.stagingCellOrigin));
@@ -1204,6 +1213,14 @@ final class Instances {
             return false;
         }
 
+        // M78: the Mine theme forced at preview is carried into commit, and
+        // the run is flagged Mine for the rest of its floors. The flag lives
+        // on the record so later floors stay Mine after the recipe tags are
+        // cleared.
+        String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record,
+                record.previewRecipePlan);
+        boolean openingMine = EndlessMineRules.isMine(record.previewRecipePlan);
+
         // M2/M3: clear the previous dungeon before generating the next one.
         RunLifecycle.resetForNextDungeon(server, record);
 
@@ -1238,7 +1255,7 @@ final class Instances {
             // stamped by previewDoor. The owner's room overlay is skipped
             // too (the safe room is despawned; the entrance is a dungeon room).
             layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
-                    null, offer.theme());
+                    null, effectiveThemeId);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Commit stamp failed behind the staging room at {}",
                     record.stagingCellOrigin.toShortString(), e);
@@ -1271,7 +1288,12 @@ final class Instances {
 
         record.layout = layout;
         record.affixes = affixes;
-        record.theme = offer.theme();
+        record.theme = effectiveThemeId;
+        // M78: a Mine recipe flags the run Mine on the first commit and the
+        // flag persists for the rest of the run.
+        if (openingMine) {
+            record.endlessMine = true;
+        }
         record.awaitingDoorChoice = false;
         record.chosenStep = step;
         record.freeDoor = offer.free();
@@ -1300,7 +1322,7 @@ final class Instances {
         RunSession.transition(record, RunSession.Phase.ACTIVE);
 
         // M11: a boss-themed run gets its one proof encounter.
-        AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(offer.theme());
+        AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(effectiveThemeId);
         if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS) {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
@@ -1332,6 +1354,19 @@ final class Instances {
             }
             clearTrialOmen(inside);
             applyTrialOmen(inside, record);
+        }
+
+        // M78: publish the Mine rules at the commitment surface the first time
+        // a Mine run opens, so the owner understands the risk (no final floor,
+        // previous floors close) and the reward (voluntary cash-out) before
+        // descending. The spatial room movement stays silent, the same as the
+        // ordinary loop.
+        if (openingMine) {
+            ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
+            if (owner != null) {
+                owner.sendSystemMessage(Component.literal(EndlessMineRules.mineStartMessage())
+                        .withStyle(ChatFormatting.AQUA));
+            }
         }
         return true;
     }
@@ -1449,6 +1484,7 @@ final class Instances {
         record.layout = lobbyLayout(safeOrigin);
         record.affixes = Set.of();
         record.theme = null;
+        record.endlessMine = false;
         record.awaitingDoorChoice = true;
         record.chosenStep = 0;
         record.freeDoor = false;

@@ -311,7 +311,9 @@ for ((taskName, testClass) in mapOf(
     // against a packaged release jar (closes DISCOVERIES item 33).
     "jarFileSystemWalkTest" to "JarFileSystemWalkTest",
     // M75: run memento title/lore/codec/readback regression.
-    "runMementoTest" to "RunMementoTest"
+    "runMementoTest" to "RunMementoTest",
+    // M78: Endless Mine ruleset (pure policy helpers).
+    "endlessMineRulesTest" to "EndlessMineRulesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -369,6 +371,7 @@ tasks.test {
     dependsOn("packValidationTest")
     dependsOn("jarFileSystemWalkTest")
     dependsOn("runMementoTest")
+    dependsOn("endlessMineRulesTest")
     failOnNoDiscoveredTests = false
 }
 

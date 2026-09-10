@@ -60,9 +60,16 @@ final class RunMemento {
      * The discovery id ties a minted memento to its record while the item is
      * still in an inventory; once placed it is decor, and the record is the
      * only durable proof.
+     *
+     * <p>M78 adds {@code depth}, the floor index reached on an Endless Mine
+     * cash-out. It is an additive optional field (default 0) so older saved
+     * records decode unchanged, the same migration discipline every codec
+     * field follows. A depth of 0 means an ordinary run; a positive depth
+     * means a Mine cash-out, and the memento renders it as the displayable
+     * Mine record. It grants no power.
      */
     record RunRecord(String discoveryId, String theme, int keystoneLevel, int lootTier,
-                    Set<String> affixes, long timestamp) {
+                    Set<String> affixes, long timestamp, int depth) {
 
         static final Codec<RunRecord> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.STRING.fieldOf("discovery_id").forGetter(RunRecord::discoveryId),
@@ -71,11 +78,19 @@ final class RunMemento {
                 Codec.INT.optionalFieldOf("loot_tier", 0).forGetter(RunRecord::lootTier),
                 Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
                         .optionalFieldOf("affixes", Set.of()).forGetter(RunRecord::affixes),
-                Codec.LONG.optionalFieldOf("timestamp", 0L).forGetter(RunRecord::timestamp)
+                Codec.LONG.optionalFieldOf("timestamp", 0L).forGetter(RunRecord::timestamp),
+                Codec.INT.optionalFieldOf("depth", 0).forGetter(RunRecord::depth)
         ).apply(instance, RunRecord::new));
 
         RunRecord {
             affixes = affixes == null ? Set.of() : Set.copyOf(affixes);
+            depth = Math.max(0, depth);
+        }
+
+        /** Legacy 6-arg constructor: an ordinary run with no Mine depth. */
+        RunRecord(String discoveryId, String theme, int keystoneLevel, int lootTier,
+                  Set<String> affixes, long timestamp) {
+            this(discoveryId, theme, keystoneLevel, lootTier, affixes, timestamp, 0);
         }
     }
 
@@ -149,6 +164,11 @@ final class RunMemento {
                     .append(Component.literal("Affixes: " + String.join(", ", sorted(record.affixes())))
                             .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
+        if (record.depth() > 0) {
+            page1 = page1.append(Component.literal("\n"))
+                    .append(Component.literal("Mine depth: " + record.depth())
+                            .withStyle(ChatFormatting.AQUA));
+        }
         MutableComponent page2 = Component.empty()
                 .append(Component.literal("Discovery: " + shortId(record.discoveryId()))
                         .withStyle(ChatFormatting.GRAY))
@@ -168,6 +188,9 @@ final class RunMemento {
                 + " (tier " + Math.max(0, record.lootTier()) + ")"));
         if (!record.affixes().isEmpty()) {
             lore.add(grey("Affixes: " + String.join(", ", sorted(record.affixes()))));
+        }
+        if (record.depth() > 0) {
+            lore.add(grey("Mine depth: " + record.depth()));
         }
         lore.add(grey("Place on a lectern beside your display."));
         return lore;

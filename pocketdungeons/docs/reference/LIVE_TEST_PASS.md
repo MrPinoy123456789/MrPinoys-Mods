@@ -2584,3 +2584,46 @@ current, and climbing the dry stair.
 - 15 admin builds across seeds 1 to 500: all succeeded, zero
   return-path failures.
 - build: BUILD SUCCESSFUL, full suite green.
+
+## 39. M78: the Endless Mine
+
+Automated tests cover the policy helpers, the recipe flag, the codec round
+trip and the bounded-memory load path. The following require a live client
+session.
+
+### 39.1 Voluntary cash-out
+
+- Hold a keystone at level 5 or higher and apply the Mine recipe at the Cube
+  with a raw iron ingot in the off-hand. Confirm the Mine start message names
+  the risk (no final floor, previous floors close) and the cash-out.
+- Commit a door and descend. Clear the floor and reach the lodestone pad.
+- Confirm the checkpoint message names the mine floor number and the loot
+  tier, and offers `/dungeon cashout`.
+- Run `/dungeon cashout` from the staging room. Confirm the party returns to
+  the room with the banked haul, no teleport, no sound, no lore on the
+  successful path.
+- Run `/dungeon memento` and confirm the book shows "Mine depth: N" with the
+  floor count reached.
+- Run `/dungeon cashout` outside a Mine and confirm the refusal message.
+- Run `/dungeon cashout` while a floor is active (not in the staging room)
+  and confirm the between-floors refusal.
+
+### 39.2 Long-run constant residency
+
+- Chain at least ten Mine floors by walking a door at each checkpoint without
+  cashing out.
+- Confirm the loot tier escalates every three floors and caps at tier 3.
+- Confirm the forced-chunk count stays bounded (only the current floor plus
+  the transition cell), not growing per floor.
+- Confirm the heap does not grow per floor.
+- Confirm a previous floor's cells are gone (walk back is impossible; the old
+  staging room is a liminal cell).
+
+### 39.3 Mine does not raise the power ceiling
+
+- Compare a deep Mine cash-out (many floors, high omen sum) against an
+  ordinary safe visit. Confirm the deep cash-out yields no keystone level up
+  (high omen band), so the Mine is not a better keystone route than the
+  ordinary loop.
+- Confirm a shallow Mine cash-out (one to two floors, low omen) behaves like
+  an ordinary safe visit (level up possible).

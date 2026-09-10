@@ -69,6 +69,14 @@ final class RecipeEffects {
     /** Whether one guaranteed tool cache is supplied in the dungeon (bounded supply). */
     final boolean boundedSupply;
 
+    /**
+     * M78: whether this recipe opens the Endless Mine. The Mine is a run mode,
+     * not a room-shaping operation: it forces the Mine theme on every floor and
+     * swaps the floor transition policy (no forced safe visit, voluntary
+     * cash-out). See {@link EndlessMineRules}.
+     */
+    final boolean endlessMine;
+
     /** The path length bonus added to both min and max path bounds. */
     final int pathLengthBonus;
 
@@ -79,12 +87,13 @@ final class RecipeEffects {
     final List<GuaranteedRoom> guaranteedRooms;
 
     private RecipeEffects(boolean ominous, boolean feral, boolean completionStudyList,
-                          boolean boundedSupply, int pathLengthBonus,
+                          boolean boundedSupply, boolean endlessMine, int pathLengthBonus,
                           List<String> weightedRooms, List<GuaranteedRoom> guaranteedRooms) {
         this.ominous = ominous;
         this.feral = feral;
         this.completionStudyList = completionStudyList;
         this.boundedSupply = boundedSupply;
+        this.endlessMine = endlessMine;
         this.pathLengthBonus = pathLengthBonus;
         this.weightedRooms = weightedRooms == null ? List.of() : List.copyOf(weightedRooms);
         this.guaranteedRooms = guaranteedRooms == null ? List.of() : List.copyOf(guaranteedRooms);
@@ -92,7 +101,7 @@ final class RecipeEffects {
 
     /** The no-op effects: a recipe that does nothing. Used only as the build baseline. */
     static RecipeEffects none() {
-        return new RecipeEffects(false, false, false, false, 0, List.of(), List.of());
+        return new RecipeEffects(false, false, false, false, false, 0, List.of(), List.of());
     }
 
     /**
@@ -102,7 +111,7 @@ final class RecipeEffects {
      * "supported operations and extension limits" gate.
      */
     static RecipeEffects build(boolean ominous, boolean feral, boolean completionStudyList,
-                               boolean boundedSupply, int pathLengthBonus,
+                               boolean boundedSupply, boolean endlessMine, int pathLengthBonus,
                                List<String> weightedRooms, List<GuaranteedRoom> guaranteedRooms) {
         if (pathLengthBonus < 0 || pathLengthBonus > 8) {
             throw new IllegalArgumentException("path_length_bonus must be in [0, 8]");
@@ -116,7 +125,7 @@ final class RecipeEffects {
                 throw new IllegalArgumentException("guaranteed_room min_tier must be in [0, 3]");
             }
         }
-        return new RecipeEffects(ominous, feral, completionStudyList, boundedSupply,
+        return new RecipeEffects(ominous, feral, completionStudyList, boundedSupply, endlessMine,
                 pathLengthBonus, weightedRooms, gRooms);
     }
 
@@ -124,10 +133,12 @@ final class RecipeEffects {
      * Whether this definition touches any operation at all. A definition
      * that bends nothing is rejected at load: the rule every member owes is
      * that it bends a rule, the same gate {@link AffixEffects#hasAnyOperation()}
-     * holds for affixes.
+     * holds for affixes. The Mine flag counts: opening a Mine is bending the
+     * run's transition policy.
      */
     boolean hasAnyOperation() {
-        return ominous || feral || completionStudyList || boundedSupply || pathLengthBonus > 0
+        return ominous || feral || completionStudyList || boundedSupply || endlessMine
+                || pathLengthBonus > 0
                 || !weightedRooms.isEmpty() || !guaranteedRooms.isEmpty();
     }
 }

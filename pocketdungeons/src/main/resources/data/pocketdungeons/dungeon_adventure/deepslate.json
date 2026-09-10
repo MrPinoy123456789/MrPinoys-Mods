@@ -9,6 +9,7 @@
     { "theme": "copper_works", "weight": 1 },
     { "theme": "ossuary", "weight": 1 },
     { "theme": "basalt_foundry", "weight": 1 },
-    { "theme": "ender_archive", "weight": 1 }
+    { "theme": "ender_archive", "weight": 1 },
+    { "theme": "endless_mine", "weight": 1 }
   ]
 }

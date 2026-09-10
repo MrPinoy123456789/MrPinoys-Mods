@@ -69,12 +69,13 @@ final class CubeRecipeMeta {
         boolean feral = boolOr(e, "feral", false);
         boolean completionStudyList = boolOr(e, "completion_study_list", false);
         boolean boundedSupply = boolOr(e, "bounded_supply", false);
+        boolean endlessMine = boolOr(e, "endless_mine", false);
         int pathLengthBonus = intOr(e, "path_length_bonus", 0);
         List<String> weightedRooms = stringListOr(e, "weighted_rooms");
         List<RecipeEffects.GuaranteedRoom> guaranteedRooms = parseGuaranteedRooms(e, fileIdentity);
 
         return RecipeEffects.build(ominous, feral, completionStudyList, boundedSupply,
-                pathLengthBonus, weightedRooms, guaranteedRooms);
+                endlessMine, pathLengthBonus, weightedRooms, guaranteedRooms);
     }
 
     private static List<RecipeEffects.GuaranteedRoom> parseGuaranteedRooms(JsonObject e,

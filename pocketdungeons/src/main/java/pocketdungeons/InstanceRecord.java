@@ -117,6 +117,16 @@ final class InstanceRecord {
     String theme;
 
     /**
+     * M78: whether this run is an Endless Mine. Set on the first floor's
+     * commit when the resolved recipe plan opens the Mine, and held for the
+     * rest of the run so the Mine transition policy (no forced safe visit,
+     * voluntary cash-out, escalating loot tier) stays active after the
+     * recipe tags are cleared. Reset alongside {@link #theme} when the run
+     * ends. See {@link EndlessMineRules}.
+     */
+    boolean endlessMine;
+
+    /**
      * True while this instance is still just the lobby -- the owner's
      * standing room, stamped alone with its one connecting door sealed,
      * showing three doors rendered from {@code Keystone.offers} but no
