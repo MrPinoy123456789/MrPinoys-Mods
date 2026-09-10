@@ -138,6 +138,16 @@ final class DungeonCommands {
                                     .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "leader")))))
 
+                    // M75: mint an optional written memento of the caller's
+                    // most recent completed run, from the server-side run
+                    // record kept on every safe visit. The memento is a
+                    // vanilla written book the owner can place on a lectern;
+                    // it carries no progression credit. No record, no
+                    // memento: a player who has not finished a run gets a
+                    // refusal line, not a blank book.
+                    .then(Commands.literal("memento")
+                            .executes(ctx -> memento(ctx.getSource().getPlayerOrException())))
+
                     // M2 T2.2: an owner's own guest list for their room.
                     // M20: the lobby directory replaces the calling card, so the
                     // room subtree gains the visibility toggle and the display
@@ -499,6 +509,34 @@ final class DungeonCommands {
         player.sendSystemMessage(Component.literal(
                 "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
                 .withStyle(ChatFormatting.AQUA));
+        return 1;
+    }
+
+    /**
+     * M75: mints a written memento of the caller's most recent completed run
+     * from the server-side run record. The memento is a vanilla written book
+     * the owner can place on a lectern beside their display; it carries no
+     * progression credit. A player with no recorded run gets a refusal line
+     * rather than a blank book. Delivered via {@link Payout#deliver} so a
+     * full inventory drops it at the feet rather than voiding it (trap 3).
+     */
+    private static int memento(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return 0;
+        }
+        DungeonLog log = DungeonLog.forServer(server);
+        RunMemento.RunRecord record = log.latestRunRecord(player.getUUID());
+        if (record == null) {
+            player.sendSystemMessage(Component.literal(
+                    "You have no completed run to remember yet. Finish a run first.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        Payout.deliver(player, RunMemento.mint(player, record));
+        player.sendSystemMessage(Component.literal(
+                "A memento of your last run. Place it on a lectern beside your display.")
+                .withStyle(ChatFormatting.GOLD));
         return 1;
     }
 

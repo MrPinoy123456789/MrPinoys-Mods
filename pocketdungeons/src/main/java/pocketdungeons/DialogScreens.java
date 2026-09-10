@@ -67,6 +67,16 @@ final class DialogScreens {
     /** M20: which public room the lobby browser's button chose to visit. */
     static final String ACTION_VISIT_ROOM = "pd_visit_room";
     /**
+     * M75: which whitelisted room the friend-visit browser's button chose. A
+     * separate action from {@link #ACTION_VISIT_ROOM} so the router checks the
+     * whitelist (not {@code publicListed}) before admitting: the two channels
+     * share one {@link VisitService#visit} routing call, never two parallel
+     * admit paths that could disagree.
+     */
+    static final String ACTION_VISIT_FRIEND = "pd_visit_friend";
+    /** M75: the lodestone menu's "visit a whitelisted room" option. */
+    static final String ACTION_BROWSE_FRIENDS = "browse_friends";
+    /**
      * PD-35: a {@code MultiActionDialog} ships whole in one packet, so the
      * lobby directory's row count needs a cap. Matches this suite's own
      * convention, the same cap Ballot's settings dialog uses.
@@ -520,18 +530,86 @@ final class DialogScreens {
      * ("That room is not open any more."); {@code null} for a fresh open.
      */
     static Dialog lobbyBrowserDialog(List<LobbyRow> rows, UUID clicker, String notice) {
+        return visitListDialog("Lobby directory", "No public rooms right now.",
+                "List your room with /dungeon room public.", "public room",
+                rows, clicker, notice, ACTION_VISIT_ROOM);
+    }
+
+    /**
+     * M75: the private visit channel's directory, the counterpart of
+     * {@link #lobbyBrowser}. One button per room whose owner has whitelisted
+     * the clicker, each carrying the target owner's UUID. Same stale-state
+     * discipline as the public directory: {@link DialogRouter} re-reads the
+     * whitelist and the live room before admitting, so an owner who removed
+     * the clicker (or logged off) while the screen sat open degrades to a
+     * re-shown list, never to a wrong entry. No room the clicker was not
+     * explicitly invited to ever appears.
+     */
+    static Dialog friendBrowser(MinecraftServer server, UUID clicker) {
+        return friendBrowser(server, clicker, null);
+    }
+
+    /** Same as the two-arg form, with a yellow reason line for a stale-click re-show. */
+    static Dialog friendBrowser(MinecraftServer server, UUID clicker, String notice) {
+        List<OnlinePlayer> online = server.getPlayerList().getPlayers().stream()
+                .map(p -> new OnlinePlayer(p.getUUID(), p.getName().getString()))
+                .toList();
+        return friendBrowserDialog(
+                friendRows(RoomWhitelist.forServer(server), DungeonLog.forServer(server), online, clicker),
+                clicker, notice);
+    }
+
+    /**
+     * The rows the friend-visit directory shows right now: every online player
+     * whose whitelist admits the clicker. Pure function of the whitelist, the
+     * log and the online set, so the listing rule is testable headless the same
+     * way {@link #lobbyRows} is; status and occupancy read the same live state
+     * {@link VisitService} routes visits by, so the list can never show a room
+     * as visitable that a click could not enter.
+     */
+    static List<LobbyRow> friendRows(RoomWhitelist whitelist, DungeonLog log,
+                                     List<OnlinePlayer> online, UUID clicker) {
+        Set<UUID> permitted = whitelist.roomsPermittedFor(clicker);
+        List<LobbyRow> rows = new ArrayList<>();
+        for (OnlinePlayer player : online) {
+            if (!permitted.contains(player.id())) {
+                continue;
+            }
+            DungeonLog.Entry entry = log.get(player.id());
+            rows.add(new LobbyRow(player.id(), player.name(), entry.roomName(),
+                    VisitService.statusOf(player.id()), VisitService.occupancyOf(player.id())));
+        }
+        rows.sort(Comparator.comparing(LobbyRow::label));
+        return rows;
+    }
+
+    /** The headless-testable half of {@link #friendBrowser}. */
+    static Dialog friendBrowserDialog(List<LobbyRow> rows, UUID clicker, String notice) {
+        return visitListDialog("Friends' rooms", "No rooms you can visit right now.",
+                "Ask a room owner to whitelist you.", "room you can visit",
+                rows, clicker, notice, ACTION_VISIT_FRIEND);
+    }
+
+    /**
+     * The shared builder behind the public and private visit directories.
+     * Same shape, same cap, same payload keys; only the title, the empty-state
+     * text, the count noun and the submit action differ. The two channels share
+     * one {@link VisitService#visit} routing call downstream, never two admit
+     * paths, so this is the only place they diverge in presentation.
+     */
+    private static Dialog visitListDialog(String title, String emptyLine, String emptyHint,
+                                          String noun, List<LobbyRow> rows, UUID clicker,
+                                          String notice, String action) {
         List<DialogBody> body = new ArrayList<>();
         if (notice != null) {
             body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
         }
         if (rows.isEmpty()) {
             // Never build a zero-button MultiActionDialog; a fresh server with
-            // nobody opted in deserves a sentence, not an empty grid.
-            body.add(DialogKit.text("No public rooms right now."));
-            body.add(DialogKit.text(Component.literal(
-                    "List your room with /dungeon room public.")
-                    .withStyle(ChatFormatting.GRAY)));
-            return DialogKit.notice("Lobby directory", body, backToMenuButton(clicker));
+            // nobody to visit deserves a sentence, not an empty grid.
+            body.add(DialogKit.text(emptyLine));
+            body.add(DialogKit.text(Component.literal(emptyHint).withStyle(ChatFormatting.GRAY)));
+            return DialogKit.notice(title, body, backToMenuButton(clicker));
         }
         // PD-35: a MultiActionDialog ships whole in one packet, so an
         // unbounded row count is an unbounded packet. Capped at 8, matching
@@ -544,16 +622,16 @@ final class DialogScreens {
             context.putString(KEY_OWNER, clicker.toString());
             context.putString(KEY_TARGET, row.owner().toString());
             buttons.add(DialogKit.button(row.label(), row.body(),
-                    DialogKit.submit(ACTION_VISIT_ROOM, context)));
+                    DialogKit.submit(action, context)));
         }
-        body.add(DialogKit.text(rows.size() + " public room" + (rows.size() == 1 ? "" : "s")
+        body.add(DialogKit.text(rows.size() + " " + noun + (rows.size() == 1 ? "" : "s")
                 + " right now."));
         if (rows.size() > LOBBY_ROW_CAP) {
             body.add(DialogKit.text(Component.literal(
                     "...and " + (rows.size() - LOBBY_ROW_CAP) + " more room(s) not shown.")
                     .withStyle(ChatFormatting.GRAY)));
         }
-        return DialogKit.list("Lobby directory", body, buttons, backToMenuButton(clicker));
+        return DialogKit.list(title, body, buttons, backToMenuButton(clicker));
     }
 
     // ---- section 11: the wall-lodestone menu (M21) -------------------------
@@ -600,6 +678,11 @@ final class DialogScreens {
                 new MenuOption("Start Dungeon", "Requires a keystone in your main hand",
                         ACTION_START_DUNGEON),
                 new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
+                // M75: the private visit channel. Lists rooms whose owner has
+                // whitelisted this player, the counterpart of the public lobby
+                // directory. Same routing service, separate admit check.
+                new MenuOption("Visit a Friend", "Rooms you have been invited to",
+                        ACTION_BROWSE_FRIENDS),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
                 new MenuOption("Stations", "Take a station block for your room",
                         ACTION_STATIONS),

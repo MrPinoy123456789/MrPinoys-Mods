@@ -78,6 +78,12 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_POWER, ""));
             case DialogScreens.ACTION_VISIT_ROOM -> visitRoom(player, server,
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
+            // M75: the private visit channel. Same routing service as the
+            // public lobby directory, separate admit check: the whitelist, not
+            // publicListed, gates which rooms appear and which clicks succeed.
+            case DialogScreens.ACTION_BROWSE_FRIENDS -> browseFriends(player, server);
+            case DialogScreens.ACTION_VISIT_FRIEND -> visitFriend(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             // M21: the wall-lodestone menu's options. The keystone is checked
             // here, on the click, never when the menu opened.
             case DialogScreens.ACTION_START_DUNGEON -> startDungeon(player);
@@ -204,6 +210,16 @@ public final class DialogRouter {
     /** The menu's Browse Lobbies option: M20's directory, invoked verbatim. */
     private static void browseLobbies(ServerPlayer player, MinecraftServer server) {
         DialogKit.show(player, DialogScreens.lobbyBrowser(server, player.getUUID()));
+        Chime.lobbyOpens(player);
+    }
+
+    /**
+     * M75: the menu's Visit a Friend option, the private counterpart of
+     * {@link #browseLobbies}. Lists rooms whose owner has whitelisted this
+     * player, never rooms they were not explicitly invited to.
+     */
+    private static void browseFriends(ServerPlayer player, MinecraftServer server) {
+        DialogKit.show(player, DialogScreens.friendBrowser(server, player.getUUID()));
         Chime.lobbyOpens(player);
     }
 
@@ -408,6 +424,46 @@ public final class DialogRouter {
             Chime.refused(clicker); // as in reshow: a notice here is a room that said no
         }
         DialogKit.show(clicker, DialogScreens.lobbyBrowser(server, clicker.getUUID(), notice));
+    }
+
+    /**
+     * M75: a friend-visit button was clicked. The private counterpart of
+     * {@link #visitRoom}: the target is re-read as a UUID and the visit
+     * re-validated against live state, never trusted from the snapshot the
+     * screen was built from. The admit check is the whitelist (not
+     * {@code publicListed}), so an owner who removed the clicker while the
+     * screen sat open is refused here, before {@link VisitService#visit} is
+     * reached. A click that still passes goes on to the same
+     * {@link VisitService#visit} call the public directory uses, so the two
+     * channels can never disagree about which instance a visitor lands in.
+     * A rejected click ends on a re-shown friend directory with a reason
+     * line, the same shape as the public directory's stale-state guard.
+     */
+    private static void visitFriend(ServerPlayer clicker, MinecraftServer server, UUID target) {
+        if (target == null) {
+            reshowFriends(clicker, server, "That room could not be read.");
+            return;
+        }
+        if (!RoomWhitelist.forServer(server).isPermitted(target, clicker.getUUID())) {
+            reshowFriends(clicker, server, "You are no longer invited to that room.");
+            return;
+        }
+        if (server.getPlayerList().getPlayer(target) == null) {
+            reshowFriends(clicker, server, "The room owner is offline.");
+            return;
+        }
+        if (VisitService.visit(clicker, target)) {
+            return; // teleported; the visit's own chat line is the confirmation
+        }
+        reshowFriends(clicker, server, "That room is not open any more.");
+    }
+
+    /** Rebuilds the friend-visit directory from current state and sends it back, with a reason line. */
+    private static void reshowFriends(ServerPlayer clicker, MinecraftServer server, String notice) {
+        if (notice != null) {
+            Chime.refused(clicker);
+        }
+        DialogKit.show(clicker, DialogScreens.friendBrowser(server, clicker.getUUID(), notice));
     }
 
     // ---- M48: bag selection -------------------------------------------------

@@ -4026,3 +4026,103 @@ require one.
 - 15 admin builds across seeds 1 to 500: all succeeded, zero
   return-path failures.
 - build: BUILD SUCCESSFUL, full suite green.
+## M75: whitelist-gated private visits, run mementos, retuned bounties
+
+Players can show a physical record, pass a private address and learn from
+each other without a browse-only popularity contest. The original plan
+proposed a `CallingCard` item for private visiting; the owner rejected that
+as annoying for buddy visits and chose whitelist-gated visits instead. No
+new item, no revocation epoch, no card custody or copying.
+
+### Whitelist-gated private visits
+
+A new "Visit a Friend" menu entry on the lodestone menu lists rooms whose
+owner has whitelisted the clicker, the private counterpart of the public
+lobby directory. The two channels share one `VisitService.visit` routing
+call, never two parallel admit paths that could disagree. The admit check
+differs: the public directory checks `publicListed`, the private directory
+checks `RoomWhitelist.isPermitted`. Both revalidate at click time and
+re-show the directory with a reason line on a stale click, per
+`DIALOGS_SPEC` section 7.
+
+- `RoomWhitelist.roomsPermittedFor(UUID clicker)`: reverse lookup returning
+  owner UUIDs whose whitelist admits the clicker.
+- `DialogScreens.friendBrowser` / `friendRows` / `friendBrowserDialog`:
+  the private directory, mirroring `lobbyBrowser` / `lobbyRows` /
+  `lobbyBrowserDialog`. Both delegate to a shared `visitListDialog` builder.
+- `DialogRouter.visitFriend` / `browseFriends` / `reshowFriends`: the
+  private click handler, mirroring `visitRoom` / `browseLobbies` /
+  `reshowLobby`.
+- New actions: `ACTION_BROWSE_FRIENDS`, `ACTION_VISIT_FRIEND`.
+
+No room name or UUID enumeration for arbitrary private rooms. The list
+only includes online owners who have whitelisted the clicker. Whitelist
+editing semantics are unchanged: the whitelist still governs room editing
+and container permissions; visit authorization is an additional use of
+whitelist membership, not a replacement.
+
+### Run memento
+
+An optional written book memento of a completed run, minted on demand with
+`/dungeon memento`. The memento is a vanilla written book the owner can
+place on a lectern beside their display. It carries the run's theme, key
+band (keystone level and loot tier), affixes and a discovery id. No
+progression credit, no auto-delivery, no auto-furnished trophy wall, no
+compulsory museum slots.
+
+The server keeps the authoritative run record (the evidence) on every safe
+visit in a new `runRecords` sidecar on `DungeonLog`, capped at 20 records
+per player. A placed memento loses its components (DISCOVERIES trap 16), so
+the record is the only durable proof; the item is a label a player chooses
+to put on a run the server already remembers.
+
+- `RunMemento.RunRecord`: the evidence record (discovery id, theme,
+  keystone level, loot tier, affixes, timestamp).
+- `RunMemento.mint`: builds the written book with title, pages, name and
+  lore.
+- `RunMemento.isMemento` / `discoveryIdOf`: readback from a stack.
+- `DungeonLog.addRunRecord` / `runRecordsOf` / `latestRunRecord`: sidecar
+  accessors.
+- `/dungeon memento` command: mints from the latest record.
+
+### Bounty retuning
+
+The weekly bounty pool is retuned entirely toward exploration, clearing
+and low-omen safe visits. Every entry is solo-achievable. No bounty
+requires a party, gambles, banks fuel, or climbs keystone levels.
+
+Removed (non-exploration or not solo-achievable):
+- `ECHO_HARVESTER` (fuel banking, routine crafting).
+- `HIGH_ROLLER` (gambling, 32 emeralds).
+- `KEYSTONE_CLIMBER` (keystone level grind).
+- `PACK_HUNTER` (requires a party of 2+).
+
+Added (exploration, clearing, all solo-achievable):
+- `EXPLORER` (5): complete any safe visit.
+- `TIDY` (3): full clear all spawners on a floor.
+- `DEEP_DIVER` (3): reach the second safe-visit depth.
+
+Kept (already exploration or low-omen oriented):
+- `CLEAR_HALLS` (15, lowered from 20): clear trial spawners.
+- `SPEEDRUNNER` (3): low-omen completions.
+- `SPELUNKER` (2): deeper exploration (chosenStep >= 2).
+
+Rewards unchanged: 2 echo shards + 4 emeralds per online member, 1 bonus
+shard for the owner. Materials only, no tradable progression credit, no
+public ranks, no streak punishment, no escalating mandatory grind.
+
+### Verification
+
+- lobbyBrowserTest: passed (friend rows, friend dialog, action id, empty
+  state).
+- lodestoneMenuTest: passed (7 overworld options, Visit a Friend at index
+  2).
+- runMementoTest: passed (RunRecord codec round trip, title, lore,
+  nextDiscoveryId uniqueness).
+- dungeonLogTest: passed (run-record sidecar add, latest, cap, round trip,
+  legacy save).
+- bountyTrackerTest: passed (seeded pick, stale reset, sidecar round trip,
+  legacy save, unlock gate).
+- runGameTest: 61 tests passed.
+- dungeonIntegrationTest: 61 tests passed.
+- build: BUILD SUCCESSFUL, full suite green.

@@ -251,15 +251,6 @@ final class RitualListener {
                 Fuel.bank(serverPlayer, 1);
                 Chime.engineFed(serverPlayer);
                 TaskTracker.progress(serverPlayer, TaskTracker.Task.FEED_ENGINE, 1);
-                // M34: banking fuel counts toward the owner's Echo Harvester bounty.
-                InstanceRecord bountyRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
-                if (bountyRecord != null) {
-                    MinecraftServer server = serverPlayer.level().getServer();
-                    if (server != null) {
-                        BountyTracker.progress(server, bountyRecord.owner,
-                                BountyTracker.Bounty.ECHO_HARVESTER.id, 1);
-                    }
-                }
             } else {
                 Chime.refused(serverPlayer);
             }

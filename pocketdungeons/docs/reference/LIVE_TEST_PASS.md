@@ -2028,6 +2028,45 @@ Check:
 An explicit interoperability check, not a compatibility claim. Server-only
 branding does not make this safe.
 
+## 38. M75: social visits, mementos and retuned bounties
+
+Headless tests cover the pure logic (friend-row construction, memento title
+and lore, bounty pool composition, sidecar round trips). The following
+require a live client session with two or more players.
+
+### 38.1 Whitelist-gated private visit
+
+- Owner A lists their room as private and whitelists player B.
+- Player B opens the lodestone menu and sees "Visit a Friend".
+- Player B clicks "Visit a Friend" and sees A's room in the list.
+- Player B clicks A's room and is routed to A's room via VisitService.
+- Owner A removes B from the whitelist while B's friend list is open.
+- Player B clicks A's room again; the list re-shows with "You are no
+  longer invited to that room." instead of routing.
+- A player C who is not whitelisted by A never sees A's room in their
+  friend list.
+
+### 38.2 Run memento placement and readback
+
+- Complete a run (reach a safe visit).
+- Run `/dungeon memento` and receive a written book.
+- Place the book on a lectern in your room.
+- Right-click the lectern and confirm the book shows the run's theme,
+  keystone level, loot tier and affixes.
+- Confirm the book's tooltip in the inventory shows the same details.
+- Confirm a plain written book is not recognised as a memento.
+
+### 38.3 Retuned bounty progress
+
+- Check the bounty tracker screen after a safe visit.
+- Confirm only exploration, clearing and low-omen bounties appear (no Echo
+  Harvester, High Roller, Keystone Climber or Pack Hunter).
+- Confirm EXPLORER progresses by 1 per safe visit.
+- Confirm TIDY progresses only when all spawners on the floor are cleared.
+- Confirm DEEP_DIVER progresses only at the second safe-visit depth or
+  deeper.
+- Confirm a solo player can complete every bounty in the pool.
+
 Check, with a second inventory mod installed (a sorter, a backpack mod, or
 anything that moves stacks on the server):
 

@@ -167,6 +167,45 @@ public class DungeonLogTest {
         check(floorDecoded.discoveryOf(player).floorDelivered(), true,
                 "floor delivered flag round trips");
 
+        // M75: run-record sidecar. addRunRecord appends, latestRunRecord
+        // returns the newest, and the list round trips through the codec.
+        // The cap drops the oldest off the front.
+        DungeonLog runs = new DungeonLog();
+        check(runs.runRecordsOf(player).isEmpty(), true, "fresh log has no run records");
+        check(runs.latestRunRecord(player) == null, true, "fresh log has no latest run record");
+        runs.addRunRecord(player, new RunMemento.RunRecord("id1", "cave", 1, 1, Set.of(), 100L));
+        runs.addRunRecord(player, new RunMemento.RunRecord("id2", "deepslate", 5, 2, Set.of("ominous"), 200L));
+        check(runs.runRecordsOf(player).size(), 2, "two run records recorded");
+        check(runs.latestRunRecord(player).discoveryId(), "id2", "latest is the newest record");
+        com.google.gson.JsonElement runsJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, runs).result().orElseThrow();
+        DungeonLog runsDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, runsJson).result().orElseThrow().getFirst();
+        check(runsDecoded.runRecordsOf(player).size(), 2, "run records round trip");
+        check(runsDecoded.latestRunRecord(player).discoveryId(), "id2",
+                "latest run record round trips");
+        check(runsDecoded.runRecordsOf(player).get(0).theme(), "cave",
+                "oldest run record round trips with theme");
+
+        // The cap drops the oldest off the front.
+        DungeonLog capped = new DungeonLog();
+        for (int i = 0; i < DungeonLog.RUN_RECORD_LIMIT + 5; i++) {
+            capped.addRunRecord(player, new RunMemento.RunRecord("id" + i, "t", i, 1, Set.of(), i));
+        }
+        check(capped.runRecordsOf(player).size(), DungeonLog.RUN_RECORD_LIMIT,
+                "run records are capped at the limit");
+        check(capped.latestRunRecord(player).discoveryId(),
+                "id" + (DungeonLog.RUN_RECORD_LIMIT + 4),
+                "capped list keeps the newest records");
+
+        // A pre-M75 save has no run_records field and loads with an empty sidecar.
+        com.google.gson.JsonObject legacyRuns = new com.google.gson.JsonObject();
+        legacyRuns.add("players", new com.google.gson.JsonArray());
+        DungeonLog legacyRunsDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, legacyRuns).result().orElseThrow().getFirst();
+        check(legacyRunsDecoded.runRecordsOf(player).isEmpty(), true,
+                "pre-M75 save defaults run records to empty");
+
         System.out.println("DungeonLogTest passed");
     }
 

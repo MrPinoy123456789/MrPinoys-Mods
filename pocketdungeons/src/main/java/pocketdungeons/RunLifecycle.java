@@ -1255,8 +1255,9 @@ final class RunLifecycle {
 
         // M34: weekly bounty hooks. Fire once per visit, not per member.
         Set<BlockPos> spawners = record.layout.trialSpawners();
+        int cleared = 0;
         if (!spawners.isEmpty()) {
-            int cleared = TrialContent.countCleared(
+            cleared = TrialContent.countCleared(
                     server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL), spawners);
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
@@ -1269,9 +1270,19 @@ final class RunLifecycle {
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.SPELUNKER.id, 1);
         }
-        if (record.members.size() >= 2) {
+        // M75: exploration bounties. All fire once per safe visit and are
+        // solo-achievable. Explorer counts any completed safe visit; Tidy
+        // counts a full spawner clear (all spawners, not just the threshold
+        // fraction); Deep Diver counts reaching the second safe-visit depth.
+        BountyTracker.progress(server, record.owner,
+                BountyTracker.Bounty.EXPLORER.id, 1);
+        if (!spawners.isEmpty() && cleared >= spawners.size()) {
             BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.PACK_HUNTER.id, 1);
+                    BountyTracker.Bounty.TIDY.id, 1);
+        }
+        if (record.floorIndex >= PocketDungeonsConfig.floorsPerSafeVisit() * 2) {
+            BountyTracker.progress(server, record.owner,
+                    BountyTracker.Bounty.DEEP_DIVER.id, 1);
         }
 
         // Per-member settlement: keystone level up, free-door fuel, payout,
@@ -1318,6 +1329,22 @@ final class RunLifecycle {
                                     + " shell is yours; change it from your room's menu.")
                             .withStyle(ChatFormatting.GOLD));
                 }
+            }
+
+            // M75: keep the server-side run record (the evidence behind a
+            // memento) for each member who completed a floor this visit.
+            // No item is minted here: the memento is opt-in, minted only
+            // when a player asks for one with /dungeon memento. The record
+            // is the durable proof, since a placed memento loses its
+            // components (DISCOVERIES trap 16).
+            if (record.completed.contains(member)) {
+                log.addRunRecord(member, new RunMemento.RunRecord(
+                        RunMemento.nextDiscoveryId(),
+                        record.theme == null ? "" : record.theme,
+                        record.layout.keystoneLevel(),
+                        KeystoneMath.lootTier(record.layout.keystoneLevel()),
+                        record.affixes,
+                        System.currentTimeMillis()));
             }
         }
     }

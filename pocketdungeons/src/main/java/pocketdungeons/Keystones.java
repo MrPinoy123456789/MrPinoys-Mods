@@ -111,12 +111,6 @@ final class Keystones {
         // the member themselves otherwise (settling a pending offer outside an
         // instance still counts toward their own bounty).
         int delta = offer.level() - previousLevel;
-        if (delta > 0) {
-            InstanceRecord record = InstanceRegistry.byMember.get(member);
-            UUID owner = record != null ? record.owner : member;
-            BountyTracker.progress(server, owner,
-                    BountyTracker.Bounty.KEYSTONE_CLIMBER.id, delta);
-        }
         if (player == null) {
             PocketDungeonsMod.LOG.info("Offer for absent player {} settled at level {}",
                     member, offer.level());

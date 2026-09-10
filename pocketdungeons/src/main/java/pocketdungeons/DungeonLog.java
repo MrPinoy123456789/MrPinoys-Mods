@@ -319,6 +319,21 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, RecipeDiscovery> recipeDiscoveries = new HashMap<>();
 
+    /**
+     * (M75) Per-player run records: the server-side evidence behind a
+     * {@link RunMemento}. A sidecar map for the same reason
+     * {@link #recipeDiscoveries} is one: the records are written on every
+     * safe visit and read only when a player mints a memento, have nothing
+     * in common with a player's campaign history, and would push
+     * {@link Entry}'s codec past its two-group split for no benefit. A
+     * placed memento loses its components (DISCOVERIES trap 16), so this
+     * list is the only durable proof a run happened; the item is a label.
+     */
+    private final Map<UUID, List<RunMemento.RunRecord>> runRecords = new HashMap<>();
+
+    /** (M75) How many run records per player the sidecar keeps; oldest drop off the front. */
+    static final int RUN_RECORD_LIMIT = 20;
+
     DungeonLog() {}
 
     // Keyed by UUID and therefore stored as a list of entries, not a map.
@@ -478,6 +493,17 @@ final class DungeonLog extends SavedData {
             RecipeDiscovery.CODEC.fieldOf("discovery").forGetter(PlayerRecipeDiscovery::discovery)
     ).apply(instance, PlayerRecipeDiscovery::new));
 
+    /** (M75) One player's run-record sidecar, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerRunRecords(UUID player, List<RunMemento.RunRecord> records) {}
+
+    private static final Codec<PlayerRunRecords> PLAYER_RUN_RECORDS_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerRunRecords::player),
+            RunMemento.RunRecord.CODEC.listOf().fieldOf("records")
+                    .forGetter(PlayerRunRecords::records)
+    ).apply(instance, PlayerRunRecords::new));
+
     static final Codec<DungeonLog> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PLAYER_ENTRY_CODEC.listOf().optionalFieldOf("players", List.of())
                     .forGetter(log -> log.entries.entrySet().stream()
@@ -511,13 +537,21 @@ final class DungeonLog extends SavedData {
             // no recipes discovered and no ingredients encountered.
             PLAYER_RECIPE_DISCOVERY_CODEC.listOf().optionalFieldOf("recipe_discoveries", List.of())
                     .forGetter(log -> log.recipeDiscoveries.entrySet().stream()
-                            .map(e -> new PlayerRecipeDiscovery(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerRecipeDiscovery(e.getKey(), e.getValue())).toList()),
+            // M75: optional so a dungeon_log.dat written before this
+            // milestone loads unchanged, every player simply starting with
+            // no run records, which is the correct reading of "no memento
+            // evidence yet".
+            PLAYER_RUN_RECORDS_CODEC.listOf().optionalFieldOf("run_records", List.of())
+                    .forGetter(log -> log.runRecords.entrySet().stream()
+                            .map(e -> new PlayerRunRecords(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
                                           List<PlayerBounties> bounties, List<PlayerStash> stashes,
                                           List<PlayerOrphan> orphans,
-                                          List<PlayerRecipeDiscovery> recipeDiscoveries) {
+                                          List<PlayerRecipeDiscovery> recipeDiscoveries,
+                                          List<PlayerRunRecords> runRecords) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -536,6 +570,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerRecipeDiscovery d : recipeDiscoveries) {
             log.recipeDiscoveries.put(d.player(), d.discovery());
+        }
+        for (PlayerRunRecords r : runRecords) {
+            log.runRecords.put(r.player(), new ArrayList<>(r.records()));
         }
         return log;
     }
@@ -1007,6 +1044,40 @@ final class DungeonLog extends SavedData {
             return;
         }
         recipeDiscoveries.put(player, next);
+        setDirty();
+    }
+
+    /**
+     * (M75) This player's run records, newest last, or an empty list if
+     * none are recorded. The evidence behind a {@link RunMemento}; never
+     * browsed by other players and never enumerated globally.
+     */
+    List<RunMemento.RunRecord> runRecordsOf(UUID player) {
+        return List.copyOf(runRecords.getOrDefault(player, List.of()));
+    }
+
+    /** (M75) This player's most recent run record, or {@code null} if none. */
+    RunMemento.RunRecord latestRunRecord(UUID player) {
+        List<RunMemento.RunRecord> records = runRecords.get(player);
+        return records == null || records.isEmpty() ? null : records.get(records.size() - 1);
+    }
+
+    /**
+     * (M75) Appends a run record to this player's evidence. Capped at a
+     * bounded history so the sidecar cannot grow without limit: the most
+     * recent {@link #RUN_RECORD_LIMIT} records are kept, older ones drop off
+     * the front. The memento is opt-in, so a player who never mints one
+     * never reads this list; the cap costs nothing a player notices.
+     */
+    void addRunRecord(UUID player, RunMemento.RunRecord record) {
+        if (record == null) {
+            return;
+        }
+        List<RunMemento.RunRecord> records = runRecords.computeIfAbsent(player, k -> new ArrayList<>());
+        records.add(record);
+        while (records.size() > RUN_RECORD_LIMIT) {
+            records.remove(0);
+        }
         setDirty();
     }
 

@@ -235,19 +235,6 @@ final class GambleStation {
         // actually debited, matching "Spend Emeralds at Kadala"'s label.
         TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
 
-        // M34: emeralds spent at the gamble count toward the owner's High
-        // Roller bounty. The owner is the instance owner, not necessarily the
-        // player pulling the lever: a party member's gamble spends toward the
-        // host's bounty, the same way their run completion does.
-        InstanceRecord bountyRecord = InstanceRegistry.byMember.get(player.getUUID());
-        if (bountyRecord != null) {
-            MinecraftServer server = player.level().getServer();
-            if (server != null) {
-                BountyTracker.progress(server, bountyRecord.owner,
-                        BountyTracker.Bounty.HIGH_ROLLER.id, cost);
-            }
-        }
-
         player.sendSystemMessage(Component.literal("Gambled into " + drawn.getHoverName().getString() + ".")
                 .withStyle(ChatFormatting.AQUA));
 

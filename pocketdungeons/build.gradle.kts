@@ -248,7 +248,9 @@ for ((taskName, testClass) in mapOf(
     "packValidationTest" to "PackValidatorTest",
     // M72: verifies the jar: filesystem walk used by PackValidator.copyResourceTree
     // against a packaged release jar (closes DISCOVERIES item 33).
-    "jarFileSystemWalkTest" to "JarFileSystemWalkTest"
+    "jarFileSystemWalkTest" to "JarFileSystemWalkTest",
+    // M75: run memento title/lore/codec/readback regression.
+    "runMementoTest" to "RunMementoTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -305,6 +307,7 @@ tasks.test {
     dependsOn("contentSnapshotTest")
     dependsOn("packValidationTest")
     dependsOn("jarFileSystemWalkTest")
+    dependsOn("runMementoTest")
     failOnNoDiscoveredTests = false
 }
 

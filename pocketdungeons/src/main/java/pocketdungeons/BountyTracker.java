@@ -44,15 +44,21 @@ final class BountyTracker {
      * One bounty type. The pool the weekly pick draws three from. Order here is
      * the pick's iteration order: a seeded shuffle walks the enum in this
      * order and takes the first three it has not yet picked.
+     *
+     * <p>M75 retune: the pool is now entirely exploration, clearing and
+     * low-omen oriented, and every entry is solo-achievable. The four
+     * non-exploration or non-solo bounties (Echo Harvester, High Roller,
+     * Keystone Climber, Pack Hunter) are gone; three exploration bounties
+     * (Explorer, Tidy, Deep Diver) take their place. No bounty in the pool
+     * requires a party, gambles, banks fuel, or climbs keystone levels.
      */
     enum Bounty {
-        CLEAR_HALLS("clear_halls", "Clear the Halls", 20),
-        ECHO_HARVESTER("echo_harvester", "Echo Harvester", 9),
+        CLEAR_HALLS("clear_halls", "Clear the Halls", 15),
         SPEEDRUNNER("speedrunner", "Speedrunner", 3),
-        HIGH_ROLLER("high_roller", "High Roller", 32),
         SPELUNKER("spelunker", "Spelunker", 2),
-        PACK_HUNTER("pack_hunter", "Pack Hunter", 3),
-        KEYSTONE_CLIMBER("keystone_climber", "Keystone Climber", 3);
+        EXPLORER("explorer", "Explorer", 5),
+        TIDY("tidy", "Tidy", 3),
+        DEEP_DIVER("deep_diver", "Deep Diver", 3);
 
         final String id;
         final String label;

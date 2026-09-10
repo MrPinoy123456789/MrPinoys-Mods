@@ -71,6 +71,46 @@ public class LobbyBrowserTest {
         check(payload.getStringOr(DialogScreens.KEY_OWNER, ""), clicker.toString(),
                 "button carries the clicker UUID");
 
+        // M75: the private visit channel. friendRows lists only online owners
+        // who have whitelisted the clicker; an unwhitelisted online owner and
+        // a whitelisted offline owner both stay out. The clicker's own room
+        // never appears even if they somehow whitelisted themselves.
+        RoomWhitelist whitelist = new RoomWhitelist();
+        whitelist.add(alice, clicker);     // online, invited
+        whitelist.add(carol, clicker);      // invited but offline (not in the online set below)
+        whitelist.add(clicker, clicker);    // self: must not appear
+
+        // Only alice and bob are online for this scenario; carol is offline.
+        List<DialogScreens.OnlinePlayer> friendsOnline = List.of(
+                new DialogScreens.OnlinePlayer(alice, "Alice"),
+                new DialogScreens.OnlinePlayer(bob, "Bob"));
+
+        List<DialogScreens.LobbyRow> friendRows = DialogScreens.friendRows(whitelist, log, friendsOnline, clicker);
+        check(friendRows.size(), 1, "only online owners who whitelist the clicker appear");
+        check(friendRows.get(0).owner(), alice, "the one friend row is Alice");
+        check(friendRows.get(0).label(), "The Vault (0)", "friend row label carries the room name");
+        check(friendRows.get(0).body(), "Alice: away", "friend row body carries owner and status");
+
+        // The empty friend directory is a notice, never an empty button list.
+        net.minecraft.server.dialog.Dialog emptyFriends =
+                DialogScreens.friendBrowserDialog(List.of(), clicker, null);
+        check(emptyFriends instanceof net.minecraft.server.dialog.NoticeDialog, true,
+                "empty friend directory is a NoticeDialog");
+
+        // A non-empty friend directory is a MultiActionDialog whose buttons
+        // carry the visit-friend action (not the public visit-room action).
+        net.minecraft.server.dialog.Dialog friendDialog =
+                DialogScreens.friendBrowserDialog(friendRows, clicker, null);
+        check(friendDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
+                "friend directory is a MultiActionDialog");
+        net.minecraft.server.dialog.MultiActionDialog friendList =
+                (net.minecraft.server.dialog.MultiActionDialog) friendDialog;
+        check(friendList.actions().size(), 1, "one button per whitelisted online room");
+        net.minecraft.server.dialog.action.CustomAll friendAction =
+                (net.minecraft.server.dialog.action.CustomAll) friendList.actions().get(0).action().orElseThrow();
+        check(friendAction.id().getPath(), DialogScreens.ACTION_VISIT_FRIEND,
+                "friend button carries the visit-friend action, not the public visit-room action");
+
         System.out.println("LobbyBrowserTest passed");
     }
 

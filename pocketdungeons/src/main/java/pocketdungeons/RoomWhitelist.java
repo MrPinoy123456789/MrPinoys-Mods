@@ -87,6 +87,26 @@ final class RoomWhitelist extends SavedData {
         return added;
     }
 
+    /**
+     * (M75) The owners whose whitelist admits {@code actor}, excluding the
+     * actor themselves (you do not visit your own room this way; the menu
+     * refuses it the same as the lobby directory does). The reverse of
+     * {@link #isPermitted}: a scan of the owner-keyed map, which is fine at
+     * the population this mod targets and avoids a second index to keep in
+     * sync. This is the private visit channel's listing source, the
+     * counterpart of {@link DungeonLog.Entry#publicListed()} for the public
+     * one, and it never exposes rooms the actor was not explicitly invited to.
+     */
+    Set<UUID> roomsPermittedFor(UUID actor) {
+        Set<UUID> result = new HashSet<>();
+        for (var entry : whitelists.entrySet()) {
+            if (!entry.getKey().equals(actor) && entry.getValue().contains(actor)) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
+
     /** @return {@code false} if {@code target} was not whitelisted */
     boolean remove(UUID owner, UUID target) {
         Set<UUID> set = whitelists.get(owner);
