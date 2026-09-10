@@ -2705,6 +2705,56 @@ final class Instances {
         return lines;
     }
 
+    /**
+     * M76: the operating-envelope summary {@code /dungeon admin diagnostics}
+     * prints. One line per metric against its cap, plus the heap, chunk and
+     * entity counts an operator needs to judge how close the server is to its
+     * limits. No player-facing output, no external telemetry: this is the
+     * one command an operator runs instead of attaching a profiler.
+     */
+    static List<String> adminDiagnostics(MinecraftServer server) {
+        List<String> lines = new ArrayList<>();
+        int live = InstanceRegistry.liveInstanceCount();
+        int visits = InstanceRegistry.visitCount();
+        int previews = InstanceRegistry.previewCount();
+        int queuedClears = InstanceTeardown.pendingClearCountForTesting();
+        int used = InstanceRegistry.usedSlots.size();
+        lines.add("instances: " + live + "/"
+                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentInstances()));
+        lines.add("visits: " + visits + "/"
+                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentVisits()));
+        lines.add("previews: " + previews + "/"
+                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentPreviews()));
+        lines.add("queued clears: " + queuedClears);
+        lines.add("used slots: " + used);
+
+        Runtime rt = Runtime.getRuntime();
+        long usedHeap = rt.totalMemory() - rt.freeMemory();
+        lines.add("heap: " + (usedHeap / 1024 / 1024) + " MB used / "
+                + (rt.maxMemory() / 1024 / 1024) + " MB max");
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level != null) {
+            it.unimi.dsi.fastutil.longs.LongSet forced = level.getChunkSource().getForceLoadedChunks();
+            int entityCount = level.getEntitiesOfClass(
+                    net.minecraft.world.entity.Entity.class,
+                    new AABB(level.getWorldBorder().getMinX(), level.getMinY(),
+                            level.getWorldBorder().getMinZ(),
+                            level.getWorldBorder().getMaxX(), level.getMaxY(),
+                            level.getWorldBorder().getMaxZ()),
+                    e -> !(e instanceof ServerPlayer)).size();
+            lines.add("dungeon chunks force-loaded: " + forced.size());
+            lines.add("dungeon entities (excl. players): " + entityCount);
+        } else {
+            lines.add("dungeon level: not loaded");
+        }
+        return lines;
+    }
+
+    private static String capOrUnlimited(int cap) {
+        return cap > 0 ? String.valueOf(cap) : "unlimited";
+    }
+
     // ---- helpers ------------------------------------------------------------
 
     /**

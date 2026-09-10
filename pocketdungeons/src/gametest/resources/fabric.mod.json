@@ -21,7 +21,8 @@
       "pocketdungeons.ContentReloadGameTest"
     ],
     "main": [
-      "pocketdungeons.gametest.DungeonIntegrationEntrypoint"
+      "pocketdungeons.gametest.DungeonIntegrationEntrypoint",
+      "pocketdungeons.DungeonLoadTestEntrypoint"
     ]
   },
   "depends": {

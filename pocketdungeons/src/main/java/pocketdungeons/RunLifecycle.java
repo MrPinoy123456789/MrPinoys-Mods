@@ -366,6 +366,20 @@ final class RunLifecycle {
         List<ServerPlayer> companions = PartyService.resolveParty(server, player);
         int partySize = 1 + companions.size();
 
+        // M76: refuse a new run once the server is at the declared instance
+        // cap, before any keystone, fuel or generation work is spent. The
+        // purge loop above already freed this player's own lingering quarry,
+        // so a re-entry is not blocked by the instance it just replaced.
+        int cap = PocketDungeonsConfig.maxConcurrentInstances();
+        if (cap > 0 && InstanceRegistry.liveInstanceCount() >= cap) {
+            player.sendSystemMessage(Component.literal(
+                    "The dungeon is at capacity (" + cap + " concurrent runs). Try again shortly.")
+                    .withStyle(ChatFormatting.RED));
+            PocketDungeonsMod.LOG.warn("Refused /dungeon for {}: instance cap {} reached",
+                    player.getName().getString(), cap);
+            return false;
+        }
+
         // M2/M3 §3.2.3: an ordinary keystone run no longer builds a full
         // dungeon on entry at all -- it opens into the owner's lobby (their
         // persistent room, cell 0), and generation is deferred to whichever of
@@ -535,6 +549,22 @@ final class RunLifecycle {
         Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
                 entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[step - 1];
+
+        // M76: refuse a new preview once the server is at the declared preview
+        // cap, before the catalyst is escrowed inside previewDoor. A player
+        // switching doors does not count: their own existing preview is
+        // reused or purged by previewDoor itself, so the net footprint does
+        // not grow.
+        int previewCap = PocketDungeonsConfig.maxConcurrentPreviews();
+        if (previewCap > 0 && record.previewCellOrigin == null
+                && InstanceRegistry.previewCount() >= previewCap) {
+            player.sendSystemMessage(Component.literal(
+                    "Too many door previews are open right now. Close one or try again shortly.")
+                    .withStyle(ChatFormatting.RED));
+            PocketDungeonsMod.LOG.warn("Refused door preview for {}: preview cap {} reached",
+                    player.getName().getString(), previewCap);
+            return false;
+        }
 
         // The Greater tier's refusals are checked at the door screen level
         // (doorRefusal) before this is called, but re-check here for safety.

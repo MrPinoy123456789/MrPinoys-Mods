@@ -40,6 +40,48 @@ final class InstanceRegistry {
         return byMember.containsKey(player.getUUID());
     }
 
+    /**
+     * M76: how many live instances are holding real world work right now.
+     * Excludes lingering quarries (no tick budget, no members) and admin
+     * build rooms (no run, no generation behind them), so the count tracks
+     * the things the operating envelope is meant to bound.
+     */
+    static int liveInstanceCount() {
+        int count = 0;
+        for (InstanceRecord record : bySlot.values()) {
+            if (!record.lingering && !record.adminBuild) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** M76: how many read-only visit instances are stamped right now. */
+    static int visitCount() {
+        int count = 0;
+        for (InstanceRecord record : bySlot.values()) {
+            if (record.visitInstance) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * M76: how many door-preview cells are standing right now. Each live
+     * instance holds at most one preview cell, so this is the concurrent
+     * preview footprint the cap bounds.
+     */
+    static int previewCount() {
+        int count = 0;
+        for (InstanceRecord record : bySlot.values()) {
+            if (record.previewCellOrigin != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /** Origin of a slot, so admin tooling can point at the geometry. */
     static BlockPos slotOrigin(int slot) {
         return originForSlot(slot);

@@ -191,6 +191,13 @@ final class DungeonCommands {
                             .then(Commands.literal("list")
                                     .executes(ctx -> list(ctx.getSource())))
 
+                            // M76: operator-facing operating envelope read. No
+                            // player spam, no external telemetry: a single
+                            // command an operator runs to see how close the
+                            // server is to its declared caps.
+                            .then(Commands.literal("diagnostics")
+                                    .executes(ctx -> diagnostics(ctx.getSource())))
+
                             .then(Commands.literal("build")
                                     .executes(ctx -> build(ctx.getSource(), null, 0, false))
                                     .then(Commands.argument("seed", LongArgumentType.longArg())
@@ -812,6 +819,19 @@ final class DungeonCommands {
             source.sendSuccess(() -> Component.literal(line), false);
         }
         return lines.size();
+    }
+
+    /**
+     * M76: the operating-envelope read. Reports live instances, visits,
+     * previews and queued clears against their declared caps, plus heap,
+     * loaded chunks and dungeon-dimension entity count, so an operator can
+     * see how close the server is to its limits without a profiler attached.
+     */
+    private static int diagnostics(CommandSourceStack source) {
+        for (String line : Instances.adminDiagnostics(source.getServer())) {
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        return 1;
     }
 
     private static int generateTemplates(CommandSourceStack source) {

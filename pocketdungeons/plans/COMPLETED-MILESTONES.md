@@ -4126,3 +4126,115 @@ public ranks, no streak punishment, no escalating mandatory grind.
 - runGameTest: 61 tests passed.
 - dungeonIntegrationTest: 61 tests passed.
 - build: BUILD SUCCESSFUL, full suite green.
+
+## M76: publish the operating envelope
+
+An operator knows how many simultaneous floors, previews and visits this
+release can sustain and recover from.
+
+### What landed
+
+- Three operator-tunable caps in `config/pocketdungeons.json`:
+  `maxConcurrentInstances` (default 32), `maxConcurrentVisits` (default 16),
+  `maxConcurrentPreviews` (default 16). A value of `0` disables that cap.
+- Caps are enforced before any fuel or catalyst is charged:
+  - `RunLifecycle.enter` refuses a new run once the instance cap is reached.
+  - `RunLifecycle.previewDoor` refuses a new preview once the preview cap is
+    reached (a player switching doors does not count against the cap; their
+    own existing preview is reused or purged).
+  - `VisitService.createVisitInstance` refuses a new visit copy once the
+    visit cap is reached (joining an existing visit or the owner's own live
+    room never creates a slot, so those paths are not gated).
+- `InstanceRegistry` exposes `liveInstanceCount`, `visitCount` and
+  `previewCount` so the caps and the diagnostics read the same state.
+- `/dungeon admin diagnostics` prints the operating envelope: instances,
+  visits, previews and queued clears against their caps, plus used slots,
+  heap, dungeon-dimension force-loaded chunks and entity count. No
+  player-facing output, no external telemetry.
+- `dungeonLoadTest` Gradle task: a repeatable, headless load test that boots
+  the same real dedicated server route as `dungeonIntegrationTest` (so
+  `pocketdungeons:void` loads for real) and drives concurrent instances
+  through it. `dungeonLoadTestSoak` is the distinct long-soak invocation
+  with wider defaults. Profiles are overridable from the command line:
+  `-PloadtestInstances=32 -PloadtestCycles=3 -PloadtestSteadyTicks=400`.
+
+### Measured capacity table
+
+Hardware: Intel Core i5-10600K @ 4.10 GHz, 16 GB RAM, Windows 10 Pro.
+JVM: Temurin OpenJDK 25.0.4+7 LTS, 4076 MB max heap (Loom default).
+Minecraft 26.2, Fabric Loader 0.19.3, Fabric API 0.156.0.
+View distance: server default (10). Content: 61 rooms, 6 anomaly rooms,
+11 themes, 11 adventure nodes, 9 affixes, 9 bags, 4 roles, 13 cube recipes.
+
+The load test drives instances via `Instances.adminBuild`, which plans and
+stamps the same procedural layout the real `/dungeon` path stamps, against
+the same room manifest, force-load and bedrock-envelope code. It bypasses
+the M76 instance cap on purpose: the load test measures raw headroom, not
+the cap's refusal behaviour. A real `/dungeon` run goes through a lobby and
+a door choice, so its per-run world work is a subset of what this measures.
+
+| Instances | Steady tick p50 | p95 | p99 | Gen latency p50 | p95 | p99 | Heap (steady) | Forced chunks |
+|-----------|-----------------|-----|-----|------------------|-----|-----|---------------|--------------|
+| 8         | 1 ms            | 4   | 8   | 189 ms           | 441 | 441 | 435 MB        | 80           |
+| 16        | 1 ms            | 9   | 18  | 209 ms           | 807 | 807 | 372 MB        | 171          |
+| 32        | 5 ms            | 9   | 17  | 136 ms           | 341 | 823 | 612 MB        | 357          |
+
+Candidate advertised-cap threshold: p95 below 40 ms and p99 below 50 ms.
+At 32 concurrent instances, steady tick p95 = 9 ms and p99 = 17 ms, both
+well inside the threshold. The default `maxConcurrentInstances = 32` is
+therefore the declared cap for this hardware and JVM. These are
+measurement points, not promised capacity: a mixed-mod server's real
+ceiling depends on its own hardware, population and other mods.
+
+### Overload behaviour
+
+Above the cap, the server refuses new work before it charges anything:
+- A `/dungeon` past the instance cap tells the player "The dungeon is at
+  capacity (N concurrent runs). Try again shortly." and logs a warning.
+  No keystone is spent.
+- A door preview past the preview cap tells the player "Too many door
+  previews are open right now. Close one or try again shortly." No
+  catalyst is escrowed.
+- A visit past the visit cap tells the visitor "Too many rooms are being
+  visited right now. Try again shortly." No slot is allocated.
+
+The load test's "Can't keep up" warnings during the build phase are a
+harness artifact (one full dungeon stamped per tick), not production
+behaviour: a real `/dungeon` stamps a lobby on entry and defers the rest
+to a door choice. The steady-state measurements (the rows above) are
+taken after the build phase completes, with all instances live and
+ticking, and show no overload.
+
+### Lookup and clear: no optimisation warranted
+
+The linear lookups (`dungeonCellLookupAt`, `roomRecordAt`, `instanceAt`)
+scan `InstanceRegistry.bySlot.values()`. At 32 entries the steady tick
+p95 is 9 ms, so the linear scan is not the bottleneck. The rejected M43
+spatial-index approach is not revived. `InstanceWorkQueue.java` is not
+added: clears are already globally budgeted through
+`InstanceTeardown.processClears` (one shared `clearBlocksPerTick` budget,
+floor 1024), and the M63 slot lease is preserved until `finishClear`
+releases the slot.
+
+### Remaining version-specific hot spots
+
+- One `sump` room stamp failed on an unlucky seed during the 16-instance
+  run with "spanY 2 but no climbable return path from its lower story to
+  the upper floor (spec 13.4)". This is a pre-existing M74 content issue
+  in that room's lower-story authoring, not an M76 regression: the
+  stamper caught it, cleared the partial geometry, and the run continued.
+  It is recorded here as a content hot spot to fix in room authoring, not
+  in the lifecycle code.
+- No 26.2 API surface in this milestone required `UNVERIFIED` recording.
+  `level.getChunkSource().getForceLoadedChunks()` and
+  `level.getEntitiesOfClass(...)` were used as documented and behaved as
+  expected against the 26.2 jar.
+
+### Verification
+
+- runGameTest: 61 tests passed.
+- dungeonIntegrationTest: passed (real dedicated server, `pocketdungeons:void`
+  loaded and saved).
+- packValidationTest: passed.
+- dungeonLoadTest: PASS at 8, 16 and 32 instances.
+- build: BUILD SUCCESSFUL, full suite green.

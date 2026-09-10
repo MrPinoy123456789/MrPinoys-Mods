@@ -741,3 +741,78 @@ The `pack.mcmeta` both exports write uses the game's current data pack
 format (`SharedConstants.DATA_PACK_FORMAT_MAJOR`), which is the 26.2 format
 for this build. A release jar for a future Minecraft version writes that
 version's format automatically; no pack author edits `pack_format` by hand.
+
+## M76: operating envelope
+
+An operator can see how close the server is to its declared caps and tune
+them. This is the operator-facing surface; players see only the refusal
+messages when a cap is hit.
+
+### Caps
+
+Three fields in `config/pocketdungeons.json` bound concurrent world work.
+A value of `0` disables that cap.
+
+| Field | Default | What it bounds |
+|-------|---------|----------------|
+| `maxConcurrentInstances` | 32 | Live (non-lingering, non-admin-build) dungeon instances. |
+| `maxConcurrentVisits` | 16 | Read-only visit copies of other players' rooms. |
+| `maxConcurrentPreviews` | 16 | Door-preview cells standing at once. |
+
+Caps are enforced before any fuel or catalyst is charged. A player
+switching doors does not count against the preview cap: their own existing
+preview is reused or purged, so the net footprint does not grow. Joining an
+existing visit copy or the owner's own live room never creates a slot, so
+those paths are not gated by the visit cap.
+
+### Diagnostics
+
+`/dungeon admin diagnostics` (game-master permission) prints:
+
+- `instances: N/CAP`, `visits: N/CAP`, `previews: N/CAP` against the
+  declared caps.
+- `queued clears: N` (pending teardown work).
+- `used slots: N` (allocated slots, including admin builds).
+- `heap: N MB used / M MB max`.
+- `dungeon chunks force-loaded: N` and `dungeon entities (excl. players): N`
+  when the dungeon dimension is loaded.
+
+No player-facing spam, no external telemetry. This is the command an
+operator runs instead of attaching a profiler.
+
+### Load test
+
+`./gradlew dungeonLoadTest` boots a real dedicated server (the same route
+as `dungeonIntegrationTest`, so `pocketdungeons:void` loads for real) and
+drives concurrent instances through it, reporting generation latency,
+clear latency, steady tick duration (p50/p95/p99), heap and forced-chunk
+footprint. `./gradlew dungeonLoadTestSoak` is the distinct long-soak
+invocation with wider defaults (32 instances, 20 cycles, 1000 steady
+ticks).
+
+Profiles are overridable from the command line without a code change:
+
+```
+./gradlew runDungeonLoadTest -PloadtestInstances=16 -PloadtestCycles=3 -PloadtestSteadyTicks=400
+```
+
+The load test drives instances via `Instances.adminBuild`, which stamps
+the same procedural layout the real `/dungeon` path stamps. It bypasses
+the M76 instance cap on purpose: it measures raw headroom, not the cap's
+refusal behaviour. A real `/dungeon` run goes through a lobby and a door
+choice, so its per-run world work is a subset of what this measures.
+
+### Setting the caps on your own hardware
+
+The default caps are measurement points from one declared JVM and world,
+not promised capacity. A mixed-mod server's real ceiling depends on its
+own hardware, population and other mods. To set your own caps:
+
+1. Run `./gradlew dungeonLoadTest -PloadtestInstances=N` sweeping `N`
+   up until steady tick p95 approaches 40 ms or p99 approaches 50 ms.
+2. Set `maxConcurrentInstances` to the largest `N` that stayed inside
+   that threshold.
+3. Repeat for visits and previews if your server is visit- or
+   preview-heavy; the load test does not drive those paths, so an
+   operator should set them conservatively and raise them only with
+   `/dungeon admin diagnostics` watching the live counts.

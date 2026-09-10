@@ -70,6 +70,33 @@ loom.runs {
         runDir("run-dungeonIntegrationTest")
         property("pocketdungeons.integrationtest", "true")
     }
+    // M76: a repeatable load test that boots the same real dedicated server
+    // route as dungeonIntegrationTest (so pocketdungeons:void loads for real)
+    // and drives concurrent instances through it. Two invocations: the
+    // standard dungeonLoadTest (small, fast, runs in CI) and
+    // dungeonLoadTestSoak (wide defaults for a long soak). Both write eula.txt
+    // via the doFirst hooks below, same as dungeonIntegrationTest.
+    create("dungeonLoadTest") {
+        server()
+        name("Dungeon Load Test")
+        source(sourceSets["gametest"])
+        runDir("run-dungeonLoadTest")
+        property("pocketdungeons.loadtest", "true")
+        // M76: optional Gradle project properties let an operator sweep the
+        // envelope from the command line without editing code:
+        //   -PloadtestInstances=32 -PloadtestCycles=3 -PloadtestSteadyTicks=400
+        project.findProperty("loadtestInstances")?.let { property("pocketdungeons.loadtest.instances", it.toString()) }
+        project.findProperty("loadtestCycles")?.let { property("pocketdungeons.loadtest.cycles", it.toString()) }
+        project.findProperty("loadtestSteadyTicks")?.let { property("pocketdungeons.loadtest.steadyTicks", it.toString()) }
+    }
+    create("dungeonLoadTestSoak") {
+        server()
+        name("Dungeon Load Test Soak")
+        source(sourceSets["gametest"])
+        runDir("run-dungeonLoadTest")
+        property("pocketdungeons.loadtest", "true")
+        property("pocketdungeons.loadtest.soak", "true")
+    }
 }
 
 tasks.register("dungeonIntegrationTest") {
@@ -89,6 +116,40 @@ tasks.register("dungeonIntegrationTest") {
 tasks.named("runDungeonIntegrationTest") {
     doFirst {
         val runDir = file("run-dungeonIntegrationTest")
+        runDir.mkdirs()
+        file("$runDir/eula.txt").writeText("eula=true\n")
+    }
+}
+
+// M76: thin aliases over the Loom-generated run tasks, so the milestone's
+// task list reads the same as every other verification task. The run tasks
+// themselves carry the classpath and JVM wiring; these just name them.
+tasks.register("dungeonLoadTest") {
+    group = "verification"
+    description = "Boots a real dedicated server and drives concurrent dungeon " +
+        "instances through it, reporting generation/clear/tick latency and " +
+        "heap/chunk footprint. Repeatable via -Ppocketdungeons.loadtest.* properties."
+    dependsOn("runDungeonLoadTest")
+}
+
+tasks.register("dungeonLoadTestSoak") {
+    group = "verification"
+    description = "The long-soak invocation of dungeonLoadTest: wider defaults " +
+        "(more instances, cycles and steady ticks) for sustained-load evidence."
+    dependsOn("runDungeonLoadTestSoak")
+}
+
+tasks.named("runDungeonLoadTest") {
+    doFirst {
+        val runDir = file("run-dungeonLoadTest")
+        runDir.mkdirs()
+        file("$runDir/eula.txt").writeText("eula=true\n")
+    }
+}
+
+tasks.named("runDungeonLoadTestSoak") {
+    doFirst {
+        val runDir = file("run-dungeonLoadTest")
         runDir.mkdirs()
         file("$runDir/eula.txt").writeText("eula=true\n")
     }

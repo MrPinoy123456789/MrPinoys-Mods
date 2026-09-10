@@ -111,6 +111,19 @@ final class VisitService {
 
     private static boolean createVisitInstance(MinecraftServer server, ServerLevel level,
                                                ServerPlayer visitor, UUID owner) {
+        // M76: refuse a new visit copy once the server is at the declared visit
+        // cap, before a slot is allocated or a room is stamped. Joining an
+        // existing visit copy or the owner's own live room (the two branches
+        // above this) never creates a slot, so they are not gated.
+        int visitCap = PocketDungeonsConfig.maxConcurrentVisits();
+        if (visitCap > 0 && InstanceRegistry.visitCount() >= visitCap) {
+            visitor.sendSystemMessage(Component.literal(
+                    "Too many rooms are being visited right now. Try again shortly.")
+                    .withStyle(ChatFormatting.RED));
+            PocketDungeonsMod.LOG.warn("Refused visit to {}'s room: visit cap {} reached",
+                    owner, visitCap);
+            return false;
+        }
         int slot = InstanceRegistry.allocateSlot();
         BlockPos origin = InstanceRegistry.originForSlot(slot);
 

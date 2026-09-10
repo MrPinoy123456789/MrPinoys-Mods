@@ -37,6 +37,16 @@ public final class PocketDungeonsConfig {
     private static int voidGuardDepth = 10;
     private static int maxPartyMembers = 6;
     private static int inviteTtlSeconds = 120;
+    // M76: operating envelope. These bound how much concurrent world work the
+    // mod can hold at once, so an overload refuses a new request before it
+    // charges fuel or a catalyst rather than letting the server thrash. They
+    // are measurement points for a declared cap, not promised capacity: a
+    // mixed-mod server's real ceiling depends on its own hardware and
+    // population, which is exactly why the load test (dungeonLoadTest) is the
+    // thing an operator runs to set them.
+    private static int maxConcurrentInstances = 32;
+    private static int maxConcurrentVisits = 16;
+    private static int maxConcurrentPreviews = 16;
 
     // ---- layout planning ----------------------------------------------------
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
@@ -371,6 +381,21 @@ public final class PocketDungeonsConfig {
         return inviteTtlSeconds;
     }
 
+    /** M76: cap on live (non-lingering, non-admin-build) instances. 0 disables the cap. */
+    public static int maxConcurrentInstances() {
+        return maxConcurrentInstances;
+    }
+
+    /** M76: cap on concurrent read-only visit instances. 0 disables the cap. */
+    public static int maxConcurrentVisits() {
+        return maxConcurrentVisits;
+    }
+
+    /** M76: cap on preview cells standing at once. 0 disables the cap. */
+    public static int maxConcurrentPreviews() {
+        return maxConcurrentPreviews;
+    }
+
     public static int pathLengthMin() {
         return pathLengthMin;
     }
@@ -616,6 +641,9 @@ public final class PocketDungeonsConfig {
         voidGuardDepth = 10;
         maxPartyMembers = 6;
         inviteTtlSeconds = 120;
+        maxConcurrentInstances = 32;
+        maxConcurrentVisits = 16;
+        maxConcurrentPreviews = 16;
 
         pathLengthMin = 8;
         pathLengthMax = 12;
@@ -707,6 +735,12 @@ public final class PocketDungeonsConfig {
         // confirmations and invites rather than the operator getting a
         // diagnostic.
         inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 1, "must be >= 1");
+        maxConcurrentInstances = readInt(root, "maxConcurrentInstances", 32,
+                v -> v >= 0, "must be >= 0");
+        maxConcurrentVisits = readInt(root, "maxConcurrentVisits", 16,
+                v -> v >= 0, "must be >= 0");
+        maxConcurrentPreviews = readInt(root, "maxConcurrentPreviews", 16,
+                v -> v >= 0, "must be >= 0");
 
         pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
@@ -1011,6 +1045,9 @@ public final class PocketDungeonsConfig {
         root.addProperty("voidGuardDepth", 10);
         root.addProperty("maxPartyMembers", 6);
         root.addProperty("inviteTtlSeconds", 120);
+        root.addProperty("maxConcurrentInstances", 32);
+        root.addProperty("maxConcurrentVisits", 16);
+        root.addProperty("maxConcurrentPreviews", 16);
 
         root.addProperty("pathLengthMin", 8);
         root.addProperty("pathLengthMax", 12);
