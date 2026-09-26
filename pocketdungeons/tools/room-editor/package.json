@@ -1,0 +1,26 @@
+{
+  "name": "pocketdungeons-room-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local web editor for Pocket Dungeons room templates and metadata",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "deepslate": "^0.27.1",
+    "fflate": "^0.8.3",
+    "gl-matrix": "^3.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

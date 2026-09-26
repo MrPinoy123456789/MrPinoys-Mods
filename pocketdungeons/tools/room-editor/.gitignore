@@ -1,0 +1,8 @@
+node_modules/
+dist/
+# Local caches and scratch output. Mojang assets never land in this folder:
+# they are read at runtime from the user's own client jar (see README).
+.cache/
+.vite/
+*.local
+test-output/

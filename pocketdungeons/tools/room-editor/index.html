@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pocket Dungeons Room Editor</title>
+  </head>
+  <body>
+    <div id="app">
+      <header id="top">
+        <strong class="brand">Pocket Dungeons Room Editor</strong>
+        <span id="jar-status" class="pill">no client jar</span>
+        <label class="btn" title="Pick your own Minecraft 26.2 client jar, for example %APPDATA%\.minecraft\versions\26.2\26.2.jar">
+          Load client jar<input id="jar-input" type="file" accept=".jar" hidden />
+        </label>
+        <button id="jar-cached" class="btn" hidden>Use cached assets</button>
+        <button id="jar-cache-clear" class="btn small" hidden title="Remove the assets this browser cached from your jar">Forget cache</button>
+        <span id="folder-status" class="pill">no folder</span>
+        <button id="open-folder" class="btn">Open folder</button>
+        <label class="btn" title="Read only: works in any browser, edits are downloaded instead of saved">
+          Open read only<input id="folder-input" type="file" webkitdirectory hidden />
+        </label>
+        <span class="spacer"></span>
+        <button id="save" class="btn primary" disabled>Save</button>
+      </header>
+      <aside id="left">
+        <div class="row">
+          <input id="room-filter" type="search" placeholder="Filter rooms" />
+          <button id="new-room" class="btn" disabled>New room</button>
+        </div>
+        <ul id="room-list"></ul>
+      </aside>
+      <main id="center">
+        <div id="toolbar"></div>
+        <div id="viewport">
+          <canvas id="view"></canvas>
+          <div id="empty-hint">
+            <p>1. Load your Minecraft 26.2 client jar (block textures and models are read from it, locally).</p>
+            <p>2. Open the mod's <code>data/pocketdungeons</code> folder (or the resources root).</p>
+            <p>3. Pick a room on the left.</p>
+          </div>
+        </div>
+        <div id="status"></div>
+      </main>
+      <aside id="right">
+        <nav id="tabs"></nav>
+        <section id="panel"></section>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
