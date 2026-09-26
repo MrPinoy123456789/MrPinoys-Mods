@@ -123,6 +123,8 @@ final class PackValidator {
         addParseFindings(snapshot, findings);
         addCoverageFindings(snapshot, findings);
         addAdventureReachabilityFindings(snapshot, findings);
+        findings.addAll(zoneRuleFindings(snapshot.themes().themes(), snapshot.adventure().graph(),
+                PocketDungeonsConfig.keystoneMaxLevel()));
         addRecipeFindings(snapshot, findings);
         addMissingLootFindings(server, snapshot, findings);
         addPlanFindings(server, snapshot, singleSeed, findings);
@@ -240,6 +242,65 @@ final class PackValidator {
                 }
             }
         }
+    }
+
+    /**
+     * Zone rules the parser accepts but an author probably did not mean. A
+     * malformed {@code rules} block (an unknown field, a floor kind not built
+     * yet, a value out of range) already rejects its theme and surfaces as a
+     * parse finding; these are the ones that load and then misbehave:
+     * <ul>
+     *   <li>an {@code unlock_level} above {@code keystoneMaxLevel}: no key
+     *       ever reaches it, so no door ever deals the zone;</li>
+     *   <li>{@code capstone: boss} on a theme whose adventure node is not a
+     *       boss node: the Warden spawns and gates the pad, but beating it
+     *       does not reset the descent the way a boss node does;</li>
+     *   <li>{@code capstone: none} on a boss node: the descent resets with no
+     *       boss to beat;</li>
+     *   <li>every entry theme locked above level 1: a new player is dealt
+     *       them anyway, since the door pick never deals nothing.</li>
+     * </ul>
+     */
+    static List<Finding> zoneRuleFindings(List<ThemeManifest.Entry> themes, AdventureGraph graph,
+                                          int keystoneMaxLevel) {
+        List<Finding> findings = new ArrayList<>();
+        for (ThemeManifest.Entry theme : themes) {
+            ZoneRules rules = theme.meta().rules;
+            if (rules == null) {
+                continue;
+            }
+            if (rules.unlockLevel() > keystoneMaxLevel) {
+                findings.add(new Finding(theme.id(), "rules.unlock_level",
+                        "unlock level " + rules.unlockLevel() + " is above keystoneMaxLevel "
+                                + keystoneMaxLevel + "; no door ever deals this zone"));
+            }
+            AdventureGraph.Node node = graph.node(theme.id());
+            boolean bossNode = node != null && node.kind() == AdventureGraph.Kind.BOSS;
+            if (rules.capstone() == ZoneRules.Capstone.BOSS && !bossNode) {
+                findings.add(new Finding(theme.id(), "rules.capstone",
+                        "capstone is boss but the adventure node is not a boss node; the boss gates the "
+                                + "pad but beating it does not reset the descent"));
+            }
+            if (rules.capstone() == ZoneRules.Capstone.NONE && bossNode) {
+                findings.add(new Finding(theme.id(), "rules.capstone",
+                        "capstone is none on a boss node; the descent resets with no boss to beat"));
+            }
+        }
+        List<String> entries = graph.entryThemes();
+        if (!entries.isEmpty() && entries.stream().allMatch(id -> unlockLevelOf(themes, id) > 1)) {
+            findings.add(new Finding("adventure", "rules.unlock_level",
+                    "every entry theme is locked above level 1; a new player is dealt them anyway"));
+        }
+        return findings;
+    }
+
+    private static int unlockLevelOf(List<ThemeManifest.Entry> themes, String id) {
+        for (ThemeManifest.Entry theme : themes) {
+            if (theme.id().equals(id)) {
+                return theme.meta().rules == null ? 1 : theme.meta().rules.unlockLevel();
+            }
+        }
+        return 1;
     }
 
     /**

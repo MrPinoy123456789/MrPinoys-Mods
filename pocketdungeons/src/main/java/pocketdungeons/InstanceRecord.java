@@ -75,6 +75,13 @@ final class InstanceRecord {
     OmenBar omenBar;
 
     /**
+     * Overworld game tick by which an owner who lost their connection with
+     * the party still inside must be back, or {@code 0} while the owner is
+     * present (or alone). See {@code RunLifecycle.holdForOwner}.
+     */
+    long ownerAbsentUntilTick;
+
+    /**
      * An operator's run outside the floor loop, opened by
      * {@code /dungeon admin untimed}: a full layout at once, no keystone
      * spent.

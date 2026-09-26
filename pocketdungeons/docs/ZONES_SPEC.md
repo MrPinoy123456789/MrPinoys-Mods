@@ -32,6 +32,10 @@ Rules every zone follows:
 
 ## 2. The zone rules hook (wave 2b builds this)
 
+Built in wave 2b as `ZoneRules`, read from a `dungeon_theme` file's optional
+`rules` block; the field names, ranges and what each one does today are in
+`docs/INTEGRATION.md` section 1.6. The table below is the design it grew from.
+
 A zone is data plus a small rules object. Proposed contract, to be refined in
 wave 2b:
 

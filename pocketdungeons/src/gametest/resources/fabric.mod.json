@@ -20,7 +20,8 @@
       "pocketdungeons.CubeRecipeGameTest",
       "pocketdungeons.ContentReloadGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
-      "pocketdungeons.FloorIntervalGameTest"
+      "pocketdungeons.FloorIntervalGameTest",
+      "pocketdungeons.BankAnywhereGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

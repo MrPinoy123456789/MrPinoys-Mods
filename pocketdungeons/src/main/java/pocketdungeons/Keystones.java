@@ -15,7 +15,7 @@ import java.util.UUID;
  * <p>Only {@code /dungeon quit} on a floor in progress costs levels
  * ({@code timedOutDepletion}, 2 by default). Disconnecting, dying, running
  * {@code /dungeon exit}, and a server purge all cost nothing. How well a floor
- * went is judged by omen at the safe visit, not here.
+ * went is judged by omen when the interval banks, not here.
  */
 final class Keystones {
 
@@ -92,32 +92,28 @@ final class Keystones {
     }
 
     /**
-     * Writes a chosen door offer and refreshes the player's remote.
+     * Writes the level an interval's settlement banked for {@code member} and
+     * refreshes their remote. The counterpart to {@link #returnTo} for the path
+     * that succeeded: one write, and the level is theirs from that instant, with
+     * no item to hand over and therefore no way for a full inventory to eat it.
      *
-     * <p>The counterpart to {@link #returnTo} for the path that succeeded: one
-     * write, and the level the player picked is theirs from that instant, with no
-     * item to hand over and therefore no way for a full inventory to eat it.
+     * <p>{@code level} is already the member's own: {@link RunLifecycle} adds
+     * the levels {@link IntervalBanking} settled to each member's own key, so a
+     * party member riding along at a lower level climbs from where they stand.
+     * No elective affixes are written; what the new level's thresholds seed is
+     * derived on every read, so it cannot go stale.
+     *
+     * @param player may be null for a member who is already gone; the write still
+     *               happens, only the refresh and the cue are skipped
      */
-    static void grantOffer(MinecraftServer server, UUID member, ServerPlayer player,
-                           Keystone.Offer offer) {
-        // Only the elective half is written. What the new level's thresholds hand
-        // the player on top is derived on every read, so it cannot go stale and
-        // needs no codec field of its own.
-        int previousLevel = DungeonLog.forServer(server).get(member).keystoneLevel();
-        DungeonLog.forServer(server).setKeystone(member, offer.level(), offer.affixes());
-        // M34: a keystone level gain counts toward the owner's Keystone Climber
-        // bounty. The owner is the instance owner if the member is in one, or
-        // the member themselves otherwise (settling a pending offer outside an
-        // instance still counts toward their own bounty).
-        int delta = offer.level() - previousLevel;
+    static void grantLevel(MinecraftServer server, UUID member, ServerPlayer player, int level) {
+        DungeonLog.forServer(server).setKeystone(member, level, Set.of());
         if (player == null) {
-            PocketDungeonsMod.LOG.info("Offer for absent player {} settled at level {}",
-                    member, offer.level());
+            PocketDungeonsMod.LOG.info("Banked level {} for absent player {}", level, member);
             return;
         }
-        Keystone.reconcile(player, offer.level(),
-                AffixMath.effective(member, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()));
+        Keystone.reconcile(player, level,
+                AffixMath.effective(member, level, Set.of(), AffixManifest.current().definitions()));
         Chime.keystoneLevelUp(player);
     }
 }

@@ -960,6 +960,13 @@ final class RunLifecycle {
         // reached the completion, if any, has already happened.
         boolean completed = record.floor.completed.contains(player.getUUID());
 
+        // The owner leaving between floors banks the interval one band worse
+        // rather than forfeiting it, and the run ends.
+        if (player.getUUID().equals(record.owner) && record.inFloorLoop() && record.isKeystoneRun()
+                && betweenFloors(record)) {
+            return leaveAtCheckpoint(server, record, player);
+        }
+
         // T2.6: a deliberate /dungeon exit is still a leadership change if the
         // owner is walking out on a party that is still in there.
         // InstanceTeardown.purge() ejects and settles the keystone for every
@@ -999,6 +1006,29 @@ final class RunLifecycle {
         }
 
         Instances.purgeIfAbandonedLobby(server, record);
+        return true;
+    }
+
+    /**
+     * The owner leaving between floors ({@code /dungeon exit}, the
+     * lodestone's Leave, or {@code /dungeon quit} with nothing left to quit):
+     * the interval is not forfeited but settles
+     * {@link IntervalBanking#LEAVE_PENALTY} band worse for every member
+     * present, and the run ends, as a party leader leaving always has ended
+     * it. The room was saved at the first commit and stays despawned, so the
+     * next run opens at home. A preview still open is cancelled first, its
+     * catalyst refunded.
+     */
+    private static boolean leaveAtCheckpoint(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (record.phase == RunSession.Phase.PREVIEW && level != null) {
+            Instances.clearPreview(level, record, true);
+        }
+        settleOnce(server, record, IntervalBanking.LEAVE_PENALTY);
+        Instances.announce(server, record, owner.getName().getString()
+                + " leaves at the checkpoint. The run ends, and the interval banks one band worse.",
+                owner.getUUID());
+        InstanceTeardown.purge(server, record, "owner left at a checkpoint", owner.getUUID());
         return true;
     }
 
@@ -1073,11 +1103,10 @@ final class RunLifecycle {
                         .withStyle(ChatFormatting.YELLOW));
                 return;
             }
-            // M11: the boss is the ultimate gated completion for its one theme,
-            // the same shape as the spawner gate above but for a single mob
-            // instead of a fraction of many.
-            AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(record.floor.theme);
-            if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS
+            // M11: the boss is the ultimate gated completion for a zone whose
+            // capstone is the boss, the same shape as the spawner gate above
+            // but for a single mob instead of a fraction of many.
+            if (ZoneRules.bossCapstone(record.floor.theme)
                     && BossContent.bossAlive(player.level(), record.layout.terminal())) {
                 player.sendSystemMessage(Component.literal(
                         "The Drowned Warden still stands. Finish it first.")
@@ -1110,40 +1139,42 @@ final class RunLifecycle {
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.floor.theme);
 
-        boolean isSafeStaging = record.floor.safeStaging;
-        // The band the interval stands in now that this floor is banked:
-        // what the chests beyond the door were counted from, and what the
-        // safe visit will settle if nothing else rises.
-        String verdict = OmenBarText.completionVerdict(
-                Omen.band(record.interval.bankedOmenSum(), PocketDungeonsConfig.floorsPerSafeVisit()),
-                isSafeStaging);
+        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
+        int floorsCleared = record.interval.floorIndex;
+        ZoneRules rules = ZoneRules.of(record);
+        // The band the interval stands in now that this floor is banked, over
+        // the floors actually cleared: what the chests beyond the door were
+        // counted from, and what going home would settle if nothing else rises.
+        int band = Omen.band(record.interval.bankedOmenSum(), Math.max(1, floorsCleared));
+        String verdict = OmenBarText.completionVerdict(band,
+                record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.chestCount(band));
         if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
             // sees the depth reached and the escalating loot tier before
-            // choosing a door deeper or cashing out. The spatial movement
+            // choosing a door deeper or going home. The spatial movement
             // stays silent, the same as the ordinary loop.
-            int tier = EndlessMineRules.completionLootTier(record,
-                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
-                            .lootTier(),
-                    PocketDungeonsConfig.floorsPerSafeVisit());
+            int tier = rules.lootTier(
+                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel()).lootTier(),
+                    floorsCleared);
             player.sendSystemMessage(Component.literal(
-                    EndlessMineRules.mineCheckpointMessage(record.interval.floorIndex, tier)
-                            + " " + verdict)
+                    EndlessMineRules.mineCheckpointMessage(floorsCleared, tier) + " " + verdict)
                     .withStyle(ChatFormatting.AQUA));
-        } else if (isSafeStaging) {
-            // M65: this is the last floor before the safe room. The
-            // interval-level settlement happens when the player selects
-            // the safe door (returnToSafe -> settleSafeVisit). The
-            // completion message names the safe door rather than the next
-            // floor.
+        } else if (floorsCleared >= floorsPerVisit) {
+            // The usual length is run: going home is the sensible default now,
+            // never a wall. The HOME screen and its bulb say the same.
             player.sendSystemMessage(Component.literal(
-                    "You reach the end. " + verdict
-                            + " The chests wait beyond the door, and the safe room stands open beyond.")
+                    "You reach the end of this floor. " + verdict
+                            + " The chests wait beyond the door. A good time to go home: the HOME lever banks"
+                            + " what you carry"
+                            + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
+                                    ? ", and every floor deeper starts with the omen already risen."
+                                    : "."))
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door, and the next floor stands open beyond.")
+                            + " The chests wait beyond the door and the next floor stands open beyond;"
+                            + " the HOME lever banks what you carry.")
                     .withStyle(ChatFormatting.AQUA));
         }
         // M66: the compass recipe promises a completion study list. The
@@ -1171,11 +1202,10 @@ final class RunLifecycle {
      * behind the terminal's far wall, and transitions the phase to
      * FLOOR_CLEARED.
      *
-     * <p>Does not do keystone level up, payout, prestige, bounty, or diary
-     * delivery. Those are interval-level settlements that happen at the
-     * safe visit (spec 12.4: "Keystone per safe visit, not per floor"),
-     * and are handled by {@link #settleSafeVisit}, called from
-     * {@link #returnToSafe}.
+     * <p>Records the floor's door step on the interval but banks nothing:
+     * keystone levels, payout, prestige, bounties and diary delivery settle
+     * when the interval ends ({@link #settleInterval}), from the HOME lever
+     * or a checkpoint exit.
      */
     private static void advanceFloor(MinecraftServer server, InstanceRecord record) {
         if (record.stagingCellOrigin == null) {
@@ -1190,37 +1220,32 @@ final class RunLifecycle {
         DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
         DoorMask.Direction farWall = CellGeometry.opposite(entranceDir);
 
-        // M57: increment the floor index. The staging room about to be stamped
-        // is for the next floor (or the safe room return).
+        // The staging room about to be stamped is for the next floor, or the
+        // way home: every checkpoint offers both, and nothing forces either.
         record.interval.floorIndex++;
+        int floorsCleared = record.interval.floorIndex;
+        // The floor banks its door step toward the key when the interval
+        // settles (IntervalBanking), whichever door the next floor takes.
+        record.interval.floorSteps.add(record.floor.chosenStep);
 
-        // M57: determine whether this is a safe staging room. Every
-        // floorsPerSafeVisit floors, the staging room offers a safe door
-        // instead of three dungeon doors. M78: a Mine run never forces a safe
-        // staging room, so every checkpoint offers continue doors and the
-        // cash-out stays voluntary.
-        boolean isSafeStaging = EndlessMineRules.shouldForceSafeStaging(record,
-                PocketDungeonsConfig.floorsPerSafeVisit());
-        record.floor.safeStaging = isSafeStaging;
-
-        // M48: the omen finish table replaces the clock (spec 5.2, 5.4).
-        // OmenSources accrues the floor in progress into record.interval.omen;
-        // close it here and key the table off the sum since the last safe
-        // visit. M57:
-        // the band denominator is floorsPerSafeVisit, not a hardcoded 1.
-        int band = bankFloorOmen(record, PocketDungeonsConfig.floorsPerSafeVisit());
-        int chests = Omen.chestCount(band);
+        // M48: the omen finish table (spec 5.2, 5.4). OmenSources accrues the
+        // floor in progress into record.interval.omen; close it here and key
+        // the band off the interval's sum over the floors cleared so far. The
+        // zone's depth bonus adds chests on the deeper floors.
+        ZoneRules rules = ZoneRules.of(record);
+        int band = bankFloorOmen(record);
+        int chests = Omen.chestCount(band) + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
         // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
-        // pad and in front of the sealed door.
+        // pad and in front of the sealed door, at the zone's loot tier.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
-                EndlessMineRules.completionLootTier(record,
+                rules.lootTier(
                         DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                                 .lootTier(),
-                        PocketDungeonsConfig.floorsPerSafeVisit()),
+                        floorsCleared),
                 record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable);
@@ -1259,18 +1284,18 @@ final class RunLifecycle {
 
         // Summon fresh screens at the new staging room.
         record.floor.selectedStep = 0;
-        if (isSafeStaging) {
-            // M57: safe staging room. The door screen shows a safe-return
-            // prompt instead of a dungeon preview.
-            DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
-                    Component.literal("Safe Room").withStyle(ChatFormatting.GREEN));
-        } else {
-            DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
-                    DungeonScreen.idleContent(level, record.owner));
-        }
+        DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
+                DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
         DungeonScreen.summonTracker(level, newStagingOrigin, farWall,
                 DungeonScreen.trackerContent(level.getServer(), record.owner));
+
+        // The way home, beside the doors: the HOME lever and the screen that
+        // says what it would bank, lit once the interval has run its usual
+        // length.
+        RoomTemplateGenerator.placeHomeControl(level, newStagingOrigin, farWall,
+                floorsCleared >= PocketDungeonsConfig.floorsPerSafeVisit());
+        DungeonScreen.summonHome(level, newStagingOrigin, farWall, DungeonScreen.homeContent(server, record));
 
         // The bedrock envelope for the new staging room.
         BedrockEnvelope.applyToCell(level, newStagingOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
@@ -1279,112 +1304,170 @@ final class RunLifecycle {
         CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
 
         // M65: transition to FLOOR_CLEARED. The party is now in the
-        // staging room, awaiting the next door choice (or the safe door).
+        // staging room, choosing the next door or the way home.
         RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
     }
 
     /**
      * Closes the floor in progress: banks its clamped omen onto the
      * interval's {@code floorOmens}, zeroes the running omen, and returns the
-     * finish band for the interval so far. The sum only resets when the
-     * interval ends ({@link InstanceRecord#beginInterval}).
+     * finish band for the interval so far, with the thresholds scaled to the
+     * floors banked. The sum only resets when the interval ends
+     * ({@link InstanceRecord#beginInterval}).
      */
-    static int bankFloorOmen(InstanceRecord record, int floorsPerSafeVisit) {
+    static int bankFloorOmen(InstanceRecord record) {
         record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
         record.interval.omen = 0;
-        return Omen.band(record.interval.bankedOmenSum(), floorsPerSafeVisit);
+        return Omen.band(record.interval.bankedOmenSum(), record.interval.floorOmens.size());
     }
 
     /**
-     * M65: the interval-level settlement that happens once per safe visit,
-     * for each member who completed at least one floor. Replaces the
-     * keystone level up, payout, prestige, bounty and diary delivery that
-     * used to happen in {@code completeRun} on every floor.
-     *
-     * <p>Spec 12.4: "Keystone per safe visit, not per floor." The omen
-     * finish table (spec 5.2, 5.4) keys off the sum of all floors' omens
-     * since the last safe visit, and the band determines the keystone
-     * level change (+1/+1/+0) and the chest count (3/2/1). This method
-     * reads {@code record.interval.floorOmens} and {@code record.floor.rewardChests},
-     * both of which were set by {@link #advanceFloor} on the last floor.
-     *
-     * <p>Bounty hooks fire once per visit (not per member), the same way
-     * they used to fire on firstCompletion. SPEEDRUNNER is now "low-omen
-     * completion" (band 0) rather than "finished before the clock ran
-     * out," per the M65 handoff.
+     * Adds the floor in hand's trial spawners, cleared and in all, to the
+     * interval's bounty tally, once per cleared floor: when the next door is
+     * committed and the floor is left behind, or when the interval settles
+     * on it. Clear the Halls and Tidy read the tally, so every floor of the
+     * interval counts.
      */
+    static void tallyFloorSpawners(MinecraftServer server, InstanceRecord record) {
+        if (record.floor.spawnersTallied || record.floor.completed.isEmpty()) {
+            return;
+        }
+        record.floor.spawnersTallied = true;
+        Set<BlockPos> spawners = record.layout.trialSpawners();
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (spawners.isEmpty() || level == null) {
+            return;
+        }
+        record.interval.spawnersTotal += spawners.size();
+        record.interval.spawnersCleared += TrialContent.countCleared(level, spawners);
+    }
+
+    /**
+     * What {@code member} would bank if the interval settled right now with
+     * {@code penalty} bands of penalty: the go-home screen's numbers, and the
+     * same arithmetic {@link #settleInterval} applies.
+     */
+    static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
+                                                    UUID member, int penalty) {
+        int floors = record.interval.floorSteps.size();
+        return IntervalBanking.settle(record.interval.floorSteps, record.interval.bankedOmenSum(),
+                DungeonLog.forServer(server).get(member).keyProgress(),
+                PocketDungeonsConfig.floorsPerSafeVisit(), penalty, ZoneRules.of(record).bonusChests(floors));
+    }
+
+    /**
+     * Settles the interval once: the guard is set before the settlement runs,
+     * so one that throws partway is not repeated in full by a retry.
+     */
+    private static void settleOnce(MinecraftServer server, InstanceRecord record, int penalty) {
+        if (!record.interval.safeVisitSettled) {
+            record.interval.safeVisitSettled = true;
+            settleInterval(server, record, penalty);
+        }
+    }
+
+    /** The settlement of going home: {@link #settleInterval} with no penalty. */
     static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
+        settleInterval(server, record, 0);
+    }
+
+    /**
+     * The settlement that ends an interval, for every member present: the
+     * omen band over the floors actually cleared (made {@code penalty} bands
+     * worse for a checkpoint exit), each member's keystone by
+     * {@link IntervalBanking}'s average-of-doors rule from their own key and
+     * their own carried progress, free-door fuel, the payout command,
+     * prestige, the diary and the run record.
+     *
+     * <p>Bounty hooks fire once per settlement, for the owner, and only when
+     * the owner is here to bank: a party finishing out an absent owner's
+     * grace does not progress their weeklies. Speedrunner (a calm finish)
+     * and Explorer ask for an interval of the usual length, which is what
+     * they always meant before the party could bank after any floor; Deep
+     * Diver asks for twice that, now reachable by staying in. Clear the Halls
+     * and Tidy count every floor of the interval
+     * ({@link #tallyFloorSpawners}).
+     */
+    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty) {
         if (!record.isKeystoneRun()) {
             return;
         }
-        int chests = record.floor.rewardChests;
-        // M48/M65: the omen finish table. chests >= 2 means the low or
-        // mid band (+1 level); chests == 1 means the high band (+0 level).
-        boolean levelUp = chests >= 2;
-        // M65: SPEEDRUNNER is now "low-omen completion" (band 0, 3 chests)
-        // rather than "finished before the clock ran out." The clock no
-        // longer depletes on ordinary floors (step 2), so "timed" is no
-        // longer a meaningful distinction.
-        boolean lowOmen = chests >= 3;
+        tallyFloorSpawners(server, record);
+        IntervalState interval = record.interval;
+        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
+        int floors = interval.floorSteps.size();
+        int bonusChests = ZoneRules.of(record).bonusChests(floors);
+        IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
+                interval.bankedOmenSum(), 0, floorsPerVisit, penalty, bonusChests);
 
-        // M34: weekly bounty hooks. Fire once per visit, not per member.
-        Set<BlockPos> spawners = record.layout.trialSpawners();
-        int cleared = 0;
-        if (!spawners.isEmpty()) {
-            cleared = TrialContent.countCleared(
-                    server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL), spawners);
-            BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.CLEAR_HALLS.id, cleared);
-        }
-        if (lowOmen) {
-            BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.SPEEDRUNNER.id, 1);
-        }
-        if (record.floor.chosenStep >= 2) {
-            BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.SPELUNKER.id, 1);
-        }
-        // M75: exploration bounties. All fire once per safe visit and are
-        // solo-achievable. Explorer counts any completed safe visit; Tidy
-        // counts a full spawner clear (all spawners, not just the threshold
-        // fraction); Deep Diver counts reaching the second safe-visit depth.
-        BountyTracker.progress(server, record.owner,
-                BountyTracker.Bounty.EXPLORER.id, 1);
-        if (!spawners.isEmpty() && cleared >= spawners.size()) {
-            BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.TIDY.id, 1);
-        }
-        if (record.interval.floorIndex >= PocketDungeonsConfig.floorsPerSafeVisit() * 2) {
-            BountyTracker.progress(server, record.owner,
-                    BountyTracker.Bounty.DEEP_DIVER.id, 1);
+        // M34: weekly bounty hooks. Fire once per settlement, not per member.
+        if (record.members.containsKey(record.owner)) {
+            boolean fullInterval = floors >= floorsPerVisit;
+            if (interval.spawnersTotal > 0) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.CLEAR_HALLS.id, interval.spawnersCleared);
+            }
+            // M65: SPEEDRUNNER is "low-omen completion" (band 0).
+            if (fullInterval && shared.band() == 0) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.SPEEDRUNNER.id, 1);
+            }
+            if (interval.floorSteps.stream().anyMatch(step -> step >= 2)) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.SPELUNKER.id, 1);
+            }
+            // M75: exploration bounties, all solo-achievable. Tidy counts a
+            // full spawner clear (all spawners, not just the threshold
+            // fraction) across the interval.
+            if (fullInterval) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.EXPLORER.id, 1);
+            }
+            if (interval.spawnersTotal > 0 && interval.spawnersCleared >= interval.spawnersTotal) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.TIDY.id, 1);
+            }
+            if (floors >= floorsPerVisit * 2) {
+                BountyTracker.progress(server, record.owner,
+                        BountyTracker.Bounty.DEEP_DIVER.id, 1);
+            }
         }
 
-        // Per-member settlement: keystone level up, free-door fuel, payout,
-        // prestige, diary.
+        // Per-member settlement: keystone levels and carried progress,
+        // free-door fuel, payout, prestige, diary.
         DungeonLog log = DungeonLog.forServer(server);
+        int maxLevel = PocketDungeonsConfig.keystoneMaxLevel();
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
                 continue;
             }
-            // M2/M3: the door choice happened at the first staging room.
-            // On a low/mid-band finish, record.floor.chosenStep is which of
-            // Keystone.offers this member's own current level banks at.
-            if (levelUp && record.floor.chosenStep > 0) {
+            // Each member banks from their own key and their own carried
+            // progress, so a member riding along at a lower level climbs
+            // from where they stand.
+            if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
-                Keystone.Offer[] offers = Keystone.offers(member, memberEntry.keystoneLevel(),
-                        memberEntry.currentTheme(), memberEntry.depth());
-                Keystone.Offer banked = offers[record.floor.chosenStep - 1];
-                Keystones.grantOffer(server, member, memberPlayer, banked);
-                record.floor.keystoneReturned.add(member);
+                IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
+                        interval.bankedOmenSum(), memberEntry.keyProgress(), floorsPerVisit, penalty,
+                        bonusChests);
+                if (settled.levels() > 0) {
+                    Keystones.grantLevel(server, member, memberPlayer,
+                            KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel));
+                    record.floor.keystoneReturned.add(member);
+                }
+                log.setKeyProgress(member, settled.progress());
+                memberPlayer.sendSystemMessage(Component.literal(
+                        IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
+                        .withStyle(ChatFormatting.GOLD));
             }
 
-            // M12: door 1's second job. Guaranteed, regardless of omen band.
+            // M12: door 1's second job, when the interval's last floor was the
+            // free door. Guaranteed, regardless of omen band.
             if (record.floor.freeDoor) {
                 Fuel.grant(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun());
             }
 
-            Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), chests);
+            Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 
             // M26: reads log fresh, after every keystone-level change.
             DiaryDelivery.deliverIfEligible(log, memberPlayer);
@@ -1425,47 +1508,59 @@ final class RunLifecycle {
     }
 
     /**
-     * M78: the Endless Mine's voluntary cash-out. The Mine never forces a
-     * safe staging room, so the owner uses {@code /dungeon cashout} between
-     * floors to leave with the haul banked so far. This is the Mine's
-     * commitment surface on the exit side: it refuses outside a Mine or
-     * outside a staging checkpoint, then delegates to {@link #returnToSafe},
-     * which settles the safe visit (keystone level, payout, depth record)
-     * and performs the M65 silent physical homecoming. The Mine reuses the
-     * ordinary safe-visit settlement on purpose, so its keystone progression
-     * keys off the same omen finish table and cannot raise the power ceiling.
+     * The way home from any checkpoint: the HOME lever in a cleared floor's
+     * staging room, and {@code /dungeon cashout}, which is kept as the same
+     * thing typed. Owner only, and only between floors. A door preview still
+     * open is cancelled first (its escrowed catalyst refunded), then
+     * {@link #returnToSafe} settles the interval and walks the party home. In
+     * the Endless Mine the depth reached is named as well.
      *
-     * @return 1 if the cash-out succeeded, 0 otherwise (for brigadier)
+     * @return whether the party went home
      */
-    static int cashOutMine(ServerPlayer player) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !EndlessMineRules.isMine(record)) {
-            player.sendSystemMessage(Component.literal(EndlessMineRules.notInMineMessage())
-                    .withStyle(ChatFormatting.RED));
-            return 0;
+    static boolean goHome(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return false;
         }
-        if (!RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)) {
-            player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutBetweenFloorsMessage())
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
+            player.sendSystemMessage(Component.literal("You are not in a dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        if (!record.inFloorLoop() || !betweenFloors(record)) {
+            player.sendSystemMessage(Component.literal(
+                    "The way home opens between floors, from the staging room.")
                     .withStyle(ChatFormatting.YELLOW));
-            return 0;
+            return false;
         }
         if (!player.getUUID().equals(record.owner)) {
-            player.sendSystemMessage(Component.literal("Only the party leader can cash out.")
+            player.sendSystemMessage(Component.literal("Only the party leader can take the party home.")
                     .withStyle(ChatFormatting.RED));
-            return 0;
+            return false;
         }
+        boolean mine = EndlessMineRules.isMine(record);
         int depth = EndlessMineRules.cashOutDepth(record);
-        if (!returnToSafe(player)) {
-            return 0;
+        if (record.phase == RunSession.Phase.PREVIEW) {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (level != null) {
+                Instances.clearPreview(level, record, true);
+            }
         }
-        player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutMessage(depth))
-                .withStyle(ChatFormatting.GOLD));
-        return 1;
+        if (!returnToSafe(player)) {
+            return false;
+        }
+        if (mine) {
+            player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutMessage(depth))
+                    .withStyle(ChatFormatting.GOLD));
+        }
+        return true;
     }
 
     /**
-     * (M57/M65) Returns the party to the safe room from a safe staging
-     * room. M65: the return is now a silent homecoming. The saved room
+     * (M57/M65) Returns the party to the safe room from a cleared floor's
+     * staging room, settling the interval first. The return is a silent
+     * homecoming. The saved room
      * is stamped behind the final staging door, the door opens, and the
      * party walks through physically. No teleport, no chime, no
      * explanation message. The old floor cells are released after all
@@ -1483,8 +1578,7 @@ final class RunLifecycle {
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)
-                || !player.getUUID().equals(record.owner)
-                || !(record.floor.safeStaging || record.interval.endlessMine)) {
+                || !player.getUUID().equals(record.owner)) {
             return false;
         }
         // M65: transition to SAFE_RETURN for the duration of the return.
@@ -1523,13 +1617,8 @@ final class RunLifecycle {
             return false;
         }
 
-        // M65: settle the safe visit before tearing down the dungeon. The
-        // guard is set first: a settlement that throws partway must not be
-        // repeated in full by the retry.
-        if (!record.interval.safeVisitSettled) {
-            record.interval.safeVisitSettled = true;
-            settleSafeVisit(server, record);
-        }
+        // M65: settle the interval before tearing down the dungeon, once.
+        settleOnce(server, record, 0);
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
@@ -1569,6 +1658,13 @@ final class RunLifecycle {
         // (The stamp either placed the saved room or the entrance hall
         // template as a fallback, so the cell is always structurally
         // sound after stampSafeRoom returns.)
+
+        // The selector doors, their bulbs and the go-home control come out:
+        // the doorway is the way home now, and nothing here chooses a floor.
+        RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
+        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
+        RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
+        DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
 
         // Open the staging door. Replace the selector door/window with
         // a walkable doorway so the party can walk through.
@@ -1732,6 +1828,17 @@ final class RunLifecycle {
      */
     static void dropMember(MinecraftServer server, InstanceRecord record,
                                    UUID member, ServerPlayer player, String reason) {
+        dropMember(server, record, member, player, reason, false);
+    }
+
+    /**
+     * {@link #dropMember(MinecraftServer, InstanceRecord, UUID, ServerPlayer, String)},
+     * saying whether the member lost their connection ({@code disconnected})
+     * rather than chose to go: an owner who drops with the party still inside
+     * gets a reconnect grace ({@link #holdForOwner}) instead of ending the run.
+     */
+    static void dropMember(MinecraftServer server, InstanceRecord record,
+                           UUID member, ServerPlayer player, String reason, boolean disconnected) {
         // M43.2: Instances.detach is the one primitive for this now. Dropping
         // a member used to mean only "forget them," which was survivable when
         // an instance died with its last member; U8 made instances outlive
@@ -1742,6 +1849,9 @@ final class RunLifecycle {
         // record.members has already had `member` removed above, so a non-empty
         // set here means someone else is still in the party.
         if (leadershipChanged(record, member, !record.members.isEmpty())) {
+            if (disconnected && holdForOwner(server, record)) {
+                return;
+            }
             InstanceTeardown.purge(server, record, "party leader left", member);
             return;
         }
@@ -1753,9 +1863,70 @@ final class RunLifecycle {
     }
 
     /**
+     * R6: an owner who lost their connection with the party still inside gets
+     * {@code ownerReconnectGraceSeconds} to come back before the run ends. The
+     * members keep playing the floor they are on; door choices, the commit
+     * lever and the way home stay the owner's and wait for them. A rejoin in
+     * time goes through free re-entry ({@link Instances#rejoinOwnedInstance}),
+     * and {@link Instances#admit} lifts the hold. {@link #watchOwnerGrace}
+     * ends the run when the deadline passes. In memory, like the rest of the
+     * record.
+     *
+     * @return whether the run is being held for the owner; {@code false} (grace
+     *         off, or not a floor loop run) means end it now, as before
+     */
+    private static boolean holdForOwner(MinecraftServer server, InstanceRecord record) {
+        int grace = PocketDungeonsConfig.ownerReconnectGraceSeconds();
+        if (grace <= 0 || !record.inFloorLoop() || record.tearingDown) {
+            return false;
+        }
+        if (record.ownerAbsentUntilTick == 0) {
+            record.ownerAbsentUntilTick = server.overworld().getGameTime() + grace * 20L;
+            Instances.announce(server, record, "Your party leader lost their connection. The run holds for "
+                    + grace + " seconds; the doors and the way home wait for them.", null);
+            PocketDungeonsMod.LOG.info("Holding slot {} for its owner {} for {}s after a disconnect",
+                    record.slot, record.owner, grace);
+        }
+        return true;
+    }
+
+    /**
+     * The watcher's half of {@link #holdForOwner}, once per watch tick while
+     * the owner is away. The hold lifts when the owner is back, or when the
+     * rest of the party has left too (a run nobody is in simply waits for its
+     * owner, as it always has). When the deadline passes the run ends: at a
+     * checkpoint the members present first bank the interval one band worse,
+     * the same as the owner leaving there; mid-floor it ends as a leader
+     * leaving always has.
+     *
+     * @return whether the run ended
+     */
+    static boolean watchOwnerGrace(MinecraftServer server, InstanceRecord record, long now) {
+        if (record.members.containsKey(record.owner) || record.members.isEmpty()) {
+            record.ownerAbsentUntilTick = 0;
+            return false;
+        }
+        if (now < record.ownerAbsentUntilTick) {
+            return false;
+        }
+        record.ownerAbsentUntilTick = 0;
+        if (record.isKeystoneRun() && betweenFloors(record)) {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (record.phase == RunSession.Phase.PREVIEW && level != null) {
+                Instances.clearPreview(level, record, true);
+            }
+            settleOnce(server, record, IntervalBanking.LEAVE_PENALTY);
+        }
+        Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
+        InstanceTeardown.purge(server, record, "party leader did not reconnect");
+        return true;
+    }
+
+    /**
      * T2.6 / {@code docs/MYTHIC_PLUS_RECONCILIATION.md} §7.2: leadership does not
      * transfer. If the owner is the one leaving <em>and someone else is still in
-     * the party</em>, the whole run ends with them -- stricter than plain
+     * the party</em>, the whole run ends with them (a lost connection first gets
+     * {@link #holdForOwner}'s grace). That is stricter than plain
      * purge-when-empty, and deliberately so: transferring ownership is real work
      * with real edge cases this codebase already paid for once (the
      * disconnect-during-teardown race {@code docs/PLAN.md} documents), and "purge and

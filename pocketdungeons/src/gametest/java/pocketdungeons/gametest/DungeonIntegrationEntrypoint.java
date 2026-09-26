@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.ZoneRulesIntegrationCheck;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -137,6 +138,9 @@ public final class DungeonIntegrationEntrypoint implements ModInitializer {
                         + worldDataDir);
             }
         }
+
+        // Audit wave 2b: the zone rules hook, read through the real resource manager.
+        failures.addAll(ZoneRulesIntegrationCheck.run(server));
 
         for (String failure : failures) {
             LOG.error("dungeonIntegrationTest: {}", failure);

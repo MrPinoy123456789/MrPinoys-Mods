@@ -26,9 +26,9 @@ import java.util.Set;
  *   <li>{@link Phase#FLOOR_CLEARED}: terminal pad reached. The floor's
  *       omen is banked, completion chests are placed, and a new staging
  *       room is stamped behind the far wall. The party is choosing the
- *       next door (or the safe door, if this is a safe staging room).</li>
- *   <li>{@link Phase#SAFE_RETURN}: safe door selected in a safe staging
- *       room. The dungeon is being purged and the safe room is being
+ *       next door or the way home (the HOME lever).</li>
+ *   <li>{@link Phase#SAFE_RETURN}: the HOME lever was pulled. The interval
+ *       settles, the dungeon is being purged and the safe room is being
  *       re-stamped. This is a transient phase: it is set at the start of
  *       {@link RunLifecycle#returnToSafe} and left for {@code HOME} when the
  *       room is stamped, or back for {@code FLOOR_CLEARED} when the return
@@ -77,7 +77,7 @@ final class RunSession {
         // Reaching the terminal pad advances the floor.
         pair(Phase.ACTIVE, Phase.FLOOR_CLEARED),
         // From the cleared staging room, preview the next floor or
-        // select the safe door.
+        // go home.
         pair(Phase.FLOOR_CLEARED, Phase.PREVIEW),
         pair(Phase.FLOOR_CLEARED, Phase.SAFE_RETURN),
         // Completing the safe return lands in the safe room.

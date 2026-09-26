@@ -32,7 +32,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * M19 19.1/19.6: the two physical room screens, each a {@code text_display}
+ * M19 19.1/19.6: the physical room screens (door, engine, tracker, and on a
+ * cleared floor's staging room the go-home screen), each a {@code text_display}
  * entity summoned and updated server-side. Follows Hearsay's {@code Bubbles}
  * pattern exactly (verified against the 26.2 jar): {@code see_through=false}
  * (MC-277982 renders see-through glyphs black), forced brightness
@@ -85,6 +86,15 @@ final class DungeonScreen {
     private static final double DOOR_SCREEN_ALONG = 8.0;
     private static final double ENGINE_SCREEN_ALONG = 7.5;
     private static final double TRACKER_SCREEN_ALONG = 7.5;
+    /**
+     * The go-home screen sits on the selector wall's 3x3 backdrop at along
+     * 2..4, Y=1..3 ({@link RoomTemplateGenerator#HOME_LEVER_ALONG}): its
+     * middle is the centre of block 3 and the middle of row 2. A little
+     * smaller than the engine screen so its three lines stay on the panel.
+     */
+    private static final double HOME_SCREEN_ALONG = 3.5;
+    private static final double HOME_CENTER_Y = 2.5;
+    private static final float HOME_SCALE = 0.8f;
     private static final int LINE_WIDTH = 200;
     private static final boolean SEE_THROUGH = false;
 
@@ -157,6 +167,21 @@ final class DungeonScreen {
     }
 
     /**
+     * Summons the go-home screen over the go-home control a cleared floor's
+     * staging room carries (see {@link #homeContent}).
+     */
+    static void summonHome(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
+                           Component content) {
+        show(level, roomOrigin, selectorWall, HOME_SCREEN_ALONG, HOME_CENTER_Y, HOME_SCALE,
+                yawFor(selectorWall), content);
+    }
+
+    /** Takes the go-home screen down with its control, at a commit or on the way home. */
+    static void clearHome(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall) {
+        clear(level, wallAnchor(roomOrigin, selectorWall, HOME_SCREEN_ALONG, HOME_CENTER_Y));
+    }
+
+    /**
      * Refreshes the tracker screen for {@code owner}'s room from anywhere
      * with just a server (the task/bounty progress hooks, which fire without
      * a level or record in hand). No-op if the owner is not currently in a
@@ -218,6 +243,10 @@ final class DungeonScreen {
                 PocketDungeonsConfig.floorsPerSafeVisit(), mine);
         MutableComponent content = Component.literal("KEYSTONE " + offer.level() + " | " + floor + "\n"
                 + themeName(offer.theme()) + "\n").append(affixLine(effective));
+        // What this door banks when its floor is cleared, beside what the
+        // interval's cleared floors already hold.
+        content.append(Component.literal("\n" + IntervalBanking.doorLine(offer.step(),
+                IntervalBanking.stepSum(record.interval.floorSteps))).withStyle(ChatFormatting.AQUA));
         if (!offer.free()) {
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
             ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
@@ -237,6 +266,24 @@ final class DungeonScreen {
             content.append(Component.literal("\nPull the lever to descend!").withStyle(ChatFormatting.GREEN));
         }
         return content;
+    }
+
+    /**
+     * The go-home screen: what the owner would bank by pulling the lever right
+     * now (levels, the progress kept toward the next, chests and the band),
+     * titled {@code HOME}, or {@code TIME TO GO HOME} in green once the
+     * interval has run its usual length. Other members bank from their own
+     * keys; the owner's numbers are the ones on the wall.
+     */
+    static Component homeContent(MinecraftServer server, InstanceRecord record) {
+        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
+        boolean goodTime = record.interval.floorIndex >= floorsPerVisit;
+        String text = IntervalBanking.homeScreen(RunLifecycle.settlementFor(server, record, record.owner, 0),
+                floorsPerVisit, goodTime);
+        int split = text.indexOf('\n');
+        return Component.literal(text.substring(0, split))
+                .withStyle(goodTime ? ChatFormatting.GREEN : ChatFormatting.GOLD)
+                .append(Component.literal(text.substring(split)).withStyle(ChatFormatting.WHITE));
     }
 
     /** Context 3: a run is in progress: level, theme and affixes. */

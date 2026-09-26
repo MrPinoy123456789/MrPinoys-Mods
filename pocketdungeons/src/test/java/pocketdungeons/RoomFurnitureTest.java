@@ -8,8 +8,9 @@ import net.minecraft.core.BlockPos;
  * standing one block in front of the selector wall, the commit lever and
  * its sign in the same row beside the third door, the three copper bulbs
  * and the black concrete door screen set into that wall, and the engine
- * block with its screen on the wall to the left of the selector wall.
- * Nothing else in the room is furniture. Runs headless like
+ * block with its screen on the wall to the left of the selector wall, and
+ * the go-home control left of the doors (its lever and sign in the door row,
+ * its screen and bulb in the wall). Nothing else in the room is furniture. Runs headless like
  * {@link RoomShellTest}.
  *
  * <p>The positions here must stay in lockstep with
@@ -26,6 +27,7 @@ public class RoomFurnitureTest {
         for (DoorMask.Direction wall : DoorMask.Direction.values()) {
             testBulbsAndLever(wall);
             testDoorScreenBlocks(wall);
+            testHomeControl(wall);
             testEngineOnLeftWall(wall);
             testInteriorIsNeverFurniture(wall);
         }
@@ -71,6 +73,30 @@ public class RoomFurnitureTest {
     }
 
     /**
+     * The go-home control mirrors the commit lever on the other side of the
+     * doors: a lever at along 5, Y=2 with its sign at Y=3 in the door row, and
+     * in the wall a 3x3 screen at along 2..4, Y=1..3 with a bulb at along 3,
+     * Y=4. The positions must agree with {@code RoomTemplateGenerator}'s
+     * {@code HOME_*} constants.
+     */
+    private static void testHomeControl(DoorMask.Direction wall) {
+        check(RoomTemplateGenerator.HOME_LEVER_ALONG == 5 && RoomTemplateGenerator.HOME_BULB_ALONG == 3
+                && RoomTemplateGenerator.HOME_BULB_Y == 4, "placement constants match the protected positions");
+        check(isFurniture(doorPlane(wall, 5, 2), wall), "home lever " + wall);
+        check(isFurniture(doorPlane(wall, 5, 3), wall), "home sign " + wall);
+        check(!isFurniture(doorPlane(wall, 5, 1), wall), "nothing under the home lever " + wall);
+        check(!isFurniture(doorPlane(wall, 6, 2), wall), "the row between the home lever and the doors " + wall);
+        for (int along = 2; along <= 4; along++) {
+            for (int y = 1; y <= 3; y++) {
+                check(isFurniture(wallRing(wall, along, y), wall), "home screen " + wall + " " + along + " " + y);
+            }
+        }
+        check(isFurniture(wallRing(wall, 3, 4), wall), "home bulb " + wall);
+        check(!isFurniture(wallRing(wall, 1, 2), wall), "home screen edge " + wall);
+        check(!isFurniture(wallRing(wall, 5, 1), wall), "home screen edge " + wall);
+    }
+
+    /**
      * The engine bay sits on the wall to the left of the selector wall: the
      * anchor at Y=2, the screen row at Y=4 with an end block either side of it,
      * and a bezel course at Y=3 and Y=5.
@@ -104,15 +130,16 @@ public class RoomFurnitureTest {
                         // The only interior cells that are furniture are on
                         // the door plane, one block in front of the selector
                         // wall: the three selector doors (along 7..9, Y=1..2),
-                        // the lever (along 10, Y=2), and its sign (along 10,
-                        // Y=3). The bulbs, the engine and both screens sit in
-                        // the wall ring, never in the interior.
+                        // the commit and go-home levers (along 10 and 5,
+                        // Y=2), and their signs (Y=3). The bulbs, the engine
+                        // and the screens sit in the wall ring, never in the
+                        // interior.
                         int along = alongOf(wall, x, z);
                         int perp = (wall == DoorMask.Direction.NORTH || wall == DoorMask.Direction.SOUTH) ? z : x;
                         boolean onDoorPlane = perp == doorPlaneOf(wall);
                         boolean selectorDoor = onDoorPlane && (y == 1 || y == 2) && along >= 7 && along <= 9;
-                        boolean lever = onDoorPlane && y == 2 && along == 10;
-                        boolean sign = onDoorPlane && y == 3 && along == 10;
+                        boolean lever = onDoorPlane && y == 2 && (along == 10 || along == 5);
+                        boolean sign = onDoorPlane && y == 3 && (along == 10 || along == 5);
                         if (!selectorDoor && !lever && !sign) {
                             throw new AssertionError("interior should never be furniture: "
                                     + wall + " at " + x + "," + y + "," + z);

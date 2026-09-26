@@ -92,12 +92,12 @@ final class DungeonCommands {
                                     .executes(ctx -> choose(ctx.getSource().getPlayerOrException(),
                                             IntegerArgumentType.getInteger(ctx, "step")))))
 
-                    // M78: the Endless Mine's voluntary cash-out. The Mine never
-                    // forces a safe staging room, so the owner uses this between
-                    // floors to leave with the haul banked so far. See
-                    // RunLifecycle.cashOutMine.
+                    // The HOME lever, typed: banks the interval and takes the
+                    // party home from any checkpoint, in any zone. The name is
+                    // the Endless Mine's, which had this before every staging
+                    // room did. See RunLifecycle.goHome.
                     .then(Commands.literal("cashout")
-                            .executes(ctx -> RunLifecycle.cashOutMine(ctx.getSource().getPlayerOrException())))
+                            .executes(ctx -> RunLifecycle.goHome(ctx.getSource().getPlayerOrException()) ? 1 : 0))
 
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
@@ -437,17 +437,12 @@ final class DungeonCommands {
     }
 
     /**
-     * {@code /dungeon choose <1|2|3>}: settle a completed run's door offer.
-     * Player-only, not op-gated. M56: this now does preview then commit in
-     * sequence, since the command bypasses the physical door-click and
-     * lever-pull flow. M57: in a safe staging room, the command returns
-     * the party to the safe room regardless of the step argument.
+     * {@code /dungeon choose <1|2|3>}: take a door. Player-only, not
+     * op-gated. M56: this does preview then commit in sequence, since the
+     * command bypasses the physical door-click and lever-pull flow. The way
+     * home is {@code /dungeon cashout}.
      */
     private static int choose(ServerPlayer player, int step) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record != null && record.floor.safeStaging) {
-            return RunLifecycle.returnToSafe(player) ? 1 : 0;
-        }
         if (!RunLifecycle.previewDoor(player, step)) {
             return 0;
         }

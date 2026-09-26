@@ -308,7 +308,11 @@ for ((taskName, testClass) in mapOf(
     // M75: run memento title/lore/codec/readback regression.
     "runMementoTest" to "RunMementoTest",
     // M78: Endless Mine ruleset (pure policy helpers).
-    "endlessMineRulesTest" to "EndlessMineRulesTest"
+    "endlessMineRulesTest" to "EndlessMineRulesTest",
+    // Audit wave 2b: config round trip, zone rules, per-floor banking.
+    "configSaveTest" to "ConfigSaveTest",
+    "zoneRulesTest" to "ZoneRulesTest",
+    "intervalBankingTest" to "IntervalBankingTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -367,6 +371,9 @@ tasks.test {
     dependsOn("jarFileSystemWalkTest")
     dependsOn("runMementoTest")
     dependsOn("endlessMineRulesTest")
+    dependsOn("configSaveTest")
+    dependsOn("zoneRulesTest")
+    dependsOn("intervalBankingTest")
     failOnNoDiscoveredTests = false
 }
 
@@ -399,4 +406,25 @@ tasks.register<JavaExec>("pipelineProof") {
     description = "Proves the M3 planner pipeline against a synthetic full room library"
     classpath = sourceSets["test"].runtimeClasspath
     mainClass = "pocketdungeons.PipelineProofTest"
+}
+
+// Web room editor (tools/room-editor): headless room pack validation. The
+// harness lives with the editor, outside src/, and is compiled here against
+// the main source set so it can call the mod's own package-private room
+// loaders (DungeonRoomMeta.fromJson, RoomManifest.buildEntry). No server is
+// booted: the game's registries come from Bootstrap, as in the other headless
+// tests. Validate another folder with -ProomsDir=<resources or data/ns path>.
+val roomValidatorClasses = layout.buildDirectory.dir("roomValidator/classes")
+val compileRoomValidator = tasks.register<JavaCompile>("compileRoomValidator") {
+    source = fileTree("tools/room-editor/java") { include("**/*.java") }
+    classpath = sourceSets["main"].output + sourceSets["main"].compileClasspath
+    destinationDirectory = roomValidatorClasses
+}
+tasks.register<JavaExec>("validateRooms") {
+    group = "verification"
+    description = "Runs the mod's own room load checks headlessly over a resources folder (room editor)"
+    dependsOn(compileRoomValidator)
+    classpath = files(roomValidatorClasses) + sourceSets["main"].runtimeClasspath
+    mainClass = "pocketdungeons.RoomPackValidatorMain"
+    args(project.findProperty("roomsDir")?.toString() ?: file("src/main/resources").path)
 }

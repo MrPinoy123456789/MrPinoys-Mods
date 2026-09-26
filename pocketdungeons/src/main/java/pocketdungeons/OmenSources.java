@@ -248,12 +248,16 @@ final class OmenSources {
     /**
      * Adds to the current floor's omen, clamped per floor (spec 5.2).
      * Contributions may be negative: clearing a Barred Vault is relief, not
-     * pressure, so this must not filter them out. A rise is announced on the
-     * omen bar as coming from {@code source}; relief ({@code source} null) is
-     * silent, and so is a rise the per-floor clamp swallowed.
+     * pressure, so this must not filter them out. A rise is scaled by the
+     * zone's {@link ZoneRules#omenScale} and announced on the omen bar as
+     * coming from {@code source}; relief ({@code source} null) is unscaled
+     * and silent, and so is a rise the per-floor clamp swallowed.
      */
     private static void add(MinecraftServer server, InstanceRecord record, int contribution,
                             Omen.Source source) {
+        if (source != null) {
+            contribution = ZoneRules.of(record).scaleOmen(contribution);
+        }
         if (contribution == 0) {
             return;
         }

@@ -1,40 +1,29 @@
 package pocketdungeons;
 
 /**
- * M78: the Endless Mine ruleset. The Mine is the one rule-breaking dungeon the
- * roadmap conditionally unholds: an unbounded sequence of floors with no
- * compulsory final floor, where each checkpoint offers continue (a dungeon
- * door) or a voluntary cash-out, previous floors are released and can never be
- * revisited, and only the current floor plus its bounded transition work stay
- * loaded. The Mine's reward is an escalating loot tier and a displayable depth
- * record, never a higher permanent power ceiling.
+ * M78: what is left of the Endless Mine's own ruleset once the zone rules hook
+ * ({@link ZoneRules}) carries the rest. The Mine is a Cube recipe that turns an
+ * interval into a descent: every floor is stamped in the Mine theme, previous
+ * floors close behind the party, and the haul gets richer with depth.
  *
- * <p>This class is the pure policy half. It owns no Minecraft state: the
- * lifecycle hooks in {@link RunLifecycle} and {@link Instances} read these
- * helpers so the Mine's transition policy stays separate from the ordinary
- * three-floor settlement. The Mine reuses the M65 silent physical exit
- * ({@link RunLifecycle#returnToSafe}) for its cash-out and the M63 journal
- * recovery for custody, so a reconnecting party finds the same floor and the
- * same cash-out option. The record stays in memory for the lifetime of the
- * server process, the same as every other {@link InstanceRecord}, so the Mine
- * flag needs no NBT sidecar of its own.
+ * <p>What the hook expresses, in the Mine theme's {@code rules} block
+ * ({@code data/pocketdungeons/dungeon_theme/endless_mine.json}): the loot tier
+ * escalating one step every three floors since the last bank, capped at the
+ * top tier, and its role as the materials faucet. What it cannot, and so stays
+ * here: the recipe forcing the Mine theme onto every floor of the interval
+ * ({@link #effectiveTheme}), which is how a Mine interval comes to run under
+ * the Mine zone at all, the depth recorded on a run record, and the Mine's
+ * own words at its commitment surfaces.
  *
- * <p>Why the Mine does not raise the power ceiling: the cash-out settles
- * through the same {@link RunLifecycle#settleSafeVisit} path as an ordinary
- * safe visit, so the keystone level change keys off the same omen finish
- * table. A deep cash-out accumulates a large omen sum (high band, no level
- * change); a shallow one behaves like a normal safe visit. The Mine's
- * differential is the escalating loot tier on its completion chests and the
- * depth recorded on the run record, not more keystone levels. The ordinary
- * loop remains the keystone progression route, so the Mine cannot become the
- * only sensible supply route.
+ * <p>There is no Mine exit of its own any more: every checkpoint in every zone
+ * offers the HOME lever, and {@code /dungeon cashout} is that lever typed.
+ * Banking uses the same average-of-doors rule everywhere
+ * ({@link IntervalBanking}), so the Mine cannot out-level the ordinary loop;
+ * its reward is the escalating haul and a displayable depth, never a higher
+ * power ceiling.
  *
- * <p>Why previous floors cannot be revisited: {@link Instances#commitDoor}
- * already clears the previous floor's cells (via
- * {@link RunLifecycle#resetForNextDungeon}) and releases its force-load
- * tickets before the next floor is stamped, so chaining Mine floors reuses the
- * ordinary loop's per-floor release. The Mine only removes the forced safe
- * visit that would otherwise interrupt the chain.
+ * <p>Pure policy: no Minecraft state. The Mine flag lives on the interval
+ * ({@link IntervalState#endlessMine}), in memory like the rest of the record.
  */
 final class EndlessMineRules {
 
@@ -57,7 +46,8 @@ final class EndlessMineRules {
      * The theme id a floor should be stamped at. A Mine run (already flagged
      * on the record, or flagged by the recipe plan being previewed) forces the
      * Mine theme on every floor, so the recipe being cleared after the first
-     * commit does not drop the Mine look on later floors.
+     * commit does not drop the Mine look, or the Mine's zone rules, on later
+     * floors.
      */
     static String effectiveTheme(String offerTheme, InstanceRecord record,
                                  RunRecipePlan previewPlan) {
@@ -68,39 +58,9 @@ final class EndlessMineRules {
     }
 
     /**
-     * Whether {@link RunLifecycle#advanceFloor} should stamp a safe staging
-     * room at this floor. The ordinary loop forces one every
-     * {@code floorsPerSafeVisit} floors; the Mine never forces one, so every
-     * checkpoint offers continue doors and the cash-out stays voluntary.
-     */
-    static boolean shouldForceSafeStaging(InstanceRecord record, int floorsPerSafeVisit) {
-        if (isMine(record)) {
-            return false;
-        }
-        int cycle = Math.max(1, floorsPerSafeVisit);
-        return record.interval.floorIndex % cycle == 0;
-    }
-
-    /**
-     * The loot tier for a Mine floor's completion chests. The Mine escalates
-     * the tier with depth, one step per {@code floorsPerSafeVisit} floors,
-     * capped at the top tier (3) so the materials get better but never leave
-     * the table the ordinary loop draws from. A non-Mine floor returns the
-     * base tier unchanged.
-     */
-    static int completionLootTier(InstanceRecord record, int baseTier, int floorsPerSafeVisit) {
-        if (!isMine(record)) {
-            return baseTier;
-        }
-        int cycle = Math.max(1, floorsPerSafeVisit);
-        int escalated = baseTier + record.interval.floorIndex / cycle;
-        return Math.min(3, escalated);
-    }
-
-    /**
-     * The depth to record on a cash-out run record, or 0 for an ordinary run.
-     * The depth is the floor index reached, the displayable Mine record a
-     * memento can carry without granting power.
+     * The depth to record on the run record when a Mine interval banks, or 0
+     * for an ordinary run. The depth is the floor index reached, the
+     * displayable Mine record a memento can carry without granting power.
      */
     static int cashOutDepth(InstanceRecord record) {
         return isMine(record) ? Math.max(0, record.interval.floorIndex) : 0;
@@ -115,33 +75,23 @@ final class EndlessMineRules {
      * room movement, the same silence the ordinary loop keeps.
      */
     static String mineStartMessage() {
-        return "Endless Mine. There is no final floor. Each checkpoint offers a door deeper, "
-                + "or /dungeon cashout to leave with what you have banked. "
+        return "Endless Mine. There is no final floor, and the haul grows richer the deeper you go. "
+                + "Every checkpoint offers a door deeper, or the HOME lever to leave with what you carry. "
                 + "Previous floors close behind you.";
     }
 
     /**
      * Published at each Mine checkpoint, naming the depth reached and the
-     * cash-out. This is the commitment surface: the player sees the risk
+     * loot tier. This is the commitment surface: the player sees the risk
      * (deeper is further from the exit) and the reward (the tier) before
-     * choosing a door or cashing out.
+     * choosing a door or going home.
      */
     static String mineCheckpointMessage(int floorIndex, int tier) {
         return "Mine floor " + floorIndex + " cleared. Loot tier " + tier
-                + ". Walk a door to descend, or /dungeon cashout to leave with your haul.";
+                + ". Walk a door to descend, or pull the HOME lever to leave with your haul.";
     }
 
-    /** The refusal when /dungeon cashout is used outside a Mine. */
-    static String notInMineMessage() {
-        return "You are not in the Endless Mine.";
-    }
-
-    /** The refusal when /dungeon cashout is used outside a staging checkpoint. */
-    static String cashOutBetweenFloorsMessage() {
-        return "You can only cash out between Mine floors, standing in the staging room.";
-    }
-
-    /** The cash-out confirmation, naming the depth banked. */
+    /** Said when a Mine interval banks, naming the depth reached. */
     static String cashOutMessage(int depth) {
         return "You leave the Mine with " + depth + " floor" + (depth == 1 ? "" : "s") + " banked.";
     }

@@ -3,12 +3,14 @@ package pocketdungeons;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.DoublePredicate;
 import java.util.function.IntPredicate;
 import java.io.Writer;
@@ -37,6 +39,12 @@ public final class PocketDungeonsConfig {
     private static int voidGuardDepth = 10;
     private static int maxPartyMembers = 6;
     private static int inviteTtlSeconds = 120;
+    /**
+     * How long a run waits for an owner who lost their connection while the
+     * rest of the party is still inside, before it ends for everyone. 0 ends
+     * it at once, as it did before the grace existed.
+     */
+    private static int ownerReconnectGraceSeconds = 120;
     // M76: operating envelope. These bound how much concurrent world work the
     // mod can hold at once, so an overload refuses a new request before it
     // charges fuel or a catalyst rather than letting the server thrash. They
@@ -61,7 +69,10 @@ public final class PocketDungeonsConfig {
     private static int planAttemptBudget = 32;
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
-    // M57: how many floors the party plays before a safe staging room appears.
+    // The interval's usual length: after this many floors the HOME screen
+    // lights up and deeper floors start with omen on them, and it is how many
+    // door steps bank one keystone level (IntervalBanking). Nothing forces
+    // the party home.
     private static int floorsPerSafeVisit = 3;
 
     // ---- ritual -------------------------------------------------------------
@@ -337,11 +348,17 @@ public final class PocketDungeonsConfig {
                     throw new IllegalStateException("pocketdungeons.json is empty");
                 }
                 apply(parsed);
-                // Re-save the config so any new fields added since the last
-                // version get written to disk. This keeps the file complete
-                // without requiring operators to delete it on every update.
-                try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                    GSON.toJson(defaultsJson(), w);
+                // Keys added since the file was written are filled in so the
+                // file stays a complete reference, but what the operator set
+                // is written back as they set it: rewriting with the defaults
+                // would undo every edit on the next boot.
+                JsonObject rewrite = effectiveForSave(parsed);
+                if (rewrite != null) {
+                    try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                        GSON.toJson(rewrite, w);
+                    }
+                    PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
+                            + "their defaults, retired keys dropped, every other value kept");
                 }
             }
         } catch (Exception e) {
@@ -371,6 +388,10 @@ public final class PocketDungeonsConfig {
 
     public static int maxPartyMembers() {
         return maxPartyMembers;
+    }
+
+    public static int ownerReconnectGraceSeconds() {
+        return ownerReconnectGraceSeconds;
     }
 
     public static int inviteTtlSeconds() {
@@ -412,7 +433,7 @@ public final class PocketDungeonsConfig {
         return planAttemptBudget;
     }
 
-    /** M57: floors before a safe staging room appears. */
+    /** The interval's usual length, and the door steps a keystone level costs. See the field. */
     public static int floorsPerSafeVisit() {
         return floorsPerSafeVisit;
     }
@@ -613,6 +634,7 @@ public final class PocketDungeonsConfig {
         voidGuardDepth = 10;
         maxPartyMembers = 6;
         inviteTtlSeconds = 120;
+        ownerReconnectGraceSeconds = 120;
         maxConcurrentInstances = 32;
         maxConcurrentVisits = 16;
         maxConcurrentPreviews = 16;
@@ -716,6 +738,8 @@ public final class PocketDungeonsConfig {
         // confirmations and invites rather than the operator getting a
         // diagnostic.
         inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 1, "must be >= 1");
+        ownerReconnectGraceSeconds = readInt(root, "ownerReconnectGraceSeconds", 120,
+                v -> v >= 0 && v <= 3600, "must be between 0 and 3600");
         maxConcurrentInstances = readInt(root, "maxConcurrentInstances", 32,
                 v -> v >= 0, "must be >= 0");
         maxConcurrentVisits = readInt(root, "maxConcurrentVisits", 16,
@@ -1002,6 +1026,30 @@ public final class PocketDungeonsConfig {
         }
     }
 
+    /**
+     * The file {@link #load} writes back after reading {@code parsed}: every key
+     * the operator set, kept exactly as written (an out-of-range value included,
+     * so the next boot names it again rather than the file quietly forgetting
+     * it), every known key the file lacks at its default, and no
+     * {@link #RETIRED_KEYS}. A key this version does not know, such as a typo,
+     * is kept too: it is the operator's to remove. Returns {@code null} when
+     * that is exactly what {@code parsed} already holds, so an up-to-date file
+     * is left untouched.
+     */
+    static JsonObject effectiveForSave(JsonObject parsed) {
+        JsonObject merged = new JsonObject();
+        for (Map.Entry<String, JsonElement> known : defaultsJson().entrySet()) {
+            JsonElement set = parsed.get(known.getKey());
+            merged.add(known.getKey(), set != null ? set : known.getValue());
+        }
+        for (Map.Entry<String, JsonElement> own : parsed.entrySet()) {
+            if (!merged.has(own.getKey()) && !RETIRED_KEYS.contains(own.getKey())) {
+                merged.add(own.getKey(), own.getValue());
+            }
+        }
+        return merged.equals(parsed) ? null : merged;
+    }
+
     private static JsonObject defaultsJson() {
         JsonObject root = new JsonObject();
         root.addProperty("slotPitch", 2048);
@@ -1010,6 +1058,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("voidGuardDepth", 10);
         root.addProperty("maxPartyMembers", 6);
         root.addProperty("inviteTtlSeconds", 120);
+        root.addProperty("ownerReconnectGraceSeconds", 120);
         root.addProperty("maxConcurrentInstances", 32);
         root.addProperty("maxConcurrentVisits", 16);
         root.addProperty("maxConcurrentPreviews", 16);

@@ -354,6 +354,26 @@ final class RoomTemplateGenerator {
     private static final int SIGN_Y = 3;
 
     /**
+     * The go-home control, on the selector wall left of the doors, mirroring
+     * the commit lever: a second lever in the door row at along 5 with its
+     * own sign, and set into the wall at along 2..4 a 3x3 screen with a
+     * copper bulb over its middle. Only a cleared floor's staging room has
+     * one ({@link #placeHomeControl}); the lever banks the interval and
+     * takes the party home, and the bulb lights once the interval has run
+     * its usual length. {@link RoomProtection#isFurniture} protects the same
+     * positions.
+     */
+    static final int HOME_LEVER_ALONG = 5;
+    static final int HOME_SCREEN_ALONG_MIN = 2;
+    static final int HOME_SCREEN_ALONG_MAX = 4;
+    static final int HOME_SCREEN_Y_MIN = 1;
+    static final int HOME_SCREEN_Y_MAX = 3;
+    static final int HOME_BULB_ALONG = 3;
+    static final int HOME_BULB_Y = 4;
+    /** The go-home lever's sign. */
+    private static final String HOME_SIGN_WORD = "HOME";
+
+    /**
      * The engine bay on the wall to the left of the selector wall, bottom up:
      * the respawn anchor at Y=2, the flipped lower bezel course at Y=3, the
      * screen row at Y=4 with a crying obsidian block at each end, and the upper
@@ -570,6 +590,7 @@ final class RoomTemplateGenerator {
      */
     static void clearFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         clearBulbs(level, o, wall);
+        clearHomeControl(level, o, wall);
         RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, 2), RoomBuilder.AIR);
         RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y), RoomBuilder.AIR);
         for (int y = 4; y <= 5; y++) {
@@ -585,6 +606,50 @@ final class RoomTemplateGenerator {
                 RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), RoomBuilder.WALL);
             }
         }
+    }
+
+    /**
+     * Stamps the go-home control (see {@link #HOME_LEVER_ALONG}) in a cleared
+     * floor's staging room. {@code goodTime} lights the bulb: the interval
+     * has run its usual length and banking now is the sensible default.
+     */
+    static void placeHomeControl(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean goodTime) {
+        for (int along = HOME_SCREEN_ALONG_MIN; along <= HOME_SCREEN_ALONG_MAX; along++) {
+            for (int y = HOME_SCREEN_Y_MIN; y <= HOME_SCREEN_Y_MAX; y++) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
+            }
+        }
+        setHomeBulb(level, o, wall, goodTime);
+        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, 2), leverState(wall));
+        placeSign(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, SIGN_Y), wall, HOME_SIGN_WORD);
+    }
+
+    /** Lights or darkens the bulb over the go-home screen. */
+    static void setHomeBulb(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean lit) {
+        RoomBuilder.set(level, wallRingPos(o, wall, HOME_BULB_ALONG, HOME_BULB_Y), lit ? BULB_LIT : BULB);
+    }
+
+    /**
+     * Takes the go-home control back out: the lever and sign to air, the
+     * screen and bulb to the room's current shell wall. Run when a door is
+     * committed (the choosing is over), when the party goes home, and with
+     * the rest of the furniture when a staging room is left behind.
+     */
+    static void clearHomeControl(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        BlockState wallBlock = RoomBuilder.shellWallAt(level, o);
+        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, SIGN_Y), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, 2), RoomBuilder.AIR);
+        for (int along = HOME_SCREEN_ALONG_MIN; along <= HOME_SCREEN_ALONG_MAX; along++) {
+            for (int y = HOME_SCREEN_Y_MIN; y <= HOME_SCREEN_Y_MAX; y++) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, y), wallBlock);
+            }
+        }
+        RoomBuilder.set(level, wallRingPos(o, wall, HOME_BULB_ALONG, HOME_BULB_Y), wallBlock);
+    }
+
+    /** The go-home lever's position, for click detection ({@code Instances.isHomeLever}). */
+    static BlockPos homeLeverPos(BlockPos o, DoorMask.Direction wall) {
+        return doorPlanePos(o, wall, HOME_LEVER_ALONG, 2);
     }
 
     /**
@@ -623,14 +688,18 @@ final class RoomTemplateGenerator {
      * four rows it sits on.
      */
     private static void placeLeverSign(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        BlockPos pos = doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y);
+        placeSign(level, doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y), wall, LEVER_SIGN_WORD);
+    }
+
+    /** A waxed, glowing one-word wall sign at {@code pos}, facing into the room from {@code wall}. */
+    private static void placeSign(ServerLevel level, BlockPos pos, DoorMask.Direction wall, String word) {
         RoomBuilder.set(level, pos, signState(wall));
         if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign)) {
             PocketDungeonsMod.LOG.warn("The lever sign at {} did not come with a block entity", pos);
             return;
         }
         SignText text = new SignText()
-                .setMessage(LEVER_SIGN_LINE, Component.literal(LEVER_SIGN_WORD))
+                .setMessage(LEVER_SIGN_LINE, Component.literal(word))
                 .setColor(DyeColor.WHITE)
                 .setHasGlowingText(true);
         sign.setText(text, true);

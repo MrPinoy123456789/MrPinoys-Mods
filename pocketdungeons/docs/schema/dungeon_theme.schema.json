@@ -47,6 +47,95 @@
             "type": "string",
             "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
             "$comment": "M68: a fully qualified trial spawner config id for ominous mode encounters in this theme. Takes precedence over spawner_prefix when present. Same validation as normal_spawner."
+        },
+        "rules": {
+            "$ref": "#/$defs/rules",
+            "$comment": "Audit wave 2b: the zone rules hook (docs/ZONES_SPEC.md section 2, docs/INTEGRATION.md 1.6). Optional; a theme without it is the default zone. The parser is ZoneRules.fromJson, which rejects the theme on an unknown field, a floor kind that is not built, or a value out of range."
+        }
+    },
+    "$defs": {
+        "floorKind": {
+            "enum": ["standard"],
+            "$comment": "Only the standard planner is built. The Endless Mine's shaft and drift floors and the Mansion's scenario floor arrive with their zones."
+        },
+        "rules": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "floor_kind": {
+                    "$ref": "#/$defs/floorKind",
+                    "default": "standard",
+                    "$comment": "How a floor of this zone is planned. Ignored when floor_sequence is present."
+                },
+                "floor_sequence": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/floorKind" },
+                    "$comment": "The pattern of floor kinds within an interval, repeating. Defaults to [floor_kind]."
+                },
+                "capstone": {
+                    "enum": ["none", "boss"],
+                    "$comment": "boss: the Drowned Warden spawns at the terminal and the pad waits for it. Left out, a boss adventure node is a boss floor and anything else is not, as before the hook."
+                },
+                "depth_bonus": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "default": 0.3333,
+                    "$comment": "Bonus completion chests per floor since the last bank, counted from the second floor: floor(depth_bonus * (floor - 1)), at most 3, stacked on the three chest spots. The default pays nothing on floors 1 to 3, one from floor 4, two from 7, three from 10."
+                },
+                "omen_base": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "after": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000,
+                            "$comment": "Floors of an interval after which every new floor starts with omen on it. Left out, the config's floorsPerSafeVisit."
+                        },
+                        "amount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 4,
+                            "default": 1,
+                            "$comment": "The head start, per floor, not cumulative."
+                        }
+                    }
+                },
+                "omen_scale": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 4,
+                    "default": 1.0,
+                    "$comment": "Multiplier on every omen rise (dwell, sensors, shrieks), rounded to a whole point. Relief and the Ominous Bargain are not scaled."
+                },
+                "loot_role": {
+                    "enum": ["gear", "materials", "trophy"],
+                    "default": "gear",
+                    "$comment": "The zone's faucet (ZONES_SPEC section 5). Declared and validated; nothing pays differently by role yet."
+                },
+                "loot_tier_every": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000,
+                    "default": 0,
+                    "$comment": "One completion loot tier up every N floors since the last bank, never past tier 3. 0 is off. The Endless Mine uses 3."
+                },
+                "unlock_level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "$comment": "The keystone level from which a door into this zone can be dealt."
+                },
+                "kit_top_up_scale": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10,
+                    "default": 1.0,
+                    "$comment": "Multiplier on the safe-visit kit top-up. Read and validated; the top-up itself arrives in a later wave."
+                }
+            }
         }
     }
 }

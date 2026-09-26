@@ -134,7 +134,9 @@ final class Keystone {
 
     static Offer[] offers(java.util.UUID owner, int level, String currentTheme, int depth) {
         int max = PocketDungeonsConfig.keystoneMaxLevel();
-        List<String> themes = AdventureGraphs.current().graph().pick(owner, currentTheme, depth);
+        // A zone is only dealt once the key reaches its unlock level.
+        List<String> themes = AdventureGraphs.current().graph().pick(owner, currentTheme, depth,
+                theme -> ZoneRules.forTheme(theme).unlockLevel() <= level);
         String first = themes.get(0).isEmpty() ? null : themes.get(0);
         String second = themes.get(1).isEmpty() ? null : themes.get(1);
         String third = themes.get(2).isEmpty() ? null : themes.get(2);
@@ -204,7 +206,7 @@ final class Keystone {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Right-click a lodestone to use it."));
         if (ordered.isEmpty()) {
-            lore.add(grey("Clear floors and reach the safe room to trade up."));
+            lore.add(grey("Clear floors and bank them at home to trade up."));
         } else {
             for (AffixDefinition def : ordered) {
                 lore.add(grey(def.blurb));

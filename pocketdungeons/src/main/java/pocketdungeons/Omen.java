@@ -24,8 +24,12 @@ final class Omen {
     static final int MIN_OMEN = 0;
     static final int MAX_OMEN = 4;
 
-    /** What raised the omen, for the cue a player sees and hears when it rises. */
-    enum Source { DWELL, SENSOR, SHRIEK, BARGAIN }
+    /**
+     * What raised the omen, for the cue a player sees and hears when it rises.
+     * {@code DEPTH} is a zone's head start on a floor past its usual length
+     * ({@link ZoneRules#baseOmen}).
+     */
+    enum Source { DWELL, SENSOR, SHRIEK, BARGAIN, DEPTH }
 
     // ---- source table (spec 5.2) ----------------------------------------
 
@@ -135,17 +139,20 @@ final class Omen {
     /**
      * The finish table band for a given omen sum and floor count.
      *
-     * <p>Thresholds scale to {@code floorsPerSafeVisit}: 0 to
-     * {@code floorsPerSafeVisit} is the low band, {@code floorsPerSafeVisit + 1}
-     * to {@code 3 * floorsPerSafeVisit} is the mid band, and
-     * {@code 3 * floorsPerSafeVisit + 1} to {@code 4 * floorsPerSafeVisit} is
-     * the high band. For 1 floor: 0 to 1, 2 to 3, 4. For 3 floors: 0 to 3,
-     * 4 to 9, 10 to 12. For 5 floors: 0 to 5, 6 to 15, 16 to 20.
+     * <p>Thresholds scale to {@code floorCount}, the floors the sum was
+     * gathered over (the interval's cleared floors, plus the one in progress
+     * on the bar): 0 to {@code floorCount} is the low band,
+     * {@code floorCount + 1} to {@code 3 * floorCount} is the mid band, and
+     * {@code 3 * floorCount + 1} to {@code 4 * floorCount} is the high band.
+     * For 1 floor: 0 to 1, 2 to 3, 4. For 3 floors: 0 to 3, 4 to 9, 10 to
+     * 12. For 5 floors: 0 to 5, 6 to 15, 16 to 20. Scaling to the floors
+     * actually cleared is what lets a party bank after any floor: one calm
+     * floor is as calm as three.
      *
      * @return 0 for low, 1 for mid, 2 for high
      */
-    static int band(int sum, int floorsPerSafeVisit) {
-        int floors = Math.max(1, floorsPerSafeVisit);
+    static int band(int sum, int floorCount) {
+        int floors = Math.max(1, floorCount);
         int lowMax = floors;
         int midMax = 3 * floors;
         if (sum <= lowMax) {
@@ -159,11 +166,11 @@ final class Omen {
 
     /**
      * The largest omen sum that still lands in {@code band}: the band's upper
-     * edge from {@link #band}. The high band's edge is the most omen an
-     * interval of {@code floorsPerSafeVisit} floors can gather.
+     * edge from {@link #band}. The high band's edge is the most omen
+     * {@code floorCount} floors can gather.
      */
-    static int bandCeiling(int band, int floorsPerSafeVisit) {
-        int floors = Math.max(1, floorsPerSafeVisit);
+    static int bandCeiling(int band, int floorCount) {
+        int floors = Math.max(1, floorCount);
         return switch (band) {
             case 0 -> floors;
             case 1 -> 3 * floors;
@@ -176,17 +183,17 @@ final class Omen {
      * against the first value of the next band up, or against the most an
      * interval can gather once it is already in the high band.
      */
-    static float bandProgress(int sum, int floorsPerSafeVisit) {
-        int band = band(sum, floorsPerSafeVisit);
-        int next = band < 2 ? bandCeiling(band, floorsPerSafeVisit) + 1
-                : bandCeiling(band, floorsPerSafeVisit);
+    static float bandProgress(int sum, int floorCount) {
+        int band = band(sum, floorCount);
+        int next = band < 2 ? bandCeiling(band, floorCount) + 1
+                : bandCeiling(band, floorCount);
         return Math.max(0.0f, Math.min(1.0f, (float) Math.max(0, sum) / next));
     }
 
     /**
-     * Keystone level change from the finish table band (spec 5.2).
-     *
-     * <p>Low and mid bands: +1 level. High band: +0 level.
+     * Whether the band lets the interval's door steps bank (spec 5.2): 1 for
+     * the low and mid bands, 0 for the high band. How many levels that is,
+     * {@link IntervalBanking} works out from the floors' door steps.
      */
     static int levelChange(int band) {
         return band < 2 ? 1 : 0;

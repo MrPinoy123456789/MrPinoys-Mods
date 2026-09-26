@@ -42,11 +42,12 @@ final class FloorState {
 
     /**
      * Which of {@code Keystone.offers}' three doors (1, 2 or 3) opened this
-     * floor, or {@code 0} before any door has. Settlement banks this step.
+     * floor, or {@code 0} before any door has. Recorded onto the interval's
+     * {@code floorSteps} when the floor is cleared.
      */
     int chosenStep;
 
-    /** Whether {@link #chosenStep} was door 1, the free tier: it pays fuel at the safe visit. */
+    /** Whether {@link #chosenStep} was door 1, the free tier: it pays fuel at the settlement. */
     boolean freeDoor;
 
     /**
@@ -105,10 +106,11 @@ final class FloorState {
     long expiresAtTick;
 
     /**
-     * Whether the checkpoint this floor ended on is a safe staging room, which
-     * offers the way home instead of three doors. Set when the floor is cleared.
+     * Whether this floor's trial spawners have been added to the interval's
+     * bounty tally, so leaving the floor and settling the interval on it do
+     * not count it twice.
      */
-    boolean safeStaging;
+    boolean spawnersTallied;
 
     // ---- the choice of the next floor ------------------------------------------
 

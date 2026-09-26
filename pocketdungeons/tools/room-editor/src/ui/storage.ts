@@ -117,6 +117,34 @@ class MemoryBackend implements Backend {
   }
 }
 
+/** A pack folder served by the local dev server (see vite.config.ts), writable when started by "Room Editor.cmd". */
+class HttpBackend implements Backend {
+  constructor(private readonly base: string, readonly writable: boolean, readonly label: string) {}
+
+  private url(path: string): string {
+    return `${this.base}/file/${path.split('/').map(encodeURIComponent).join('/')}`
+  }
+
+  async list(dir: string): Promise<string[]> {
+    const res = await fetch(`${this.base}/list?dir=${encodeURIComponent(dir)}`)
+    return res.ok ? ((await res.json()) as string[]) : []
+  }
+
+  async read(path: string): Promise<Uint8Array | null> {
+    const res = await fetch(this.url(path))
+    return res.ok ? new Uint8Array(await res.arrayBuffer()) : null
+  }
+
+  async exists(path: string): Promise<boolean> {
+    return (await fetch(this.url(path), { method: 'HEAD' })).ok
+  }
+
+  async write(path: string, data: Uint8Array | string): Promise<void> {
+    const res = await fetch(this.url(path), { method: 'PUT', body: typeof data === 'string' ? data : new Blob([data as BlobPart]) })
+    if (!res.ok) throw new Error(`save failed for ${path}: ${await res.text()}`)
+  }
+}
+
 export function stripBom(s: string): string {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s
 }
@@ -160,12 +188,11 @@ export class PackFolder {
     return PackFolder.locate(new MemoryBackend(files, `${top} (read only)`), top)
   }
 
-  /** Dev harness only: a pack served read only by the dev server (see vite.config.ts). */
+  /** The pack folder the local dev server was started with (see vite.config.ts and "Room Editor.cmd"). */
   static async fromDevServer(base: string): Promise<PackFolder> {
-    const index = (await (await fetch(`${base}/index.json`)).json()) as string[]
-    const files = new Map<string, Blob>()
-    await Promise.all(index.map(async p => files.set(p, await (await fetch(`${base}/file/${p}`)).blob())))
-    return PackFolder.locate(new MemoryBackend(files, 'dev server pack (read only)'), 'dev')
+    const info = (await (await fetch(`${base}/info`)).json()) as { writable: boolean }
+    const label = info.writable ? 'mod source' : 'mod source (read only)'
+    return PackFolder.locate(new HttpBackend(base, info.writable, label), 'dev')
   }
 
   private static async locate(be: Backend, rootName: string): Promise<PackFolder> {

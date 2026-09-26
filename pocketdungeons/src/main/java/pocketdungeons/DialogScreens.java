@@ -239,7 +239,7 @@ final class DialogScreens {
         // One blurb per affix, the same "curse and kiss" sentence the item's lore
         // carries, see the design rule at the AffixEffects class note.
         if (ordered.isEmpty()) {
-            body.add(DialogKit.text(Component.literal("Clear floors and reach the safe room to trade up.")
+            body.add(DialogKit.text(Component.literal("Clear floors and bank them at home to trade up.")
                     .withStyle(ChatFormatting.GRAY)));
         } else {
             for (AffixDefinition def : ordered) {

@@ -31,6 +31,21 @@ final class IntervalState {
     final List<Integer> floorOmens = new ArrayList<>();
 
     /**
+     * Each cleared floor's door step (1, 2 or 3), in order: what the floor
+     * banks toward the keystone at the settlement. See {@link IntervalBanking}.
+     */
+    final List<Integer> floorSteps = new ArrayList<>();
+
+    /**
+     * Trial spawners cleared, and trial spawners there were, summed over the
+     * interval's floors as each floor is left behind. The Clear the Halls and
+     * Tidy bounties read these, so every floor of the interval counts, not
+     * only the last.
+     */
+    int spawnersCleared;
+    int spawnersTotal;
+
+    /**
      * Whether this interval is an Endless Mine. Set on the first commit whose
      * recipe opens the Mine and held for the rest of the interval, after the
      * recipe tags themselves are spent. See {@link EndlessMineRules}.

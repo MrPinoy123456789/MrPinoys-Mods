@@ -89,6 +89,7 @@ public final class Chime {
             case SENSOR -> play(player, Holder.direct(SoundEvents.SCULK_CLICKING), 0.4f, 0.8f);
             case SHRIEK -> play(player, Holder.direct(SoundEvents.WARDEN_HEARTBEAT), 0.6f, 1.0f);
             case BARGAIN -> play(player, SoundEvents.OMINOUS_BOTTLE_DISPOSE, 0.5f, 0.8f);
+            case DEPTH -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.35f);
         }
     }
 

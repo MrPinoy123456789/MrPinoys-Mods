@@ -165,9 +165,26 @@ final class AdventureGraph {
      * throwing, since {@code Keystone.offers} already tolerates a null theme.
      */
     List<String> pick(UUID owner, String currentTheme, int depth) {
+        return pick(owner, currentTheme, depth, theme -> true);
+    }
+
+    /**
+     * {@link #pick(UUID, String, int)} over only the transitions whose theme
+     * {@code offerable} accepts: a zone above the player's keystone level
+     * ({@link ZoneRules#unlockLevel}) is not dealt. If the filter would leave
+     * nothing, the whole pool is dealt instead, so a player is never offered
+     * three empty doors. Every theme passing keeps the pick, seed and order,
+     * exactly what the unfiltered pick returns.
+     */
+    List<String> pick(UUID owner, String currentTheme, int depth,
+                      java.util.function.Predicate<String> offerable) {
         Node node = node(currentTheme);
         List<Transition> pool = node != null && !node.next().isEmpty()
                 ? node.next() : uniformEntryPool();
+        List<Transition> open = pool.stream().filter(t -> offerable.test(t.theme())).toList();
+        if (!open.isEmpty()) {
+            pool = open;
+        }
         if (pool.isEmpty()) {
             return List.of("", "", "");
         }

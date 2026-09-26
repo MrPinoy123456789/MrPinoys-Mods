@@ -263,6 +263,18 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // The HOME lever in a cleared floor's staging room: banks the interval
+        // and takes the party home. Claimed for any member so vanilla never
+        // flips it; goHome refuses anyone but the owner.
+        if (Instances.isHomeLever(serverPlayer, pos)) {
+            if (RunLifecycle.goHome(serverPlayer)) {
+                Chime.runComplete(serverPlayer);
+            } else {
+                Chime.refused(serverPlayer);
+            }
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // M19 19.3: the commit lever. Ahead of the selector-door branch: the
         // lever stands in the same row as the doors and answers to the same
         // gesture, but it commits rather than previews, so a lever pull must
@@ -330,16 +342,6 @@ final class RitualListener {
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record != null && RunSession.canChooseDoor(record) && record.stagingCellOrigin != null) {
-            // M57: if this is a safe staging room, the lever returns the
-            // party to the safe room. No door selection or preview needed.
-            if (record.floor.safeStaging) {
-                if (RunLifecycle.returnToSafe(player)) {
-                    Chime.runComplete(player);
-                    return InteractionResult.SUCCESS_SERVER;
-                }
-                Chime.refused(player);
-                return InteractionResult.SUCCESS_SERVER;
-            }
             if (record.floor.selectedStep == 0) {
                 Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
@@ -383,11 +385,6 @@ final class RitualListener {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)
                 || record.stagingCellOrigin == null) {
-            return;
-        }
-        // M57: in a safe staging room, there are no dungeon doors to select.
-        // The lever alone returns the party to the safe room.
-        if (record.floor.safeStaging) {
             return;
         }
         int previous = record.floor.selectedStep;

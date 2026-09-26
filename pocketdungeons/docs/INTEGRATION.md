@@ -70,7 +70,7 @@ surface (e.g. `cobbleeconomy`) without a Java dependency. Placeholders:
 |---|---|
 | `%player%` | The completing player's name |
 | `%level%` | The keystone level the run was finished at |
-| `%chests%` | How many of the reward room's three chests were earned |
+| `%chests%` | The settled chest count when the interval banks: the omen band's 3, 2 or 1, plus the zone's depth bonus |
 
 Runs from the server console's own command source (not the player's), so it
 is not limited by the player's permission level. Output is not suppressed —
@@ -99,6 +99,53 @@ namespace the same way `dungeon_room` does. Each file names a theme (the
 processor list its rooms stamp with, an optional `room_theme` filter, an
 optional `loot_suffix` and `spawner_prefix`); see `DungeonThemeMeta` for the
 full field list. Hot-reloadable via `/reload`, alongside `dungeon_room`.
+
+#### The optional `rules` block: zone rules
+
+A theme is also a **zone**: its optional `rules` object says how its floors
+play, as opposed to how they look (`docs/ZONES_SPEC.md` section 2). A theme
+without one is the default zone, the ordinary dungeon. The rules in force are
+the ones of the floor in progress, or of the floor just cleared while the
+party stands between floors. Schema: `docs/schema/dungeon_theme.schema.json`.
+Parser: `ZoneRules.fromJson`.
+
+Why the theme and not the adventure node: the theme is what every floor is
+stamped with and what the run record keeps, the Endless Mine recipe forces a
+theme (not a node) onto its floors, and a theme without an adventure node is
+still a valid place to be. The node keeps its one job, the door graph.
+
+| Field | Type, range | Default | Effect |
+|---|---|---|---|
+| `floor_kind` | `"standard"` | `"standard"` | How a floor is planned. Only `standard` is built; any other kind rejects the theme. |
+| `floor_sequence` | array of floor kinds, non-empty | `[floor_kind]` | The pattern of floor kinds within an interval, repeating. Same restriction. |
+| `capstone` | `"none"` or `"boss"` | from the adventure node | `boss`: the Drowned Warden spawns at the terminal and the pad waits for it. Left out, a `boss` adventure node is a boss floor, as before. |
+| `depth_bonus` | number, 0 to 3 | 0.3333 | Bonus completion chests per floor since the last bank, counted from the second floor: `floor(depth_bonus * (floor - 1))`, at most 3, stacked on top of the three chest spots. The default pays nothing on floors 1 to 3, one chest from floor 4, two from 7, three from 10. Also added to `%chests%`. |
+| `omen_base` | `{"after": int >= 0, "amount": 0 to 4}` | after = `floorsPerSafeVisit`, amount 1 | Every floor of an interval after the `after`th starts with `amount` omen already on it. Not cumulative. |
+| `omen_scale` | number, 0 to 4 | 1.0 | Multiplier on every omen rise (dwell, sensors, shrieks), rounded. Relief and the Ominous Bargain are not scaled. |
+| `loot_role` | `"gear"`, `"materials"`, `"trophy"` | `"gear"` | The zone's faucet. Declared and validated; nothing pays differently by role yet. |
+| `loot_tier_every` | int, 0 to 1000 | 0 | One completion loot tier up every N floors since the last bank, never past tier 3. 0 is off. |
+| `unlock_level` | int >= 1 | 1 | A door into this zone is only dealt once the key reaches this level. If every candidate is locked, the full pool is dealt instead. |
+| `kit_top_up_scale` | number, 0 to 10 | 1.0 | Multiplier on the safe-visit kit top-up. Read and validated; the top-up arrives in a later wave. |
+
+An unknown field, a floor kind that is not built, or a value out of range
+rejects the theme at load with the reason, the same way a missing processor
+list does, so a typo never quietly becomes the default. `/dungeon admin
+validate` (PackValidator) also reports rules that load but misbehave: an
+`unlock_level` above `keystoneMaxLevel`, a `boss` capstone off a boss node
+(the boss gates the pad but does not reset the descent), a `none` capstone on
+a boss node, and an entry pool locked above level 1 throughout.
+
+The bundled Endless Mine expresses its escalating haul this way
+(`data/pocketdungeons/dungeon_theme/endless_mine.json`):
+
+```json
+"rules": { "loot_role": "materials", "loot_tier_every": 3 }
+```
+
+One difference from the Mine before the hook: its escalation step is now its
+own `3` rather than following `floorsPerSafeVisit`, and a Mine-themed floor
+reached through the adventure graph (not the recipe) escalates too, since the
+theme is the zone.
 
 ### 1.7 `dungeon_adventure/*.json` — the theme graph
 

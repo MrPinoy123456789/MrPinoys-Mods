@@ -22,9 +22,12 @@ public class OmenBarTextTest {
     }
 
     private static void testOutcome() {
-        checkEquals(OmenBarText.outcome(0), "3 chests, +1 level");
-        checkEquals(OmenBarText.outcome(1), "2 chests, +1 level");
-        checkEquals(OmenBarText.outcome(2), "1 chest, +0 levels");
+        checkEquals(OmenBarText.outcome(0), "3 chests, key climbs");
+        checkEquals(OmenBarText.outcome(1), "2 chests, key climbs");
+        checkEquals(OmenBarText.outcome(2), "1 chest, key stalls");
+        // The depth bonus rides on the chest count.
+        checkEquals(OmenBarText.outcome(1, 3), "3 chests, key climbs");
+        checkEquals(OmenBarText.outcome(2, 1), "1 chest, key stalls");
     }
 
     private static void testBandCeilingAndProgress() {
@@ -49,28 +52,33 @@ public class OmenBarTextTest {
     }
 
     private static void testActiveTitle() {
-        checkEquals(OmenBarText.activeTitle(2, 1, 5, 8, 6),
-                "Omen 2/4 | 2 chests, +1 level | Spawners 5/8, need 6");
+        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6),
+                "Omen 2/4 | 2 chests, key climbs | Spawners 5/8, need 6");
         // No reading yet, or a floor without spawners: the gate is left off.
-        checkEquals(OmenBarText.activeTitle(0, 0, -1, -1, 0), "Omen 0/4 | 3 chests, +1 level");
-        checkEquals(OmenBarText.activeTitle(0, 0, 0, 0, 0), "Omen 0/4 | 3 chests, +1 level");
+        checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Omen 0/4 | 3 chests, key climbs");
+        checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Omen 0/4 | 3 chests, key climbs");
         // The floor's omen is shown clamped.
-        checkEquals(OmenBarText.activeTitle(9, 2, 0, 0, 0), "Omen 4/4 | 1 chest, +0 levels");
+        checkEquals(OmenBarText.activeTitle(9, 2, 1, 0, 0, 0), "Omen 4/4 | 1 chest, key stalls");
     }
 
     private static void testClearedTitle() {
-        checkEquals(OmenBarText.clearedTitle(2, 3, false, 1), "Floor 2 of 3 cleared | 2 chests, +1 level");
-        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2), "Mine floor 5 cleared | 1 chest, +0 levels");
+        checkEquals(OmenBarText.clearedTitle(2, 3, false, 1, 2), "Floor 2 of 3 cleared | 2 chests, key climbs");
+        checkEquals(OmenBarText.clearedTitle(3, 3, false, 0, 3), "Floor 3 of 3 cleared | 3 chests, key climbs");
+        // Past the usual length the floor is deep, not "4 of 3".
+        checkEquals(OmenBarText.clearedTitle(4, 3, false, 1, 3), "Floor 4 cleared, deep | 3 chests, key climbs");
+        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2, 2), "Mine floor 5 cleared | 2 chests, key stalls");
     }
 
     private static void testCompletionVerdict() {
-        checkEquals(OmenBarText.completionVerdict(0, true), "The omen sits calm: 3 chests, +1 level.");
-        checkEquals(OmenBarText.completionVerdict(1, false), "The omen sits uneasy: 2 chests, +1 level so far.");
-        checkEquals(OmenBarText.completionVerdict(2, true), "The omen sits dire: 1 chest, +0 levels.");
+        checkEquals(OmenBarText.completionVerdict(0, 3), "The omen sits calm: 3 chests, key climbs so far.");
+        checkEquals(OmenBarText.completionVerdict(1, 2), "The omen sits uneasy: 2 chests, key climbs so far.");
+        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 chest, key stalls so far.");
     }
 
     private static void testPreviewFloor() {
         checkEquals(OmenBarText.previewFloor(1, 3, false), "FLOOR 1 OF 3");
+        checkEquals(OmenBarText.previewFloor(3, 3, false), "FLOOR 3 OF 3");
+        checkEquals(OmenBarText.previewFloor(4, 3, false), "FLOOR 4, DEEP");
         checkEquals(OmenBarText.previewFloor(7, 3, true), "MINE FLOOR 7");
     }
 

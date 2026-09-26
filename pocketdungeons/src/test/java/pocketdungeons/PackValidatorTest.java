@@ -51,6 +51,7 @@ public class PackValidatorTest {
         testSafeReplaceDecision();
         testPackMetaFormat();
         testStarterResourcesBundled();
+        testZoneRuleFindings();
 
         System.out.println("PackValidatorTest passed");
     }
@@ -65,6 +66,35 @@ public class PackValidatorTest {
                 "plan", "shape", "seed 0 exhausted the budget", 0L);
         check(planFinding.hasSeed(), "a plan finding carries its seed");
         check(planFinding.seed() == 0L, "plan finding seed is preserved");
+    }
+
+    /** Zone rules that load but misbehave are reported; the bundled themes report nothing. */
+    private static void testZoneRuleFindings() {
+        AdventureGraph graph = AdventureGraph.of(java.util.Map.of(
+                "a:entry", new AdventureGraph.Node("a:entry", AdventureGraph.Kind.ENTRY,
+                        List.of(new AdventureGraph.Transition("a:boss", 1))),
+                "a:boss", new AdventureGraph.Node("a:boss", AdventureGraph.Kind.BOSS, List.of())));
+        List<ThemeManifest.Entry> clean = List.of(theme("a:entry", "{}"), theme("a:boss", "{}"));
+        check(PackValidator.zoneRuleFindings(clean, graph, 100).isEmpty(), "default rules report nothing");
+
+        List<ThemeManifest.Entry> odd = List.of(
+                theme("a:entry", "{\"unlock_level\": 150, \"capstone\": \"boss\"}"),
+                theme("a:boss", "{\"capstone\": \"none\"}"));
+        List<PackValidator.Finding> findings = PackValidator.zoneRuleFindings(odd, graph, 100);
+        check(findings.stream().anyMatch(x -> x.file().equals("a:entry") && x.cause().contains("keystoneMaxLevel")),
+                "an unreachable unlock level is reported");
+        check(findings.stream().anyMatch(x -> x.file().equals("a:entry") && x.cause().contains("not a boss node")),
+                "a boss capstone off a boss node is reported");
+        check(findings.stream().anyMatch(x -> x.file().equals("a:boss") && x.cause().contains("no boss to beat")),
+                "a none capstone on a boss node is reported");
+        check(findings.stream().anyMatch(x -> x.cause().contains("every entry theme is locked")),
+                "a fully locked entry pool is reported");
+    }
+
+    private static ThemeManifest.Entry theme(String id, String rules) {
+        JsonObject json = JsonParser.parseString("{\"name\":\"T\",\"processors\":\"pocketdungeons:theme_deepslate\","
+                + "\"rules\":" + rules + "}").getAsJsonObject();
+        return new ThemeManifest.Entry(id, DungeonThemeMeta.fromJson(json, id));
     }
 
     private static void testSafeReplaceDecision() {

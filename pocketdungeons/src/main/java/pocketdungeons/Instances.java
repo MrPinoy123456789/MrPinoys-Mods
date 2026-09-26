@@ -338,8 +338,9 @@ final class Instances {
         }
         // U8 Stage 1: disconnecting is free. The run stays where it is
         // whether or not anyone is here to watch it; there is nothing to
-        // settle on the way out.
-        RunLifecycle.dropMember(server, record, player.getUUID(), player, "member disconnected");
+        // settle on the way out. An owner who drops with the party still
+        // inside gets a reconnect grace rather than ending their run.
+        RunLifecycle.dropMember(server, record, player.getUUID(), player, "member disconnected", true);
     }
 
     /**
@@ -484,6 +485,12 @@ final class Instances {
                 player.getYRot(), player.getXRot()));
         InstanceRegistry.byMember.put(player.getUUID(), record);
         pendingReturns.remove(player.getUUID());
+        // An owner back within their reconnect grace: the run is theirs again.
+        if (player.getUUID().equals(record.owner) && record.ownerAbsentUntilTick != 0) {
+            record.ownerAbsentUntilTick = 0;
+            announce(server, record, player.getName().getString() + " is back. The run goes on.",
+                    player.getUUID());
+        }
 
         boolean toStaging = admitsToStaging(record);
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL, admitPosition(record),
@@ -946,6 +953,20 @@ final class Instances {
     }
 
     /**
+     * Whether {@code pos} is the go-home lever in the staging room of the run
+     * this player is in. Any member's click is claimed, so vanilla never
+     * flips the lever, and {@code RunLifecycle.goHome} answers a non-owner
+     * with the refusal rather than silence.
+     */
+    static boolean isHomeLever(ServerPlayer player, BlockPos pos) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || record.stagingCellOrigin == null || !RunLifecycle.betweenFloors(record)) {
+            return false;
+        }
+        return RoomTemplateGenerator.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+    }
+
+    /**
      * M19 19.6: whether {@code pos} is the engine terminal in this player's
      * room: the respawn anchor on the wall to the left of the selector wall
      * ({@link RoomGeometry#leftOf}). Any member of the room may view or feed
@@ -1262,6 +1283,10 @@ final class Instances {
                 record.floor.previewRecipePlan);
         boolean openingMine = EndlessMineRules.isMine(record.floor.previewRecipePlan);
 
+        // The floor being left behind adds its spawners to the interval's
+        // bounty tally before its cells are cleared.
+        RunLifecycle.tallyFloorSpawners(server, record);
+
         // M2/M3: clear the previous dungeon before generating the next one.
         RunLifecycle.resetForNextDungeon(server, record);
 
@@ -1326,6 +1351,9 @@ final class Instances {
         RoomBuilder.openDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDoor);
         RoomTemplateGenerator.placePostSelectionDoors(level, record.stagingCellOrigin, dungeonDoor);
+        // The choosing is over, and so is the way home from this checkpoint.
+        RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDoor);
+        DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDoor);
 
         // The new floor's state replaces the cleared one's wholesale: its
         // completions, pad edges, spawner cues, reward chests, grace window
@@ -1360,9 +1388,21 @@ final class Instances {
         }
         RunSession.transition(record, RunSession.Phase.ACTIVE);
 
-        // M11: a boss-themed run gets its one proof encounter.
-        AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(effectiveThemeId);
-        if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS) {
+        // A zone's floors past its usual length start with omen already on
+        // them (ZoneRules.baseOmen): pushing deeper is always a gamble, and
+        // the bar and a cue say so as the floor opens.
+        ZoneRules zone = ZoneRules.forTheme(effectiveThemeId);
+        int headStart = zone.baseOmen(record.interval.floorIndex + 1, PocketDungeonsConfig.floorsPerSafeVisit());
+        if (headStart > 0) {
+            int before = record.interval.omen;
+            record.interval.omen = Omen.add(record.interval.omen, headStart);
+            if (record.interval.omen > before) {
+                OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen);
+            }
+        }
+
+        // M11: a zone whose capstone is the boss gets its one proof encounter.
+        if (ZoneRules.bossCapstone(effectiveThemeId)) {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
@@ -1380,8 +1420,8 @@ final class Instances {
 
         // M78: publish the Mine rules at the commitment surface the first time
         // a Mine run opens, so the owner understands the risk (no final floor,
-        // previous floors close) and the reward (voluntary cash-out) before
-        // descending. The spatial room movement stays silent, the same as the
+        // previous floors close) and the reward (an escalating haul, banked
+        // whenever they go home) before descending. The spatial room movement stays silent, the same as the
         // ordinary loop.
         if (openingMine) {
             ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
@@ -2067,6 +2107,12 @@ final class Instances {
                 continue;
             }
 
+            // R6: an owner who lost their connection has a grace to come back
+            // in; past it the run ends for the party still inside.
+            if (record.ownerAbsentUntilTick != 0 && RunLifecycle.watchOwnerGrace(server, record, now)) {
+                continue;
+            }
+
             // M65: silent homecoming cleanup. After returnToSafe stamps
             // the saved room behind the final staging door and opens it,
             // the party walks through physically. Once all members have
@@ -2138,7 +2184,7 @@ final class Instances {
             for (UUID member : new ArrayList<>(record.members.keySet())) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
                 if (player == null) {
-                    RunLifecycle.dropMember(server, record, member, null, "member offline");
+                    RunLifecycle.dropMember(server, record, member, null, "member offline", true);
                     continue;
                 }
                 // An admin teleport or any other route out of the dimension counts

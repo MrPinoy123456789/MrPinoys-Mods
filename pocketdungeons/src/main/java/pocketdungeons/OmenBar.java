@@ -71,21 +71,28 @@ final class OmenBar {
             return;
         }
         OmenBar bar = of(record);
-        int floors = PocketDungeonsConfig.floorsPerSafeVisit();
+        boolean active = record.phase == RunSession.Phase.ACTIVE;
+        // The band's thresholds scale to the floors the sum covers: the
+        // cleared ones, plus the one in progress during a floor. The same
+        // Omen.band the settlement uses, so the bar always shows what going
+        // home would bank.
+        int floorCount = active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex);
         int sum = record.interval.omenSum();
-        int band = Omen.band(sum, floors);
+        int band = Omen.band(sum, floorCount);
+        int chests = !active && record.floor.rewardChests >= 0 ? record.floor.rewardChests
+                : Omen.chestCount(band) + ZoneRules.of(record).bonusChests(floorCount);
         String title;
-        if (record.phase == RunSession.Phase.ACTIVE) {
+        if (active) {
             int total = record.floor.spawnersTotal;
-            title = OmenBarText.activeTitle(record.interval.omen, band, record.floor.spawnersCleared, total,
+            title = OmenBarText.activeTitle(record.interval.omen, band, chests, record.floor.spawnersCleared, total,
                     DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()));
         } else {
-            title = OmenBarText.clearedTitle(record.interval.floorIndex, floors,
-                    record.interval.endlessMine, band);
+            title = OmenBarText.clearedTitle(record.interval.floorIndex, PocketDungeonsConfig.floorsPerSafeVisit(),
+                    record.interval.endlessMine, band, chests);
         }
         bar.event.setName(Component.literal(title));
         bar.event.setColor(colour(band));
-        bar.event.setProgress(Omen.bandProgress(sum, floors));
+        bar.event.setProgress(Omen.bandProgress(sum, floorCount));
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);

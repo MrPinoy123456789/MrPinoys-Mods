@@ -2664,3 +2664,29 @@ sees it, and what it looks like, are live only.
 - Door screen: select a door; the first line reads `KEYSTONE N | FLOOR 1 OF 3` (the floor number advances on later checkpoints). Select a Greater door and confirm a `Fuel 3 of your X` line, red when the engine holds too little.
 - Teardown: with the bar showing, have an operator purge the slot; confirm the bar disappears for everyone.
 - Config: a `pocketdungeons.json` that still sets `timerBaseSeconds`, `door1TimerSeconds` or the other retired clock keys loads without error, logs one line naming them, and `/dungeon quit` on a floor still costs `timedOutDepletion` levels.
+
+## 44. 2026-09 audit, wave 2b: bank anywhere, per-floor banking, reconnect grace, zone rules
+
+In-client checks for wave 2b. `IntervalBankingTest`, `ZoneRulesTest` and
+`ConfigSaveTest` cover the arithmetic, the rules block and the config round
+trip; `BankAnywhereGameTest` drives the settlement, the checkpoint exit and
+the owner's grace against records it builds by hand, because the gametest
+server has no dungeon dimension. Everything physical below is live only.
+Section 43's bar wording is superseded: the bar now reads `3 chests, key
+climbs` or `1 chest, key stalls`, never a level count, and every verdict ends
+"so far".
+
+- HOME control: clear floor 1 and walk into the new staging room. Left of the three doors stand a second lever with a glowing `HOME` sign and a 3x3 black screen with an unlit copper bulb above it. The screen reads `HOME`, `Banks +N levels, M/3 kept` (or `Banks no levels`) and `C chests, calm` (uneasy, dire), in the owner's numbers. Try to break the lever, sign, screen and bulb; all refuse.
+- Bank after one floor: take a Greater door, clear it, pull HOME. The party walks home through the opened doorway with no teleport; the selector doors, bulbs and HOME control are gone from that doorway; chat says `The interval banks: +1 level, 0 of 3 toward the next, 3 chests (calm).`; the key is one level up. Repeat with the free door: `+0 levels, 1 of 3 toward the next`, key unchanged; two more single free floors banked separately land the level on the third.
+- Keep going: after floor 3 the bulb lights, the screen title turns green `TIME TO GO HOME` and the completion line says it is a good time to go home. Nothing forces it: pick a door. Floor 4's door screen reads `FLOOR 4, DEEP`; on commit the omen bar starts at `Omen 1/4` with a purple line and a low note ("This deep, the dungeon is already watching."). Clear floor 4; one extra chest stands stacked on the first chest spot (depth bonus) and both open. Bank: four Greater floors bank +4.
+- Door screen: select each door and confirm the aqua line `+N toward your key, +S so far`, where S is the steps of the floors cleared this interval.
+- Commit clears the control: pull the commit lever from a cleared staging room; the HOME lever, sign, screen and bulb disappear with the selector doors.
+- Preview then HOME: select a door (the preview window opens), then pull HOME without committing; the preview closes, an armed Cube recipe's catalyst comes back, and the party goes home.
+- Non-owner: a guest pulling HOME gets `Only the party leader can take the party home.`, a refusal note, and the lever does not flip.
+- `/dungeon cashout`: between floors in an ordinary dungeon, it does exactly what HOME does. Mid-floor it says the way home opens between floors. In an Endless Mine interval it also names the depth (`You leave the Mine with N floors banked.`).
+- Checkpoint exit: between floors, run `/dungeon exit` (or the lodestone's Leave) as the owner with a calm interval; chat says `You leave at the checkpoint, and the interval banks one band worse:` with the uneasy numbers, every member present gets their own line, and the run closes. With an uneasy interval, leaving banks no levels and keeps the carry. Mid-floor, `/dungeon exit` still leaves the run open for free re-entry and `/dungeon quit` still costs `timedOutDepletion`.
+- Party banking: with a guest at a lower level and some carried progress, bank; confirm the guest climbs from their own level and their own carry.
+- Reconnect grace: as the owner with a guest inside, kill the client (no clean logout) mid-floor. The guest reads `Your party leader lost their connection. The run holds for 120 seconds...` and can keep clearing; doors, the commit lever and HOME refuse them. Log back in within two minutes: you are back in the run, the guest reads `<name> is back. The run goes on.` Repeat and stay out past two minutes: at a checkpoint the guest banks one band worse and the run closes; mid-floor it just closes. A clean `/dungeon exit` by the owner mid-floor with a guest inside still ends the run at once.
+- Bounties: bank after six floors in one interval and confirm Deep Diver moves. Clear every spawner on floors 1 and 2 but not floor 3, bank, and confirm Tidy does not move while Clear the Halls counts all three floors' spawners. Banking a single calm floor moves neither Speedrunner nor Explorer (both ask for three floors).
+- Config round trip: set `floorsPerSafeVisit` to 4 and `ownerReconnectGraceSeconds` to 30 in `config/pocketdungeons.json`, restart twice; both values are still there and in effect (the bulb lights after floor 4). Delete one key and restart; it comes back at its default and the others are untouched.
+- Endless Mine: open a Mine interval with the recipe; floors 3 and 6 pay loot tier +1 and +2 as before; the checkpoint line names the HOME lever, not `/dungeon cashout`.

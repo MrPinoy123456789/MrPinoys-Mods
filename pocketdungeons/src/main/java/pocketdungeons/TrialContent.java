@@ -781,7 +781,11 @@ final class TrialContent {
         placeCompletionChests(level, origin, entranceDir, chests, tier, ominous, seed, lootSuffix, null);
     }
 
-    /** M68: placeCompletionChests with an optional namespaced loot table override. */
+    /**
+     * M68: placeCompletionChests with an optional namespaced loot table
+     * override. A count above three (a zone's depth bonus) stands the extra
+     * chests on top of the first ones.
+     */
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix,
@@ -811,15 +815,30 @@ final class TrialContent {
         for (int i = 0; i < spots.length; i++) {
             BlockPos pos = origin.offset(spots[i]);
             if (i < chests) {
-                level.setBlock(pos, Blocks.CHEST.defaultBlockState()
-                        .setValue(ChestBlock.FACING, facing), FLAGS);
-                if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                    c.setLootTable(table);
-                    c.setLootTableSeed(seed ^ pos.asLong());
-                }
+                placeLootChest(level, pos, facing, table, seed);
             } else {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
             }
+        }
+        // A zone's depth bonus can pay more chests than there are spots: the
+        // extras stand on top of the first ones. A chest does not block the
+        // lid of the chest below it, so both still open. Only onto air, so a
+        // terminal room that built something over a spot keeps it.
+        for (int i = 0; i < Math.min(spots.length, chests - spots.length); i++) {
+            BlockPos above = origin.offset(spots[i]).above();
+            if (level.getBlockState(above).isAir()) {
+                placeLootChest(level, above, facing, table, seed);
+            }
+        }
+    }
+
+    private static void placeLootChest(ServerLevel level, BlockPos pos, Direction facing,
+                                       ResourceKey<LootTable> table, long seed) {
+        level.setBlock(pos, Blocks.CHEST.defaultBlockState()
+                .setValue(ChestBlock.FACING, facing), FLAGS);
+        if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
+            c.setLootTable(table);
+            c.setLootTableSeed(seed ^ pos.asLong());
         }
     }
 

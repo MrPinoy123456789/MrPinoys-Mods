@@ -233,8 +233,8 @@ final class RoomProtection {
      * {@code roomOrigin} and the wall the selector doors stand on
      * ({@code selectorWall}). A pure coordinate test, the same shape as
      * {@link #isShell}, covering different positions: the three selector
-     * doors and the commit lever with its sign in the row in front of the
-     * selector wall, the three copper bulbs and the black concrete screen
+     * doors, the commit lever and the go-home lever with their signs in the
+     * row in front of the selector wall, the go-home screen and bulb, the three copper bulbs and the black concrete screen
      * blocks set into that wall, and on the adjacent wall to the left
      * ({@link RoomGeometry#leftOf}) the respawn-anchor engine block with its
      * own screen blocks above it. Every one of them stands whether or not a
@@ -271,7 +271,10 @@ final class RoomProtection {
      * above it, set into the wall itself a bulb at Y=3 over each of the
      * three doors plus the 8x2 black concrete screen above that, and the
      * three selector doors themselves at Y=1..2 standing one block in front
-     * of the wall. The selector doors are mod-placed furniture the same as
+     * of the wall. Left of the doors, the go-home control a cleared floor's
+     * staging room carries: its lever and sign in the same row at along 5,
+     * and its 3x3 screen with a bulb on top set into the wall at along 2..4.
+     * The selector doors are mod-placed furniture the same as
      * the bulbs and the lever: the owner cannot break them, only the mod
      * clears and re-places them through the door selection flow.
      */
@@ -316,7 +319,16 @@ final class RoomProtection {
         if (perp == doorPlane && along == 10 && (y == 2 || y == 3)) {
             return true; // the commit lever and the sign above it
         }
+        if (perp == doorPlane && along == 5 && (y == 2 || y == 3)) {
+            return true; // the go-home lever and the sign above it
+        }
         if (perp == wallPlane) {
+            if (y >= 1 && y <= 3 && along >= 2 && along <= 4) {
+                return true; // the go-home screen blocks
+            }
+            if (y == 4 && along == 3) {
+                return true; // the go-home bulb over them
+            }
             if (y == 3 && along >= 7 && along <= 9) {
                 return true; // the three copper bulbs, one over each door
             }

@@ -9,10 +9,12 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * M78: headless regression for {@link EndlessMineRules}, the Endless Mine's
- * pure policy half. Covers the theme-override, safe-staging, escalating loot
- * tier and cash-out depth helpers, the commitment-surface strings, and the
- * recipe flag's accumulation through {@link RunRecipePlan#resolve}.
+ * M78: headless regression for {@link EndlessMineRules}, what is left of the
+ * Endless Mine's own policy once the zone rules hook carries the rest. Covers
+ * the theme override and the depth record, the commitment-surface strings,
+ * and the recipe flag's accumulation through {@link RunRecipePlan#resolve}.
+ * The Mine's escalating loot tier is a zone rule now and is pinned by
+ * {@code ZoneRulesTest} against the Mine theme's own file.
  *
  * <p>The {@link InstanceRecord} and {@link CompoundTag} fixtures need the
  * one-time registry bootstrap the other headless tests use; no server or world
@@ -30,9 +32,6 @@ public class EndlessMineRulesTest {
         testIsMineRecord();
         testEffectiveThemeRecordDriven();
         testEffectiveThemeNonMine();
-        testShouldForceSafeStaging();
-        testCompletionLootTierEscalates();
-        testCompletionLootTierNonMine();
         testCashOutDepth();
         testCommitmentSurfaceStrings();
         testRecipeFlagAccumulates();
@@ -71,51 +70,6 @@ public class EndlessMineRulesTest {
                 "a non-Mine record keeps the offered theme");
     }
 
-    /**
-     * The Mine never forces a safe staging room; the ordinary loop forces one
-     * every floorsPerSafeVisit floors.
-     */
-    private static void testShouldForceSafeStaging() {
-        InstanceRecord mine = newRecord();
-        mine.interval.endlessMine = true;
-        for (int floor = 1; floor <= 9; floor++) {
-            mine.interval.floorIndex = floor;
-            check(!EndlessMineRules.shouldForceSafeStaging(mine, 3),
-                    "Mine never forces safe staging at floor " + floor);
-        }
-        InstanceRecord plain = newRecord();
-        plain.interval.floorIndex = 3;
-        check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 3");
-        plain.interval.floorIndex = 6;
-        check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 6");
-        plain.interval.floorIndex = 4;
-        check(!EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop skips at floor 4");
-    }
-
-    /** The Mine escalates the loot tier with depth, capped at 3. */
-    private static void testCompletionLootTierEscalates() {
-        InstanceRecord mine = newRecord();
-        mine.interval.endlessMine = true;
-        mine.interval.floorIndex = 0;
-        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 1, "Mine floor 0 keeps base tier");
-        mine.interval.floorIndex = 3;
-        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 2, "Mine floor 3 escalates to tier 2");
-        mine.interval.floorIndex = 6;
-        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine floor 6 escalates to tier 3");
-        mine.interval.floorIndex = 12;
-        check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine tier caps at 3");
-        mine.interval.floorIndex = 3;
-        check(EndlessMineRules.completionLootTier(mine, 3, 3) == 3, "Mine at base tier 3 stays 3");
-    }
-
-    /** A non-Mine floor returns the base tier unchanged. */
-    private static void testCompletionLootTierNonMine() {
-        InstanceRecord plain = newRecord();
-        plain.interval.floorIndex = 9;
-        check(EndlessMineRules.completionLootTier(plain, 2, 3) == 2,
-                "non-Mine returns the base tier regardless of depth");
-    }
-
     /** cashOutDepth returns the floor index for a Mine, 0 otherwise. */
     private static void testCashOutDepth() {
         InstanceRecord mine = newRecord();
@@ -132,22 +86,18 @@ public class EndlessMineRulesTest {
     /** The commitment-surface strings name the risk, the reward and the cash-out. */
     private static void testCommitmentSurfaceStrings() {
         String start = EndlessMineRules.mineStartMessage();
-        check(start.contains("no final floor") && start.contains("/dungeon cashout"),
-                "start message names the risk and the cash-out");
+        check(start.contains("no final floor") && start.contains("HOME lever"),
+                "start message names the risk and the way home");
         String checkpoint = EndlessMineRules.mineCheckpointMessage(4, 2);
         check(checkpoint.contains("Mine floor 4") && checkpoint.contains("tier 2")
-                        && checkpoint.contains("/dungeon cashout"),
-                "checkpoint message names the depth, tier and cash-out");
+                        && checkpoint.contains("HOME lever"),
+                "checkpoint message names the depth, tier and the way home");
         check(!start.contains("--") && !checkpoint.contains("--"),
                 "no double hyphen as punctuation in Mine strings");
         check(EndlessMineRules.cashOutMessage(1).equals("You leave the Mine with 1 floor banked."),
                 "cash-out message singular");
         check(EndlessMineRules.cashOutMessage(5).equals("You leave the Mine with 5 floors banked."),
                 "cash-out message plural");
-        check(EndlessMineRules.notInMineMessage().contains("not in the Endless Mine"),
-                "not-in-mine refusal");
-        check(EndlessMineRules.cashOutBetweenFloorsMessage().contains("between Mine floors"),
-                "between-floors refusal");
     }
 
     /**

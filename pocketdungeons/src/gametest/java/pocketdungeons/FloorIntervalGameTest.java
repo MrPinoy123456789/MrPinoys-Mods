@@ -60,7 +60,7 @@ public final class FloorIntervalGameTest {
             int band = -1;
             for (int floor = 0; floor < FLOORS_PER_VISIT; floor++) {
                 record.interval.omen = OMEN_PER_FLOOR;
-                band = RunLifecycle.bankFloorOmen(record, FLOORS_PER_VISIT);
+                band = RunLifecycle.bankFloorOmen(record);
             }
             bands[visit] = band;
             // The settlement guard is part of the interval too.
@@ -101,7 +101,6 @@ public final class FloorIntervalGameTest {
         InstanceRecord record = floorRecord(helper, server, 9982, owner.getUUID());
         record.phase = RunSession.Phase.FLOOR_CLEARED;
         record.floor.completed.add(owner.getUUID());
-        record.floor.safeStaging = true;
         InstanceRegistry.byMember.put(owner.getUUID(), record);
         try {
             if (RunLifecycle.returnToSafe(owner)) {

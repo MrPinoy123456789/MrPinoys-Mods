@@ -7,7 +7,17 @@ block models and textures from your own Minecraft client jar, lets you edit
 blocks, doors and metadata, checks the room against the rules the game
 enforces, and saves files the game loads unchanged.
 
-## Run it
+## Run it (one click)
+
+Double-click **`Room Editor.cmd`** in this folder. It installs the packages on
+first run, finds your own 26.2 client jar (the launcher's copy, else Loom's),
+opens the mod's room folder (`src/main/resources/data/pocketdungeons`) for
+editing, and opens the editor in your browser with everything loaded: no jar
+picker and no folder picker. Save writes straight into the mod's source, with
+the previous file copied into `versions/` first. Close the console window to
+stop the editor.
+
+The rest of this section is the manual route (other folders, other browsers).
 
 Requires Node 22 and npm 10.
 
