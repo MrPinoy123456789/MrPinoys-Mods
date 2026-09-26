@@ -23,7 +23,7 @@ import java.util.UUID;
  *
  * <p>{@link Omen} is deliberately pure arithmetic and says so: "the caller
  * tracks the current floor's omen and hands it to {@code clamp} or {@code add}
- * on every source event". This is that caller. Without it {@code record.omen}
+ * on every source event". This is that caller. Without it {@code record.interval.omen}
  * stays 0 for the life of every run, every completion lands in the low band,
  * and the {@code pressure} field on a room's metadata is read by nothing.
  *
@@ -139,20 +139,20 @@ final class OmenSources {
 
     private static void tick(MinecraftServer server) {
         for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (record.lingering || record.layout == null) {
+            if (record.layout == null) {
                 continue;
             }
             ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
             if (level == null) {
                 return;
             }
-            pollCells(level, record);
+            pollCells(server, level, record);
             pollDwell(server, level, record);
         }
     }
 
     /** Sensors, shriekers and the two spur one-shots, on the rising edge. */
-    private static void pollCells(ServerLevel level, InstanceRecord record) {
+    private static void pollCells(MinecraftServer server, ServerLevel level, InstanceRecord record) {
         for (BlockPos origin : record.layout.geometry().cellOrigins()) {
             Armed armed = ARMED.get(origin);
             if (armed == null) {
@@ -172,14 +172,14 @@ final class OmenSources {
                 // rather than rounding every poll down to nothing.
                 int gained = Omen.sensorContribution(armed.pendingPulses);
                 if (gained > 0) {
-                    add(record, gained);
+                    add(server, record, gained, Omen.Source.SENSOR);
                     armed.pendingPulses -= gained * 5;
                 }
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
                 if (now && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
-                    add(record, Omen.shriekContribution(1));
+                    add(server, record, Omen.shriekContribution(1), Omen.Source.SHRIEK);
                 }
                 armed.wasActive.put(pos, now);
             }
@@ -188,10 +188,14 @@ final class OmenSources {
                 if ("ominous_bargain".equals(armed.spurKind)) {
                     // The bargain replaces the floor's omen, it does not stack
                     // onto it. Omen.bargainOmen's own javadoc is explicit.
-                    record.omen = Omen.set(Omen.bargainOmen());
+                    int before = record.interval.omen;
+                    record.interval.omen = Omen.set(Omen.bargainOmen());
+                    if (record.interval.omen > before) {
+                        OmenBar.omenRose(server, record, Omen.Source.BARGAIN, record.interval.omen);
+                    }
                 } else {
                     // Barred Vault is relief: a negative contribution.
-                    add(record, Omen.barredVaultContribution());
+                    add(server, record, Omen.barredVaultContribution(), null);
                 }
             }
         }
@@ -226,7 +230,7 @@ final class OmenSources {
             boolean staging = origin.equals(record.stagingCellOrigin);
             int total = Omen.dwellContribution(dwell.seconds, unsolved(level, origin), staging);
             if (total > dwell.awarded) {
-                add(record, total - dwell.awarded);
+                add(server, record, total - dwell.awarded, Omen.Source.DWELL);
                 dwell.awarded = total;
             }
         }
@@ -244,13 +248,20 @@ final class OmenSources {
     /**
      * Adds to the current floor's omen, clamped per floor (spec 5.2).
      * Contributions may be negative: clearing a Barred Vault is relief, not
-     * pressure, so this must not filter them out.
+     * pressure, so this must not filter them out. A rise is announced on the
+     * omen bar as coming from {@code source}; relief ({@code source} null) is
+     * silent, and so is a rise the per-floor clamp swallowed.
      */
-    private static void add(InstanceRecord record, int contribution) {
+    private static void add(MinecraftServer server, InstanceRecord record, int contribution,
+                            Omen.Source source) {
         if (contribution == 0) {
             return;
         }
-        record.omen = Omen.clamp(Omen.add(record.omen, contribution));
+        int before = record.interval.omen;
+        record.interval.omen = Omen.clamp(Omen.add(record.interval.omen, contribution));
+        if (source != null && record.interval.omen > before) {
+            OmenBar.omenRose(server, record, source, record.interval.omen);
+        }
     }
 
     private static boolean sensorActive(BlockState state) {

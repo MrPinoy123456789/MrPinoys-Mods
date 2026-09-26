@@ -168,17 +168,17 @@ final class ContentReload {
     private static void reconcileActiveFloors(MinecraftServer server, ContentSnapshot snapshot) {
         List<InstanceRecord> orphanedPreviews = new ArrayList<>();
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
-            if (record.previewPlan == null) {
+            if (record.floor.previewPlan == null) {
                 continue;
             }
             boolean stale = false;
-            for (DungeonPlan.PlacedRoom placed : record.previewPlan.rooms().values()) {
+            for (DungeonPlan.PlacedRoom placed : record.floor.previewPlan.rooms().values()) {
                 if (snapshot.rooms().byName(placed.name()) == null) {
                     stale = true;
                     break;
                 }
             }
-            if (!stale && record.theme != null && snapshot.themes().byId(record.theme) == null) {
+            if (!stale && record.floor.theme != null && snapshot.themes().byId(record.floor.theme) == null) {
                 stale = true;
             }
             if (stale) {
@@ -203,14 +203,14 @@ final class ContentReload {
                 // refund the escrowed catalyst, and transition the phase, so
                 // a later commit cannot consume a stale plan and the run is
                 // not stranded in PREVIEW.
-                record.previewPlan = null;
-                record.previewCellOrigin = null;
-                if (record.previewRecipePlan != null) {
+                record.floor.previewPlan = null;
+                record.floor.previewCellOrigin = null;
+                if (record.floor.previewRecipePlan != null) {
                     Instances.restoreEscrowedCatalyst(server, record);
-                    record.previewRecipePlan = null;
+                    record.floor.previewRecipePlan = null;
                 }
-                record.previewOfferStep = 0;
-                RunSession.transition(record, record.floorIndex > 0
+                record.floor.previewOfferStep = 0;
+                RunSession.transition(record, record.interval.floorIndex > 0
                         ? RunSession.Phase.FLOOR_CLEARED : RunSession.Phase.HOME);
             }
         }

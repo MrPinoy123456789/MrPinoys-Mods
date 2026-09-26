@@ -354,7 +354,7 @@ final class DungeonCommands {
 
                             // Wipes a player's saved room and closes anything of theirs
                             // still open in the world -- their lobby, an active run,
-                            // a lingering quarry, any visit copy of the room. Offline-
+                            // any visit copy of the room. Offline-
                             // capable via GameProfileArgument, same as baserestore:
                             // the operator reaching for this may be doing it because
                             // the owner cannot fix it themselves.
@@ -445,7 +445,7 @@ final class DungeonCommands {
      */
     private static int choose(ServerPlayer player, int step) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record != null && record.safeStaging) {
+        if (record != null && record.floor.safeStaging) {
             return RunLifecycle.returnToSafe(player) ? 1 : 0;
         }
         if (!RunLifecycle.previewDoor(player, step)) {
@@ -1240,8 +1240,8 @@ final class DungeonCommands {
 
     /**
      * {@code /dungeon admin resetroom <target>}: closes every instance
-     * {@code target} has open (their lobby, an active run, a lingering quarry,
-     * any visit copy of the room) and deletes their saved room, backing it up
+     * {@code target} has open (their lobby, an active run, any visit copy of
+     * the room) and deletes their saved room, backing it up
      * first the same as every other {@link RoomStore} write. The next time they
      * open a lobby they get a fresh {@code entrance_hall}, same as a player who
      * has never saved a room at all.

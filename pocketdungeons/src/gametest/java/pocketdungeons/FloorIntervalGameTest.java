@@ -27,6 +27,8 @@ import java.util.UUID;
  *       on rejoin with their return point intact, and is placed in the
  *       staging room.</li>
  * </ul>
+ * Alongside them, {@code omenBarFollowsThePhase} pins when the omen bar
+ * shows (wave 2a).
  *
  * <p>What the harness cannot reach: the gametest server has no
  * {@code pocketdungeons:void} (DISCOVERIES trap 18), and {@code RunLifecycle}
@@ -34,7 +36,7 @@ import java.util.UUID;
  * and the stamping half of {@code returnToSafe} never run here, and a
  * teleport into the dungeon falls back to world spawn. Each scenario drives
  * the production method that owns the decision ({@code bankFloorOmen} and
- * {@code clearIntervalState}, {@code completeRun} and {@code settleSafeVisit},
+ * {@code beginInterval}, {@code completeRun} and {@code settleSafeVisit},
  * {@code dropMember}, {@code rejoinOwnedInstance} and {@code admitPosition})
  * and sets the phase {@code advanceFloor} would have set by hand. The
  * physical landing spot and the homecoming stamp are live checks
@@ -57,19 +59,19 @@ public final class FloorIntervalGameTest {
         for (int visit = 0; visit < 2; visit++) {
             int band = -1;
             for (int floor = 0; floor < FLOORS_PER_VISIT; floor++) {
-                record.omen = OMEN_PER_FLOOR;
+                record.interval.omen = OMEN_PER_FLOOR;
                 band = RunLifecycle.bankFloorOmen(record, FLOORS_PER_VISIT);
             }
             bands[visit] = band;
             // The settlement guard is part of the interval too.
-            record.safeVisitSettled = true;
-            // What returnToSafe and fallbackTeleportHomecoming call as the
-            // interval ends.
-            record.clearIntervalState();
-            if (!record.floorOmens.isEmpty() || record.omen != 0 || record.safeVisitSettled) {
-                helper.fail("clearIntervalState left interval state behind: floorOmens="
-                        + record.floorOmens + ", omen=" + record.omen
-                        + ", settled=" + record.safeVisitSettled);
+            record.interval.safeVisitSettled = true;
+            // What returnToSafe, its teleport fallback and the quit reset
+            // call as the interval ends.
+            record.beginInterval(Instances.lobbyLayout(record.origin));
+            if (!record.interval.floorOmens.isEmpty() || record.interval.omen != 0 || record.interval.safeVisitSettled) {
+                helper.fail("beginInterval left interval state behind: floorOmens="
+                        + record.interval.floorOmens + ", omen=" + record.interval.omen
+                        + ", settled=" + record.interval.safeVisitSettled);
                 return;
             }
         }
@@ -98,8 +100,8 @@ public final class FloorIntervalGameTest {
         MinecraftServer server = owner.level().getServer();
         InstanceRecord record = floorRecord(helper, server, 9982, owner.getUUID());
         record.phase = RunSession.Phase.FLOOR_CLEARED;
-        record.completed.add(owner.getUUID());
-        record.safeStaging = true;
+        record.floor.completed.add(owner.getUUID());
+        record.floor.safeStaging = true;
         InstanceRegistry.byMember.put(owner.getUUID(), record);
         try {
             if (RunLifecycle.returnToSafe(owner)) {
@@ -132,8 +134,8 @@ public final class FloorIntervalGameTest {
         record.members.put(first.getUUID(), outside);
         record.members.put(second.getUUID(), outside);
         record.phase = RunSession.Phase.ACTIVE;
-        record.chosenStep = 0; // no keystone grant in settleSafeVisit
-        record.rewardChests = 1;
+        record.floor.chosenStep = 0; // no keystone grant in settleSafeVisit
+        record.floor.rewardChests = 1;
 
         int firstRuns = log.get(first.getUUID()).runsCompleted();
         int secondRuns = log.get(second.getUUID()).runsCompleted();
@@ -142,22 +144,22 @@ public final class FloorIntervalGameTest {
         // The first touch. advanceFloor returns early here (no staging room
         // on this server), so set the phase it would have left behind.
         RunLifecycle.completeRun(server, record, first);
-        if (!record.completed.contains(first.getUUID())) {
+        if (!record.floor.completed.contains(first.getUUID())) {
             helper.fail("the first member should be credited");
             return;
         }
         RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
-        record.floorIndex = 1;
+        record.interval.floorIndex = 1;
 
         // The second touch, after the floor has advanced.
         RunLifecycle.completeRun(server, record, second);
-        if (!record.completed.contains(second.getUUID())) {
+        if (!record.floor.completed.contains(second.getUUID())) {
             helper.fail("the second member onto the pad was not credited");
             return;
         }
-        if (record.phase != RunSession.Phase.FLOOR_CLEARED || record.floorIndex != 1) {
+        if (record.phase != RunSession.Phase.FLOOR_CLEARED || record.interval.floorIndex != 1) {
             helper.fail("the second touch advanced the floor again: phase " + record.phase
-                    + ", floorIndex " + record.floorIndex);
+                    + ", floorIndex " + record.interval.floorIndex);
             return;
         }
         if (log.get(first.getUUID()).runsCompleted() != firstRuns + 1
@@ -193,11 +195,10 @@ public final class FloorIntervalGameTest {
         BlockPos staging = helper.absolutePos(new BlockPos(0, 1, RoomGeometry.CELL));
         record.members.put(owner.getUUID(), outside);
         record.phase = RunSession.Phase.FLOOR_CLEARED;
-        record.completed.add(owner.getUUID());
-        record.awaitingDoorChoice = true;
-        record.chosenStep = 1;
-        record.floorIndex = 1;
-        record.floorOmens.add(OMEN_PER_FLOOR);
+        record.floor.completed.add(owner.getUUID());
+        record.floor.chosenStep = 1;
+        record.interval.floorIndex = 1;
+        record.interval.floorOmens.add(OMEN_PER_FLOOR);
         record.stagingCellOrigin = staging;
         InstanceRegistry.bySlot.put(slot, record);
         InstanceRegistry.byMember.put(owner.getUUID(), record);
@@ -229,12 +230,12 @@ public final class FloorIntervalGameTest {
                 return;
             }
             if (record.phase != RunSession.Phase.FLOOR_CLEARED
-                    || !record.completed.contains(owner.getUUID())
-                    || !record.floorOmens.equals(List.of(OMEN_PER_FLOOR))
-                    || record.floorIndex != 1) {
+                    || !record.floor.completed.contains(owner.getUUID())
+                    || !record.interval.floorOmens.equals(List.of(OMEN_PER_FLOOR))
+                    || record.interval.floorIndex != 1) {
                 helper.fail("the interval did not survive the rejoin: phase " + record.phase
-                        + ", completed " + record.completed + ", floorOmens " + record.floorOmens
-                        + ", floorIndex " + record.floorIndex);
+                        + ", completed " + record.floor.completed + ", floorOmens " + record.interval.floorOmens
+                        + ", floorIndex " + record.interval.floorIndex);
                 return;
             }
             Vec3 expected = Vec3.atBottomCenterOf(staging.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
@@ -251,6 +252,57 @@ public final class FloorIntervalGameTest {
         helper.succeed();
     }
 
+    /**
+     * The omen bar shows during a floor and between floors, never at home or
+     * on a record outside the floor loop, and is let go at teardown. Who
+     * watches it is a live check: the mock players here never stand in the
+     * dungeon dimension.
+     */
+    @GameTest(maxTicks = 20)
+    public void omenBarFollowsThePhase(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        InstanceRecord record = floorRecord(helper, server, 9985, UUID.randomUUID());
+        record.phase = RunSession.Phase.HOME;
+        OmenBar.sync(server, record);
+        if (OmenBar.shows(record) || record.omenBar != null) {
+            helper.fail("the bar should stay hidden, and uncreated, at home");
+            return;
+        }
+        record.phase = RunSession.Phase.ACTIVE;
+        record.interval.omen = 2;
+        OmenBar.sync(server, record);
+        if (!OmenBar.shows(record) || record.omenBar == null) {
+            helper.fail("the bar should show during a floor");
+            return;
+        }
+        record.phase = RunSession.Phase.FLOOR_CLEARED;
+        record.interval.floorIndex = 1;
+        if (!OmenBar.shows(record)) {
+            helper.fail("the bar should show between floors once a floor is cleared");
+            return;
+        }
+        record.phase = RunSession.Phase.PREVIEW;
+        record.interval.floorIndex = 0;
+        if (OmenBar.shows(record)) {
+            helper.fail("a preview opened from home has no floor to report");
+            return;
+        }
+        OmenBar.close(record);
+        if (record.omenBar != null) {
+            helper.fail("teardown should let the bar go");
+            return;
+        }
+        InstanceRecord untimed = new InstanceRecord(9986, record.origin, server.getTickCount(),
+                record.layout, Set.of(), UUID.randomUUID(), true);
+        untimed.phase = RunSession.Phase.ACTIVE;
+        OmenBar.omenRose(server, untimed, Omen.Source.SHRIEK, 1);
+        if (OmenBar.shows(untimed) || untimed.omenBar != null) {
+            helper.fail("an admin untimed run is outside the loop and gets no bar");
+            return;
+        }
+        helper.succeed();
+    }
+
     // ---- helpers ---------------------------------------------------------
 
     /** A one-cell keystone floor with no spawners, so the completion gate passes. */
@@ -263,7 +315,7 @@ public final class FloorIntervalGameTest {
                 0, 0, Set.of(), null, Set.of());
         InstanceRecord record = new InstanceRecord(slot, origin, server.getTickCount(), layout,
                 Set.of(), owner, false);
-        record.theme = "pocketdungeons:test_interval";
+        record.floor.theme = "pocketdungeons:test_interval";
         return record;
     }
 

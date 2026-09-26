@@ -45,7 +45,7 @@ final class EndlessMineRules {
 
     /** Whether the record is an active Mine run. */
     static boolean isMine(InstanceRecord record) {
-        return record != null && record.endlessMine;
+        return record != null && record.interval.endlessMine;
     }
 
     /** Whether the resolved recipe plan opens a Mine. */
@@ -78,7 +78,7 @@ final class EndlessMineRules {
             return false;
         }
         int cycle = Math.max(1, floorsPerSafeVisit);
-        return record.floorIndex % cycle == 0;
+        return record.interval.floorIndex % cycle == 0;
     }
 
     /**
@@ -93,7 +93,7 @@ final class EndlessMineRules {
             return baseTier;
         }
         int cycle = Math.max(1, floorsPerSafeVisit);
-        int escalated = baseTier + record.floorIndex / cycle;
+        int escalated = baseTier + record.interval.floorIndex / cycle;
         return Math.min(3, escalated);
     }
 
@@ -103,7 +103,7 @@ final class EndlessMineRules {
      * memento can carry without granting power.
      */
     static int cashOutDepth(InstanceRecord record) {
-        return isMine(record) ? Math.max(0, record.floorIndex) : 0;
+        return isMine(record) ? Math.max(0, record.interval.floorIndex) : 0;
     }
 
     // ---- commitment surface text (pure strings; callers wrap in Component) ----

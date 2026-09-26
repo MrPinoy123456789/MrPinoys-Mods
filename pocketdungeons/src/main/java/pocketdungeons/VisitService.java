@@ -27,7 +27,7 @@ final class VisitService {
     private VisitService() {}
 
     /**
-     * The owner is "home" when they have a live, non-lingering instance: the
+     * The owner is "home" when they have a live instance of their own: the
      * visitor joins that exact instance, so two cards to the same owner always
      * converge. When the owner is away, a read-only visit instance is stamped
      * from their saved room blob; a second visitor joins the existing copy rather
@@ -93,7 +93,7 @@ final class VisitService {
 
     private static InstanceRecord findOwnedLiveRoom(UUID owner) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
-            if (owner.equals(record.owner) && !record.lingering && !record.visitInstance) {
+            if (owner.equals(record.owner) && !record.visitInstance) {
                 return record;
             }
         }
@@ -213,7 +213,7 @@ final class VisitService {
     static String statusOf(UUID owner) {
         InstanceRecord current = InstanceRegistry.byMember.get(owner);
         if (current != null && owner.equals(current.owner) && !current.visitInstance
-                && !current.lingering && !RunSession.isHome(current)) {
+                && !RunSession.isHome(current)) {
             return "run in progress";
         }
         return findOwnedLiveRoom(owner) != null ? "open" : "away";

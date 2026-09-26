@@ -198,17 +198,37 @@ final class DungeonScreen {
         return content;
     }
 
-    /** Context 2: a door is selected: offered level, theme, effective affixes. */
-    static Component previewContent(ServerLevel level, UUID owner, int step) {
+    /**
+     * Context 2: a door is selected: offered level and which floor of the
+     * interval it opens, theme, effective affixes, and for a Greater door the
+     * fuel it costs against the owner's balance.
+     */
+    static Component previewContent(ServerLevel level, InstanceRecord record, int step) {
         MinecraftServer server = level.getServer();
+        UUID owner = record.owner;
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         int offerLevel = Math.max(1, entry.keystoneLevel());
         Keystone.Offer[] offers = Keystone.offers(owner, offerLevel, entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         Set<String> effective = AffixMath.effective(owner, offer.level(), offer.affixes(),
                 AffixManifest.current().definitions());
-        MutableComponent content = Component.literal("KEYSTONE " + offer.level() + "\n"
+        // A Mine recipe armed on the key shows once the preview has resolved it.
+        boolean mine = EndlessMineRules.isMine(record) || EndlessMineRules.isMine(record.floor.previewRecipePlan);
+        String floor = OmenBarText.previewFloor(record.interval.floorIndex + 1,
+                PocketDungeonsConfig.floorsPerSafeVisit(), mine);
+        MutableComponent content = Component.literal("KEYSTONE " + offer.level() + " | " + floor + "\n"
                 + themeName(offer.theme()) + "\n").append(affixLine(effective));
+        if (!offer.free()) {
+            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
+            ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
+            if (ownerPlayer != null) {
+                int banked = Fuel.banked(ownerPlayer);
+                content.append(Component.literal("\nFuel " + cost + " of your " + banked)
+                        .withStyle(banked >= cost ? ChatFormatting.GRAY : ChatFormatting.RED));
+            } else {
+                content.append(Component.literal("\nFuel " + cost).withStyle(ChatFormatting.GRAY));
+            }
+        }
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             content.append(Component.literal("\nCAUTION: EXPERIMENTAL").withStyle(ChatFormatting.RED));
@@ -222,7 +242,7 @@ final class DungeonScreen {
     /** Context 3: a run is in progress: level, theme and affixes. */
     static Component runContent(ServerLevel level, InstanceRecord record) {
         MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
-                + themeName(record.theme) + "\n").append(affixLine(record.affixes));
+                + themeName(record.floor.theme) + "\n").append(affixLine(record.floor.affixes));
         return content;
     }
 

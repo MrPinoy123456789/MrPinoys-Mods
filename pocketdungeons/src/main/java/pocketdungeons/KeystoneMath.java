@@ -1,9 +1,9 @@
 package pocketdungeons;
 
 /**
- * Keystone level bands, depletion arithmetic and the run clock. No Minecraft
- * imports -- same discipline as {@link DoorMask}, {@link DifficultyProfile} and
- * {@link PayoutMath}, and for the same reason: the clamps are the part that is
+ * Keystone level bands and depletion arithmetic. No Minecraft imports, same
+ * discipline as {@link DoorMask} and {@link DifficultyProfile}, and for the
+ * same reason: the clamps are the part that is
  * easy to get subtly wrong and trivial to test with plain {@code javac}.
  *
  * <p>The whole of U7's failure handling collapses to {@link #deplete}: the
@@ -57,22 +57,4 @@ final class KeystoneMath {
         return level <= 9 ? 2 : 3;
     }
 
-    /**
-     * How long the run gets, in seconds.
-     *
-     * <p>Derived from the dungeon's <em>size</em>, not the key's level. That is
-     * the Mythic+ shape: a higher key does not shorten the clock, it stiffens what
-     * stands between you and the end of it.
-     */
-    static int timerSeconds(int baseSeconds, int perRoomSeconds, int pathLength) {
-        long total = (long) Math.max(0, baseSeconds)
-                + (long) Math.max(0, perRoomSeconds) * Math.max(0, pathLength);
-        return (int) Math.min(Integer.MAX_VALUE, total);
-    }
-
-    /** {@code m:ss}, for the boss bar title. Clamped at zero -- over time reads {@code 0:00}. */
-    static String formatClock(int secondsRemaining) {
-        int seconds = Math.max(0, secondsRemaining);
-        return (seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") + (seconds % 60);
-    }
 }

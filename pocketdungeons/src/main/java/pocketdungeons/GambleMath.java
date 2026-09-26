@@ -2,7 +2,7 @@ package pocketdungeons;
 
 /**
  * The gamble station's arithmetic, with no Minecraft imports: same discipline
- * as {@link KeystoneMath}, {@link PayoutMath} and {@link RerollMath}.
+ * as {@link KeystoneMath} and {@link RerollMath}.
  *
  * <p>M16: an emerald sink orthogonal to fuel (M12, the ladder-scale sink) and
  * lapis (M14, the gear-scale sink for a piece you already hold). This one

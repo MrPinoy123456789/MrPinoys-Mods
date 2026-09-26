@@ -705,7 +705,7 @@ final class DialogScreens {
         if (inDungeon) {
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             roomOwner = record != null && record.owner.equals(player.getUUID());
-            doorChosen = record != null && RunSession.isActive(record) && record.chosenStep > 0;
+            doorChosen = record != null && RunSession.isActive(record) && record.floor.chosenStep > 0;
         }
         return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner, doorChosen), player.getUUID(), inDungeon);
     }

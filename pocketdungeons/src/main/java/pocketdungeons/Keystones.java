@@ -12,28 +12,27 @@ import java.util.UUID;
  * The one place a keystone comes back to a player, and the only place depletion
  * is decided.
  *
- * <p>Running out of time downgrades the keystone by 2 levels but does not
- * close the dungeon: the player can still finish in overtime, though a late
- * finish banks no door bonus, so the key stays at its depleted level. A
- * completion finished after the clock adds no further penalty since the
- * timeout already applied it. Disconnecting, dying, running
- * {@code /dungeon exit}, and a server purge all cost nothing.
+ * <p>Only {@code /dungeon quit} on a floor in progress costs levels
+ * ({@code timedOutDepletion}, 2 by default). Disconnecting, dying, running
+ * {@code /dungeon exit}, and a server purge all cost nothing. How well a floor
+ * went is judged by omen at the safe visit, not here.
  */
 final class Keystones {
 
     /** Why a run ended, for the one purpose of deciding what the key costs. */
     enum Outcome {
-        /** The clock ran out before the run was completed. The harshest way to lose ground. */
-        TIMED_OUT,
-        /** Completed, but after the clock. Still counts, but banks no door bonus and costs levels. */
-        LATE,
-        /** Anything else -- completed in time, left, died, disconnected, purged, restarted. */
+        /**
+         * The owner quit the floor in progress with {@code /dungeon quit}.
+         * Costs {@code timedOutDepletion}, a config key named for the clock
+         * that used to charge it and kept so existing files still apply.
+         */
+        QUIT,
+        /** Anything else: completed, left, died, disconnected, purged, restarted. */
         NO_CHANGE;
 
         int depletion() {
             return switch (this) {
-                case TIMED_OUT -> PocketDungeonsConfig.timedOutDepletion();
-                case LATE -> PocketDungeonsConfig.lateCompletionDepletion();
+                case QUIT -> PocketDungeonsConfig.timedOutDepletion();
                 case NO_CHANGE -> 0;
             };
         }
@@ -83,7 +82,7 @@ final class Keystones {
         Keystone.reconcile(player, returned,
                 AffixMath.effective(member, returned, none, AffixManifest.current().definitions()));
         if (returned < level) {
-            if (outcome == Outcome.TIMED_OUT || outcome == Outcome.LATE) {
+            if (outcome == Outcome.QUIT) {
                 Chime.keystoneDepleted(player);
             }
             player.sendSystemMessage(Component.literal(

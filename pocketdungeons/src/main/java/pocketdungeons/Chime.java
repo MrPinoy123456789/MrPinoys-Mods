@@ -74,9 +74,22 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 1.2f);
     }
 
-    /** The run's clock ran out (M10, PD-7 keeps the dungeon open). */
-    public static void runTimedOut(ServerPlayer player) {
+    /** The owner quit the floor in progress and paid for it. */
+    public static void doorQuit(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.8f);
+    }
+
+    /**
+     * The omen rose. One low cue per source, so a player learns to tell a
+     * lingering warning from a shriek without reading the action bar.
+     */
+    public static void omenRises(ServerPlayer player, Omen.Source source) {
+        switch (source) {
+            case DWELL -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.3f, 0.5f);
+            case SENSOR -> play(player, Holder.direct(SoundEvents.SCULK_CLICKING), 0.4f, 0.8f);
+            case SHRIEK -> play(player, Holder.direct(SoundEvents.WARDEN_HEARTBEAT), 0.6f, 1.0f);
+            case BARGAIN -> play(player, SoundEvents.OMINOUS_BOTTLE_DISPOSE, 0.5f, 0.8f);
+        }
     }
 
     /** The keystone banked a door offer and levelled up. */

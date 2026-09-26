@@ -332,7 +332,7 @@ final class RitualListener {
         if (record != null && RunSession.canChooseDoor(record) && record.stagingCellOrigin != null) {
             // M57: if this is a safe staging room, the lever returns the
             // party to the safe room. No door selection or preview needed.
-            if (record.safeStaging) {
+            if (record.floor.safeStaging) {
                 if (RunLifecycle.returnToSafe(player)) {
                     Chime.runComplete(player);
                     return InteractionResult.SUCCESS_SERVER;
@@ -340,7 +340,7 @@ final class RitualListener {
                 Chime.refused(player);
                 return InteractionResult.SUCCESS_SERVER;
             }
-            if (record.selectedStep == 0) {
+            if (record.floor.selectedStep == 0) {
                 Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
                         DungeonScreen.refusalContent("Select a door first"));
@@ -348,13 +348,13 @@ final class RitualListener {
             }
             // M56: if no preview is active, the player selected a door but
             // the preview failed or never ran. Refuse the commit.
-            if (record.previewPlan == null) {
+            if (record.floor.previewPlan == null) {
                 Chime.refused(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
                         DungeonScreen.refusalContent("Preview the door first"));
                 return InteractionResult.SUCCESS_SERVER;
             }
-            String refusal = doorRefusal(player, record.selectedStep);
+            String refusal = doorRefusal(player, record.floor.selectedStep);
             if (refusal != null) {
                 Chime.refused(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
@@ -387,11 +387,11 @@ final class RitualListener {
         }
         // M57: in a safe staging room, there are no dungeon doors to select.
         // The lever alone returns the party to the safe room.
-        if (record.safeStaging) {
+        if (record.floor.safeStaging) {
             return;
         }
-        int previous = record.selectedStep;
-        record.selectedStep = step;
+        int previous = record.floor.selectedStep;
+        record.floor.selectedStep = step;
         ServerLevel level = (ServerLevel) player.level();
         BlockPos o = record.stagingCellOrigin;
         DoorMask.Direction wall = record.roomDungeonDoor;
@@ -408,7 +408,7 @@ final class RitualListener {
         // A failed preview leaves the door screen on the text preview.
         if (!RunLifecycle.previewDoor(player, step)) {
             // Restore the previous selection state if the preview failed.
-            record.selectedStep = previous;
+            record.floor.selectedStep = previous;
             if (previous >= 1 && previous <= 3 && previous != step) {
                 RoomTemplateGenerator.setBulb(level, o, wall,
                         RoomTemplateGenerator.bulbAlongForStep(previous), true);
@@ -431,12 +431,12 @@ final class RitualListener {
             } else {
                 DungeonScreen.updateDoor(level, record,
                         previous >= 1 && previous <= 3
-                                ? DungeonScreen.previewContent(level, record.owner, previous)
+                                ? DungeonScreen.previewContent(level, record, previous)
                                 : DungeonScreen.idleContent(level, record.owner));
             }
             return;
         }
-        DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record.owner, step));
+        DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record, step));
         Chime.doorSelected(player, step);
         TaskTracker.progress(player, TaskTracker.Task.SELECT_DOOR, 1);
         if (doorRefusal(player, step) != null) {

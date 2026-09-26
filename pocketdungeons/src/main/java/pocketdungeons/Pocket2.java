@@ -37,7 +37,7 @@ import java.util.UUID;
  * M25: the Pocket2 sub-dungeon. A rare door in a cleared encounter room of a
  * keystone run opens a short, intense nested dungeon: its own slot adjacent to
  * the parent's, its own cells, no keystone, no spawner gate, no completion pad.
- * Only a countdown timer (or a player death) ends it, and everyone inside is
+ * Only its deadline (or a player death) ends it, and everyone inside is
  * returned to the parent run at the door they came through.
  *
  * <p>One child per parent. A child is never stamped with a theme (and so never
@@ -233,9 +233,8 @@ final class Pocket2 {
 
     /**
      * Builds the child instance and moves the player into it. The player stays
-     * a member of the parent run (the outer clock keeps ticking; "time in the
-     * pocket is time the outer run counts"), but {@code byMember} points at the
-     * child while they are inside, so death and teardown route through it.
+     * a member of the parent run, but {@code byMember} points at the child
+     * while they are inside, so death and teardown route through it.
      */
     private static void openChild(MinecraftServer server, InstanceRecord parent,
                                   ServerPlayer player, BlockPos door) {
@@ -282,8 +281,6 @@ final class Pocket2 {
         InstanceRecord child = new InstanceRecord(childSlot, childOrigin, now, layout,
                 Set.of(), null, false, false, parent.slot, returnPos(parent, door));
         child.deadlineTick = now + PocketDungeonsConfig.pocket2TimerSeconds() * 20L;
-        child.timer = new RunTimer("Pocket", PocketDungeonsConfig.pocket2TimerSeconds(),
-                layout.roomCount());
         InstanceRegistry.bySlot.put(childSlot, child);
 
         // The child's roster copies the member's original return point, so a
@@ -293,7 +290,6 @@ final class Pocket2 {
         ReturnPoint original = parent.members.get(player.getUUID());
         child.members.put(player.getUUID(), original);
         InstanceRegistry.byMember.put(player.getUUID(), child);
-        child.timer.addPlayer(player);
 
         Instances.teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                 Vec3.atBottomCenterOf(layout.entrance()), layout.entranceYaw(), 0.0f);
@@ -382,23 +378,15 @@ final class Pocket2 {
     // ---- countdown and teardown ---------------------------------------------
 
     /**
-     * The child's slice of the watcher: tick its own countdown bar, drop
-     * members who left the world or the dimension (the parent's sweep handles
-     * the parent side of the same people), and expire on the deadline. The
-     * outer run's clock is untouched: it ticks on the parent record, which is
-     * how time in the pocket counts against the outer run.
+     * The child's slice of the watcher: drop members who left the world or
+     * the dimension (the parent's sweep handles the parent side of the same
+     * people), and expire on the deadline.
      */
     static void tickChild(MinecraftServer server, InstanceRecord child, long now, int interval) {
-        if (child.timer != null) {
-            child.timer.tick(interval);
-        }
         for (UUID member : new ArrayList<>(child.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 child.members.remove(member);
-                if (child.timer != null && player != null) {
-                    child.timer.removePlayer(player);
-                }
             }
         }
         if (child.deadlineTick != 0 && now >= child.deadlineTick) {
@@ -428,14 +416,8 @@ final class Pocket2 {
                 InstanceRegistry.byMember.remove(member);
                 continue;
             }
-            if (child.timer != null) {
-                child.timer.removePlayer(player);
-            }
             if (parent != null && level != null && child.returnPos != null) {
                 InstanceRegistry.byMember.put(member, parent);
-                if (parent.timer != null) {
-                    parent.timer.addPlayer(player);
-                }
                 Instances.teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
                         Vec3.atBottomCenterOf(child.returnPos), returnYaw(parent, child.returnPos), 0.0f);
                 player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.GRAY));
@@ -460,7 +442,7 @@ final class Pocket2 {
      * is the parent run at the door, not the overworld. The outer run's death
      * penalty still applies: the parent's keystone is settled exactly as
      * {@code Instances.rescue} would settle it (U8: {@code NO_CHANGE}). The
-     * child is torn down either way, like the timer path.
+     * child is torn down either way, like the deadline path.
      */
     static void dieInChild(MinecraftServer server, ServerPlayer player, InstanceRecord child) {
         if (server == null) {

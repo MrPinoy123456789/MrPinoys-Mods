@@ -153,13 +153,13 @@ public final class ContentReloadGameTest {
         InstanceRecord record = new InstanceRecord(slot, staging, server.getTickCount(),
                 null, Set.of(), player.getUUID(), true);
         record.stagingCellOrigin = staging;
-        record.previewCellOrigin = previewCell;
+        record.floor.previewCellOrigin = previewCell;
         record.roomDungeonDoor = DoorMask.Direction.SOUTH;
         record.phase = RunSession.Phase.PREVIEW;
-        record.previewPlan = plan;
-        record.previewOfferStep = 1;
+        record.floor.previewPlan = plan;
+        record.floor.previewOfferStep = 1;
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        record.previewRecipePlan = RunRecipePlan.resolve(1L, 5, Set.of(), Set.of(),
+        record.floor.previewRecipePlan = RunRecipePlan.resolve(1L, 5, Set.of(), Set.of(),
                 new CompoundTag(), refusal);
 
         InstanceRegistry.bySlot.put(slot, record);
@@ -169,11 +169,11 @@ public final class ContentReloadGameTest {
         try {
             ContentReload.reload(server);
 
-            if (record.previewPlan != null) {
+            if (record.floor.previewPlan != null) {
                 helper.fail("previewPlan should be cleared after reload");
                 return;
             }
-            if (record.previewCellOrigin != null) {
+            if (record.floor.previewCellOrigin != null) {
                 helper.fail("previewCellOrigin should be cleared after reload");
                 return;
             }

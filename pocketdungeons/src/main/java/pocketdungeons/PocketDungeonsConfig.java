@@ -84,8 +84,6 @@ public final class PocketDungeonsConfig {
     // has no such collision with anything else in the suite.
     private static String keystoneItem = "minecraft:recovery_compass";
     private static int keystoneMaxLevel = 100;
-    private static int timerBaseSeconds = 180;
-    private static int timerPerRoomSeconds = 60;
 
     // ---- U8: the run outlives the player, the reward room, the three doors ---
     private static int rewardRoomGraceSeconds = 600;
@@ -100,12 +98,12 @@ public final class PocketDungeonsConfig {
      * long the player stands still.
      */
     private static int afkSeconds = 300;
-    private static int threeChestPercent = 60;
-    private static int twoChestPercent = 80;
-    /** The clock ran out before the run was completed. The harshest depletion. */
+    /**
+     * What {@code /dungeon quit} on a floor in progress costs the owner's
+     * keystone. Named for the clock that used to charge it; the name is kept
+     * so existing config files still apply.
+     */
     private static int timedOutDepletion = 2;
-    /** Completed, but after the clock. Costs less, and a door offer is still earned. */
-    private static int lateCompletionDepletion = 2;
 
     // ---- affixes (M4) --------------------------------------------------------
     /** Overclocked scales {@link #trialSpawnerCooldownTicks} down by this. */
@@ -154,8 +152,6 @@ public final class PocketDungeonsConfig {
      * of its own would let the premium tier fund itself.
      */
     private static String fuelItem = "minecraft:echo_shard";
-    /** Door 1's own flat clock, generous rather than tied to room count. */
-    private static int door1TimerSeconds = 300;
     /** What a door 2/3 choice costs, spent atomically with the level upgrade. */
     private static int fuelCostPerGreaterDoor = 3;
     /** What a completed door-1 run pays out, guaranteed, every time. */
@@ -381,7 +377,7 @@ public final class PocketDungeonsConfig {
         return inviteTtlSeconds;
     }
 
-    /** M76: cap on live (non-lingering, non-admin-build) instances. 0 disables the cap. */
+    /** M76: cap on live (non-admin-build) instances. 0 disables the cap. */
     public static int maxConcurrentInstances() {
         return maxConcurrentInstances;
     }
@@ -497,10 +493,6 @@ public final class PocketDungeonsConfig {
         return fuelItem;
     }
 
-    public static int door1TimerSeconds() {
-        return door1TimerSeconds;
-    }
-
     public static int fuelCostPerGreaterDoor() {
         return fuelCostPerGreaterDoor;
     }
@@ -602,14 +594,6 @@ public final class PocketDungeonsConfig {
     }
 
 
-    public static int timerBaseSeconds() {
-        return timerBaseSeconds;
-    }
-
-    public static int timerPerRoomSeconds() {
-        return timerPerRoomSeconds;
-    }
-
     public static int rewardRoomGraceSeconds() {
         return rewardRoomGraceSeconds;
     }
@@ -618,20 +602,8 @@ public final class PocketDungeonsConfig {
         return afkSeconds;
     }
 
-    public static int threeChestPercent() {
-        return threeChestPercent;
-    }
-
-    public static int twoChestPercent() {
-        return twoChestPercent;
-    }
-
     public static int timedOutDepletion() {
         return timedOutDepletion;
-    }
-
-    public static int lateCompletionDepletion() {
-        return lateCompletionDepletion;
     }
 
     private static void applyDefaults() {
@@ -664,15 +636,10 @@ public final class PocketDungeonsConfig {
 
         keystoneItem = "minecraft:recovery_compass";
         keystoneMaxLevel = 100;
-        timerBaseSeconds = 180;
-        timerPerRoomSeconds = 60;
 
         rewardRoomGraceSeconds = 600;
         afkSeconds = 300;
-        threeChestPercent = 60;
-        twoChestPercent = 80;
         timedOutDepletion = 2;
-        lateCompletionDepletion = 2;
 
         overclockedCooldownFactor = 0.4;
         swarmingMobFactor = 1.5;
@@ -688,7 +655,6 @@ public final class PocketDungeonsConfig {
         spawnerClearThreshold = 0.75;
 
         fuelItem = "minecraft:echo_shard";
-        door1TimerSeconds = 300;
         fuelCostPerGreaterDoor = 3;
         fuelPerFreeRun = 1;
         greaterDoorMinLevel = 15;
@@ -720,7 +686,22 @@ public final class PocketDungeonsConfig {
         extractionReversible = false;
     }
 
+    /**
+     * Keys the mod once read and no longer does: the run clock and its chest
+     * scoring, retired once omen replaced them. A file that still carries
+     * them loads normally; they are named once in the log and left out of
+     * the next save.
+     */
+    private static final List<String> RETIRED_KEYS = List.of(
+            "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds",
+            "threeChestPercent", "twoChestPercent", "lateCompletionDepletion");
+
     private static void apply(JsonObject root) {
+        List<String> retired = RETIRED_KEYS.stream().filter(root::has).toList();
+        if (!retired.isEmpty()) {
+            PocketDungeonsMod.LOG.info("pocketdungeons.json still sets {}, which no longer do anything "
+                    + "(the run clock is gone); ignoring them", String.join(", ", retired));
+        }
         // A cell is exactly one chunk only while the slot origin is chunk-aligned,
         // and every force-load and teardown calculation downstream leans on that.
         slotPitch = readInt(root, "slotPitch", 2048,
@@ -790,26 +771,11 @@ public final class PocketDungeonsConfig {
 
         keystoneItem = readString(root, "keystoneItem", "minecraft:recovery_compass", false);
         keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 100, v -> v >= 1, "must be >= 1");
-        timerBaseSeconds = readInt(root, "timerBaseSeconds", 180, v -> v >= 0, "must be >= 0");
-        timerPerRoomSeconds = readInt(root, "timerPerRoomSeconds", 60, v -> v >= 0, "must be >= 0");
 
         rewardRoomGraceSeconds = readInt(root, "rewardRoomGraceSeconds", 600,
                 v -> v >= 0, "must be >= 0");
         afkSeconds = readInt(root, "afkSeconds", 300, v -> v >= 0, "must be >= 0");
-        threeChestPercent = readInt(root, "threeChestPercent", 60,
-                v -> v >= 1 && v <= 100, "must be between 1 and 100");
-        twoChestPercent = readInt(root, "twoChestPercent", 80,
-                v -> v > threeChestPercent && v <= 100,
-                "must be > threeChestPercent and <= 100");
-        if (twoChestPercent <= threeChestPercent) {
-            PocketDungeonsMod.LOG.error(
-                    "pocketdungeons.json twoChestPercent ({}) must be greater than threeChestPercent "
-                            + "({}); using default 80", twoChestPercent, threeChestPercent);
-            twoChestPercent = Math.max(threeChestPercent + 1, 80);
-        }
         timedOutDepletion = readInt(root, "timedOutDepletion", 2, v -> v >= 0, "must be >= 0");
-        lateCompletionDepletion = readInt(root, "lateCompletionDepletion", 2,
-                v -> v >= 0, "must be >= 0");
 
         overclockedCooldownFactor = readDouble(root, "overclockedCooldownFactor", 0.4,
                 v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
@@ -829,7 +795,6 @@ public final class PocketDungeonsConfig {
                 v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
 
         fuelItem = readString(root, "fuelItem", "minecraft:echo_shard", false);
-        door1TimerSeconds = readInt(root, "door1TimerSeconds", 300, v -> v >= 0, "must be >= 0");
         fuelCostPerGreaterDoor = readInt(root, "fuelCostPerGreaterDoor", 3, v -> v >= 0, "must be >= 0");
         fuelPerFreeRun = readInt(root, "fuelPerFreeRun", 1, v -> v >= 0, "must be >= 0");
         greaterDoorMinLevel = readInt(root, "greaterDoorMinLevel", 15, v -> v >= 1, "must be >= 1");
@@ -1068,15 +1033,10 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("keystoneItem", "minecraft:recovery_compass");
         root.addProperty("keystoneMaxLevel", 100);
-        root.addProperty("timerBaseSeconds", 180);
-        root.addProperty("timerPerRoomSeconds", 60);
 
         root.addProperty("rewardRoomGraceSeconds", 600);
         root.addProperty("afkSeconds", 300);
-        root.addProperty("threeChestPercent", 60);
-        root.addProperty("twoChestPercent", 80);
         root.addProperty("timedOutDepletion", 2);
-        root.addProperty("lateCompletionDepletion", 2);
 
         root.addProperty("overclockedCooldownFactor", 0.4);
         root.addProperty("swarmingMobFactor", 1.5);
@@ -1092,7 +1052,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("spawnerClearThreshold", 0.75);
 
         root.addProperty("fuelItem", "minecraft:echo_shard");
-        root.addProperty("door1TimerSeconds", 300);
         root.addProperty("fuelCostPerGreaterDoor", 3);
         root.addProperty("fuelPerFreeRun", 1);
         root.addProperty("greaterDoorMinLevel", 15);

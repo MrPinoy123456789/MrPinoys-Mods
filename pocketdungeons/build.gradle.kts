@@ -196,13 +196,6 @@ tasks.register<JavaExec>("layoutGraphTest") {
     mainClass = "pocketdungeons.LayoutGraphGeneratorHarness"
 }
 
-tasks.register<JavaExec>("payoutMathTest") {
-    group = "verification"
-    description = "Runs the pure-Java streak and payout arithmetic regression test"
-    classpath = sourceSets["test"].runtimeClasspath
-    mainClass = "pocketdungeons.PayoutMathTest"
-}
-
 tasks.register<JavaExec>("dungeonRoomMetaTest") {
     group = "verification"
     description = "Runs the pure-Java DungeonRoomMeta parser regression test"
@@ -212,7 +205,7 @@ tasks.register<JavaExec>("dungeonRoomMetaTest") {
 
 tasks.register<JavaExec>("keystoneMathTest") {
     group = "verification"
-    description = "Runs the pure-Java keystone level, depletion and timer regression test"
+    description = "Runs the pure-Java keystone level and depletion regression test"
     classpath = sourceSets["test"].runtimeClasspath
     mainClass = "pocketdungeons.KeystoneMathTest"
 }
@@ -298,6 +291,8 @@ for ((taskName, testClass) in mapOf(
     "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
     "omenMathTest" to "OmenMathTest",
+    // Audit wave 2a: the omen bar's titles, fill and completion verdict.
+    "omenBarTextTest" to "OmenBarTextTest",
     "floorShapeTest" to "FloorShapeTest",
     "situationTagsTest" to "SituationTagsTest",
     "dungeonToolsTest" to "DungeonToolsTest",
@@ -341,7 +336,6 @@ tasks.test {
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")
-    dependsOn("payoutMathTest")
     dependsOn("keystoneMathTest")
     dependsOn("affixMathTest")
     dependsOn("dungeonRoomMetaTest")
@@ -362,6 +356,7 @@ tasks.test {
     dependsOn("resetCampaignTest")
     dependsOn("graphSolvabilityTest")
     dependsOn("omenMathTest")
+    dependsOn("omenBarTextTest")
     dependsOn("floorShapeTest")
     dependsOn("situationTagsTest")
     dependsOn("dungeonToolsTest")

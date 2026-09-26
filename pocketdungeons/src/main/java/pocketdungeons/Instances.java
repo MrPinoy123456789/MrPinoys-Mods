@@ -336,9 +336,9 @@ final class Instances {
             long expiresAtTick = server.overworld().getGameTime() + PENDING_RETURN_TTL_TICKS;
             pendingReturns.put(player.getUUID(), new PendingReturn(point, expiresAtTick, record));
         }
-        // U8 Stage 1: disconnecting is free. The run keeps running, on its
-        // own clock, whether or not anyone is here to watch it -- there is
-        // nothing to settle on the way out any more.
+        // U8 Stage 1: disconnecting is free. The run stays where it is
+        // whether or not anyone is here to watch it; there is nothing to
+        // settle on the way out.
         RunLifecycle.dropMember(server, record, player.getUUID(), player, "member disconnected");
     }
 
@@ -398,7 +398,7 @@ final class Instances {
      */
     static Set<String> affixesFor(UUID member) {
         InstanceRecord record = InstanceRegistry.byMember.get(member);
-        return record == null ? Set.of() : record.affixes;
+        return record == null ? Set.of() : record.floor.affixes;
     }
 
 
@@ -489,10 +489,8 @@ final class Instances {
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL, admitPosition(record),
                 toStaging ? 0.0f : record.layout.entranceYaw(), 0.0f);
 
-        if (record.timer != null) {
-            record.timer.addPlayer(player);
-        }
         applyTrialOmen(player, record);
+        OmenBar.sync(server, record);
         // M48: a member who has not yet chosen a bag gets the bag chest on
         // entry. Each member picks independently; the chest is a shared
         // station, so this is a no-op once it is already standing.
@@ -605,11 +603,9 @@ final class Instances {
 
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
                 Set.of(), player.getUUID(), false);
-        record.awaitingDoorChoice = true;
         record.roomCellOrigin = origin;
         record.stagingCellOrigin = CellGeometry.offsetInDirection(
                 origin, DoorMask.Direction.SOUTH, RoomGeometry.CELL);
-        record.phase = RunSession.Phase.HOME;
         InstanceRegistry.bySlot.put(slot, record);
 
         admit(server, record, player);
@@ -637,8 +633,8 @@ final class Instances {
      * Stamps just the lobby -- the owner's saved room (M2 T2.1) if they have
      * one, {@code entrance_hall} untouched otherwise -- with its one connecting
      * door sealed (T2.3's envelope covers the other three sides; nothing exists
-     * to connect to yet) and its three fixed choice-doors ready. No plan, no
-     * timer: {@link #chooseLobbyDoor} is what generates the rest of the run.
+     * to connect to yet) and its three fixed choice-doors ready. No plan yet:
+     * {@link #chooseLobbyDoor} is what generates the rest of the run.
      *
      * @return the one-cell layout, or {@code null} if the stamp failed (a
      *         teardown is already queued on that path; it frees the tickets
@@ -867,7 +863,7 @@ final class Instances {
         };
     }
 
-    /** A single fixed cell at rotation 0 -- no keystone, no timer, no reward room, until a door is chosen. */
+    /** A single fixed cell at rotation 0: no keystone and no reward room until a door is chosen. */
     static InstanceLayout lobbyLayout(BlockPos origin) {
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         BlockPos entrance = origin.offset(3, 1, 3);
@@ -882,7 +878,7 @@ final class Instances {
     /**
      * Which of the lobby's three fixed doors (1, 2 or 3) this world position
      * is, for <em>this player's own</em> lobby -- or null if the player is not
-     * standing in one that is still {@link InstanceRecord#awaitingDoorChoice},
+     * standing in one that can still choose a door ({@link RunSession#canChooseDoor}),
      * the position is not a door, or the player is a party member riding along
      * rather than the lobby's owner (only the owner's keystone is on the
      * line). Positions are computed from the record's origin rather than read
@@ -1048,7 +1044,7 @@ final class Instances {
         // M78: a Mine recipe (or a run already flagged Mine) forces the Mine
         // theme on every floor. The recipe tags are cleared after the first
         // commit, so a later floor's preview would otherwise lose the Mine
-        // look; record.endlessMine carries the flag forward instead.
+        // look; record.interval.endlessMine carries the flag forward instead.
         String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record, recipePlan);
         if (!effectiveThemeId.equals(offer.theme())) {
             theme = ThemeManifest.current().byId(effectiveThemeId);
@@ -1057,11 +1053,11 @@ final class Instances {
         // M66: a second click on the same offer with the same inputs does not
         // farm random entrances. If the existing preview is for the same step
         // and the recipe revision matches, reuse the frozen plan.
-        if (record.previewCellOrigin != null
-                && record.previewOfferStep == step
-                && record.previewRecipePlan != null
-                && record.previewRecipePlan.matchesRevision(recipePlan.revision)
-                && record.previewRecipePlan.offerLevel == offer.level()) {
+        if (record.floor.previewCellOrigin != null
+                && record.floor.previewOfferStep == step
+                && record.floor.previewRecipePlan != null
+                && record.floor.previewRecipePlan.matchesRevision(recipePlan.revision)
+                && record.floor.previewRecipePlan.offerLevel == offer.level()) {
             // Same offer, same inputs: the frozen preview is still valid.
             return true;
         }
@@ -1147,10 +1143,10 @@ final class Instances {
         DoorMask.Direction stagingSide = CellGeometry.opposite(dungeonDoor);
         RoomBuilder.windowDoor(level, entranceOrigin, mcDirection(stagingSide));
 
-        record.previewPlan = plan;
-        record.previewCellOrigin = entranceOrigin;
-        record.previewRecipePlan = recipePlan;
-        record.previewOfferStep = step;
+        record.floor.previewPlan = plan;
+        record.floor.previewCellOrigin = entranceOrigin;
+        record.floor.previewRecipePlan = recipePlan;
+        record.floor.previewOfferStep = step;
         RunSession.transition(record, RunSession.Phase.PREVIEW);
         return true;
     }
@@ -1170,36 +1166,36 @@ final class Instances {
      * leaving the recipe effects armed for the committed run.
      */
     static void clearPreview(ServerLevel level, InstanceRecord record, boolean refundCatalyst) {
-        if (record.previewCellOrigin == null) {
+        if (record.floor.previewCellOrigin == null) {
             return;
         }
-        clearCellSync(level, record.previewCellOrigin, List.of(record.stagingCellOrigin));
-        forceLoad(level, Set.of(record.previewCellOrigin), false);
+        clearCellSync(level, record.floor.previewCellOrigin, List.of(record.stagingCellOrigin));
+        forceLoad(level, Set.of(record.floor.previewCellOrigin), false);
         // Restore the selector door by re-placing all three selector doors.
         // The window was in the full door slot, so this overwrites it.
         RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
                 record.roomDungeonDoor);
-        record.previewPlan = null;
-        record.previewCellOrigin = null;
+        record.floor.previewPlan = null;
+        record.floor.previewCellOrigin = null;
         // M66: clear the recipe plan and, on a true cancel, restore the
         // escrowed catalyst. A switch keeps the escrow and tags armed.
-        if (record.previewRecipePlan != null) {
+        if (record.floor.previewRecipePlan != null) {
             if (refundCatalyst) {
                 restoreEscrowedCatalyst(level.getServer(), record);
             }
-            record.previewRecipePlan = null;
+            record.floor.previewRecipePlan = null;
         }
-        record.previewOfferStep = 0;
+        record.floor.previewOfferStep = 0;
         // M65: return to the phase that preceded the preview. If the safe
         // room is loaded and floorIndex is 0, that is HOME; otherwise the
         // party is between floors and the phase is FLOOR_CLEARED.
-        RunSession.transition(record, record.floorIndex > 0
+        RunSession.transition(record, record.interval.floorIndex > 0
                 ? RunSession.Phase.FLOOR_CLEARED : RunSession.Phase.HOME);
     }
 
     /**
      * M66: Converts a {@link RunRecipePlan} back to a {@link CompoundTag} for
-     * {@link InstanceRecord#recipeTags}, so the generation path that reads
+     * {@link FloorState#recipeTags}, so the generation path that reads
      * recipe tags during the run continues to work. The tag set is the plan's
      * active recipe keys, each set to {@code true}.
      */
@@ -1253,8 +1249,8 @@ final class Instances {
         if (!RunSession.require(record, RunSession.Phase.PREVIEW)) {
             return false;
         }
-        DungeonPlan plan = record.previewPlan;
-        if (plan == null || record.previewCellOrigin == null) {
+        DungeonPlan plan = record.floor.previewPlan;
+        if (plan == null || record.floor.previewCellOrigin == null) {
             return false;
         }
 
@@ -1263,8 +1259,8 @@ final class Instances {
         // on the record so later floors stay Mine after the recipe tags are
         // cleared.
         String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record,
-                record.previewRecipePlan);
-        boolean openingMine = EndlessMineRules.isMine(record.previewRecipePlan);
+                record.floor.previewRecipePlan);
+        boolean openingMine = EndlessMineRules.isMine(record.floor.previewRecipePlan);
 
         // M2/M3: clear the previous dungeon before generating the next one.
         RunLifecycle.resetForNextDungeon(server, record);
@@ -1281,8 +1277,8 @@ final class Instances {
         // M66: apply recipe effects from the frozen preview plan, not from
         // re-read recipe tags. The preview resolved the affix set; commit
         // uses the same set the player saw.
-        if (record.previewRecipePlan != null) {
-            affixes = record.previewRecipePlan.effectiveAffixes(affixes);
+        if (record.floor.previewRecipePlan != null) {
+            affixes = record.floor.previewRecipePlan.effectiveAffixes(affixes);
         }
 
         // Recompute the plan origin the same way previewDoor did.
@@ -1331,39 +1327,37 @@ final class Instances {
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDoor);
         RoomTemplateGenerator.placePostSelectionDoors(level, record.stagingCellOrigin, dungeonDoor);
 
-        record.layout = layout;
-        record.affixes = affixes;
-        record.theme = effectiveThemeId;
-        // M78: a Mine recipe flags the run Mine on the first commit and the
-        // flag persists for the rest of the run.
-        if (openingMine) {
-            record.endlessMine = true;
-        }
-        record.awaitingDoorChoice = false;
-        record.chosenStep = step;
-        record.freeDoor = offer.free();
-        record.previewPlan = null;
-        record.previewCellOrigin = null;
+        // The new floor's state replaces the cleared one's wholesale: its
+        // completions, pad edges, spawner cues, reward chests, grace window
+        // and the preview that chose it all go with it.
+        FloorState next = new FloorState();
+        next.affixes = affixes;
+        next.theme = effectiveThemeId;
+        next.chosenStep = step;
+        next.freeDoor = offer.free();
         // M66: the recipe plan is consumed. The catalyst escrow is cleared
         // (the catalyst is permanently spent on successful commit). Store
-        // the recipe plan on the record for the generation path to read
+        // the recipe plan on the floor for the generation path to read
         // during the run (compass study list, etc.).
-        record.recipeTags = record.previewRecipePlan != null
-                ? recipeTagsFromPlan(record.previewRecipePlan) : null;
+        next.recipeTags = record.floor.previewRecipePlan != null
+                ? recipeTagsFromPlan(record.floor.previewRecipePlan) : null;
         // M66: populate the completion study list for the compass recipe.
         // The list is the run's room names, which the completion line
         // reports when the compass effect is active.
-        record.situations.clear();
         for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
             RoomManifest.Entry entry = RoomManifest.current().byName(room.name());
             if (entry != null && entry.meta.content != null && !entry.meta.content.isBlank()) {
-                record.situations.add(entry.meta.content);
+                next.situations.add(entry.meta.content);
             } else {
-                record.situations.add(room.name());
+                next.situations.add(room.name());
             }
         }
-        record.previewRecipePlan = null;
-        record.previewOfferStep = 0;
+        record.startFloor(layout, next);
+        // M78: a Mine recipe flags the interval Mine on the first commit and
+        // the flag persists for the rest of the interval.
+        if (openingMine) {
+            record.interval.endlessMine = true;
+        }
         RunSession.transition(record, RunSession.Phase.ACTIVE);
 
         // M11: a boss-themed run gets its one proof encounter.
@@ -1372,20 +1366,6 @@ final class Instances {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
-        record.clearPreviousRunState();
-
-        if (record.timer != null) {
-            record.timer.close();
-            record.timer = null;
-        }
-        if (!record.untimed) {
-            int seconds = record.freeDoor ? PocketDungeonsConfig.door1TimerSeconds()
-                    : KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
-                            PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength());
-            record.timer = new RunTimer(layout.keystoneLevel(), seconds, layout.roomCount());
-        }
-
-        record.selectedStep = 0;
         RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
@@ -1393,9 +1373,6 @@ final class Instances {
             ServerPlayer inside = server.getPlayerList().getPlayer(member);
             if (inside == null) {
                 continue;
-            }
-            if (record.timer != null) {
-                record.timer.addPlayer(inside);
             }
             clearTrialOmen(inside);
             applyTrialOmen(inside, record);
@@ -1423,7 +1400,7 @@ final class Instances {
      * pulls every member into the safe room, clears the dungeon cells beyond
      * it, seals and bedrocks all four walls, re-arms the selector doors and
      * furniture, resets the door screen to idle, and returns the record to
-     * {@code awaitingDoorChoice}. Called by {@link RunLifecycle#quitDoor}
+     * {@code HOME}. Called by {@link RunLifecycle#quitDoor}
      * so {@code /dungeon quit} is a "pick a new door" action, not an eject.
      *
      * <p>The room stays in its current cell (it has not moved, since the run
@@ -1546,36 +1523,19 @@ final class Instances {
         // M48: re-arm the bag chest for the fresh door choice.
         clearBagChest(level, safeOrigin);
         placeBagChestForParty(level, server, record);
-        record.selectedStep = 0;
 
-        // Close the timer and clear trial omen from every member.
-        if (record.timer != null) {
-            for (UUID member : record.members.keySet()) {
-                ServerPlayer inside = server.getPlayerList().getPlayer(member);
-                if (inside != null) {
-                    record.timer.removePlayer(inside);
-                    clearTrialOmen(inside);
-                }
+        // Clear trial omen from every member.
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer inside = server.getPlayerList().getPlayer(member);
+            if (inside != null) {
+                clearTrialOmen(inside);
             }
-            record.timer.close();
-            record.timer = null;
         }
 
-        // Reset the record to lobby state.
-        record.layout = lobbyLayout(safeOrigin);
-        record.affixes = Set.of();
-        record.theme = null;
-        record.endlessMine = false;
-        record.awaitingDoorChoice = true;
-        record.chosenStep = 0;
-        record.freeDoor = false;
-        record.floorIndex = 0;
-        record.safeStaging = false;
-        record.clearIntervalState();
-        record.recipeTags = null;
-        record.previewRecipePlan = null;
-        record.previewOfferStep = 0;
-        record.clearPreviousRunState();
+        // The interval ends: the record stands at home with a fresh
+        // interval and floor, and no homecoming left to wait for.
+        record.homecoming = null;
+        record.beginInterval(lobbyLayout(safeOrigin));
     }
 
     // ---- exit ---------------------------------------------------------------
@@ -1666,12 +1626,12 @@ final class Instances {
             // PD-63: this branch teleports the player straight back into the
             // same live instance they were just detached from, not out of
             // it: dropMember's detach() above already removed them from
-            // record.members, InstanceRegistry.byMember, the timer and
-            // Trial Omen. Left alone, they would land back inside a
-            // dungeon that no longer knows they exist: onTick's member loop
-            // only iterates record.members, so the spawner-clear cue, the
-            // exit pad's completion check and the timer would all silently
-            // ignore them from this point on, even though they are
+            // record.members, InstanceRegistry.byMember and Trial Omen.
+            // Left alone, they would land back inside a dungeon that no
+            // longer knows they exist: onTick's member loop only iterates
+            // record.members, so the spawner-clear cue and the exit pad's
+            // completion check would silently ignore them from this point
+            // on, even though they are
             // standing right there. Re-admitting mirrors what admit() does
             // for a fresh entry, reusing the same point captured above
             // (before detach cleared it) rather than the player's current
@@ -1680,9 +1640,6 @@ final class Instances {
                 record.members.put(player.getUUID(), point);
             }
             InstanceRegistry.byMember.put(player.getUUID(), record);
-            if (record.timer != null) {
-                record.timer.addPlayer(player);
-            }
             applyTrialOmen(player, record);
             BlockPos roomCentre = record.stagingCellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
             teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
@@ -1699,8 +1656,8 @@ final class Instances {
         player.sendSystemMessage(Component.literal(
                 "The dungeon throws you out. You keep everything you were carrying.")
                 .withStyle(ChatFormatting.RED));
-        // U8 Stage 1: dying inside costs nothing. Under a wall clock the walk
-        // back is already the cost; a penalty on top would double-charge it.
+        // U8 Stage 1: dying inside costs nothing. The walk back is already
+        // the cost; a penalty on top would double-charge it.
         RunLifecycle.returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
         if (stillLive) {
             announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
@@ -1729,14 +1686,13 @@ final class Instances {
     /**
      * M43.2: the one primitive for detaching a member from an instance's
      * registry footprint, used by {@link #eject}, {@link RunLifecycle#dropMember},
-     * and the offline-member branches inside {@code InstanceTeardown.purge}/
-     * {@code retireOrPurge}, all four of which used to independently
+     * and the offline-member branch inside {@code InstanceTeardown.purge},
+     * all of which used to independently
      * hand-roll their own subset of this. Room save, {@code members}/
      * {@code byMember} removal, and clearing {@code onPad} happen
-     * unconditionally; timer and Trial Omen cleanup only when {@code player}
-     * is online, since an offline member has no live {@code ServerPlayer} to
-     * clear either against (the caller's own {@code timer.close()} or
-     * teardown loop accounts for them separately).
+     * unconditionally; Trial Omen cleanup only when {@code player} is
+     * online, since an offline member has no live {@code ServerPlayer} to
+     * clear it against.
      *
      * @return the member's return point, or {@code null} if they had none
      */
@@ -1754,13 +1710,11 @@ final class Instances {
             lastRoomCellOrigin.put(member, record.origin);
         }
         OmenSources.forget(member);
+        OmenBar.detach(record, member);
         ReturnPoint point = record.members.remove(member);
         InstanceRegistry.byMember.remove(member);
-        record.onPad.remove(member);
+        record.floor.onPad.remove(member);
         if (player != null) {
-            if (record.timer != null) {
-                record.timer.removePlayer(player);
-            }
             clearTrialOmen(player);
         }
         return point;
@@ -1799,7 +1753,8 @@ final class Instances {
         if (record.members.isEmpty()) {
             return true;
         }
-        if (record.oldStagingCellOrigin == null || record.roomCellOrigin == null) {
+        if (record.homecoming == null || record.homecoming.oldStagingCellOrigin() == null
+                || record.roomCellOrigin == null) {
             return true;
         }
         AABB roomBounds = CellGeometry.cellBounds(record.roomCellOrigin);
@@ -1854,9 +1809,13 @@ final class Instances {
             return;
         }
 
+        InstanceRecord.Homecoming homecoming = record.homecoming;
+        BlockPos oldStaging = homecoming == null ? null : homecoming.oldStagingCellOrigin();
+        InstanceLayout oldLayout = homecoming == null ? null : homecoming.oldLayout();
+
         // Release the old layout's force-load tickets.
-        if (record.oldLayoutForCleanup != null) {
-            forceLoad(level, record.oldLayoutForCleanup.geometry().chunks(), false);
+        if (oldLayout != null) {
+            forceLoad(level, oldLayout.geometry().chunks(), false);
         }
 
         // Clear every cell of the old dungeon layout except the old
@@ -1866,10 +1825,10 @@ final class Instances {
         if (record.roomCellOrigin != null) {
             keepCells.add(record.roomCellOrigin);
         }
-        if (record.oldLayoutForCleanup != null) {
-            for (BlockPos cellOrigin : record.oldLayoutForCleanup.geometry().cellOrigins()) {
+        if (oldLayout != null) {
+            for (BlockPos cellOrigin : oldLayout.geometry().cellOrigins()) {
                 // Skip the old staging room (it gets its own cleanup).
-                if (record.oldStagingCellOrigin != null && cellOrigin.equals(record.oldStagingCellOrigin)) {
+                if (oldStaging != null && cellOrigin.equals(oldStaging)) {
                     continue;
                 }
                 // Skip the new room (it is the party's actual room now).
@@ -1881,10 +1840,9 @@ final class Instances {
         }
 
         // Clear the old staging room.
-        if (record.oldStagingCellOrigin != null) {
-            clearCellSync(level, record.oldStagingCellOrigin, keepCells);
-            level.setChunkForced(record.oldStagingCellOrigin.getX() >> 4,
-                    record.oldStagingCellOrigin.getZ() >> 4, false);
+        if (oldStaging != null) {
+            clearCellSync(level, oldStaging, keepCells);
+            level.setChunkForced(oldStaging.getX() >> 4, oldStaging.getZ() >> 4, false);
         }
 
         // Set up the new staging room adjacent to the room, on the
@@ -1910,10 +1868,7 @@ final class Instances {
         DungeonScreen.summonTracker(level, newStagingOrigin, newDungeonDir,
                 DungeonScreen.trackerContent(server, record.owner));
 
-        // Clear the cleanup flag and old references.
-        record.pendingHomecomingCleanup = false;
-        record.oldStagingCellOrigin = null;
-        record.oldLayoutForCleanup = null;
+        record.homecoming = null;
     }
 
     /**
@@ -1962,7 +1917,7 @@ final class Instances {
      * unlike a real run, which {@code onTick} watches for exactly this reason.
      */
     static void purgeIfAbandonedLobby(MinecraftServer server, InstanceRecord record) {
-        if (record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty()) {
+        if (RunSession.awaitingFirstDoor(record) && record.members.isEmpty()) {
             InstanceTeardown.purge(server, record, "lobby abandoned");
         }
     }
@@ -2103,12 +2058,6 @@ final class Instances {
         int interval = PocketDungeonsConfig.watchIntervalTicks();
         long now = server.overworld().getGameTime();
         for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            // T2.5: a lingering quarry has no timer, no reward grace, and no
-            // members to watch for -- it is exempt from every check below until
-            // RunLifecycle.enter() purges it as the next run's opening move.
-            if (record.lingering) {
-                continue;
-            }
             // M25: a Pocket2 child has its own countdown and none of the outer
             // run's lifecycle: no keystone expiry, no grace window, no
             // spawner-clear gate, no completion pad. Everything about it lives
@@ -2117,9 +2066,6 @@ final class Instances {
                 Pocket2.tickChild(server, record, now, interval);
                 continue;
             }
-            if (record.timer != null) {
-                record.timer.tick(interval);
-            }
 
             // M65: silent homecoming cleanup. After returnToSafe stamps
             // the saved room behind the final staging door and opens it,
@@ -2127,10 +2073,10 @@ final class Instances {
             // left the old staging room, release the old floor cells and
             // the old staging room, then set up the new staging room
             // adjacent to the room.
-            if (record.pendingHomecomingCleanup) {
+            if (record.homecoming != null) {
                 if (allMembersCrossed(server, record)) {
                     completeHomecomingCleanup(server, record);
-                } else if (now - record.homecomingPendingSinceTick >= HOMECOMING_STRAGGLER_TICKS) {
+                } else if (now - record.homecoming.sinceTick() >= HOMECOMING_STRAGGLER_TICKS) {
                     // The cleanup itself runs on the next watch tick, once
                     // the moved members read as inside the room.
                     pullHomecomingStragglers(server, record);
@@ -2139,22 +2085,17 @@ final class Instances {
                 // cleanup is pending: the run is not active, the grace
                 // window does not apply, and the member sweep below
                 // would interfere with the crossing detection.
+                OmenBar.sync(server, record);
                 continue;
             }
 
             // U8 Stage 1: the two end conditions, both independent of membership.
             if (record.isKeystoneRun()) {
-                // M65: ordinary-floor timeout depletion is gone. The clock
-                // still ticks (for display and the SPEEDRUNNER bounty, now
-                // "low-omen completion" rather than "finished before the
-                // clock"), but it no longer depletes the keystone. The
-                // omen system replaces the clock as the penalty: a bad
-                // floor (high omen) means fewer chests and no level up at
-                // the safe visit. The quitDoor path still depletes
-                // voluntarily; expireTimedOut is no longer called from
-                // onTick.
-                if (!record.completed.isEmpty() && record.expiresAtTick == 0) {
-                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
+                // There is no clock: omen is the penalty. A bad floor (high
+                // omen) means fewer chests and no level up at the safe
+                // visit, and only a voluntary quit depletes the keystone.
+                if (!record.floor.completed.isEmpty() && record.floor.expiresAtTick == 0) {
+                    record.floor.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
                 // The grace window counts idleness, not elapsed time since the
                 // run ended. Armed once at completion and left to run down, it
@@ -2170,11 +2111,11 @@ final class Instances {
                 // same as using it, and an idle client would otherwise hold the
                 // slot for as long as the connection lasted. A disconnect drops
                 // them through the member sweep below either way.
-                if (record.expiresAtTick != 0 && hasActiveMember(server, record)) {
-                    record.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
+                if (record.floor.expiresAtTick != 0 && hasActiveMember(server, record)) {
+                    record.floor.expiresAtTick = now + PocketDungeonsConfig.rewardRoomGraceSeconds() * 20L;
                 }
-                if (record.expiresAtTick != 0 && now >= record.expiresAtTick) {
-                    InstanceTeardown.retireOrPurge(server, record, "reward room grace elapsed");
+                if (record.floor.expiresAtTick != 0 && now >= record.floor.expiresAtTick) {
+                    InstanceTeardown.purge(server, record, "reward room grace elapsed");
                     continue;
                 }
             }
@@ -2185,9 +2126,14 @@ final class Instances {
             // from the plan's "one line per call site": there is no per-cell
             // clear event to hook, so this is a small watcher on the same
             // interval the rest of onTick uses.
-            if (record.isKeystoneRun() && record.completed.isEmpty()) {
+            if (record.isKeystoneRun() && record.floor.completed.isEmpty()) {
                 watchSpawnerClears(server, record);
             }
+            // Repainted every watch tick, and every member who is in the
+            // dungeon dimension is put back on it: whichever way they came in
+            // (invited mid-run, re-entered, walked back into the dimension),
+            // they see it within one interval.
+            OmenBar.sync(server, record);
 
             for (UUID member : new ArrayList<>(record.members.keySet())) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
@@ -2201,26 +2147,6 @@ final class Instances {
                 if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                     RunLifecycle.dropMember(server, record, member, player, "member left the dimension");
                     continue;
-                }
-                // A member who reached the run after its clock started -- invited
-                // mid-run, re-entered their own live instance, or simply walked
-                // back into the dimension -- has no bar until something attaches
-                // them to one. Doing it here rather than at each entry point means
-                // every route in is covered by construction, including whichever
-                // ones get added next: the lobby-first rework already produced one
-                // bug of exactly this shape by adding an entry order that admit()
-                // had not been written for.
-                //
-                // <p>Costs a hash lookup per member per interval and nothing else.
-                // {@code ServerBossEvent.addPlayer} is a {@code Set.add} whose
-                // result gates the packet send, so a member already watching is
-                // added again to nothing.
-                if (record.timer != null) {
-                    record.timer.addPlayer(player);
-                }
-                PlanCell here = record.layout.geometry().cellAt(player.blockPosition());
-                if (here != null && record.visited.add(here) && record.timer != null) {
-                    record.timer.notePresence(record.visited.size());
                 }
                 if (player.getY() < record.origin.getY() - PocketDungeonsConfig.voidGuardDepth()) {
                     // Rooms are sealed boxes, so this should not happen -- but the
@@ -2254,9 +2180,9 @@ final class Instances {
                 // M21: the room's leave pad is gone; only the terminal pad's
                 // stand-on check remains.
                 boolean onPad = isOnExitPad(player, record);
-                boolean stepped = onPad && record.onPad.add(member);
+                boolean stepped = onPad && record.floor.onPad.add(member);
                 if (!onPad) {
-                    record.onPad.remove(member);
+                    record.floor.onPad.remove(member);
                 }
                 if (stepped) {
                     if (record.isKeystoneRun() && !record.untimed) {
@@ -2266,7 +2192,7 @@ final class Instances {
                         // set, so stepping off the pad and back on -- trivially
                         // easy while looting the chests standing right there --
                         // threw the player out of the dungeon.
-                        if (!record.completed.contains(member)) {
+                        if (!record.floor.completed.contains(member)) {
                             RunLifecycle.completeRun(server, record, player);
                         }
                     } else {
@@ -2283,24 +2209,21 @@ final class Instances {
     // ---- teardown -----------------------------------------------------------
 
     /**
-     * M22: fires the spawner-cleared cue for a run. A cell counts as cleared
+     * M22: fires the spawner-cleared cue for a run, and records the
+     * completion gate's reading for the omen bar. A cell counts as cleared
      * when every trial spawner in it sits at {@code COOLDOWN}, the same
      * predicate {@code TrialContent.countCleared} uses; the cue goes to each
      * member standing inside that cell the moment it first reaches that state.
-     * A deliberate small watcher: there is no per-cell clear event to hook,
-     * and {@code clearedCells} is the only new state, in-memory like every
-     * other field on the record.
+     * A deliberate small watcher: there is no per-cell clear event to hook.
      */
     private static void watchSpawnerClears(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null || record.layout.trialSpawners().isEmpty()) {
             return;
         }
-        // The per-cell grouping is built once per layout, not on every watch
-        // tick. The layout identity records which layout it came from: this
-        // record is reused for a second run behind the same lobby, so a fresh
-        // layout must rebuild the map rather than re-scan stale cells.
-        if (record.spawnerCellsLayout != record.layout) {
+        // The per-cell grouping is built once per floor, not on every watch
+        // tick. It lives on the floor state, so a new floor starts without it.
+        if (record.floor.spawnerCellsByCell == null) {
             Map<PlanCell, List<BlockPos>> byCell = new HashMap<>();
             for (BlockPos pos : record.layout.trialSpawners()) {
                 PlanCell cell = record.layout.geometry().cellAt(pos);
@@ -2308,50 +2231,17 @@ final class Instances {
                     byCell.computeIfAbsent(cell, c -> new ArrayList<>()).add(pos);
                 }
             }
-            record.spawnerCellsByCell = byCell;
-            record.spawnerCellsLayout = record.layout;
+            record.floor.spawnerCellsByCell = byCell;
         }
-        // Per-spawner progress: detect each trial spawner transitioning to
-        // COOLDOWN and announce cleared/total to every member in chat. Runs
-        // before the per-cell clear check so the cell-clear cue still fires
-        // on the same tick its last spawner is announced.
-        // M67: the counter uses every trial spawner on the floor, matching
-        // the completion gate in RunLifecycle.completeRun. The threshold
-        // (default 0.75) lets the player skip some spawners, but the
-        // displayed counter reflects the same denominator the gate uses.
+        // The completion gate's reading, for the omen bar: every trial
+        // spawner on the floor, the same count RunLifecycle.completeRun gates
+        // the pad on. Progress lives on the bar, not in chat.
         Set<BlockPos> gatedSpawners = TrialContent.activeSpawners(record.layout, level);
-        int totalGated = gatedSpawners.size();
-        for (BlockPos pos : record.layout.trialSpawners()) {
-            if (record.announcedSpawners.contains(pos)) {
-                continue;
-            }
-            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner
-                    && spawner.getState() == TrialSpawnerState.COOLDOWN) {
-                record.announcedSpawners.add(pos);
-                if (!gatedSpawners.contains(pos)) {
-                    continue;
-                }
-                int cleared = 0;
-                for (BlockPos g : gatedSpawners) {
-                    if (record.announcedSpawners.contains(g)) {
-                        cleared++;
-                    }
-                }
-                Component progress = Component.literal(
-                                "Trial spawner cleared: " + cleared + "/" + totalGated)
-                        .withStyle(ChatFormatting.AQUA);
-                for (UUID member : record.members.keySet()) {
-                    ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
-                    if (memberPlayer != null
-                            && memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                        memberPlayer.sendSystemMessage(progress);
-                    }
-                }
-            }
-        }
-        for (Map.Entry<PlanCell, List<BlockPos>> e : record.spawnerCellsByCell.entrySet()) {
+        record.floor.spawnersTotal = gatedSpawners.size();
+        record.floor.spawnersCleared = TrialContent.countCleared(level, gatedSpawners);
+        for (Map.Entry<PlanCell, List<BlockPos>> e : record.floor.spawnerCellsByCell.entrySet()) {
             PlanCell cell = e.getKey();
-            if (record.clearedCells.contains(cell)) {
+            if (record.floor.clearedCells.contains(cell)) {
                 continue;
             }
             boolean cleared = true;
@@ -2365,7 +2255,7 @@ final class Instances {
             if (!cleared) {
                 continue;
             }
-            record.clearedCells.add(cell);
+            record.floor.clearedCells.add(cell);
             for (UUID member : record.members.keySet()) {
                 ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
                 if (memberPlayer != null
@@ -2414,8 +2304,7 @@ final class Instances {
      * or {@code null} if {@code pos} is not inside anyone's room right now (M2
      * T2.2). Deliberately checks {@link InstanceRecord#roomCellOrigin} rather
      * than any cell in the instance -- the quarry cells are covered separately by
-     * {@link #dungeonRecordAt} (M31), and a lingering instance is still checked
-     * here since it stays in {@code InstanceRegistry.bySlot}.
+     * {@link #dungeonRecordAt} (M31).
      */
     static UUID roomOwnerAt(BlockPos pos) {
         InstanceRecord record = roomRecordAt(pos);
@@ -2501,7 +2390,7 @@ final class Instances {
      * The instance whose dungeon cells (the quarry, everything but the room)
      * currently occupy {@code pos} and whose run is still active, or
      * {@code null} otherwise (M31 9.2). "Active" means {@code layout} exists
-     * and {@link InstanceRecord#completed} is still empty; once the first
+     * and {@link FloorState#completed} is still empty; once the first
      * member completes, this returns {@code null} for every cell of that run
      * and the quarry becomes breakable again, same as it always was. Skips
      * {@link InstanceRecord#roomCellOrigin}: that cell is
@@ -2717,7 +2606,7 @@ final class Instances {
     /**
      * Opens the operator's hand-authoring shell for {@code /dungeon admin
      * buildroom}: one empty cell in the dungeon dimension, stamped with just
-     * {@link RoomBuilder#buildShell}: no doors, no timer, no keystone, no
+     * {@link RoomBuilder#buildShell}: no doors, no keystone, no
      * protection, and no room-store capture. The cell is a template under
      * construction; {@link #adminSaveRoom} captures it out.
      *
@@ -2825,8 +2714,8 @@ final class Instances {
     }
 
     /**
-     * Purges every live instance {@code owner} has open right now -- their
-     * lobby, an active run, a lingering quarry, and any visit instance of their
+     * Purges every live instance {@code owner} has open right now: their
+     * lobby, an active run, and any visit instance of their
      * room (a stale copy of the room {@code /dungeon admin resetroom} is about
      * to delete, so it has no reason to keep standing). For
      * {@code /dungeon admin resetroom}, ahead of wiping the saved blob: a room

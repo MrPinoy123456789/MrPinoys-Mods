@@ -19,9 +19,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
  *       transitions prevent a double settlement. After
  *       {@code returnToSafe} transitions to HOME, a second call is
  *       rejected because {@code returnToSafe} requires FLOOR_CLEARED.
- *       The {@code record.completed} set is also cleared by
- *       {@code clearPreviousRunState}, so even if the phase check were
- *       bypassed the settlement would be a no-op.</li>
+ *       The floor state, {@code completed} set included, is also
+ *       replaced by {@code beginInterval}, so even if the phase check
+ *       were bypassed the settlement would be a no-op.</li>
  * </ul>
  *
  * <p>Same package rationale as {@link CustodyGameTest}: {@link RunSession}
@@ -43,26 +43,15 @@ public final class FloorLoopGameTest {
         checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.PREVIEW);
         checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.SAFE_RETURN);
         checkLegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.HOME);
+        // A failed safe return goes back between floors.
+        checkLegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.FLOOR_CLEARED);
         // F9: aborting an active or between-floors run via /dungeon quit
         // returns the record to HOME.
         checkLegal(helper, RunSession.Phase.ACTIVE, RunSession.Phase.HOME);
         checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.HOME);
-        // Recovery exits.
-        checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.HOME);
-        checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.PREVIEW);
-        checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.ACTIVE);
-        checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.FLOOR_CLEARED);
 
-        // Every non-RECOVERY phase can enter RECOVERY.
-        for (RunSession.Phase from : phases) {
-            if (from == RunSession.Phase.RECOVERY) {
-                continue;
-            }
-            checkLegal(helper, from, RunSession.Phase.RECOVERY);
-        }
-
-        // Illegal edges: everything not listed above and not entering
-        // RECOVERY. Spot-check the ones that matter most for the loop's
+        // Illegal edges: everything not listed above. Spot-check the ones
+        // that matter most for the loop's
         // safety: skipping preview, skipping the terminal pad, and
         // re-entering a completed phase.
         checkIllegal(helper, RunSession.Phase.HOME, RunSession.Phase.ACTIVE);
@@ -73,7 +62,6 @@ public final class FloorLoopGameTest {
         checkIllegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.ACTIVE);
         checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.ACTIVE);
         checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.PREVIEW);
-        checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.FLOOR_CLEARED);
 
         // Self-transitions are illegal (no phase transitions to itself).
         for (RunSession.Phase p : phases) {
@@ -118,21 +106,14 @@ public final class FloorLoopGameTest {
         // SAFE_RETURN, not HOME. The double-settlement protection comes
         // from the require check, not from blocking this edge.
 
-        // The derivePhase recovery path agrees: a record with
-        // awaitingDoorChoice=true and floorIndex=0 is HOME, not
-        // FLOOR_CLEARED, so a reconnecting player cannot re-enter the
-        // settlement path.
-        // (derivePhase is tested here by confirming the phase it would
-        // derive does not allow a second SAFE_RETURN transition.)
-
         helper.succeed();
     }
 
     /**
      * F9: quitting an active run via resetToLobby transitions the phase
      * from ACTIVE to HOME, so canChooseDoor accepts the next door selection.
-     * The old code rebuilt the lobby and set awaitingDoorChoice but never
-     * transitioned the phase, leaving it stranded in ACTIVE.
+     * The old code rebuilt the lobby but never transitioned the phase,
+     * leaving it stranded in ACTIVE.
      */
     @GameTest(maxTicks = 20)
     public void quitActiveRunTransitionsToHome(GameTestHelper helper) {
@@ -143,8 +124,7 @@ public final class FloorLoopGameTest {
         InstanceRecord record = new InstanceRecord(slot, origin, server.getTickCount(),
                 null, java.util.Set.of(), owner, true);
         record.phase = RunSession.Phase.ACTIVE;
-        record.floorIndex = 2;
-        record.awaitingDoorChoice = false;
+        record.interval.floorIndex = 2;
         InstanceRegistry.bySlot.put(slot, record);
         InstanceRegistry.byMember.put(owner, record);
         InstanceRegistry.usedSlots.add(slot);

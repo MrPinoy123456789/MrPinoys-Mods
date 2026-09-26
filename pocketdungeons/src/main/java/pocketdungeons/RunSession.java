@@ -6,23 +6,23 @@ import java.util.Set;
 /**
  * M65: explicit state machine for the floor loop lifecycle (spec 12).
  *
- * <p>Today the run's phase is implicit in a scatter of boolean fields on
- * {@link InstanceRecord}: {@code awaitingDoorChoice}, {@code previewPlan != null},
- * {@code timer != null}, {@code safeStaging}, {@code floorIndex}. Every
- * lifecycle method reads a different subset of those to decide whether it
- * is allowed to run, and the subsets do not always agree. This class
- * replaces that with a single {@link Phase} field and a transition table
- * that every lifecycle method checks before doing work.
+ * <p>{@link InstanceRecord#phase} is the one source of truth for where the
+ * loop stands. Every lifecycle method checks or transitions it before doing
+ * its work, and nothing else on the record encodes the phase: whether a lobby
+ * is still waiting for its first door, for example, is read from the phase
+ * and the floor's chosen step, not from a flag of its own.
  *
  * <p>The phases, in loop order:
  * <ul>
  *   <li>{@link Phase#HOME}: safe room visit. No dungeon active. The party
- *       is in the safe room, choosing whether to enter the staging room.</li>
+ *       is in the safe room, choosing whether to enter the staging room.
+ *       Admin builds, untimed runs, visit copies and Pocket2 children sit
+ *       here for their whole life; they never enter the loop.</li>
  *   <li>{@link Phase#PREVIEW}: door preview active. The entrance cell is
  *       stamped and the selector door is a window. The host has not
  *       committed yet.</li>
- *   <li>{@link Phase#ACTIVE}: dungeon floor in progress. The timer is
- *       running, the party is exploring.</li>
+ *   <li>{@link Phase#ACTIVE}: dungeon floor in progress. The party is
+ *       exploring.</li>
  *   <li>{@link Phase#FLOOR_CLEARED}: terminal pad reached. The floor's
  *       omen is banked, completion chests are placed, and a new staging
  *       room is stamped behind the far wall. The party is choosing the
@@ -30,11 +30,9 @@ import java.util.Set;
  *   <li>{@link Phase#SAFE_RETURN}: safe door selected in a safe staging
  *       room. The dungeon is being purged and the safe room is being
  *       re-stamped. This is a transient phase: it is set at the start of
- *       {@link RunLifecycle#returnToSafe} and cleared when the safe room
- *       is stamped and the party is teleported in.</li>
- *   <li>{@link Phase#RECOVERY}: join or restart recovery. Set when a
- *       player reconnects to an instance whose phase needs reconstructing,
- *       and cleared once the phase is derived from the record's state.</li>
+ *       {@link RunLifecycle#returnToSafe} and left for {@code HOME} when the
+ *       room is stamped, or back for {@code FLOOR_CLEARED} when the return
+ *       fails, so the lever still works.</li>
  * </ul>
  *
  * <p>The transition table is closed: every edge not listed in
@@ -43,30 +41,23 @@ import java.util.Set;
  * while in {@code FLOOR_CLEARED} (skipping preview) is rejected; a method
  * that tries to return to the safe room from {@code ACTIVE} (skipping the
  * terminal pad) is rejected.
- *
- * <p>Recovery is special: any phase can enter {@code RECOVERY}, and
- * {@code RECOVERY} can transition to any non-transient phase. This is the
- * one escape hatch, used by the join path to reconstruct the phase from
- * the record's fields after a disconnect or restart.
  */
 final class RunSession {
 
     private RunSession() {}
 
-    /** The six phases of the floor loop. See class javadoc. */
+    /** The five phases of the floor loop. See class javadoc. */
     enum Phase {
         HOME,
         PREVIEW,
         ACTIVE,
         FLOOR_CLEARED,
-        SAFE_RETURN,
-        RECOVERY
+        SAFE_RETURN
     }
 
     /**
      * The allowed transitions, as a set of (from, to) pairs. Every edge
-     * not in this set (and not entering RECOVERY, which is always allowed)
-     * is rejected by {@link #canTransition}.
+     * not in this set is rejected by {@link #canTransition}.
      *
      * <p>The loop's normal cycle:
      * <pre>
@@ -91,29 +82,20 @@ final class RunSession {
         pair(Phase.FLOOR_CLEARED, Phase.SAFE_RETURN),
         // Completing the safe return lands in the safe room.
         pair(Phase.SAFE_RETURN, Phase.HOME),
+        // A safe return that fails puts the run back between floors, so
+        // the lever works again.
+        pair(Phase.SAFE_RETURN, Phase.FLOOR_CLEARED),
         // F9: aborting an active or between-floors run via /dungeon quit
         // returns the record to HOME. resetToLobby rebuilds the lobby and
         // re-arms the door choice; without these edges the phase stays
         // stranded in ACTIVE or FLOOR_CLEARED and canChooseDoor rejects
         // every later door selection.
         pair(Phase.ACTIVE, Phase.HOME),
-        pair(Phase.FLOOR_CLEARED, Phase.HOME),
-        // Recovery can land in any non-transient phase.
-        pair(Phase.RECOVERY, Phase.HOME),
-        pair(Phase.RECOVERY, Phase.PREVIEW),
-        pair(Phase.RECOVERY, Phase.ACTIVE),
-        pair(Phase.RECOVERY, Phase.FLOOR_CLEARED)
+        pair(Phase.FLOOR_CLEARED, Phase.HOME)
     );
 
-    /**
-     * Whether the transition from {@code from} to {@code to} is legal.
-     * Entering RECOVERY is always allowed from any phase; everything else
-     * must be in {@link #ALLOWED}.
-     */
+    /** Whether the transition from {@code from} to {@code to} is in {@link #ALLOWED}. */
     static boolean canTransition(Phase from, Phase to) {
-        if (to == Phase.RECOVERY && from != Phase.RECOVERY) {
-            return true;
-        }
         return ALLOWED.contains(pair(from, to));
     }
 
@@ -161,39 +143,6 @@ final class RunSession {
     }
 
     /**
-     * Derives the phase from the record's existing fields, for the join
-     * and restart recovery paths that need to reconstruct the phase after
-     * a disconnect or server restart. This is the only place the phase is
-     * inferred rather than transitioned, and it is used exclusively by
-     * the RECOVERY exit path.
-     *
-     * <p>The derivation mirrors the field checks the lifecycle methods
-     * already do, so it agrees with the transitions by construction:
-     * <ul>
-     *   <li>{@code previewPlan != null}: PREVIEW.</li>
-     *   <li>{@code awaitingDoorChoice && floorIndex > 0}: FLOOR_CLEARED
-     *       (or SAFE_RETURN if {@code safeStaging}, but SAFE_RETURN is
-     *       transient and a reconnecting player finds the staging room
-     *       already stamped, so FLOOR_CLEARED is the stable phase).</li>
-     *   <li>{@code awaitingDoorChoice}: HOME (floorIndex == 0, safe room
-     *       loaded).</li>
-     *   <li>Otherwise: ACTIVE (dungeon in progress).</li>
-     * </ul>
-     */
-    static Phase derivePhase(InstanceRecord record) {
-        if (record.previewPlan != null) {
-            return Phase.PREVIEW;
-        }
-        if (record.awaitingDoorChoice) {
-            if (record.floorIndex > 0) {
-                return Phase.FLOOR_CLEARED;
-            }
-            return Phase.HOME;
-        }
-        return Phase.ACTIVE;
-    }
-
-    /**
      * Whether the record is in a phase where the party is standing in a
      * staging room and the host can interact with the door selection
      * furniture. This covers both the initial safe-room staging room
@@ -225,6 +174,17 @@ final class RunSession {
      */
     static boolean isHome(InstanceRecord record) {
         return record.phase == Phase.HOME;
+    }
+
+    /**
+     * Whether this is a floor loop lobby that has not committed a door in
+     * the interval yet: {@code HOME}, or a preview opened from it. An empty
+     * lobby in this state holds a slot for nothing and is purged.
+     */
+    static boolean awaitingFirstDoor(InstanceRecord record) {
+        return record.inFloorLoop()
+                && (record.phase == Phase.HOME || record.phase == Phase.PREVIEW)
+                && record.floor.chosenStep == 0;
     }
 
     // ---- internal --------------------------------------------------------

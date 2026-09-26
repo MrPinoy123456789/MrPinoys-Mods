@@ -2,14 +2,13 @@ package pocketdungeons;
 
 /**
  * Pure-JDK regression for the keystone arithmetic: level bands, depletion
- * clamps, fragile doubling, upgrades and the run clock. Same shape and same
- * discipline as {@code PayoutMathTest} -- no Minecraft classpath, run from
+ * clamps, fragile doubling and upgrades. No Minecraft classpath, run from
  * {@code tasks.test}.
  *
- * <p>U8 collapses depletion to a single cause -- the clock ran out -- so the
- * per-outcome cases ({@code death}/{@code exit}/{@code disconnect}) that U7
- * exercised here are gone; {@link KeystoneMath#deplete} itself is unchanged; only
- * what feeds it changed.
+ * <p>Depletion has a single cause now (a voluntary quit), so the per-outcome
+ * cases ({@code death}/{@code exit}/{@code disconnect}) that U7 exercised here
+ * are gone; {@link KeystoneMath#deplete} itself is unchanged; only what feeds it
+ * changed.
  */
 public class KeystoneMathTest {
 
@@ -19,8 +18,6 @@ public class KeystoneMathTest {
         testDepletion();
         testFragileDoubling();
         testUpgrade();
-        testTimer();
-        testClockFormat();
         System.out.println("KeystoneMathTest passed");
     }
 
@@ -85,35 +82,9 @@ public class KeystoneMathTest {
         check(KeystoneMath.upgrade(25, 1, 25), 25);
     }
 
-    private static void testTimer() {
-        // Defaults: 180 base, 60 per room. A 5-room dungeon allows 8 minutes and
-        // an 8-room dungeon 11 -- the plan's own worked examples.
-        check(KeystoneMath.timerSeconds(180, 60, 5), 480);
-        check(KeystoneMath.timerSeconds(180, 60, 8), 660);
-        // Derived from the dungeon's size, never from the key's level: there is no
-        // level argument here at all, and that is the assertion.
-        check(KeystoneMath.timerSeconds(0, 0, 12), 0);
-        check(KeystoneMath.timerSeconds(180, 60, 0), 180);
-    }
-
-    private static void testClockFormat() {
-        checkEquals(KeystoneMath.formatClock(402), "6:42");
-        checkEquals(KeystoneMath.formatClock(60), "1:00");
-        checkEquals(KeystoneMath.formatClock(9), "0:09");
-        checkEquals(KeystoneMath.formatClock(0), "0:00");
-        // Over time reads 0:00 rather than a negative clock.
-        checkEquals(KeystoneMath.formatClock(-30), "0:00");
-    }
-
     private static void check(int actual, int expected) {
         if (actual != expected) {
             throw new AssertionError("expected " + expected + " but was " + actual);
-        }
-    }
-
-    private static void checkEquals(String actual, String expected) {
-        if (!expected.equals(actual)) {
-            throw new AssertionError("expected '" + expected + "' but was '" + actual + "'");
         }
     }
 }

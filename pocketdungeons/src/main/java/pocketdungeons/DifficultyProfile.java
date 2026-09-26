@@ -66,4 +66,18 @@ record DifficultyProfile(int pathLength, int keystoneLevel) {
         }
         return (double) Math.max(0, cleared) / total >= threshold;
     }
+
+    /**
+     * The fewest cleared spawners out of {@code total} that pass
+     * {@link #spawnersCleared}, found by asking it rather than by rounding,
+     * so the number shown can never disagree with the gate.
+     */
+    static int spawnersNeeded(int total, double threshold) {
+        for (int n = 0; n < total; n++) {
+            if (spawnersCleared(n, total, threshold)) {
+                return n;
+            }
+        }
+        return Math.max(0, total);
+    }
 }

@@ -42,14 +42,13 @@ final class InstanceRegistry {
 
     /**
      * M76: how many live instances are holding real world work right now.
-     * Excludes lingering quarries (no tick budget, no members) and admin
-     * build rooms (no run, no generation behind them), so the count tracks
-     * the things the operating envelope is meant to bound.
+     * Excludes admin build rooms (no run, no generation behind them), so the
+     * count tracks the things the operating envelope is meant to bound.
      */
     static int liveInstanceCount() {
         int count = 0;
         for (InstanceRecord record : bySlot.values()) {
-            if (!record.lingering && !record.adminBuild) {
+            if (!record.adminBuild) {
                 count++;
             }
         }
@@ -75,7 +74,7 @@ final class InstanceRegistry {
     static int previewCount() {
         int count = 0;
         for (InstanceRecord record : bySlot.values()) {
-            if (record.previewCellOrigin != null) {
+            if (record.floor.previewCellOrigin != null) {
                 count++;
             }
         }

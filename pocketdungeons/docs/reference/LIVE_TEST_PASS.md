@@ -2646,3 +2646,21 @@ dimension, so the landing spots, stamps and pad contacts below are live only.
 - R4: in a party, take the safe door while the guest stands on an old floor; confirm the floor is not cleared under them and they are moved into the room after about 30 seconds.
 - R5: not stageable without a broken template; covered by code review.
 - B8: check the Inspect Keystone screen on an unaffixed keystone, the door screen during a run, the Start Dungeon tooltip, the gamble task on the tracker and an admin untimed run's entry message; confirm no clock or "Kadala" wording remains.
+
+## 43. 2026-09 audit, wave 2a: the omen bar
+
+In-client checks for the omen bar, the omen cues and the door screen
+additions. `OmenBarTextTest` covers the wording and the band arithmetic and
+`FloorIntervalGameTest.omenBarFollowsThePhase` covers when the bar shows; who
+sees it, and what it looks like, are live only.
+
+- Bar at home: stand in the safe room and the staging room before choosing a door; confirm no boss bar. Preview a door from home; still none.
+- Bar during a floor: pull the lever; within a second a green bar reads `Omen 0/4 | 3 chests, +1 level | Spawners 0/N, need M`. Clear a trial spawner and confirm the count moves on the bar and no "Trial spawner cleared" line appears in chat. The per-cell chime still plays when a cell's last spawner goes quiet.
+- Colour and fill: take omen (linger in an unsolved cell, trip sensors, drink the bargain) and watch the fill climb toward the next band; confirm it turns yellow at the mid band and red at the high band, matching the chest count the floor then pays.
+- Omen cues: linger in an unsolved cell past 150 seconds; confirm a purple action bar line ("The walls notice you lingering. Omen 1/4.") and a low note, and that a second line for dwell does not follow within 30 seconds. Set off a shrieker, a sensor room and the bargain; confirm each has its own line and sound.
+- Between floors: on the pad, confirm the completion line names the band ("The omen sits uneasy: 2 chests, +1 level so far.") and the bar changes to `Floor 1 of 3 cleared | ...`. On the last floor of the interval the line ends without "so far". Take the safe door and confirm the bar is gone once home.
+- Party: a second member sees the same bar; one who leaves with `/dungeon exit` loses it at once, and one who comes back (re-entry or invite) gets it back within a second. A member who disconnects and rejoins between floors sees it again.
+- Mine: in an Endless Mine interval the bar reads `Mine floor N cleared` between floors, and the checkpoint line carries the omen verdict.
+- Door screen: select a door; the first line reads `KEYSTONE N | FLOOR 1 OF 3` (the floor number advances on later checkpoints). Select a Greater door and confirm a `Fuel 3 of your X` line, red when the engine holds too little.
+- Teardown: with the bar showing, have an operator purge the slot; confirm the bar disappears for everyone.
+- Config: a `pocketdungeons.json` that still sets `timerBaseSeconds`, `door1TimerSeconds` or the other retired clock keys loads without error, logs one line naming them, and `/dungeon quit` on a floor still costs `timedOutDepletion` levels.

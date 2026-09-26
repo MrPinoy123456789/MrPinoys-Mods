@@ -121,7 +121,7 @@ public class DungeonShellProtectionTest {
         InstanceRegistry.bySlot.put(93, record);
 
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record);
-        record.completed.add(UUID.randomUUID());
+        record.floor.completed.add(UUID.randomUUID());
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record,
                 "shell protection stays up after completion");
     }
@@ -139,7 +139,7 @@ public class DungeonShellProtectionTest {
         // Shell position is protected while the run is active.
         check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) != null,
                 "shell position has a cell origin while active");
-        record.completed.add(UUID.randomUUID());
+        record.floor.completed.add(UUID.randomUUID());
         check(Instances.dungeonCellOriginAt(origin.offset(0, 3, 8)) != null,
                 "shell position still has a cell origin after completion");
     }

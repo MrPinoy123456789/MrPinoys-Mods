@@ -17,10 +17,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Ends a run: purge, the lingering-quarry retirement path, and the tick-spread
- * block clear both funnel into. Fourth of {@code Instances}' six M9 C3
- * extractions -- already its own async state machine ({@link PendingClear})
- * before this move, which is what made it a clean cut.
+ * Ends a run: purge, and the tick-spread block clear it funnels into.
+ * Fourth of {@code Instances}' six M9 C3 extractions; it was already its own
+ * async state machine ({@link PendingClear}) before this move, which is what
+ * made it a clean cut.
  *
  * <p>Calls back into {@code Instances} for two run-lifecycle side effects that
  * stay there ({@link Instances#eject}, {@link Instances#sendToWorldSpawn}) and
@@ -74,77 +74,6 @@ final class InstanceTeardown {
                 record.owner, record.slot, reason);
     }
 
-    /**
-     * The reward-room grace period ran out (T2.5). If this run's room has
-     * already moved to the terminal cell (T2.4 completed), the dungeon becomes a
-     * lingering quarry instead of a normal purge: force-load tickets are
-     * released so it costs no standing tick budget, but the blocks stay
-     * standing to be mined. A run with no room at all -- {@code /dungeon admin
-     * build} or {@code untimed} -- has nothing to linger, so it falls back to
-     * the ordinary purge.
-     *
-     * <p>The record stays in {@code InstanceRegistry.bySlot} and its slot stays claimed:
-     * {@code RunLifecycle.enter()}'s lingering-quarry check is the only way out,
-     * bounding this at one lingering dungeon per owner.
-     */
-    static void retireOrPurge(MinecraftServer server, InstanceRecord record, String reason) {
-        // PD-10: a record that is already lingering was retired once already
-        // (its room saved, its members ejected, its timer closed). Re-entering
-        // this method for the same record, which is exactly what happens when
-        // RunLifecycle.enter()'s lingering-quarry check fires because the
-        // owner started a new run, must purge rather than retire again, or the
-        // slot never frees.
-        if (record.lingering) {
-            purge(server, record, reason);
-            return;
-        }
-        // Set before a single member is ejected: see InstanceRecord.tearingDown.
-        record.tearingDown = true;
-        // M25: a Pocket2 child dies with its parent, whatever teardown form the
-        // parent takes. Purge the children first so their members are returned
-        // before the parent's own roster is emptied.
-        purgeChildren(server, record, reason);
-        // Safety net: eject/dropMember have almost certainly saved already, but a
-        // teardown is the last moment the room exists to be read. Synchronous
-        // because purge (below) queues a PendingClear that can race a deferred
-        // save (PD-8).
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level != null && !RunLifecycle.saveRoomIfOwnerSync(level, server, record, record.owner)) {
-            warnRoomNotSaved(record, reason);
-        }
-        if (!record.isKeystoneRun() || record.roomCellOrigin == null) {
-            purge(server, record, reason);
-            return;
-        }
-
-        for (UUID member : new ArrayList<>(record.members.keySet())) {
-            ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player != null) {
-                Instances.eject(server, record, player);
-            } else {
-                // M43.2: detach handles onPad too, which this branch used to
-                // miss (record.timer.close() below covers the timer side for
-                // both branches, so detach's own timer.removePlayer is a
-                // no-op here since player is null).
-                Instances.detach(server, record, member, null);
-            }
-            RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
-        }
-        if (record.timer != null) {
-            record.timer.close();
-        }
-
-        if (level != null) {
-            for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
-                level.setChunkForced(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4, false);
-            }
-        }
-
-        record.lingering = true;
-        PocketDungeonsMod.LOG.info("Dungeon slot {} is now a lingering quarry for {} ({})",
-                record.slot, record.owner, reason);
-    }
-
     static void purge(MinecraftServer server, InstanceRecord record,
                       String reason, UUID excludeFromStraySweep) {
         // Set before a single member is ejected: see InstanceRecord.tearingDown.
@@ -153,7 +82,8 @@ final class InstanceTeardown {
         // child's members are returned to the door while the parent still
         // exists to receive them.
         purgeChildren(server, record, reason);
-        // Safety net, as in retireOrPurge: last chance to read the room.
+        // Safety net: eject has almost certainly saved already, but this is
+        // the last chance to read the room.
         // Synchronous because teardown (below) queues a PendingClear that
         // will erase the room cell; a deferred save could race with it
         // (PD-8).
@@ -186,13 +116,10 @@ final class InstanceTeardown {
                 Instances.detach(server, record, member, null);
             }
             // U8 Stage 1: a purge, a shutdown or a crash is the server's fault and
-            // never costs anything. The owner's timeout depletion, if any, already
-            // happened in expireTimedOut before this was called.
+            // never costs anything.
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
-        if (record.timer != null) {
-            record.timer.close();
-        }
+        OmenBar.close(record);
         if (record.untimed) {
             PocketDungeonsMod.LOG.info("UNTIMED dungeon in slot {} closed ({}), after {}s",
                     record.slot, reason,

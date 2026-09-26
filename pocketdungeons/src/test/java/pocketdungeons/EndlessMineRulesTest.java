@@ -47,7 +47,7 @@ public class EndlessMineRulesTest {
     /** isMine reads the record flag and tolerates null. */
     private static void testIsMineRecord() {
         InstanceRecord mine = newRecord();
-        mine.endlessMine = true;
+        mine.interval.endlessMine = true;
         check(EndlessMineRules.isMine(mine), "a flagged record is a Mine");
         check(!EndlessMineRules.isMine(newRecord()), "an unflagged record is not a Mine");
         check(!EndlessMineRules.isMine((InstanceRecord) null), "null is not a Mine");
@@ -56,7 +56,7 @@ public class EndlessMineRulesTest {
     /** A Mine record forces the Mine theme regardless of the offered theme. */
     private static void testEffectiveThemeRecordDriven() {
         InstanceRecord mine = newRecord();
-        mine.endlessMine = true;
+        mine.interval.endlessMine = true;
         check(EndlessMineRules.effectiveTheme("pocketdungeons:deepslate", mine, null).equals(MINE),
                 "a Mine record forces the Mine theme");
         check(EndlessMineRules.effectiveTheme(MINE, mine, null).equals(MINE),
@@ -77,41 +77,41 @@ public class EndlessMineRulesTest {
      */
     private static void testShouldForceSafeStaging() {
         InstanceRecord mine = newRecord();
-        mine.endlessMine = true;
+        mine.interval.endlessMine = true;
         for (int floor = 1; floor <= 9; floor++) {
-            mine.floorIndex = floor;
+            mine.interval.floorIndex = floor;
             check(!EndlessMineRules.shouldForceSafeStaging(mine, 3),
                     "Mine never forces safe staging at floor " + floor);
         }
         InstanceRecord plain = newRecord();
-        plain.floorIndex = 3;
+        plain.interval.floorIndex = 3;
         check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 3");
-        plain.floorIndex = 6;
+        plain.interval.floorIndex = 6;
         check(EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop forces at floor 6");
-        plain.floorIndex = 4;
+        plain.interval.floorIndex = 4;
         check(!EndlessMineRules.shouldForceSafeStaging(plain, 3), "ordinary loop skips at floor 4");
     }
 
     /** The Mine escalates the loot tier with depth, capped at 3. */
     private static void testCompletionLootTierEscalates() {
         InstanceRecord mine = newRecord();
-        mine.endlessMine = true;
-        mine.floorIndex = 0;
+        mine.interval.endlessMine = true;
+        mine.interval.floorIndex = 0;
         check(EndlessMineRules.completionLootTier(mine, 1, 3) == 1, "Mine floor 0 keeps base tier");
-        mine.floorIndex = 3;
+        mine.interval.floorIndex = 3;
         check(EndlessMineRules.completionLootTier(mine, 1, 3) == 2, "Mine floor 3 escalates to tier 2");
-        mine.floorIndex = 6;
+        mine.interval.floorIndex = 6;
         check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine floor 6 escalates to tier 3");
-        mine.floorIndex = 12;
+        mine.interval.floorIndex = 12;
         check(EndlessMineRules.completionLootTier(mine, 1, 3) == 3, "Mine tier caps at 3");
-        mine.floorIndex = 3;
+        mine.interval.floorIndex = 3;
         check(EndlessMineRules.completionLootTier(mine, 3, 3) == 3, "Mine at base tier 3 stays 3");
     }
 
     /** A non-Mine floor returns the base tier unchanged. */
     private static void testCompletionLootTierNonMine() {
         InstanceRecord plain = newRecord();
-        plain.floorIndex = 9;
+        plain.interval.floorIndex = 9;
         check(EndlessMineRules.completionLootTier(plain, 2, 3) == 2,
                 "non-Mine returns the base tier regardless of depth");
     }
@@ -119,13 +119,13 @@ public class EndlessMineRulesTest {
     /** cashOutDepth returns the floor index for a Mine, 0 otherwise. */
     private static void testCashOutDepth() {
         InstanceRecord mine = newRecord();
-        mine.endlessMine = true;
-        mine.floorIndex = 7;
+        mine.interval.endlessMine = true;
+        mine.interval.floorIndex = 7;
         check(EndlessMineRules.cashOutDepth(mine) == 7, "Mine depth is the floor index");
-        mine.floorIndex = 0;
+        mine.interval.floorIndex = 0;
         check(EndlessMineRules.cashOutDepth(mine) == 0, "Mine at floor 0 has depth 0");
         InstanceRecord plain = newRecord();
-        plain.floorIndex = 5;
+        plain.interval.floorIndex = 5;
         check(EndlessMineRules.cashOutDepth(plain) == 0, "non-Mine cash-out depth is 0");
     }
 

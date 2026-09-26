@@ -12,7 +12,7 @@ package pocketdungeons;
  * <p>No state lives here. The caller tracks the current floor's omen and hands
  * it to {@link #clamp} or {@link #add} on every source event; the sum and the
  * finish table are computed at completion from the per-floor values. This is
- * the same discipline as {@link PayoutMath} and {@link DifficultyProfile}: the
+ * the same discipline as {@link KeystoneMath} and {@link DifficultyProfile}: the
  * arithmetic is easy to get wrong at the boundaries and trivial to test with
  * plain {@code javac}.
  */
@@ -23,6 +23,9 @@ final class Omen {
     /** Per-floor omen is clamped to this range. */
     static final int MIN_OMEN = 0;
     static final int MAX_OMEN = 4;
+
+    /** What raised the omen, for the cue a player sees and hears when it rises. */
+    enum Source { DWELL, SENSOR, SHRIEK, BARGAIN }
 
     // ---- source table (spec 5.2) ----------------------------------------
 
@@ -152,6 +155,32 @@ final class Omen {
             return 1;
         }
         return 2;
+    }
+
+    /**
+     * The largest omen sum that still lands in {@code band}: the band's upper
+     * edge from {@link #band}. The high band's edge is the most omen an
+     * interval of {@code floorsPerSafeVisit} floors can gather.
+     */
+    static int bandCeiling(int band, int floorsPerSafeVisit) {
+        int floors = Math.max(1, floorsPerSafeVisit);
+        return switch (band) {
+            case 0 -> floors;
+            case 1 -> 3 * floors;
+            default -> MAX_OMEN * floors;
+        };
+    }
+
+    /**
+     * How far {@code sum} has climbed toward the next band, 0 to 1: the sum
+     * against the first value of the next band up, or against the most an
+     * interval can gather once it is already in the high band.
+     */
+    static float bandProgress(int sum, int floorsPerSafeVisit) {
+        int band = band(sum, floorsPerSafeVisit);
+        int next = band < 2 ? bandCeiling(band, floorsPerSafeVisit) + 1
+                : bandCeiling(band, floorsPerSafeVisit);
+        return Math.max(0.0f, Math.min(1.0f, (float) Math.max(0, sum) / next));
     }
 
     /**

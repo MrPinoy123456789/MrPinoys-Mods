@@ -1,0 +1,158 @@
+package pocketdungeons;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.UUID;
+
+/**
+ * The omen boss bar: one vanilla {@link ServerBossEvent} per floor loop
+ * instance, shown to every member while they stand in the dungeon dimension.
+ *
+ * <p>During a floor it reads the floor's omen, the band the interval would
+ * settle in right now, and the spawner gate. Between floors it names the floor
+ * just cleared and the band. At home it is hidden. Colour follows the band
+ * (green, yellow, red) and the fill is the interval's omen against the next
+ * band up, so a player can see the next step coming.
+ *
+ * <p>Membership of the bar is reconciled on every watch tick
+ * ({@link #sync}), so every route into the dungeon is covered without each
+ * entry point having to remember it; {@link #detach} and {@link #close} take
+ * players off at once on the way out. Everything here is vanilla and
+ * server-side.
+ */
+final class OmenBar {
+
+    private final ServerBossEvent event = new ServerBossEvent(UUID.randomUUID(),
+            Component.empty(), BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.PROGRESS);
+
+    /** Server tick of the last cue per {@link Omen.Source}, for {@link OmenBarText#cueCooldownTicks}. */
+    private final long[] lastCueTick = new long[Omen.Source.values().length];
+
+    private OmenBar() {
+        Arrays.fill(lastCueTick, Long.MIN_VALUE / 2);
+    }
+
+    private static OmenBar of(InstanceRecord record) {
+        if (record.omenBar == null) {
+            record.omenBar = new OmenBar();
+        }
+        return record.omenBar;
+    }
+
+    /** Whether the bar has anything to say in the record's current phase. */
+    static boolean shows(InstanceRecord record) {
+        if (!record.inFloorLoop()) {
+            return false;
+        }
+        return switch (record.phase) {
+            case ACTIVE -> true;
+            case FLOOR_CLEARED, PREVIEW, SAFE_RETURN -> record.interval.floorIndex > 0;
+            case HOME -> false;
+        };
+    }
+
+    /**
+     * Repaints the bar from the record and reconciles who sees it. Cheap to
+     * call often: the vanilla setters only send a packet on a real change, and
+     * adding a player who already watches is a set lookup.
+     */
+    static void sync(MinecraftServer server, InstanceRecord record) {
+        if (!shows(record)) {
+            if (record.omenBar != null) {
+                record.omenBar.event.removeAllPlayers();
+            }
+            return;
+        }
+        OmenBar bar = of(record);
+        int floors = PocketDungeonsConfig.floorsPerSafeVisit();
+        int sum = record.interval.omenSum();
+        int band = Omen.band(sum, floors);
+        String title;
+        if (record.phase == RunSession.Phase.ACTIVE) {
+            int total = record.floor.spawnersTotal;
+            title = OmenBarText.activeTitle(record.interval.omen, band, record.floor.spawnersCleared, total,
+                    DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()));
+        } else {
+            title = OmenBarText.clearedTitle(record.interval.floorIndex, floors,
+                    record.interval.endlessMine, band);
+        }
+        bar.event.setName(Component.literal(title));
+        bar.event.setColor(colour(band));
+        bar.event.setProgress(Omen.bandProgress(sum, floors));
+
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                bar.event.addPlayer(player);
+            }
+        }
+        for (ServerPlayer watching : new ArrayList<>(bar.event.getPlayers())) {
+            if (!record.members.containsKey(watching.getUUID())
+                    || !watching.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                bar.event.removePlayer(watching);
+            }
+        }
+    }
+
+    /** Takes {@code member} off the bar as they leave the instance, online or not. */
+    static void detach(InstanceRecord record, UUID member) {
+        if (record.omenBar == null) {
+            return;
+        }
+        for (ServerPlayer watching : new ArrayList<>(record.omenBar.event.getPlayers())) {
+            if (watching.getUUID().equals(member)) {
+                record.omenBar.event.removePlayer(watching);
+            }
+        }
+    }
+
+    /** Takes everyone off the bar for good, as the instance is torn down. */
+    static void close(InstanceRecord record) {
+        if (record.omenBar != null) {
+            record.omenBar.event.removeAllPlayers();
+            record.omenBar = null;
+        }
+    }
+
+    /**
+     * The omen just rose to {@code omen} because of {@code source}: a short
+     * line on each member's action bar and a low cue, held back per source so
+     * dwell does not repeat itself, then an immediate repaint of the bar.
+     */
+    static void omenRose(MinecraftServer server, InstanceRecord record, Omen.Source source, int omen) {
+        if (!record.inFloorLoop()) {
+            return;
+        }
+        OmenBar bar = of(record);
+        long now = server.getTickCount();
+        int slot = source.ordinal();
+        if (now - bar.lastCueTick[slot] >= OmenBarText.cueCooldownTicks(source)) {
+            bar.lastCueTick[slot] = now;
+            Component line = Component.literal(OmenBarText.riseLine(source, omen))
+                    .withStyle(ChatFormatting.DARK_PURPLE);
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(member);
+                if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    player.sendOverlayMessage(line);
+                    Chime.omenRises(player, source);
+                }
+            }
+        }
+        sync(server, record);
+    }
+
+    private static BossEvent.BossBarColor colour(int band) {
+        return switch (band) {
+            case 0 -> BossEvent.BossBarColor.GREEN;
+            case 1 -> BossEvent.BossBarColor.YELLOW;
+            default -> BossEvent.BossBarColor.RED;
+        };
+    }
+}

@@ -259,21 +259,15 @@ final class RunLifecycle {
      * {@link #reenterableInstance} (free re-entry search) and
      * {@code DungeonCommands.abandon} (find the run to abandon).
      *
-     * <p>A lingering quarry (T2.5) is not re-entered for free: it is done,
-     * and opening a new run purges it. See {@link #enter}'s lingering-quarry
-     * check.
-     *
-     * <p>Nor is an instance that has already completed (T2.4): once the room
+     * <p>An instance that has already completed (T2.4) is not: once the room
      * has moved to the terminal cell, "re-entering" this instance means
      * dropping the player at a cleared entrance cell with their room sitting
      * at the far end, which reads as broken even though it is exactly what a
      * finished run looks like now. A run that is done is done; there is
      * nothing left to continue, and the reward room stays reachable through
-     * its own grace window/lingering-quarry path regardless (T2.5), not
-     * through free re-entry.
+     * its own grace window, not through free re-entry.
      *
-     * <p>Nor is an instance that is tearing down: a purge or retirement
-     * sets {@link InstanceRecord#tearingDown} before ejecting the first
+     * <p>Nor is an instance that is tearing down: a purge sets {@link InstanceRecord#tearingDown} before ejecting the first
      * member, so a re-entry search that runs in the same tick does not
      * offer the owner a way back into an instance that is seconds away
      * from being removed from {@code InstanceRegistry.bySlot}.
@@ -286,8 +280,8 @@ final class RunLifecycle {
      * staging room, not at the cleared floor's entrance.
      */
     static boolean isReenterable(InstanceRecord record) {
-        return !record.tearingDown && !record.lingering && !record.visitInstance
-                && (record.completed.isEmpty() || betweenFloors(record));
+        return !record.tearingDown && !record.visitInstance
+                && (record.floor.completed.isEmpty() || betweenFloors(record));
     }
 
     /**
@@ -298,7 +292,7 @@ final class RunLifecycle {
      * it never leaves {@code HOME}.
      */
     static boolean betweenFloors(InstanceRecord record) {
-        return !record.completed.isEmpty()
+        return !record.floor.completed.isEmpty()
                 && (record.phase == RunSession.Phase.FLOOR_CLEARED
                         || record.phase == RunSession.Phase.PREVIEW);
     }
@@ -356,18 +350,14 @@ final class RunLifecycle {
             return false;
         }
 
-        // T2.5: opening a new run is the lingering quarry's purge trigger. Also
-        // catches an already-*completed* instance that has not reached
-        // rewardRoomGraceSeconds yet -- reenterOwnedInstance no longer offers
-        // free re-entry into one of those (see its note), so without this a
-        // completed-but-not-yet-lingering instance would just sit there
-        // orphaned, still holding its slot, while a second one gets built.
-        // retireOrPurge turns it into a proper lingering quarry if its room
-        // already moved, or purges it outright if it never got that far.
+        // An instance of this owner's with a completed floor that free
+        // re-entry did not take them back into is closed before a second one
+        // is built, so it does not sit orphaned holding its slot until its
+        // grace window runs out.
         for (InstanceRecord candidate : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if ((candidate.lingering || !candidate.completed.isEmpty())
+            if (!candidate.floor.completed.isEmpty()
                     && player.getUUID().equals(candidate.owner)) {
-                InstanceTeardown.retireOrPurge(server, candidate, "new run started");
+                InstanceTeardown.purge(server, candidate, "new run started");
                 break;
             }
         }
@@ -388,7 +378,7 @@ final class RunLifecycle {
 
         // M76: refuse a new run once the server is at the declared instance
         // cap, before any keystone, fuel or generation work is spent. The
-        // purge loop above already freed this player's own lingering quarry,
+        // purge loop above already freed this player's own finished instance,
         // so a re-entry is not blocked by the instance it just replaced.
         int cap = PocketDungeonsConfig.maxConcurrentInstances();
         if (cap > 0 && InstanceRegistry.liveInstanceCount() >= cap) {
@@ -453,16 +443,6 @@ final class RunLifecycle {
                             + "It will not expire on its own; /dungeon admin purge {} to close it.",
                     slot, player.getName().getString(), layout.keystoneLevel(),
                     layout.roomCount(), layout.seed(), slot);
-        }
-
-        // Always, for every keystone run. The clock is the only thing that ends an
-        // ordinary dungeon now, so the sole way to opt out is an operator asking
-        // for it explicitly by the command -- and that one is logged and listed.
-        if (record.isKeystoneRun() && !record.untimed) {
-            record.timer = new RunTimer(layout.keystoneLevel(),
-                    KeystoneMath.timerSeconds(PocketDungeonsConfig.timerBaseSeconds(),
-                            PocketDungeonsConfig.timerPerRoomSeconds(), layout.pathLength()),
-                    layout.roomCount());
         }
 
         Instances.admit(server, record, player);
@@ -535,7 +515,7 @@ final class RunLifecycle {
     /**
      * Settles a door choice out of the lobby (M2/M3 §3.2.3): generates the rest
      * of the dungeon at the chosen offer's level and affix, connects it through
-     * the lobby's already-sealed door, starts the timer, and admits every
+     * the lobby's already-sealed door, and admits every
      * member already standing in the lobby into the real run. The keystone
      * stays the authority throughout -- the level/affix are read off
      * {@link DungeonLog} at the moment of choosing, not carried on any item.
@@ -575,7 +555,7 @@ final class RunLifecycle {
         // reused or purged by previewDoor itself, so the net footprint does
         // not grow.
         int previewCap = PocketDungeonsConfig.maxConcurrentPreviews();
-        if (previewCap > 0 && record.previewCellOrigin == null
+        if (previewCap > 0 && record.floor.previewCellOrigin == null
                 && InstanceRegistry.previewCount() >= previewCap) {
             player.sendSystemMessage(Component.literal(
                     "Too many door previews are open right now. Close one or try again shortly.")
@@ -631,12 +611,12 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        if (record.selectedStep == 0 || record.previewPlan == null) {
+        if (record.floor.selectedStep == 0 || record.floor.previewPlan == null) {
             player.sendSystemMessage(Component.literal("Select and preview a door first.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        int step = record.selectedStep;
+        int step = record.floor.selectedStep;
 
         // M55/M65: the beginRun gate. Every party member must be standing
         // in the staging room before the host can commit, on every floor
@@ -850,15 +830,14 @@ final class RunLifecycle {
      * like c2me's async-unload guard exists to catch -- it throws rather than
      * let two threads race on the same chunk's entity list. {@code execute}
      * runs synchronously when already on the server thread (every other caller:
-     * {@code Instances.eject}, {@link InstanceTeardown#retireOrPurge},
-     * {@link InstanceTeardown#purge}) and defers to the next tick otherwise, so
+     * {@code Instances.eject}, {@link InstanceTeardown#purge}) and defers to the next tick otherwise, so
      * this is a no-op behaviour change for all of them.
      */
     static void saveRoomIfOwner(MinecraftServer server, InstanceRecord record, UUID member) {
         // An unowned instance (/dungeon admin build) has no owner to save a room
         // for and never gets a roomCellOrigin, so there is nothing to capture.
-        // The owner null check has to come first regardless: purge and
-        // retireOrPurge both open by passing record.owner straight back in here,
+        // The owner null check has to come first regardless: purge opens by
+        // passing record.owner straight back in here,
         // and RoomStore.capture below would take the null the same way.
         if (record.owner == null || !record.owner.equals(member)
                 || record.roomCellOrigin == null || record.visitInstance) {
@@ -881,7 +860,7 @@ final class RunLifecycle {
 
     /**
      * Synchronous version of {@link #saveRoomIfOwner}, for paths where the
-     * room cell is about to be cleared (purge, retireOrPurge). The deferred
+     * room cell is about to be cleared (purge). The deferred
      * {@code server.execute} in {@link #saveRoomIfOwner} can race with the
      * {@code PendingClear} those paths queue right after: if the clear
      * reaches the room cell before the deferred save captures it, the room
@@ -979,7 +958,7 @@ final class RunLifecycle {
         // A keystone run records its completion and hands over its door offer on
         // the *first* pad contact -- see completeRun. By the time exit() is
         // reached the completion, if any, has already happened.
-        boolean completed = record.completed.contains(player.getUUID());
+        boolean completed = record.floor.completed.contains(player.getUUID());
 
         // T2.6: a deliberate /dungeon exit is still a leadership change if the
         // owner is walking out on a party that is still in there.
@@ -1000,9 +979,8 @@ final class RunLifecycle {
             Chime.visitEnds(player);
         }
 
-        // U8 Stage 1: leaving never costs anything. The clock is the only thing
-        // that can deplete a keystone, and it does that on its own in onTick --
-        // see expireTimedOut -- independently of anyone leaving or staying.
+        // U8 Stage 1: leaving never costs anything. Only a voluntary quit
+        // depletes a keystone (quitDoor).
         returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
 
         if (!completed) {
@@ -1027,20 +1005,15 @@ final class RunLifecycle {
     /**
      * Hands this member's keystone back, once.
      *
-     * <p>With depletion collapsed to a single cause (U8 Stage 1), every call site
-     * but the timeout expiry passes {@link Keystones.Outcome#NO_CHANGE}, which
-     * costs nothing -- the write still happens, so a stale remote in an offline
-     * member's pocket still catches up. The "a completed run can never be
-     * charged a failure" escalation U7 needed here is gone along with the
-     * outcomes it used to escalate <em>to</em>: {@code COMPLETED_OVER_TIME} could
-     * once cost {@code overtimeDepletion}, so a member who had already finished
-     * needed protecting from a later death or disconnect being mis-costed as a
-     * fresh failure. There is no such outcome left to protect against.
+     * <p>Every call site but {@link #quitDoor} passes
+     * {@link Keystones.Outcome#NO_CHANGE}, which costs nothing; the write
+     * still happens, so a stale remote in an offline member's pocket still
+     * catches up.
      */
     static void returnKeystone(MinecraftServer server, InstanceRecord record,
                                        UUID member, ServerPlayer player,
                                        Keystones.Outcome outcome) {
-        if (!record.isKeystoneRun() || !record.keystoneReturned.add(member)) {
+        if (!record.isKeystoneRun() || !record.floor.keystoneReturned.add(member)) {
             return;
         }
         // Deplete from the member's own keystone level, not the run's layout
@@ -1053,7 +1026,7 @@ final class RunLifecycle {
         // above their own. Reading from DungeonLog gives each member their
         // own true key level at the moment of failure.
         int memberLevel = DungeonLog.forServer(server).get(member).keystoneLevel();
-        Keystones.returnTo(server, member, player, memberLevel, record.affixes, outcome);
+        Keystones.returnTo(server, member, player, memberLevel, record.floor.affixes, outcome);
     }
 
     /**
@@ -1103,7 +1076,7 @@ final class RunLifecycle {
             // M11: the boss is the ultimate gated completion for its one theme,
             // the same shape as the spawner gate above but for a single mob
             // instead of a fraction of many.
-            AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(record.theme);
+            AdventureGraph.Node themeNode = AdventureGraphs.current().graph().node(record.floor.theme);
             if (themeNode != null && themeNode.kind() == AdventureGraph.Kind.BOSS
                     && BossContent.bossAlive(player.level(), record.layout.terminal())) {
                 player.sendSystemMessage(Component.literal(
@@ -1113,16 +1086,13 @@ final class RunLifecycle {
             }
         }
 
-        boolean firstCompletion = record.completed.isEmpty();
-        if (!record.completed.add(player.getUUID())) {
+        boolean firstCompletion = record.floor.completed.isEmpty();
+        if (!record.floor.completed.add(player.getUUID())) {
             return;
         }
         TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
 
         if (firstCompletion) {
-            if (record.timer != null) {
-                record.timer.markCompleted();
-            }
             // M65: advanceFloor replaces completeDungeon. It does the
             // physical floor advance (increment floorIndex, bank omen,
             // place chests, stamp new staging room) and transitions the
@@ -1138,10 +1108,15 @@ final class RunLifecycle {
         DungeonLog log = DungeonLog.forServer(server);
         log.recordCompletion(player.getUUID(), record.layout.pathLength(),
                 record.layout.keystoneLevel());
-        DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.theme);
+        DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.floor.theme);
 
-        int chests = record.rewardChests;
-        boolean isSafeStaging = record.safeStaging;
+        boolean isSafeStaging = record.floor.safeStaging;
+        // The band the interval stands in now that this floor is banked:
+        // what the chests beyond the door were counted from, and what the
+        // safe visit will settle if nothing else rises.
+        String verdict = OmenBarText.completionVerdict(
+                Omen.band(record.interval.bankedOmenSum(), PocketDungeonsConfig.floorsPerSafeVisit()),
+                isSafeStaging);
         if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
             // sees the depth reached and the escalating loot tier before
@@ -1152,7 +1127,8 @@ final class RunLifecycle {
                             .lootTier(),
                     PocketDungeonsConfig.floorsPerSafeVisit());
             player.sendSystemMessage(Component.literal(
-                    EndlessMineRules.mineCheckpointMessage(record.floorIndex, tier))
+                    EndlessMineRules.mineCheckpointMessage(record.interval.floorIndex, tier)
+                            + " " + verdict)
                     .withStyle(ChatFormatting.AQUA));
         } else if (isSafeStaging) {
             // M65: this is the last floor before the safe room. The
@@ -1161,30 +1137,29 @@ final class RunLifecycle {
             // completion message names the safe door rather than the next
             // floor.
             player.sendSystemMessage(Component.literal(
-                    "You reach the end. " + chests + " chest" + (chests == 1 ? "" : "s")
-                            + " wait beyond the door, and the safe room stands open beyond.")
+                    "You reach the end. " + verdict
+                            + " The chests wait beyond the door, and the safe room stands open beyond.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
-                    "You reach the end of this floor. " + chests + " chest"
-                            + (chests == 1 ? "" : "s")
-                            + " wait beyond the door, and the next floor stands open beyond.")
+                    "You reach the end of this floor. " + verdict
+                            + " The chests wait beyond the door, and the next floor stands open beyond.")
                     .withStyle(ChatFormatting.AQUA));
         }
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
-        if (firstCompletion && record.recipeTags != null
-                && record.recipeTags.getBooleanOr("compass", false)
-                && !record.situations.isEmpty()) {
-            String studyList = String.join(", ", record.situations);
+        if (firstCompletion && record.floor.recipeTags != null
+                && record.floor.recipeTags.getBooleanOr("compass", false)
+                && !record.floor.situations.isEmpty()) {
+            String studyList = String.join(", ", record.floor.situations);
             player.sendSystemMessage(Component.literal(
                     "Completion study list: " + studyList + ".")
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
         PocketDungeonsMod.LOG.info("{} completed floor {} of slot {} (run #{}, chests {}, tier {})",
-                player.getName().getString(), record.floorIndex, record.slot,
-                entry.runsCompleted(), chests, record.layout.lootTier());
+                player.getName().getString(), record.interval.floorIndex, record.slot,
+                entry.runsCompleted(), record.floor.rewardChests, record.layout.lootTier());
         Chime.runComplete(player);
     }
 
@@ -1217,7 +1192,7 @@ final class RunLifecycle {
 
         // M57: increment the floor index. The staging room about to be stamped
         // is for the next floor (or the safe room return).
-        record.floorIndex++;
+        record.interval.floorIndex++;
 
         // M57: determine whether this is a safe staging room. Every
         // floorsPerSafeVisit floors, the staging room offers a safe door
@@ -1226,26 +1201,27 @@ final class RunLifecycle {
         // cash-out stays voluntary.
         boolean isSafeStaging = EndlessMineRules.shouldForceSafeStaging(record,
                 PocketDungeonsConfig.floorsPerSafeVisit());
-        record.safeStaging = isSafeStaging;
+        record.floor.safeStaging = isSafeStaging;
 
         // M48: the omen finish table replaces the clock (spec 5.2, 5.4).
-        // OmenSources accrues the floor in progress into record.omen; close it
-        // here and key the table off the sum since the last safe visit. M57:
+        // OmenSources accrues the floor in progress into record.interval.omen;
+        // close it here and key the table off the sum since the last safe
+        // visit. M57:
         // the band denominator is floorsPerSafeVisit, not a hardcoded 1.
         int band = bankFloorOmen(record, PocketDungeonsConfig.floorsPerSafeVisit());
         int chests = Omen.chestCount(band);
-        record.rewardChests = chests;
+        record.floor.rewardChests = chests;
 
         // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
         // pad and in front of the sealed door.
-        ThemeManifest.Entry completionTheme = record.theme == null ? null
-                : ThemeManifest.current().byId(record.theme);
+        ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
+                : ThemeManifest.current().byId(record.floor.theme);
         TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
                 EndlessMineRules.completionLootTier(record,
                         DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
                                 .lootTier(),
                         PocketDungeonsConfig.floorsPerSafeVisit()),
-                record.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
+                record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable);
 
@@ -1282,7 +1258,7 @@ final class RunLifecycle {
         // removed to honour both the vision and this milestone's constraint.
 
         // Summon fresh screens at the new staging room.
-        record.selectedStep = 0;
+        record.floor.selectedStep = 0;
         if (isSafeStaging) {
             // M57: safe staging room. The door screen shows a safe-return
             // prompt instead of a dungeon preview.
@@ -1295,7 +1271,6 @@ final class RunLifecycle {
         DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
         DungeonScreen.summonTracker(level, newStagingOrigin, farWall,
                 DungeonScreen.trackerContent(level.getServer(), record.owner));
-        record.awaitingDoorChoice = true;
 
         // The bedrock envelope for the new staging room.
         BedrockEnvelope.applyToCell(level, newStagingOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
@@ -1312,13 +1287,12 @@ final class RunLifecycle {
      * Closes the floor in progress: banks its clamped omen onto the
      * interval's {@code floorOmens}, zeroes the running omen, and returns the
      * finish band for the interval so far. The sum only resets when the
-     * interval ends ({@link InstanceRecord#clearIntervalState}).
+     * interval ends ({@link InstanceRecord#beginInterval}).
      */
     static int bankFloorOmen(InstanceRecord record, int floorsPerSafeVisit) {
-        record.floorOmens.add(Omen.clamp(record.omen));
-        record.omen = 0;
-        int omenSum = Omen.floorSum(record.floorOmens.stream().mapToInt(Integer::intValue).toArray());
-        return Omen.band(omenSum, floorsPerSafeVisit);
+        record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
+        record.interval.omen = 0;
+        return Omen.band(record.interval.bankedOmenSum(), floorsPerSafeVisit);
     }
 
     /**
@@ -1331,7 +1305,7 @@ final class RunLifecycle {
      * finish table (spec 5.2, 5.4) keys off the sum of all floors' omens
      * since the last safe visit, and the band determines the keystone
      * level change (+1/+1/+0) and the chest count (3/2/1). This method
-     * reads {@code record.floorOmens} and {@code record.rewardChests},
+     * reads {@code record.interval.floorOmens} and {@code record.floor.rewardChests},
      * both of which were set by {@link #advanceFloor} on the last floor.
      *
      * <p>Bounty hooks fire once per visit (not per member), the same way
@@ -1343,7 +1317,7 @@ final class RunLifecycle {
         if (!record.isKeystoneRun()) {
             return;
         }
-        int chests = record.rewardChests;
+        int chests = record.floor.rewardChests;
         // M48/M65: the omen finish table. chests >= 2 means the low or
         // mid band (+1 level); chests == 1 means the high band (+0 level).
         boolean levelUp = chests >= 2;
@@ -1366,7 +1340,7 @@ final class RunLifecycle {
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.SPEEDRUNNER.id, 1);
         }
-        if (record.chosenStep >= 2) {
+        if (record.floor.chosenStep >= 2) {
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.SPELUNKER.id, 1);
         }
@@ -1380,7 +1354,7 @@ final class RunLifecycle {
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.TIDY.id, 1);
         }
-        if (record.floorIndex >= PocketDungeonsConfig.floorsPerSafeVisit() * 2) {
+        if (record.interval.floorIndex >= PocketDungeonsConfig.floorsPerSafeVisit() * 2) {
             BountyTracker.progress(server, record.owner,
                     BountyTracker.Bounty.DEEP_DIVER.id, 1);
         }
@@ -1394,19 +1368,19 @@ final class RunLifecycle {
                 continue;
             }
             // M2/M3: the door choice happened at the first staging room.
-            // On a low/mid-band finish, record.chosenStep is which of
+            // On a low/mid-band finish, record.floor.chosenStep is which of
             // Keystone.offers this member's own current level banks at.
-            if (levelUp && record.chosenStep > 0) {
+            if (levelUp && record.floor.chosenStep > 0) {
                 DungeonLog.Entry memberEntry = log.get(member);
                 Keystone.Offer[] offers = Keystone.offers(member, memberEntry.keystoneLevel(),
                         memberEntry.currentTheme(), memberEntry.depth());
-                Keystone.Offer banked = offers[record.chosenStep - 1];
+                Keystone.Offer banked = offers[record.floor.chosenStep - 1];
                 Keystones.grantOffer(server, member, memberPlayer, banked);
-                record.keystoneReturned.add(member);
+                record.floor.keystoneReturned.add(member);
             }
 
             // M12: door 1's second job. Guaranteed, regardless of omen band.
-            if (record.freeDoor) {
+            if (record.floor.freeDoor) {
                 Fuel.grant(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun());
             }
 
@@ -1437,13 +1411,13 @@ final class RunLifecycle {
             // when a player asks for one with /dungeon memento. The record
             // is the durable proof, since a placed memento loses its
             // components (DISCOVERIES trap 16).
-            if (record.completed.contains(member)) {
+            if (record.floor.completed.contains(member)) {
                 log.addRunRecord(member, new RunMemento.RunRecord(
                         RunMemento.nextDiscoveryId(),
-                        record.theme == null ? "" : record.theme,
+                        record.floor.theme == null ? "" : record.floor.theme,
                         record.layout.keystoneLevel(),
                         KeystoneMath.lootTier(record.layout.keystoneLevel()),
-                        record.affixes,
+                        record.floor.affixes,
                         System.currentTimeMillis(),
                         EndlessMineRules.cashOutDepth(record)));
             }
@@ -1495,8 +1469,8 @@ final class RunLifecycle {
      * is stamped behind the final staging door, the door opens, and the
      * party walks through physically. No teleport, no chime, no
      * explanation message. The old floor cells are released after all
-     * members cross, handled by {@code onTick} via the
-     * {@link InstanceRecord#pendingHomecomingCleanup} flag.
+     * members cross, handled by {@code onTick} through
+     * {@link InstanceRecord#homecoming}.
      *
      * <p>If the room stamping fails, the staging room is left usable
      * and the method falls back to the old teleport path so the party
@@ -1510,7 +1484,7 @@ final class RunLifecycle {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)
                 || !player.getUUID().equals(record.owner)
-                || !(record.safeStaging || record.endlessMine)) {
+                || !(record.floor.safeStaging || record.interval.endlessMine)) {
             return false;
         }
         // M65: transition to SAFE_RETURN for the duration of the return.
@@ -1535,13 +1509,8 @@ final class RunLifecycle {
         }
     }
 
-    /**
-     * Puts a run in {@code SAFE_RETURN} back to {@code FLOOR_CLEARED}. The
-     * transition table has no direct edge between the two, so this goes
-     * through {@code RECOVERY}, the table's one escape hatch.
-     */
+    /** Puts a run in {@code SAFE_RETURN} back to {@code FLOOR_CLEARED}, so the lever works again. */
     private static void abortSafeReturn(InstanceRecord record) {
-        RunSession.transition(record, RunSession.Phase.RECOVERY);
         RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
     }
 
@@ -1557,8 +1526,8 @@ final class RunLifecycle {
         // M65: settle the safe visit before tearing down the dungeon. The
         // guard is set first: a settlement that throws partway must not be
         // repeated in full by the retry.
-        if (!record.safeVisitSettled) {
-            record.safeVisitSettled = true;
+        if (!record.interval.safeVisitSettled) {
+            record.interval.safeVisitSettled = true;
             settleSafeVisit(server, record);
         }
 
@@ -1615,58 +1584,27 @@ final class RunLifecycle {
         Instances.clearBagChest(level, safeOrigin);
         Instances.placeBagChestForParty(level, server, record);
 
-        // Close the timer and clear trial omen from every member.
-        if (record.timer != null) {
-            for (UUID member : record.members.keySet()) {
-                ServerPlayer inside = server.getPlayerList().getPlayer(member);
-                if (inside != null) {
-                    record.timer.removePlayer(inside);
-                    Instances.clearTrialOmen(inside);
-                }
-            }
-            record.timer.close();
-            record.timer = null;
-        }
+        clearTrialOmenFromMembers(server, record);
 
         // M66: restore the original bag if a legacy BAG_OVERRIDE was used.
         // M66 no longer swaps bags for new runs, but a legacy tag may still
         // carry bag_original from a pre-M66 run.
-        if (record.recipeTags != null) {
-            String originalBag = record.recipeTags.getStringOr("bag_original", "");
+        if (record.floor.recipeTags != null) {
+            String originalBag = record.floor.recipeTags.getStringOr("bag_original", "");
             if (!originalBag.isEmpty()) {
                 DungeonLog.forServer(server).setBag(player.getUUID(), originalBag);
             }
-            record.recipeTags = null;
         }
 
-        // Reset the record for the next visit, but keep the staging
-        // room and room origins (they are at new locations now).
-        record.affixes = Set.of();
-        record.theme = null;
-        record.endlessMine = false;
-        record.chosenStep = 0;
-        record.freeDoor = false;
-        record.selectedStep = 0;
-        record.floorIndex = 0;
-        record.safeStaging = false;
-        record.clearIntervalState();
-        record.previewPlan = null;
-        record.previewCellOrigin = null;
-        record.clearPreviousRunState();
+        // The old staging room and old floor cells are released once every
+        // member has crossed into the room, handled by onTick.
+        record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout,
+                server.overworld().getGameTime());
 
-        // M65: set the pending cleanup flag. The old staging room and
-        // old floor cells will be released once all members cross into
-        // the room, handled by onTick.
-        record.oldStagingCellOrigin = record.stagingCellOrigin;
-        record.oldLayoutForCleanup = record.layout;
-        record.pendingHomecomingCleanup = true;
-        record.homecomingPendingSinceTick = server.overworld().getGameTime();
-
-        // The staging room stays in place for now; the party walks
-        // through its dungeon door into the room. The layout is the
-        // lobby layout centered on the new room origin.
-        record.layout = Instances.lobbyLayout(safeOrigin);
-        record.awaitingDoorChoice = true;
+        // The interval ends here. The staging room and the room keep their
+        // new origins; the party walks through the staging room's dungeon
+        // door into the room, whose lobby layout replaces the floor's.
+        record.beginInterval(Instances.lobbyLayout(safeOrigin));
 
         // M65: transition to HOME. The room is loaded, the door is open,
         // and the party can walk through. No teleport, no chime, no
@@ -1742,46 +1680,22 @@ final class RunLifecycle {
             }
         }
 
-        // Close the timer and clear trial omen from every member.
-        if (record.timer != null) {
-            for (UUID member : record.members.keySet()) {
-                ServerPlayer inside = server.getPlayerList().getPlayer(member);
-                if (inside != null) {
-                    record.timer.removePlayer(inside);
-                    Instances.clearTrialOmen(inside);
-                }
-            }
-            record.timer.close();
-            record.timer = null;
-        }
+        clearTrialOmenFromMembers(server, record);
 
-        // Reset the record for the next visit.
-        record.layout = Instances.lobbyLayout(safeOrigin);
-        record.affixes = Set.of();
-        record.theme = null;
-        record.endlessMine = false;
-        record.awaitingDoorChoice = true;
-        record.chosenStep = 0;
-        record.freeDoor = false;
-        record.selectedStep = 0;
-        record.floorIndex = 0;
-        record.safeStaging = false;
-        record.clearIntervalState();
-        record.previewPlan = null;
-        record.previewCellOrigin = null;
         // M66: restore the original bag if a legacy BAG_OVERRIDE was used.
         // M66 no longer swaps bags for new runs, but a legacy tag may still
         // carry bag_original from a pre-M66 run.
-        if (record.recipeTags != null) {
-            String originalBag = record.recipeTags.getStringOr("bag_original", "");
+        if (record.floor.recipeTags != null) {
+            String originalBag = record.floor.recipeTags.getStringOr("bag_original", "");
             if (!originalBag.isEmpty()) {
                 DungeonLog.forServer(server).setBag(player.getUUID(), originalBag);
             }
-            record.recipeTags = null;
         }
-        record.previewRecipePlan = null;
-        record.previewOfferStep = 0;
-        record.clearPreviousRunState();
+
+        // The interval ends here; everything was cleared above, so there is
+        // no homecoming left to wait for.
+        record.homecoming = null;
+        record.beginInterval(Instances.lobbyLayout(safeOrigin));
 
         RunSession.transition(record, RunSession.Phase.HOME);
 
@@ -1790,6 +1704,16 @@ final class RunLifecycle {
                 .withStyle(ChatFormatting.GREEN));
         // M67: no sound for room movement (VISION.md §4, milestone constraint).
         return true;
+    }
+
+    /** Takes Trial Omen back from every online member as the interval ends at home. */
+    private static void clearTrialOmenFromMembers(MinecraftServer server, InstanceRecord record) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer inside = server.getPlayerList().getPlayer(member);
+            if (inside != null) {
+                Instances.clearTrialOmen(inside);
+            }
+        }
     }
 
     /**
@@ -1803,15 +1727,15 @@ final class RunLifecycle {
      *
      * <p>U8 Stage 1: for an ordinary dungeon this is no longer a lifetime event
      * -- an empty instance is now normal, a dungeon waiting for its owner to
-     * come back. It stays one for the selector room, which is not a keystone run
-     * and has no clock of its own to close it eventually.
+     * come back. It stays one for a lobby that never chose a door and for a
+     * visit copy, which nothing else would ever close.
      */
     static void dropMember(MinecraftServer server, InstanceRecord record,
                                    UUID member, ServerPlayer player, String reason) {
         // M43.2: Instances.detach is the one primitive for this now. Dropping
         // a member used to mean only "forget them," which was survivable when
         // an instance died with its last member; U8 made instances outlive
-        // everyone, so what detach also clears (onPad, the timer, Trial Omen)
+        // everyone, so what detach also clears (onPad, Trial Omen)
         // matters for the rest of the run, not just at teardown.
         Instances.detach(server, record, member, player);
 
@@ -1822,7 +1746,7 @@ final class RunLifecycle {
             return;
         }
 
-        if ((record.awaitingDoorChoice && record.chosenStep == 0 && record.members.isEmpty())
+        if ((RunSession.awaitingFirstDoor(record) && record.members.isEmpty())
                 || (record.visitInstance && record.members.isEmpty())) {
             InstanceTeardown.purge(server, record, reason, member);
         }
@@ -1839,60 +1763,29 @@ final class RunLifecycle {
      * run.
      *
      * <p>An owner leaving <em>alone</em> is not a leadership change -- that is
-     * still U8 Stage 1's free re-entry, unaffected by this rule. A lingering
-     * quarry (T2.5) has no live run left to end, so it is exempt too.
+     * still U8 Stage 1's free re-entry, unaffected by this rule.
      *
      * @param othersRemain whether anyone besides {@code member} is still in the
      *                     party at the moment of leaving
      */
     static boolean leadershipChanged(InstanceRecord record, UUID member, boolean othersRemain) {
-        return !record.lingering && member.equals(record.owner) && othersRemain;
+        return member.equals(record.owner) && othersRemain;
     }
 
     /**
-     * The clock ran out: the keystone is downgraded once, but the dungeon
-     * stays open (PD-7) so the owner can still reach a door in overtime.
-     *
-     * <p>Thin wrapper over {@link #applyTimedOutPenalty}, kept as its own
-     * method because {@link Instances#onTick} calls it by name against
-     * {@code record.timer.overTime()}.
+     * The keystone half of {@link #quitDoor}: depletes the owner alone (a
+     * party member riding along never had a key at stake) by
+     * {@code timedOutDepletion}, the config key's name kept from the clock it
+     * used to belong to. Charged whichever door opened the floor, the free
+     * door included.
      */
-    static void expireTimedOut(MinecraftServer server, InstanceRecord record) {
-        ServerPlayer owner = record.owner != null ? server.getPlayerList().getPlayer(record.owner) : null;
-        applyTimedOutPenalty(server, record, owner, false);
-    }
-
-    /**
-     * The keystone-downgrade half of a timeout, shared by the clock actually
-     * running out ({@link #expireTimedOut}) and a player choosing to quit the
-     * door instead of waiting for it ({@link #quitDoor}). Depletes the owner
-     * alone -- a party member riding along never had a key at stake -- and
-     * messages them wherever they are. The two paths must apply the exact
-     * same penalty, so this is the one place either of them can drift from.
-     *
-     * <p>M12: a free-door run settles as {@code NO_CHANGE} instead. Door 1
-     * never depletes, and a generous flat clock ({@code door1TimerSeconds})
-     * running out (or being given up on) is not a different kind of failure
-     * than any other way a free door ends.
-     *
-     * @param voluntary whether the player chose this over waiting out the
-     *                  clock, purely for the message's wording
-     */
-    private static void applyTimedOutPenalty(MinecraftServer server, InstanceRecord record,
-                                             ServerPlayer owner, boolean voluntary) {
-        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.TIMED_OUT);
-        record.timedOutPenaltyApplied = true;
-        if (owner != null) {
-            String verb = voluntary ? "You quit the door." : "The clock ran out.";
-            owner.sendSystemMessage(Component.literal(
-                    verb + " Your keystone is downgraded by "
-                            + PocketDungeonsConfig.timedOutDepletion()
-                            + (voluntary ? "." : ", but the dungeon stays open if you want to finish."))
-                    .withStyle(ChatFormatting.YELLOW));
-            Chime.runTimedOut(owner);
-        } else {
-            PocketDungeonsMod.LOG.info("Dungeon slot {} timed out with its owner offline", record.slot);
-        }
+    private static void applyQuitPenalty(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
+        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
+        owner.sendSystemMessage(Component.literal(
+                "You quit the door. Your keystone is downgraded by "
+                        + PocketDungeonsConfig.timedOutDepletion() + ".")
+                .withStyle(ChatFormatting.YELLOW));
+        Chime.doorQuit(owner);
     }
 
     /**
@@ -1900,14 +1793,11 @@ final class RunLifecycle {
      * applies the keystone penalty, then resets the dungeon back to its
      * lobby state so the player can pick a new door. Nobody is ejected: the
      * player stays in the safe room, the dungeon beyond it is cleared, the
-     * selector doors come back, and the record returns to
-     * {@code awaitingDoorChoice}.
+     * selector doors come back, and the record returns to {@code HOME}.
      *
-     * <p>Reuses {@link #applyTimedOutPenalty} exactly, so a voluntary quit
-     * and the clock actually running out can never apply different
-     * penalties. Skipped (falls straight through to {@link #exit}) when
-     * there is nothing to quit: no active keystone run, the caller does not
-     * own it, it already completed, or it was already timed out. A non-
+     * <p>The penalty is {@link #applyQuitPenalty}. Skipped (falls straight
+     * through to {@link #exit}) when there is nothing to quit: no active
+     * keystone run, or the floor is already cleared. A non-
      * keystone run (untimed, admin build) also falls through to {@link #exit},
      * since there is no door to quit and no lobby to reset to.
      *
@@ -1938,9 +1828,9 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        // Nothing to quit: the run already completed or already timed out.
-        // Fall through to a plain exit so the player leaves normally.
-        if (!record.completed.isEmpty() || record.timedOutPenaltyApplied) {
+        // Nothing to quit: the floor is already cleared. Fall through to a
+        // plain exit so the player leaves normally.
+        if (!record.floor.completed.isEmpty()) {
             return exit(player, ExitReason.COMMAND);
         }
         // The reset re-stamps the safe room from its saved blob, so a standing
@@ -1957,7 +1847,7 @@ final class RunLifecycle {
         }
         // Apply the keystone penalty, then reset the dungeon to its lobby
         // state. The player stays in the safe room and picks a new door.
-        applyTimedOutPenalty(server, record, player, true);
+        applyQuitPenalty(server, record, player);
         Instances.resetToLobby(server, record, true);
         return true;
     }
