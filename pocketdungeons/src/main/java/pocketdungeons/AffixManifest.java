@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.io.BufferedReader;
@@ -68,9 +69,14 @@ final class AffixManifest {
      * definition checks (incompatibility symmetry, loot table references).
      */
     static AffixManifest parse(MinecraftServer server) {
+        return parse(server, server.getResourceManager());
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static AffixManifest parse(MinecraftServer server, ResourceManager rm) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
-        Map<Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<Identifier, Resource> resources = rm.listResources(
                 "dungeon_affix", id -> id.getPath().endsWith(".json"));
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());

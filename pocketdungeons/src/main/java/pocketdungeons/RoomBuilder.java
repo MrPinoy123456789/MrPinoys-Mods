@@ -465,12 +465,14 @@ final class RoomBuilder {
      * lodestone is shell, so the stamp wipes it and this re-places it; the
      * doorway slots are wall ring, so this re-opens or re-seals them from the
      * room's live state, read before anything was destroyed.
+     *
+     * @return whether the frame was swapped; {@code false} leaves the room untouched
      */
-    static void rebuildShell(ServerLevel level, MinecraftServer server, InstanceRecord record,
-                             ShellPalette palette) {
+    static boolean rebuildShell(ServerLevel level, MinecraftServer server, InstanceRecord record,
+                                ShellPalette palette) {
         BlockPos o = record.roomCellOrigin;
         if (o == null || record.visitInstance || record.owner == null) {
-            return;
+            return false;
         }
         DoorMask.Direction wall = record.roomDungeonDoor;
         DoorMask.Direction ee = CellGeometry.opposite(wall);
@@ -482,10 +484,16 @@ final class RoomBuilder {
         int rotation = CellGeometry.rotationToFace(DoorMask.Direction.NORTH, ee);
 
         // The safety net: the whole cell, old frame and interior, persisted.
-        RoomStore.capture(level, server, record.owner, o, rotation);
+        // Without it the placement below would bring back an older blob, so
+        // a failed capture leaves the room exactly as it stands.
+        if (!RoomStore.capture(level, server, record.owner, o, rotation)) {
+            return false;
+        }
 
-        // The new frame; the interior becomes air.
+        // The new frame; the interior becomes air. The kept entities are in
+        // the blob now, so they go too, or the placement would duplicate them.
         stampShell(level, o, palette);
+        RoomStore.discardRoomEntities(level, o);
 
         // The interior comes back from the blob, old frame and all...
         RoomStore.place(level, server, record.owner, o, rotation,
@@ -505,6 +513,7 @@ final class RoomBuilder {
         } else {
             sealDoorSlot(level, o, wall, palette.wall());
         }
+        return true;
     }
 
     /** Whether {@code wall}'s door slot of the room at {@code o} currently stands open. */

@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.Rotation;
@@ -81,7 +82,7 @@ final class RoomManifest {
     }
 
     static RoomManifest load(MinecraftServer server) {
-        RoomManifest loaded = loadFrom(server, ROOM_PATH);
+        RoomManifest loaded = loadFrom(server, server.getResourceManager(), ROOM_PATH);
         current = loaded;
         if (loaded.rejections.isEmpty()) {
             PocketDungeonsMod.LOG.info("Loaded {} dungeon rooms", loaded.rooms.size());
@@ -94,7 +95,7 @@ final class RoomManifest {
 
     /** M35: loads the anomaly room set from {@code data/<namespace>/anomaly_room/*.json}. */
     static RoomManifest loadAnomaly(MinecraftServer server) {
-        RoomManifest loaded = loadFrom(server, ANOMALY_PATH);
+        RoomManifest loaded = loadFrom(server, server.getResourceManager(), ANOMALY_PATH);
         currentAnomaly = loaded;
         PocketDungeonsMod.LOG.info("Loaded {} anomaly rooms ({} rejected)",
                 loaded.rooms.size(), loaded.rejections.size());
@@ -123,15 +124,25 @@ final class RoomManifest {
 
     /** M68: parses the room manifest without publishing, for {@link ContentSnapshot}. */
     static RoomManifest parse(MinecraftServer server) {
-        return loadFrom(server, ROOM_PATH);
+        return parse(server, server.getResourceManager());
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static RoomManifest parse(MinecraftServer server, ResourceManager rm) {
+        return loadFrom(server, rm, ROOM_PATH);
     }
 
     /** M68: parses the anomaly room manifest without publishing, for {@link ContentSnapshot}. */
     static RoomManifest parseAnomaly(MinecraftServer server) {
-        return loadFrom(server, ANOMALY_PATH);
+        return parseAnomaly(server, server.getResourceManager());
     }
 
-    private static RoomManifest loadFrom(MinecraftServer server, String resourcePath) {
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static RoomManifest parseAnomaly(MinecraftServer server, ResourceManager rm) {
+        return loadFrom(server, rm, ANOMALY_PATH);
+    }
+
+    private static RoomManifest loadFrom(MinecraftServer server, ResourceManager rm, String resourcePath) {
         List<Entry> entries = new ArrayList<>();
         List<String> rejections = new ArrayList<>();
         ServerLevel level = server.getLevel(Level.OVERWORLD);
@@ -141,7 +152,7 @@ final class RoomManifest {
         }
         StructureTemplateManager manager = level.getStructureManager();
 
-        Map<Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<Identifier, Resource> resources = rm.listResources(
                 resourcePath, id -> id.getPath().endsWith(".json"));
 
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());

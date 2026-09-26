@@ -2627,3 +2627,22 @@ session.
   ordinary loop.
 - Confirm a shallow Mine cash-out (one to two floors, low omen) behaves like
   an ordinary safe visit (level up possible).
+
+## 42. 2026-09 audit, wave 1
+
+In-client checks for the wave 1 fixes in `docs/AUDIT_2026-09.md`. The
+scenario gametests (`FloorIntervalGameTest`) cannot reach the real dungeon
+dimension, so the landing spots, stamps and pad contacts below are live only.
+
+- B1: finish two safe visits in a row taking about the same omen per floor; confirm both visits pay the same chest count and keystone change.
+- B2: in a two-player party, let the guest reach the pad first and the owner second; confirm both get the completion message and chime, and both can run `/dungeon memento` after the safe visit.
+- B3a: in a staging room between floors, run `/dungeon exit`, then `/dungeon`; confirm you land in the staging room (not the cleared floor's entrance), no keystone is spent and the doors still work.
+- B3b: disconnect in a staging room between floors and log back in within ten minutes; confirm you are back in the staging room, your inventory did not swap, and no "closed" message appears.
+- B3b: as a guest, disconnect mid-run and rejoin while the run is still open; confirm the message says you were returned, not that the dungeon closed.
+- B5: stand on a lodestone you placed in your safe room, then one in the staging room; confirm nothing happens. Confirm an admin untimed run and an admin build room still exit from their dungeon pad.
+- B6: put a painting, an item frame, an armour stand and a sitting tamed wolf in your room, finish an interval and come home; confirm each is back exactly once. Change the room's shell and confirm nothing duplicates.
+- R1: (operator) make `world/data/pocketdungeons/rooms` read-only and pull the lever; confirm the refusal, the room still standing, no fuel spent and the preview still open.
+- R3: if a safe return ever logs "Safe return for slot N failed", confirm the lever works again and the keystone did not level twice.
+- R4: in a party, take the safe door while the guest stands on an old floor; confirm the floor is not cleared under them and they are moved into the room after about 30 seconds.
+- R5: not stageable without a broken template; covered by code review.
+- B8: check the Inspect Keystone screen on an unaffixed keystone, the door screen during a run, the Start Dungeon tooltip, the gamble task on the tracker and an admin untimed run's entry message; confirm no clock or "Kadala" wording remains.

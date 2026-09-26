@@ -335,7 +335,14 @@ public final class DialogRouter {
             reshowShellPicker(player);
             return;
         }
-        RoomBuilder.rebuildShell(level, server, record, palette);
+        if (!RoomBuilder.rebuildShell(level, server, record, palette)) {
+            Chime.refused(player);
+            player.sendSystemMessage(Component.literal(
+                    "Your room could not be saved, so its frame is unchanged. Tell an operator.")
+                    .withStyle(ChatFormatting.RED));
+            reshowShellPicker(player);
+            return;
+        }
         player.sendSystemMessage(Component.literal(
                 "Your room's frame is now " + palette.displayName() + ".")
                 .withStyle(ChatFormatting.GOLD));

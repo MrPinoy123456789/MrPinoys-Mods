@@ -3,6 +3,7 @@ package pocketdungeons;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
@@ -11,7 +12,9 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * M59: the Cube recipe path. A recipe is "keystone in the main hand, a
@@ -139,6 +142,23 @@ final class CubeRecipe {
     static void apply(ServerPlayer player, ItemStack keystone, ItemStack offHand,
                       CubeRecipeDefinition def) {
         String recipeId = def.id;
+        int cost = def.cost;
+        // F7: capture the catalyst item id BEFORE shrinking, so a tag-based
+        // recipe that consumes the last item does not record minecraft:air
+        // as the encountered ingredient.
+        Item catalystItem = offHand.getItem();
+        String catalystItemId = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getKey(catalystItem).toString();
+        // F5: enforce the declared cost. The match path proved the off-hand
+        // holds the right item identity; verify the quantity here so a recipe
+        // whose cost is greater than 1 cannot be applied with a single item.
+        if (offHand.getCount() < cost) {
+            player.sendSystemMessage(Component.literal(
+                    "This recipe needs " + cost + " catalysts; you are holding "
+                            + offHand.getCount() + ".")
+                    .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
         // Write the recipe tag into the keystone's custom data. The tag key
         // is the recipe id verbatim (namespaced), so a reload that renames
         // a recipe does not silently migrate an old tag.
@@ -153,28 +173,37 @@ final class CubeRecipe {
             }
             recipes.putBoolean(recipeId, true);
             root.put("recipe", recipes);
-            // M66: escrow the consumed catalyst for recovery on cancel.
-            root.putString("pending_catalyst",
-                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(offHand.getItem()).toString());
+            // F4: append to a multi-entry escrow list rather than
+            // overwriting a single pending_catalyst string, so a second
+            // application does not lose the first catalyst's recovery
+            // record. Each entry carries the recipe id, the catalyst item
+            // id, and the quantity consumed, so cancel can refund the
+            // exact items and commit can settle the whole pending set.
+            ListTag escrow = root.getList("escrow").orElse(null);
+            if (escrow == null) {
+                escrow = new ListTag();
+            }
+            CompoundTag entry = new CompoundTag();
+            entry.putString("recipe", recipeId);
+            entry.putString("catalyst", catalystItemId);
+            entry.putInt("count", cost);
+            escrow.add(entry);
+            root.put("escrow", escrow);
+            // Drop the legacy single-catalyst field so a migrated keystone
+            // does not carry both representations.
+            root.remove("pending_catalyst");
             tag.put(PocketDungeonsMod.MOD_ID, root);
         });
-        // Consume one catalyst. The keystone is never consumed.
-        offHand.shrink(1);
+        // Consume the declared cost. The keystone is never consumed.
+        offHand.shrink(cost);
         // M71: record the discovery and the ingredient. The discovery is
         // recorded only on a successful apply; the ingredient is recorded
-        // on every apply so the floor's ingredient surface grows.
+        // on every apply so the floor's ingredient surface grows. The id
+        // was captured before the shrink, so it is the real catalyst even
+        // when the stack is now empty.
         DungeonLog log = DungeonLog.forServer(player.level().getServer());
         log.recordRecipeDiscovery(player.getUUID(), recipeId);
-        String catalystItemId = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                .getKey(offHand.getItem()).toString();
-        // The catalyst was already shrunk; record the original item id.
-        // offHand is the same stack reference, so re-resolve from the
-        // definition's catalyst item if present, else from the stack.
-        if (def.catalystItem != null) {
-            log.recordIngredientEncountered(player.getUUID(), def.catalystItem);
-        } else {
-            log.recordIngredientEncountered(player.getUUID(), catalystItemId);
-        }
+        log.recordIngredientEncountered(player.getUUID(), catalystItemId);
         player.sendSystemMessage(Component.literal(def.confirmation)
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
     }
@@ -248,56 +277,126 @@ final class CubeRecipe {
             if (root == null) {
                 return;
             }
+            root.remove("escrow");
+            // Also drop a legacy single-catalyst field if a pre-fix keystone
+            // is committed without ever having been re-applied.
             root.remove("pending_catalyst");
             tag.put(PocketDungeonsMod.MOD_ID, root);
         });
     }
 
     /**
-     * M66: Reads the pending catalyst item id from the keystone's escrow, or
-     * {@code null} if no catalyst is escrowed.
+     * One escrowed catalyst entry: the recipe id that armed it, the catalyst
+     * item id to refund, and the quantity consumed. F4: the escrow is a list
+     * of these, not a single string, so multiple applications accumulate
+     * instead of overwriting each other.
      */
-    static String pendingCatalystId(ItemStack keystone) {
+    record EscrowEntry(String recipeId, String catalystItemId, int count) {}
+
+    /**
+     * Reads the full escrow list from the keystone. Migrates a legacy
+     * {@code pending_catalyst} string into a single count-1 entry so an older
+     * keystone that was applied before the multi-entry escrow still refunds.
+     */
+    static List<EscrowEntry> escrowOf(ItemStack keystone) {
         if (!Keystone.isKeystone(keystone)) {
-            return null;
+            return List.of();
         }
         CustomData data = keystone.get(DataComponents.CUSTOM_DATA);
         if (data == null || data.isEmpty()) {
-            return null;
+            return List.of();
         }
         CompoundTag root = data.copyTag().getCompound(PocketDungeonsMod.MOD_ID).orElse(null);
         if (root == null) {
-            return null;
+            return List.of();
         }
-        String id = root.getStringOr("pending_catalyst", "");
-        return id.isBlank() ? null : id;
+        ListTag escrow = root.getList("escrow").orElse(null);
+        if (escrow != null) {
+            List<EscrowEntry> entries = new ArrayList<>();
+            for (int i = 0; i < escrow.size(); i++) {
+                CompoundTag entry = escrow.getCompound(i).orElse(null);
+                if (entry == null) {
+                    continue;
+                }
+                String recipe = entry.getStringOr("recipe", "");
+                String catalyst = entry.getStringOr("catalyst", "");
+                int count = entry.getIntOr("count", 1);
+                if (!catalyst.isBlank() && count > 0) {
+                    entries.add(new EscrowEntry(recipe, catalyst, count));
+                }
+            }
+            return entries;
+        }
+        // Legacy migration: a pre-fix keystone carries a single
+        // pending_catalyst string instead of the escrow list.
+        String legacy = root.getStringOr("pending_catalyst", "");
+        if (legacy.isBlank()) {
+            return List.of();
+        }
+        return List.of(new EscrowEntry("", legacy, 1));
     }
 
     /**
-     * M66: Restores the escrowed catalyst to the player and clears the
-     * escrow. Called when a preview is cancelled, so a consumed catalyst
-     * does not charge for nothing. The catalyst is delivered via
-     * {@link Payout#deliver} so overflow drops at the player's feet rather
-     * than being voided.
+     * Whether the keystone currently holds any escrowed catalyst. Used by the
+     * preview-switch path to decide whether a true refund is owed.
+     */
+    static boolean hasOutstandingEscrow(ItemStack keystone) {
+        return !escrowOf(keystone).isEmpty();
+    }
+
+    /**
+     * M66: Reads the pending catalyst item id from the keystone's escrow, or
+     * {@code null} if no catalyst is escrowed. Returns the first entry's
+     * catalyst for compatibility with callers that only need to know whether
+     * any catalyst is recoverable.
+     */
+    static String pendingCatalystId(ItemStack keystone) {
+        List<EscrowEntry> entries = escrowOf(keystone);
+        return entries.isEmpty() ? null : entries.get(0).catalystItemId();
+    }
+
+    /**
+     * M66: Restores every escrowed catalyst to the player, clears the escrow,
+     * and clears the recipe tags the escrow armed. Called when a preview is
+     * cancelled, so a consumed catalyst does not charge for nothing and the
+     * armed recipe does not linger for a free re-preview. The catalysts are
+     * delivered via {@link Payout#deliver} so overflow drops at the player's
+     * feet rather than being voided. F4: multiple applications are refunded
+     * together, summed per item id so the same catalyst delivers one stack.
      */
     static void restoreCatalyst(ServerPlayer player, ItemStack keystone) {
-        String catalystId = pendingCatalystId(keystone);
-        if (catalystId == null) {
+        List<EscrowEntry> entries = escrowOf(keystone);
+        if (entries.isEmpty()) {
             return;
         }
-        net.minecraft.resources.Identifier loc =
-                net.minecraft.resources.Identifier.tryParse(catalystId);
-        if (loc == null) {
-            return;
+        Map<String, Integer> byItem = new LinkedHashMap<>();
+        for (EscrowEntry e : entries) {
+            byItem.merge(e.catalystItemId(), e.count(), Integer::sum);
         }
-        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(loc).orElse(null);
-        if (item == null || item == Items.AIR) {
-            return;
+        boolean deliveredAny = false;
+        for (Map.Entry<String, Integer> e : byItem.entrySet()) {
+            net.minecraft.resources.Identifier loc =
+                    net.minecraft.resources.Identifier.tryParse(e.getKey());
+            if (loc == null) {
+                continue;
+            }
+            Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(loc).orElse(null);
+            if (item == null || item == Items.AIR) {
+                continue;
+            }
+            ItemStack stack = new ItemStack(item);
+            stack.setCount(e.getValue());
+            Payout.deliver(player, stack);
+            deliveredAny = true;
         }
-        Payout.deliver(player, new ItemStack(item));
         clearCatalystEscrow(keystone);
-        player.sendSystemMessage(Component.literal(
-                "The preview was cancelled. Your catalyst is returned.")
-                .withStyle(ChatFormatting.YELLOW));
+        // Clear the recipe tags the escrow armed, so a cancelled recipe does
+        // not leave its effects on the keystone for a free re-preview.
+        clearRecipes(keystone);
+        if (deliveredAny) {
+            player.sendSystemMessage(Component.literal(
+                    "The preview was cancelled. Your catalysts are returned.")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
     }
 }

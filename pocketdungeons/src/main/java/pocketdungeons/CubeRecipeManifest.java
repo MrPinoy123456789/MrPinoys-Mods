@@ -5,6 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -76,9 +77,14 @@ final class CubeRecipeManifest {
      * then runs the cross-definition duplicate-catalyst check.
      */
     static CubeRecipeManifest parse(MinecraftServer server) {
+        return parse(server, server.getResourceManager());
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static CubeRecipeManifest parse(MinecraftServer server, ResourceManager rm) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
-        Map<Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<Identifier, Resource> resources = rm.listResources(
                 "cube_recipe", id -> id.getPath().endsWith(".json"));
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());

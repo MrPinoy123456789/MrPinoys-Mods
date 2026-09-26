@@ -91,6 +91,13 @@ final class RunSession {
         pair(Phase.FLOOR_CLEARED, Phase.SAFE_RETURN),
         // Completing the safe return lands in the safe room.
         pair(Phase.SAFE_RETURN, Phase.HOME),
+        // F9: aborting an active or between-floors run via /dungeon quit
+        // returns the record to HOME. resetToLobby rebuilds the lobby and
+        // re-arms the door choice; without these edges the phase stays
+        // stranded in ACTIVE or FLOOR_CLEARED and canChooseDoor rejects
+        // every later door selection.
+        pair(Phase.ACTIVE, Phase.HOME),
+        pair(Phase.FLOOR_CLEARED, Phase.HOME),
         // Recovery can land in any non-transient phase.
         pair(Phase.RECOVERY, Phase.HOME),
         pair(Phase.RECOVERY, Phase.PREVIEW),

@@ -3,6 +3,7 @@ package pocketdungeons;
 import com.google.gson.JsonParser;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -55,9 +56,14 @@ final class RoleManifest {
      * coexist, validates each definition's stage and operation.
      */
     static RoleManifest parse(MinecraftServer server) {
+        return parse(server, server.getResourceManager());
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static RoleManifest parse(MinecraftServer server, ResourceManager rm) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
-        Map<net.minecraft.resources.Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<net.minecraft.resources.Identifier, Resource> resources = rm.listResources(
                 "dungeon_role", id -> id.getPath().endsWith(".json"));
         List<Map.Entry<net.minecraft.resources.Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());

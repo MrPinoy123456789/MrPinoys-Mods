@@ -108,7 +108,11 @@ final class Instances {
      */
     private static final long PENDING_RETURN_TTL_TICKS = 20L * 60 * 60 * 24;
 
-    private record PendingReturn(ReturnPoint point, long expiresAtTick) {}
+    /**
+     * {@code record} is the instance the player disconnected from, kept so the
+     * rejoin message can tell a closed dungeon from one that is still open.
+     */
+    private record PendingReturn(ReturnPoint point, long expiresAtTick, InstanceRecord record) {}
 
     /**
      * Recovery teleports queued from the JOIN handler, delayed rather than
@@ -133,13 +137,18 @@ final class Instances {
     private static final class PendingJoinRecovery {
         final UUID player;
         final ReturnPoint point; // null -> world spawn
+        final InstanceRecord record; // the instance they left; null if unknown
         int ticksRemaining;
-        PendingJoinRecovery(UUID player, ReturnPoint point, int ticksRemaining) {
+        PendingJoinRecovery(UUID player, ReturnPoint point, InstanceRecord record, int ticksRemaining) {
             this.player = player;
             this.point = point;
+            this.record = record;
             this.ticksRemaining = ticksRemaining;
         }
     }
+
+    /** Game ticks a silent homecoming waits for stragglers before pulling them into the room. */
+    private static final long HOMECOMING_STRAGGLER_TICKS = 20L * 30;
 
     /** Registers instance ticking, death rescue, connection recovery, and lifecycle cleanup handlers. */
     static void register() {
@@ -241,8 +250,9 @@ final class Instances {
             }
             PendingReturn pending = pendingReturns.remove(player.getUUID());
             ReturnPoint point = pending == null ? null : pending.point();
+            InstanceRecord left = pending == null ? null : pending.record();
             pendingJoinRecoveries.add(new PendingJoinRecovery(
-                    player.getUUID(), point, JOIN_RECOVERY_DELAY_TICKS));
+                    player.getUUID(), point, left, JOIN_RECOVERY_DELAY_TICKS));
         });
 
         // M45 seam: a player who logged out inside a run and came back. Empty
@@ -324,7 +334,7 @@ final class Instances {
         ReturnPoint point = record.members.get(player.getUUID());
         if (point != null) {
             long expiresAtTick = server.overworld().getGameTime() + PENDING_RETURN_TTL_TICKS;
-            pendingReturns.put(player.getUUID(), new PendingReturn(point, expiresAtTick));
+            pendingReturns.put(player.getUUID(), new PendingReturn(point, expiresAtTick, record));
         }
         // U8 Stage 1: disconnecting is free. The run keeps running, on its
         // own clock, whether or not anyone is here to watch it -- there is
@@ -475,9 +485,9 @@ final class Instances {
         InstanceRegistry.byMember.put(player.getUUID(), record);
         pendingReturns.remove(player.getUUID());
 
-        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
-                Vec3.atBottomCenterOf(record.layout.entrance()),
-                record.layout.entranceYaw(), 0.0f);
+        boolean toStaging = admitsToStaging(record);
+        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL, admitPosition(record),
+                toStaging ? 0.0f : record.layout.entranceYaw(), 0.0f);
 
         if (record.timer != null) {
             record.timer.addPlayer(player);
@@ -492,6 +502,24 @@ final class Instances {
                 placeBagChestIfBagless(dungeonLevel, server, player.getUUID(), record.roomCellOrigin);
             }
         }
+    }
+
+    /**
+     * Whether {@link #admit} lands a member in the staging room rather than
+     * at the layout's entrance: true between floors, when the layout is still
+     * the floor just cleared and its entrance is behind the party.
+     */
+    static boolean admitsToStaging(InstanceRecord record) {
+        return RunLifecycle.betweenFloors(record) && record.stagingCellOrigin != null;
+    }
+
+    /** Where {@link #admit} puts a member: the staging room's centre between floors, the entrance otherwise. */
+    static Vec3 admitPosition(InstanceRecord record) {
+        if (admitsToStaging(record)) {
+            return Vec3.atBottomCenterOf(record.stagingCellOrigin.offset(
+                    RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
+        }
+        return Vec3.atBottomCenterOf(record.layout.entrance());
     }
 
     /**
@@ -612,8 +640,9 @@ final class Instances {
      * to connect to yet) and its three fixed choice-doors ready. No plan, no
      * timer: {@link #chooseLobbyDoor} is what generates the rest of the run.
      *
-     * @return the one-cell layout, or {@code null} if the stamp failed (the
-     *         slot's tickets are already released on that path)
+     * @return the one-cell layout, or {@code null} if the stamp failed (a
+     *         teardown is already queued on that path; it frees the tickets
+     *         and the slot when its clear finishes)
      */
     private static InstanceLayout stampLobby(MinecraftServer server, ServerLevel level,
                                              int slot, BlockPos origin, UUID owner) {
@@ -640,10 +669,14 @@ final class Instances {
             DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
                     DungeonScreen.trackerContent(level.getServer(), owner));
         } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}", owner, e);
-            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, false);
-            InstanceRegistry.usedSlots.remove(slot);
+            // A half-stamped safe or staging room is swept up rather than
+            // left for the next allocation to stamp over, the same route
+            // buildLayout takes. The teardown's clear releases the tickets
+            // and then the slot.
+            PocketDungeonsMod.LOG.error("Could not stamp a lobby for {}; clearing whatever was written",
+                    owner, e);
+            InstanceTeardown.teardown(server, slot, origin, lobbyLayout(origin), "lobby stamp failed",
+                    null, stagingOrigin);
             return null;
         }
         return lobbyLayout(origin);
@@ -1033,8 +1066,10 @@ final class Instances {
             return true;
         }
 
-        // Purge any existing preview before generating the new one.
-        clearPreview(level, record);
+        // Purge any existing preview before generating the new one. This is
+        // a switch, not a cancel: the escrow and recipe tags stay armed so
+        // the next preview reuses them without re-consuming the catalyst.
+        clearPreview(level, record, false);
 
         // M66: apply the recipe's path length bonus to the planning bounds.
         int minPath = PocketDungeonsConfig.pathLengthMin() + recipePlan.pathLengthBonus();
@@ -1124,10 +1159,17 @@ final class Instances {
      * (M56) Purges the current preview cell and restores the selector door
      * that was replaced by the window. No-op if no preview is active.
      *
-     * <p>M66: also clears the recipe plan and restores any escrowed catalyst
-     * to the owner. A cancelled preview does not charge for nothing.
+     * <p>M66: also clears the recipe plan and, when {@code refundCatalyst} is
+     * true, restores any escrowed catalyst to the owner and clears the armed
+     * recipe tags. A cancelled preview does not charge for nothing.
+     *
+     * <p>F3: {@code refundCatalyst} distinguishes a true cancel (refund the
+     * catalyst and drop the recipe tags) from a preview switch (keep the
+     * escrow and tags armed, because the next preview reuses them). Switching
+     * doors after applying a recipe no longer refunds the catalyst while
+     * leaving the recipe effects armed for the committed run.
      */
-    static void clearPreview(ServerLevel level, InstanceRecord record) {
+    static void clearPreview(ServerLevel level, InstanceRecord record, boolean refundCatalyst) {
         if (record.previewCellOrigin == null) {
             return;
         }
@@ -1139,9 +1181,12 @@ final class Instances {
                 record.roomDungeonDoor);
         record.previewPlan = null;
         record.previewCellOrigin = null;
-        // M66: clear the recipe plan and restore the escrowed catalyst.
+        // M66: clear the recipe plan and, on a true cancel, restore the
+        // escrowed catalyst. A switch keeps the escrow and tags armed.
         if (record.previewRecipePlan != null) {
-            restoreEscrowedCatalyst(level.getServer(), record);
+            if (refundCatalyst) {
+                restoreEscrowedCatalyst(level.getServer(), record);
+            }
             record.previewRecipePlan = null;
         }
         record.previewOfferStep = 0;
@@ -1172,7 +1217,7 @@ final class Instances {
      * nothing. Finds the owner's held keystone and restores via
      * {@link CubeRecipe#restoreCatalyst}.
      */
-    private static void restoreEscrowedCatalyst(MinecraftServer server, InstanceRecord record) {
+    static void restoreEscrowedCatalyst(MinecraftServer server, InstanceRecord record) {
         ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
         if (owner == null) {
             return;
@@ -1387,9 +1432,33 @@ final class Instances {
      * record state.
      */
     static void resetToLobby(MinecraftServer server, InstanceRecord record) {
+        resetToLobby(server, record, false);
+    }
+
+    /**
+     * {@link #resetToLobby(MinecraftServer, InstanceRecord)}, for a caller
+     * that has just saved the standing safe room itself and refused on a
+     * failure ({@link RunLifecycle#quitDoor}), so it is not saved twice.
+     *
+     * <p>Otherwise a standing safe room is saved here, before anything is
+     * cleared. If that save fails the room is left exactly where it stands,
+     * neither cleared nor re-stamped from the older blob on disk, and the
+     * staging room is rebuilt beside it.
+     */
+    static void resetToLobby(MinecraftServer server, InstanceRecord record, boolean roomAlreadySaved) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        // M56: clear any active door preview before resetting.
-        clearPreview(level, record);
+        // M56: clear any active door preview before resetting. This is a
+        // true cancel, so the escrowed catalyst is refunded and the armed
+        // recipe tags are dropped.
+        clearPreview(level, record, true);
+        // F9: transition to HOME regardless of whether the dungeon level is
+        // loaded. clearPreview may have already transitioned a PREVIEW run
+        // to HOME or FLOOR_CLEARED; an ACTIVE run stayed ACTIVE because
+        // there was no preview to clear. Without this, the phase is
+        // stranded and canChooseDoor rejects every later door selection.
+        if (record.phase != RunSession.Phase.HOME) {
+            RunSession.transition(record, RunSession.Phase.HOME);
+        }
         if (level == null) {
             return;
         }
@@ -1399,13 +1468,24 @@ final class Instances {
             forceLoad(level, record.layout.geometry().chunks(), false);
         }
 
+        // A safe room still standing (quit before commit) is saved before
+        // anything is cleared, so it can be re-stamped at the slot origin.
+        BlockPos standingRoom = record.roomCellOrigin;
+        boolean roomSaved = standingRoom == null || roomAlreadySaved
+                || RunLifecycle.saveRoom(level, server, record);
+        if (!roomSaved) {
+            PocketDungeonsMod.LOG.error("Room save for {} failed during a lobby reset; "
+                    + "leaving the room standing at {}", record.owner, standingRoom);
+        }
+
         // Clear every cell of the current dungeon and the staging room. The
-        // safe room was already despawned at commit time, so there is no
-        // safe room cell to keep. If the safe room is still active (quit
-        // before commit), keep it.
+        // safe room was already despawned at commit time, so there is usually
+        // no safe room cell to keep. A saved standing room is cleared with the
+        // rest (it is re-stamped at the slot origin below); an unsaved one is
+        // kept.
         List<BlockPos> keepCells = new java.util.ArrayList<>();
-        if (record.roomCellOrigin != null) {
-            keepCells.add(record.roomCellOrigin);
+        if (!roomSaved) {
+            keepCells.add(standingRoom);
         }
         if (record.layout != null) {
             for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
@@ -1420,18 +1500,19 @@ final class Instances {
             clearCellSync(level, record.stagingCellOrigin, keepCells);
         }
 
-        // Re-stamp the safe room at the slot origin from RoomStore. If the
-        // safe room was still active (quit before commit), it is already
-        // standing; save it first so any edits survive the re-stamp.
+        // Re-stamp the safe room at the slot origin from RoomStore, or keep
+        // an unsaved room where it stands and rebuild the staging beside it.
         BlockPos safeOrigin = record.origin;
         DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
-        if (record.roomCellOrigin != null) {
-            RunLifecycle.saveRoom(level, server, record);
+        if (roomSaved) {
+            clearCellSync(level, safeOrigin, List.of());
+            stampSafeRoom(level, server, record.owner, safeOrigin);
+            record.roomCellOrigin = safeOrigin;
+            record.roomDungeonDoor = dungeonDir;
+        } else {
+            safeOrigin = standingRoom;
+            dungeonDir = record.roomDungeonDoor;
         }
-        clearCellSync(level, safeOrigin, List.of());
-        stampSafeRoom(level, server, record.owner, safeOrigin);
-        record.roomCellOrigin = safeOrigin;
-        record.roomDungeonDoor = dungeonDir;
 
         // Stamp a fresh staging room adjacent to the safe room.
         BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
@@ -1490,8 +1571,7 @@ final class Instances {
         record.freeDoor = false;
         record.floorIndex = 0;
         record.safeStaging = false;
-        record.omen = 0;
-        record.floorOmens.clear();
+        record.clearIntervalState();
         record.recipeTags = null;
         record.previewRecipePlan = null;
         record.previewOfferStep = 0;
@@ -1706,12 +1786,14 @@ final class Instances {
     }
 
     /**
-     * M65: whether all online members have left the old staging room
-     * and entered the safe room during a silent homecoming. A member
-     * who is offline, in another dimension, or still in the old
-     * staging room has not crossed yet. An empty party (everyone
-     * disconnected) is treated as crossed so the cleanup is not held
-     * forever; the M63 recovery path handles their return.
+     * M65: whether every online member in the dungeon dimension is inside
+     * the safe room during a silent homecoming. The cleanup clears the old
+     * staging room and every old floor cell, so a member anywhere else
+     * (still in the staging room, or back on an old floor looting) has not
+     * crossed. An offline member or one in another dimension does not
+     * block; an empty party (everyone disconnected) is treated as crossed so
+     * the cleanup is not held forever, and the M63 recovery path handles
+     * their return.
      */
     private static boolean allMembersCrossed(MinecraftServer server, InstanceRecord record) {
         if (record.members.isEmpty()) {
@@ -1720,26 +1802,43 @@ final class Instances {
         if (record.oldStagingCellOrigin == null || record.roomCellOrigin == null) {
             return true;
         }
-        net.minecraft.world.phys.AABB oldStagingBounds = CellGeometry.cellBounds(record.oldStagingCellOrigin);
-        net.minecraft.world.phys.AABB roomBounds = CellGeometry.cellBounds(record.roomCellOrigin);
+        AABB roomBounds = CellGeometry.cellBounds(record.roomCellOrigin);
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
-            if (memberPlayer == null) {
-                // Offline: does not block cleanup. M63 recovery handles
-                // their return.
+            if (memberPlayer == null
+                    || !memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 continue;
             }
-            if (!memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                // Not in the dungeon dimension: does not block cleanup.
-                continue;
-            }
-            net.minecraft.world.phys.Vec3 pos = net.minecraft.world.phys.Vec3.atCenterOf(memberPlayer.blockPosition());
-            if (oldStagingBounds.contains(pos) && !roomBounds.contains(pos)) {
-                // Still in the old staging room, not in the room yet.
+            if (!roomBounds.contains(Vec3.atCenterOf(memberPlayer.blockPosition()))) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * The bounded fallback for {@link #allMembersCrossed}: once a homecoming
+     * has waited {@link #HOMECOMING_STRAGGLER_TICKS}, every online member in
+     * the dungeon dimension who is still outside the safe room is moved into
+     * it, the way {@code RunLifecycle.resetForNextDungeon} pulls stragglers
+     * into the staging room. One idle member cannot hold the old floor and
+     * the next staging room open indefinitely.
+     */
+    private static void pullHomecomingStragglers(MinecraftServer server, InstanceRecord record) {
+        if (record.roomCellOrigin == null) {
+            return;
+        }
+        AABB roomBounds = CellGeometry.cellBounds(record.roomCellOrigin);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null
+                    || !memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    || roomBounds.contains(Vec3.atCenterOf(memberPlayer.blockPosition()))) {
+                continue;
+            }
+            teleport(server, memberPlayer, PocketDungeonsMod.DUNGEON_LEVEL,
+                    Vec3.atBottomCenterOf(record.layout.entrance()), record.layout.entranceYaw(), 0.0f);
+        }
     }
 
     /**
@@ -1902,6 +2001,10 @@ final class Instances {
             // out through, and it is the one effect this mod must never export.
             clearTrialOmen(player);
 
+            if (rejoinOwnedInstance(server, player, pending.point)) {
+                continue;
+            }
+
             if (pending.point != null) {
                 teleport(server, player, pending.point.dimension(), pending.point.pos(),
                         pending.point.yaw(), pending.point.pitch());
@@ -1912,9 +2015,36 @@ final class Instances {
                 // has emptied its overworld; sendHome asks for the room first.
                 sendHome(server, player);
             }
-            player.sendSystemMessage(Component.literal("Your dungeon was closed while you were away.")
+            boolean closed = pending.record == null || pending.record.tearingDown
+                    || InstanceRegistry.bySlot.get(pending.record.slot) != pending.record;
+            player.sendSystemMessage(Component.literal(closed
+                            ? "Your dungeon was closed while you were away."
+                            : "You were returned to where you entered the dungeon.")
                     .withStyle(ChatFormatting.GRAY));
         }
+    }
+
+    /**
+     * The rejoin half of free re-entry: a player who logs back in while their
+     * own run is still live and reenterable goes straight back into it rather
+     * than out to their return point. They logged out in the dungeon
+     * dimension and are still in it, with their survival inventory still
+     * stashed, so the re-admit is a teleport within the dimension and no
+     * inventory swap fires. {@code point} is the return point saved at
+     * disconnect; it replaces the in-dungeon position {@code admit} just
+     * recorded, so a later exit still leads back outside.
+     *
+     * @return whether the player was re-admitted
+     */
+    static boolean rejoinOwnedInstance(MinecraftServer server, ServerPlayer player, ReturnPoint point) {
+        if (!RunLifecycle.reenterOwnedInstance(player)) {
+            return false;
+        }
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record != null && point != null) {
+            record.members.put(player.getUUID(), point);
+        }
+        return true;
     }
 
     // ---- lifecycle watcher --------------------------------------------------
@@ -2000,6 +2130,10 @@ final class Instances {
             if (record.pendingHomecomingCleanup) {
                 if (allMembersCrossed(server, record)) {
                     completeHomecomingCleanup(server, record);
+                } else if (now - record.homecomingPendingSinceTick >= HOMECOMING_STRAGGLER_TICKS) {
+                    // The cleanup itself runs on the next watch tick, once
+                    // the moved members read as inside the room.
+                    pullHomecomingStragglers(server, record);
                 }
                 // Skip the rest of the loop for this record while
                 // cleanup is pending: the run is not active, the grace
@@ -2125,7 +2259,7 @@ final class Instances {
                     record.onPad.remove(member);
                 }
                 if (stepped) {
-                    if (record.isKeystoneRun()) {
+                    if (record.isKeystoneRun() && !record.untimed) {
                         // A dungeon pad: the terminal cell's. First contact ends
                         // the run; every contact after that does nothing at all.
                         // It used to fall through to RunLifecycle.exit() once completed was
@@ -2136,9 +2270,9 @@ final class Instances {
                             RunLifecycle.completeRun(server, record, player);
                         }
                     } else {
-                        // No room and no keystone: /dungeon admin build and
-                        // untimed runs, where the dungeon pad is still the way
-                        // out because there is no room pad to use instead.
+                        // /dungeon admin build and untimed runs, where the
+                        // dungeon pad is still the way out. An untimed run
+                        // never enters ACTIVE, so completeRun would refuse it.
                         RunLifecycle.exit(player, RunLifecycle.ExitReason.EXIT_PAD);
                     }
                 }
@@ -2261,13 +2395,17 @@ final class Instances {
         if (!player.level().getBlockState(below).is(Blocks.LODESTONE)) {
             return false;
         }
-        if (record.layout.bounds().contains(Vec3.atCenterOf(below))) {
-            return true;
+        Vec3 at = Vec3.atCenterOf(below);
+        // A lodestone in the safe room or the staging room is the player's
+        // own decoration or the room menu, never a pad. The lobby layout is
+        // the safe room itself, so this also covers HOME.
+        if (record.roomCellOrigin != null && CellGeometry.cellBounds(record.roomCellOrigin).contains(at)) {
+            return false;
         }
-        return (record.roomCellOrigin != null
-                && CellGeometry.cellBounds(record.roomCellOrigin).contains(Vec3.atCenterOf(below)))
-                || (record.stagingCellOrigin != null
-                && CellGeometry.cellBounds(record.stagingCellOrigin).contains(Vec3.atCenterOf(below)));
+        if (record.stagingCellOrigin != null && CellGeometry.cellBounds(record.stagingCellOrigin).contains(at)) {
+            return false;
+        }
+        return record.layout.bounds().contains(at);
     }
 
     /** The 16x7x16 box of a single fixed-offset room, for the reward and selector rooms. */
@@ -2608,9 +2746,11 @@ final class Instances {
         try {
             RoomBuilder.buildShell(level, origin, RoomBuilder.FLOOR);
         } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Could not stamp a build room for {}", player.getUUID(), e);
-            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            InstanceRegistry.usedSlots.remove(slot);
+            // Same as stampLobby: sweep the partial shell through a teardown,
+            // which releases the ticket and the slot once its clear finishes.
+            PocketDungeonsMod.LOG.error("Could not stamp a build room for {}; clearing whatever was written",
+                    player.getUUID(), e);
+            InstanceTeardown.teardown(server, slot, origin, lobbyLayout(origin), "build room stamp failed");
             return -1;
         }
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), lobbyLayout(origin),

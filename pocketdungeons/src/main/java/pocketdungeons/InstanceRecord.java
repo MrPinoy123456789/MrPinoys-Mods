@@ -348,6 +348,23 @@ final class InstanceRecord {
     final java.util.List<Integer> floorOmens = new java.util.ArrayList<>();
 
     /**
+     * Whether this interval's safe visit has already been settled (keystone,
+     * payout, bounties). Guards {@code RunLifecycle.returnToSafe}: a return
+     * that throws after settling puts the phase back so the lever works
+     * again, and the retry must not pay out a second time. Cleared with the
+     * rest of the interval by {@link #clearIntervalState}.
+     */
+    boolean safeVisitSettled;
+
+    /**
+     * Game tick (overworld clock) at which {@link #pendingHomecomingCleanup}
+     * was set. {@code Instances.onTick} pulls stragglers into the room once
+     * the cleanup has waited long enough, so an idle member cannot hold the
+     * old floor and the next staging room open forever.
+     */
+    long homecomingPendingSinceTick;
+
+    /**
      * The situation ids this floor's cells resolved to, in the order they were
      * resolved. M59 reads it for the compass Cube recipe and the completion
      * line. Mutable and empty for a run whose cells carried no situation, which
@@ -510,6 +527,20 @@ final class InstanceRecord {
         pendingHomecomingCleanup = false;
         oldStagingCellOrigin = null;
         oldLayoutForCleanup = null;
+    }
+
+    /**
+     * Clears the state that spans the floors of one interval, from the first
+     * door out of the safe room to the next safe visit: the omen of the floor
+     * in progress, every banked floor omen, and the settlement guard. Called
+     * wherever an interval ends (both homecoming paths and the quit reset).
+     * Not part of {@link #clearPreviousRunState}, which runs on every floor
+     * commit, where the banked omens must survive.
+     */
+    void clearIntervalState() {
+        omen = 0;
+        floorOmens.clear();
+        safeVisitSettled = false;
     }
 
     /** Whether a keystone was spent to open this run. False for {@code /dungeon admin build}. */

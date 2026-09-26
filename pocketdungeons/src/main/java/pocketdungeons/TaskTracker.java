@@ -34,7 +34,7 @@ final class TaskTracker {
         COMPLETE_RUN("complete_run", "Complete a Run", 1, 1),
         REROLL("reroll", "Reroll an Enchantment", 1, 5),
         VISIT_FRIEND("visit_friend", "Visit a Friend", 1, 5),
-        GAMBLE("gamble", "Spend Emeralds at Kadala", 16, 10),
+        GAMBLE("gamble", "Spend Emeralds at the Gamble Station", 16, 10),
         // Gated by the Feral theme, but also level-gated at 10 so a player
         // who never rolls Feral is not blocked past that point: the
         // grandfather clause below auto-completes it once level > 10.

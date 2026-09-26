@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,16 +88,28 @@ final class ContentSnapshot {
      * graph is published, not after.
      */
     static ContentSnapshot build(MinecraftServer server) {
-        RoomManifest rooms = RoomManifest.parse(server);
-        RoomManifest anomalyRooms = RoomManifest.parseAnomaly(server);
-        ThemeManifest themes = ThemeManifest.parse(server);
-        AdventureGraphs adventure = AdventureGraphs.parse(server,
+        return build(server, server.getResourceManager());
+    }
+
+    /**
+     * F1: builds the snapshot from the given {@code ResourceManager} rather
+     * than {@code server.getResourceManager()}. During a content reload the
+     * server's resource manager may still point at the previous pack set;
+     * the incoming manager is the one that reflects pack enable/disable
+     * changes. Every parse method below receives {@code rm} so room, theme,
+     * recipe, and all other manifests read the same resource set.
+     */
+    static ContentSnapshot build(MinecraftServer server, ResourceManager rm) {
+        RoomManifest rooms = RoomManifest.parse(server, rm);
+        RoomManifest anomalyRooms = RoomManifest.parseAnomaly(server, rm);
+        ThemeManifest themes = ThemeManifest.parse(server, rm);
+        AdventureGraphs adventure = AdventureGraphs.parse(server, rm,
                 themeId -> themes.byId(themeId) != null);
-        Diaries diaries = Diaries.parse(server);
-        AffixManifest affixes = AffixManifest.parse(server);
-        BagManifest bags = BagManifest.parse(server);
-        RoleManifest roles = RoleManifest.parse(server);
-        CubeRecipeManifest recipes = CubeRecipeManifest.parse(server);
+        Diaries diaries = Diaries.parse(server, rm);
+        AffixManifest affixes = AffixManifest.parse(server, rm);
+        BagManifest bags = BagManifest.parse(server, rm);
+        RoleManifest roles = RoleManifest.parse(server, rm);
+        CubeRecipeManifest recipes = CubeRecipeManifest.parse(server, rm);
 
         List<String> errors = new ArrayList<>();
         boolean hasEntrance = false;

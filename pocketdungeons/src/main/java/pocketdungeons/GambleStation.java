@@ -232,7 +232,7 @@ final class GambleStation {
         Payout.deliver(player, drawn);
         // PD-25: this used to fire from onUse, on opening the trade screen,
         // before anything was spent. Moved to the point the emeralds are
-        // actually debited, matching "Spend Emeralds at Kadala"'s label.
+        // actually debited, matching the gamble task's label.
         TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
 
         player.sendSystemMessage(Component.literal("Gambled into " + drawn.getHoverName().getString() + ".")

@@ -277,10 +277,30 @@ final class RunLifecycle {
      * member, so a re-entry search that runs in the same tick does not
      * offer the owner a way back into an instance that is seconds away
      * from being removed from {@code InstanceRegistry.bySlot}.
+     *
+     * <p>A run between floors ({@link #betweenFloors}) is reenterable even
+     * though its {@code completed} set is not empty: the floor is done but
+     * the interval is not, and the owner who stepped out or disconnected in
+     * the staging room goes back to it rather than forfeiting every floor
+     * since the last safe visit. {@link Instances#admit} lands them in the
+     * staging room, not at the cleared floor's entrance.
      */
     static boolean isReenterable(InstanceRecord record) {
         return !record.tearingDown && !record.lingering && !record.visitInstance
-                && record.completed.isEmpty();
+                && (record.completed.isEmpty() || betweenFloors(record));
+    }
+
+    /**
+     * Whether this run has cleared a floor and is waiting in its staging room
+     * for the next door: {@code FLOOR_CLEARED}, or a door preview opened from
+     * there. The cleared floor's layout is still {@code record.layout} until
+     * the next commit. A completed admin untimed run never gets here, since
+     * it never leaves {@code HOME}.
+     */
+    static boolean betweenFloors(InstanceRecord record) {
+        return !record.completed.isEmpty()
+                && (record.phase == RunSession.Phase.FLOOR_CLEARED
+                        || record.phase == RunSession.Phase.PREVIEW);
     }
 
     /**
@@ -495,10 +515,9 @@ final class RunLifecycle {
         }
         if (record.isKeystoneRun()) {
             player.sendSystemMessage(Component.literal(
-                    "Keystone [" + layout.keystoneLevel() + "] spent. Clear a trial spawner for a "
-                            + "key, spend the key on a vault, and beat the clock for the best "
-                            + "reward room. Anything a vault ejects onto the floor is lost when "
-                            + "the dungeon closes; pick it up.")
+                    "Level [" + layout.keystoneLevel() + "], untimed. Clear a trial spawner for a "
+                            + "key and spend the key on a vault. Anything a vault ejects onto the "
+                            + "floor is lost when the dungeon closes; pick it up.")
                     .withStyle(ChatFormatting.GRAY));
         }
 
@@ -669,13 +688,26 @@ final class RunLifecycle {
         }
 
         // M55: save and despawn the safe room before committing the dungeon.
+        // The room is sealed first so the blob carries a closed wall on the
+        // staging side. One save, checked before anything is despawned or
+        // spent: if it fails, the seal is undone, the room stays standing and
+        // the commit is refused.
         if (record.roomCellOrigin != null && !record.visitInstance) {
-            saveRoom(level, server, record);
             DoorMask.Direction dungeonDir = record.roomDungeonDoor;
             RoomBuilder.sealDoor(level, record.roomCellOrigin,
                     Instances.mcDirection(dungeonDir));
             BedrockEnvelope.applyToCell(level, record.roomCellOrigin, Set.of());
-            saveRoom(level, server, record);
+            if (!saveRoom(level, server, record)) {
+                RoomBuilder.openDoor(level, record.roomCellOrigin, Instances.mcDirection(dungeonDir));
+                BedrockEnvelope.clearFace(level, record.roomCellOrigin, dungeonDir);
+                PocketDungeonsMod.LOG.error("Refused the door commit for {}: their room could not be saved",
+                        player.getName().getString());
+                player.sendSystemMessage(Component.literal(
+                        "Your room could not be saved, so the door stays shut. Nothing was spent. "
+                                + "Tell an operator.")
+                        .withStyle(ChatFormatting.RED));
+                return false;
+            }
             Instances.despawnSafeRoom(level, record);
             DoorMask.Direction eeDir = CellGeometry.opposite(dungeonDir);
             RoomBuilder.sealDoor(level, record.stagingCellOrigin,
@@ -1036,15 +1068,24 @@ final class RunLifecycle {
      * live and the pad stays contactable, since {@code onPad} in
      * {@code Instances}' watcher is an edge, so stepping off and back on tries
      * again once more spawners are down.
+     *
+     * <p>A member who reaches the pad after the first, while the run is
+     * {@link #betweenFloors}, gets the same per-member credit (completion
+     * count, theme, guided task, message, chime, and so the run record at the
+     * safe visit) without the floor advancing a second time.
      */
     static void completeRun(MinecraftServer server, InstanceRecord record,
                                     ServerPlayer player) {
-        // M65: the phase must be ACTIVE. A pad contact in any other phase
-        // is a programming error (the pad should not be reachable).
-        if (!RunSession.require(record, RunSession.Phase.ACTIVE)) {
+        // A party member reaching the pad after the first: the floor is
+        // already cleared and advanced, so they are credited for it and
+        // nothing else happens. No gate re-check, no second advance.
+        boolean lateArrival = betweenFloors(record);
+        // M65: otherwise the phase must be ACTIVE. A pad contact in any other
+        // phase is a programming error (the pad should not be reachable).
+        if (!lateArrival && !RunSession.require(record, RunSession.Phase.ACTIVE)) {
             return;
         }
-        if (record.isKeystoneRun()) {
+        if (!lateArrival && record.isKeystoneRun()) {
             // M67: every trial spawner on the floor counts toward the
             // completion gate, not just gated encounter cells. The threshold
             // (default 0.75) lets the player skip some spawners without
@@ -1073,7 +1114,9 @@ final class RunLifecycle {
         }
 
         boolean firstCompletion = record.completed.isEmpty();
-        record.completed.add(player.getUUID());
+        if (!record.completed.add(player.getUUID())) {
+            return;
+        }
         TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
 
         if (firstCompletion) {
@@ -1189,10 +1232,7 @@ final class RunLifecycle {
         // OmenSources accrues the floor in progress into record.omen; close it
         // here and key the table off the sum since the last safe visit. M57:
         // the band denominator is floorsPerSafeVisit, not a hardcoded 1.
-        record.floorOmens.add(Omen.clamp(record.omen));
-        record.omen = 0;
-        int omenSum = Omen.floorSum(record.floorOmens.stream().mapToInt(Integer::intValue).toArray());
-        int band = Omen.band(omenSum, PocketDungeonsConfig.floorsPerSafeVisit());
+        int band = bankFloorOmen(record, PocketDungeonsConfig.floorsPerSafeVisit());
         int chests = Omen.chestCount(band);
         record.rewardChests = chests;
 
@@ -1269,6 +1309,19 @@ final class RunLifecycle {
     }
 
     /**
+     * Closes the floor in progress: banks its clamped omen onto the
+     * interval's {@code floorOmens}, zeroes the running omen, and returns the
+     * finish band for the interval so far. The sum only resets when the
+     * interval ends ({@link InstanceRecord#clearIntervalState}).
+     */
+    static int bankFloorOmen(InstanceRecord record, int floorsPerSafeVisit) {
+        record.floorOmens.add(Omen.clamp(record.omen));
+        record.omen = 0;
+        int omenSum = Omen.floorSum(record.floorOmens.stream().mapToInt(Integer::intValue).toArray());
+        return Omen.band(omenSum, floorsPerSafeVisit);
+    }
+
+    /**
      * M65: the interval-level settlement that happens once per safe visit,
      * for each member who completed at least one floor. Replaces the
      * keystone level up, payout, prestige, bounty and diary delivery that
@@ -1286,7 +1339,7 @@ final class RunLifecycle {
      * completion" (band 0) rather than "finished before the clock ran
      * out," per the M65 handoff.
      */
-    private static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
+    static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
         if (!record.isKeystoneRun()) {
             return;
         }
@@ -1464,15 +1517,50 @@ final class RunLifecycle {
         if (!RunSession.transition(record, RunSession.Phase.SAFE_RETURN)) {
             return false;
         }
+        // SAFE_RETURN's only way forward is HOME. Anything that throws before
+        // the return lands puts the run back between floors so the lever
+        // still works; the settlement guard keeps a retry from paying twice.
+        try {
+            return completeSafeReturn(server, record, player);
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Safe return for slot {} failed; the run is back between floors",
+                    record.slot, e);
+            if (record.phase == RunSession.Phase.SAFE_RETURN) {
+                abortSafeReturn(record);
+            }
+            player.sendSystemMessage(Component.literal(
+                    "The way home did not open. Try again, or tell an operator.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+    }
 
+    /**
+     * Puts a run in {@code SAFE_RETURN} back to {@code FLOOR_CLEARED}. The
+     * transition table has no direct edge between the two, so this goes
+     * through {@code RECOVERY}, the table's one escape hatch.
+     */
+    private static void abortSafeReturn(InstanceRecord record) {
+        RunSession.transition(record, RunSession.Phase.RECOVERY);
+        RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+    }
+
+    /** The body of {@link #returnToSafe}, run once the phase is {@code SAFE_RETURN}. */
+    private static boolean completeSafeReturn(MinecraftServer server, InstanceRecord record,
+                                              ServerPlayer player) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
-            RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+            abortSafeReturn(record);
             return false;
         }
 
-        // M65: settle the safe visit before tearing down the dungeon.
-        settleSafeVisit(server, record);
+        // M65: settle the safe visit before tearing down the dungeon. The
+        // guard is set first: a settlement that throws partway must not be
+        // repeated in full by the retry.
+        if (!record.safeVisitSettled) {
+            record.safeVisitSettled = true;
+            settleSafeVisit(server, record);
+        }
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
@@ -1503,7 +1591,7 @@ final class RunLifecycle {
             // M65: leave staging usable if stamping fails. Fall back to
             // the old teleport path so the party is never stranded.
             level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, false);
-            RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+            abortSafeReturn(record);
             return fallbackTeleportHomecoming(server, level, record, player);
         }
 
@@ -1561,7 +1649,7 @@ final class RunLifecycle {
         record.selectedStep = 0;
         record.floorIndex = 0;
         record.safeStaging = false;
-        record.omen = 0;
+        record.clearIntervalState();
         record.previewPlan = null;
         record.previewCellOrigin = null;
         record.clearPreviousRunState();
@@ -1572,6 +1660,7 @@ final class RunLifecycle {
         record.oldStagingCellOrigin = record.stagingCellOrigin;
         record.oldLayoutForCleanup = record.layout;
         record.pendingHomecomingCleanup = true;
+        record.homecomingPendingSinceTick = server.overworld().getGameTime();
 
         // The staging room stays in place for now; the party walks
         // through its dungeon door into the room. The layout is the
@@ -1677,7 +1766,7 @@ final class RunLifecycle {
         record.selectedStep = 0;
         record.floorIndex = 0;
         record.safeStaging = false;
-        record.omen = 0;
+        record.clearIntervalState();
         record.previewPlan = null;
         record.previewCellOrigin = null;
         // M66: restore the original bag if a legacy BAG_OVERRIDE was used.
@@ -1854,10 +1943,22 @@ final class RunLifecycle {
         if (!record.completed.isEmpty() || record.timedOutPenaltyApplied) {
             return exit(player, ExitReason.COMMAND);
         }
+        // The reset re-stamps the safe room from its saved blob, so a standing
+        // room is saved first, before the penalty: a failed save refuses the
+        // quit with nothing charged and nothing cleared.
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level != null && !saveRoom(level, server, record)) {
+            PocketDungeonsMod.LOG.error("Refused /dungeon quit for {}: their room could not be saved",
+                    player.getName().getString());
+            player.sendSystemMessage(Component.literal(
+                    "Your room could not be saved, so nothing was quit. Tell an operator.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
         // Apply the keystone penalty, then reset the dungeon to its lobby
         // state. The player stays in the safe room and picks a new door.
         applyTimedOutPenalty(server, record, player, true);
-        Instances.resetToLobby(server, record);
+        Instances.resetToLobby(server, record, true);
         return true;
     }
 }

@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 
 /**
@@ -42,6 +43,10 @@ public final class FloorLoopGameTest {
         checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.PREVIEW);
         checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.SAFE_RETURN);
         checkLegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.HOME);
+        // F9: aborting an active or between-floors run via /dungeon quit
+        // returns the record to HOME.
+        checkLegal(helper, RunSession.Phase.ACTIVE, RunSession.Phase.HOME);
+        checkLegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.HOME);
         // Recovery exits.
         checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.HOME);
         checkLegal(helper, RunSession.Phase.RECOVERY, RunSession.Phase.PREVIEW);
@@ -63,11 +68,9 @@ public final class FloorLoopGameTest {
         checkIllegal(helper, RunSession.Phase.HOME, RunSession.Phase.ACTIVE);
         checkIllegal(helper, RunSession.Phase.HOME, RunSession.Phase.FLOOR_CLEARED);
         checkIllegal(helper, RunSession.Phase.HOME, RunSession.Phase.SAFE_RETURN);
-        checkIllegal(helper, RunSession.Phase.ACTIVE, RunSession.Phase.HOME);
         checkIllegal(helper, RunSession.Phase.ACTIVE, RunSession.Phase.PREVIEW);
         checkIllegal(helper, RunSession.Phase.ACTIVE, RunSession.Phase.SAFE_RETURN);
         checkIllegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.ACTIVE);
-        checkIllegal(helper, RunSession.Phase.FLOOR_CLEARED, RunSession.Phase.HOME);
         checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.ACTIVE);
         checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.PREVIEW);
         checkIllegal(helper, RunSession.Phase.SAFE_RETURN, RunSession.Phase.FLOOR_CLEARED);
@@ -109,12 +112,11 @@ public final class FloorLoopGameTest {
             helper.fail("HOME -> SAFE_RETURN should be illegal (double settlement)");
             return;
         }
-        // A direct shortcut (FLOOR_CLEARED -> HOME) is also illegal:
-        // the settlement must go through SAFE_RETURN.
-        if (RunSession.canTransition(floor, home)) {
-            helper.fail("FLOOR_CLEARED -> HOME should be illegal (skips SAFE_RETURN)");
-            return;
-        }
+        // F9: FLOOR_CLEARED -> HOME is now a legal abort edge (quit to
+        // lobby), but the settlement path still cannot be skipped because
+        // returnToSafe requires FLOOR_CLEARED and transitions to
+        // SAFE_RETURN, not HOME. The double-settlement protection comes
+        // from the require check, not from blocking this edge.
 
         // The derivePhase recovery path agrees: a record with
         // awaitingDoorChoice=true and floorIndex=0 is HOME, not
@@ -123,6 +125,45 @@ public final class FloorLoopGameTest {
         // (derivePhase is tested here by confirming the phase it would
         // derive does not allow a second SAFE_RETURN transition.)
 
+        helper.succeed();
+    }
+
+    /**
+     * F9: quitting an active run via resetToLobby transitions the phase
+     * from ACTIVE to HOME, so canChooseDoor accepts the next door selection.
+     * The old code rebuilt the lobby and set awaitingDoorChoice but never
+     * transitioned the phase, leaving it stranded in ACTIVE.
+     */
+    @GameTest(maxTicks = 20)
+    public void quitActiveRunTransitionsToHome(GameTestHelper helper) {
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        java.util.UUID owner = java.util.UUID.randomUUID();
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
+        int slot = 9998;
+        InstanceRecord record = new InstanceRecord(slot, origin, server.getTickCount(),
+                null, java.util.Set.of(), owner, true);
+        record.phase = RunSession.Phase.ACTIVE;
+        record.floorIndex = 2;
+        record.awaitingDoorChoice = false;
+        InstanceRegistry.bySlot.put(slot, record);
+        InstanceRegistry.byMember.put(owner, record);
+        InstanceRegistry.usedSlots.add(slot);
+
+        try {
+            Instances.resetToLobby(server, record);
+            if (record.phase != RunSession.Phase.HOME) {
+                helper.fail("phase should be HOME after resetToLobby, got " + record.phase);
+                return;
+            }
+            if (!RunSession.canChooseDoor(record)) {
+                helper.fail("canChooseDoor should accept a HOME record after resetToLobby");
+                return;
+            }
+        } finally {
+            InstanceRegistry.bySlot.remove(slot);
+            InstanceRegistry.byMember.remove(owner);
+            InstanceRegistry.usedSlots.remove(slot);
+        }
         helper.succeed();
     }
 

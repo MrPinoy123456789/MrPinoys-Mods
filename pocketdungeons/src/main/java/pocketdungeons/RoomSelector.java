@@ -280,12 +280,65 @@ final class RoomSelector {
                     continue;
                 }
                 // Eligible: force this room onto this cell.
+                DungeonPlan.PlacedRoom original = placed.get(cell);
                 placed.put(cell, new DungeonPlan.PlacedRoom(match.entry().name, match.rotation()));
+                // F8: revalidate that the replacement did not strip a
+                // provides tag that a deeper cell's requires depends on.
+                // forceRoom already checked the forced room's own requires,
+                // but replacing a provider can break solvability for cells
+                // at greater depth. If it does, revert and keep searching.
+                if (!deeperCellsSatisfied(shape, manifest, placed, depths, bagTags, depth)) {
+                    placed.put(cell, original);
+                    continue;
+                }
                 return;
             }
         }
         // No eligible cell found. The guarantee is silently skipped; the plan
         // is still valid. This is rare and logged by the caller if needed.
+    }
+
+    /**
+     * F8: verifies that every cell at a depth greater than
+     * {@code forcedDepth} still has its {@code requires} satisfied by the
+     * available tags, given the current {@code placed} map. Used after a
+     * forced room replacement to ensure the replacement did not remove a
+     * {@code provides} tag that a deeper cell depends on.
+     */
+    private static boolean deeperCellsSatisfied(DungeonShape shape, RoomManifest manifest,
+                                                Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                                Map<PlanCell, Integer> depths,
+                                                Set<String> bagTags, int forcedDepth) {
+        for (PlanCell cell : shape.cells()) {
+            int depth = depths.getOrDefault(cell, 0);
+            if (depth <= forcedDepth) {
+                continue;
+            }
+            DungeonPlan.PlacedRoom room = placed.get(cell);
+            if (room == null) {
+                continue;
+            }
+            RoomManifest.Entry entry = manifest.byName(room.name());
+            if (entry == null) {
+                continue;
+            }
+            Set<String> available = new java.util.LinkedHashSet<>(bagTags);
+            for (PlanCell other : shape.cells()) {
+                if (depths.getOrDefault(other, 0) < depth) {
+                    DungeonPlan.PlacedRoom otherRoom = placed.get(other);
+                    if (otherRoom != null) {
+                        RoomManifest.Entry otherEntry = manifest.byName(otherRoom.name());
+                        if (otherEntry != null) {
+                            available.addAll(otherEntry.meta.provides);
+                        }
+                    }
+                }
+            }
+            if (!available.containsAll(entry.meta.requires)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

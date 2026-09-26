@@ -3,6 +3,7 @@ package pocketdungeons;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -203,7 +204,7 @@ final class Keystone {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Right-click a lodestone to use it."));
         if (ordered.isEmpty()) {
-            lore.add(grey("Beat the clock to trade up."));
+            lore.add(grey("Clear floors and reach the safe room to trade up."));
         } else {
             for (AffixDefinition def : ordered) {
                 lore.add(grey(def.blurb));
@@ -311,8 +312,57 @@ final class Keystone {
             // replacement's own max stack size.
             ItemStack replacement = mint(level, affixes);
             replacement.setCount(Math.min(stack.getCount(), replacement.getMaxStackSize()));
+            // F6: carry the pending recipe tags and catalyst escrow from the
+            // stale stack onto the re-minted label, so a reconciliation that
+            // corrects the level or affix does not destroy in-flight
+            // transaction state. The level and affix are the authority the
+            // reconciliation is correcting; the transaction state is not.
+            carryTransactionState(stack, replacement);
             container.setItem(i, replacement);
         }
+    }
+
+    /**
+     * F6: copies the pending recipe tags and catalyst escrow from
+     * {@code source} onto {@code target}, so a reconciliation that re-mints a
+     * stale keystone does not destroy in-flight transaction state. Only the
+     * {@code recipe} and {@code escrow} sub-compounds (and a legacy
+     * {@code pending_catalyst} string) are carried over; the level and affix
+     * are the authority the reconciliation is correcting.
+     */
+    private static void carryTransactionState(ItemStack source, ItemStack target) {
+        CustomData sourceData = source.get(DataComponents.CUSTOM_DATA);
+        if (sourceData == null || sourceData.isEmpty()) {
+            return;
+        }
+        CompoundTag sourceRoot = sourceData.copyTag().getCompound(ROOT).orElse(null);
+        if (sourceRoot == null) {
+            return;
+        }
+        CompoundTag recipe = sourceRoot.getCompound("recipe").orElse(null);
+        ListTag escrow = sourceRoot.getList("escrow").orElse(null);
+        String legacyPending = sourceRoot.getStringOr("pending_catalyst", "");
+        if ((recipe == null || recipe.isEmpty())
+                && (escrow == null || escrow.isEmpty())
+                && legacyPending.isBlank()) {
+            return;
+        }
+        CustomData.update(DataComponents.CUSTOM_DATA, target, tag -> {
+            CompoundTag root = tag.getCompound(ROOT).orElse(null);
+            if (root == null) {
+                root = new CompoundTag();
+            }
+            if (recipe != null && !recipe.isEmpty()) {
+                root.put("recipe", recipe);
+            }
+            if (escrow != null && !escrow.isEmpty()) {
+                root.put("escrow", escrow);
+            }
+            if (!legacyPending.isBlank()) {
+                root.putString("pending_catalyst", legacyPending);
+            }
+            tag.put(ROOT, root);
+        });
     }
 
     /**

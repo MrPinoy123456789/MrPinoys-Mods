@@ -239,7 +239,7 @@ final class DialogScreens {
         // One blurb per affix, the same "curse and kiss" sentence the item's lore
         // carries, see the design rule at the AffixEffects class note.
         if (ordered.isEmpty()) {
-            body.add(DialogKit.text(Component.literal("Beat the clock to trade up.")
+            body.add(DialogKit.text(Component.literal("Clear floors and reach the safe room to trade up.")
                     .withStyle(ChatFormatting.GRAY)));
         } else {
             for (AffixDefinition def : ordered) {
@@ -675,7 +675,7 @@ final class DialogScreens {
             return options;
         }
         return List.of(
-                new MenuOption("Start Dungeon", "Requires a keystone in your main hand",
+                new MenuOption("Start Dungeon", "Requires a keystone in your inventory",
                         ACTION_START_DUNGEON),
                 new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
                 // M75: the private visit channel. Lists rooms whose owner has

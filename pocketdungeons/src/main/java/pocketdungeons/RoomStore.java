@@ -8,9 +8,14 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.entity.decoration.HangingEntity;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
+import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -96,12 +101,16 @@ final class RoomStore {
      * room, at the rotation it was stamped at this run.
      *
      * <p>Entities are captured ({@code fillFromWorld}'s {@code withEntities}),
-     * but only after every entity in the cell that is not an item frame or an
-     * armour stand has been discarded (T2.1: "item frames and armour stands are
-     * decoration players will expect to survive; a wandering mob is not").
-     * Filtering before the capture rather than after keeps this to APIs that
-     * already exist -- {@code StructureTemplate} has no public per-entity filter
-     * on load.
+     * but only after every entity in the cell that {@link #isRoomEntity} does
+     * not keep has been discarded: decoration and tamed animals are part of
+     * the room, a wandering mob is not. Filtering before the capture rather
+     * than after keeps this to APIs that already exist; {@code StructureTemplate}
+     * has no public per-entity filter on load.
+     *
+     * <p>The kept entities stay in the world as well as going into the blob,
+     * so a caller that places the blob back into a cell must clear that cell's
+     * entities first. Every clear path does; {@link #discardRoomEntities} is
+     * for the one caller that re-places over a standing room.
      *
      * <p>Players are exempt from that sweep. A capture now runs whenever the
      * owner leaves ({@code RunLifecycle.saveRoom}), and the owner is standing in
@@ -113,11 +122,8 @@ final class RoomStore {
      */
     static boolean capture(ServerLevel level, MinecraftServer server, UUID owner,
                            BlockPos cellOrigin, int capturedQuarterTurns) {
-        for (Entity entity : level.getEntities((Entity) null,
-                new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(), cellOrigin.getZ(),
-                        cellOrigin.getX() + RoomGeometry.CELL, cellOrigin.getY() + RoomGeometry.CEILING_Y + 1,
-                        cellOrigin.getZ() + RoomGeometry.CELL),
-                e -> !(e instanceof Player) && !(e instanceof ItemFrame) && !(e instanceof ArmorStand))) {
+        for (Entity entity : level.getEntities((Entity) null, cellVolume(cellOrigin),
+                e -> !(e instanceof Player) && !isRoomEntity(e))) {
             entity.discard();
         }
 
@@ -142,6 +148,52 @@ final class RoomStore {
             return false;
         }
         return save(server, owner, tag);
+    }
+
+    /** The volume a capture reads: one cell, floor to ceiling. */
+    private static net.minecraft.world.phys.AABB cellVolume(BlockPos cellOrigin) {
+        return new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(), cellOrigin.getZ(),
+                cellOrigin.getX() + RoomGeometry.CELL, cellOrigin.getY() + RoomGeometry.CEILING_Y + 1,
+                cellOrigin.getZ() + RoomGeometry.CELL);
+    }
+
+    /**
+     * Whether a capture keeps this entity as part of the room. An allowlist,
+     * so anything not named here (hostile mobs, the station NPCs, projectiles,
+     * dropped items, minecarts) is transient and discarded:
+     * <ul>
+     *   <li>hanging decoration: paintings and item frames ({@link HangingEntity});</li>
+     *   <li>leash knots ({@link LeashFenceKnotEntity});</li>
+     *   <li>armour stands and mannequins;</li>
+     *   <li>display entities, except this mod's own screens, which the
+     *       staging room summons fresh and which never belong in a blob;</li>
+     *   <li>tamed animals: tamable pets and tamed horses.</li>
+     * </ul>
+     */
+    static boolean isRoomEntity(Entity entity) {
+        if (entity instanceof Display) {
+            return !entity.entityTags().contains(DungeonScreen.TAG);
+        }
+        if (entity instanceof HangingEntity || entity instanceof LeashFenceKnotEntity
+                || entity instanceof ArmorStand || entity instanceof Mannequin) {
+            return true;
+        }
+        if (entity instanceof TamableAnimal tamable) {
+            return tamable.isTame();
+        }
+        return entity instanceof AbstractHorse horse && horse.isTamed();
+    }
+
+    /**
+     * Discards the entities {@link #capture} keeps, for a caller about to
+     * place the blob back over the same standing cell. Without this the
+     * placement adds a second copy of every kept entity.
+     */
+    static void discardRoomEntities(ServerLevel level, BlockPos cellOrigin) {
+        for (Entity entity : level.getEntities((Entity) null, cellVolume(cellOrigin),
+                e -> !(e instanceof Player) && isRoomEntity(e))) {
+            entity.discard();
+        }
     }
 
     /**

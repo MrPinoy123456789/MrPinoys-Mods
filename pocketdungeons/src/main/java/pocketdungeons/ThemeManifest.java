@@ -5,6 +5,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -57,9 +58,14 @@ final class ThemeManifest {
      * entity, so the manifest is the right place to catch it.
      */
     static ThemeManifest parse(MinecraftServer server) {
+        return parse(server, server.getResourceManager());
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static ThemeManifest parse(MinecraftServer server, ResourceManager rm) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
-        Map<Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<Identifier, Resource> resources = rm.listResources(
                 "dungeon_theme", id -> id.getPath().endsWith(".json"));
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());

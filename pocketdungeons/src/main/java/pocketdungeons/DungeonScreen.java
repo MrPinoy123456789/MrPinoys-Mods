@@ -219,14 +219,10 @@ final class DungeonScreen {
         return content;
     }
 
-    /** Context 3: a run is in progress: level, theme, affixes, and the clock. */
+    /** Context 3: a run is in progress: level, theme and affixes. */
     static Component runContent(ServerLevel level, InstanceRecord record) {
-        String timeLine = record.timer == null
-                ? "Untimed"
-                : "Time: " + KeystoneMath.formatClock(record.timer.secondsRemaining());
         MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
-                + themeName(record.theme) + "\n").append(affixLine(record.affixes))
-                .append(Component.literal("\n" + timeLine));
+                + themeName(record.theme) + "\n").append(affixLine(record.affixes));
         return content;
     }
 

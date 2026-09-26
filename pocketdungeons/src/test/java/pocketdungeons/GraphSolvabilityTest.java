@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.minecraft.nbt.CompoundTag;
+
 /**
  * M47 (SITUATIONS_SPEC 6.3 and 6.6): the root-distance solvability invariant,
  * asserted over every cell of every floor in a seed sweep, and over one
@@ -57,6 +59,7 @@ public class GraphSolvabilityTest {
         testUnsatisfiableRequiresNeverLands();
         testConsumableNeverGatesTheSpine();
         testAccessPlacement();
+        testGuaranteePreservesSolvability();
         System.out.println("GraphSolvabilityTest passed");
     }
 
@@ -833,6 +836,111 @@ public class GraphSolvabilityTest {
             throw new AssertionError("expected the access sweep to cover at least 40 floors, got "
                     + floors);
         }
+    }
+
+    /**
+     * F8: a recipe guarantee that forces a room stripping a provider tag
+     * must not break the solvability of deeper cells that require that tag.
+     *
+     * <p>The fixture is a 4-cell line: entrance, a loot cell at depth 1, a
+     * corridor cell at depth 2, and exit. The loot cell's main-pass room is
+     * pot_room (provides trial_key). The corridor cell's room is
+     * barred_vault (requires trial_key). The recipe guarantee forces
+     * plain_loot (same loot role, provides nothing) onto the loot cell.
+     * Without the fix, the replacement strips trial_key and barred_vault's
+     * requires is no longer satisfied. With the fix, forceRoom reverts the
+     * replacement and the plan keeps pot_room.
+     */
+    private static void testGuaranteePreservesSolvability() {
+        PlanCell entrance = new PlanCell(0, 0);
+        PlanCell provider = new PlanCell(1, 0);
+        PlanCell consumer = new PlanCell(2, 0);
+        PlanCell exitCell = new PlanCell(3, 0);
+        Set<PlanCell> cells = new LinkedHashSet<>(List.of(entrance, provider, consumer, exitCell));
+        Map<PlanCell, String> roles = new LinkedHashMap<>();
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(provider, RoleIds.LOOT);
+        roles.put(consumer, RoleIds.CORRIDOR);
+        roles.put(exitCell, RoleIds.EXIT);
+        Set<PlanEdge> edges = new LinkedHashSet<>();
+        edges.add(new PlanEdge(entrance, provider));
+        edges.add(new PlanEdge(provider, consumer));
+        edges.add(new PlanEdge(consumer, exitCell));
+
+        // Masks: entrance=E(0x2), provider=W+E(0xA), consumer=W+E(0xA), exit=W(0x8).
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        entries.add(new RoomManifest.Entry("pocketdungeons:hall",
+                meta("hall", List.of("entrance"), List.of(), List.of(),
+                        DungeonRoomMeta.ACCESS_OPEN, 1), 0x2));
+        entries.add(new RoomManifest.Entry("pocketdungeons:way_out",
+                meta("way_out", List.of("exit"), List.of(), List.of(),
+                        DungeonRoomMeta.ACCESS_OPEN, 1), 0x8));
+        entries.add(new RoomManifest.Entry("pocketdungeons:pot_room",
+                meta("pot_room", List.of("loot"),
+                        List.of(SituationTags.TRIAL_KEY), List.of(),
+                        DungeonRoomMeta.ACCESS_OPEN, 10), 0xA));
+        entries.add(new RoomManifest.Entry("pocketdungeons:plain_loot",
+                meta("plain_loot", List.of("loot"), List.of(), List.of(),
+                        DungeonRoomMeta.ACCESS_OPEN, 1), 0xA));
+        entries.add(new RoomManifest.Entry("pocketdungeons:barred_vault",
+                meta("barred_vault", List.of("corridor"), List.of(),
+                        List.of(SituationTags.TRIAL_KEY),
+                        DungeonRoomMeta.ACCESS_OPEN, 10), 0xA));
+        RoomManifest manifest = RoomManifest.create(entries, List.of());
+
+        // Publish a recipe manifest with a guarantee for plain_loot.
+        RecipeEffects effects = RecipeEffects.build(false, false, false, false, false, 0,
+                List.of(), List.of(new RecipeEffects.GuaranteedRoom(List.of("plain_loot"), 0)));
+        CubeRecipeDefinition def = new CubeRecipeDefinition(
+                "pocketdungeons:test_guarantee_strip", "Test.",
+                "minecraft:redstone", null, 1, 0, 0, effects);
+        CubeRecipeManifest recipeManifest = CubeRecipeManifest.create(
+                Map.of("pocketdungeons:test_guarantee_strip",
+                        new CubeRecipeManifest.Entry("pocketdungeons:test_guarantee_strip", def)),
+                List.of());
+        CubeRecipeManifest.publish(recipeManifest);
+
+        CompoundTag recipeTags = new CompoundTag();
+        recipeTags.putBoolean("pocketdungeons:test_guarantee_strip", true);
+
+        int floors = 0;
+        int guaranteesReverted = 0;
+        for (long seed = 0; seed < 200; seed++) {
+            DungeonShape shape = new DungeonShape(seed, cells, edges, entrance, exitCell,
+                    List.of(entrance, provider, consumer, exitCell), roles);
+            RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
+            RunRecipePlan plan = RunRecipePlan.resolve(seed, 5, Set.of(), Set.of(),
+                    recipeTags, refusal);
+            if (refusal[0] != null) {
+                throw new AssertionError("seed " + seed + ": recipe plan refused: " + refusal[0]);
+            }
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null,
+                    BagTags.pilgrim(), plan);
+            if (result.plan() == null) {
+                throw new AssertionError("seed " + seed + ": resolution failed: "
+                        + result.failure());
+            }
+            floors++;
+            assertInvariant(seed, shape, result.plan(), manifest, BagTags.pilgrim(),
+                    result.fallbackCells());
+
+            // The provider cell must still carry pot_room, not plain_loot,
+            // because replacing it would break barred_vault's trial_key.
+            DungeonPlan.PlacedRoom providerRoom = result.plan().rooms().get(provider);
+            if (providerRoom != null
+                    && providerRoom.name().equals("pocketdungeons:pot_room")) {
+                guaranteesReverted++;
+            }
+        }
+        if (floors == 0) {
+            throw new AssertionError("no floors resolved");
+        }
+        if (guaranteesReverted == 0) {
+            throw new AssertionError("no floor kept pot_room at the provider cell; "
+                    + "the test did not exercise the guarantee revert path");
+        }
+        System.out.println("Guarantee preserves solvability: " + floors + " floors, "
+                + guaranteesReverted + " kept pot_room (guarantee reverted)");
     }
 
     // ---- fixtures ----

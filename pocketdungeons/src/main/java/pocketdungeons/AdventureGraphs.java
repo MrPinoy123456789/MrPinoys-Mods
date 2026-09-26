@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -57,9 +58,15 @@ final class AdventureGraphs {
      * published.
      */
     static AdventureGraphs parse(MinecraftServer server, java.util.function.Predicate<String> themeExists) {
+        return parse(server, server.getResourceManager(), themeExists);
+    }
+
+    /** F1: accepts the incoming ResourceManager from the reload callback. */
+    static AdventureGraphs parse(MinecraftServer server, ResourceManager rm,
+                                 java.util.function.Predicate<String> themeExists) {
         Map<String, AdventureGraph.Node> nodes = new HashMap<>();
         List<String> rejections = new ArrayList<>();
-        Map<Identifier, Resource> resources = server.getResourceManager().listResources(
+        Map<Identifier, Resource> resources = rm.listResources(
                 "dungeon_adventure", id -> id.getPath().endsWith(".json"));
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(resources.entrySet());
         sorted.sort(Map.Entry.comparingByKey());

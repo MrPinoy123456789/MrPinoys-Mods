@@ -83,11 +83,10 @@ final class ContentReload {
                             // The explicit call in Instances.register() covers it.
                             return;
                         }
-                        // Qualified: the enclosing SimpleSynchronousResource
-                        // ReloadListener's own reload method has a different
-                        // signature in 26.2, so a bare reload(s) would resolve
-                        // to it instead of this class's reload(MinecraftServer).
-                        ContentReload.reload(s);
+                        // F1: pass the incoming ResourceManager through to
+                        // ContentSnapshot.build so the snapshot reflects the
+                        // new pack set, not the server's previous one.
+                        ContentReload.reload(s, manager);
                     }
                 });
     }
@@ -99,9 +98,19 @@ final class ContentReload {
      * command can report what the reload would have changed.
      */
     static ContentSnapshot reload(MinecraftServer server) {
+        return reload(server, server.getResourceManager());
+    }
+
+    /**
+     * F1: builds the candidate snapshot from the given {@code ResourceManager}
+     * instead of {@code server.getResourceManager()}. The reload listener
+     * passes the incoming manager so pack toggle changes take effect in the
+     * same reload cycle.
+     */
+    static ContentSnapshot reload(MinecraftServer server, ResourceManager rm) {
         reloadInProgress = true;
         try {
-            ContentSnapshot candidate = ContentSnapshot.build(server);
+            ContentSnapshot candidate = ContentSnapshot.build(server, rm);
             if (candidate.valid()) {
                 current = candidate;
                 RoomManifest.publish(candidate.rooms(), candidate.anomalyRooms());
@@ -179,10 +188,31 @@ final class ContentReload {
         for (InstanceRecord record : orphanedPreviews) {
             PocketDungeonsMod.LOG.warn("Invalidating preview for instance in slot {} after content reload: "
                     + "a referenced room or theme is no longer loaded", record.slot);
-            record.previewPlan = null;
-            record.previewCellOrigin = null;
-            record.previewRecipePlan = null;
-            record.previewOfferStep = 0;
+            // F2: route through the normal cancellation path so the stamped
+            // preview cell, its forced chunk, the selector door window, and
+            // the escrowed catalyst are all cleaned up. Nulling the fields
+            // directly left orphaned world state and a charged catalyst with
+            // no preview to commit.
+            net.minecraft.server.level.ServerLevel dungeon =
+                    server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (dungeon != null) {
+                Instances.clearPreview(dungeon, record, true);
+            } else {
+                // No dungeon level loaded (e.g. a GameTestServer with no
+                // datapack dimension): still drop the preview bookkeeping,
+                // refund the escrowed catalyst, and transition the phase, so
+                // a later commit cannot consume a stale plan and the run is
+                // not stranded in PREVIEW.
+                record.previewPlan = null;
+                record.previewCellOrigin = null;
+                if (record.previewRecipePlan != null) {
+                    Instances.restoreEscrowedCatalyst(server, record);
+                    record.previewRecipePlan = null;
+                }
+                record.previewOfferStep = 0;
+                RunSession.transition(record, record.floorIndex > 0
+                        ? RunSession.Phase.FLOOR_CLEARED : RunSession.Phase.HOME);
+            }
         }
     }
 }
