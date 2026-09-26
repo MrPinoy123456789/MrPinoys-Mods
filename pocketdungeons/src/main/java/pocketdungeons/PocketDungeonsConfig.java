@@ -74,6 +74,13 @@ public final class PocketDungeonsConfig {
     // door steps bank one keystone level (IntervalBanking). Nothing forces
     // the party home.
     private static int floorsPerSafeVisit = 3;
+    // The share of a kit's missing stackable items a safe visit restores, by
+    // the interval's omen band: calm, mid, high. Tools are replaced at the
+    // calm band only, whatever these say (KitTopUp). Each in [0, 1], and no
+    // band may restore more than a calmer one.
+    private static double kitTopUpBandLow = 1.0;
+    private static double kitTopUpBandMid = 0.5;
+    private static double kitTopUpBandHigh = 0.0;
 
     // ---- ritual -------------------------------------------------------------
     private static boolean ritualEnabled = true;
@@ -438,6 +445,11 @@ public final class PocketDungeonsConfig {
         return floorsPerSafeVisit;
     }
 
+    /** The kit top-up's band fractions, calm first. See the fields. */
+    public static double[] kitTopUpBandFractions() {
+        return new double[]{kitTopUpBandLow, kitTopUpBandMid, kitTopUpBandHigh};
+    }
+
     public static int maxGridSpan() {
         return maxGridSpan;
     }
@@ -647,6 +659,9 @@ public final class PocketDungeonsConfig {
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
         floorsPerSafeVisit = 3;
+        kitTopUpBandLow = 1.0;
+        kitTopUpBandMid = 0.5;
+        kitTopUpBandHigh = 0.0;
 
         ritualEnabled = true;
 
@@ -762,6 +777,23 @@ public final class PocketDungeonsConfig {
         planAttemptBudget = readInt(root, "planAttemptBudget", 32, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
         floorsPerSafeVisit = readInt(root, "floorsPerSafeVisit", 3, v -> v >= 1, "must be >= 1");
+        kitTopUpBandLow = readDouble(root, "kitTopUpBandLow", 1.0,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0 and 1");
+        kitTopUpBandMid = readDouble(root, "kitTopUpBandMid", 0.5,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0 and 1");
+        kitTopUpBandHigh = readDouble(root, "kitTopUpBandHigh", 0.0,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0 and 1");
+        if (kitTopUpBandMid > kitTopUpBandLow || kitTopUpBandHigh > kitTopUpBandMid) {
+            // A worse band paying more would reward a riskier interval with a
+            // bigger refill, the opposite of the rule. All three fall back
+            // together so the set stays ordered.
+            PocketDungeonsMod.LOG.error("pocketdungeons.json kitTopUpBandLow/Mid/High ({}, {}, {}) must not "
+                            + "increase from calm to high; using defaults 1.0, 0.5, 0.0",
+                    kitTopUpBandLow, kitTopUpBandMid, kitTopUpBandHigh);
+            kitTopUpBandLow = 1.0;
+            kitTopUpBandMid = 0.5;
+            kitTopUpBandHigh = 0.0;
+        }
         // PD-46: a path longer than the grid can possibly hold (its cell
         // count can never exceed maxGridSpan squared, whatever shape the
         // generator folds it into) fails RoomSelector.validate for every
@@ -1071,6 +1103,9 @@ public final class PocketDungeonsConfig {
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);
         root.addProperty("floorsPerSafeVisit", 3);
+        root.addProperty("kitTopUpBandLow", 1.0);
+        root.addProperty("kitTopUpBandMid", 0.5);
+        root.addProperty("kitTopUpBandHigh", 0.0);
 
         root.addProperty("ritualEnabled", true);
 

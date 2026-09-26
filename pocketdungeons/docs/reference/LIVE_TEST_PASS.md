@@ -2690,3 +2690,28 @@ climbs` or `1 chest, key stalls`, never a level count, and every verdict ends
 - Bounties: bank after six floors in one interval and confirm Deep Diver moves. Clear every spawner on floors 1 and 2 but not floor 3, bank, and confirm Tidy does not move while Clear the Halls counts all three floors' spawners. Banking a single calm floor moves neither Speedrunner nor Explorer (both ask for three floors).
 - Config round trip: set `floorsPerSafeVisit` to 4 and `ownerReconnectGraceSeconds` to 30 in `config/pocketdungeons.json`, restart twice; both values are still there and in effect (the bulb lights after floor 4). Delete one key and restart; it comes back at its default and the others are untouched.
 - Endless Mine: open a Mine interval with the recipe; floors 3 and 6 pay loot tier +1 and +2 as before; the checkpoint line names the HOME lever, not `/dungeon cashout`.
+
+## 45. 2026-09 audit, wave 2c: persistent dungeon inventory, kit granted once, kit top-up
+
+In-client checks for wave 2c. `InventorySwapTest` covers the slot-for-slot
+restore, the keystone in slot 0 and overflow kept in the record;
+`KitTopUpTest` covers the top-up arithmetic and the room counter;
+`CustodyGameTest` drives the swap, the migration grant and both journal
+repairs with the nether standing in for the dungeon. Everything below needs
+the real `pocketdungeons:void`.
+
+- Kept in place: inside, put a pickaxe in hotbar slot 4, a helmet on, torches in the offhand, cobblestone in slot 20 and a stack on the cursor. Leave by the lodestone. Your survival inventory is exactly as it was, and no room chest gained anything. Re-enter: every item is back in its slot, the cursor stack in the first free main slot, a fresh keystone in slot 0.
+- Keystone displacement: inside, move the keystone to slot 6 and put bread in slot 0. Leave and re-enter: one keystone, in slot 0; the bread in the first free main slot.
+- Overflow: fill all 36 main slots inside and hold one more stack on the cursor, leave and re-enter. Chat: `1 stack does not fit in your pack. Nothing was dropped: make room, and it comes back on your next entry.` Nothing lies on the floor. Empty a slot, leave and re-enter: the stack is back.
+- Untagged notice: mine a block inside and leave with it. Chat names how many stacks did not come from the run's own loot and says they stay in your dungeon pack; it is back on re-entry, and never in your survival inventory.
+- Kit once: reset your key (`/dungeon resetkey`), enter, pick Mason at the bag chest: sixteen cobblestone, a pickaxe, torches and bread arrive. Put the whole kit in a room chest, leave, re-enter, repeat three times: no new kit ever appears, the chest holds one kit.
+- Migration grant: on a world saved before this wave, a player who already had a bag enters once: chat says the bag is packed one last time and one kit arrives; a second entry grants nothing.
+- Top-up, calm: as Mason, place eight cobblestone in a room of the floor and eat two bread, clear a calm floor, pull HOME. Chat: `The safe room restocks your kit: 8 cobblestone, 2 bread.` The new stacks carry the bag tag (they stack with the kit's).
+- Top-up, stashed kit: before committing, put the whole kit in a room chest. Clear a calm floor and go home: `Your kit is whole. The safe room has nothing to add.` Put the pickaxe and cobblestone in a shulker box in the chest instead: same result.
+- Top-up, laundering: place kit cobblestone, break it (it comes back untagged), go home calm: no cobblestone restocked.
+- Top-up, bands: finish an uneasy interval missing eight cobblestone and the pickaxe: four cobblestone, no pickaxe. A dire interval: `The omen ran high. The safe room restocks nothing this visit.` Leave at a checkpoint from a calm interval: the restock is the uneasy one.
+- Top-up, tools: break the Mason pickaxe completely, go home calm: `a fresh stone pickaxe` with its short durability. Keep a nearly broken one instead: nothing restocked, it is not repaired.
+- Top-up, buckets: as Plumber, pour both buckets and go home calm: both empties are turned back into full buckets, no extra bucket appears. Leave one empty in a room chest first: that line is not restocked until the empty is carried.
+- Zone scale: in a theme whose rules set `kit_top_up_scale` to 0.5, a calm visit restocks half the deficit, rounded down.
+- Config: set `kitTopUpBandMid` to 1.0 with `kitTopUpBandLow` at 0.5 and restart: one error line, and all three fall back to 1.0, 0.5, 0.0.
+- Journals: after any clean enter or leave, `world/data/pocketdungeons/journal` holds no `<uuid>.dat` or `<uuid>.leaving.dat` for the player.

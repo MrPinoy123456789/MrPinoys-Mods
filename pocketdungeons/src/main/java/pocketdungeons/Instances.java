@@ -70,37 +70,6 @@ final class Instances {
     private static final Map<UUID, PendingReturn> pendingReturns = new HashMap<>();
 
     /**
-     * PD-50: the last {@link InstanceRecord#roomCellOrigin} a member's record
-     * carried at the moment {@link #detach} removed them from
-     * {@link InstanceRegistry#byMember}.
-     *
-     * <p>{@code detach} runs, and clears {@code byMember}, <em>before</em>
-     * {@link #eject} teleports the player: see this class's javadoc on
-     * {@code eject} ("by then this player has already been removed from the
-     * record"). {@code InventorySwap}'s leaving branch is driven by that same
-     * teleport (the dimension-change event, or the tick sweep at worst one
-     * tick later), and it looks the player's room up through
-     * {@code InstanceRegistry.byMember} to find a container to deliver their
-     * void inventory to. By the time it runs, that lookup is already gone, so
-     * every void-side inventory was silently falling through to the "drop at
-     * their feet" branch instead of reaching the room. This map is the fix:
-     * {@code detach} writes the origin here before clearing {@code byMember},
-     * and {@link #consumeLastRoomCellOrigin} reads and forgets it, so a stale
-     * entry cannot outlive the one delivery it was written for.
-     */
-    private static final Map<UUID, BlockPos> lastRoomCellOrigin = new HashMap<>();
-
-    /**
-     * PD-50: the room origin {@link #detach} last saw for {@code member},
-     * consumed once. Returns {@code null} if none was recorded, which is the
-     * existing behaviour for a player with no room at all (an untimed or
-     * admin-built run) and for anyone who was never detached.
-     */
-    static BlockPos consumeLastRoomCellOrigin(UUID member) {
-        return lastRoomCellOrigin.remove(member);
-    }
-
-    /**
      * PD-44: a game-time expiry alongside the point itself, so a player who
      * disconnects inside and never comes back does not leave an entry for
      * the rest of the process. 24 in-game hours is generous to a genuinely
@@ -1739,16 +1708,6 @@ final class Instances {
     static ReturnPoint detach(MinecraftServer server, InstanceRecord record, UUID member, ServerPlayer player) {
         // Before anything else, while the room is still exactly as they left it.
         RunLifecycle.saveRoomIfOwner(server, record, member);
-        // PD-50: cached before byMember loses the association, so the leaving
-        // swap that this detach's own teleport is about to trigger can still
-        // find where to deliver this player's void inventory. See
-        // lastRoomCellOrigin's javadoc.
-        // M55: the safe room may be despawned during dungeon play, but the
-        // player's inventory was swapped at the safe room's origin (the slot
-        // origin). Cache that origin so the leaving swap can find it.
-        if (record.origin != null && !record.visitInstance) {
-            lastRoomCellOrigin.put(member, record.origin);
-        }
         OmenSources.forget(member);
         OmenBar.detach(record, member);
         ReturnPoint point = record.members.remove(member);

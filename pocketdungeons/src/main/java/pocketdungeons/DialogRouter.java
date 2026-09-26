@@ -8,6 +8,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -497,8 +498,10 @@ public final class DialogRouter {
      * A bag-confirm click: re-validates against live state (the player must
      * still be in the dungeon dimension, be a member of a non-visit instance,
      * and have no bag assigned), then records the bag on their
-     * {@link DungeonLog} entry, rolls the bag's loot into their inventory, and
-     * clears the bag chest once every member present has chosen. The chest is
+     * {@link DungeonLog} entry, rolls the bag's kit into their inventory (the
+     * one time it is ever handed over; what does not fit waits in their
+     * dungeon inventory), and clears the bag chest once every member present
+     * has chosen. The chest is
      * also cleared on door-choice and save, so a member who skips it simply
      * enters with the keystone alone and gets the chest back next lobby.
      */
@@ -520,7 +523,13 @@ public final class DialogRouter {
             return;
         }
         log.setBag(player.getUUID(), bagId);
-        Bags.apply(player, bagId);
+        List<ItemStack> leftover = Bags.apply(player, bagId);
+        if (leftover != null) {
+            // The kit is granted once, here. Entering and leaving never hand
+            // it out again; safe visits top it up (KitTopUp).
+            log.setKitGranted(player.getUUID(), true);
+            InventorySwap.keepForNextEntry(log, player.getUUID(), leftover);
+        }
         // Clear the chest once every member present has chosen; until then it
         // stays so a bagless member can still pick.
         boolean anyBagless = log.bagOf(record.owner).isEmpty();

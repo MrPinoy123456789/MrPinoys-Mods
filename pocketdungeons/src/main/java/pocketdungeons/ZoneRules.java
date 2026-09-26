@@ -61,8 +61,9 @@ import java.util.Set;
  *                        The Endless Mine's escalating haul.
  * @param unlockLevel     the keystone level at which a door into this zone
  *                        can be offered
- * @param kitTopUpScale   multiplier on the safe-visit kit top-up. Read and
- *                        validated; the top-up itself arrives in wave 2c.
+ * @param kitTopUpScale   multiplier on the safe-visit kit top-up
+ *                        ({@link KitTopUp}); the result is still capped at
+ *                        the kit baseline.
  */
 record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonus,
                  int omenBaseAfter, int omenBaseAmount, double omenScale, String lootRole,

@@ -141,8 +141,8 @@ final class DungeonLog extends SavedData {
      * @param bag               (M48) this player's chosen bag id, or {@code ""}
      *                          for none yet. A bag is the player's class: a
      *                          starting inventory chosen once via the bag chest
-     *                          in the safe room, applied fresh on every void
-     *                          entry, and locked to the keystone until a full
+     *                          in the safe room, its kit handed over once at
+     *                          that pick ({@code kitGranted}), and locked to the keystone until a full
      *                          {@link #resetCampaign}. Empty is the pre-choice
      *                          state and the post-reset state; it is never the
      *                          Pilgrim default, because Pilgrim is a choice.
@@ -153,6 +153,14 @@ final class DungeonLog extends SavedData {
      *                          to the next. Optional in the codec with a
      *                          default of 0, so an older save loads with no
      *                          partial progress.
+     * @param kitGranted        (audit wave 2c) whether this player's bag kit
+     *                          has been handed over under the grant-once model:
+     *                          set when the bag is chosen, cleared with the bag
+     *                          by {@link #resetCampaign}. A player who has a bag
+     *                          but not this flag chose it before the kit stopped
+     *                          being reapplied on entry, and gets one migration
+     *                          grant on their next entry. Optional in the codec
+     *                          with a default of {@code false}.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
@@ -161,7 +169,7 @@ final class DungeonLog extends SavedData {
                  boolean publicListed, String roomName, int fuel,
                  Set<String> unlockedShells, int roomCompletions,
                  List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen,
-                 String bag, int keyProgress) {
+                 String bag, int keyProgress, boolean kitGranted) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -192,85 +200,91 @@ final class DungeonLog extends SavedData {
         Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withKeystone(int keystoneLevel, String keystoneAffix) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withPendingOfferLevel(int pendingOfferLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withPublicListed(boolean publicListed) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withFuel(int fuel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withRoomName(String roomName) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withExtractedPowers(Set<String> extractedPowers) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withUnlockedShells(Set<String> unlockedShells) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withRoomCompletions(int roomCompletions) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withKeyProgress(int keyProgress) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+        }
+
+        Entry withKitGranted(boolean kitGranted) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
 
         Entry withBag(String bag) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
         }
     }
 
@@ -280,7 +294,7 @@ final class DungeonLog extends SavedData {
     static final int MAX_RECENT_VISITORS = 10;
 
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0, Set.of(), 0, List.of(), Set.of(), "", 0);
+            false, "", 0, Set.of(), 0, List.of(), Set.of(), "", 0, false);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -376,7 +390,7 @@ final class DungeonLog extends SavedData {
     private record PartB(int depth, Set<String> extractedPowers, boolean publicListed,
                          String roomName, int fuel, Set<String> unlockedShells, int roomCompletions,
                          List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen, String bag,
-                         int keyProgress) {}
+                         int keyProgress, boolean kitGranted) {}
 
     private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -430,7 +444,11 @@ final class DungeonLog extends SavedData {
             Codec.STRING.optionalFieldOf("bag", "").forGetter(PartB::bag),
             // Audit wave 2b: partial keystone progress. A save written before
             // it loads with none.
-            Codec.INT.optionalFieldOf("key_progress", 0).forGetter(PartB::keyProgress)
+            Codec.INT.optionalFieldOf("key_progress", 0).forGetter(PartB::keyProgress),
+            // Audit wave 2c: the kit is granted once. A save written before it
+            // loads as not granted, which is what earns a bag holder their one
+            // migration grant.
+            Codec.BOOL.optionalFieldOf("kit_granted", false).forGetter(PartB::kitGranted)
     ).apply(instance, PartB::new));
 
     private static final Codec<Entry> ENTRY_CODEC = Codec.mapPair(PART_A_CODEC, PART_B_CODEC).xmap(
@@ -442,7 +460,7 @@ final class DungeonLog extends SavedData {
                         a.completedThemes(), a.currentTheme(), b.depth(), b.extractedPowers(),
                         b.publicListed(), b.roomName(), b.fuel(), b.unlockedShells(),
                         b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen(), b.bag(),
-                        b.keyProgress());
+                        b.keyProgress(), b.kitGranted());
             },
             entry -> com.mojang.datafixers.util.Pair.of(
                     new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),
@@ -451,7 +469,7 @@ final class DungeonLog extends SavedData {
                     new PartB(entry.depth(), entry.extractedPowers(), entry.publicListed(),
                             entry.roomName(), entry.fuel(), entry.unlockedShells(),
                             entry.roomCompletions(), entry.recentVisitors(), entry.diaryBandsSeen(),
-                            entry.bag(), entry.keyProgress()))
+                            entry.bag(), entry.keyProgress(), entry.kitGranted()))
     ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -621,8 +639,8 @@ final class DungeonLog extends SavedData {
     /**
      * (M48) This player's chosen bag id, or {@code ""} if they have not chosen
      * one (or have just reset). Read by the bag chest's right-click handler to
-     * decide whether to open the picker, by {@code InventorySwap.enterVoid} to
-     * decide whether to apply a fresh bag, and by the room generator to seed
+     * decide whether to open the picker, by {@code InventorySwap.enterVoid} for
+     * the one migration grant, by the safe-visit kit top-up, and by the room generator to seed
      * the solvability pass.
      */
     String bagOf(UUID player) {
@@ -642,6 +660,20 @@ final class DungeonLog extends SavedData {
             return;
         }
         entries.put(player, previous.withBag(clamped));
+        setDirty();
+    }
+
+    /**
+     * (Audit wave 2c) Records whether this player's bag kit has been handed
+     * over. Set with the bag at the bag chest pick, and by
+     * {@code InventorySwap}'s one migration grant.
+     */
+    void setKitGranted(UUID player, boolean granted) {
+        Entry previous = get(player);
+        if (previous.kitGranted() == granted) {
+            return;
+        }
+        entries.put(player, previous.withKitGranted(granted));
         setDirty();
     }
 
@@ -1137,7 +1169,7 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         Entry reset = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
                 previous.publicListed(), previous.roomName(), 0, previous.unlockedShells(),
-                0, previous.recentVisitors(), previous.diaryBandsSeen(), "", 0);
+                0, previous.recentVisitors(), previous.diaryBandsSeen(), "", 0, false);
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);

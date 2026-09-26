@@ -28,7 +28,7 @@ import java.util.Set;
  * {@code pocketdungeons.gametest} where {@link pocketdungeons.gametest.InventorySwapGameTest}
  * sits, and that is deliberate. The custody state these scenarios assert on
  * ({@link DungeonLog#orphanOf}, {@link InventorySwap.OrphanRecord},
- * {@link RunLifecycle#deliverToRoom}) is package-private, and the alternative
+ * {@link InventoryJournal}) is package-private, and the alternative
  * to sharing the package is opening six production members to the world so a
  * test can read them. Split packages across two source sets are legal and both
  * halves land in the same classloader in dev, so this compiles and runs
@@ -41,10 +41,18 @@ import java.util.Set;
  * M63 is about: across a transition that goes wrong, is every item still
  * somewhere. So the assertions are exact per-item totals summed over every
  * place an item can legitimately be at once (live inventory, cursor, the stash
- * record, the orphan record, and item entities dropped at the player's feet),
- * not slot-for-slot equality. An item that moved from a slot to the floor is
- * conserved; an item that is in both a slot and the orphan is duplicated, and
- * that is the failure this milestone exists to catch.
+ * record, the dungeon inventory record, and item entities dropped at the
+ * player's feet), not slot-for-slot equality. An item that moved from a slot
+ * to the floor is conserved; an item that is in both a slot and the record is
+ * duplicated, and that is the failure this milestone exists to catch.
+ *
+ * <p>Not covered here: the identity of {@code pocketdungeons:void} (the
+ * scenarios stand the nether or the overworld in for it), a keystone in slot
+ * 0 on a live entry (a keystone holder's remote is also reconciled into their
+ * survival inventory by the keystone watcher, which a conservation count
+ * cannot tell apart; the pure core covers the slot 0 rule), and the kit
+ * top-up's settlement path, which needs a live instance record (its math is
+ * {@code KitTopUpTest}; the rest is a live checklist row).
  *
  * <p>The dungeon dimension is the nether here, for the reason
  * {@link InventorySwap.Probe#useDimensionForTesting} spells out: a
@@ -88,117 +96,231 @@ public final class CustodyGameTest {
     }
 
     /**
-     * An orphan larger than the free space it is restored into.
+     * A dungeon inventory larger than the pack it is restored into.
      *
-     * <p>{@code restoreOrphanIfAny} places into main slots 1 to 35 and drops
-     * what will not fit. The drop is the conserving branch, so the assertion is
-     * that the items are on the floor, not that they are in the inventory. What
-     * must never happen is the orphan being cleared while part of it went
-     * nowhere.
+     * <p>The kept record fills all 36 main slots and carries a cursor stack
+     * and loose stacks as well. Everything that has a slot goes back into that
+     * slot; the rest stays in the record for the next entry. Nothing may be
+     * dropped (the ground is a dungeon) and nothing may be voided.
      */
     @GameTest
-    public void orphanOverflowIsDroppedNotVoided(GameTestHelper helper) {
+    public void dungeonInventoryOverflowIsKeptNotDropped(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = standInALoadedChunk(helper);
         DungeonLog log = DungeonLog.forServer(server);
 
-        // More distinct stacks than the 35 slots an orphan can restore into.
-        List<ItemStack> orphaned = new ArrayList<>();
-        for (int i = 0; i < 40; i++) {
-            orphaned.add(new ItemStack(Items.GOLD_INGOT, 1));
+        List<ItemStack> kept = new ArrayList<>();
+        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+            kept.add(ItemStack.EMPTY);
         }
-        log.setOrphan(player.getUUID(), new InventorySwap.OrphanRecord(orphaned));
+        for (int i = 0; i < InventorySwap.MAIN_COUNT; i++) {
+            kept.set(i, new ItemStack(Items.GOLD_INGOT, 1));
+        }
+        kept.set(7, new ItemStack(Items.DIAMOND_SWORD));
+        kept.set(InventorySwap.ARMOR_START + 2, new ItemStack(Items.IRON_CHESTPLATE));
+        kept.set(InventorySwap.OFFHAND, new ItemStack(Items.SHIELD));
+        kept.set(InventorySwap.CURSOR, new ItemStack(Items.EMERALD, 3));
+        kept.add(new ItemStack(Items.DIAMOND, 2));
+        kept.add(new ItemStack(Items.DIAMOND, 5));
+        log.setOrphan(player.getUUID(), new InventorySwap.OrphanRecord(kept));
         emptyInventory(player);
         Haunts haunts = new Haunts(player);
         Map<Item, Integer> before = custodyTotals(server, player, haunts);
-        helper.assertValueEqual(before.getOrDefault(Items.GOLD_INGOT, 0), 40,
-                "the orphan starts holding all forty ingots");
 
         // The entry happens where the player already stands, by pointing the
         // invariant at this level rather than teleporting into the nether.
-        //
-        // That is not a shortcut around the transition: reconcile's entering
-        // branch is the same code either way, and it is the branch under test.
-        // It is a shortcut around the harness. A gametest structure sits
-        // millions of blocks from the origin, so the matching chunk in another
-        // dimension has never been generated, and an item dropped into it is
-        // discarded by addFreshEntity and is not queryable for many ticks even
-        // once generation finishes. Asserting on drops there measures chunk
-        // lifecycle latency, not custody. The structure's own chunk is already
-        // loaded and already proven to hold dropped items, so the overflow
-        // lands somewhere an assertion can actually see it.
+        // reconcile's entering branch is the same code either way; the
+        // structure's own chunk is simply the one place a stray drop would be
+        // visible to the count below.
         helper.runAfterDelay(4L, () -> {
             InventorySwap.Probe.useDimensionForTesting(Level.OVERWORLD);
             InventorySwap.Probe.forceStash(player, false, List.of());
             InventorySwap.Probe.reconcileNow(player);
-            helper.assertTrue(InventorySwap.Probe.isStashed(player),
-                    "the entering branch ran");
-            helper.assertTrue(log.orphanOf(player.getUUID()).items().isEmpty(),
-                    "a fully delivered orphan is cleared so re-entry cannot duplicate it");
+            InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
+            helper.assertTrue(InventorySwap.Probe.isStashed(player), "the entering branch ran");
+            helper.assertTrue(player.getInventory().getItem(7).is(Items.DIAMOND_SWORD),
+                    "the sword came back to hotbar slot 7");
+            helper.assertTrue(player.getInventory().getItem(InventorySwap.ARMOR_START + 2).is(Items.IRON_CHESTPLATE),
+                    "the chestplate came back to the chest slot");
+            helper.assertTrue(player.getInventory().getItem(InventorySwap.OFFHAND).is(Items.SHIELD),
+                    "the shield came back to the offhand");
+            helper.assertValueEqual(log.orphanOf(player.getUUID()).stackCount(), 3,
+                    "the cursor stack and both loose stacks wait in the record");
         });
         helper.runAfterDelay(9L, () -> {
+            helper.assertValueEqual(droppedNear(server, haunts), 0, "nothing was dropped");
             assertConserved(helper, before, custodyTotals(server, player, haunts),
-                    "every orphaned ingot is in a slot or on the floor, none voided");
+                    "every kept item is in a slot or still in the record, none voided");
             cleanUp(server, player);
             helper.succeed();
         });
     }
 
     /**
-     * Room delivery that only partly fits.
+     * Leave then re-enter with a dungeon inventory: it is kept whole, slot for
+     * slot, and nothing is delivered anywhere else.
      *
-     * <p>{@link RunLifecycle#deliverToRoom} is the bonus half of PD-65: the
-     * orphan is already on disk before it runs, and its job is to move what
-     * fits into the room's containers and hand the rest back. The property that
-     * matters is that delivered plus returned equals offered, exactly. A
-     * remainder that is neither in a container nor in the returned list is an
-     * item the player will never see again.
+     * <p>This is the no-auto-delivery property. The void inventory used to be
+     * emptied into the room's chests on the way out; now the record is its
+     * only destination, so after the leave every item is in the record and in
+     * no slot, container or item entity.
      */
     @GameTest
-    public void partialRoomDeliveryReturnsExactlyWhatDidNotFit(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos roomOrigin = helper.absolutePos(BlockPos.ZERO);
+    public void dungeonInventoryRoundTripKeepsEverySlot(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerLevel dungeon = enterDungeonDimension(helper, server);
+        ServerPlayer player = standInALoadedChunk(helper);
+        Haunts haunts = new Haunts(player);
+        DungeonLog log = DungeonLog.forServer(server);
 
-        List<ItemStack> offered = List.of(
-                new ItemStack(Items.DIAMOND, 12),
-                new ItemStack(Items.EMERALD, 7),
-                new ItemStack(Items.GOLD_INGOT, 30));
-        Map<Item, Integer> before = totalsOf(offered);
+        player.getInventory().setItem(4, new ItemStack(Items.APPLE, 3));
+        Map<Item, Integer> survival = custodyTotals(server, player, haunts);
+        teleport(helper, player, dungeon, haunts, "into the dungeon");
 
-        List<ItemStack> leftover = RunLifecycle.deliverToRoom(level, roomOrigin, offered);
-
-        // Whatever the scan found, the arithmetic has to close: what came back
-        // plus what the containers now hold must equal what was offered. With
-        // no containers in range this degenerates to "everything came back",
-        // which is the conserving answer and the one this harness usually
-        // exercises, since a gametest structure has no room furniture in it.
-        Map<Item, Integer> returned = totalsOf(leftover);
-        Map<Item, Integer> delivered = new HashMap<>();
-        for (Map.Entry<Item, Integer> entry : before.entrySet()) {
-            int missing = entry.getValue() - returned.getOrDefault(entry.getKey(), 0);
-            if (missing != 0) {
-                delivered.put(entry.getKey(), missing);
-            }
-        }
-        for (Map.Entry<Item, Integer> entry : delivered.entrySet()) {
-            helper.assertTrue(entry.getValue() > 0,
-                    "delivery never returns more of " + entry.getKey() + " than it was given");
+        player.getInventory().setItem(3, new ItemStack(Items.STONE_PICKAXE));
+        player.getInventory().setItem(20, new ItemStack(Items.COBBLESTONE, 16));
+        player.getInventory().setItem(InventorySwap.ARMOR_START + 2, new ItemStack(Items.LEATHER_CHESTPLATE));
+        player.getInventory().setItem(InventorySwap.OFFHAND, new ItemStack(Items.TORCH, 4));
+        Map<Item, Integer> pack = new HashMap<>();
+        for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
+            add(pack, player.getInventory().getItem(slot));
         }
 
-        Map<Item, Integer> after = new HashMap<>(returned);
-        delivered.forEach((item, count) -> after.merge(item, count, Integer::sum));
-        assertConserved(helper, before, after,
-                "delivered plus returned equals offered, item for item");
+        teleport(helper, player, server.overworld(), haunts, "out of the dungeon");
+        List<ItemStack> record = log.orphanOf(player.getUUID()).items();
+        helper.assertTrue(record.size() >= InventorySwap.SLOTS, "the record is a positional snapshot");
+        helper.assertTrue(record.get(3).is(Items.STONE_PICKAXE), "the pickaxe is kept in slot 3");
+        helper.assertTrue(record.get(InventorySwap.ARMOR_START + 2).is(Items.LEATHER_CHESTPLATE),
+                "the chestplate is kept in the chest slot");
+        assertConserved(helper, pack, totalsOf(record), "the record holds the whole pack and nothing else");
 
-        // The offered list must not have been mutated out from under the
-        // caller: leaveVoid holds it as the orphan if delivery falls short.
-        helper.assertValueEqual(offered.get(0).getCount(), 12,
-                "delivery did not shrink the caller's own stacks in place");
+        teleport(helper, player, dungeon, haunts, "back into the dungeon");
+        helper.assertTrue(player.getInventory().getItem(3).is(Items.STONE_PICKAXE), "slot 3 again");
+        helper.assertTrue(player.getInventory().getItem(20).is(Items.COBBLESTONE), "slot 20 again");
+        helper.assertTrue(player.getInventory().getItem(InventorySwap.OFFHAND).is(Items.TORCH), "offhand again");
+        helper.assertTrue(log.orphanOf(player.getUUID()).items().isEmpty(),
+                "a record that fully restored is cleared, so the next entry cannot duplicate it");
 
-        helper.succeed();
+        teleport(helper, player, server.overworld(), haunts, "out for good");
+        settleThenAssert(helper, () -> {
+            Map<Item, Integer> all = new HashMap<>(survival);
+            pack.forEach((item, count) -> all.merge(item, count, Integer::sum));
+            assertConserved(helper, all, custodyTotals(server, player, haunts),
+                    "survival and the pack both survived two round trips");
+            cleanUp(server, player);
+        });
     }
 
     /**
+     * Entering and leaving never grant items, and the one migration grant is
+     * exactly one.
+     *
+     * <p>Before the grant-once rule, every entry with an empty orphan applied
+     * the bag kit again, and the leave delivered the pack to the room's chests
+     * and cleared the orphan, so walking in and out stocked the room with a
+     * fresh kit each time. Here a Mason who has never been granted under the
+     * new rule gets one kit on the first entry and nothing on the next five
+     * round trips; the per-item totals across every custody place stay put.
+     */
+    @GameTest
+    public void repeatedEnterAndLeaveGrantsNothing(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        DungeonLog log = DungeonLog.forServer(server);
+        helper.assertTrue(Bags.byId("pocketdungeons:mason") != null, "the Mason bag is loaded");
+        log.setBag(player.getUUID(), "pocketdungeons:mason");
+        emptyInventory(player);
+        Haunts haunts = new Haunts(player);
+
+        helper.runAfterDelay(4L, () -> {
+            // First entry: the one migration grant.
+            cycle(player, true);
+            helper.assertTrue(log.get(player.getUUID()).kitGranted(), "the migration grant is recorded");
+            Map<Item, Integer> afterGrant = custodyTotals(server, player, haunts);
+            helper.assertValueEqual(afterGrant.getOrDefault(Items.COBBLESTONE, 0), 16,
+                    "the Mason kit arrived once: sixteen cobblestone");
+            helper.assertValueEqual(afterGrant.getOrDefault(Items.STONE_PICKAXE, 0), 1, "and one pickaxe");
+
+            for (int round = 0; round < 5; round++) {
+                cycle(player, false);
+                cycle(player, true);
+                assertConserved(helper, afterGrant, custodyTotals(server, player, haunts),
+                        "round " + round + " granted nothing");
+            }
+            cycle(player, false);
+            assertConserved(helper, afterGrant, custodyTotals(server, player, haunts),
+                    "the final leave granted nothing");
+            InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
+            cleanUp(server, player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One swap for a player standing in the overworld: an entry when the
+     * invariant is pointed at the overworld, a leave when it is pointed back at
+     * the nether. Both land in the same tick as the call, so a sibling
+     * scenario cannot move the shared field in between.
+     */
+    private static void cycle(ServerPlayer player, boolean enter) {
+        InventorySwap.Probe.useDimensionForTesting(enter ? Level.OVERWORLD : Level.NETHER);
+        InventorySwap.Probe.reconcileNow(player);
+    }
+
+    /**
+     * The leave journal repairs a dungeon inventory the saved data lost, and
+     * leaves an intact one alone.
+     *
+     * <p>Staged the same way as the stash repair below: the record is written,
+     * the live inventory cleared, and the saved data's copy of the record is
+     * lost before it reaches disk.
+     */
+    @GameTest
+    public void aLostDungeonInventoryIsRepairedFromTheJournal(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        DungeonLog log = DungeonLog.forServer(server);
+
+        helper.runAfterDelay(4L, () -> {
+            InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
+            List<ItemStack> kept = new ArrayList<>();
+            for (int i = 0; i < InventorySwap.SLOTS; i++) {
+                kept.add(ItemStack.EMPTY);
+            }
+            kept.set(2, new ItemStack(Items.STONE_PICKAXE));
+            kept.set(9, new ItemStack(Items.COBBLESTONE, 12));
+            Map<Item, Integer> pack = totalsOf(kept);
+
+            long op = InventoryJournal.prepareLeaving(server, player, kept);
+            helper.assertFalse(op == 0L, "the leave was journalled");
+            log.setStash(player.getUUID(), InventorySwap.StashRecord.NONE);
+            log.setOrphan(player.getUUID(), InventorySwap.OrphanRecord.NONE);
+
+            InventoryJournal.forgetCheckedForTesting();
+            InventorySwap.Probe.reconcileNow(player);
+            List<ItemStack> repaired = log.orphanOf(player.getUUID()).items();
+            assertConserved(helper, pack, totalsOf(repaired), "the repaired record holds the pack");
+            helper.assertTrue(repaired.get(2).is(Items.STONE_PICKAXE), "in its slots");
+            helper.assertFalse(java.nio.file.Files.exists(
+                    InventoryJournal.leavingFileForTesting(server, player.getUUID())), "and the record is retired");
+
+            // A stale record next to an intact dungeon inventory is retired,
+            // never applied on top of it.
+            InventoryJournal.prepareLeaving(server, player, List.of(new ItemStack(Items.DIAMOND, 64)));
+            InventoryJournal.forgetCheckedForTesting();
+            InventorySwap.Probe.reconcileNow(player);
+            assertConserved(helper, pack, totalsOf(log.orphanOf(player.getUUID()).items()),
+                    "an intact record was left alone");
+            helper.assertFalse(java.nio.file.Files.exists(
+                    InventoryJournal.leavingFileForTesting(server, player.getUUID())), "the stale record is gone");
+
+            cleanUp(server, player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The M63 journal repairs a stash record    /**
      * The M63 journal repairs a stash record the saved data lost, and does not
      * invent one when the stash is intact.
      *
@@ -402,8 +524,8 @@ public final class CustodyGameTest {
      * Every item this player is accountable for, wherever it currently lives.
      *
      * <p>The five places are the whole of the custody surface: the live slots,
-     * the cursor, the stash record holding a survival inventory, the orphan
-     * record holding a void inventory, and the floor at any position the player
+     * the cursor, the stash record holding a survival inventory, the dungeon
+     * inventory record holding a void inventory, and the floor at any position the player
      * has occupied, once something has been dropped rather than voided.
      */
     private static Map<Item, Integer> custodyTotals(MinecraftServer server, ServerPlayer player,
@@ -431,6 +553,17 @@ public final class CustodyGameTest {
             add(totals, dropped.getItem());
         }
         return totals;
+    }
+
+    /** How many item entities lie at any position the player has occupied. */
+    private static int droppedNear(MinecraftServer server, Haunts haunts) {
+        Set<ItemEntity> found = new java.util.HashSet<>();
+        for (ServerLevel level : server.getAllLevels()) {
+            for (AABB box : haunts.boxes()) {
+                found.addAll(level.getEntitiesOfClass(ItemEntity.class, box));
+            }
+        }
+        return found.size();
     }
 
     private static Map<Item, Integer> totalsOf(List<ItemStack> stacks) {
@@ -492,6 +625,7 @@ public final class CustodyGameTest {
         DungeonLog log = DungeonLog.forServer(server);
         log.setStash(player.getUUID(), InventorySwap.StashRecord.NONE);
         log.setOrphan(player.getUUID(), InventorySwap.OrphanRecord.NONE);
+        log.resetCampaign(player.getUUID());
         emptyInventory(player);
         server.getPlayerList().remove(player);
         // Deliberately not resetting useDimensionForTesting here. It is one

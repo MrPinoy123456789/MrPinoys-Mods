@@ -47,118 +47,6 @@ final class RunLifecycle {
 
     private RunLifecycle() {}
 
-    // ---- the void inventory, on the way out (M46, spec 11.6 and 11.9) ------
-
-    /**
-     * Spec 11.9's belt and braces. Anything in the void inventory that is
-     * neither bag loot nor the keystone got there without this mod's
-     * involvement, which is the "another mod put a netherite sword in my
-     * inventory mid-run" case.
-     *
-     * <p>It is a warning, not a confiscation and not a divert into the survival
-     * backup. The stacks still go to the room with everything else: they might
-     * be legitimate room items the player was holding, and the backup is
-     * restored whole either way. The one thing this must never do is put an
-     * untagged stack anywhere near the survival restore.
-     *
-     * <p>Package-private so {@link InventorySwap}'s leaving branch can call
-     * it, since the delivery logic lives there.
-     */
-    static void warnAboutUntagged(ServerPlayer player, List<ItemStack> carried) {
-        List<ItemStack> strays = InventorySwap.untagged(carried, ItemStack::isEmpty, InventorySwap::isOurs);
-        if (strays.isEmpty()) {
-            return;
-        }
-        List<String> untagged = new ArrayList<>();
-        for (ItemStack stack : strays) {
-            untagged.add(stack.getCount() + "x " + stack.getItem());
-        }
-        PocketDungeonsMod.LOG.warn(
-                "{} left the dungeon carrying {} untagged stacks; they were not bag loot and "
-                        + "not a keystone, and have been delivered to the room rather than "
-                        + "restored with survival: {}",
-                player.getName().getString(), untagged.size(), String.join(", ", untagged));
-        // Said out loud as well as logged. A player who finds an item missing
-        // should be told where it went at the moment it moves, not left to
-        // discover it and file a bug about lost gear.
-        player.sendSystemMessage(Component.literal(untagged.size()
-                        + (untagged.size() == 1 ? " item was" : " items were")
-                        + " left in your room: they came into the dungeon from outside the run.")
-                .withStyle(ChatFormatting.YELLOW));
-    }
-
-    /**
-     * Fills the room's own containers first, then returns whatever did not
-     * fit so the caller can hold it for the player's next entry rather than
-     * dropping it into the dungeon dimension where it can be lost to a
-     * teardown.
-     *
-     * <p>The scan is the same shape {@code BlacksmithNPC.findSmithingTable}
-     * uses: at most ~1500 block reads, once, when somebody walks out of a
-     * dungeon.
-     *
-     * <p>PD-65: this method used to drop overflow at the room's pad position
-     * inside the dungeon dimension via {@code Block.popResource}. If the room
-     * was being torn down at the same time (an abandoned lobby purge firing
-     * after "Leave Dungeon"), the floor under that pad position could be
-     * cleared before the item landed, and the item fell into the void and
-     * was destroyed. Returning the leftovers to the caller instead lets
-     * {@link InventorySwap#leaveVoid} hold them as an
-     * {@link InventorySwap.OrphanRecord} and hand them back on the player's
-     * next entry into any dungeon, the same guarantee the overworld
-     * inventory already has through {@link InventorySwap.StashRecord}.
-     */
-    static List<ItemStack> deliverToRoom(ServerLevel level, BlockPos roomOrigin, List<ItemStack> carried) {
-        List<Container> containers = new ArrayList<>();
-        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
-            for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
-                for (int z = 1; z < RoomGeometry.CELL - 1; z++) {
-                    BlockEntity be = level.getBlockEntity(roomOrigin.offset(x, y, z));
-                    if (be instanceof Container container) {
-                        containers.add(container);
-                    }
-                }
-            }
-        }
-        List<ItemStack> leftover = new ArrayList<>();
-        for (ItemStack stack : carried) {
-            ItemStack remainder = insertInto(containers, stack);
-            if (!remainder.isEmpty()) {
-                leftover.add(remainder);
-            }
-        }
-        return leftover;
-    }
-
-    /**
-     * Puts as much of {@code stack} into {@code containers} as fits, and hands
-     * back whatever did not.
-     *
-     * <p>Only empty slots are used. Merging into a partially filled slot would
-     * mean re-implementing vanilla's stacking rules over an arbitrary
-     * container, and a room chest with a few free slots is the normal case
-     * anyway.
-     */
-    private static ItemStack insertInto(List<Container> containers, ItemStack stack) {
-        ItemStack remaining = stack.copy();
-        for (Container container : containers) {
-            for (int slot = 0; slot < container.getContainerSize() && !remaining.isEmpty(); slot++) {
-                if (!container.getItem(slot).isEmpty()) {
-                    continue;
-                }
-                int take = Math.min(remaining.getCount(),
-                        Math.min(remaining.getMaxStackSize(), container.getMaxStackSize()));
-                container.setItem(slot, remaining.copyWithCount(take));
-                remaining.shrink(take);
-            }
-            container.setChanged();
-            if (remaining.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-        }
-        return remaining;
-    }
-
     // ---- entry ----------------------------------------------------------
 
     /**
@@ -1376,8 +1264,8 @@ final class RunLifecycle {
      * omen band over the floors actually cleared (made {@code penalty} bands
      * worse for a checkpoint exit), each member's keystone by
      * {@link IntervalBanking}'s average-of-doors rule from their own key and
-     * their own carried progress, free-door fuel, the payout command,
-     * prestige, the diary and the run record.
+     * their own carried progress, free-door fuel, the payout command, the
+     * kit top-up ({@link KitTopUp}), prestige, the diary and the run record.
      *
      * <p>Bounty hooks fire once per settlement, for the owner, and only when
      * the owner is here to bank: a party finishing out an absent owner's
@@ -1468,6 +1356,12 @@ final class RunLifecycle {
             }
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
+
+            // Audit wave 2c: the kit top-up, scaled by the band this
+            // settlement banked (a checkpoint exit's penalty included).
+            if (!interval.floorSteps.isEmpty()) {
+                KitTopUp.settle(server, record, memberPlayer, shared.band());
+            }
 
             // M26: reads log fresh, after every keystone-level change.
             DiaryDelivery.deliverIfEligible(log, memberPlayer);

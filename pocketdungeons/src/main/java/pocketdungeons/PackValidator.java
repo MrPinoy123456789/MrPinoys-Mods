@@ -127,6 +127,8 @@ final class PackValidator {
                 PocketDungeonsConfig.keystoneMaxLevel()));
         addRecipeFindings(snapshot, findings);
         addMissingLootFindings(server, snapshot, findings);
+        findings.addAll(kitBaselineFindings(snapshot.bags().definitions(),
+                bag -> rolledCounts(server, bag), PackValidator::damageableOrNull));
         addPlanFindings(server, snapshot, singleSeed, findings);
 
         return findings;
@@ -322,6 +324,82 @@ final class PackValidator {
                         "loot table not found: " + lootTable));
             }
         }
+    }
+
+    /**
+     * Kit baselines that load but would misbehave at a safe visit's top-up
+     * ({@link KitTopUp}): an item or empty that does not resolve, a tool not
+     * marked as a durability line (it would be refilled by count instead of
+     * replaced when missing), a durability mark on an item with none, and a
+     * line asking for more than one roll of the bag's kit table gives, which
+     * would let the top-up hand out more than the kit ever did.
+     *
+     * @param rolled     one roll of a bag's kit table as counts per item id,
+     *                   or {@code null} when the table is missing (reported by
+     *                   the loot checks already)
+     * @param damageable whether an item id has durability, or {@code null}
+     *                   when it is not a registered item
+     */
+    static List<Finding> kitBaselineFindings(List<BagDefinition> bags,
+                                             java.util.function.Function<BagDefinition, Map<String, Integer>> rolled,
+                                             java.util.function.Function<String, Boolean> damageable) {
+        List<Finding> findings = new ArrayList<>();
+        for (BagDefinition bag : bags) {
+            if (bag.kitBaseline.isEmpty()) {
+                continue;
+            }
+            Map<String, Integer> roll = rolled.apply(bag);
+            for (BagDefinition.KitItem line : bag.kitBaseline) {
+                Boolean hasDurability = damageable.apply(line.item());
+                if (hasDurability == null) {
+                    findings.add(new Finding(bag.id, "kit_baseline",
+                            line.item() + " is not a registered item"));
+                    continue;
+                }
+                if (line.durability() && !hasDurability) {
+                    findings.add(new Finding(bag.id, "kit_baseline",
+                            line.item() + " is marked durability but has no durability"));
+                } else if (!line.durability() && hasDurability) {
+                    findings.add(new Finding(bag.id, "kit_baseline", line.item()
+                            + " has durability; mark it \"durability\": true so it is replaced when"
+                            + " missing and never refilled by count"));
+                }
+                if (line.emptiesInto() != null && damageable.apply(line.emptiesInto()) == null) {
+                    findings.add(new Finding(bag.id, "kit_baseline", line.item()
+                            + " empties into " + line.emptiesInto() + ", which is not a registered item"));
+                }
+                int given = roll == null ? line.count() : roll.getOrDefault(line.item(), 0);
+                if (given < line.count()) {
+                    findings.add(new Finding(bag.id, "kit_baseline", line.item() + " asks for "
+                            + line.count() + " but one roll of " + bag.lootTable + " gives " + given
+                            + "; the top-up would hand out more than the kit"));
+                }
+            }
+        }
+        return findings;
+    }
+
+    /** Whether a registered item has durability, or {@code null} if the id names no item. */
+    private static Boolean damageableOrNull(String id) {
+        Identifier parsed = Identifier.tryParse(id);
+        net.minecraft.world.item.Item item = parsed == null ? null
+                : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(parsed).orElse(null);
+        return item == null ? null : new net.minecraft.world.item.ItemStack(item).isDamageableItem();
+    }
+
+    /** One roll of a bag's kit table, as counts per item id, or {@code null} if it cannot be rolled. */
+    private static Map<String, Integer> rolledCounts(MinecraftServer server, BagDefinition bag) {
+        List<net.minecraft.world.item.ItemStack> rolled = Bags.rollKit(server.overworld(), bag);
+        if (rolled == null) {
+            return null;
+        }
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        for (net.minecraft.world.item.ItemStack stack : rolled) {
+            if (!stack.isEmpty()) {
+                counts.merge(KitTopUp.itemId(stack), stack.getCount(), Integer::sum);
+            }
+        }
+        return counts;
     }
 
     /**

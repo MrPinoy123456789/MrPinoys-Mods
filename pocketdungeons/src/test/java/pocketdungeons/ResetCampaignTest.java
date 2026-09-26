@@ -44,6 +44,7 @@ public class ResetCampaignTest {
         log.addDiaryBand(player, 0);
         log.addDiaryBand(player, 1);
         log.setBag(player, "ranger");
+        log.setKitGranted(player, true);
         log.setStash(player, new InventorySwap.StashRecord(true,
                 List.of(net.minecraft.world.item.ItemStack.EMPTY)));
         log.setOrphan(player, new InventorySwap.OrphanRecord(
@@ -68,6 +69,7 @@ public class ResetCampaignTest {
         check(before.recentVisitors().size(), 1, "visitor recorded before reset");
         check(before.diaryBandsSeen(), Set.of(0, 1), "diary bands seen before reset");
         check(before.bag(), "ranger", "bag chosen before reset");
+        check(before.kitGranted(), true, "kit granted before reset");
         check(log.stashOf(player).stashed(), true, "stash held before reset");
         check(log.orphanOf(player).items().isEmpty(), false, "orphan held before reset");
 
@@ -90,6 +92,7 @@ public class ResetCampaignTest {
         check(after.fuel(), 0, "fuel cleared");
         check(after.roomCompletions(), 0, "room completions cleared");
         check(after.bag(), "", "bag cleared");
+        check(after.kitGranted(), false, "kit grant cleared with the bag, so a new pick grants a new kit");
 
         // Preserved: unlockables and room settings.
         check(after.unlockedShells(), Set.of("sandstone", "ice"),

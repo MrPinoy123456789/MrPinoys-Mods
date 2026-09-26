@@ -125,7 +125,7 @@ still a valid place to be. The node keeps its one job, the door graph.
 | `loot_role` | `"gear"`, `"materials"`, `"trophy"` | `"gear"` | The zone's faucet. Declared and validated; nothing pays differently by role yet. |
 | `loot_tier_every` | int, 0 to 1000 | 0 | One completion loot tier up every N floors since the last bank, never past tier 3. 0 is off. |
 | `unlock_level` | int >= 1 | 1 | A door into this zone is only dealt once the key reaches this level. If every candidate is locked, the full pool is dealt instead. |
-| `kit_top_up_scale` | number, 0 to 10 | 1.0 | Multiplier on the safe-visit kit top-up. Read and validated; the top-up arrives in a later wave. |
+| `kit_top_up_scale` | number, 0 to 10 | 1.0 | Multiplier on the safe-visit kit top-up (see "The kit and the safe-visit top-up" under the bag schema). The grant never exceeds the kit baseline. |
 
 An unknown field, a floor kind that is not built, or a value out of range
 rejects the theme at load with the reason, the same way a missing processor
@@ -471,7 +471,13 @@ Each file under data/<namespace>/dungeon_bag/*.json defines one bag:
   "order": 0,
   "headline": ["minecraft:cobblestone", "minecraft:stone_pickaxe", "minecraft:torch"],
   "tags": ["blocks"],
-  "loot_table": "pocketdungeons:bags/mason"
+  "loot_table": "pocketdungeons:bags/mason",
+  "kit_baseline": [
+    {"item": "minecraft:cobblestone", "count": 16},
+    {"item": "minecraft:stone_pickaxe", "count": 1, "durability": true},
+    {"item": "minecraft:torch", "count": 4},
+    {"item": "minecraft:bread", "count": 4}
+  ]
 }
 ```
 
@@ -492,6 +498,44 @@ Fields:
   the bag rolls. Defaults to `<namespace>:bags/<path>`, so a bag at
   data/mypack/dungeon_bag/my_bag.json rolls from mypack:bags/my_bag
   unless it names its own table.
+- `kit_baseline` (array, default []): what a safe visit tops the kit up
+  toward. Each line is `item` (namespaced id, once per bag), `count`
+  (at least 1, default 1), `durability` (default false; true for a tool)
+  and optionally `empties_into` (the item a used one leaves behind, such as
+  `minecraft:bucket` for a water bucket). Empty or omitted means the bag
+  is never topped up. Schema: `docs/schema/dungeon_bag.schema.json`.
+
+### The kit and the safe-visit top-up
+
+The loot table is the kit, and it is handed over **once**: when the player
+picks the bag at the bag chest. Entering and leaving the dungeon never grant
+items; the void inventory is the player's dungeon inventory, kept between
+visits and restored slot for slot on the next entry.
+
+At each interval's settlement (going home, or a checkpoint exit, which
+banks one band worse), every settling member's kit is topped up toward
+`kit_baseline`:
+
+- The deficit is `count` minus what the member holds of that item type,
+  whether or not it carries the bag tag, counted in their dungeon inventory
+  and in the containers and item-holding entities of the saved room the
+  party returns to and of the member's own saved room (shulker boxes and
+  bundles included). Stashing a kit in a chest does not create a deficit.
+- A stackable line restores `floor(deficit x band fraction x kit_top_up_scale)`.
+  The band fractions are config (`kitTopUpBandLow`, `kitTopUpBandMid`,
+  `kitTopUpBandHigh`, default 1.0, 0.5, 0.0).
+- A `durability` line is replaced only when missing, only at the calm band,
+  and a damaged one is never repaired.
+- An `empties_into` line turns a held empty back into the kit item; a new
+  one is minted only when no empty is held anywhere.
+- Nothing ever goes above the baseline, and every granted stack carries the
+  bag tag. Kit blocks placed in the world are not counted: that is an
+  accepted, band-bounded source of room-building material.
+
+Keep the baseline at or below what one roll of the table gives (the
+built-ins are exactly their tables' guaranteed entries). A table may be
+random; the baseline may not, which is why it is declared here rather than
+read off the table.
 
 ### Extension limits
 
@@ -754,6 +798,9 @@ specific failure. The checks:
 - Missing loot: a theme's namespaced `loot_table` is checked against the
   reloadable loot registry (a typo here would otherwise fail at run time, not
   load time).
+- Kit baselines: a `kit_baseline` line naming an unknown item or empty, a
+  tool not marked `durability` (or a mark on an item with no durability),
+  or a count above what one roll of the bag's `loot_table` gives.
 - Door and return-path validation: a plan is generated, validated (the
   return path is the BFS from the entrance reaching every cell), and a room
   is resolved for every cell, sweeping the first 16 seeds.
@@ -770,7 +817,7 @@ M68 to M71 schemas, all `version: 1`:
 | theme | `dungeon_theme/example_theme.json` | `name`, `processors`, `room_theme` |
 | adventure | `dungeon_adventure/example_theme.json` | `kind`, `next` (weighted transitions) |
 | affix | `dungeon_affix/example_affix.json` | `label`, `blurb`, `order`, `effects` (closed set) |
-| bag | `dungeon_bag/example_bag.json` | `label`, `headline`, `tags`, `loot_table` |
+| bag | `dungeon_bag/example_bag.json` | `label`, `headline`, `tags`, `loot_table`, `kit_baseline` |
 | role | `dungeon_role/example_role.json` | `stage`, `weight`, `operation` (closed set) |
 | recipe | `cube_recipe/example_recipe.json` | `catalyst`, `cost`, `priority`, `effects.guaranteed_rooms` |
 | diary | `diary/example_diary.json` | `number`, `band`, `title`, `pages` |

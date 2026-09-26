@@ -1,1 +1,1 @@
-{"version": 1, "label": "Shepherd's Bag", "blurb": "Leads and bones. Something down here will follow you.", "order": 5, "headline": ["minecraft:lead", "minecraft:bone", "minecraft:bread"], "tags": ["lead", "mob"]}
+{"version": 1, "label": "Shepherd's Bag", "blurb": "Leads and bones. Something down here will follow you.", "order": 5, "headline": ["minecraft:lead", "minecraft:bone", "minecraft:bread"], "tags": ["lead", "mob"], "kit_baseline": [{"item": "minecraft:lead", "count": 4}, {"item": "minecraft:bone", "count": 8}, {"item": "minecraft:bread", "count": 4}]}

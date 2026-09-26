@@ -1275,6 +1275,7 @@ final class DungeonCommands {
         // inventory; preserves unlocked shells, diary bands, room settings and
         // recent visitors.
         DungeonLog.forServer(server).resetCampaign(target.getUUID());
+        InventoryJournal.discardLeaving(server, target.getUUID());
         int cleared = clearKeystones(target);
         source.sendSuccess(() -> Component.literal(
                 "Reset " + target.getName().getString() + "'s campaign"
@@ -1314,6 +1315,7 @@ final class DungeonCommands {
         //    bag, orphan and stash. Unlockables (shells, diary bands, room
         //    settings, recent visitors) are preserved.
         DungeonLog.forServer(server).resetCampaign(player.getUUID());
+        InventoryJournal.discardLeaving(server, player.getUUID());
         // 4. Clear any keystones from the inventory and ender chest.
         int cleared = clearKeystones(player);
         // 5. Clear any bag-tagged items the player is still carrying (a reset

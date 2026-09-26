@@ -24,7 +24,10 @@ import java.util.UUID;
  * <p>{@link #testTwoSwapsAreOneSwap()} is the one to read first: it is the
  * proof that the {@code survivalStashed} flag is the deduplication, which is
  * the whole reason this design exists rather than dimensional-inventories'
- * {@code transitionAlreadyHandled} map.
+ * {@code transitionAlreadyHandled} map. The dungeon inventory tests after it
+ * cover the persistent void side: slots kept in place, the keystone in slot
+ * 0, overflow kept rather than dropped, and no item ever created by entering
+ * or leaving.
  */
 public class InventorySwapTest {
 
@@ -37,6 +40,13 @@ public class InventorySwapTest {
         testShortBackupRestoresWhatItHas();
         testInvariant();
         testTwoSwapsAreOneSwap();
+        testDungeonInventoryKeepsItsSlots();
+        testKeystoneTakesSlotZeroAndDisplaces();
+        testOverflowIsKeptNotDropped();
+        testKeptKeystonesAreNeverRestored();
+        testRetriedLeaveKeepsSlots();
+        testLegacyOrphanBecomesTheDungeonInventory();
+        testRepeatedCyclesGrantNothing();
         testUntaggedDiversion();
         testLostAndFoundRingBuffer();
         System.out.println("InventorySwapTest passed");
@@ -239,44 +249,54 @@ public class InventorySwapTest {
         stash.reconcile(slots, true);
         check(stash.stashed, "the first entry stashed");
         check(stash.backup.equals(survival), "the backup is the survival inventory");
-        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+        check(slots.get(0), KEY, "the dungeon side holds only the keystone");
+        for (int i = 1; i < InventorySwap.SLOTS; i++) {
             check(slots.get(i).isEmpty(), "slot " + i + " is empty in the dungeon");
         }
 
         // The event fires a second time for the same transition.
         stash.reconcile(slots, true);
         check(stash.backup.equals(survival), "the second entry did not overwrite the backup");
-        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+        check(count(slots.all(), KEY), 1, "the doubled event handed out no second keystone");
+        for (int i = 1; i < InventorySwap.SLOTS; i++) {
             check(slots.get(i).isEmpty(), "slot " + i + " is still empty after the doubled event");
         }
 
         // The run's loot, picked up inside the dungeon.
-        slots.set(0, "bag:stone_pickaxe");
-        slots.set(1, "bag:bread");
+        slots.set(1, "bag:stone_pickaxe");
+        slots.set(2, "bag:bread");
 
         stash.reconcile(slots, false);
         check(!stash.stashed, "leaving cleared the flag");
-        check(stash.delivered.size(), InventorySwap.SLOTS, "the void inventory was handed over");
-        check(stash.delivered.get(0), "bag:stone_pickaxe", "including the loot");
+        check(stash.kept.size(), InventorySwap.SLOTS, "the void inventory was kept whole");
+        check(stash.kept.get(1), "bag:stone_pickaxe", "including the loot, in its own slot");
         check(slots.all().equals(survival), "survival came back exactly");
 
         // And the exit event fires twice as well.
-        stash.delivered = List.of();
+        List<String> keptOnce = stash.kept;
         stash.reconcile(slots, false);
-        check(stash.delivered.isEmpty(), "the second exit delivered nothing");
+        check(stash.kept.equals(keptOnce), "the second exit kept nothing new");
         check(slots.all().equals(survival), "and did not touch the restored inventory");
+    }
+
+    /** The keystone the model hands out on entry, the way {@code keystoneFor} does. */
+    private static final String KEY = "keystone:14";
+
+    private static boolean isKey(String stack) {
+        return stack.startsWith("keystone:");
     }
 
     /**
      * A model of {@code reconcile}'s two acting branches over the shipped
      * primitives, in the shipped order. The persistence, the Lost and Found
-     * write and the room delivery are the parts that need a server; everything
-     * that moves an item is {@link InventorySwap}'s own code.
+     * write and the journal are the parts that need a server; everything that
+     * moves an item is {@link InventorySwap}'s own code. {@code kept} is the
+     * dungeon inventory record ({@code OrphanRecord}).
      */
     private static final class Stash {
         boolean stashed;
         List<String> backup = List.of();
-        List<String> delivered = List.of();
+        List<String> kept = List.of();
 
         void reconcile(Slots slots, boolean inVoid) {
             if (InventorySwap.invariantHolds(inVoid, stashed)) {
@@ -286,20 +306,248 @@ public class InventorySwapTest {
                 backup = InventorySwap.snapshot(slots);
                 stashed = true;
                 InventorySwap.clear(slots);
+                List<String> overflow = InventorySwap.restoreKept(slots, kept, KEY,
+                        InventorySwapTest::isKey);
+                kept = loose(overflow);
             } else {
-                delivered = InventorySwap.snapshot(slots);
+                kept = InventorySwap.keptInventory(InventorySwap.snapshot(slots), kept,
+                        String::isEmpty, InventorySwapTest::isKey, "");
                 InventorySwap.clear(slots);
                 InventorySwap.restore(slots, backup);
                 backup = List.of();
                 stashed = false;
             }
         }
+
+        /** {@code OrphanRecord.loose}: 42 empty slots, then the loose stacks. */
+        private static List<String> loose(List<String> stacks) {
+            if (stacks.isEmpty()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>();
+            for (int i = 0; i < InventorySwap.SLOTS; i++) {
+                out.add("");
+            }
+            out.addAll(stacks);
+            return out;
+        }
+    }
+
+    /** A void inventory with the keystone in slot 0 and something in every kind of slot. */
+    private static Slots voidInventory() {
+        Slots slots = new Slots();
+        slots.set(0, KEY);
+        slots.set(3, "bag:stone_pickaxe");
+        slots.set(8, "bag:bread x4");
+        slots.set(20, "cobblestone x8");
+        slots.set(InventorySwap.ARMOR_START + 2, "bag:leather_chestplate");
+        slots.set(InventorySwap.OFFHAND, "bag:torch x4");
+        return slots;
+    }
+
+    /** Leave then enter: every stack comes back to the slot it left from. */
+    private static void testDungeonInventoryKeepsItsSlots() {
+        Slots slots = survivalInventory();
+        Stash stash = new Stash();
+        stash.reconcile(slots, true);
+        Slots inside = voidInventory();
+        copyInto(inside, slots);
+        slots.set(InventorySwap.CURSOR, "bag:arrow x12");
+        List<String> before = slots.all();
+
+        stash.reconcile(slots, false);
+        check(stash.kept.get(0), "", "the keystone is never kept");
+        check(stash.kept.get(InventorySwap.CURSOR), "bag:arrow x12", "the cursor is kept");
+
+        stash.reconcile(slots, true);
+        check(slots.get(0), KEY, "the entry puts a keystone in slot 0");
+        for (int i = 1; i < InventorySwap.LIVE_SLOTS; i++) {
+            if (!before.get(i).isEmpty()) {
+                check(slots.get(i), before.get(i), "slot " + i + " came back in place");
+            }
+        }
+        check(slots.get(1), "bag:arrow x12", "the cursor stack lands in the first free main slot");
+        check(slots.get(InventorySwap.CURSOR).isEmpty(), "the cursor itself is empty");
+        check(stash.kept.isEmpty(), "a record that fully restored holds nothing");
+    }
+
+    /** A stack sitting in slot 0 is moved aside for the keystone, never overwritten. */
+    private static void testKeystoneTakesSlotZeroAndDisplaces() {
+        Slots slots = new Slots();
+        Stash stash = new Stash();
+        stash.reconcile(slots, true);
+        slots.set(0, "bag:stone_pickaxe");
+        slots.set(1, "bag:bread x4");
+        slots.set(5, KEY);
+        stash.reconcile(slots, false);
+        check(stash.kept.get(5), "", "the keystone is blanked wherever it was");
+
+        stash.reconcile(slots, true);
+        check(slots.get(0), KEY, "the keystone takes slot 0");
+        check(slots.get(1), "bag:bread x4", "slot 1 stays where it was");
+        check(slots.get(2), "bag:stone_pickaxe", "the displaced pickaxe takes the first free slot");
+        check(count(slots.all(), KEY), 1, "exactly one keystone");
+    }
+
+    /** A full pack plus a cursor stack plus a displaced slot 0: the rest waits in the record. */
+    private static void testOverflowIsKeptNotDropped() {
+        Slots slots = new Slots();
+        Stash stash = new Stash();
+        stash.reconcile(slots, true);
+        for (int i = 0; i < InventorySwap.MAIN_COUNT; i++) {
+            slots.set(i, "filler" + i);
+        }
+        slots.set(InventorySwap.CURSOR, "bag:totem");
+        stash.reconcile(slots, false);
+
+        stash.reconcile(slots, true);
+        check(slots.get(0), KEY, "the keystone still takes slot 0");
+        check(stash.kept.size(), InventorySwap.SLOTS + 2, "two stacks overflowed into the record");
+        check(stash.kept.get(InventorySwap.SLOTS), "filler0", "the displaced slot 0 stack is kept");
+        check(stash.kept.get(InventorySwap.SLOTS + 1), "bag:totem", "and so is the cursor stack");
+
+        // Leaving again carries the overflow along rather than overwriting it.
+        slots.set(10, "");
+        stash.reconcile(slots, false);
+        check(count(stash.kept, "filler0"), 1, "the overflow survived a second leave");
+        check(count(stash.kept, "bag:totem"), 1, "all of it");
+
+        // With room made, the next entry places it.
+        stash.reconcile(slots, true);
+        check(count(slots.all(), "filler0") + count(stash.kept, "filler0"), 1, "filler0 exists once");
+        check(count(slots.all(), "bag:totem") + count(stash.kept, "bag:totem"), 1, "the totem exists once");
+        check(count(slots.all(), "filler0"), 1, "the freed slot took the first overflow stack");
     }
 
     /**
+     * A leave that wrote the record and then failed is retried against empty
+     * slots: the record comes through with its positions, not reshuffled as
+     * loose stacks, and nothing is doubled. A record stack whose slot is taken
+     * by a live stack is kept as loose rather than overwritten.
+     */
+    private static void testRetriedLeaveKeepsSlots() {
+        List<String> record = new ArrayList<>();
+        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+            record.add("");
+        }
+        record.set(3, "bag:stone_pickaxe");
+        record.set(InventorySwap.OFFHAND, "bag:torch x4");
+        record.add("bag:bread x4");
+        List<String> emptySnapshot = new Slots().all();
+        List<String> retried = InventorySwap.keptInventory(emptySnapshot, record, String::isEmpty,
+                InventorySwapTest::isKey, "");
+        check(retried.get(3), "bag:stone_pickaxe", "the pickaxe keeps slot 3 through a retry");
+        check(retried.get(InventorySwap.OFFHAND), "bag:torch x4", "the offhand keeps its torches");
+        check(nonEmptyWithoutKeys(retried).size(), 3, "nothing doubled, nothing lost");
+
+        Slots live = new Slots();
+        live.set(3, "cobblestone x8");
+        List<String> clash = InventorySwap.keptInventory(live.all(), record, String::isEmpty,
+                InventorySwapTest::isKey, "");
+        check(clash.get(3), "cobblestone x8", "a live stack keeps its slot");
+        check(count(clash, "bag:stone_pickaxe"), 1, "the record's pickaxe is kept as loose, once");
+        check(nonEmptyWithoutKeys(clash).size(), 4, "all four stacks are kept");
+    }
+
+    /** A record written before keystones were stripped does not duplicate the remote. */
+    private static void testKeptKeystonesAreNeverRestored() {
+        Slots slots = new Slots();
+        List<String> legacy = new ArrayList<>();
+        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+            legacy.add("");
+        }
+        legacy.set(4, "keystone:9");
+        legacy.add("keystone:9");
+        List<String> overflow = InventorySwap.restoreKept(slots, legacy, KEY, InventorySwapTest::isKey);
+        check(overflow.isEmpty(), "nothing overflowed");
+        check(count(slots.all(), KEY), 1, "the fresh keystone is in slot 0");
+        check(count(slots.all(), "keystone:9"), 0, "no stale keystone came back");
+    }
+
+    /**
+     * An orphan record from before the persistent model (a full snapshot with
+     * slot 0 blanked, or a compact leftover list) restores as the dungeon
+     * inventory: nothing lost, nothing placed over the keystone.
+     */
+    private static void testLegacyOrphanBecomesTheDungeonInventory() {
+        Slots slots = new Slots();
+        List<String> compact = List.of("bag:bread x4", "cobblestone x8", "bag:torch x4");
+        List<String> overflow = InventorySwap.restoreKept(slots, compact, KEY, InventorySwapTest::isKey);
+        check(overflow.isEmpty(), "a compact leftover list fits");
+        check(slots.get(0), KEY, "the keystone holds slot 0");
+        for (String stack : compact) {
+            check(count(slots.all(), stack), 1, stack + " was restored once");
+        }
+    }
+
+    /**
+     * Entering and leaving never create an item. Ten full cycles through the
+     * model, with the pack arranged differently each time, leave exactly the
+     * items the player started with: survival in survival, the dungeon
+     * inventory in the dungeon inventory. The production entry adds only the
+     * keystone remote, which a leave strips again; the one kit grant is not on
+     * this path (see {@code CustodyGameTest} for the live version).
+     */
+    private static void testRepeatedCyclesGrantNothing() {
+        Slots slots = survivalInventory();
+        List<String> survival = slots.all();
+        Stash stash = new Stash();
+        stash.reconcile(slots, true);
+        copyInto(voidInventory(), slots);
+        List<String> pack = nonEmptyWithoutKeys(slots.all());
+
+        for (int cycle = 0; cycle < 10; cycle++) {
+            stash.reconcile(slots, false);
+            check(slots.all().equals(survival), "cycle " + cycle + ": survival exactly as it was");
+            stash.reconcile(slots, true);
+            List<String> now = nonEmptyWithoutKeys(slots.all());
+            now.addAll(nonEmptyWithoutKeys(stash.kept));
+            check(sorted(now).equals(sorted(pack)), "cycle " + cycle + ": the pack neither grew nor shrank");
+            check(count(slots.all(), KEY), 1, "cycle " + cycle + ": one keystone");
+            // Shuffle two slots, as a player rearranging their pack would.
+            String a = slots.get(3);
+            slots.set(3, slots.get(30));
+            slots.set(30, a);
+        }
+    }
+
+    private static void copyInto(Slots from, Slots to) {
+        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+            to.set(i, from.get(i));
+        }
+    }
+
+    private static int count(List<String> stacks, String stack) {
+        int n = 0;
+        for (String s : stacks) {
+            if (s.equals(stack)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static List<String> nonEmptyWithoutKeys(List<String> stacks) {
+        List<String> out = new ArrayList<>();
+        for (String s : stacks) {
+            if (!s.isEmpty() && !isKey(s)) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    private static List<String> sorted(List<String> stacks) {
+        List<String> out = new ArrayList<>(stacks);
+        out.sort(null);
+        return out;
+    }
+
+    /**
+     * Spec 11.9: on the way out    /**
      * Spec 11.9: on the way out, anything that is neither bag loot nor the
-     * keystone is picked out for the warning. It still goes to the room; what
-     * must never happen is it reaching the survival restore.
+     * keystone is picked out for the notice. It stays in the dungeon
+     * inventory; what must never happen is it reaching the survival restore.
      */
     private static void testUntaggedDiversion() {
         Slots slots = new Slots();

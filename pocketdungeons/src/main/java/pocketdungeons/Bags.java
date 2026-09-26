@@ -156,7 +156,7 @@ final class Bags {
 
     /**
      * Rolls this bag's loot table into {@code player}'s inventory, leaving
-     * hotbar slot zero alone.
+     * hotbar slot zero alone, and hands back whatever did not fit.
      *
      * <p>Slot zero is the keystone's, and the keystone is how a player leaves.
      * Overwriting it with a stack of cobblestone would strand them, so the
@@ -171,61 +171,92 @@ final class Bags {
      * move any of this", so a half-fitting stack reports success and leaves the
      * remainder behind to be destroyed.
      *
-     * @return how many stacks reached the inventory, or {@code -1} if the
-     *         table is missing, which is a datapack fault and not a quiet zero
+     * <p>Nothing is dropped: the player is in the dungeon dimension, where a
+     * dropped stack can fall into a teardown. The caller keeps the leftovers
+     * with the player's dungeon inventory
+     * ({@link InventorySwap#keepForNextEntry}).
+     *
+     * <p>This is the kit, and it is handed over once per bag choice: at the
+     * bag chest pick, or by the one migration grant in
+     * {@code InventorySwap.enterVoid}. Never on an ordinary entry.
+     *
+     * @return the stacks that did not fit, or {@code null} if the bag or its
+     *         table is missing, which is a datapack fault and means nothing
+     *         was handed over
      */
-    static int apply(ServerPlayer player, String bagId) {
-        BagDefinition bag = byId(bagId);
-        if (bag == null) {
-            PocketDungeonsMod.LOG.error("No bag with id '{}'; nothing handed to {}",
+    static List<ItemStack> apply(ServerPlayer player, String bagId) {
+        List<ItemStack> rolled = rollKit(player.level(), bagId);
+        if (rolled == null) {
+            PocketDungeonsMod.LOG.error("Bag '{}' could not be rolled; nothing handed to {}",
                     bagId, player.getName().getString());
-            return -1;
+            return null;
         }
-        ServerLevel level = player.level();
-        Identifier table = Identifier.parse(bag.lootTable);
-        ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, table);
-        if (!LootTables.exists(level.getServer(), key)) {
-            PocketDungeonsMod.LOG.error("Bag table {} is missing; {} enters with nothing",
-                    table, player.getName().getString());
-            return -1;
-        }
-
-        LootParams params = new LootParams.Builder(level)
-                .withParameter(LootContextParams.ORIGIN, player.position())
-                .create(LootContextParamSets.CHEST);
-        ObjectArrayList<ItemStack> rolled = level.getServer().reloadableRegistries()
-                .getLootTable(key).getRandomItems(params, level.getRandom().nextLong());
-
-        int placed = 0;
+        List<ItemStack> leftover = new ArrayList<>();
         for (ItemStack stack : rolled) {
-            if (deliver(player, stack)) {
-                placed++;
+            ItemStack remainder = deliver(player, stack);
+            if (!remainder.isEmpty()) {
+                leftover.add(remainder);
             }
         }
-        return placed;
+        return leftover;
     }
 
     /**
-     * Places one stack in the main inventory, skipping slot zero, and drops
-     * whatever does not fit at the player's feet rather than losing it.
-     *
-     * @return whether any of the stack reached the inventory
+     * One roll of this bag's kit table, or {@code null} if the bag or its
+     * table is missing. The built-in tables are deterministic (every pool
+     * rolls one fixed entry), so a roll is also how the safe-visit top-up
+     * learns what a kit item looks like: its components, such as the Mason
+     * pickaxe's short durability or the eight-high torch stacks.
      */
-    private static boolean deliver(ServerPlayer player, ItemStack stack) {
+    static List<ItemStack> rollKit(ServerLevel level, String bagId) {
+        BagDefinition bag = byId(bagId);
+        return bag == null ? null : rollKit(level, bag);
+    }
+
+    /** {@link #rollKit(ServerLevel, String)} for a definition in hand, published or not. */
+    static List<ItemStack> rollKit(ServerLevel level, BagDefinition bag) {
+        Identifier table = Identifier.parse(bag.lootTable);
+        ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, table);
+        if (!LootTables.exists(level.getServer(), key)) {
+            PocketDungeonsMod.LOG.error("Bag table {} is missing", table);
+            return null;
+        }
+        LootParams params = new LootParams.Builder(level)
+                .withParameter(LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                .create(LootContextParamSets.CHEST);
+        ObjectArrayList<ItemStack> rolled = level.getServer().reloadableRegistries()
+                .getLootTable(key).getRandomItems(params, level.getRandom().nextLong());
+        return new ArrayList<>(rolled);
+    }
+
+    /**
+     * Places one stack in the main inventory, skipping slot zero, merging into
+     * matching stacks first where vanilla allows.
+     *
+     * @return whatever did not fit, possibly empty
+     */
+    static ItemStack deliver(ServerPlayer player, ItemStack stack) {
         if (stack.isEmpty()) {
-            return false;
+            return ItemStack.EMPTY;
         }
         Inventory inventory = player.getInventory();
-        int before = stack.getCount();
-        for (int slot = 1; slot < Inventory.INVENTORY_SIZE && !stack.isEmpty(); slot++) {
-            inventory.add(slot, stack);
+        ItemStack remaining = stack.copy();
+        for (int slot = 1; slot < Inventory.INVENTORY_SIZE && !remaining.isEmpty(); slot++) {
+            ItemStack held = inventory.getItem(slot);
+            if (!held.isEmpty() && ItemStack.isSameItemSameComponents(held, remaining)
+                    && held.getCount() < held.getMaxStackSize()) {
+                int take = Math.min(remaining.getCount(), held.getMaxStackSize() - held.getCount());
+                held.grow(take);
+                remaining.shrink(take);
+            }
         }
-        boolean anyPlaced = stack.getCount() < before;
-        if (!stack.isEmpty()) {
-            PocketDungeonsMod.LOG.info("{} could not hold their whole bag; {} x{} dropped at their feet",
-                    player.getName().getString(), stack.getItem(), stack.getCount());
-            player.drop(stack, false);
+        for (int slot = 1; slot < Inventory.INVENTORY_SIZE && !remaining.isEmpty(); slot++) {
+            if (inventory.getItem(slot).isEmpty()) {
+                int take = Math.min(remaining.getCount(), remaining.getMaxStackSize());
+                inventory.setItem(slot, remaining.copyWithCount(take));
+                remaining.shrink(take);
+            }
         }
-        return anyPlaced;
+        return remaining;
     }
 }

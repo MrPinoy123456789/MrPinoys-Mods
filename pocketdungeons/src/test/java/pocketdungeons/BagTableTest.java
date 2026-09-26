@@ -242,7 +242,7 @@ public class BagTableTest {
                 throw new AssertionError("bag " + bag + ": " + name + " has no "
                         + "custom_data.pocketdungeons.bag. Spec 11.9 uses that tag to tell what "
                         + "the mod handed out from what another mod injected, so an untagged bag "
-                        + "item is delivered to the room with a warning instead of carried.");
+                        + "item would be reported as coming from outside the run.");
             }
         }
     }

@@ -312,7 +312,9 @@ for ((taskName, testClass) in mapOf(
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
     "zoneRulesTest" to "ZoneRulesTest",
-    "intervalBankingTest" to "IntervalBankingTest"
+    "intervalBankingTest" to "IntervalBankingTest",
+    // Audit wave 2c: the safe-visit kit top-up's pure core.
+    "kitTopUpTest" to "KitTopUpTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -374,6 +376,7 @@ tasks.test {
     dependsOn("configSaveTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
+    dependsOn("kitTopUpTest")
     failOnNoDiscoveredTests = false
 }
 

@@ -49,28 +49,34 @@ import java.util.concurrent.atomic.AtomicLong;
  * failure, and it is why the two are not redundant: one is a recovery log, the
  * other is a repair record.
  *
- * <h2>Scope, and why it is only the entering branch</h2>
+ * <h2>Scope: both hand-offs, each with one destination</h2>
  *
- * <p>Only the entry hand-off is journalled: the survival inventory leaving the
- * player and coming to rest in the stash. That is the one boundary where a
- * repair is provably safe to apply automatically, because a stashed survival
- * inventory has exactly one destination and is never delivered anywhere else.
- * Rewriting a lost stash record from the journal is idempotent: it assigns a
- * record rather than adding items, so replaying it any number of times yields
- * one inventory.
+ * <p>The entry hand-off is journalled: the survival inventory leaving the
+ * player and coming to rest in the stash. A stashed survival inventory has
+ * exactly one destination and is never delivered anywhere else, so rewriting
+ * a lost stash record from the journal is idempotent: it assigns a record
+ * rather than adding items, and replaying it any number of times yields one
+ * inventory.
  *
- * <p>The leaving branch is deliberately <em>not</em> journalled, and this is a
- * correctness decision rather than an omission. A void inventory leaving a
- * player can go to two places: the room's containers, or the orphan record. On
- * a full delivery the orphan is cleared on purpose. A recovery pass that found
- * a journal entry and an empty orphan therefore could not tell "the delivery
- * succeeded and the items are in a chest" from "the write was lost", and
- * restoring on that ambiguity would duplicate every delivered item. Inferring a
- * committed transfer from the absence of a record is exactly the inference this
- * milestone forbids, so the leaving branch keeps the guarantee it already has:
- * the orphan is written unconditionally before delivery is attempted, and the
- * stash flag is cleared only after the restore, so an interrupted leave is
- * retried from a clean state by the next tick.
+ * <p>The leave hand-off is journalled too, in its own file, for the same
+ * reason. It used to be deliberately excluded: a void inventory could go to
+ * the room's containers or to the orphan record, a full delivery cleared the
+ * orphan on purpose, and a recovery pass could not tell "delivered to a
+ * chest" from "write lost". Room delivery is gone. A void inventory now has
+ * exactly one destination, the player's dungeon inventory record
+ * ({@link InventorySwap.OrphanRecord}), and the only legitimate way that
+ * record empties is the next entry restoring it, which stashes the player
+ * first. So a leave record is applied only when the player is not stashed
+ * and their dungeon inventory record is empty: the state a lost write leaves
+ * and no completed hand-off does.
+ *
+ * <h2>The window it covers</h2>
+ *
+ * <p>Both records are retired at the end of their swap, in the same tick,
+ * which is before the saved data they backstop is next written. They repair a
+ * swap that died part way, or one whose saved data was lost with the record's
+ * retirement still pending; a truncated {@code dungeon_log.dat} written after
+ * a clean swap is outside what they can see.
  *
  * <h2>What this does not claim</h2>
  *
@@ -87,8 +93,8 @@ final class InventoryJournal {
 
     private static final String DIR = "pocketdungeons/journal";
 
-    /** The only journalled hand-off. See the class note on why leaving is not one. */
-    private static final String ENTERING = "ENTERING";
+    /** The leave hand-off's record sits beside the entry one, never in the same file. */
+    private static final String LEAVING_SUFFIX = ".leaving.dat";
 
     private static final String KEY_OP = "op";
     private static final String KEY_PHASE = "phase";
@@ -128,6 +134,10 @@ final class InventoryJournal {
         return dir.resolve(player + ".dat");
     }
 
+    private static Path leavingFile(Path dir, UUID player) {
+        return dir.resolve(player + LEAVING_SUFFIX);
+    }
+
     /**
      * Records, durably, that {@code snapshot} is about to be taken from
      * {@code player} and put in their stash.
@@ -140,6 +150,21 @@ final class InventoryJournal {
      * stop a swap, because the swap is what is holding somebody's gear.
      */
     static long prepare(MinecraftServer server, ServerPlayer player, List<ItemStack> snapshot) {
+        return prepareAt(server, player, snapshot, file(dir(server), player.getUUID()));
+    }
+
+    /**
+     * Records, durably, that {@code kept} is about to become {@code player}'s
+     * dungeon inventory record as they leave. Same contract as
+     * {@link #prepare}: {@code 0} means nothing was written and the swap goes
+     * ahead regardless.
+     */
+    static long prepareLeaving(MinecraftServer server, ServerPlayer player, List<ItemStack> kept) {
+        return prepareAt(server, player, kept, leavingFile(dir(server), player.getUUID()));
+    }
+
+    private static long prepareAt(MinecraftServer server, ServerPlayer player, List<ItemStack> snapshot,
+                                  Path target) {
         long op = NEXT_OP.getAndIncrement();
         try {
             CompoundTag tag = new CompoundTag();
@@ -149,8 +174,7 @@ final class InventoryJournal {
             DynamicOps<Tag> ops = server.registryAccess().createSerializationContext(NbtOps.INSTANCE);
             Tag items = ITEMS_CODEC.encodeStart(ops, snapshot).getOrThrow();
             tag.put(KEY_ITEMS, items);
-            writeAtomically(dir(server), player.getUUID(), tag);
-            return op;
+            return writeAtomically(target, tag) ? op : 0L;
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not journal the inventory hand-off for {}",
                     player.getName().getString(), e);
@@ -169,11 +193,19 @@ final class InventoryJournal {
      * it would repair is already intact.
      */
     static void commit(MinecraftServer server, ServerPlayer player, long op) {
+        commitAt(player, op, file(dir(server), player.getUUID()));
+    }
+
+    /** {@link #commit} for the leave hand-off's record. */
+    static void commitLeaving(MinecraftServer server, ServerPlayer player, long op) {
+        commitAt(player, op, leavingFile(dir(server), player.getUUID()));
+    }
+
+    private static void commitAt(ServerPlayer player, long op, Path path) {
         if (op == 0L) {
             return;
         }
         try {
-            Path path = file(dir(server), player.getUUID());
             CompoundTag existing = read(path);
             // Only ever delete the record this caller wrote. A stale commit
             // must not remove a newer hand-off's record.
@@ -203,6 +235,14 @@ final class InventoryJournal {
         if (!checked.add(id)) {
             return;
         }
+        // Entering first: a repaired stash is what tells the leave record
+        // below that the player's last completed swap was an entry.
+        recoverEntering(server, log, player);
+        recoverLeaving(server, log, player);
+    }
+
+    private static void recoverEntering(MinecraftServer server, DungeonLog log, ServerPlayer player) {
+        UUID id = player.getUUID();
         Path path = file(dir(server), id);
         CompoundTag tag = read(path);
         if (tag == null) {
@@ -236,19 +276,76 @@ final class InventoryJournal {
     }
 
     /**
+     * Repairs a dungeon inventory record the saved data lost on the way out.
+     *
+     * <p>Applied only when the player is not stashed (their last completed
+     * swap was a leave) and their record is empty. Any other state means the
+     * record outlived a hand-off that completed: the entry that followed it
+     * restored the inventory, or the record is intact. Like the entering
+     * repair it assigns a record and never adds to a live inventory, so a
+     * replay cannot duplicate anything.
+     */
+    private static void recoverLeaving(MinecraftServer server, DungeonLog log, ServerPlayer player) {
+        UUID id = player.getUUID();
+        Path path = leavingFile(dir(server), id);
+        CompoundTag tag = read(path);
+        if (tag == null) {
+            return;
+        }
+        try {
+            if (log.stashOf(id).stashed() || !log.orphanOf(id).items().isEmpty()) {
+                Files.deleteIfExists(path);
+                return;
+            }
+            DynamicOps<Tag> ops = server.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+            List<ItemStack> items = ITEMS_CODEC
+                    .parse(ops, tag.get(KEY_ITEMS))
+                    .resultOrPartial(problem -> PocketDungeonsMod.LOG.error(
+                            "Leaving inventory journal for {} was partly unreadable: {}", id, problem))
+                    .orElse(List.of());
+            InventorySwap.OrphanRecord record = InventorySwap.OrphanRecord.of(items);
+            if (!record.items().isEmpty()) {
+                log.setOrphan(id, record);
+                PocketDungeonsMod.LOG.warn("Repaired a lost dungeon inventory for {} from the inventory "
+                        + "journal: {} stacks restored. Their saved data did not survive the last "
+                        + "shutdown.", player.getName().getString(), record.stackCount());
+            }
+            Files.deleteIfExists(path);
+        } catch (IOException | RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not apply the leaving inventory journal for {}", id, e);
+        }
+    }
+
+    /**
+     * Drops a player's leave record outright, for a campaign reset that wipes
+     * the dungeon inventory on purpose: a stale record must not hand back what
+     * the reset took.
+     */
+    static void discardLeaving(MinecraftServer server, UUID player) {
+        try {
+            Files.deleteIfExists(leavingFile(dir(server), player));
+        } catch (IOException e) {
+            PocketDungeonsMod.LOG.warn("Could not discard the leaving inventory journal for {}", player, e);
+        }
+    }
+
+    /**
      * Same temp-file-then-atomic-rename discipline {@link RoomStore#save} uses,
      * and for the same reason: this record is worth nothing if a crash can
      * leave it half written.
+     *
+     * @return whether the record reached its final path
      */
-    private static void writeAtomically(Path dir, UUID player, CompoundTag tag) {
+    private static boolean writeAtomically(Path target, CompoundTag tag) {
         try {
-            Files.createDirectories(dir);
-            Path tmp = dir.resolve(player + ".dat.tmp");
+            Files.createDirectories(target.getParent());
+            Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
             NbtIo.writeCompressed(tag, tmp);
-            Files.move(tmp, file(dir, player),
-                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return true;
         } catch (IOException e) {
-            PocketDungeonsMod.LOG.error("Could not write the inventory journal for {}", player, e);
+            PocketDungeonsMod.LOG.error("Could not write the inventory journal {}", target, e);
+            return false;
         }
     }
 
@@ -272,5 +369,10 @@ final class InventoryJournal {
     /** Test seam: the record path for one player, so a scenario can stage or inspect one. */
     static Path fileForTesting(MinecraftServer server, UUID player) {
         return file(dir(server), player);
+    }
+
+    /** Test seam: the leave record path for one player. */
+    static Path leavingFileForTesting(MinecraftServer server, UUID player) {
+        return leavingFile(dir(server), player);
     }
 }

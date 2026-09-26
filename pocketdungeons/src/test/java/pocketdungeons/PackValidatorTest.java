@@ -52,6 +52,7 @@ public class PackValidatorTest {
         testPackMetaFormat();
         testStarterResourcesBundled();
         testZoneRuleFindings();
+        testKitBaselineFindings();
 
         System.out.println("PackValidatorTest passed");
     }
@@ -89,6 +90,43 @@ public class PackValidatorTest {
                 "a none capstone on a boss node is reported");
         check(findings.stream().anyMatch(x -> x.cause().contains("every entry theme is locked")),
                 "a fully locked entry pool is reported");
+    }
+
+    /** A baseline that matches its kit reports nothing; each way it can misbehave is reported. */
+    private static void testKitBaselineFindings() {
+        BagDefinition good = new BagDefinition("t:good", "Good", "b", 0, List.of(), java.util.Set.of(),
+                "t:bags/good", List.of(
+                        new BagDefinition.KitItem("minecraft:cobblestone", 16, false, null),
+                        new BagDefinition.KitItem("minecraft:stone_pickaxe", 1, true, null),
+                        new BagDefinition.KitItem("minecraft:water_bucket", 1, false, "minecraft:bucket")));
+        java.util.Map<String, Integer> roll = java.util.Map.of("minecraft:cobblestone", 16,
+                "minecraft:stone_pickaxe", 1, "minecraft:water_bucket", 1);
+        // Headless: item components are not bound, so durability comes from a table.
+        java.util.Map<String, Boolean> items = java.util.Map.of("minecraft:cobblestone", false,
+                "minecraft:stone_pickaxe", true, "minecraft:water_bucket", false, "minecraft:bucket", false,
+                "minecraft:bow", true, "minecraft:bread", false);
+        check(PackValidator.kitBaselineFindings(List.of(good), b -> roll, items::get).isEmpty(),
+                "a baseline matching its kit reports nothing");
+
+        BagDefinition bad = new BagDefinition("t:bad", "Bad", "b", 0, List.of(), java.util.Set.of(),
+                "t:bags/bad", List.of(
+                        new BagDefinition.KitItem("minecraft:not_an_item", 1, false, null),
+                        new BagDefinition.KitItem("minecraft:bow", 1, false, null),
+                        new BagDefinition.KitItem("minecraft:bread", 4, true, null),
+                        new BagDefinition.KitItem("minecraft:cobblestone", 32, false, null)));
+        List<PackValidator.Finding> findings = PackValidator.kitBaselineFindings(List.of(bad),
+                b -> java.util.Map.of("minecraft:bow", 1, "minecraft:bread", 4, "minecraft:cobblestone", 16),
+                items::get);
+        check(findings.stream().anyMatch(x -> x.cause().contains("not a registered item")),
+                "an unknown item is reported");
+        check(findings.stream().anyMatch(x -> x.cause().contains("minecraft:bow has durability")),
+                "an unmarked tool is reported");
+        check(findings.stream().anyMatch(x -> x.cause().contains("bread is marked durability")),
+                "a durability mark on food is reported");
+        check(findings.stream().anyMatch(x -> x.cause().contains("asks for 32")),
+                "a baseline above the kit is reported");
+        check(findings.stream().allMatch(x -> x.file().equals("t:bad") && x.field().equals("kit_baseline")),
+                "every finding names the bag and the field");
     }
 
     private static ThemeManifest.Entry theme(String id, String rules) {

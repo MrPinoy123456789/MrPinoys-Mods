@@ -133,7 +133,7 @@
                     "minimum": 0,
                     "maximum": 10,
                     "default": 1.0,
-                    "$comment": "Multiplier on the safe-visit kit top-up. Read and validated; the top-up itself arrives in a later wave."
+                    "$comment": "Multiplier on the safe-visit kit top-up (a bag's kit_baseline, see dungeon_bag.schema.json). The grant is still capped at the baseline."
                 }
             }
         }

@@ -39,7 +39,44 @@ final class BagMeta {
             // mypack:bags/my_bag unless it names its own table.
             lootTable = defaultLootTable(id);
         }
-        return new BagDefinition(id, label, blurb, order, headline, tags, lootTable);
+        List<BagDefinition.KitItem> baseline = kitBaselineOr(obj, fileIdentity);
+        return new BagDefinition(id, label, blurb, order, headline, tags, lootTable, baseline);
+    }
+
+    /**
+     * The optional {@code kit_baseline} array: {@code {"item", "count",
+     * "durability"?, "empties_into"?}} per line. A line with no item, a count
+     * below 1, or an item listed twice is rejected with the file named; that
+     * an item id resolves is the validator's job, since this parser runs
+     * without a registry.
+     */
+    private static List<BagDefinition.KitItem> kitBaselineOr(JsonObject obj, String fileIdentity) {
+        JsonElement el = obj.get("kit_baseline");
+        if (el == null || el.isJsonNull()) {
+            return List.of();
+        }
+        List<BagDefinition.KitItem> out = new java.util.ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (JsonElement line : el.getAsJsonArray()) {
+            JsonObject entry = line.getAsJsonObject();
+            String item = stringOrNull(entry.get("item"));
+            if (item == null) {
+                throw new IllegalArgumentException(fileIdentity + ": kit_baseline line with no item");
+            }
+            int count = intOr(entry, "count", 1);
+            if (count < 1) {
+                throw new IllegalArgumentException(fileIdentity + ": kit_baseline " + item
+                        + " has count " + count + "; it must be at least 1");
+            }
+            if (!seen.add(item)) {
+                throw new IllegalArgumentException(fileIdentity + ": kit_baseline lists " + item + " twice");
+            }
+            JsonElement durability = entry.get("durability");
+            boolean isDurability = durability != null && !durability.isJsonNull() && durability.getAsBoolean();
+            String emptiesInto = stringOrNull(entry.get("empties_into"));
+            out.add(new BagDefinition.KitItem(item, count, isDurability, emptiesInto));
+        }
+        return List.copyOf(out);
     }
 
     /**

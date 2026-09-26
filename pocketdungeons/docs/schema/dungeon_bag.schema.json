@@ -1,0 +1,80 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://pocketdungeons.dev/schema/dungeon_bag.schema.json",
+    "$comment": "M70 content contract for data/<namespace>/dungeon_bag/*.json. Identity is the resource id namespace + the relative path with the .json suffix stripped (data/mypack/dungeon_bag/my_bag.json is the bag mypack:my_bag). The parser is BagMeta.fromJson. The kit (one roll of loot_table) is handed over once, when the bag is chosen at the bag chest; kit_baseline is what each safe visit tops up toward.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["label", "blurb"],
+    "properties": {
+        "version": {
+            "type": "integer",
+            "default": 1,
+            "$comment": "Content contract version this file declares. 1 is the only generation accepted."
+        },
+        "label": {
+            "type": "string",
+            "minLength": 1,
+            "$comment": "Display name in the bag picker."
+        },
+        "blurb": {
+            "type": "string",
+            "minLength": 1,
+            "$comment": "One line under the label in the picker."
+        },
+        "order": {
+            "type": "integer",
+            "default": 0,
+            "$comment": "Stable picker order. Bags sort by order, then by id; the built-ins use 0 to 7."
+        },
+        "headline": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"},
+            "default": [],
+            "$comment": "Namespaced item ids the door frames show and the cube catalyst lookup matches against."
+        },
+        "tags": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+            "$comment": "Situation tags this bag seeds the solvability pass with. Closed vocabulary (SituationTags); an unknown tag rejects the file at load."
+        },
+        "loot_table": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+            "$comment": "The kit table. Defaults to <namespace>:bags/<path>. Rejected at load if the table does not exist."
+        },
+        "kit_baseline": {
+            "type": "array",
+            "default": [],
+            "$comment": "The deterministic kit a safe visit tops up toward: deficit = count minus what the player holds of that item type (tagged or not) in their dungeon inventory and in their saved rooms. Stackable lines restore floor(deficit x band fraction x zone kit_top_up_scale); durability lines are replaced only when missing, only at the calm band, and never repaired. Omitted or empty means the bag is never topped up. /dungeon admin validate reports a line above what one roll of loot_table gives, an unknown item, and a durability mark that does not match the item.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["item"],
+                "properties": {
+                    "item": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+                        "$comment": "Namespaced item id. Each item may appear once."
+                    },
+                    "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "$comment": "How many the kit holds."
+                    },
+                    "durability": {
+                        "type": "boolean",
+                        "default": false,
+                        "$comment": "True for a tool or other item with durability: replaced only when missing, at the calm band only, and a damaged one is never repaired. Must match the item."
+                    },
+                    "empties_into": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+                        "$comment": "The item a used one leaves behind (minecraft:bucket for a water, lava or milk bucket). The top-up turns a held empty back into the kit item instead of minting a new one beside it, and mints only when no empty is held anywhere."
+                    }
+                }
+            }
+        }
+    }
+}

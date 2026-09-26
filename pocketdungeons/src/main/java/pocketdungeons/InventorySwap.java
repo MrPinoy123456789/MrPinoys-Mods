@@ -3,13 +3,11 @@ package pocketdungeons;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +16,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -265,32 +264,37 @@ public final class InventorySwap {
     }
 
     /**
-     * A player's void-side inventory, held for them so it can be restored on
-     * their next entry into any dungeon, regardless of how they left or
-     * whether the instance they were in still exists.
+     * A player's dungeon inventory while they are outside the dungeon
+     * dimension: what they held in {@code pocketdungeons:void}, kept for them
+     * between visits and handed back, slot for slot, on their next entry into
+     * any dungeon.
      *
-     * <p>PD-65: this is the void inventory's counterpart to
-     * {@link StashRecord}. The overworld inventory survives every exit
-     * (disconnect, server close, purge, "Leave Dungeon") because
-     * {@code StashRecord} is written unconditionally on entry and restored
-     * unconditionally on the next entry, with no dependency on which
-     * instance the player was in or whether it still exists. The void
-     * inventory now has the same guarantee through {@code OrphanRecord}:
-     * {@code leaveVoid} writes an orphan unconditionally before attempting
-     * room delivery, and {@link #restoreOrphanIfAny} hands the items back
-     * on the player's next entry into any dungeon. Room delivery is a
-     * bonus that, when it fully succeeds, clears the orphan so the items
-     * are not duplicated on re-entry.
+     * <p>The void inventory's counterpart to {@link StashRecord}, with the
+     * same guarantee: {@code leaveVoid} writes it unconditionally, with no
+     * dependency on which instance the player was in, how they left, or
+     * whether that instance still exists, and {@code enterVoid} restores it
+     * unconditionally. It used to be a fallback for a room delivery that
+     * emptied the void inventory into the safe room's chests on every exit;
+     * that delivery is gone, and this is now the only place a void inventory
+     * goes when its owner leaves.
      *
-     * <p>Not used for a run that legitimately never had a room (untimed,
-     * {@code /dungeon admin build}): that is a normal, tracked exit through
-     * {@code Instances.detach}, and the orphan is the right call there too,
-     * since the player's feet may be anywhere by the time the leave is
-     * processed.
+     * <p>{@code items} is positional. Indices {@code 0} to {@code 41} are the
+     * {@link #SLOTS} snapshot order (main, armour, offhand, cursor), so the
+     * hotbar, the armour and the offhand come back where they were. Anything
+     * past index {@code 41} is loose: stacks that did not fit on the last
+     * restore, kit leftovers, or a top-up granted while the player was away.
+     * Loose stacks and the cursor go to the first free main slot on restore.
+     * Keystones are never kept: the item is a remote for the level in
+     * {@link DungeonLog}, and the entry hands out a fresh one.
+     *
+     * <p>Named for its first job and kept that way: the Java name and the
+     * serialized {@code orphans} field are what existing saves carry, so an
+     * orphan written before the persistent model simply becomes the player's
+     * dungeon inventory on their next entry.
      */
     record OrphanRecord(List<ItemStack> items) {
 
-        /** Nothing held: the state of every player with no orphaned void inventory. */
+        /** Nothing held: the state of every player with no dungeon inventory kept. */
         static final OrphanRecord NONE = new OrphanRecord(List.of());
 
         /** Same {@link ItemStack#OPTIONAL_CODEC} verdict as {@link StashRecord#CODEC}. */
@@ -301,6 +305,36 @@ public final class InventorySwap {
 
         OrphanRecord {
             items = List.copyOf(items);
+        }
+
+        /**
+         * A record of {@code items}, normalised to {@link #NONE} when every
+         * slot is empty, so {@link DungeonLog#setOrphan} drops it rather than
+         * storing 42 empties for a player who carried nothing out.
+         */
+        static OrphanRecord of(List<ItemStack> items) {
+            return items.stream().allMatch(ItemStack::isEmpty) ? NONE : new OrphanRecord(items);
+        }
+
+        /** A record holding only loose stacks, placed wherever there is room on the next entry. */
+        static OrphanRecord loose(List<ItemStack> stacks) {
+            List<ItemStack> out = new ArrayList<>(SLOTS + stacks.size());
+            for (int i = 0; i < SLOTS; i++) {
+                out.add(ItemStack.EMPTY);
+            }
+            out.addAll(stacks);
+            return of(out);
+        }
+
+        /** How many non-empty stacks this record holds. */
+        int stackCount() {
+            int count = 0;
+            for (ItemStack stack : items) {
+                if (!stack.isEmpty()) {
+                    count++;
+                }
+            }
+            return count;
         }
     }
 
@@ -414,7 +448,96 @@ public final class InventorySwap {
         return inVoid == stashed;
     }
 
-    // ---- spec 11.9, belt and braces -----------------------------------------
+    /**
+     * The dungeon inventory a leave keeps: the {@link #SLOTS} snapshot in
+     * place, every keystone blanked, merged with {@code alreadyHeld}.
+     *
+     * <p>{@code alreadyHeld} is the player's record at the moment they leave.
+     * While they are inside it holds only loose stacks (a restore's overflow,
+     * kit leftovers, a top-up that did not fit), and those must survive the
+     * leave rather than be overwritten by it. A stack of it in slot range
+     * {@code 0} to {@code 41} keeps its slot when the snapshot's slot is empty
+     * (the retry of a leave that failed after writing the record finds exactly
+     * that) and becomes loose otherwise; everything past index {@code 41} stays
+     * loose. Every non-empty stack is carried, so a record in any shape loses
+     * nothing.
+     */
+    static <T> List<T> keptInventory(List<T> snapshot, List<T> alreadyHeld, Predicate<T> isEmpty,
+                                     Predicate<T> isKeystone, T empty) {
+        List<T> out = new ArrayList<>(SLOTS + alreadyHeld.size());
+        List<T> loose = new ArrayList<>();
+        for (int i = 0; i < SLOTS; i++) {
+            T stack = i < snapshot.size() ? snapshot.get(i) : empty;
+            T held = i < alreadyHeld.size() ? alreadyHeld.get(i) : empty;
+            boolean keepHeld = !isEmpty.test(held) && !isKeystone.test(held);
+            if (isEmpty.test(stack) || isKeystone.test(stack)) {
+                out.add(keepHeld ? held : empty);
+            } else {
+                out.add(stack);
+                if (keepHeld) {
+                    loose.add(held);
+                }
+            }
+        }
+        out.addAll(loose);
+        for (int i = SLOTS; i < alreadyHeld.size(); i++) {
+            T held = alreadyHeld.get(i);
+            if (!isEmpty.test(held) && !isKeystone.test(held)) {
+                out.add(held);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Writes a kept dungeon inventory back into {@code view} slot for slot,
+     * puts {@code keystone} in hotbar slot 0, and returns whatever could not be
+     * placed.
+     *
+     * <p>Slots {@code 0} to {@code 40} are direct copies, so the hotbar, the
+     * armour and the offhand come back where they were. The keystone then
+     * takes slot 0; a stack it displaces joins the cursor stack and the loose
+     * stacks past index {@code 41}, which fill the first free main slots in
+     * that order. What does not fit is returned for the caller to keep in the
+     * record: nothing is ever dropped, because the ground here is a dungeon.
+     *
+     * <p>A keystone found in {@code kept} is skipped rather than restored. A
+     * leave never keeps one, but a record written before that rule may, and
+     * restoring it would duplicate the remote.
+     */
+    static <T> List<T> restoreKept(SlotView<T> view, List<T> kept, T keystone, Predicate<T> isKeystone) {
+        for (int i = 0; i < LIVE_SLOTS; i++) {
+            T stack = i < kept.size() ? kept.get(i) : view.empty();
+            view.set(i, isKeystone.test(stack) ? view.empty() : view.copy(stack));
+        }
+        view.set(CURSOR, view.empty());
+        List<T> loose = new ArrayList<>();
+        if (!view.isEmpty(keystone)) {
+            T displaced = view.get(0);
+            view.set(0, view.copy(keystone));
+            if (!view.isEmpty(displaced)) {
+                loose.add(displaced);
+            }
+        }
+        for (int i = CURSOR; i < kept.size(); i++) {
+            T stack = kept.get(i);
+            if (!view.isEmpty(stack) && !isKeystone.test(stack)) {
+                loose.add(view.copy(stack));
+            }
+        }
+        List<T> overflow = new ArrayList<>();
+        for (T stack : loose) {
+            int free = firstFreeMainSlot(view);
+            if (free < 0) {
+                overflow.add(stack);
+            } else {
+                view.set(free, stack);
+            }
+        }
+        return overflow;
+    }
+
+    // ---- spec 11.9, belt and braces    // ---- spec 11.9, belt and braces -----------------------------------------
 
     /**
      * The stacks in a snapshot that are neither empty nor something this mod
@@ -527,20 +650,19 @@ public final class InventorySwap {
     }
 
     /**
-     * Entering: save survival, clear the inventory, hand back the keystone,
-     * then restore any orphaned void inventory from a previous leave.
+     * Entering: save survival, clear the inventory, then restore the kept
+     * dungeon inventory slot for slot with the keystone in slot 0.
      *
      * <p>Ordering is load bearing. The backup is written to {@link DungeonLog}
      * <em>before</em> the live inventory is cleared, so a crash between the two
      * leaves the items in the saved data rather than nowhere.
      *
-     * <p>The bag is applied here, from the player's {@link DungeonLog} entry, if
-     * they have a bag assigned and no orphan to restore. The bag is no longer
-     * per-door; it is the player's class, chosen once via the bag chest in the
-     * safe room. An orphan holds the player's previous void inventory (leftover
-     * bag items and loot), so restoring it replaces a fresh bag application; a
-     * fresh bag is applied on the next clean entry, after a delivery clears the
-     * orphan.
+     * <p>Entering never grants items. The bag kit is handed over once, when
+     * the bag is chosen at the bag chest; the one exception is a player who
+     * chose a bag before that rule and has never been granted under it
+     * ({@link DungeonLog.Entry#kitGranted}), who gets a single migration
+     * grant here. Anything that does not fit, from the restore or from that
+     * grant, stays in the record for the next entry and the player is told.
      */
     private static void enterVoid(MinecraftServer server, DungeonLog log, ServerPlayer player) {
         PlayerSlots slots = new PlayerSlots(player);
@@ -554,120 +676,97 @@ public final class InventorySwap {
         long op = InventoryJournal.prepare(server, player, survival);
         log.setStash(player.getUUID(), new StashRecord(true, survival));
         clear(slots);
-        applyKeystoneItem(server, log, player);
-        String bagId = log.bagOf(player.getUUID());
-        if (!bagId.isEmpty() && log.orphanOf(player.getUUID()).items().isEmpty()) {
-            Bags.apply(player, bagId);
+        List<ItemStack> overflow;
+        try {
+            overflow = restoreKept(slots, log.orphanOf(player.getUUID()).items(),
+                    keystoneFor(log, player), Keystone::isKeystone);
+        } catch (RuntimeException e) {
+            // The record still holds the whole pack. Leave the slots empty so
+            // the next leave cannot keep half a restore on top of it.
+            clear(slots);
+            throw e;
         }
-        restoreOrphanIfAny(log, player, slots);
+        log.setOrphan(player.getUUID(), OrphanRecord.loose(overflow));
+        grantMigrationKit(log, player);
         slots.flush();
         InventoryJournal.commit(server, player, op);
+        int waiting = log.orphanOf(player.getUUID()).stackCount();
+        if (waiting > 0) {
+            player.sendSystemMessage(Component.literal(waiting
+                            + (waiting == 1 ? " stack does" : " stacks do")
+                            + " not fit in your pack. Nothing was dropped: make room, and it comes "
+                            + "back on your next entry.")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
     }
 
     /**
-     * The other half of {@link OrphanRecord}: whatever this player's last
-     * leave held for them gets handed back the very next time they enter
-     * any dungeon, whichever one that turns out to be. There is no slot to
-     * match, so this fires on any entry at all, once, then clears itself.
+     * The one kit grant a player who chose their bag before the grant-once
+     * rule is owed. Marked granted only when the kit was actually rolled, so a
+     * missing table costs nothing and is retried on the next entry.
      */
-    private static void restoreOrphanIfAny(DungeonLog log, ServerPlayer player, PlayerSlots slots) {
-        OrphanRecord orphan = log.orphanOf(player.getUUID());
-        if (orphan.items().isEmpty()) {
+    private static void grantMigrationKit(DungeonLog log, ServerPlayer player) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        if (entry.bag().isEmpty() || entry.kitGranted()) {
             return;
         }
-        for (ItemStack stack : orphan.items()) {
-            if (!stack.isEmpty()) {
-                deliverIntoMainSlots(slots, stack.copy());
-            }
+        List<ItemStack> leftover = Bags.apply(player, entry.bag());
+        if (leftover == null) {
+            return;
         }
-        log.setOrphan(player.getUUID(), OrphanRecord.NONE);
+        log.setKitGranted(player.getUUID(), true);
+        keepForNextEntry(log, player.getUUID(), leftover);
         player.sendSystemMessage(Component.literal(
-                        "Your items from a dungeon that closed while you were away have been "
-                                + "returned to you.")
+                        "Your bag is packed one last time. From here on the pack is yours to keep, "
+                                + "and the safe room tops it up.")
                 .withStyle(ChatFormatting.AQUA));
     }
 
     /**
-     * {@code snapshot}, minus whatever was in slot 0.
-     *
-     * <p>An orphan only ever restores into main slots 1 to 35, never slot 0
-     * ({@link #restoreOrphanIfAny} runs after {@link #applyKeystoneItem}
-     * has already put the entering keystone there), so keeping slot 0 in an
-     * {@link OrphanRecord} at all would be dead weight at best. Confirmed
-     * live it was worse than dead weight before this existed: restoring it
-     * back duplicated the keystone once per re-entry, a second compass, then
-     * a third. Stripped at creation, not just skipped at restore, so the
-     * invariant holds no matter which of the two sites a future reader looks
-     * at first.
+     * Adds {@code stacks} to {@code player}'s dungeon inventory record as
+     * loose stacks, for the next restore to place. Used for what does not fit
+     * in a live void inventory (kit leftovers, a top-up) and for a top-up owed
+     * to a player who is not inside. Never drops anything.
      */
-    private static List<ItemStack> withoutKeystoneSlot(List<ItemStack> snapshot) {
-        List<ItemStack> copy = new ArrayList<>(snapshot);
-        if (!copy.isEmpty()) {
-            copy.set(0, ItemStack.EMPTY);
-        }
-        return copy;
-    }
-
-    /**
-     * Persists the void inventory as an {@link OrphanRecord} on
-     * {@link DungeonLog}, so {@link #restoreOrphanIfAny} can hand it back on
-     * the player's next entry into any dungeon. Same slot 0 stripping as
-     * {@link #withoutKeystoneSlot}, for the same reason: a future entry's
-     * {@link #applyKeystoneItem} owns slot 0, and an orphan restoring into
-     * it would duplicate the keystone.
-     */
-    static void stashOrphan(MinecraftServer server, ServerPlayer player, List<ItemStack> voidInventory) {
-        DungeonLog log = DungeonLog.forServer(server);
-        log.setOrphan(player.getUUID(), new OrphanRecord(withoutKeystoneSlot(voidInventory)));
-    }
-
-    /**
-     * Places as much of {@code stack} as fits into empty main slots
-     * ({@code 1} to {@code 35}, slot {@code 0} is the keystone), dropping
-     * anything left over at the player's feet rather than losing it. Not
-     * {@link #restore}: that method writes a fixed 41 slot backup verbatim,
-     * including slot 0, which would overwrite the keystone {@link #enterVoid}
-     * just placed there.
-     */
-    private static void deliverIntoMainSlots(PlayerSlots slots, ItemStack stack) {
-        ItemStack remaining = stack;
-        for (int i = 1; i < MAIN_START + MAIN_COUNT && !remaining.isEmpty(); i++) {
-            if (!slots.isEmpty(slots.get(i))) {
-                continue;
+    static void keepForNextEntry(DungeonLog log, UUID player, List<ItemStack> stacks) {
+        List<ItemStack> add = new ArrayList<>();
+        for (ItemStack stack : stacks) {
+            if (!stack.isEmpty()) {
+                add.add(stack.copy());
             }
-            slots.set(i, remaining);
-            remaining = ItemStack.EMPTY;
         }
-        if (!remaining.isEmpty()) {
-            slots.player.drop(remaining, false);
+        if (add.isEmpty()) {
+            return;
         }
+        List<ItemStack> items = new ArrayList<>(log.orphanOf(player).items());
+        while (items.size() < SLOTS) {
+            items.add(ItemStack.EMPTY);
+        }
+        items.addAll(add);
+        log.setOrphan(player, new OrphanRecord(items));
     }
 
     /**
-     * Leaving: persist the void inventory as an orphan first (the same
-     * unconditional guarantee {@link StashRecord} gives the overworld
-     * inventory), then attempt room delivery as a bonus and clear the
-     * orphan only if delivery fully succeeded, then restore survival.
+     * Leaving: keep the void inventory as the player's dungeon inventory, then
+     * restore survival.
      *
-     * <p>PD-65: the previous design routed the void inventory through a
-     * tangle of conditional paths (pause for re-entry, deliver to room,
-     * drop at feet) that each lost items in different scenarios. The
-     * overworld inventory never had this problem because
-     * {@code StashRecord} is written unconditionally and restored
-     * unconditionally. This method now gives the void inventory the same
-     * shape: the orphan is written first, before any delivery attempt, so
-     * the items are on disk no matter what happens next. Room delivery is
-     * a bonus: if it fully succeeds (all items placed in containers, no
-     * overflow), the orphan is cleared so the items are not duplicated on
-     * re-entry. If it fails or partially fails, the orphan keeps the
-     * remainder and {@link #restoreOrphanIfAny} hands it back on the
-     * player's next entry into any dungeon.
+     * <p>The whole void inventory, all 41 slots and the cursor, minus any
+     * keystone, becomes the {@link OrphanRecord} unconditionally, with the
+     * record's own loose stacks carried along. There is no other destination:
+     * nothing is delivered to a room, so nothing can be split between a chest
+     * and the record, and the next entry hands it all back in the same slots.
      *
-     * <p>Ordering here is load bearing too, and in the other direction. The
-     * stash record is cleared <em>after</em> the restore, not before: if the
-     * restore throws halfway, the flag is still set and the backup is still in
-     * the saved data, so the next tick tries again from a clean clear rather
-     * than from nothing.
+     * <p>Ordering. The Lost and Found write comes first, then a journal record
+     * of what is being kept (the same atomic-rename record the entering branch
+     * writes, and for the same reason: {@code setOrphan} is only in memory
+     * until the saved data reaches disk), then the record, and only then is the
+     * live inventory cleared. The stash record is cleared <em>after</em> the
+     * survival restore, not before: if the restore throws halfway, the flag is
+     * still set and the backup is still in the saved data, so the next tick
+     * tries again from a clean clear rather than from nothing. A failed
+     * restore empties the slots again before it rethrows, so that retry
+     * snapshots nothing new and carries the record already written as loose
+     * stacks: it adds nothing and loses nothing.
      */
     private static void leaveVoid(MinecraftServer server, DungeonLog log, ServerPlayer player,
                                   StashRecord stash) {
@@ -676,71 +775,60 @@ public final class InventorySwap {
         // The pre-restore safety net of spec 11.10: what is about to be
         // replaced goes on disk before the replacement starts.
         LostAndFound.write(server, player, LostAndFound.LEAVING, voidInventory);
-
-        // PD-65: always persist the void inventory as an orphan first, the
-        // same unconditional guarantee StashRecord gives the overworld
-        // inventory. restoreOrphanIfAny in enterVoid hands these back on the
-        // next entry into any dungeon, no matter what happened to the
-        // instance the player just left.
-        List<ItemStack> carried = new ArrayList<>();
-        for (ItemStack stack : voidInventory) {
-            if (!stack.isEmpty()) {
-                carried.add(stack.copy());
-            }
-        }
-        if (!carried.isEmpty()) {
-            RunLifecycle.warnAboutUntagged(player, carried);
-            stashOrphan(server, player, voidInventory);
-
-            // Attempt room delivery as a bonus. If the room is provably
-            // still live, deliver what fits into its containers. If delivery
-            // fully succeeds, clear the orphan so the items are not
-            // duplicated on re-entry. If it fails or partially fails, keep
-            // the orphan with the remainder.
-            ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-            // PD-50: the common exit path (Instances.eject, via detach)
-            // removes this player from InstanceRegistry.byMember before the
-            // teleport that triggers this very leave, so record is normally
-            // already null here. Instances.consumeLastRoomCellOrigin is the
-            // fallback detach leaves for exactly this call.
-            BlockPos roomOrigin = record != null ? record.roomCellOrigin
-                    : Instances.consumeLastRoomCellOrigin(player.getUUID());
-            if (dungeon != null && roomOrigin != null
-                    && !dungeon.getBlockState(roomOrigin.offset(
-                            RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2)).isAir()) {
-                List<ItemStack> leftover = RunLifecycle.deliverToRoom(dungeon, roomOrigin, carried);
-                if (leftover.isEmpty()) {
-                    // Full delivery: clear the orphan so it does not
-                    // duplicate on re-entry.
-                    log.setOrphan(player.getUUID(), OrphanRecord.NONE);
-                } else {
-                    // Partial delivery: keep the orphan with only the
-                    // leftover, so the player gets the remainder on
-                    // re-entry.
-                    log.setOrphan(player.getUUID(),
-                            new OrphanRecord(withoutKeystoneSlot(leftover)));
-                    PocketDungeonsMod.LOG.warn(
-                            "{} left the dungeon; {} stacks delivered to the room, "
-                                    + "{} held for the next dungeon entry",
-                            player.getName().getString(),
-                            carried.size() - leftover.size(), leftover.size());
-                }
-            } else {
-                PocketDungeonsMod.LOG.warn(
-                        "{} left the dungeon with {} stacks and no live room to deliver "
-                                + "them to; holding them for the next dungeon entry",
-                        player.getName().getString(), carried.size());
-            }
-        }
+        warnAboutUntagged(player, voidInventory);
+        List<ItemStack> kept = keptInventory(voidInventory, log.orphanOf(player.getUUID()).items(),
+                ItemStack::isEmpty, Keystone::isKeystone, ItemStack.EMPTY);
+        long op = InventoryJournal.prepareLeaving(server, player, kept);
+        log.setOrphan(player.getUUID(), OrphanRecord.of(kept));
 
         clear(slots);
-        ItemStack overflow = restore(slots, stash.backup());
+        ItemStack overflow;
+        try {
+            overflow = restore(slots, stash.backup());
+        } catch (RuntimeException e) {
+            // The retry snapshots whatever is live and keeps it as dungeon
+            // inventory. Half a survival restore must not be in the slots when
+            // it does, or those survival items would exist twice.
+            clear(slots);
+            throw e;
+        }
         if (!overflow.isEmpty()) {
             player.drop(overflow, false);
         }
         log.setStash(player.getUUID(), StashRecord.NONE);
         slots.flush();
+        InventoryJournal.commitLeaving(server, player, op);
+    }
+
+    /**
+     * Spec 11.9's belt and braces. Anything in the void inventory that is
+     * neither bag loot nor the keystone got there without this mod handing it
+     * over: blocks mined in a room, or the "another mod put a netherite sword
+     * in my inventory mid-run" case.
+     *
+     * <p>A notice, not a confiscation. The stacks stay in the dungeon
+     * inventory with everything else, because they may well be legitimate
+     * room items. The one thing this must never do is put an untagged stack
+     * anywhere near the survival restore, and it cannot: the dungeon inventory
+     * and the survival backup never mix.
+     */
+    private static void warnAboutUntagged(ServerPlayer player, List<ItemStack> voidInventory) {
+        List<ItemStack> strays = untagged(voidInventory, ItemStack::isEmpty, InventorySwap::isOurs);
+        if (strays.isEmpty()) {
+            return;
+        }
+        List<String> names = new ArrayList<>();
+        for (ItemStack stack : strays) {
+            names.add(stack.getCount() + "x " + stack.getItem());
+        }
+        PocketDungeonsMod.LOG.info("{} left the dungeon carrying {} untagged stacks; they stay in "
+                        + "the dungeon inventory, never with survival: {}",
+                player.getName().getString(), names.size(), String.join(", ", names));
+        player.sendSystemMessage(Component.literal(names.size()
+                        + (names.size() == 1 ? " stack" : " stacks")
+                        + " in your pack did not come from the run's own loot. It stays in your "
+                        + "dungeon pack, never with your own gear.")
+                .withStyle(ChatFormatting.YELLOW));
     }
 
     /**
@@ -769,23 +857,23 @@ public final class InventorySwap {
     }
 
     /**
-     * Puts the player's keystone back in hotbar slot 0, the way the watcher's
-     * keystone reconcile pass would have.
+     * The keystone to put in hotbar slot 0 on entry, the way the watcher's
+     * keystone reconcile pass would have, or {@link ItemStack#EMPTY}.
      *
      * <p>A player with no keystone (level 0) gets nothing, which is correct:
      * {@code Keystone.reconcile} has the same rule, and an admin build entry
      * has no key behind it.
      */
-    private static void applyKeystoneItem(MinecraftServer server, DungeonLog log, ServerPlayer player) {
+    private static ItemStack keystoneFor(DungeonLog log, ServerPlayer player) {
         DungeonLog.Entry entry = log.get(player.getUUID());
         int level = entry.keystoneLevel();
         if (level <= 0) {
-            return;
+            return ItemStack.EMPTY;
         }
-        player.getInventory().setItem(0, Keystone.mint(level,
+        return Keystone.mint(level,
                 AffixMath.effective(player.getUUID(), level,
                         AffixMath.parse(entry.keystoneAffix()),
-                        AffixManifest.current().definitions())));
+                        AffixManifest.current().definitions()));
     }
 
     // ---- the player adapter -------------------------------------------------
