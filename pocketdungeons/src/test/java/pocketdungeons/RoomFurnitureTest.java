@@ -46,11 +46,11 @@ public class RoomFurnitureTest {
         for (int along = 7; along <= 9; along++) {
             check(isFurniture(wallRing(wall, along, 3), wall), "bulb " + wall + " " + along);
         }
-        check(isFurniture(doorPlane(wall, 10, 2), wall), "lever " + wall);
-        check(isFurniture(doorPlane(wall, 10, 3), wall), "lever sign " + wall);
+        check(isFurniture(doorPlane(wall, seen(wall, 10), 2), wall), "lever " + wall);
+        check(isFurniture(doorPlane(wall, seen(wall, 10), 3), wall), "lever sign " + wall);
         // Nothing stands over the lever in the wall any more: the fourth bulb
         // came out when the sign went up.
-        check(!isFurniture(wallRing(wall, 10, 3), wall), "no bulb over the lever " + wall);
+        check(!isFurniture(wallRing(wall, seen(wall, 10), 3), wall), "no bulb over the lever " + wall);
         // The three selector doors themselves (Y=1..2, along 7..9) are
         // furniture: the owner cannot break them. The air above them at Y=3
         // in front of the wall is not furniture.
@@ -69,7 +69,10 @@ public class RoomFurnitureTest {
             }
         }
         // The screen stops at 11; 12 is plain protected wall, not furniture.
-        check(!isFurniture(wallRing(wall, 12, 4), wall), "screen edge " + wall);
+        // On a mirrored wall the go-home bulb sits at absolute 12, so the plain
+        // edge is the other end there.
+        int edge = RoomGeometry.mirrorsAlong(wall) ? 3 : 12;
+        check(!isFurniture(wallRing(wall, edge, 4), wall), "screen edge " + wall);
     }
 
     /**
@@ -82,18 +85,23 @@ public class RoomFurnitureTest {
     private static void testHomeControl(DoorMask.Direction wall) {
         check(RoomTemplateGenerator.HOME_LEVER_ALONG == 5 && RoomTemplateGenerator.HOME_BULB_ALONG == 3
                 && RoomTemplateGenerator.HOME_BULB_Y == 4, "placement constants match the protected positions");
-        check(isFurniture(doorPlane(wall, 5, 2), wall), "home lever " + wall);
-        check(isFurniture(doorPlane(wall, 5, 3), wall), "home sign " + wall);
-        check(!isFurniture(doorPlane(wall, 5, 1), wall), "nothing under the home lever " + wall);
-        check(!isFurniture(doorPlane(wall, 6, 2), wall), "the row between the home lever and the doors " + wall);
+        check(isFurniture(doorPlane(wall, seen(wall, 5), 2), wall), "home lever " + wall);
+        check(isFurniture(doorPlane(wall, seen(wall, 5), 3), wall), "home sign " + wall);
+        check(!isFurniture(doorPlane(wall, seen(wall, 5), 1), wall), "nothing under the home lever " + wall);
+        // The doors keep their absolute slot (7..9) while the levers mirror, so
+        // the one free spot in the row is absolute 6 on every wall: between the
+        // home lever and the doors, or on a mirrored wall between the doors and
+        // the commit lever.
+        check(!isFurniture(doorPlane(wall, 6, 2), wall), "the free spot in the lever row " + wall);
+        check(!isFurniture(doorPlane(wall, seen(wall, 4), 2), wall), "beyond the home lever " + wall);
         for (int along = 2; along <= 4; along++) {
             for (int y = 1; y <= 3; y++) {
-                check(isFurniture(wallRing(wall, along, y), wall), "home screen " + wall + " " + along + " " + y);
+                check(isFurniture(wallRing(wall, seen(wall, along), y), wall), "home screen " + wall + " " + along + " " + y);
             }
         }
-        check(isFurniture(wallRing(wall, 3, 4), wall), "home bulb " + wall);
-        check(!isFurniture(wallRing(wall, 1, 2), wall), "home screen edge " + wall);
-        check(!isFurniture(wallRing(wall, 5, 1), wall), "home screen edge " + wall);
+        check(isFurniture(wallRing(wall, seen(wall, 3), 4), wall), "home bulb " + wall);
+        check(!isFurniture(wallRing(wall, seen(wall, 1), 2), wall), "home screen edge " + wall);
+        check(!isFurniture(wallRing(wall, seen(wall, 5), 1), wall), "home screen edge " + wall);
     }
 
     /**
@@ -191,6 +199,11 @@ public class RoomFurnitureTest {
     }
 
     // ---- geometry mirrors of the protected positions -------------------------
+
+    /** PD-70: a viewer-relative along (counted from the viewer's left) as the absolute one. */
+    private static int seen(DoorMask.Direction wall, int along) {
+        return RoomGeometry.viewerAlong(wall, along);
+    }
 
     private static int doorPlaneOf(DoorMask.Direction wall) {
         return switch (wall) {

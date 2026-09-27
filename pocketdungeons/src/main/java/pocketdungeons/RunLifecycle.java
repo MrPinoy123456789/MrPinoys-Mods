@@ -5,6 +5,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -1068,21 +1071,28 @@ final class RunLifecycle {
         } else if (floorsCleared >= floorsPerVisit) {
             // The usual length is run: going home is the sensible default now,
             // never a wall. The HOME screen and its bulb say the same.
+            // Playtest 2026-09-27 (A2): "banks what you carry" read as item
+            // storage, so the choice is spelled out as what each lever pays.
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. A good time to go home: the HOME lever banks"
-                            + " what you carry"
+                            + " The chests wait beyond the door. A good time to go home: GO HOME keeps the"
+                            + " reward chests and key progress and refills your kit"
                             + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
-                                    ? ", and every floor deeper starts with the omen already risen."
+                                    ? ". DESCEND pays bonus chests, but every floor deeper starts with the"
+                                            + " omen already risen."
                                     : "."))
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door and the next floor stands open beyond;"
-                            + " the HOME lever banks what you carry.")
+                            + " The chests wait beyond the door. GO HOME keeps the reward chests and key"
+                            + " progress and refills your kit; DESCEND for bonus chests and better loot.")
                     .withStyle(ChatFormatting.AQUA));
         }
+        // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
+        // the decision point, so a floor clear also gets a title.
+        showFloorClearedTitle(player, OmenBarText.clearedHeadline(floorsCleared, floorsPerVisit,
+                EndlessMineRules.isMine(record)));
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
@@ -1270,6 +1280,19 @@ final class RunLifecycle {
         return IntervalBanking.settle(record.interval.floorSteps, record.interval.bankedOmenSum(),
                 DungeonLog.forServer(server).get(member).keyProgress(),
                 PocketDungeonsConfig.floorsPerSafeVisit(), penalty, ZoneRules.of(record).bonusChests(floors));
+    }
+
+    /**
+     * A floor clear's on-screen title: the floor count large, the choice
+     * small. Playtest 2026-09-27: the count on the omen bar went unnoticed at
+     * the moment of choosing between home and the next floor.
+     */
+    private static void showFloorClearedTitle(ServerPlayer player, String headline) {
+        player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 50, 15));
+        player.connection.send(new ClientboundSetSubtitleTextPacket(
+                Component.literal("GO HOME or DESCEND").withStyle(ChatFormatting.GRAY)));
+        player.connection.send(new ClientboundSetTitleTextPacket(
+                Component.literal(headline).withStyle(ChatFormatting.GOLD)));
     }
 
     /**
@@ -1572,9 +1595,12 @@ final class RunLifecycle {
         beginHomecoming(record, server.overworld().getGameTime());
 
         // M65: transition to HOME. The room is loaded, the door is open,
-        // and the party can walk through. No teleport, no chime, no
-        // explanation message.
+        // and the party can walk through. No teleport and no chime. One line
+        // of explanation since the playtest of 2026-09-27 (A9): the room gave
+        // no sign that it was the player's own or that they could build there.
         RunSession.transition(record, RunSession.Phase.HOME);
+        Instances.announce(server, record, "Home is through the open door: your own room. Build and decorate"
+                + " it freely; everything you place is kept, and chests there are safe storage.", null);
         return true;
     }
 

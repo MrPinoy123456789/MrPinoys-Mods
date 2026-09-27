@@ -83,6 +83,24 @@ final class RoomGeometry {
     }
 
     /**
+     * PD-70: a position along {@code wall} as the player standing in the room
+     * and facing it sees it, so {@code along} counts from their left. Absolute
+     * along (+x on a NORTH or SOUTH wall, +z on an EAST or WEST one) runs to
+     * the viewer's right on a NORTH or EAST wall and to their left on a SOUTH
+     * or WEST one; without the mirror the HOME and DESCEND levers swapped sides
+     * whenever the selector wall did. The selector doors keep their absolute
+     * slot; only the levers and the go-home control go through this.
+     */
+    static int viewerAlong(DoorMask.Direction wall, int along) {
+        return mirrorsAlong(wall) ? CELL - 1 - along : along;
+    }
+
+    /** Whether absolute along runs to the viewer's left on {@code wall} (see {@link #viewerAlong}). */
+    static boolean mirrorsAlong(DoorMask.Direction wall) {
+        return wall == DoorMask.Direction.SOUTH || wall == DoorMask.Direction.WEST;
+    }
+
+    /**
      * M19: the wall on the viewer's left when they stand inside the room and
      * face {@code wall}. The engine terminal sits there so it is visible from
      * the selector doors: facing the doors, the engine is beside you, never

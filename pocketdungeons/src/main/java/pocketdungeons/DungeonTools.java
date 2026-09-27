@@ -31,9 +31,14 @@ import java.util.UUID;
  * </table>
  *
  * <p>Applies to pickaxes, axes, shovels and hoes: the four mining tool
- * families. Swords, bows and other combat gear are untouched, so a player who
- * crafts a sword to fight with gets vanilla durability on it. Shears and
- * flint-and-steel are also untouched: they are utility items, not mining tools.
+ * families. Weapons and armour take a gentler cap of their own (see
+ * {@link #durabilityCap}). Shears and flint-and-steel are untouched: they are
+ * utility items.
+ *
+ * <p>PD-69: the cap is applied on craft ({@link ResultSlotMixin}) and, through
+ * {@link DungeonDrops}, to every item that appears in the dungeon dimension:
+ * chest and vault loot, mob drops (equipment included) and spawner rewards.
+ * Before that, a mob's axe kept its full vanilla durability.
  *
  * <p>Identification is by registry name suffix rather than by class, because
  * 26.2 has no {@code PickaxeItem} class: pickaxes are plain {@code Item}
@@ -82,31 +87,90 @@ public final class DungeonTools {
         if (cap <= 0) {
             return stack;
         }
+        Integer max = stack.get(DataComponents.MAX_DAMAGE);
+        if (max != null && max <= cap) {
+            return stack; // already capped (or a kit item authored lower): never raise it
+        }
         ItemStack copy = stack.copy();
         copy.set(DataComponents.MAX_DAMAGE, cap);
+        int damage = stack.getDamageValue();
+        if (damage > 0 && max != null) {
+            copy.setDamageValue(scaledDamage(damage, max, cap));
+        }
         return copy;
     }
 
     /**
-     * The durability cap for {@code item}, or {@code -1} if it is not a mining
-     * tool this class should limit. Public so the mixin can short-circuit
-     * without building a copy for non-tools.
+     * The damage a stack keeps when its maximum drops from {@code oldMax} to
+     * {@code cap}: proportional, so a sword found half worn stays half worn,
+     * and never enough to break it on the spot.
+     */
+    static int scaledDamage(int damage, int oldMax, int cap) {
+        if (damage <= 0 || oldMax <= 0) {
+            return 0;
+        }
+        return Math.min(cap - 1, (int) Math.round((double) damage * cap / oldMax));
+    }
+
+    /**
+     * The durability cap for {@code item}, or {@code -1} if this class does not
+     * limit it. Public so the mixin can short-circuit without building a copy.
+     *
+     * <p>Mining tools take the strict cap (the table in the class javadoc).
+     * Weapons and armour (playtest 2026-09-27: "last too long") take a gentler
+     * one, about a quarter to a third of vanilla, so a found sword is a real
+     * upgrade for a stretch of floors rather than for the whole game:
+     * <table>
+     * <tr><th>Material</th><th>Weapon</th><th>Armour piece</th></tr>
+     * <tr><td>Wooden, Golden, Leather</td><td>24</td><td>32</td></tr>
+     * <tr><td>Stone, Copper, Chainmail</td><td>40</td><td>48</td></tr>
+     * <tr><td>Iron, Turtle</td><td>64</td><td>64</td></tr>
+     * <tr><td>Diamond</td><td>96</td><td>96</td></tr>
+     * <tr><td>Netherite</td><td>128</td><td>128</td></tr>
+     * </table>
+     * Bow, crossbow and shield 64; trident and mace 96. Shears, flint and
+     * steel and other utility items stay vanilla.
      */
     public static int durabilityCap(Item item) {
         Identifier id = BuiltInRegistries.ITEM.getKey(item);
         String path = id.getPath();
-        if (!path.endsWith("_pickaxe") && !path.endsWith("_axe")
-                && !path.endsWith("_shovel") && !path.endsWith("_hoe")) {
-            return -1;
-        }
         String tier = tierPrefix(path);
-        return switch (tier) {
-            case "wooden", "golden" -> 8;
-            case "stone", "copper" -> 12;
-            case "iron" -> 16;
-            case "diamond" -> 20;
-            case "netherite" -> 24;
-            default -> 12;
+        if (path.endsWith("_pickaxe") || path.endsWith("_axe")
+                || path.endsWith("_shovel") || path.endsWith("_hoe")) {
+            return switch (tier) {
+                case "wooden", "golden" -> 8;
+                case "stone", "copper" -> 12;
+                case "iron" -> 16;
+                case "diamond" -> 20;
+                case "netherite" -> 24;
+                default -> 12;
+            };
+        }
+        if (path.endsWith("_sword") || path.endsWith("_spear")) {
+            return switch (tier) {
+                case "wooden", "golden" -> 24;
+                case "stone", "copper" -> 40;
+                case "iron" -> 64;
+                case "diamond" -> 96;
+                case "netherite" -> 128;
+                default -> 48;
+            };
+        }
+        if (path.endsWith("_helmet") || path.endsWith("_chestplate")
+                || path.endsWith("_leggings") || path.endsWith("_boots")) {
+            return switch (tier) {
+                case "leather", "golden" -> 32;
+                case "chainmail", "copper" -> 48;
+                case "iron", "turtle" -> 64;
+                case "diamond" -> 96;
+                case "netherite" -> 128;
+                default -> 48;
+            };
+        }
+        return switch (path) {
+            case "bow", "crossbow", "shield" -> 64;
+            case "trident", "mace" -> 96;
+            default -> -1;
         };
     }
 

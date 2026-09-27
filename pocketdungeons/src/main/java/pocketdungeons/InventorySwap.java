@@ -690,6 +690,11 @@ public final class InventorySwap {
         grantMigrationKit(log, player);
         slots.flush();
         InventoryJournal.commit(server, player, op);
+        if (survival.stream().anyMatch(stack -> !stack.isEmpty())) {
+            player.sendSystemMessage(Component.literal(
+                            "Your own gear is stored safely and comes back when you leave. This is your dungeon pack.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
         int waiting = log.orphanOf(player.getUUID()).stackCount();
         if (waiting > 0) {
             player.sendSystemMessage(Component.literal(waiting
@@ -798,6 +803,13 @@ public final class InventorySwap {
         log.setStash(player.getUUID(), StashRecord.NONE);
         slots.flush();
         InventoryJournal.commitLeaving(server, player, op);
+        // Playtest 2026-09-27: the silent swap read as "my items were banked
+        // somewhere and I do not know how to get them back".
+        if (kept.stream().anyMatch(stack -> !stack.isEmpty())) {
+            player.sendSystemMessage(Component.literal(
+                            "Your dungeon pack stays behind, slot for slot. It comes back the next time you enter.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     /**

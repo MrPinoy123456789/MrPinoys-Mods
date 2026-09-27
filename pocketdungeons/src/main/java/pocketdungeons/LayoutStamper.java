@@ -364,12 +364,14 @@ final class LayoutStamper {
                 continue;
             }
             BlockPos origin = geometry.cellOrigin(cell);
-            switch (roomName) {
-                case "infested_wall" -> placeInfestedGate(level, origin, gateSide);
-                case "elders_chamber" -> placeSealedGate(level, origin, gateSide,
+            // PD-66: plan room names are namespaced ("pocketdungeons:hold_the_plate"),
+            // so the match qualifies the name first; a bare-name switch never fired.
+            switch (JsonPackSupport.qualify(roomName)) {
+                case "pocketdungeons:infested_wall" -> placeInfestedGate(level, origin, gateSide);
+                case "pocketdungeons:elders_chamber" -> placeSealedGate(level, origin, gateSide,
                         Blocks.GRAVEL.defaultBlockState());
-                case "dont_look" -> placeDoorwayTopGate(level, origin, gateSide);
-                case "hold_the_plate" -> placeIronDoorGate(level, origin, gateSide);
+                case "pocketdungeons:dont_look" -> placeDoorwayTopGate(level, origin, gateSide);
+                case "pocketdungeons:hold_the_plate" -> placeIronDoorGate(level, origin, gateSide);
                 default -> { }
             }
         }

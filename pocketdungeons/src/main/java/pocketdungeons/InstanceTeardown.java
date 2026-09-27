@@ -192,6 +192,7 @@ final class InstanceTeardown {
             Locks.clear(cellOrigin);
             OmenSources.clear(cellOrigin);
             CollapsingBridgeHandler.clear(cellOrigin);
+            HoldThePlateHandler.clear(cellOrigin);
             RisingLavaHandler.clear(cellOrigin);
         }
 

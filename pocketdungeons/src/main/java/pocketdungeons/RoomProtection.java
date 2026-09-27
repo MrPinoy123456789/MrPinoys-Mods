@@ -316,17 +316,20 @@ final class RoomProtection {
         if (perp == doorPlane && along >= 7 && along <= 9 && (y == 1 || y == 2)) {
             return true;
         }
-        if (perp == doorPlane && along == 10 && (y == 2 || y == 3)) {
+        // PD-70: the levers and the go-home control are placed viewer-relative
+        // (RoomGeometry.viewerAlong), so test them in the same frame.
+        int seen = RoomGeometry.viewerAlong(wall, along);
+        if (perp == doorPlane && seen == 10 && (y == 2 || y == 3)) {
             return true; // the commit lever and the sign above it
         }
-        if (perp == doorPlane && along == 5 && (y == 2 || y == 3)) {
+        if (perp == doorPlane && seen == 5 && (y == 2 || y == 3)) {
             return true; // the go-home lever and the sign above it
         }
         if (perp == wallPlane) {
-            if (y >= 1 && y <= 3 && along >= 2 && along <= 4) {
+            if (y >= 1 && y <= 3 && seen >= 2 && seen <= 4) {
                 return true; // the go-home screen blocks
             }
-            if (y == 4 && along == 3) {
+            if (y == 4 && seen == 3) {
                 return true; // the go-home bulb over them
             }
             if (y == 3 && along >= 7 && along <= 9) {

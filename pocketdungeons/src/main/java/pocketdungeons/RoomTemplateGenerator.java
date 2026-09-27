@@ -370,8 +370,8 @@ final class RoomTemplateGenerator {
     static final int HOME_SCREEN_Y_MAX = 3;
     static final int HOME_BULB_ALONG = 3;
     static final int HOME_BULB_Y = 4;
-    /** The go-home lever's sign. */
-    private static final String HOME_SIGN_WORD = "HOME";
+    /** The go-home lever's sign: a verb, like DESCEND (playtest 2026-09-27, A5). */
+    private static final String HOME_SIGN_WORD = "GO HOME";
 
     /**
      * The engine bay on the wall to the left of the selector wall, bottom up:
@@ -547,7 +547,7 @@ final class RoomTemplateGenerator {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), BULB);
             }
         }
-        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, 2), leverState(wall));
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), leverState(wall));
         placeLeverSign(level, o, wall);
         for (int y = 4; y <= 5; y++) {
             for (int along = 4; along <= 11; along++) {
@@ -591,8 +591,8 @@ final class RoomTemplateGenerator {
     static void clearFurniture(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         clearBulbs(level, o, wall);
         clearHomeControl(level, o, wall);
-        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, 2), RoomBuilder.AIR);
-        RoomBuilder.set(level, doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), SIGN_Y), RoomBuilder.AIR);
         for (int y = 4; y <= 5; y++) {
             for (int along = 4; along <= 11; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
@@ -616,17 +616,23 @@ final class RoomTemplateGenerator {
     static void placeHomeControl(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean goodTime) {
         for (int along = HOME_SCREEN_ALONG_MIN; along <= HOME_SCREEN_ALONG_MAX; along++) {
             for (int y = HOME_SCREEN_Y_MIN; y <= HOME_SCREEN_Y_MAX; y++) {
-                RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
+                RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, along), y), SCREEN_BLOCK);
             }
         }
         setHomeBulb(level, o, wall, goodTime);
-        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, 2), leverState(wall));
-        placeSign(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, SIGN_Y), wall, HOME_SIGN_WORD);
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), 2), leverState(wall));
+        placeSign(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), SIGN_Y), wall, HOME_SIGN_WORD);
     }
 
     /** Lights or darkens the bulb over the go-home screen. */
     static void setHomeBulb(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean lit) {
-        RoomBuilder.set(level, wallRingPos(o, wall, HOME_BULB_ALONG, HOME_BULB_Y), lit ? BULB_LIT : BULB);
+        RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, HOME_BULB_ALONG), HOME_BULB_Y),
+                lit ? BULB_LIT : BULB);
+    }
+
+    /** PD-70: see {@link RoomGeometry#viewerAlong}; the levers and go-home control go through it. */
+    private static int viewerAlong(DoorMask.Direction wall, int along) {
+        return RoomGeometry.viewerAlong(wall, along);
     }
 
     /**
@@ -637,19 +643,19 @@ final class RoomTemplateGenerator {
      */
     static void clearHomeControl(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         BlockState wallBlock = RoomBuilder.shellWallAt(level, o);
-        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, SIGN_Y), RoomBuilder.AIR);
-        RoomBuilder.set(level, doorPlanePos(o, wall, HOME_LEVER_ALONG, 2), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), SIGN_Y), RoomBuilder.AIR);
+        RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), 2), RoomBuilder.AIR);
         for (int along = HOME_SCREEN_ALONG_MIN; along <= HOME_SCREEN_ALONG_MAX; along++) {
             for (int y = HOME_SCREEN_Y_MIN; y <= HOME_SCREEN_Y_MAX; y++) {
-                RoomBuilder.set(level, wallRingPos(o, wall, along, y), wallBlock);
+                RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, along), y), wallBlock);
             }
         }
-        RoomBuilder.set(level, wallRingPos(o, wall, HOME_BULB_ALONG, HOME_BULB_Y), wallBlock);
+        RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, HOME_BULB_ALONG), HOME_BULB_Y), wallBlock);
     }
 
     /** The go-home lever's position, for click detection ({@code Instances.isHomeLever}). */
     static BlockPos homeLeverPos(BlockPos o, DoorMask.Direction wall) {
-        return doorPlanePos(o, wall, HOME_LEVER_ALONG, 2);
+        return doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), 2);
     }
 
     /**
@@ -688,7 +694,7 @@ final class RoomTemplateGenerator {
      * four rows it sits on.
      */
     private static void placeLeverSign(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
-        placeSign(level, doorPlanePos(o, wall, LEVER_ALONG, SIGN_Y), wall, LEVER_SIGN_WORD);
+        placeSign(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), SIGN_Y), wall, LEVER_SIGN_WORD);
     }
 
     /** A waxed, glowing one-word wall sign at {@code pos}, facing into the room from {@code wall}. */
@@ -709,7 +715,7 @@ final class RoomTemplateGenerator {
 
     /** The commit lever's position, for click detection ({@code Instances.isCommitLever}). */
     static BlockPos leverPos(BlockPos o, DoorMask.Direction wall) {
-        return doorPlanePos(o, wall, LEVER_ALONG, 2);
+        return doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2);
     }
 
     /** The engine block's position, for click detection ({@code Instances.engineTerminalAt}). */

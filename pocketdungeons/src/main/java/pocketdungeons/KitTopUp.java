@@ -310,10 +310,34 @@ final class KitTopUp {
         double[] fractions = PocketDungeonsConfig.kitTopUpBandFractions();
         Plan plan = plan(bag.kitBaseline, held, emptiesInPack, emptiesStored, band, fractions,
                 ZoneRules.of(record).kitTopUpScale());
-        Map<String, String> names = grant(server, log, member, bag, plan, inside);
+        Delivery delivery = grant(server, log, member, bag, plan, inside);
         boolean bandEarnedNone = fraction(false, band, fractions) <= 0.0;
-        member.sendSystemMessage(Component.literal(summary(plan, names, bandEarnedNone))
+        String line = summary(plan, delivery.names(), bandEarnedNone);
+        if (!plan.grants().isEmpty()) {
+            // Playtest 2026-09-27 (A4): the restock was missed, and the one
+            // noticed looked lost. Say where it went, and show it on screen too.
+            line += whereLine(inside, delivery.anyKept());
+            member.sendOverlayMessage(Component.literal("Kit restocked: see chat").withStyle(ChatFormatting.AQUA));
+        }
+        member.sendSystemMessage(Component.literal(line)
                 .withStyle(plan.grants().isEmpty() ? ChatFormatting.GRAY : ChatFormatting.AQUA));
+    }
+
+    /** What a grant delivered: each item's display name, and whether any of it waits in the kept pack. */
+    record Delivery(Map<String, String> names, boolean anyKept) {}
+
+    /**
+     * Where the restock went, appended to {@link #summary}: into the live pack,
+     * or into the kept dungeon pack (the player is outside, or the pack was
+     * full), which comes back on the next descent.
+     */
+    static String whereLine(boolean inside, boolean anyKept) {
+        if (!inside) {
+            return " It waits in your dungeon pack for your next descent.";
+        }
+        return anyKept
+                ? " Your pack was full, so the rest waits for your next descent."
+                : " It is in your pack now.";
     }
 
     /**
@@ -325,11 +349,11 @@ final class KitTopUp {
      * has it, that kit item's components (a Mason pickaxe keeps its short
      * durability, a torch stack its eight-high cap).
      */
-    private static Map<String, String> grant(MinecraftServer server, DungeonLog log, ServerPlayer member,
+    private static Delivery grant(MinecraftServer server, DungeonLog log, ServerPlayer member,
                                              BagDefinition bag, Plan plan, boolean inside) {
         Map<String, String> names = new HashMap<>();
         if (plan.grants().isEmpty()) {
-            return names;
+            return new Delivery(names, false);
         }
         Map<String, ItemStack> templates = new HashMap<>();
         ServerLevel level = member.level();
@@ -379,7 +403,7 @@ final class KitTopUp {
             member.inventoryMenu.broadcastChanges();
         }
         InventorySwap.keepForNextEntry(log, member.getUUID(), keep);
-        return names;
+        return new Delivery(names, !keep.isEmpty());
     }
 
     /** Removes the empties a grant turns back into kit items from the live pack. */

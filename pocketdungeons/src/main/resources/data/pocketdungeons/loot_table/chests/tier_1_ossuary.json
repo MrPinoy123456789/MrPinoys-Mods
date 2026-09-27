@@ -46,9 +46,9 @@
             {
               "function": "minecraft:set_count",
               "count": {
-                "type": "minecraft:uniform",
-                "min": 2,
-                "max": 5
+                "type": "minecraft:binomial",
+                "n": 5,
+                "p": 0.175
               }
             },
             {
@@ -72,9 +72,9 @@
             {
               "function": "minecraft:set_count",
               "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 2
+                "type": "minecraft:binomial",
+                "n": 2,
+                "p": 0.1875
               }
             },
             {
@@ -114,7 +114,7 @@
               }
             }
           ],
-          "weight": 2
+          "weight": 4
         },
         {
           "type": "minecraft:item",

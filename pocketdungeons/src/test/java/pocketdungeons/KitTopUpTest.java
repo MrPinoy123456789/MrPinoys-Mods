@@ -157,8 +157,13 @@ public class KitTopUpTest {
         check(KitTopUp.summary(high, names, true).contains("omen ran high"), "a high band says so");
         KitTopUp.Plan whole = plan(List.of(COBBLE), Map.of("minecraft:cobblestone", 16), 0, 1.0);
         check(KitTopUp.summary(whole, names, false).startsWith("Your kit is whole"), "a whole kit says so");
+        // Playtest 2026-09-27 (A4): the restock says where it went.
+        check(KitTopUp.whereLine(true, false).contains("in your pack now"), "inside, delivered");
+        check(KitTopUp.whereLine(true, true).contains("pack was full"), "inside, some kept for later");
+        check(KitTopUp.whereLine(false, false).contains("next descent"), "outside, kept for the next entry");
         for (String line : List.of(KitTopUp.summary(p, names, false), KitTopUp.summary(high, names, true),
-                KitTopUp.summary(whole, names, false))) {
+                KitTopUp.summary(whole, names, false), KitTopUp.whereLine(true, true),
+                KitTopUp.whereLine(false, false))) {
             check(line.indexOf((char) 0x2014) < 0 && !line.contains("--"), "no dashes in player text");
         }
     }

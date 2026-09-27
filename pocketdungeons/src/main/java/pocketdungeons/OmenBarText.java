@@ -29,8 +29,9 @@ final class OmenBarText {
      * each member's own carried progress, so the bar does not claim a number.
      */
     static String outcome(int band, int chests) {
-        return chests + (chests == 1 ? " chest, " : " chests, ")
-                + (Omen.levelChange(band) > 0 ? "key climbs" : "key stalls");
+        // Playtest 2026-09-27: "key climbs" was jargon; say what it means.
+        return chests + (chests == 1 ? " reward chest, " : " reward chests, ")
+                + (Omen.levelChange(band) > 0 ? "key progress" : "no key progress");
     }
 
     /** {@link #outcome(int, int)} with the band's own chest count and no depth bonus. */
@@ -47,14 +48,19 @@ final class OmenBarText {
      */
     static String activeTitle(int floorOmen, int band, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
-        StringBuilder title = new StringBuilder()
-                .append("Omen ").append(Omen.clamp(floorOmen)).append('/').append(Omen.MAX_OMEN)
-                .append(" | ").append(outcome(band, chests));
+        // Playtest 2026-09-26 (A1): the title was too long to read, and the one
+        // thing the player tracks is the spawner gate. It leads now; the omen
+        // follows with the chests it is worth, and the bar's colour and fill
+        // carry the band.
+        StringBuilder title = new StringBuilder();
         if (spawnersTotal > 0) {
-            title.append(" | Spawners ").append(Math.max(0, spawnersCleared)).append('/')
-                    .append(spawnersTotal).append(", need ").append(spawnersNeeded);
+            int needed = Math.max(1, spawnersNeeded);
+            int cleared = Math.max(0, spawnersCleared);
+            title.append(cleared >= needed ? "Spawners done" : "Spawners " + cleared + "/" + needed)
+                    .append(" | ");
         }
-        return title.toString();
+        return title.append("Omen ").append(Omen.clamp(floorOmen)).append('/').append(Omen.MAX_OMEN)
+                .append(", ").append(chests).append(chests == 1 ? " chest" : " chests").toString();
     }
 
     /**
@@ -64,15 +70,18 @@ final class OmenBarText {
      * 3". A Mine interval has no usual length and counts floors alone.
      */
     static String clearedTitle(int floorsCleared, int floorsPerSafeVisit, boolean mine, int band, int chests) {
-        String floor;
+        return clearedHeadline(floorsCleared, floorsPerSafeVisit, mine) + " | " + outcome(band, chests);
+    }
+
+    /** The floor half of {@link #clearedTitle}, also the on-screen title a floor clear shows. */
+    static String clearedHeadline(int floorsCleared, int floorsPerSafeVisit, boolean mine) {
         if (mine) {
-            floor = "Mine floor " + floorsCleared + " cleared";
-        } else if (floorsCleared > Math.max(1, floorsPerSafeVisit)) {
-            floor = "Floor " + floorsCleared + " cleared, deep";
-        } else {
-            floor = "Floor " + floorsCleared + " of " + Math.max(1, floorsPerSafeVisit) + " cleared";
+            return "Mine floor " + floorsCleared + " cleared";
         }
-        return floor + " | " + outcome(band, chests);
+        if (floorsCleared > Math.max(1, floorsPerSafeVisit)) {
+            return "Floor " + floorsCleared + " cleared, deep";
+        }
+        return "Floor " + floorsCleared + " of " + Math.max(1, floorsPerSafeVisit) + " cleared";
     }
 
     /**
@@ -97,7 +106,7 @@ final class OmenBarText {
     /** The action bar line when {@code source} raises the omen to {@code omen}. */
     static String riseLine(Omen.Source source, int omen) {
         String line = switch (source) {
-            case DWELL -> "The walls notice you lingering.";
+            case DWELL -> "The walls notice you lingering in an unsolved room.";
             case SENSOR -> "The sculk counts your steps.";
             case SHRIEK -> "Something below heard that.";
             case BARGAIN -> "The bargain is struck. Something leans closer.";

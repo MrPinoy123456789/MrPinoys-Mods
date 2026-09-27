@@ -236,8 +236,9 @@
                                                             {
                                                                 "function":  "minecraft:set_count",
                                                                 "count":  {
-                                                                              "min":  2,
-                                                                              "max":  6
+                                                                              "type":  "minecraft:binomial",
+                                                                              "n":  6,
+                                                                              "p":  0.1667
                                                                           }
                                                             },
                                                             {
@@ -982,7 +983,7 @@
                                       {
                                           "type":  "minecraft:item",
                                           "name":  "minecraft:golden_boots",
-                                          "weight":  2,
+                                          "weight":  4,
                                           "functions":  [
                                                             {
                                                                 "function":  "minecraft:set_components",

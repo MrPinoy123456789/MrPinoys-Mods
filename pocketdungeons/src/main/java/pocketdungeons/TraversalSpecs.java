@@ -35,8 +35,8 @@ import static pocketdungeons.RoomTemplateGenerator.concat;
  * <p>Three of the five are pure template (Chasm, Powder Snow Field, and the
  * decor parts of Thicket and Ice Run). Flooded Hall carries a Situations
  * handler that spawns drowned and places iron doors to contain the water.
- * Thicket and Ice Run each carry a classic spawner position whose entity config
- * M52 authors.
+ * Thicket and Ice Run each carry a classic spawner that their handlers set to
+ * the room's own mob at stamp time (ClassicSpawners, PD-68).
  */
 final class TraversalSpecs {
 
@@ -44,10 +44,18 @@ final class TraversalSpecs {
 
     static {
         Situations.register("flooded_hall", TraversalSpecs::floodedHall);
+        // PD-68: the baked classic spawner is a zombie spawner that a lit room
+        // never lets fire; give it the room's own mob and light-free rules.
         Situations.register("thicket", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            ClassicSpawners.configure(level, o, EntityTypes.CAVE_SPIDER);
+            return null;
+        });
         Situations.register("ice_run", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            ClassicSpawners.configure(level, o, EntityTypes.BREEZE);
+            return null;
+        });
         // M58: template-only traversal rooms. The decor in the RoomSpec is
         // the whole of the content; the handler just owns the cell.
         Situations.register("chasm", (level, o, role, depth, profile, spawns, seed,
@@ -129,14 +137,20 @@ final class TraversalSpecs {
                 }));
 
         // Thicket: cobwebs floor to ceiling with a cave spider spawner in
-        // the centre. The spawner entity config is authored by M52.
+        // the centre. The spawner is set to cave spiders at stamp time
+        // (ClassicSpawners, PD-68).
         specs.add(new RoomSpec("thicket", EnumSet.of(Direction.WEST, Direction.EAST))
                 .spawner(new BlockPos(8, 1, 8))
                 .decor((level, o) -> {
                     BlockState web = Blocks.COBWEB.defaultBlockState();
+                    // Playtest 2026-09-27: half the webs. A 3D checkerboard
+                    // keeps every step slow without walling the room solid.
                     for (int x = 1; x <= CELL - 2; x++) {
                         for (int z = 1; z <= CELL - 2; z++) {
                             for (int y = 1; y <= WALL_HEIGHT; y++) {
+                                if ((x + y + z) % 2 != 0) {
+                                    continue;
+                                }
                                 RoomBuilder.set(level, o.offset(x, y, z), web);
                             }
                         }
@@ -146,7 +160,7 @@ final class TraversalSpecs {
         // Ice Run: blue ice floor with stone ledges along the north and
         // south walls at y=3, pointed dripstone spikes at floor level beside
         // the walls, and a breeze spawner on the north ledge. The spawner
-        // entity config is authored by M52.
+        // is set to breezes at stamp time (ClassicSpawners, PD-68).
         specs.add(new RoomSpec("ice_run", EnumSet.of(Direction.WEST, Direction.EAST))
                 .spawner(new BlockPos(4, 4, 2))
                 .decor((level, o) -> {

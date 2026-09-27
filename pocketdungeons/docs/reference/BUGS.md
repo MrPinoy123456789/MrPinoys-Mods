@@ -4862,3 +4862,72 @@ After the fix:
    should be held as an orphan, not dropped into the void dimension.
 8. The overworld inventory should still survive every exit exactly
    as it did before (the `StashRecord` path is untouched).
+
+## Found in the live playtest interview (2026-09-26 to 2026-09-27)
+
+Source: `docs/playtests/2026-09-26-1.md` and `docs/playtests/2026-09-27-1.md`. Causes below are from reading the code during the session; none is fixed yet.
+
+### PD-66: Directional gates are never placed in any room (High)
+
+**Reported:** 2026-09-27 00:07, in Hold the Plate: "the exit door does not exist", with an open doorway to the next room.
+**Severity:** High. Four gated rooms (Hold the Plate, Infested Wall, Elders Chamber, Don't Look) play ungated, so their situations can be skipped.
+**Status:** Fixed 2026-09-27. `applyDirectionalGates` qualifies the name before matching (`JsonPackSupport.qualify`). Verified on the test server: built layouts now carry Elders Chamber gravel gates and Infested Wall gates. Live check: `LIVE_TEST_PASS.md` section 47.
+**Expected:** `LayoutStamper.applyDirectionalGates` places each room's gate on its exit side.
+**Actual:** no gate anywhere.
+**Likely cause:** manifest room names are namespaced (`JsonPackSupport.resourceId` returns `namespace:path`, JsonPackSupport.java:79; `RoomSelector` builds `PlacedRoom` from `entry.name`), but the switch in LayoutStamper.java:368 to 372 matches bare names (`"hold_the_plate"` and so on), so no case matches.
+**Note:** fix together with PD-67, or Hold the Plate will lock players behind a door that never opens.
+
+### PD-67: Hold the Plate's redstone cannot open its door (High once PD-66 is fixed)
+
+**Reported:** 2026-09-27 00:06: "two hoppers passing redstone back and forth, touch a comparator connected to a repeater via a redstone trail, there's a pressure plate in the middle and nothing seems to do anything."
+**Severity:** High (a blocker as soon as the gate from PD-66 is placed).
+**Status:** Fixed 2026-09-27. The count moved into code (`HoldThePlateHandler`): stand on the plate 30 s, the action bar counts down, stepping off resets it, and the exit iron door opens and stays open. The broken circuit is gone from the spec and the regenerated template.
+**Likely cause:** `PressureSpecs.holdThePlate` (PressureSpecs.java:293):
+1. The comparator at (9,1,11) and the repeater at (13,1,6) are placed with FACING EAST. A diode's FACING is its input side (output goes to the opposite), so the comparator reads the dust and outputs into the hopper, and the repeater reads the wall block. Both should face WEST.
+2. The pressure plate at (8,1,8) is not wired to anything, so standing on it does nothing (the spec says step off and the clock resets).
+3. The two hoppers facing each other have no lock, so the items just shuffle and the comparator never makes a clean 30 second edge.
+
+### PD-68: Thicket's spawner never spawns (Medium)
+
+**Reported:** 2026-09-27 00:00: "spawner didnt seem to work"; 00:01: "no mobs at all".
+**Severity:** Medium (the room is a free pass; nothing is lost).
+**Status:** Fixed 2026-09-27. The Thicket and Ice Run handlers reconfigure the classic spawner at stamp time (`ClassicSpawners`): cave spiders and breezes, with `custom_spawn_rules` so the room light no longer blocks spawns. Thicket webs halved (3D checkerboard, template regenerated).
+**Likely cause:** `RoomTemplateGenerator.placeSpawner` (RoomTemplateGenerator.java:999) always sets ZOMBIE; the TraversalSpecs comment (TraversalSpecs.java:131) says cave spider, "authored by M52", which never happened (the thicket situation handler returns null). The template is lit by sea lanterns, and the pocket dimension type sets `monster_spawn_block_light_limit: 0`, so a classic spawner's monster spawn check always fails there. Ice Run (breeze per its comment) uses the same `placeSpawner` and is probably affected too.
+**Also:** the player asked for about half as many cobwebs.
+
+### PD-69: Tools from mobs or loot keep full vanilla durability (Medium)
+
+**Reported:** 2026-09-27 00:33: an axe from a pillager-type mob "isn't following the same durability rule as the other tools spawned by the dungeon".
+**Severity:** Medium (leaks the strict durability economy; an iron axe has 250 uses against the dungeon cap of 16).
+**Status:** Fixed 2026-09-27. `DungeonDrops` caps every item that appears in the dungeon (loot table drops and dropped item entities, mob equipment included), and `DungeonTools.limitDurability` now also covers weapons and armour with a gentler cap, never raises an item and keeps wear proportional.
+**Likely cause:** `DungeonTools.limitDurability` is applied only to craft results (via `ResultSlotMixin`), and bag loot tables set their own `max_damage`. Mob equipment drops and any chest tool without a `set_components` max damage bypass the cap.
+
+### PD-70: HOME and Descend levers swap sides between floors (Medium)
+
+**Reported:** 2026-09-27 00:47: "do the home and descend switches change sides?"
+**Severity:** Medium (risk of pulling the wrong lever at the go-home decision).
+**Status:** Fixed 2026-09-27. The levers, the go-home screen and its bulb go through `RoomGeometry.viewerAlong`, which mirrors along on a SOUTH or WEST selector wall, so GO HOME is always left of the doors. `RoomProtection.isFurniture` and `RoomFurnitureTest` follow the same frame.
+**Likely cause:** `RoomTemplateGenerator.doorPlanePos` (RoomTemplateGenerator.java:722) maps `along` to absolute +x (NORTH and SOUTH walls) or +z (EAST and WEST walls), not to the viewer's left and right. With `HOME_LEVER_ALONG = 5` and `LEVER_ALONG = 10`, HOME is left of Descend on a NORTH or EAST selector wall and right of it on SOUTH or WEST. The selector wall (`record.roomDungeonDoor`) changes between floors. The home screen and bulb mirror the same way.
+
+### PD-71: The spyglass is an ungated dev tool that eats block clicks (Low)
+
+**Reported:** 2026-09-27 00:16 (indirectly: "spyglass in my kit seems completely useless").
+**Severity:** Low.
+**Status:** Fixed 2026-09-27. The coordinate tool is operator only, and crouching skips it.
+**Likely cause:** RitualListener.java:88 turns any right-click on a block with a spyglass in the main hand into a coordinate report and returns success, for every player. The Ranger bag kit includes a spyglass, so holding it blocks chests, buttons and levers. Gate it behind operator permission or the admin build mode.
+
+### PD-72: Ledge Archers: skeletons spawn on the floor and loot ejects out of reach (High)
+
+**Reported:** 2026-09-26 (first session, about 19:1x); not retested on 2026-09-27.
+**Severity:** High (keys and emeralds unreachable).
+**Status:** Fixed 2026-09-27. The ledges are barred at both ends and the spawner top is barred (template regenerated), and `DungeonDrops` moves anything that appears on top of a raised trial spawner to the floor below it (this covers Wither Loft and Blaze Loft if their spawners hang too).
+**Actual:** skeletons spawn on the ground instead of the ledges; the trial key or emeralds eject at roof height.
+**Likely cause:** `trial_spawner/ledge_archers` has `spawn_range` 6 from a roof-mounted spawner, which reaches the floor; vanilla ejects loot from the spawner's top face. Shrink `spawn_range` to ledge scale or move the spawner to ledge height, and route ejected loot to the floor (TrialContent). Check the other high spawners (`wither_loft`, `blaze_loft`) for the same shape.
+
+### PD-73: A layout with Sump fails to stamp: "no climbable return path" (Medium)
+
+**Found:** 2026-09-27, while verifying PD-66 on the test server (`dungeon admin build 39 8`).
+**Severity:** Medium (the build is refused and cleared, so nobody is stranded; a player would see the dungeon fail to open).
+**Status:** Open. Not caused by the playtest fixes.
+**Actual:** `LayoutStamper.stamp` (LayoutStamper.java:246) throws `room pocketdungeons:sump has spanY 2 but no climbable return path from its lower story to the upper floor (spec 13.4)` and the plan is cleared. Seen once in 60 builds at keystone 8.
+**Next step:** check the Sump spec and template for its ladder or stair column, and whether a rotation drops it.

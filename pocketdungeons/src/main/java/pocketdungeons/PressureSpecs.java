@@ -4,21 +4,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
-import net.minecraft.world.level.block.state.properties.ComparatorMode;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
@@ -73,9 +67,12 @@ final class PressureSpecs {
      */
     static void registerHandlers() {
         Situations.register("hold_the_plate", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) ->
-                TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
-                        "hold_the_plate", true));
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            // PD-67: the plate timer lives in code, not in the template's redstone.
+            HoldThePlateHandler.arm(level, o);
+            return TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
+                    "hold_the_plate", true);
+        });
         // M58: template-only pressure rooms. The decor in the RoomSpec is
         // the whole of the content; the handler owns the cell.
         Situations.register("rising_lava", (level, o, role, depth, profile, spawns, seed,
@@ -111,24 +108,6 @@ final class PressureSpecs {
 
     private static void set(ServerLevel level, BlockPos o, int x, int y, int z, BlockState state) {
         RoomBuilder.set(level, o.offset(x, y, z), state);
-    }
-
-    private static void placeHopper(ServerLevel level, BlockPos o, int x, int y, int z, Direction facing) {
-        set(level, o, x, y, z, Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, facing));
-    }
-
-    private static void placeComparator(ServerLevel level, BlockPos o, int x, int y, int z, Direction facing) {
-        set(level, o, x, y, z, Blocks.COMPARATOR.defaultBlockState()
-                .setValue(ComparatorBlock.FACING, facing)
-                .setValue(ComparatorBlock.MODE, ComparatorMode.COMPARE));
-    }
-
-    private static void placeRepeater(ServerLevel level, BlockPos o, int x, int y, int z, Direction facing) {
-        set(level, o, x, y, z, Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, facing));
-    }
-
-    private static void placeDust(ServerLevel level, BlockPos o, int x, int y, int z) {
-        set(level, o, x, y, z, Blocks.REDSTONE_WIRE.defaultBlockState());
     }
 
     /** A dispenser facing {@code facing}, loaded with {@code count} of {@code item} in slot 0. */
@@ -271,24 +250,22 @@ private static RoomSpec risingLava() {
     // ---- 3. Hold the Plate --------------------------------------------------
 
     /**
-     * A stone pressure plate in the room centre, a hopper clock of roughly 30
-     * seconds, and a trial spawner. Stand on the plate until the clock lands and
-     * the iron door opens; step off and the clock resets. The spawner sits
-     * between the entrance and the plate so the decision is informed from the
-     * doorway.
+     * A stone pressure plate in the room centre and a trial spawner. Stand on
+     * the plate for {@link HoldThePlateHandler#HOLD_SECONDS} seconds and the
+     * iron door at the exit opens; step off and the count resets. The spawner
+     * sits between the entrance and the plate so the decision is informed from
+     * the doorway.
      *
-     * <p>The clock is a standard two-hopper ethereal clock: one hopper pre-loaded
-     * with enough items for a 30-second cycle. A comparator reads the clock and
-     * powers the iron door at the east exit when the cycle completes.
+     * <p>PD-67: the count lives in {@link HoldThePlateHandler}, not in redstone.
+     * The template used to carry a hopper clock, a comparator, dust and a
+     * repeater, but the diodes faced the wrong way (a diode's FACING is its
+     * input side), the plate was wired to nothing and the clock had no lock,
+     * so the door never opened.
      *
-     * <p>The iron door itself is NOT placed here. It used to be baked into the
-     * template at the east (EXIT) doorway, but the layout can rotate the room
-     * 180 degrees, which puts the door on the entrance side and locks the
-     * player out. The redstone circuit (hopper clock, comparator, dust,
-     * repeater, power block) stays in the template because it rotates
-     * correctly as a unit. The door is placed at runtime by
-     * {@link LayoutStamper#applyDirectionalGates} on the exit side, next to
-     * the power block the repeater drives.
+     * <p>The iron door itself is NOT placed here: the layout can rotate the
+     * room 180 degrees, which would put a baked door on the entrance side. It
+     * is placed at runtime by {@link LayoutStamper#applyDirectionalGates} on
+     * the exit side.
      */
     private static RoomSpec holdThePlate() {
         return new RoomSpec("hold_the_plate", EnumSet.of(ENTRANCE, EXIT))
@@ -296,37 +273,6 @@ private static RoomSpec risingLava() {
                 .decor((level, o) -> {
                     // Pressure plate in the room centre.
                     set(level, o, 8, 1, 8, Blocks.STONE_PRESSURE_PLATE.defaultBlockState());
-                    // Hopper clock: two hoppers facing each other at z=11, one
-                    // pre-loaded with items for the 30-second cycle.
-                    placeHopper(level, o, 7, 1, 11, Direction.EAST);
-                    placeHopper(level, o, 8, 1, 11, Direction.WEST);
-                    BlockEntity clock = level.getBlockEntity(o.offset(7, 1, 11));
-                    if (clock instanceof HopperBlockEntity hopper) {
-                        for (int i = 0; i < 5; i++) {
-                            hopper.setItem(i, new ItemStack(Items.REDSTONE, 64));
-                        }
-                        hopper.setChanged();
-                    }
-                    // Comparator reads the clock; dust carries the signal east to
-                    // the iron door. The plate itself is not wired to the door:
-                    // standing on it keeps the clock loaded by keeping the chunk
-                    // active, and the clock opens the door when it lands.
-                    placeComparator(level, o, 9, 1, 11, Direction.EAST);
-                    for (int x = 10; x <= 12; x++) {
-                        placeDust(level, o, x, 1, 11);
-                    }
-                    for (int z = 10; z >= 6; z--) {
-                        placeDust(level, o, 12, 1, z);
-                    }
-                    // The gate: a repeater into the block beside the door's
-                    // north leaf. A strongly powered block next to an iron door
-                    // opens it. The power block and repeater stay in the
-                    // template because they rotate correctly with the redstone
-                    // dust path. Only the iron door leaves and lintel are placed
-                    // at runtime.
-                    set(level, o, 14, 1, 6, RoomBuilder.WALL);
-                    set(level, o, 13, 1, 6, Blocks.REPEATER.defaultBlockState()
-                            .setValue(RepeaterBlock.FACING, Direction.EAST));
                 });
     }
 }

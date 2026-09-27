@@ -498,6 +498,16 @@ final class KnowledgeSpecs {
                         RoomBuilder.set(level, o.offset(x, 4, 10), bars);
                         RoomBuilder.set(level, o.offset(x, 5, 10), bars);
                     }
+                    // PD-72: cap both ends of each ledge so a skeleton cannot
+                    // walk off onto the floor, and bar the spawner's top so
+                    // none spawns standing on it in the open middle.
+                    for (int y = 4; y <= 5; y++) {
+                        for (int z : new int[]{4, 11}) {
+                            RoomBuilder.set(level, o.offset(3, y, z), bars);
+                            RoomBuilder.set(level, o.offset(12, y, z), bars);
+                        }
+                    }
+                    RoomBuilder.set(level, o.offset(8, 5, 8), bars);
                 });
     }
 

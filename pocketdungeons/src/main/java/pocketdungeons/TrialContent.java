@@ -145,6 +145,7 @@ final class TrialContent {
         PressureSpecs.registerHandlers();
         SpurSpecs.registerHandlers();
         CollapsingBridgeHandler.register();
+        HoldThePlateHandler.register();
         RisingLavaHandler.register();
         SituationSpecs.registerHandlers();
     }

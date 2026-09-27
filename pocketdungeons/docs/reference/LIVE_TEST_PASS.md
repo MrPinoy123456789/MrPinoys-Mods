@@ -2735,3 +2735,18 @@ outside of a cell.
 - Leave and come back: go home, leave, and re-enter. No old room, floor or staging room stands anywhere near the slot, and `/forceload query` lists only the two lobby chunks. Do the same with a homecoming still pending (leave before walking through), and again with `/dungeon admin purge` on it: either way the old floor and staging rooms are gone and their chunks released.
 - Unclean shutdown: kill the server mid-floor, restart. The log names the slot being cleared, and `/forceload query` in the dungeon dimension is empty once it finishes, including cells that lay north or west of the slot origin.
 - Room doorways: stand a room beside a staging room on its east or west side (a homecoming off a floor whose terminal faces that way), leave so the room is saved, and come back through a lobby: the room's east and west walls come back sealed, with no doorway onto bedrock.
+
+## 47. Playtest fixes and balance (2026-09-27)
+
+From `docs/playtests/2026-09-27-1.md`. Headless-verified: `./gradlew build` green (87 gametests), pack validation clean, and on the test server 60 built layouts at keystone 8 carried Elders Chamber gravel gates and Infested Wall gates (none had before). Everything below needs a player.
+
+- Gates (PD-66): find Hold the Plate, Infested Wall, Elders Chamber and Don't Look in a run. Each has its gate on the exit side only: an iron door pair, infested stone bricks, a gravel wall, a lowered doorway top.
+- Hold the Plate (PD-67): stand on the plate. The action bar counts down from 30 s; step off and it starts over. At zero the iron door opens and stays open. The room carries no hoppers, comparator or dust any more.
+- Thicket (PD-68): cave spiders spawn from the spawner in the middle; the webs are about half as dense (a 3D checkerboard). Ice Run's spawner makes breezes.
+- Durability (PD-69): kill a mob holding an axe or sword in a dungeon and pick it up: its durability is the dungeon cap (an iron sword shows 64 max). A chest sword or helmet shows the same. A kit pickaxe stays at its own lower value.
+- Levers (PD-70): over several floors the GO HOME lever and its screen are always left of the doors and DESCEND always right, whichever wall the doors are on. Both levers work; neither can be broken.
+- Spyglass (PD-71): a non-operator holding the kit spyglass can open chests and pull levers. An operator gets coordinates; crouching skips them.
+- Ledge Archers (PD-72): skeletons stay on the two ledges (the ends are barred) and never on the floor or on top of the spawner. The key or emeralds land on the floor under the spawner.
+- Words: the HOME sign reads GO HOME. The go-home screen reads like `GOING HOME PAYS / 3 reward chests / Key 1/3 to a level / Kit refilled`. A floor clear shows a big "Floor 2 of 3 cleared" title with "GO HOME or DESCEND" under it. During a floor the bar reads `Spawners 2/3 | Omen 1/4, 3 chests`.
+- Notices: going home prints the room line ("Home is through the open door: your own room..."). Leaving the dungeon with items prints that the dungeon pack stays behind; entering with survival gear prints that it is stored. A kit restock names where the items went (in your pack, or waiting for the next descent) and flashes "Kit restocked" on the action bar.
+- Loot feel over three runs of tier 1: logs show up in roughly one chest in six or seven, bones rarely, emeralds rarely, no armour trims; swords and armour pieces noticeably more often.

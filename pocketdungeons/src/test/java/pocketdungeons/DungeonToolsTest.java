@@ -53,15 +53,45 @@ public class DungeonToolsTest {
         check(DungeonTools.durabilityCap(Items.STONE_HOE), 12,
                 "stone hoe cap is 12");
 
-        // Non-mining tools are not capped.
-        check(DungeonTools.durabilityCap(Items.STONE_SWORD), -1,
-                "stone sword is not a mining tool");
-        check(DungeonTools.durabilityCap(Items.BOW), -1,
-                "bow is not a mining tool");
+        // Weapons and armour take the gentler cap (playtest 2026-09-27).
+        check(DungeonTools.durabilityCap(Items.STONE_SWORD), 40,
+                "stone sword cap is 40");
+        check(DungeonTools.durabilityCap(Items.IRON_SWORD), 64,
+                "iron sword cap is 64");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_SWORD), 96,
+                "diamond sword cap is 96");
+        check(DungeonTools.durabilityCap(Items.BOW), 64,
+                "bow cap is 64");
+        check(DungeonTools.durabilityCap(Items.TRIDENT), 96,
+                "trident cap is 96");
+        check(DungeonTools.durabilityCap(Items.LEATHER_HELMET), 32,
+                "leather helmet cap is 32");
+        check(DungeonTools.durabilityCap(Items.IRON_CHESTPLATE), 64,
+                "iron chestplate cap is 64");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_BOOTS), 96,
+                "diamond boots cap is 96");
+        check(DungeonTools.durabilityCap(Items.IRON_SWORD) > DungeonTools.durabilityCap(Items.IRON_PICKAXE),
+                "a weapon is capped more gently than a tool of the same material");
+
+        // Utility items stay vanilla.
         check(DungeonTools.durabilityCap(Items.SHEARS), -1,
-                "shears are not a mining tool");
+                "shears are not capped");
         check(DungeonTools.durabilityCap(Items.FLINT_AND_STEEL), -1,
-                "flint and steel is not a mining tool");
+                "flint and steel is not capped");
+
+        testLimitDurability();
+    }
+
+    /**
+     * {@link DungeonTools#scaledDamage}, the wear a capped stack keeps. Item
+     * stacks themselves cannot be built headless (their components are not
+     * bound), so the stack half of {@code limitDurability} is covered live.
+     */
+    private static void testLimitDurability() {
+        check(DungeonTools.scaledDamage(125, 250, 64), 32, "a half worn iron sword stays half worn");
+        check(DungeonTools.scaledDamage(0, 250, 64), 0, "a fresh item stays fresh");
+        check(DungeonTools.scaledDamage(249, 250, 64), 63, "one use left stays usable, never broken on the spot");
+        check(DungeonTools.scaledDamage(10, 0, 64), 0, "no known maximum means no wear to carry");
     }
 
     // ---- player-placed ownership -------------------------------------------

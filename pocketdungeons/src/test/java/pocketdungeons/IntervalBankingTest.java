@@ -114,14 +114,17 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.levels(1), "+1 level");
         checkEquals(IntervalBanking.levels(2), "+2 levels");
         checkEquals(IntervalBanking.chests(1), "1 chest");
-        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false),
-                "HOME\nBanks +1 level, 1/3 kept\n3 chests, calm");
-        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true),
-                "TIME TO GO HOME\nBanks no levels\n1 chest, dire");
+        // Plain words (playtest 2026-09-27, A2 and A5): what going home pays.
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false, true),
+                "GOING HOME PAYS\n3 reward chests\n+1 key level\nKit refilled");
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true, false),
+                "TIME TO GO HOME\n1 reward chest\nKey: omen too high\nNo kit refill");
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(1), 0, 0, 0), L, false, true),
+                "GOING HOME PAYS\n3 reward chests\nKey 1/3 to a level\nKit refilled");
         checkEquals(IntervalBanking.bankedLine(settle(List.of(3, 3, 3), 0, 0, 0), L, false),
-                "The interval banks: +3 levels, 0 of 3 toward the next, 3 chests (calm).");
+                "Home. You keep: 3 reward chests, +3 key levels (0 of 3 steps toward the next). The omen was calm.");
         String left = IntervalBanking.bankedLine(settle(List.of(3), 0, 0, IntervalBanking.LEAVE_PENALTY), L, true);
-        check(left.startsWith("You leave at the checkpoint, and the interval banks one band worse:"), left);
+        check(left.startsWith("You leave at the checkpoint, so the omen counts one band worse."), left);
         for (String line : List.of(left, IntervalBanking.doorLine(1, 0))) {
             check(!line.contains("--") && !line.contains("\u2014"), "no dash punctuation: " + line);
         }

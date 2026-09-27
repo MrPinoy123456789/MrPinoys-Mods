@@ -112,24 +112,38 @@ final class IntervalBanking {
     /**
      * The go-home screen: what pulling the lever would bank right now, for the
      * owner. {@code goodTime} is true once the interval has run its usual
-     * length, the moment the screen and its bulb light up.
+     * length, the moment the screen and its bulb light up. {@code kitRefill}
+     * is whether the band restocks the kit at all.
      */
-    static String homeScreen(Settlement now, int floorsPerSafeVisit, boolean goodTime) {
-        String title = goodTime ? "TIME TO GO HOME" : "HOME";
-        String bank = now.levels() == 0 && Omen.levelChange(now.band()) == 0
-                ? "Banks no levels"
-                : "Banks " + levels(now.levels()) + ", " + now.progress() + "/" + Math.max(1, floorsPerSafeVisit)
-                        + " kept";
-        return title + "\n" + bank + "\n" + chests(now.chests()) + ", " + OmenBarText.bandName(now.band());
+    static String homeScreen(Settlement now, int floorsPerSafeVisit, boolean goodTime, boolean kitRefill) {
+        // Playtest 2026-09-27 (A2, A5): "banks +0 levels, 1/3 kept, calm" meant
+        // nothing to the player, who then saw no reason to go home. The screen
+        // now says in plain words what going home pays.
+        String title = goodTime ? "TIME TO GO HOME" : "GOING HOME PAYS";
+        return title + "\n" + chests(now.chests()).replace("chest", "reward chest")
+                + "\n" + keyLine(now, floorsPerSafeVisit)
+                + "\n" + (kitRefill ? "Kit refilled" : "No kit refill");
+    }
+
+    /** What the key gains, in words: whole levels, steps toward the next, or nothing. */
+    static String keyLine(Settlement now, int floorsPerSafeVisit) {
+        if (now.levels() > 0) {
+            return "+" + now.levels() + (now.levels() == 1 ? " key level" : " key levels");
+        }
+        if (Omen.levelChange(now.band()) == 0) {
+            return "Key: omen too high";
+        }
+        return "Key " + now.progress() + "/" + Math.max(1, floorsPerSafeVisit) + " to a level";
     }
 
     /** The line each member reads when their interval banks. */
     static String bankedLine(Settlement settled, int floorsPerSafeVisit, boolean leftEarly) {
         String opening = leftEarly
-                ? "You leave at the checkpoint, and the interval banks one band worse: "
-                : "The interval banks: ";
-        return opening + levels(settled.levels()) + ", " + settled.progress() + " of "
-                + Math.max(1, floorsPerSafeVisit) + " toward the next, " + chests(settled.chests())
-                + " (" + OmenBarText.bandName(settled.band()) + ").";
+                ? "You leave at the checkpoint, so the omen counts one band worse. You keep: "
+                : "Home. You keep: ";
+        return opening + chests(settled.chests()).replace("chest", "reward chest") + ", "
+                + (settled.levels() > 0 ? levels(settled.levels()).replace("level", "key level") : "no key level yet")
+                + " (" + settled.progress() + " of " + Math.max(1, floorsPerSafeVisit)
+                + " steps toward the next). The omen was " + OmenBarText.bandName(settled.band()) + ".";
     }
 }

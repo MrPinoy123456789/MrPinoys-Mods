@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -84,8 +85,11 @@ final class RitualListener {
 
         // Dev tool: right-click any block with a spyglass to get its
         // coordinates in chat, both absolute and relative to its chunk and
-        // to the nearest Pocket Dungeons cell origin.
-        if (serverPlayer.getMainHandItem().is(Items.SPYGLASS)) {
+        // to the nearest Pocket Dungeons cell origin. PD-71: operators only
+        // and not while crouching, so a player's kit spyglass still opens
+        // chests and pulls levers.
+        if (serverPlayer.getMainHandItem().is(Items.SPYGLASS) && !serverPlayer.isShiftKeyDown()
+                && Commands.LEVEL_GAMEMASTERS.check(serverPlayer.permissions())) {
             reportCoords(serverPlayer, level, pos);
             return InteractionResult.SUCCESS_SERVER;
         }

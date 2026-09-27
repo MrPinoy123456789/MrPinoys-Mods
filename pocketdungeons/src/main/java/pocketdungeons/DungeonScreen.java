@@ -172,13 +172,23 @@ final class DungeonScreen {
      */
     static void summonHome(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
                            Component content) {
-        show(level, roomOrigin, selectorWall, HOME_SCREEN_ALONG, HOME_CENTER_Y, HOME_SCALE,
+        show(level, roomOrigin, selectorWall, homeScreenAlong(selectorWall), HOME_CENTER_Y, HOME_SCALE,
                 yawFor(selectorWall), content);
+    }
+
+    /**
+     * PD-70: the go-home screen mirrors with its control on a SOUTH or WEST
+     * selector wall ({@link RoomGeometry#viewerAlong}), so it stays on
+     * the viewer's left of the doors.
+     */
+    private static double homeScreenAlong(DoorMask.Direction selectorWall) {
+        return RoomGeometry.mirrorsAlong(selectorWall)
+                ? RoomGeometry.CELL - HOME_SCREEN_ALONG : HOME_SCREEN_ALONG;
     }
 
     /** Takes the go-home screen down with its control, at a commit or on the way home. */
     static void clearHome(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall) {
-        clear(level, wallAnchor(roomOrigin, selectorWall, HOME_SCREEN_ALONG, HOME_CENTER_Y));
+        clear(level, wallAnchor(roomOrigin, selectorWall, homeScreenAlong(selectorWall), HOME_CENTER_Y));
     }
 
     /**
@@ -278,8 +288,10 @@ final class DungeonScreen {
     static Component homeContent(MinecraftServer server, InstanceRecord record) {
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         boolean goodTime = record.interval.floorIndex >= floorsPerVisit;
-        String text = IntervalBanking.homeScreen(RunLifecycle.settlementFor(server, record, record.owner, 0),
-                floorsPerVisit, goodTime);
+        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
+        boolean kitRefill = KitTopUp.fraction(false, now.band(), PocketDungeonsConfig.kitTopUpBandFractions())
+                * ZoneRules.of(record).kitTopUpScale() > 0.0;
+        String text = IntervalBanking.homeScreen(now, floorsPerVisit, goodTime, kitRefill);
         int split = text.indexOf('\n');
         return Component.literal(text.substring(0, split))
                 .withStyle(goodTime ? ChatFormatting.GREEN : ChatFormatting.GOLD)
