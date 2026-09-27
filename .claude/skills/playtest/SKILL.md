@@ -140,25 +140,24 @@ Use when the player is on the local test server and asks for a live
 interview. Everything in sections 1 to 5 still applies; only the channel and
 pacing change. Never do this on the owner's live server.
 
-- **Setup:** the test server runs from `pocketdungeons/Run Test Server.cmd`
-  (world and `server.properties` in `pocketdungeons/run`, bound to
-  127.0.0.1, RCON enabled with a local password).
-- **Listen:** use the Monitor tool to follow `pocketdungeons/run/logs/latest.log`
-  with a filter that passes only: the player's chat lines (`<Name> ...`, with
-  or without a `[Not Secure]` prefix), joins and leaves, Pocket Dungeons lines
-  that mark progress (`completed floor`, banking, thrown out, quit), and any
-  WARN, ERROR or exception. Once the in-game journal exists, follow its
-  `.jsonl` file for the day too, passing the same moments. Keep the filter
-  tight: every line that passes costs a turn.
-- **Talk:** `node .claude/skills/playtest/rcon.mjs --to <Name> "<text>"`
-  sends a chat line tagged `[Interviewer]`. Keep lines short (chat wraps);
-  split anything long over two messages at most.
+- **Server control:** everything goes through `pocketdungeons/tools/server/`
+  (read its `README.md`): `server start` / `stop` / `status`, `server say`,
+  `server cmd`, `server chat`. On Windows `pocketdungeons\tools\server\server.bat
+  <command>`, elsewhere `node pocketdungeons/tools/server/pdserver.mjs <command>`.
+- **Listen:** run `server chat --follow` under the Monitor tool. It already
+  filters the log down to chat, joins and leaves, floor completions and mod
+  errors, one compact line each. Once the in-game journal exists, follow its
+  `.jsonl` file for the day too, passing the same moments. Every event costs a
+  turn, so keep any extra filtering tight.
+- **Talk:** `server say <Name> "<text>"` sends a chat line tagged
+  `[Interviewer]`. Keep lines short (chat wraps); split anything long over two
+  messages at most.
 - **Pacing:** open with one line saying you are here and how to talk to you
   (just type in chat). Ask at natural breaks (after a floor completes, after a
   bank, at home); never mid-fight unless the player starts the conversation.
   At most one question per break, a few per hour, and stop immediately if they
   say so. Short answers mean "later", not "dig harder".
-- **Reproducing bugs live:** you may use `rcon.mjs "<command>"` for admin
+- **Reproducing bugs live:** you may use `server cmd "<command>"` for admin
   commands on the test server (teleport, give, `/dungeon admin ...`) to set up a
   retest, but say what you are about to do and wait for a yes first.
 - **Write-up:** when the player stops, run sections 4 and 5 as usual, citing

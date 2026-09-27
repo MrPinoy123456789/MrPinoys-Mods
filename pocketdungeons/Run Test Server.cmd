@@ -9,7 +9,7 @@ cd /d "%~dp0"
 title Pocket Dungeons test server
 echo Building and starting the server. The first start takes a minute.
 echo Connect with Multiplayer, Direct Connection, localhost. Type "stop" here to quit.
-call gradlew.bat runServer --console=plain
+call "%~dp0gradlew.bat" runServer --console=plain
 echo.
 echo The server has stopped.
 pause
