@@ -2715,3 +2715,23 @@ the real `pocketdungeons:void`.
 - Zone scale: in a theme whose rules set `kit_top_up_scale` to 0.5, a calm visit restocks half the deficit, rounded down.
 - Config: set `kitTopUpBandMid` to 1.0 with `kitTopUpBandLow` at 0.5 and restart: one error line, and all three fall back to 1.0, 0.5, 0.0.
 - Journals: after any clean enter or leave, `world/data/pocketdungeons/journal` holds no `<uuid>.dat` or `<uuid>.leaving.dat` for the player.
+
+## 46. Cell seams and teardown
+
+In-client checks for the seam fixes. `SeamGameTest` stamps the real cells in
+the gametest level and asserts every shell, seam, doorway and ticket through
+lobby, cancelled preview, commit, floor advance, homecoming, cleanup, a second
+commit and a purge. Everything below needs the real `pocketdungeons:void`; use
+spectator mode (or dig one block into a wall in creative) to look at the
+outside of a cell.
+
+- Commit, safe side: in the lobby, commit a door. Turn round in the staging room: the wall where the room was is a whole stone brick wall with the doorway sealed, floor row and corners included, and there is bedrock behind it, never bare bedrock inside the room and never a hole.
+- Commit, dungeon side: the staging room's selector wall is still stone brick after the commit, with the double doors in the doorway; it does not turn to bedrock.
+- Cancelled preview: select a door, then select another (or `/dungeon quit` from the preview). The staging room's selector wall shows plain wall in the door slot, not glass, and spectating outside it shows bedrock, not the void.
+- Preview window: while a preview is open, look through the glass into the entrance room. Any doorway it has onto the rest of the floor shows bedrock, not the void.
+- Floor advance: clear a floor whose last rooms curl back beside the new staging room. The rooms beside the staging room keep their stone walls (no bedrock patch in them), and so does the staging room.
+- Homecoming: pull HOME and walk through. The doorway between the staging room and the room is open on both walls, and after everyone has crossed and the old floor goes, spectate outside the room/staging seam: bedrock runs unbroken along both sides of the seam, including the column right at each corner of it.
+- After the homecoming cleanup, spectate where the old floor and the old liminal staging rooms stood: nothing is left. `/forceload query` in the dungeon dimension lists only the room's and the staging room's chunks.
+- Leave and come back: go home, leave, and re-enter. No old room, floor or staging room stands anywhere near the slot, and `/forceload query` lists only the two lobby chunks. Do the same with a homecoming still pending (leave before walking through), and again with `/dungeon admin purge` on it: either way the old floor and staging rooms are gone and their chunks released.
+- Unclean shutdown: kill the server mid-floor, restart. The log names the slot being cleared, and `/forceload query` in the dungeon dimension is empty once it finishes, including cells that lay north or west of the slot origin.
+- Room doorways: stand a room beside a staging room on its east or west side (a homecoming off a floor whose terminal faces that way), leave so the room is saved, and come back through a lobby: the room's east and west walls come back sealed, with no doorway onto bedrock.

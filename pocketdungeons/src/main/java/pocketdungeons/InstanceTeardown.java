@@ -12,8 +12,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,7 +36,19 @@ final class InstanceTeardown {
     /** Teardowns still writing air. A slot stays allocated until its clear lands. */
     private static final List<PendingClear> pendingClears = new ArrayList<>();
 
+    /**
+     * The level teardowns write to in place of the dungeon dimension, for a
+     * gametest (whose server has no dungeon dimension) that tears down cells it
+     * stamped in its own level. Set and cleared within one synchronous test
+     * body, so no tick ever sees it; {@code null} everywhere else.
+     */
+    static ServerLevel levelForTesting;
+
     private InstanceTeardown() {}
+
+    private static ServerLevel dungeonLevel(MinecraftServer server) {
+        return levelForTesting != null ? levelForTesting : server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+    }
 
     /**
      * M25: tears down every live Pocket2 child of {@code record} before the
@@ -87,21 +102,24 @@ final class InstanceTeardown {
         // Synchronous because teardown (below) queues a PendingClear that
         // will erase the room cell; a deferred save could race with it
         // (PD-8).
-        ServerLevel purgeLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        ServerLevel purgeLevel = dungeonLevel(server);
         if (purgeLevel != null
                 && !RunLifecycle.saveRoomIfOwnerSync(purgeLevel, server, record, record.owner)) {
             warnRoomNotSaved(record, reason);
         }
-        // PD-34: capture the room origin for teardown's extraCellOrigin below,
-        // then null the field on the record itself. The member loop right
-        // after this calls Instances.eject, which calls the deferred
+        // Every cell the instance has standing, captured before any field is
+        // nulled: the room, the staging room, a preview, the floor, liminal
+        // cells and homecoming leftovers. The teardown clears exactly these
+        // and releases exactly their tickets.
+        List<BlockPos> cells = new ArrayList<>(record.liveCells());
+        // PD-34: null the room origin on the record itself. The member loop
+        // right after this calls Instances.eject, which calls the deferred
         // RunLifecycle.saveRoomIfOwner; with roomCellOrigin still set, that
         // deferred save used to fire on a later tick and race the PendingClear
         // queued at the end of this method, overwriting the good synchronous
         // save above with a partially (or fully) cleared room. Both
         // saveRoomIfOwner and saveRoomIfOwnerSync already no-op on a null
         // roomCellOrigin, so this alone closes the race.
-        BlockPos roomCellOrigin = record.roomCellOrigin;
         record.roomCellOrigin = null;
         record.stagingCellOrigin = null;
         for (UUID member : new ArrayList<>(record.members.keySet())) {
@@ -126,24 +144,12 @@ final class InstanceTeardown {
                     (server.overworld().getGameTime() - record.createdAtTick) / 20L);
         }
         InstanceRegistry.bySlot.remove(record.slot);
-        // The room's cell almost never coincides with anywhere layout.geometry()
-        // still reaches: completeDungeon/moveRoomToTerminal relocates the room to
-        // whatever cell sits behind the terminal, one full dungeon's footprint
-        // away from the plan that captured it, and never updates record.layout to
-        // match -- the next generateBehindLobby cycle folds it back into a fresh
-        // plan's geometry, but a slot that closes before that (an abandoned
-        // completed run, a disconnect, an admin purge) tears down with the stale
-        // geometry. Passed through as the extra cell exactly like the reward
-        // room -- also outside the planned grid -- already is: without it, the
-        // room's blocks and bedrock envelope are never cleared, and whatever the
-        // slot is handed to next stamps its own layout on top of them.
-        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep,
-                roomCellOrigin);
+        teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep, cells);
     }
 
     static void teardown(MinecraftServer server, int slot, BlockPos origin,
                          InstanceLayout layout, String reason) {
-        teardown(server, slot, origin, layout, reason, null, null);
+        teardown(server, slot, origin, layout, reason, null, List.of());
     }
 
     /**
@@ -169,20 +175,27 @@ final class InstanceTeardown {
      */
     static void teardown(MinecraftServer server, int slot, BlockPos origin,
                          InstanceLayout layout, String reason, UUID excludeFromStraySweep,
-                         BlockPos extraCellOrigin) {
+                         Collection<BlockPos> extraCells) {
+        // Every cell to clear: the layout's (or, with no layout, the widest
+        // footprint a slot may hold) plus the cells standing outside it, each
+        // once. A purge passes everything the instance has standing.
+        Set<BlockPos> cellSet = new LinkedHashSet<>(layout != null
+                ? layout.geometry().cellOrigins()
+                : InstanceRegistry.maximalCellOrigins(origin));
+        cellSet.addAll(extraCells);
+        List<BlockPos> cellOrigins = new ArrayList<>(cellSet);
+
         // The cell-keyed subsystems go first: they hold positions in a dungeon
         // that is about to stop existing, and neither can tell a torn-down cell
         // from a cell whose player has simply walked away.
-        if (layout != null && layout.geometry() != null) {
-            for (BlockPos cellOrigin : layout.geometry().cellOrigins()) {
-                Locks.clear(cellOrigin);
-                OmenSources.clear(cellOrigin);
-                CollapsingBridgeHandler.clear(cellOrigin);
-                RisingLavaHandler.clear(cellOrigin);
-            }
+        for (BlockPos cellOrigin : cellOrigins) {
+            Locks.clear(cellOrigin);
+            OmenSources.clear(cellOrigin);
+            CollapsingBridgeHandler.clear(cellOrigin);
+            RisingLavaHandler.clear(cellOrigin);
         }
 
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        ServerLevel level = dungeonLevel(server);
         if (level == null) {
             InstanceRegistry.usedSlots.remove(slot);
             PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", slot, reason);
@@ -206,20 +219,14 @@ final class InstanceTeardown {
         }
 
         // An unknown layout means a slot allocated without a record ever being
-        // registered. Clear the maximum footprint a layout is allowed to occupy
-        // rather than guessing: it is bounded by the span budget, it stays well
-        // inside the slot pitch, and the tick budget makes the extra volume cheap.
-        List<BlockPos> cellOrigins = layout != null
-                ? new ArrayList<>(layout.geometry().cellOrigins())
-                : new ArrayList<>(InstanceRegistry.maximalCellOrigins(origin));
+        // registered. Its cells above are the maximum footprint a layout is
+        // allowed to occupy rather than a guess: it is bounded by the span
+        // budget, it stays well inside the slot pitch, and the tick budget
+        // makes the extra volume cheap.
         AABB bounds = layout != null ? layout.bounds() : InstanceRegistry.maximalBounds(origin);
-
-        // The reward room lives outside the planned grid entirely (U8 Stage 2),
-        // so it is never part of layout.geometry() -- add its cell explicitly, or
-        // a leaked reward room is a permanent scar on that slot.
-        if (extraCellOrigin != null) {
-            cellOrigins.add(extraCellOrigin);
-            bounds = bounds.minmax(CellGeometry.cellBounds(extraCellOrigin));
+        int storyReach = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
+        for (BlockPos cellOrigin : cellOrigins) {
+            bounds = bounds.minmax(CellGeometry.cellBounds(cellOrigin).expandTowards(0, -storyReach, 0));
         }
 
         // Never clear a slot with someone inside (section 12) -- except the
@@ -275,7 +282,7 @@ final class InstanceTeardown {
         if (pendingClears.isEmpty()) {
             return;
         }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        ServerLevel level = dungeonLevel(server);
         if (level == null) {
             abandonClears("the dungeon level is not loaded");
             return;
@@ -331,7 +338,7 @@ final class InstanceTeardown {
 
     /** Runs every queued clear to completion at once, ignoring the tick budget. */
     static void drainClears(MinecraftServer server) {
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        ServerLevel level = dungeonLevel(server);
         if (level == null) {
             abandonClears("the dungeon level is not loaded");
             return;

@@ -51,23 +51,33 @@ final class BedrockEnvelope {
      */
     static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells,
                       Map<PlanCell, Integer> cellSpanY) {
+        apply(level, geometry, voidedCells, cellSpanY, Set.of());
+    }
+
+    /**
+     * {@link #apply}, also treating the cells at {@code standingCells} (world
+     * origins outside {@code geometry}) as occupied neighbours. A floor stamped
+     * against a staging room that already stands must not ring that side: the
+     * ring would land in the staging room's wall column and replace it.
+     */
+    static void apply(ServerLevel level, PlanGeometry geometry, Set<PlanCell> voidedCells,
+                      Map<PlanCell, Integer> cellSpanY, Set<BlockPos> standingCells) {
         Set<PlanCell> occupied = Set.copyOf(geometry.cells());
         for (PlanCell cell : geometry.cells()) {
             int spanY = cellSpanY.getOrDefault(cell, 1);
-            applyToCell(level, geometry.cellOrigin(cell), occupied, cell, voidedCells, spanY);
+            applyToCell(level, geometry.cellOrigin(cell), occupied, standingCells, cell, voidedCells, spanY);
         }
     }
 
     private static void applyToCell(ServerLevel level, BlockPos o, Set<PlanCell> occupied,
-                                     PlanCell cell, Set<PlanCell> voidedCells, int spanY) {
+                                     Set<BlockPos> standingCells, PlanCell cell,
+                                     Set<PlanCell> voidedCells, int spanY) {
         boolean voided = voidedCells.contains(cell);
         // M61: the sub-floor sits under the lowest story, so a spanY > 1 room's
         // sub-floor drops by (spanY-1)*STORY_HEIGHT. The over-ceiling stays at
         // the cell's own top (CEILING_Y + 1); it does not move.
         int storyOffset = RoomGeometry.storyOffset(spanY);
         int subFloorY = -1 - storyOffset;
-        int wallTop = CEILING_Y + 1;
-        int wallBottom = subFloorY;
         // Sub-floor and over-ceiling: always, every cell. Except sub-floor
         // for voided cells: no bedrock so fallen players reach the void.
         for (int x = 0; x < CELL; x++) {
@@ -75,42 +85,54 @@ final class BedrockEnvelope {
                 if (!voided) {
                     set(level, o.offset(x, subFloorY, z));
                 }
-                set(level, o.offset(x, wallTop, z));
+                set(level, o.offset(x, CEILING_Y + 1, z));
             }
         }
 
         // Outer wall ring, one face at a time, only where there is no neighbour
-        // to collide with -- see the class note for why an unconditional ring
-        // is wrong. The ring covers every story: wallBottom (under the lowest
-        // floor) through wallTop (over the cell's ceiling).
-        if (!occupied.contains(new PlanCell(cell.x(), cell.z() - 1))) { // north
-            for (int x = 0; x < CELL; x++) {
-                for (int y = wallBottom; y <= wallTop; y++) {
-                    set(level, o.offset(x, y, -1));
-                }
+        // to collide with (the class note says why an unconditional ring is
+        // wrong). The ring covers every story, from under the lowest floor to
+        // over the cell's ceiling.
+        for (DoorMask.Direction face : DoorMask.Direction.values()) {
+            PlanCell neighbour = CellGeometry.neighbourCell(cell, face);
+            if (!occupied.contains(neighbour)
+                    && !standingCells.contains(CellGeometry.offsetInDirection(o, face, CELL))) {
+                ring(level, o, face, storyOffset);
             }
         }
-        if (!occupied.contains(new PlanCell(cell.x(), cell.z() + 1))) { // south
-            for (int x = 0; x < CELL; x++) {
-                for (int y = wallBottom; y <= wallTop; y++) {
-                    set(level, o.offset(x, y, CELL));
-                }
+    }
+
+    /**
+     * Writes one face's ring: the column one block outside {@code face}, from
+     * the sub-floor ({@code depth} blocks lower for a cell that owns stories
+     * below it) to over the ceiling.
+     */
+    private static void ring(ServerLevel level, BlockPos o, DoorMask.Direction face, int depth) {
+        for (int along = 0; along < CELL; along++) {
+            for (int y = -1 - depth; y <= CEILING_Y + 1; y++) {
+                set(level, ringPos(o, face, along, y));
             }
         }
-        if (!occupied.contains(new PlanCell(cell.x() - 1, cell.z()))) { // west
-            for (int z = 0; z < CELL; z++) {
-                for (int y = wallBottom; y <= wallTop; y++) {
-                    set(level, o.offset(-1, y, z));
-                }
-            }
-        }
-        if (!occupied.contains(new PlanCell(cell.x() + 1, cell.z()))) { // east
-            for (int z = 0; z < CELL; z++) {
-                for (int y = wallBottom; y <= wallTop; y++) {
-                    set(level, o.offset(CELL, y, z));
-                }
-            }
-        }
+    }
+
+    /** The ring position {@code along} blocks down {@code face}, one block outside the cell. */
+    private static BlockPos ringPos(BlockPos o, DoorMask.Direction face, int along, int y) {
+        return switch (face) {
+            case NORTH -> o.offset(along, y, -1);
+            case SOUTH -> o.offset(along, y, CELL);
+            case WEST -> o.offset(-1, y, along);
+            case EAST -> o.offset(CELL, y, along);
+        };
+    }
+
+    /**
+     * Puts one face's ring back after the neighbouring cell on that side was
+     * cleared: the clear took the ring with it, since the ring sits in that
+     * neighbour's wall column. {@code depth} reaches the lower stories of a
+     * cell that owns them (0 for a single story cell).
+     */
+    static void applyFace(ServerLevel level, BlockPos o, DoorMask.Direction face, int depth) {
+        ring(level, o, face, depth);
     }
 
     private static void set(ServerLevel level, BlockPos pos) {
@@ -142,32 +164,9 @@ final class BedrockEnvelope {
                 set(level, o.offset(x, CEILING_Y + 1, z));
             }
         }
-        if (!reservedSides.contains(DoorMask.Direction.NORTH)) {
-            for (int x = 0; x < CELL; x++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
-                    set(level, o.offset(x, y, -1));
-                }
-            }
-        }
-        if (!reservedSides.contains(DoorMask.Direction.SOUTH)) {
-            for (int x = 0; x < CELL; x++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
-                    set(level, o.offset(x, y, CELL));
-                }
-            }
-        }
-        if (!reservedSides.contains(DoorMask.Direction.WEST)) {
-            for (int z = 0; z < CELL; z++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
-                    set(level, o.offset(-1, y, z));
-                }
-            }
-        }
-        if (!reservedSides.contains(DoorMask.Direction.EAST)) {
-            for (int z = 0; z < CELL; z++) {
-                for (int y = -1; y <= CEILING_Y + 1; y++) {
-                    set(level, o.offset(CELL, y, z));
-                }
+        for (DoorMask.Direction face : DoorMask.Direction.values()) {
+            if (!reservedSides.contains(face)) {
+                ring(level, o, face, 0);
             }
         }
     }
@@ -177,11 +176,11 @@ final class BedrockEnvelope {
      * connection can pass through. Called when a door is chosen and
      * the dungeon is about to be stamped behind the lobby.
      *
-     * <p>Skips {@code y=0} (the floor level): the adjacent cell owns that
-     * row, and clearing it would destroy the neighbour's floor, leaving a
-     * gap the player falls through. The sub-floor bedrock ({@code y=-1})
-     * and the wall/ceiling bedrock ({@code y=1..CEILING_Y+1}) are cleared
-     * as before.
+     * <p>Only the wall rows ({@code y=1..CEILING_Y}) are touched. The
+     * margin's floor row, sub-floor row and over-ceiling row belong to the
+     * neighbouring cell once it stands (its floor, and its own sub-floor and
+     * over-ceiling bedrock), and clearing them only opened the neighbour's
+     * envelope along the seam.
      *
      * <p>Only clears blocks that are currently bedrock. The adjacent cell's
      * own wall and ceiling blocks occupy the same one-block-outside
@@ -193,30 +192,12 @@ final class BedrockEnvelope {
      */
     static void clearFace(ServerLevel level, BlockPos o, DoorMask.Direction face) {
         BlockState air = Blocks.AIR.defaultBlockState();
-        switch (face) {
-            case NORTH -> {
-                for (int x = 0; x < CELL; x++)
-                    for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0 && level.getBlockState(o.offset(x, y, -1)).is(Blocks.BEDROCK))
-                            level.setBlock(o.offset(x, y, -1), air, STAMP_FLAGS);
-            }
-            case SOUTH -> {
-                for (int x = 0; x < CELL; x++)
-                    for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0 && level.getBlockState(o.offset(x, y, CELL)).is(Blocks.BEDROCK))
-                            level.setBlock(o.offset(x, y, CELL), air, STAMP_FLAGS);
-            }
-            case WEST -> {
-                for (int z = 0; z < CELL; z++)
-                    for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0 && level.getBlockState(o.offset(-1, y, z)).is(Blocks.BEDROCK))
-                            level.setBlock(o.offset(-1, y, z), air, STAMP_FLAGS);
-            }
-            case EAST -> {
-                for (int z = 0; z < CELL; z++)
-                    for (int y = -1; y <= CEILING_Y + 1; y++)
-                        if (y != 0 && level.getBlockState(o.offset(CELL, y, z)).is(Blocks.BEDROCK))
-                            level.setBlock(o.offset(CELL, y, z), air, STAMP_FLAGS);
+        for (int along = 0; along < CELL; along++) {
+            for (int y = 1; y <= CEILING_Y; y++) {
+                BlockPos pos = ringPos(o, face, along, y);
+                if (level.getBlockState(pos).is(Blocks.BEDROCK)) {
+                    level.setBlock(pos, air, STAMP_FLAGS);
+                }
             }
         }
     }

@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -181,6 +182,50 @@ final class InstanceRecord {
      * be pulled into the room once it has waited long enough.
      */
     record Homecoming(BlockPos oldStagingCellOrigin, InstanceLayout oldLayout, long sinceTick) {}
+
+    /**
+     * Staging rooms a floor advance left standing as blank liminal cells beside
+     * the floor they served. They go when that floor goes: the next commit, a
+     * homecoming's cleanup, a reset to the lobby or a teardown.
+     */
+    final Set<BlockPos> leftBehind = new LinkedHashSet<>();
+
+    /**
+     * Every cell this instance has standing in the world right now, each once:
+     * the room, the staging room, a door preview, the layout's cells, the
+     * liminal cells in {@link #leftBehind}, and a pending homecoming's old
+     * staging room and old floor.
+     *
+     * <p>The one list every clear and every teardown works from. Clearing one
+     * cell keeps all the others, because a clear's one-block margin is the
+     * neighbouring cell's wall column; a teardown clears exactly this set and
+     * releases exactly these cells' tickets. A cell that stands but is missing
+     * here outlives the instance, so anything that stamps a cell must leave it
+     * reachable from one of these fields.
+     */
+    Set<BlockPos> liveCells() {
+        Set<BlockPos> cells = new LinkedHashSet<>();
+        addIfPresent(cells, roomCellOrigin);
+        addIfPresent(cells, stagingCellOrigin);
+        addIfPresent(cells, floor.previewCellOrigin);
+        if (layout != null && layout.geometry() != null) {
+            cells.addAll(layout.geometry().cellOrigins());
+        }
+        cells.addAll(leftBehind);
+        if (homecoming != null) {
+            addIfPresent(cells, homecoming.oldStagingCellOrigin());
+            if (homecoming.oldLayout() != null && homecoming.oldLayout().geometry() != null) {
+                cells.addAll(homecoming.oldLayout().geometry().cellOrigins());
+            }
+        }
+        return cells;
+    }
+
+    private static void addIfPresent(Set<BlockPos> cells, BlockPos cell) {
+        if (cell != null) {
+            cells.add(cell);
+        }
+    }
 
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<String> affixes, UUID owner, boolean untimed) {

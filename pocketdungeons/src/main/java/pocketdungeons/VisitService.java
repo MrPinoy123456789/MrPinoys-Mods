@@ -135,8 +135,11 @@ final class VisitService {
             Instances.stampRoomShell(level, server, owner, origin);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not stamp a visit room for {}", owner, e);
-            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
-            InstanceRegistry.usedSlots.remove(slot);
+            // Whatever the stamp wrote is swept up before the slot goes back,
+            // the same route a failed lobby stamp takes: the teardown's clear
+            // releases the ticket and then the slot.
+            InstanceTeardown.teardown(server, slot, origin, Instances.lobbyLayout(origin),
+                    "visit room stamp failed");
             visitor.sendSystemMessage(Component.literal("The room could not be reached right now.")
                     .withStyle(ChatFormatting.RED));
             return false;

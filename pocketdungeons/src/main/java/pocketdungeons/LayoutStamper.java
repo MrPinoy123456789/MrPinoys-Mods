@@ -78,11 +78,15 @@ final class LayoutStamper {
      * <p>A room's own processors always win over the run theme. A grove remains a
      * strange chamber inside a deepslate run instead of quietly recolouring itself
      * to match the walls around it.
+     *
+     * <p>{@code standingCells} are cells outside the plan that already stand
+     * beside it (the staging room). The envelope treats them as neighbours, so
+     * no ring lands in their wall column.
      */
     static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                            int keystoneLevel, Set<String> affixes, UUID owner,
-                                           String theme) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme);
+                                           String theme, Set<BlockPos> standingCells) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme, standingCells);
     }
 
     /**
@@ -165,12 +169,13 @@ final class LayoutStamper {
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<String> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null);
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null, Set.of());
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<String> affixes, UUID owner,
-                                        boolean entranceAlreadyStamped, String theme) {
+                                        boolean entranceAlreadyStamped, String theme,
+                                        Set<BlockPos> standingCells) {
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
         // M61: the deepest any room in this layout reaches below its own cell
@@ -285,7 +290,7 @@ final class LayoutStamper {
 
         applyDirectionalGates(level, geometry, plan, manifest);
 
-        BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell);
+        BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell, standingCells);
 
         return new InstanceLayout(
                 origin,

@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -177,6 +178,32 @@ final class CellGeometry {
             if (dx >= 0 && dx < RoomGeometry.CELL
                     && dz >= 0 && dz < RoomGeometry.CELL
                     && dy >= -maxOffset && dy <= RoomGeometry.CEILING_Y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether {@code pos} belongs to one of these cells' shells: inside the
+     * cell from its lowest possible sub-floor to its over-ceiling, or in its
+     * bedrock ring, one block outside a wall and level with it. The four
+     * diagonal corner columns outside a cell are no part of its ring.
+     */
+    static boolean inAnyShell(BlockPos pos, Collection<BlockPos> cellOrigins) {
+        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
+        for (BlockPos cell : cellOrigins) {
+            int dy = pos.getY() - cell.getY();
+            if (dy < -1 - maxOffset || dy > RoomGeometry.CEILING_Y + 1) {
+                continue;
+            }
+            int dx = pos.getX() - cell.getX();
+            int dz = pos.getZ() - cell.getZ();
+            boolean alongX = dx >= 0 && dx < RoomGeometry.CELL;
+            boolean alongZ = dz >= 0 && dz < RoomGeometry.CELL;
+            boolean outsideX = dx == -1 || dx == RoomGeometry.CELL;
+            boolean outsideZ = dz == -1 || dz == RoomGeometry.CELL;
+            if ((alongX && alongZ) || (alongX && outsideZ) || (outsideX && alongZ)) {
                 return true;
             }
         }

@@ -559,15 +559,14 @@ final class RunLifecycle {
         // The room is sealed first so the blob carries a closed wall on the
         // staging side. One save, checked before anything is despawned or
         // spent: if it fails, the seal is undone, the room stays standing and
-        // the commit is refused.
+        // the commit is refused. No envelope goes on the room here: its ring
+        // on the staging side would replace the staging room's wall.
         if (record.roomCellOrigin != null && !record.visitInstance) {
             DoorMask.Direction dungeonDir = record.roomDungeonDoor;
             RoomBuilder.sealDoor(level, record.roomCellOrigin,
                     Instances.mcDirection(dungeonDir));
-            BedrockEnvelope.applyToCell(level, record.roomCellOrigin, Set.of());
             if (!saveRoom(level, server, record)) {
                 RoomBuilder.openDoor(level, record.roomCellOrigin, Instances.mcDirection(dungeonDir));
-                BedrockEnvelope.clearFace(level, record.roomCellOrigin, dungeonDir);
                 PocketDungeonsMod.LOG.error("Refused the door commit for {}: their room could not be saved",
                         player.getName().getString());
                 player.sendSystemMessage(Component.literal(
@@ -576,11 +575,7 @@ final class RunLifecycle {
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
-            Instances.despawnSafeRoom(level, record);
-            DoorMask.Direction eeDir = CellGeometry.opposite(dungeonDir);
-            RoomBuilder.sealDoor(level, record.stagingCellOrigin,
-                    Instances.mcDirection(eeDir));
-            BedrockEnvelope.applyToCell(level, record.stagingCellOrigin, Set.of(dungeonDir));
+            despawnRoomBehindStaging(level, record);
         }
 
         // M66: the recipe tags were read in previewDoor and resolved into
@@ -765,6 +760,18 @@ final class RunLifecycle {
     }
 
     /**
+     * The block half of the commit's room despawn, once the room is saved. The
+     * room's cell is cleared with the staging room kept (its wall, and its
+     * bedrock put back on that face), and the staging room's doorway into the
+     * room is sealed.
+     */
+    static void despawnRoomBehindStaging(ServerLevel level, InstanceRecord record) {
+        DoorMask.Direction eeDir = CellGeometry.opposite(record.roomDungeonDoor);
+        Instances.despawnSafeRoom(level, record);
+        RoomBuilder.sealDoor(level, record.stagingCellOrigin, Instances.mcDirection(eeDir));
+    }
+
+    /**
      * (M55) Teleports party members still in the old dungeon back into the
      * staging room, clears the old dungeon cells, and seals the staging room's
      * {@code ee} wall so the void behind the previous dungeon cannot be
@@ -773,7 +780,14 @@ final class RunLifecycle {
      */
     static void resetForNextDungeon(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null || record.stagingCellOrigin == null) {
+        if (level != null) {
+            resetForNextDungeon(server, level, record);
+        }
+    }
+
+    /** {@link #resetForNextDungeon(MinecraftServer, InstanceRecord)} in a given level. */
+    static void resetForNextDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record) {
+        if (record.stagingCellOrigin == null) {
             return;
         }
         BlockPos stagingOrigin = record.stagingCellOrigin;
@@ -795,21 +809,25 @@ final class RunLifecycle {
                     net.minecraft.world.phys.Vec3.atBottomCenterOf(stagingCentre), 0.0f, 0.0f);
         }
 
-        // Clear every cell of the previous dungeon except the staging room.
-        List<BlockPos> keepStaging = List.of(stagingOrigin);
-        for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
-            if (cellOrigin.equals(stagingOrigin)) {
-                continue;
-            }
-            Instances.clearCellSync(level, cellOrigin, keepStaging);
-        }
+        // Clear everything else the run has standing: the previous floor, the
+        // liminal cells beside it, homecoming leftovers, and at the first
+        // commit the lobby's room cell. The staging room and the previewed
+        // entrance about to become the new floor are kept, walls and bedrock
+        // included, and their tickets with them.
+        Set<BlockPos> previous = record.liveCells();
+        previous.remove(stagingOrigin);
+        previous.remove(record.floor.previewCellOrigin);
+        Instances.clearCells(level, record, previous);
+        record.leftBehind.clear();
+        record.homecoming = null;
+        // The previous floor is gone. Until the commit adopts the new one, the
+        // staging room is all the layout there is, so the record never names
+        // a cleared cell as standing.
+        record.layout = Instances.lobbyLayout(stagingOrigin);
 
-        // Seal the staging room's entrance from the previous dungeon.
+        // Seal the staging room's entrance from the previous dungeon. The
+        // clear already put the bedrock back behind that seal.
         CellGeometry.sealDoorOnWall(level, stagingOrigin, eeDir);
-
-        // ...and put the bedrock back behind that seal. Only the MM side stays
-        // reserved -- that is where the run about to be generated connects.
-        BedrockEnvelope.applyToCell(level, stagingOrigin, Set.of(record.roomDungeonDoor));
     }
 
     // ---- exit -------------------------------------------------------------
@@ -1141,29 +1159,9 @@ final class RunLifecycle {
         // Sealed door in the far wall, behind the chests.
         CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
 
-        // M55: the old staging room is cleared to a liminal cell. The safe
-        // room is already despawned, so there is no blob to capture or move.
-        // A new staging room is stamped behind the terminal's far wall for
-        // the next door choice.
-        BlockPos oldStagingOrigin = record.stagingCellOrigin;
-        RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
-        RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
-        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
-                e -> !(e instanceof ServerPlayer))) {
-            leftover.discard();
-        }
-        Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
-        for (DoorMask.Direction dir : CellGeometry.standingNeighbours(record.layout.geometry(), oldStagingOrigin)) {
-            backDoors.add(Instances.mcDirection(dir));
-        }
-        RoomBuilder.buildLiminalCell(level, oldStagingOrigin, backDoors);
-
-        // Stamp a new staging room in the cell behind the far wall.
-        BlockPos newStagingOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
-        level.setChunkForced(newStagingOrigin.getX() >> 4, newStagingOrigin.getZ() >> 4, true);
-        Instances.stampStagingRoom(level, newStagingOrigin, farWall);
-        record.stagingCellOrigin = newStagingOrigin;
-        record.roomDungeonDoor = farWall;
+        // M55: the old staging room is cleared to a liminal cell and a new
+        // one stamped behind the terminal's far wall for the next door choice.
+        BlockPos newStagingOrigin = moveStagingBeyondTerminal(level, record, terminalOrigin, farWall);
 
         // M67: no sound for room movement. VISION.md §4: "No message, no
         // sound, no lore entry." The room relocation is the trick; the
@@ -1185,15 +1183,46 @@ final class RunLifecycle {
                 floorsCleared >= PocketDungeonsConfig.floorsPerSafeVisit());
         DungeonScreen.summonHome(level, newStagingOrigin, farWall, DungeonScreen.homeContent(server, record));
 
-        // The bedrock envelope for the new staging room.
-        BedrockEnvelope.applyToCell(level, newStagingOrigin, Set.of(farWall, CellGeometry.opposite(farWall)));
-
-        // Open the sealed door into the staging room.
-        CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
-
         // M65: transition to FLOOR_CLEARED. The party is now in the
         // staging room, choosing the next door or the way home.
         RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+    }
+
+    /**
+     * The block half of a floor advance. The staging room the floor was
+     * entered from becomes a blank liminal cell, still standing and so still
+     * tracked ({@link InstanceRecord#leftBehind}) until the floor it served is
+     * cleared. The safe room is already despawned, so there is no blob to
+     * capture or move. A new staging room is stamped in the cell behind the
+     * terminal's far wall, its envelope kept off every side a live cell stands
+     * on, and the terminal's far door opens into it.
+     *
+     * @return the new staging room's floor corner
+     */
+    static BlockPos moveStagingBeyondTerminal(ServerLevel level, InstanceRecord record,
+                                              BlockPos terminalOrigin, DoorMask.Direction farWall) {
+        BlockPos oldStagingOrigin = record.stagingCellOrigin;
+        RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
+        RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
+        for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
+                e -> !(e instanceof ServerPlayer))) {
+            leftover.discard();
+        }
+        Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
+        for (DoorMask.Direction dir : CellGeometry.standingNeighbours(record.layout.geometry(), oldStagingOrigin)) {
+            backDoors.add(Instances.mcDirection(dir));
+        }
+        RoomBuilder.buildLiminalCell(level, oldStagingOrigin, backDoors);
+        record.leftBehind.add(oldStagingOrigin);
+
+        BlockPos newStagingOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
+        Instances.holdCell(level, newStagingOrigin);
+        Instances.stampStagingRoom(level, newStagingOrigin, farWall,
+                Instances.standingSides(record, newStagingOrigin));
+        record.stagingCellOrigin = newStagingOrigin;
+        record.roomDungeonDoor = farWall;
+        CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
+        return newStagingOrigin;
     }
 
     /**
@@ -1516,59 +1545,13 @@ final class RunLifecycle {
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
-        // The cell beyond the staging room's dungeon door is where the
-        // next dungeon preview would normally go; it is empty now.
-        DoorMask.Direction dungeonDir = record.roomDungeonDoor;
-        BlockPos safeOrigin = CellGeometry.offsetInDirection(
-                record.stagingCellOrigin, dungeonDir, RoomGeometry.CELL);
-
-        // Force-load the new room's chunk so the stamp lands.
-        level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, true);
-
-        // Persist room state before clearing old floor state. The room
-        // is already in RoomStore from the initial save; re-save here to
-        // capture any changes the player made before entering the dungeon.
-        // (The safe room was saved when the first floor was committed.)
-
-        // Stamp the saved room while the door is still closed.
-        boolean stamped = false;
-        try {
-            Instances.stampSafeRoom(level, server, record.owner, safeOrigin);
-            stamped = true;
-        } catch (RuntimeException e) {
-            PocketDungeonsMod.LOG.error("Silent homecoming room stamp failed", e);
-        }
-
-        if (!stamped) {
+        if (!stampHomecomingRoom(level, server, record)) {
             // M65: leave staging usable if stamping fails. Fall back to
             // the old teleport path so the party is never stranded.
-            level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, false);
             abortSafeReturn(record);
             return fallbackTeleportHomecoming(server, level, record, player);
         }
-
-        // Validate the stamp: check the room's bedrock envelope is in place.
-        // If validation fails, fall back.
-        // (The stamp either placed the saved room or the entrance hall
-        // template as a fallback, so the cell is always structurally
-        // sound after stampSafeRoom returns.)
-
-        // The selector doors, their bulbs and the go-home control come out:
-        // the doorway is the way home now, and nothing here chooses a floor.
-        RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
-        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
-        RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
-        DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
-
-        // Open the staging door. Replace the selector door/window with
-        // a walkable doorway so the party can walk through.
-        RoomBuilder.openDoor(level, record.stagingCellOrigin, Instances.mcDirection(dungeonDir));
-        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDir);
-
-        // Update the record: the room is now at the new location, and
-        // the staging room's dungeon door now leads into the room.
-        record.roomCellOrigin = safeOrigin;
-        record.roomDungeonDoor = CellGeometry.opposite(dungeonDir);
+        BlockPos safeOrigin = record.roomCellOrigin;
 
         // Re-arm the bag chest at the new room.
         Instances.clearBagChest(level, safeOrigin);
@@ -1586,21 +1569,73 @@ final class RunLifecycle {
             }
         }
 
-        // The old staging room and old floor cells are released once every
-        // member has crossed into the room, handled by onTick.
-        record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout,
-                server.overworld().getGameTime());
-
-        // The interval ends here. The staging room and the room keep their
-        // new origins; the party walks through the staging room's dungeon
-        // door into the room, whose lobby layout replaces the floor's.
-        record.beginInterval(Instances.lobbyLayout(safeOrigin));
+        beginHomecoming(record, server.overworld().getGameTime());
 
         // M65: transition to HOME. The room is loaded, the door is open,
         // and the party can walk through. No teleport, no chime, no
         // explanation message.
         RunSession.transition(record, RunSession.Phase.HOME);
         return true;
+    }
+
+    /**
+     * The block half of the silent homecoming. The saved room is stamped in
+     * the cell beyond the staging room's dungeon door, with its envelope kept
+     * off every side a live cell stands on (the staging room, and any cell of
+     * the floor that happens to border it), the staging room's selector wall
+     * becomes a doorway, and the room's own wall on that seam is opened to
+     * match. The record's room moves there.
+     *
+     * @return {@code false} if the stamp failed; whatever it wrote has been
+     *         cleared again, with the staging room kept, and the record is
+     *         unchanged
+     */
+    static boolean stampHomecomingRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        DoorMask.Direction dungeonDir = record.roomDungeonDoor;
+        BlockPos safeOrigin = CellGeometry.offsetInDirection(
+                record.stagingCellOrigin, dungeonDir, RoomGeometry.CELL);
+        Instances.holdCell(level, safeOrigin);
+
+        // Stamp the saved room while the door is still closed.
+        try {
+            Set<DoorMask.Direction> standing = new LinkedHashSet<>(Instances.standingSides(record, safeOrigin));
+            standing.add(CellGeometry.opposite(dungeonDir));
+            Instances.stampSafeRoom(level, server, record.owner, safeOrigin, standing);
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Silent homecoming room stamp failed", e);
+            Instances.clearCells(level, record, List.of(safeOrigin));
+            return false;
+        }
+
+        // The selector doors, their bulbs and the go-home control come out:
+        // the doorway is the way home now, and nothing here chooses a floor.
+        RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
+        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
+        RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
+        DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
+
+        // Open the staging door, and the room's own wall on the same seam,
+        // which stampSafeRoom sealed: without both there is no way through.
+        RoomBuilder.openDoor(level, record.stagingCellOrigin, Instances.mcDirection(dungeonDir));
+        BedrockEnvelope.clearFace(level, record.stagingCellOrigin, dungeonDir);
+        RoomBuilder.openDoor(level, safeOrigin, Instances.mcDirection(CellGeometry.opposite(dungeonDir)));
+
+        // The room is now at the new location, and the staging room's
+        // dungeon door leads into it.
+        record.roomCellOrigin = safeOrigin;
+        record.roomDungeonDoor = CellGeometry.opposite(dungeonDir);
+        return true;
+    }
+
+    /**
+     * Ends the interval at a silent homecoming. The old staging room and the
+     * old floor stay tracked on {@link InstanceRecord#homecoming} until every
+     * member has crossed into the room ({@code Instances.onTick} then clears
+     * them); the room's lobby layout replaces the floor's.
+     */
+    static void beginHomecoming(InstanceRecord record, long now) {
+        record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout, now);
+        record.beginInterval(Instances.lobbyLayout(record.roomCellOrigin));
     }
 
     /**
@@ -1611,35 +1646,23 @@ final class RunLifecycle {
      */
     private static boolean fallbackTeleportHomecoming(MinecraftServer server, ServerLevel level,
                                                        InstanceRecord record, ServerPlayer player) {
-        // Release the current layout's force-load tickets.
-        if (record.layout != null) {
-            Instances.forceLoad(level, record.layout.geometry().chunks(), false);
-        }
-
-        // Clear every cell of the current dungeon and the staging room.
-        List<BlockPos> keepCells = new java.util.ArrayList<>();
-        if (record.layout != null) {
-            for (BlockPos cellOrigin : record.layout.geometry().cellOrigins()) {
-                Instances.clearCellSync(level, cellOrigin, keepCells);
-            }
-        }
-        if (record.stagingCellOrigin != null) {
-            Instances.clearCellSync(level, record.stagingCellOrigin, keepCells);
-            level.setChunkForced(record.stagingCellOrigin.getX() >> 4,
-                    record.stagingCellOrigin.getZ() >> 4, false);
-        }
+        // Clear every cell the run has standing (the floor, the staging room,
+        // the liminal cells beside the floors) and release their tickets.
+        Instances.clearCells(level, record, record.liveCells());
+        record.leftBehind.clear();
+        record.stagingCellOrigin = null;
 
         // Re-stamp the safe room at the slot origin from RoomStore.
         BlockPos safeOrigin = record.origin;
         DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
-        level.setChunkForced(safeOrigin.getX() >> 4, safeOrigin.getZ() >> 4, true);
+        Instances.holdCell(level, safeOrigin);
         Instances.stampSafeRoom(level, server, record.owner, safeOrigin);
         record.roomCellOrigin = safeOrigin;
         record.roomDungeonDoor = dungeonDir;
 
         // Stamp a fresh staging room adjacent to the safe room.
         BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
-        level.setChunkForced(stagingOrigin.getX() >> 4, stagingOrigin.getZ() >> 4, true);
+        Instances.holdCell(level, stagingOrigin);
         Instances.stampStagingRoom(level, stagingOrigin, dungeonDir);
         RoomBuilder.openDoor(level, safeOrigin, Instances.mcDirection(dungeonDir));
         BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
