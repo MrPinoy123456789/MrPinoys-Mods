@@ -38,6 +38,8 @@ else `node pdserver.mjs <command>`.
 | `chat` | Prints the events since the last time anyone ran `chat` (a cursor is kept in `run/.agent-chat-cursor.json`), then exits. |
 | `chat --all` | Prints every event in the current log. |
 | `chat --follow` | Prints new events as they happen, until stopped. |
+| `sync` | Skips every event logged so far, so the next `chat` or `wait` starts from now. |
+| `wait [--player <p>] [--timeout <s>]` | Blocks until there are new events (default up to 240 s), prints them, exits. The loop for agents that cannot stream. With `--player`, keeps that player's Lemon in llm mode while the server is up. `chat` and `wait` share one cursor: use one or the other. |
 | `context <player>` | Prints the player's context snapshot as one line of JSON: where they are, every room on the floor, omen, spawners, inventory essentials, Lemon's state and their last 20 journal events (`docs/LEMON_SPEC.md` section 3). |
 | `lemon say <player> <text>` | Lemon appears beside the player, says it (a speech bubble only they see, plus a yellow `Lemon:` chat line), then vanishes. |
 | `lemon ask <player> <text>` | The same, then Lemon stays lit and waits for the reply; the player's next line to Lemon comes back as a `lemon answer` event. |

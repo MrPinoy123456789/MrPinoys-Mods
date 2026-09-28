@@ -8,6 +8,8 @@
 //   say <player|@a> <text...>          chat to a player as [Interviewer]
 //   cmd <command...>                   run a console command, print the reply
 //   chat [--all] [--follow]            new chat, joins, floors, Lemon and errors since the last read
+//   sync                               skip everything logged so far (start a session fresh)
+//   wait [--player <p>] [--timeout <s>] block until new events arrive, print them; keeps <p>'s Lemon in llm mode
 //   context <player>                   the player's context snapshot, one line of JSON
 //   lemon say|ask <player> <text...>   speak through Lemon (ask waits for the player's reply)
 //   lemon quiet <player>               make Lemon vanish now
@@ -240,6 +242,46 @@ async function chat() {
   }
 }
 
+/** Skips every event logged so far, so the next `wait` or `chat` starts from now. */
+async function sync() {
+  const skipped = readNew(false).length
+  console.log(`Skipped ${skipped} earlier event(s); reading from now on.`)
+}
+
+/**
+ * Blocks until there are new events (or the timeout passes) and prints them: the
+ * one-command loop for agents that cannot stream output. With --player it also keeps
+ * that player's Lemon in llm mode, refreshing it every minute while the server is up.
+ */
+async function wait() {
+  const timeout = Number(flagValue('--timeout', 240)) * 1000
+  const player = flagValue('--player', null)
+  const startedAt = Date.now()
+  let up = false
+  let lastCheck = 0
+  let lastRefresh = 0
+  for (;;) {
+    if (Date.now() - lastCheck >= 15000) {
+      up = await isUp()
+      lastCheck = Date.now()
+    }
+    if (player && up && Date.now() - lastRefresh >= 60000) {
+      await rcon(`dungeon lemon mode ${player} llm`).catch(() => {})
+      lastRefresh = Date.now()
+    }
+    const events = readNew(false)
+    if (events.length) {
+      for (const e of events) console.log(e)
+      return
+    }
+    if (Date.now() - startedAt >= timeout) {
+      console.log(up ? 'no new events (timeout)' : 'server is down (timeout)')
+      return
+    }
+    await sleep(1000)
+  }
+}
+
 async function context() {
   const [player] = rest
   if (!player) throw new Error('usage: context <player>')
@@ -257,9 +299,9 @@ async function lemon() {
   console.log((await rcon(command)) || '(no output)')
 }
 
-const verbs = { start, stop, status, say, cmd, chat, context, lemon }
+const verbs = { start, stop, status, say, cmd, chat, sync, wait, context, lemon }
 if (!verbs[verb]) {
-  console.log('usage: node pdserver.mjs <start|stop|status|say|cmd|chat|context|lemon> [...]  (see README.md)')
+  console.log('usage: node pdserver.mjs <start|stop|status|say|cmd|chat|sync|wait|context|lemon> [...]  (see README.md)')
   process.exitCode = 2
 } else {
   verbs[verb]().catch(e => { console.error(`error: ${e.message}`); process.exitCode = 1 })
