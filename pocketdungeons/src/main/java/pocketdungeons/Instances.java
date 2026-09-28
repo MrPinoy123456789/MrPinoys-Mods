@@ -26,6 +26,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -1849,7 +1851,7 @@ final class Instances {
      * snapshot taken at interval start. Keystone level and home room are
      * untouched.
      */
-    private static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
+    static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         DungeonLog log = DungeonLog.forServer(server);
@@ -1934,7 +1936,12 @@ final class Instances {
         return null;
     }
 
-    /** Clears mob targets and Enderman anger for every member before they are pulled out. */
+    /**
+     * Clears every mob's hold on the members before they are pulled out: the
+     * plain target, persistent anger on a neutral mob (Enderman, wolf, piglin
+     * and the like), and the brain memories a brain driven mob hunts with.
+     * Only mobs targeting or angry at a member are touched.
+     */
     private static void clearMobTargets(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
@@ -1945,10 +1952,33 @@ final class Instances {
                 level.getWorldBorder().getMinZ(),
                 level.getWorldBorder().getMaxX(), level.getMaxY(),
                 level.getWorldBorder().getMaxZ());
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, box,
-                e -> e.getTarget() instanceof ServerPlayer p && members.contains(p.getUUID()))) {
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, box, e -> huntsMember(e, members))) {
             mob.setTarget(null);
+            if (mob instanceof NeutralMob neutral) {
+                neutral.stopBeingAngry();
+            }
+            mob.getBrain().eraseMemory(MemoryModuleType.ATTACK_TARGET);
+            mob.getBrain().eraseMemory(MemoryModuleType.ANGRY_AT);
         }
+    }
+
+    /** Whether this mob is targeting, or holding anger against, one of {@code members}. */
+    private static boolean huntsMember(Mob mob, Set<UUID> members) {
+        if (mob.getTarget() instanceof ServerPlayer p && members.contains(p.getUUID())) {
+            return true;
+        }
+        if (mob instanceof NeutralMob neutral && neutral.getPersistentAngerTarget() != null
+                && members.contains(neutral.getPersistentAngerTarget().getUUID())) {
+            return true;
+        }
+        var brain = mob.getBrain();
+        if (brain.hasMemoryValue(MemoryModuleType.ANGRY_AT)
+                && brain.getMemory(MemoryModuleType.ANGRY_AT).filter(members::contains).isPresent()) {
+            return true;
+        }
+        return brain.hasMemoryValue(MemoryModuleType.ATTACK_TARGET)
+                && brain.getMemory(MemoryModuleType.ATTACK_TARGET)
+                        .filter(t -> members.contains(t.getUUID())).isPresent();
     }
 
     /**

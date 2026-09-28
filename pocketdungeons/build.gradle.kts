@@ -113,12 +113,43 @@ tasks.register("dungeonIntegrationTest") {
 // fabric-api.gametest is set (DISCOVERIES trap 18); this run has no such
 // mixin (and isn't allowed one, per the one-mixin budget), so the file is
 // written by hand before every launch instead.
-tasks.named("runDungeonIntegrationTest") {
-    doFirst {
-        val runDir = file("run-dungeonIntegrationTest")
-        runDir.mkdirs()
-        file("$runDir/eula.txt").writeText("eula=true\n")
+// The real server runs bind a port, and tools/server's test server owns
+// 25565. Each run directory gets its own port, rewritten into
+// server.properties before every launch so a regenerated file cannot drift
+// back to the default. After the run, the log must carry the entrypoint's
+// PASS line: a server that dies early (FAILED TO BIND, a crash before
+// SERVER_STARTED) can exit cleanly, and that must not read as a pass.
+fun prepareRealServerRun(dir: String, port: Int) {
+    val runDir = file(dir)
+    runDir.mkdirs()
+    file("$runDir/eula.txt").writeText("eula=true\n")
+    val props = file("$runDir/server.properties")
+    val lines = if (props.exists()) props.readLines() else emptyList()
+    val wanted = mapOf("server-port" to port.toString(), "query.port" to port.toString())
+    val out = lines.map { line ->
+        val key = line.substringBefore('=', "")
+        wanted[key]?.let { "$key=$it" } ?: line
+    }.toMutableList()
+    wanted.forEach { (key, value) -> if (out.none { it.startsWith("$key=") }) out.add("$key=$value") }
+    props.writeText(out.joinToString("\n", postfix = "\n"))
+    // A stale log from an earlier run could carry an old PASS line.
+    file("$runDir/logs/latest.log").delete()
+}
+
+fun requireRealServerPass(dir: String, marker: String) {
+    val log = file("$dir/logs/latest.log")
+    val text = if (log.exists()) log.readText() else ""
+    if (text.contains("FAILED TO BIND TO PORT")) {
+        throw GradleException("$marker: the server failed to bind its port; see ${log.path}")
     }
+    if (!text.contains("$marker: PASS")) {
+        throw GradleException("$marker: no PASS line in ${log.path}; the server did not finish the run")
+    }
+}
+
+tasks.named("runDungeonIntegrationTest") {
+    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", 25581) }
+    doLast { requireRealServerPass("run-dungeonIntegrationTest", "dungeonIntegrationTest") }
 }
 
 // M76: thin aliases over the Loom-generated run tasks, so the milestone's
@@ -140,19 +171,13 @@ tasks.register("dungeonLoadTestSoak") {
 }
 
 tasks.named("runDungeonLoadTest") {
-    doFirst {
-        val runDir = file("run-dungeonLoadTest")
-        runDir.mkdirs()
-        file("$runDir/eula.txt").writeText("eula=true\n")
-    }
+    doFirst { prepareRealServerRun("run-dungeonLoadTest", 25582) }
+    doLast { requireRealServerPass("run-dungeonLoadTest", "dungeonLoadTest") }
 }
 
 tasks.named("runDungeonLoadTestSoak") {
-    doFirst {
-        val runDir = file("run-dungeonLoadTest")
-        runDir.mkdirs()
-        file("$runDir/eula.txt").writeText("eula=true\n")
-    }
+    doFirst { prepareRealServerRun("run-dungeonLoadTest", 25582) }
+    doLast { requireRealServerPass("run-dungeonLoadTest", "dungeonLoadTest") }
 }
 
 java {

@@ -5,9 +5,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -298,6 +301,66 @@ public final class FloorIntervalGameTest {
         if (OmenBar.shows(untimed) || untimed.omenBar != null) {
             helper.fail("an admin untimed run is outside the loop and gets no bar");
             return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A max-omen death on the very first interval of a fresh run reverts the
+     * dungeon pack. That interval comes from the record's field initializer,
+     * not from beginInterval, so the snapshot has to be taken when the pack is
+     * swapped in on entry. Loot picked up after entry is lost; the pack
+     * carried in is kept.
+     */
+    @GameTest(maxTicks = 20)
+    public void maxOmenDeathOnFirstIntervalRevertsInventory(GameTestHelper helper) {
+        ServerPlayer player = standInALoadedChunk(helper);
+        MinecraftServer server = player.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        int slot = 9983;
+        InstanceRecord record = floorRecord(helper, server, slot, player.getUUID());
+        record.members.put(player.getUUID(),
+                new ReturnPoint(Level.OVERWORLD, Vec3.atBottomCenterOf(player.blockPosition()), 0.0f, 0.0f));
+        record.phase = RunSession.Phase.ACTIVE;
+        InstanceRegistry.bySlot.put(slot, record);
+        InstanceRegistry.byMember.put(player.getUUID(), record);
+        InstanceRegistry.usedSlots.add(slot);
+
+        List<ItemStack> pack = new ArrayList<>();
+        for (int i = 0; i < InventorySwap.SLOTS; i++) {
+            pack.add(ItemStack.EMPTY);
+        }
+        pack.set(3, new ItemStack(Items.STONE_SWORD));
+        log.setOrphan(player.getUUID(), new InventorySwap.OrphanRecord(pack));
+        try {
+            // Entry: the pack is swapped in where the player stands.
+            InventorySwap.Probe.useDimensionForTesting(Level.OVERWORLD);
+            InventorySwap.Probe.forceStash(player, false, List.of());
+            InventorySwap.Probe.reconcileNow(player);
+            if (!record.interval.inventorySnapshot.containsKey(player.getUUID())) {
+                helper.fail("entering on the first interval took no snapshot");
+                return;
+            }
+            // Unbanked loot, then the killing blow at max omen.
+            player.getInventory().add(new ItemStack(Items.DIAMOND, 7));
+            Instances.failRunOmen(server, record, player, player.damageSources().generic());
+
+            if (player.getInventory().countItem(Items.DIAMOND) != 0) {
+                helper.fail("the unbanked loot survived a max-omen death");
+                return;
+            }
+            List<ItemStack> kept = log.orphanOf(player.getUUID()).items();
+            if (kept.stream().anyMatch(s -> s.is(Items.DIAMOND))
+                    || kept.stream().noneMatch(s -> s.is(Items.STONE_SWORD))) {
+                helper.fail("the kept pack is not the one carried in: " + kept);
+                return;
+            }
+        } finally {
+            InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
+            InventorySwap.Probe.reconcileNow(player);
+            InstanceRegistry.bySlot.remove(slot);
+            InstanceRegistry.byMember.remove(player.getUUID());
+            InstanceRegistry.usedSlots.remove(slot);
         }
         helper.succeed();
     }

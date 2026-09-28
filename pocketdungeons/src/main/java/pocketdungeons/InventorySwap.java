@@ -690,6 +690,7 @@ public final class InventorySwap {
         grantMigrationKit(log, player);
         slots.flush();
         InventoryJournal.commit(server, player, op);
+        snapshotOnEntry(player);
         if (survival.stream().anyMatch(stack -> !stack.isEmpty())) {
             player.sendSystemMessage(Component.literal(
                             "Your own gear is stored safely and comes back when you leave. This is your dungeon pack.")
@@ -735,12 +736,28 @@ public final class InventorySwap {
     static void captureIntervalSnapshot(MinecraftServer server, InstanceRecord record) {
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player == null || !player.level().dimension().equals(dungeonLevel)) {
                 continue;
             }
             PlayerSlots slots = new PlayerSlots(player);
             record.interval.inventorySnapshot.put(member, snapshotPlayer(player, slots));
         }
+    }
+
+    /**
+     * Takes this player's interval snapshot the moment their dungeon pack is
+     * swapped in, unless the current interval already holds one for them. This
+     * covers the first interval of a fresh run (which never passes through
+     * {@link InstanceRecord#beginInterval}) and a member who joins mid
+     * interval, both of whom {@link #captureIntervalSnapshot} would miss.
+     */
+    private static void snapshotOnEntry(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
+            return;
+        }
+        record.interval.inventorySnapshot.computeIfAbsent(player.getUUID(),
+                id -> snapshotPlayer(player, new PlayerSlots(player)));
     }
 
     /**
