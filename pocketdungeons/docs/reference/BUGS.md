@@ -4931,3 +4931,40 @@ Source: `docs/playtests/2026-09-26-1.md` and `docs/playtests/2026-09-27-1.md`. C
 **Status:** Open. Not caused by the playtest fixes.
 **Actual:** `LayoutStamper.stamp` (LayoutStamper.java:246) throws `room pocketdungeons:sump has spanY 2 but no climbable return path from its lower story to the upper floor (spec 13.4)` and the plan is cleared. Seen once in 60 builds at keystone 8.
 **Next step:** check the Sump spec and template for its ladder or stair column, and whether a rotation drops it.
+
+## Found in the live Lemon playtest (2026-09-27, session 3)
+
+Source: `docs/playtests/2026-09-27-3.md`.
+
+### PD-74: A death rescue does not shake off the mob; an enderman follows into the staging room (High)
+
+**Reported:** 2026-09-27 20:32: "I "died"/ got teleported back to the start from the enderman and it teleported to me again, potentially spawn camping me". Journal: `rescue` at 20:31:17, cause `minecraft:mob_attack`, in hall_corner next to Don't Look (Frostworks, floor 3).
+**Severity:** High (the safe regroup point can be camped; a rescue loop is possible).
+**Status:** Open.
+**Expected:** the rescue ends the fight; the staging room is safe.
+**Actual:** the enderman reappears next to the player after the rescue teleport.
+**Likely cause:** `Instances.rescue` (Instances.java:1735) resets health and effects and teleports the player to the staging room centre, but never clears the target or anger of mobs targeting the player. An angry enderman teleports toward a far target (vanilla), so it follows. Fix idea: on rescue, clear `setTarget(null)` and anger on mobs targeting the player, or keep dungeon endermen from leaving their cell.
+
+### PD-75: Explosive affix pressure plates drop as free items (Low)
+
+**Reported:** 2026-09-27 20:37: "stepping on the pressure plate above the tnt drops the pressure plate, the pressure plate should disappear instead so the player doesn't get free pressure plates".
+**Severity:** Low (small economy leak).
+**Status:** Open.
+**Likely cause:** `RoomContent.placeExplosiveHazards` (RoomContent.java:401) places TNT at floor level with a stone pressure plate on top. The plate primes the TNT, the TNT block becomes primed TNT, and the unsupported plate breaks and drops. Fix idea: remove the plate without a drop when it triggers.
+
+### PD-76: ECHO SHARDS engine screen: overlapping stale text, all gold, no fuel name (Low)
+
+**Reported:** 2026-09-27 19:43: "There's text overlap on the Echo Shards, per premium door: 3 board", then "overlapping words under "Echo shards", same yellow font". Cleared after walking away and back.
+**Severity:** Low (readability).
+**Status:** Open.
+**Findings:** server side there was one engine text display (read-only `execute ... data get entity`), text `{color: gold, text: "ECHO SHARDS", extra: ["\nStored: 3 \nPer premium door: 3"]}`. Three separate defects:
+1. The overlap is a stale client-side copy after the clear-then-summon refresh (`DungeonScreen.update`, DungeonScreen.java:410; `updateEngine` re-summons with the viewer's balance on entry). Updating the existing entity's text in place would avoid it.
+2. Every line is gold: the lines are appended to the gold title literal and inherit its style (`DungeonScreen.engineContent`, DungeonScreen.java:352).
+3. The fuel name is empty: `fuel.getName(ItemStack.EMPTY)` returns no text here, so the line reads "Stored: 3 ".
+
+### PD-77: Lemon lingers up to a minute after the agent has answered (Low)
+
+**Reported:** 2026-09-27 20:22: "After you gave that response, you weren't waiting for feedback from me but you stuck around anyways, if you have no reason to be infront of me then you should hide away". Also 20:33: vanish while looking something up.
+**Severity:** Low (polish, but it is in the player's face during combat).
+**Status:** Open.
+**Likely cause:** when the player speaks to Lemon in llm mode, `idleUntil` is set to now + (`lemonFallbackSeconds` 45 + `lemonIdleSeconds` 20) (Lemon.java:251). The agent's `say` only extends it (`Math.max`, Lemon.java:484), so an answered question still keeps Lemon hovering for the rest of the 65 s. Fix idea: when a reply resolves the pending question, reset `idleUntil` to the bubble time plus a few seconds.

@@ -17,3 +17,6 @@ playtest journal once it exists; blank means not recorded.
 | 2026-09-27 | slot 0, tier 1 | 2 | solo | 344 | | | | | 3 | calm (inferred from 3 chests) | | 2026-09-27-1.md |
 | 2026-09-27 | slot 0, tier 1 | 1 | solo | | | | | | 3 | not banked (left) | | 2026-09-27-1.md |
 | 2026-09-27 | slot 0, tier 1 | 2 | solo | 246 | | | | | 3 | not banked (left) | | 2026-09-27-1.md |
+| 2026-09-27 | Infestation, slot 0, key 4, tier 1 | 1 | solo | 1240 | 3 | 1 | 4 | 251 | 2 | calm (+1 level) | | 2026-09-27-3.md |
+| 2026-09-27 | Prismarine, slot 0, key 4, tier 1 | 2 | solo | 521 | 0 | 0 | 0 | 0 | 2 | calm (+1 level) | | 2026-09-27-3.md |
+| 2026-09-27 | Frostworks, slot 0, key 4, tier 1 | 3 | solo | 284 | 0 | 1 | 0 | 0 | 3 | calm (+1 level) | | 2026-09-27-3.md |
