@@ -4984,3 +4984,13 @@ Source: `docs/playtests/2026-09-27-3.md`.
 - `src/main/resources/data/pocketdungeons/structure/rooms/blaze_cellar.nbt`
 
 **Workaround:** choose a different door; the three offers roll different room sets, and the failure only occurs when `blaze_cellar` is part of the selected layout.
+
+### PD-79: `server wait` drops the player's questions to Lemon (High)
+
+**Reported:** 2026-09-27 23:21, live session `docs/playtests/2026-09-27-4.md`. The player's question never reached the agent and timed out into the built-in "I do not know that one yet."; the player stopped the session to get it fixed.
+**Severity:** High (the Lemon harness cannot hear the player; it ended a session).
+**Status:** Open.
+**Expected:** `wait` wakes on `lemon ask <Name> ...` (the player speaking to Lemon) and ignores only the agent's own echoes.
+**Actual:** `pdserver.mjs:333` filters `/^\S+ lemon (mode|say|ask|reply|think) /`. The player's line `lemon ask <Name> ...` matches, so it is dropped. The agent's echoes are logged as `lemon says|asks|replies|thinks`, which do not match, so they wake `wait` instead.
+**Fix idea:** filter `/^\S+ lemon (mode|says|replies|thinks) /` plus `lemon asks` lines the agent sent, and never `lemon ask` or `lemon answer`.
+**Workaround:** poll `server chat` and re-send `lemon mode <p> llm` every minute.

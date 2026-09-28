@@ -123,6 +123,10 @@ final class Lemon {
         /** Side Lemon hovers on: -1 left, 1 right, 0 above. */
         int side;
         long nextSideCheck;
+        /** Where Lemon stays put (before its bob); null until placed. It only turns in place. */
+        Vec3 anchor;
+        /** Whether {@link #anchor} was chosen at fight distance. */
+        boolean anchorCombat;
 
         State(UUID player) {
             this.player = player;
@@ -629,6 +633,8 @@ final class Lemon {
         long now = level.getServer().getTickCount();
         state.side = pickSide(player, state.side, now);
         Vec3 at = hoverTarget(player, state.side, now, false);
+        state.anchor = at.subtract(0, bob(now), 0);
+        state.anchorCombat = false;
         LemonBody body = new LemonBody(level, player.getUUID());
         body.snapTo(at.x, at.y, at.z, facing(at, player), 0.0f);
         state.body = body;
@@ -641,13 +647,29 @@ final class Lemon {
         chirp(player, SoundEvents.ALLAY_AMBIENT_WITHOUT_ITEM, 0.6f, 1.2f);
     }
 
+    /** Past this many blocks away Lemon comes back to the player. */
+    private static final double ANCHOR_MAX_DIST = 9.0;
+    /** Lemon moves once it is this far off the player's facing: well outside the view. */
+    private static final double ANCHOR_MAX_ANGLE = Math.toRadians(100);
+
+    /**
+     * Lemon stays at its anchor and only turns to face the player, so they can walk
+     * past it. It picks a new spot in view only when the old one is far out of view,
+     * too far away, no longer clear (a wall or doorway between them), or a fight
+     * starts or ends and it needs the other distance.
+     */
     private static void hover(ServerPlayer player, State state, long now) {
-        if (now >= state.nextSideCheck) {
-            state.side = pickSide(player, state.side, now);
+        boolean combat = inFight(player, now);
+        boolean check = now >= state.nextSideCheck;
+        if (check) {
             state.nextSideCheck = now + 10;
         }
-        boolean combat = inFight(player, now);
-        Vec3 target = hoverTarget(player, state.side, now, combat);
+        if (state.anchor == null || combat != state.anchorCombat || anchorLost(player, state.anchor, check)) {
+            state.side = pickSide(player, state.side, now);
+            state.anchor = hoverTarget(player, state.side, now, combat).subtract(0, bob(now), 0);
+            state.anchorCombat = combat;
+        }
+        Vec3 target = state.anchor.add(0, bob(now), 0);
         Vec3 current = state.body.position();
         Vec3 next = current.distanceToSqr(target) > 64 ? target : current.add(target.subtract(current).scale(0.3));
         float yaw = facing(next, player);
@@ -660,6 +682,24 @@ final class Lemon {
         }
     }
 
+    private static boolean anchorLost(ServerPlayer player, Vec3 anchor, boolean checkClear) {
+        Vec3 to = anchor.subtract(player.position());
+        double flat = Math.sqrt(to.x * to.x + to.z * to.z);
+        if (flat > ANCHOR_MAX_DIST) {
+            return true;
+        }
+        double yaw = Math.toRadians(player.getYRot());
+        Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
+        if (flat > 1.0 && (to.x * forward.x + to.z * forward.z) / flat < Math.cos(ANCHOR_MAX_ANGLE)) {
+            return true;
+        }
+        return checkClear && !clear(player, anchor);
+    }
+
+    private static double bob(long now) {
+        return Math.sin(now * 0.12) * 0.05;
+    }
+
     /**
      * Where Lemon hovers: off to one side so the bubble can sit near the centre
      * of the player's view. Calm combat keeps Lemon close and readable; during
@@ -669,7 +709,7 @@ final class Lemon {
         double yaw = Math.toRadians(player.getYRot());
         Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
         Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
-        double bob = Math.sin(now * 0.12) * 0.05;
+        double bob = bob(now);
         double ahead = combat ? 4.2 : 3.0;
         double off = combat ? 1.6 : 0.7;
         if (side == 0) {

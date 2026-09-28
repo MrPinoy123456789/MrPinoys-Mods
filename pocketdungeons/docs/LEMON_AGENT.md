@@ -52,6 +52,7 @@ Anywhere else: `node pocketdungeons/tools/server/pdserver.mjs <command>`. Below,
 
 | Command | Use |
 |---|---|
+| `server start` | Builds the mod and starts the server in the background, then prints `Ready` (takes a minute or two). Does nothing if it is already up. |
 | `server status` | Is the server up, who is online. Prints `UP. ...` or `DOWN.`, plus the last five log lines. |
 | `server sync` | Skips every event logged before now. Run it once before your first `wait`, so you do not react to old sessions. |
 | `server wait --player <p> --timeout 240` | **Your main loop.** Blocks until something new happens (up to 240 s), prints the new events, one per line, then exits. It also keeps `<p>`'s Lemon in llm mode while the server is up, and re-asserts llm mode immediately when that player joins. Prints `no new events (timeout)` or `server is down (timeout)` when nothing happened. `chat` and `wait` share one cursor: use one or the other. |
@@ -90,9 +91,13 @@ Anywhere else: `node pocketdungeons/tools/server/pdserver.mjs <command>`. Below,
 Kinds: `chat`, `join`, `leave`, `floor`, `lemon` (with sub-kind after the second
 word), `report`, `error`, `server ready`, `server stopping`.
 
-`wait` ignores its own `lemon mode`, `lemon say`, `lemon ask`, `lemon reply`, and
-`lemon think` echoes so it does not wake itself. It still reports the player's
-`lemon ask` and `lemon answer`, and all non-Lemon events.
+`wait` never wakes on a line Lemon itself emits: `lemon says`, `lemon asks`,
+`lemon replies`, `lemon thinks` (your own lines, logged in the third person),
+`lemon held`, `lemon hushed` and `lemon mode`. Those still print if they arrive
+alongside a waking event. It wakes on everything from the player (`lemon ask`,
+`lemon answer`, `lemon quiet`, `chat`, `join`, `leave`, `floor`, `report`), on
+`lemon unanswered`, and on `error` and server lines. The filter is
+`tools/server/wait-filter.mjs`; `node tools/server/wait-filter.test.mjs` checks it.
 
 ### 3.2 Chat limits
 
@@ -131,11 +136,11 @@ and its behaviour is in the Java source under
    - Skim `pocketdungeons/docs/AUDIT_2026-09.md` section 11 (the decisions log)
      so you know how the game is meant to work.
    - Create today's notes file (section 6).
-3. **Check the server:** `server status`, then `server sync` so old events are
-   skipped. If the server is down, the owner is starting it; just begin the loop,
-   which waits. When the server starts, the first `wait` prints its startup lines
-   (`server ready`, maybe some `error` lines about clearing old slots): note them
-   and carry on.
+3. **Check the server:** `server status`. If it prints `DOWN.`, run `server start`
+   and wait for it to print `Ready` (skip this only if the owner said they are
+   starting it themselves). Then `server sync` so old events are skipped. If the
+   first `wait` prints startup lines (`server ready`, maybe some `error` lines
+   about clearing old slots), note them and carry on.
 4. **Loop:** run `server wait --player <p> --timeout 240`, handle every line it
    prints (table 3.1), then run it again. Keep looping until section 7 says stop.
    Handle a `lemon ask` within about 30 seconds of seeing it.

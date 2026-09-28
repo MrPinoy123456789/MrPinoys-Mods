@@ -97,9 +97,12 @@ Lemon lines look like this:
 Solo, everything the player types in chat goes to Lemon and is not broadcast, so it
 shows up here as `lemon ask`, never as `chat`; in a party only lines that start with "Lemon" do.
 
-`wait` ignores the agent's own `lemon mode`, `lemon say`, `lemon ask`, `lemon reply`,
-and `lemon think` echoes so it does not wake itself. It still reports `lemon ask`
-from the player and `lemon answer` from the player.
+`wait` never wakes on a line Lemon itself emits: `lemon says`, `lemon asks`,
+`lemon replies`, `lemon thinks`, `lemon held`, `lemon hushed` and `lemon mode`
+(those still print when they arrive alongside a waking event). It wakes on the
+player's `lemon ask`, `lemon answer` and `lemon quiet`, on `lemon unanswered`, and
+on every non-Lemon event. The filter lives in `wait-filter.mjs`; run
+`node wait-filter.test.mjs` to check it against real log lines.
 
 ## A live interview session
 

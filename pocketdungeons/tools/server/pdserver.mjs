@@ -26,6 +26,7 @@ import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freemem, platform } from 'node:os'
+import { eventOf, wakesWait } from './wait-filter.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const modDir = resolve(here, '..', '..')
@@ -128,32 +129,6 @@ function logSince(sinceMs) {
 }
 
 // ---- log reading -----------------------------------------------------------------
-
-const EVENT = /\) (\[Not Secure\] )?<([^>]+)> (.*)$|(\S+) (joined|left) the game|completed floor|\/(WARN|ERROR)\] \(PocketDungeons\)|\(PocketDungeons\) (Lemon \w+ <|Report from )|Exception|Stopping server|Done \(/
-// Lemon's lines: chat routed to Lemon is not broadcast, so the mod logs it (and Lemon's own lines) itself.
-// Anchored to the line's own logger prefix, so chat that quotes one cannot pass for one.
-const LEMON = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\/INFO\] \(PocketDungeons\) Lemon (\w+) <([^>]+)>(?: (.*))?$/
-const REPORT = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\/INFO\] \(PocketDungeons\) Report from ([^:]+): (.*)$/
-const NOISE = /oshi|SystemReport/
-
-/** Turns a raw log line into a compact event line, or null if it is not one agents care about. */
-function eventOf(line) {
-  // Untimestamped lines are stack-trace continuations; the timestamped line above them is enough.
-  const time = (line.match(/^\[(\d\d:\d\d:\d\d)\]/) ?? [])[1]
-  if (!time || !EVENT.test(line) || NOISE.test(line)) return null
-  let m = line.match(LEMON)
-  if (m) return `${time} lemon ${m[1]} <${m[2]}>${m[3] ? ' ' + m[3] : ''}`
-  m = line.match(REPORT)
-  if (m) return `${time} report <${m[1]}> ${m[2]}`
-  m = line.match(/\) (?:\[Not Secure\] )?<([^>]+)> (.*)$/)
-  if (m) return `${time} chat <${m[1]}> ${m[2]}`
-  m = line.match(/(\S+) (joined|left) the game/)
-  if (m) return `${time} ${m[2] === 'joined' ? 'join' : 'leave'} ${m[1]}`
-  if (line.includes('completed floor')) return `${time} floor ${line.slice(line.indexOf(') ') + 2)}`
-  if (line.includes('Done (')) return `${time} server ready`
-  if (line.includes('Stopping server')) return `${time} server stopping`
-  return `${time} error ${line.slice(line.indexOf('] ', 12) + 2)}`
-}
 
 /** New event lines since the saved cursor; a shorter log than the cursor means the server restarted. */
 function readNew(fromStart) {
@@ -328,9 +303,8 @@ async function wait() {
       lastRefresh = Date.now()
     }
     const events = readNew(false)
-    // The agent's own Lemon mode refreshes, and any Lemon event the agent
-    // caused, must not wake `wait` from its own output.
-    const external = events.filter(e => !/^\S+ lemon (mode|say|ask|reply|think) /.test(e))
+    // Lemon's own lines (the agent's echoes, mode refreshes) never wake wait; see wait-filter.mjs.
+    const external = events.filter(wakesWait)
     const joined = player && events.some(e => new RegExp(`^\\S+ join ${player}$`).test(e))
     if (joined && up) {
       await rcon(`dungeon lemon mode ${player} llm`).catch(() => {})
