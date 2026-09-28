@@ -215,7 +215,7 @@ public final class SeamGameTest {
                 problems.add("homecoming: the room did not stamp");
                 return;
             }
-            RunLifecycle.beginHomecoming(record, level.getGameTime());
+            RunLifecycle.beginHomecoming(record, level.getServer(), level.getGameTime());
             record.phase = RunSession.Phase.HOME;
             track();
             Set<Set<BlockPos>> home = new LinkedHashSet<>(advanced);

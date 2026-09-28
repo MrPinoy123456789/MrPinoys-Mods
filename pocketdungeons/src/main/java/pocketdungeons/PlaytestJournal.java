@@ -299,6 +299,22 @@ final class PlaytestJournal {
         });
     }
 
+    /** The run ended because a max-omen death failed the whole party. */
+    static void runFailed(MinecraftServer server, InstanceRecord record, ServerPlayer player,
+                        net.minecraft.world.damagesource.DamageSource source) {
+        safely("run_failed", () -> {
+            String cause = source.typeHolder().unwrapKey()
+                    .map(key -> key.identifier().toString()).orElse("unknown");
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("cause", cause);
+            extras.put("floor_omen", Omen.clamp(record.interval.omen));
+            extras.put("interval_omen", record.interval.omenSum());
+            extras.put("floor", record.interval.floorIndex + 1);
+            extras.put("slot", record.slot);
+            record(player, record, "run_failed", extras);
+        });
+    }
+
     /** One successful block placement in the dungeon dimension, for the floor tally. */
     static void countPlacement(UUID player) {
         safely("placement", () -> {

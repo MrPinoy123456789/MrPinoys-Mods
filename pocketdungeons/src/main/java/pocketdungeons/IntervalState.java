@@ -1,7 +1,12 @@
 package pocketdungeons;
 
+import net.minecraft.world.item.ItemStack;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * The state of one interval: everything that lives from the first door out of
@@ -44,6 +49,14 @@ final class IntervalState {
      */
     int spawnersCleared;
     int spawnersTotal;
+
+    /**
+     * Snapshot of each member's dungeon inventory at interval start, used when a
+     * max-omen death fails the run and the unbanked floors must pay nothing.
+     * Stored as 42-slot lists (main, armour, offhand, cursor), copied so the
+     * live inventory cannot mutate them.
+     */
+    final Map<UUID, List<ItemStack>> inventorySnapshot = new HashMap<>();
 
     /**
      * Whether this interval is an Endless Mine. Set on the first commit whose

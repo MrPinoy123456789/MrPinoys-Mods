@@ -22,29 +22,25 @@ final class OmenBarText {
     }
 
     /**
-     * What the band pays: the floor's completion chests, and whether the
-     * cleared floors' door steps bank toward the key when the party goes home
-     * ({@code "3 chests, key climbs"}) or bank nothing
-     * ({@code "1 chest, key stalls"}). How many levels that is depends on
-     * each member's own carried progress, so the bar does not claim a number.
+     * What going home would pay right now. Omen no longer reduces chests or
+     * keystone progress; it only makes the dungeon deadlier. The band still
+     * colours the bar and the kit refill at home.
      */
     static String outcome(int band, int chests) {
         // Playtest 2026-09-27: "key climbs" was jargon; say what it means.
-        return chests + (chests == 1 ? " reward chest, " : " reward chests, ")
-                + (Omen.levelChange(band) > 0 ? "key progress" : "no key progress");
+        return chests + (chests == 1 ? " reward chest, " : " reward chests, ") + "key progress";
     }
 
-    /** {@link #outcome(int, int)} with the band's own chest count and no depth bonus. */
+    /** {@link #outcome(int, int)} with the base chest count and no depth bonus. */
     static String outcome(int band) {
-        return outcome(band, Omen.chestCount(band));
+        return outcome(band, Omen.baseRewardChests());
     }
 
     /**
-     * The bar during a floor: the floor's omen out of four, the interval's
-     * band so far with the chests the floor would pay, and the completion
-     * gate. {@code spawnersTotal} below zero means the watcher has not read
-     * the floor yet, and zero means it has no spawners; the gate part is left
-     * off either way.
+     * The bar during a floor: the spawner gate first, then the floor's omen
+     * (hidden at 0), then the chests the floor would pay. The bar's colour
+     * and fill carry the band. The top band warns that one more death ends
+     * the run.
      */
     static String activeTitle(int floorOmen, int band, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
@@ -56,11 +52,20 @@ final class OmenBarText {
         if (spawnersTotal > 0) {
             int needed = Math.max(1, spawnersNeeded);
             int cleared = Math.max(0, spawnersCleared);
-            title.append(cleared >= needed ? "Spawners done" : "Spawners " + cleared + "/" + needed)
-                    .append(" | ");
+            int remaining = Math.max(0, needed - cleared);
+            title.append(remaining == 0 ? "Spawners done" : remaining + " Spawners remaining");
+        } else {
+            title.append("Spawners done");
         }
-        return title.append("Omen ").append(Omen.clamp(floorOmen)).append('/').append(Omen.MAX_OMEN)
-                .append(", ").append(chests).append(chests == 1 ? " chest" : " chests").toString();
+        int omen = Omen.clamp(floorOmen);
+        if (omen > 0) {
+            title.append(" | Omen ").append(omen).append('/').append(Omen.MAX_OMEN);
+        }
+        title.append(" | ").append(chests).append(chests == 1 ? " chest" : " chests");
+        if (band >= 2) {
+            title.append(" | one more fall ends the run");
+        }
+        return title.toString();
     }
 
     /**
@@ -106,11 +111,11 @@ final class OmenBarText {
     /** The action bar line when {@code source} raises the omen to {@code omen}. */
     static String riseLine(Omen.Source source, int omen) {
         String line = switch (source) {
-            case DWELL -> "The walls notice you lingering in an unsolved room.";
-            case SENSOR -> "The sculk counts your steps.";
-            case SHRIEK -> "Something below heard that.";
-            case BARGAIN -> "The bargain is struck. Something leans closer.";
-            case DEPTH -> "This deep, the dungeon is already watching.";
+            case DWELL -> "The walls notice you lingering; more enemies are coming.";
+            case SENSOR -> "The sculk counts your steps; the next fight will be harder.";
+            case SHRIEK -> "Something below heard that; it is sending company.";
+            case BARGAIN -> "The bargain is struck; the dungeon leans closer.";
+            case DEPTH -> "This deep, the dungeon is already watching; expect heavier guards.";
         };
         return line + " Omen " + Omen.clamp(omen) + "/" + Omen.MAX_OMEN + ".";
     }

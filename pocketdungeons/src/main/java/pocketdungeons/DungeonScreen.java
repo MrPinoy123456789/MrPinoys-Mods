@@ -23,6 +23,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import pocketdungeons.mixin.TextDisplayAccessor;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.phys.AABB;
@@ -351,13 +352,15 @@ final class DungeonScreen {
      */
     static Component engineContent(ServerPlayer viewer) {
         Item fuel = Fuel.item();
-        String fuelName = fuel == null ? "fuel" : fuel.getName(ItemStack.EMPTY).getString();
+        String fuelName = fuel == null ? "fuel"
+                : Component.translatable(fuel.getDescriptionId()).getString();
         String balance = viewer != null
                 ? "Stored: " + Fuel.banked(viewer) + " " + fuelName
                 : "Accepts " + fuelName;
         return Component.literal("ECHO SHARDS").withStyle(ChatFormatting.GOLD)
-                .append(Component.literal("\n" + balance + "\nPer premium door: "
-                        + PocketDungeonsConfig.fuelCostPerGreaterDoor()));
+                .append(Component.literal("\n" + balance).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal("\nPer premium door: "
+                        + PocketDungeonsConfig.fuelCostPerGreaterDoor()).withStyle(ChatFormatting.GRAY));
     }
 
     // ---- tracker screen content ---------------------------------------------
@@ -400,15 +403,36 @@ final class DungeonScreen {
     // ---- summon / update / clear --------------------------------------------
 
     /**
-     * Clears any tagged screen near {@code clearXyz}, then summons a fresh one
-     * at {@code xyz}. The two points differ because the summon anchor drifts
-     * with the new content's line count (see {@link #show}); clearing against
-     * the content-independent point instead of the drifted one means a screen
-     * left behind by some other content length is still found, not just the
-     * one this exact content would have produced.
+     * Updates an existing tagged screen near {@code clearXyz} when one exists,
+     * or summons a fresh one at {@code xyz}. Updating in place avoids the
+     * stale client-side copy that clearing and re-summoning can leave.
+     * The two points differ because the summon anchor drifts with the new
+     * content's line count (see {@link #show}); searching against the
+     * content-independent point means a screen left behind by some other
+     * content length is still found, not just the one this exact content would
+     * have produced.
      */
     private static void update(ServerLevel level, double[] clearXyz, double[] xyz,
                                float yaw, float scale, Component text) {
+        AABB box = new AABB(clearXyz[0] - 2, clearXyz[1] - 2, clearXyz[2] - 2,
+                clearXyz[0] + 2, clearXyz[1] + 2, clearXyz[2] + 2);
+        List<Display.TextDisplay> found = level.getEntitiesOfClass(Display.TextDisplay.class, box,
+                e -> e.entityTags().contains(TAG));
+        Display.TextDisplay display = null;
+        for (Display.TextDisplay d : found) {
+            if (display == null) {
+                display = d;
+            } else {
+                d.discard();
+            }
+        }
+        if (display != null) {
+            display.setPos(xyz[0], xyz[1], xyz[2]);
+            display.setYRot(yaw % 360.0f);
+            ((TextDisplayAccessor) display).pocketdungeons$setText(text);
+            ((TextDisplayAccessor) display).pocketdungeons$setLineWidth(LINE_WIDTH);
+            return;
+        }
         clear(level, clearXyz);
         summon(level, xyz, yaw, scale, text);
     }

@@ -200,9 +200,9 @@ final class Omen {
     }
 
     /**
-     * Reward chest count from the finish table band (spec 5.2).
-     *
-     * <p>Low band: 3 chests. Mid band: 2 chests. High band: 1 chest.
+     * Reward chest count from the finish table band (spec 5.2). Kept for old
+     * callers; rewards no longer depend on omen, so use
+     * {@link #baseRewardChests()} for the new chest floor.
      */
     static int chestCount(int band) {
         return switch (band) {
@@ -210,5 +210,13 @@ final class Omen {
             case 1 -> 2;
             default -> 1;
         };
+    }
+
+    /**
+     * Every completed floor pays the base number of reward chests, plus the
+     * depth bonus. Omen now adds danger, not reward cuts.
+     */
+    static int baseRewardChests() {
+        return 3;
     }
 }

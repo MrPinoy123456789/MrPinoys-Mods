@@ -170,7 +170,7 @@ public final class BankAnywhereGameTest {
             unregister(slot, owner, rider);
         }
 
-        // A dire interval left early banks nothing and keeps the carry.
+        // A dire interval left early still banks levels; omen no longer blocks progress.
         int direSlot = 9995;
         InstanceRecord dire = clearedRecord(helper, server, direSlot, owner, List.of(3, 3, 3), List.of(3, 3, 3));
         log.setKeystone(owner.getUUID(), 10, Set.of());
@@ -178,10 +178,13 @@ public final class BankAnywhereGameTest {
         register(dire, direSlot, owner);
         try {
             RunLifecycle.exit(owner, RunLifecycle.ExitReason.COMMAND);
-            if (log.get(owner.getUUID()).keystoneLevel() != 10 || log.get(owner.getUUID()).keyProgress() != 1) {
-                helper.fail("an uneasy interval left early is dire: no levels, carry kept; got level "
-                        + log.get(owner.getUUID()).keystoneLevel() + " and progress "
-                        + log.get(owner.getUUID()).keyProgress());
+            IntervalBanking.Settlement direExpected = IntervalBanking.settle(
+                    List.of(3, 3, 3), 9, 1, perLevel, IntervalBanking.LEAVE_PENALTY, 0);
+            if (log.get(owner.getUUID()).keystoneLevel() != 10 + direExpected.levels()
+                    || log.get(owner.getUUID()).keyProgress() != direExpected.progress()) {
+                helper.fail("an uneasy interval left early is dire but still banks levels; expected "
+                        + direExpected + ", got level " + log.get(owner.getUUID()).keystoneLevel()
+                        + " and progress " + log.get(owner.getUUID()).keyProgress());
                 return;
             }
         } finally {

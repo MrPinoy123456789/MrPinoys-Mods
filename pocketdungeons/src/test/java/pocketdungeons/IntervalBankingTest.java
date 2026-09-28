@@ -67,30 +67,30 @@ public class IntervalBankingTest {
         check(IntervalBanking.band(0, 0, 0) == 0, "no floors reads as one");
     }
 
-    /** A dire interval banks no levels and neither spends nor adds to the carry. */
+    /** A dire interval still banks levels; omen adds danger, not reward cuts. */
     private static void testDireBandKeepsTheCarry() {
-        expect(settle(List.of(3, 3, 3), 12, 2, 0), 2, 0, 2);
-        expect(settle(List.of(1), 4, 0, 0), 2, 0, 0);
+        expect(settle(List.of(3, 3, 3), 12, 2, 0), 2, 3, 2);
+        expect(settle(List.of(1), 4, 0, 0), 2, 0, 1);
     }
 
     /** Leaving at a checkpoint settles one band worse, never worse than dire. */
     private static void testLeavingBanksOneBandWorse() {
         int penalty = IntervalBanking.LEAVE_PENALTY;
-        // Calm becomes uneasy: the levels still bank, one chest fewer.
+        // Calm becomes uneasy: the levels still bank, chests unchanged.
         IntervalBanking.Settlement calm = settle(List.of(3, 3, 3), 3, 0, penalty);
         expect(calm, 1, 3, 0);
-        check(calm.chests() == 2, "uneasy pays two chests");
-        // Uneasy becomes dire: nothing banks, the carry is kept.
-        expect(settle(List.of(3, 3, 3), 9, 1, penalty), 2, 0, 1);
+        check(calm.chests() == 3, "uneasy pays three chests");
+        // Uneasy becomes dire: levels still bank, the carry is kept.
+        expect(settle(List.of(3, 3, 3), 9, 1, penalty), 2, 3, 1);
         // Dire stays dire.
-        expect(settle(List.of(3), 4, 0, penalty), 2, 0, 0);
+        expect(settle(List.of(3), 4, 0, penalty), 2, 1, 0);
     }
 
     private static void testChestsCarryTheDepthBonus() {
         check(settle(List.of(1, 1, 1), 0, 0, 0).chests() == 3, "calm, no bonus: 3");
         IntervalBanking.Settlement deep = IntervalBanking.settle(List.of(1, 1, 1, 1), 5, 0, L, 0,
                 ZoneRules.DEFAULT.bonusChests(4));
-        check(deep.band() == 1 && deep.chests() == 3, "uneasy at floor 4: 2 plus 1 bonus");
+        check(deep.band() == 1 && deep.chests() == 4, "uneasy at floor 4: 3 plus 1 bonus");
     }
 
     /** The interval is shared; each member's carry is their own. */
@@ -105,8 +105,8 @@ public class IntervalBankingTest {
     /** A carry above a shortened interval is not shaved; the next bank spends it. */
     private static void testIntervalLengthShortened() {
         expect(IntervalBanking.settle(List.of(1), 0, 4, 3, 0, 0), 0, 1, 2);
-        // A dire bank leaves even that surplus alone.
-        expect(IntervalBanking.settle(List.of(1), 4, 4, 3, 0, 0), 2, 0, 4);
+        // A dire band still banks levels; omen no longer blocks reward progress.
+        expect(IntervalBanking.settle(List.of(1), 4, 4, 3, 0, 0), 2, 1, 2);
     }
 
     private static void testWords() {
@@ -118,7 +118,7 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false, true),
                 "GOING HOME PAYS\n3 reward chests\n+1 key level\nKit refilled");
         checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true, false),
-                "TIME TO GO HOME\n1 reward chest\nKey: omen too high\nNo kit refill");
+                "TIME TO GO HOME\n3 reward chests\n+3 key levels\nNo kit refill");
         checkEquals(IntervalBanking.homeScreen(settle(List.of(1), 0, 0, 0), L, false, true),
                 "GOING HOME PAYS\n3 reward chests\nKey 1/3 to a level\nKit refilled");
         checkEquals(IntervalBanking.bankedLine(settle(List.of(3, 3, 3), 0, 0, 0), L, false),

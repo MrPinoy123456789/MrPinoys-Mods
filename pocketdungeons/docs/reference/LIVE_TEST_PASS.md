@@ -1822,6 +1822,97 @@ makes a run a multi-floor loop, and inventory is meant to carry across
 floors and only be delivered to the safe room on `/dungeon exit` or the
 safe door.
 
+## 36. Lemon agent harness and omen rules (M33)
+
+> The Lemon harness changes and the new omen/failure/quit rules are verified
+> headlessly for compile, unit tests, and game tests, but the live behaviours
+> below need a real client or the Node server tool.
+
+### 36.1 Lemon reply and think
+
+1. In the server tool, run `server wait` to enter LLM mode for yourself.
+2. In game, type a question in chat so Lemon asks it (or run
+   `dungeon lemon ask <player> <question>` from the tool).
+3. From the tool, run `dungeon lemon reply <player> <answer>`.
+4. **Expected:** the answer appears above Lemon's head within a second or two,
+   even if you are in combat. The journal line for the original `lemon_ask`
+   records `answered_by: llm` and a `wait_s` value.
+5. Run `dungeon lemon think <player> let me check`.
+6. **Expected:** Lemon says a short "let me check" line and immediately
+   vanishes. A later `dungeon lemon reply` brings Lemon back with the answer.
+
+### 36.2 Lemon quiet mode
+
+1. With Lemon in LLM mode and no pending question, run `dungeon lemon quiet`.
+2. **Expected:** Lemon says a goodbye line and disappears. Unprompted hints
+   and tutorial lines stop until you address Lemon in chat again.
+3. Speak to Lemon. **Expected:** Lemon becomes visible and interactive again.
+
+### 36.3 Lemon linger and self-wait
+
+1. Have the server tool in `server wait`. Send a short agent `say` line.
+2. **Expected:** after the last bubble is shown and there is no pending
+   question, Lemon disappears within `lemonLingerSeconds` (default 4).
+3. Keep `server wait` running. **Expected:** the tool's own refresh log lines
+   and echoes of your commands do not wake it from wait.
+4. Run `server wait --player <name>` then disconnect and reconnect the same
+   player. **Expected:** LLM mode reasserts immediately on join.
+5. Run `server status`. **Expected:** the online player list is never empty
+   while players are connected. `server sync` returns cleanly.
+
+### 36.4 Omen bar and cues
+
+1. Enter a run and read the boss bar.
+2. **Expected:** it leads with spawner progress, e.g. "3 Spawners remaining".
+   Omen is hidden while it sits at 0.
+3. Trigger each omen source (linger in an unsolved room, trip a sensor,
+   trigger a shrieker, accept a bargain, descend past floor 3 for the depth
+   bonus). **Expected:** each rise shows a short in-voice chat line that names
+   the cause, e.g. "Something below heard that; it is sending company. Omen
+   2/4."
+4. Reach omen 3/4. **Expected:** the bar appends "one more fall ends the run".
+
+### 36.5 Omen danger, not reward cuts
+
+1. Run a dungeon at omen 2 or 3. **Expected:** extra mob waves spawn with no
+   drops; mobs hit harder or have more health than a calm run. Chests still
+   contain three reward items and keystone progress still advances normally
+   on completion.
+2. Finish an interval at high omen. **Expected:** the settlement grants levels
+   and key progress just like a calm run; omen band does not reduce chest
+   count or keystone progress.
+
+### 36.6 Death failure and inventory snapshot
+
+1. In a party run, let omen reach 4/4, then take lethal damage.
+2. **Expected:** the whole party is sent to their respective return points,
+   the run ends, no unbanked floors pay out, and the dungeon inventory reverts
+   to what it held when the current interval began. Your keystone level and
+   home room are unchanged. A `run_failed` event is written to the playtest
+   journal.
+3. In a solo run, die at omen 0 first. **Expected:** you are rescued, omen
+   rises by one, and you continue. Repeat until omen reaches 4, then die.
+   **Expected:** the run fails as above.
+
+### 36.7 `/dungeon quit` cost
+
+1. During a run, run `/dungeon quit`. **Expected:** the confirmation dialog
+   says the cost is 1 level. Confirm. **Expected:** you return home, keystone
+   level drops by 1, and no other penalty is applied.
+
+### 36.8 PD-74 to PD-77 live checks
+
+1. **PD-74 (mob target clear):** Die to an enderman in an encounter room.
+   **Expected:** after rescue you are in the staging room and the enderman is
+   not there; it did not teleport after you.
+2. **PD-75 (pressure plate drops):** In an Explosive-affix run, step on a
+   stone pressure plate that sits on TNT. **Expected:** the TNT primes and the
+   plate disappears without dropping an item.
+3. **PD-76 (fuel screen):** Stand near the engine screen. **Expected:** the
+   title reads "ECHO SHARDS", the stored balance line is white, the cost line
+   is gray, and the fuel name appears (no trailing blank).
+4. **PD-77 (Lemon linger):** already covered in 36.3.
+
 1. Walk a run through more than one floor. **Expected:** no swap happens
    between floors, and the bag loot carries through untouched. Every floor
    and both rooms are inside `pocketdungeons:void`, so the dimension-based

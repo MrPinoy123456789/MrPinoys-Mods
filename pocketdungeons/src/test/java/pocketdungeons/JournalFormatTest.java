@@ -113,7 +113,7 @@ public class JournalFormatTest {
                         new PlayerContext.RoomView("2,0", "pocketdungeons:hold_the_plate", "puzzle", false, 0, 0, false)),
                 2, 5, PlayerContext.bandSoFar(5, 2), 2, 3, 5, 6,
                 List.of(new PlayerContext.ToolView("minecraft:stone_pickaxe", 40, 131)), 64, 5, 2, true,
-                new Lemon.View(true, true, "llm", false, 1, "How was that floor?"),
+                new Lemon.View(true, true, "llm", false, false, 1, false, "How was that floor?"),
                 List.of(JournalFormat.parse("{\"ev\":\"door_commit\",\"step\":2}")));
         JsonObject o = PlayerContext.toJson(s);
         List<String> keys = List.copyOf(o.keySet());

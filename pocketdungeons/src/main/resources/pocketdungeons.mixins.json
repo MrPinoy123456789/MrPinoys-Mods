@@ -9,7 +9,8 @@
     "ServerExplosionMixin",
     "ServerCommonPacketListenerAccessor",
     "TextDisplayAccessor",
-    "DisplayAccessor"
+    "DisplayAccessor",
+    "OmenWaveNoDropsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

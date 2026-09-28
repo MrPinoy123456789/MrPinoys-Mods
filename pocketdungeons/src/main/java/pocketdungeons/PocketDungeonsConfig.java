@@ -72,6 +72,9 @@ public final class PocketDungeonsConfig {
     /** Seconds a {@code dungeon lemon think} holds the guide's fallback answer. */
     private static int lemonThinkSeconds = 90;
 
+    /** Mob health/damage/speed bonus per point of omen on the current floor. */
+    private static double omenDangerScalePerOmen = 0.15;
+
     // ---- layout planning ----------------------------------------------------
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
     // branch and loop rates high enough that a floor reads as a small maze
@@ -137,7 +140,7 @@ public final class PocketDungeonsConfig {
      * keystone. Named for the clock that used to charge it; the name is kept
      * so existing config files still apply.
      */
-    private static int timedOutDepletion = 2;
+    private static int timedOutDepletion = 1;
 
     // ---- affixes (M4) --------------------------------------------------------
     /** Overclocked scales {@link #trialSpawnerCooldownTicks} down by this. */
@@ -464,6 +467,10 @@ public final class PocketDungeonsConfig {
         return lemonThinkSeconds;
     }
 
+    public static double omenDangerScalePerOmen() {
+        return omenDangerScalePerOmen;
+    }
+
     public static int pathLengthMin() {
         return pathLengthMin;
     }
@@ -701,6 +708,7 @@ public final class PocketDungeonsConfig {
         lemonFallbackSeconds = 45;
         lemonLingerSeconds = 4;
         lemonThinkSeconds = 90;
+        omenDangerScalePerOmen = 0.15;
 
         pathLengthMin = 8;
         pathLengthMax = 12;
@@ -727,7 +735,7 @@ public final class PocketDungeonsConfig {
 
         rewardRoomGraceSeconds = 600;
         afkSeconds = 300;
-        timedOutDepletion = 2;
+        timedOutDepletion = 1;
 
         overclockedCooldownFactor = 0.4;
         swarmingMobFactor = 1.5;
@@ -825,6 +833,8 @@ public final class PocketDungeonsConfig {
                 v -> v >= 1 && v <= 60, "must be between 1 and 60");
         lemonThinkSeconds = readInt(root, "lemonThinkSeconds", 90,
                 v -> v >= 10 && v <= 600, "must be between 10 and 600");
+        omenDangerScalePerOmen = readDouble(root, "omenDangerScalePerOmen", 0.15,
+                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
         pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
@@ -895,7 +905,7 @@ public final class PocketDungeonsConfig {
         rewardRoomGraceSeconds = readInt(root, "rewardRoomGraceSeconds", 600,
                 v -> v >= 0, "must be >= 0");
         afkSeconds = readInt(root, "afkSeconds", 300, v -> v >= 0, "must be >= 0");
-        timedOutDepletion = readInt(root, "timedOutDepletion", 2, v -> v >= 0, "must be >= 0");
+        timedOutDepletion = readInt(root, "timedOutDepletion", 1, v -> v >= 0, "must be >= 0");
 
         overclockedCooldownFactor = readDouble(root, "overclockedCooldownFactor", 0.4,
                 v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
@@ -1165,6 +1175,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("lemonFallbackSeconds", 45);
         root.addProperty("lemonLingerSeconds", 4);
         root.addProperty("lemonThinkSeconds", 90);
+        root.addProperty("omenDangerScalePerOmen", 0.15);
 
         root.addProperty("pathLengthMin", 8);
         root.addProperty("pathLengthMax", 12);
@@ -1191,7 +1202,7 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("rewardRoomGraceSeconds", 600);
         root.addProperty("afkSeconds", 300);
-        root.addProperty("timedOutDepletion", 2);
+        root.addProperty("timedOutDepletion", 1);
 
         root.addProperty("overclockedCooldownFactor", 0.4);
         root.addProperty("swarmingMobFactor", 1.5);

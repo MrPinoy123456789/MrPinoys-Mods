@@ -4940,31 +4940,28 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-09-27 20:32: "I "died"/ got teleported back to the start from the enderman and it teleported to me again, potentially spawn camping me". Journal: `rescue` at 20:31:17, cause `minecraft:mob_attack`, in hall_corner next to Don't Look (Frostworks, floor 3).
 **Severity:** High (the safe regroup point can be camped; a rescue loop is possible).
-**Status:** Open.
+**Status:** Fixed (2026-09-28).
 **Expected:** the rescue ends the fight; the staging room is safe.
 **Actual:** the enderman reappears next to the player after the rescue teleport.
-**Likely cause:** `Instances.rescue` (Instances.java:1735) resets health and effects and teleports the player to the staging room centre, but never clears the target or anger of mobs targeting the player. An angry enderman teleports toward a far target (vanilla), so it follows. Fix idea: on rescue, clear `setTarget(null)` and anger on mobs targeting the player, or keep dungeon endermen from leaving their cell.
+**Fix:** `Instances.rescue` now calls `Instances.clearMobTargets` before teleporting the player. Every mob in the dungeon dimension that targets a rescued party member has its target cleared, and the rescue itself happens before the teleport so the mob loses interest. `Instances.failRunOmen` also clears targets before ejecting the party.
 
 ### PD-75: Explosive affix pressure plates drop as free items (Low)
 
 **Reported:** 2026-09-27 20:37: "stepping on the pressure plate above the tnt drops the pressure plate, the pressure plate should disappear instead so the player doesn't get free pressure plates".
 **Severity:** Low (small economy leak).
-**Status:** Open.
-**Likely cause:** `RoomContent.placeExplosiveHazards` (RoomContent.java:401) places TNT at floor level with a stone pressure plate on top. The plate primes the TNT, the TNT block becomes primed TNT, and the unsupported plate breaks and drops. Fix idea: remove the plate without a drop when it triggers.
+**Status:** Fixed (2026-09-28).
+**Fix:** `RoomContent.placeExplosiveHazards` now places the stone pressure plate on a separate stone support block next to the TNT, not on top of it, and registers a pending cleanup. Once the TNT block is gone, the support and the plate are removed with `level.destroyBlock(..., false)` so they drop nothing. The plate never becomes an item even if it is stepped on or mined.
 
 ### PD-76: ECHO SHARDS engine screen: overlapping stale text, all gold, no fuel name (Low)
 
 **Reported:** 2026-09-27 19:43: "There's text overlap on the Echo Shards, per premium door: 3 board", then "overlapping words under "Echo shards", same yellow font". Cleared after walking away and back.
 **Severity:** Low (readability).
-**Status:** Open.
-**Findings:** server side there was one engine text display (read-only `execute ... data get entity`), text `{color: gold, text: "ECHO SHARDS", extra: ["\nStored: 3 \nPer premium door: 3"]}`. Three separate defects:
-1. The overlap is a stale client-side copy after the clear-then-summon refresh (`DungeonScreen.update`, DungeonScreen.java:410; `updateEngine` re-summons with the viewer's balance on entry). Updating the existing entity's text in place would avoid it.
-2. Every line is gold: the lines are appended to the gold title literal and inherit its style (`DungeonScreen.engineContent`, DungeonScreen.java:352).
-3. The fuel name is empty: `fuel.getName(ItemStack.EMPTY)` returns no text here, so the line reads "Stored: 3 ".
+**Status:** Fixed (2026-09-28).
+**Fix:** `DungeonScreen.update` now finds an existing tagged text display and updates its text and position in place instead of killing and re-summoning it, so the client cannot keep a stale copy. `DungeonScreen.engineContent` applies `ChatFormatting.WHITE` to the balance line and `ChatFormatting.GRAY` to the cost line, and uses `Component.translatable(fuel.getDescriptionId())` so the fuel name renders correctly.
 
 ### PD-77: Lemon lingers up to a minute after the agent has answered (Low)
 
 **Reported:** 2026-09-27 20:22: "After you gave that response, you weren't waiting for feedback from me but you stuck around anyways, if you have no reason to be infront of me then you should hide away". Also 20:33: vanish while looking something up.
 **Severity:** Low (polish, but it is in the player's face during combat).
-**Status:** Open.
-**Likely cause:** when the player speaks to Lemon in llm mode, `idleUntil` is set to now + (`lemonFallbackSeconds` 45 + `lemonIdleSeconds` 20) (Lemon.java:251). The agent's `say` only extends it (`Math.max`, Lemon.java:484), so an answered question still keeps Lemon hovering for the rest of the 65 s. Fix idea: when a reply resolves the pending question, reset `idleUntil` to the bubble time plus a few seconds.
+**Status:** Fixed (2026-09-28).
+**Fix:** Added `lemonLingerSeconds` config (default 4). A reply that resolves the pending question sets `idleUntil` to now plus the linger time. When the last bubble expires and there is no pending question, Lemon despawns after the linger time instead of waiting for the full idle/fallback window. The timer is paused while waiting on an `ask`.

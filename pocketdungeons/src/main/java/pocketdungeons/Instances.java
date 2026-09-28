@@ -23,6 +23,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -53,6 +55,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -150,16 +153,26 @@ final class Instances {
             if (!(entity instanceof ServerPlayer player)) {
                 return true;
             }
+            MinecraftServer server = player.level().getServer();
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-            if (record == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (server == null || record == null
+                    || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return true;
             }
             // M25: death inside a Pocket2 child ejects to the parent at the
             // door, with the outer run's death penalty still applied. The child
             // is torn down either way; see Pocket2.dieInChild.
             if (record.parentSlot >= 0) {
-                Pocket2.dieInChild(player.level().getServer(), player, record);
+                Pocket2.dieInChild(server, player, record);
                 return false;
+            }
+            if (record.inFloorLoop()) {
+                record.interval.omen = Omen.add(record.interval.omen, 1);
+                OmenBar.sync(server, record);
+                if (Omen.clamp(record.interval.omen) >= Omen.MAX_OMEN) {
+                    failRunOmen(server, record, player, source);
+                    return false;
+                }
             }
             PlaytestJournal.rescue(player, record, source);
             // M27.3: deferred until extended dungeons. A checkpoint that
@@ -185,7 +198,7 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                applyMobScale(mob, record.layout.keystoneLevel());
+                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
             }
         });
 
@@ -1588,6 +1601,7 @@ final class Instances {
         // interval and floor, and no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(lobbyLayout(safeOrigin));
+        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     // ---- exit ---------------------------------------------------------------
@@ -1744,6 +1758,10 @@ final class Instances {
         player.resetFallDistance();
         player.setDeltaMovement(Vec3.ZERO);
 
+        // PD-74: a mob that was chasing the player (endermen especially) must
+        // not follow into the staging room.
+        clearMobTargets(server, record);
+
         ReturnPoint point = record.members.get(player.getUUID());
         // M55: during dungeon play the safe room is despawned, so the rescue
         // target is the staging room. The hadRoom check uses stagingCellOrigin
@@ -1822,6 +1840,114 @@ final class Instances {
             teleport(server, player, point.dimension(), point.pos(), point.yaw(), point.pitch());
         } else {
             sendToWorldSpawn(server, player);
+        }
+    }
+
+    /**
+     * A death at max omen fails the run: everyone is sent home, unbanked floors
+     * pay nothing, and each member's dungeon inventory reverts to the
+     * snapshot taken at interval start. Keystone level and home room are
+     * untouched.
+     */
+    private static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
+                                  net.minecraft.world.damagesource.DamageSource source) {
+        clearMobTargets(server, record);
+        DungeonLog log = DungeonLog.forServer(server);
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                if (snapshot != null) {
+                    InventorySwap.restoreIntervalSnapshot(server, player, snapshot);
+                }
+                eject(server, record, player);
+            } else {
+                if (snapshot != null) {
+                    List<ItemStack> kept = new ArrayList<>(InventorySwap.SLOTS + 8);
+                    kept.addAll(snapshot);
+                    log.setOrphan(member, InventorySwap.OrphanRecord.of(kept));
+                }
+                detach(server, record, member, null);
+            }
+            RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+        }
+        PlaytestJournal.runFailed(server, record, deadPlayer, source);
+        announce(server, record, "The dungeon claims a max-omen death. Everyone is sent home.", null);
+        InstanceTeardown.purge(server, record, "omen fail", deadPlayer.getUUID());
+    }
+
+    /**
+     * Rising omen sends a small loot-less wave after each member who is still in
+     * the dungeon. The number of mobs scales with the new omen value, and they
+     * are tagged so their drops are suppressed.
+     */
+    static void spawnOmenWave(MinecraftServer server, InstanceRecord record, int omen) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null || record.phase != RunSession.Phase.ACTIVE) {
+            return;
+        }
+        EntityType<?>[] waveTypes = { EntityTypes.ZOMBIE, EntityTypes.SKELETON,
+                EntityTypes.SPIDER, EntityTypes.CREEPER };
+        int count = Math.max(1, Omen.clamp(omen));
+        Random random = new Random(server.getTickCount());
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                continue;
+            }
+            for (int i = 0; i < count; i++) {
+                EntityType<?> type = waveTypes[random.nextInt(waveTypes.length)];
+                if (!(type.create(level, EntitySpawnReason.COMMAND) instanceof Mob mob)) {
+                    continue;
+                }
+                Vec3 pos = randomSpawnNear(player, level, random, 5, 10);
+                if (pos == null) {
+                    continue;
+                }
+                mob.setPos(pos.x, pos.y, pos.z);
+                mob.setTarget(player);
+                mob.addTag("pocketdungeons_omen_wave");
+                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
+                level.addFreshEntity(mob);
+            }
+        }
+    }
+
+    private static Vec3 randomSpawnNear(ServerPlayer player, ServerLevel level, Random random,
+                                        int minRadius, int maxRadius) {
+        Vec3 center = player.position();
+        for (int attempt = 0; attempt < 8; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            double distance = minRadius + random.nextDouble() * (maxRadius - minRadius);
+            int x = (int) Math.round(center.x + Math.cos(angle) * distance);
+            int z = (int) Math.round(center.z + Math.sin(angle) * distance);
+            int y = (int) Math.round(center.y);
+            BlockPos pos = new BlockPos(x, y, z);
+            if (!level.getBlockState(pos).isAir() || !level.getBlockState(pos.above()).isAir()) {
+                continue;
+            }
+            if (!level.getBlockState(pos.below()).isSolidRender()) {
+                continue;
+            }
+            return Vec3.atBottomCenterOf(pos);
+        }
+        return null;
+    }
+
+    /** Clears mob targets and Enderman anger for every member before they are pulled out. */
+    private static void clearMobTargets(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+        Set<UUID> members = new HashSet<>(record.members.keySet());
+        AABB box = new AABB(level.getWorldBorder().getMinX(), level.getMinY(),
+                level.getWorldBorder().getMinZ(),
+                level.getWorldBorder().getMaxX(), level.getMaxY(),
+                level.getWorldBorder().getMaxZ());
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, box,
+                e -> e.getTarget() instanceof ServerPlayer p && members.contains(p.getUUID()))) {
+            mob.setTarget(null);
         }
     }
 
@@ -2619,9 +2745,14 @@ final class Instances {
      * whatever damage it already has.
      */
     static void applyMobScale(Mob mob, int keystoneLevel) {
+        applyMobScale(mob, keystoneLevel, 0);
+    }
+
+    static void applyMobScale(Mob mob, int keystoneLevel, int omen) {
+        double omenBonus = Omen.clamp(omen) * PocketDungeonsConfig.omenDangerScalePerOmen();
         applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
                 PocketDungeonsConfig.mobScalePerLevel(),
-                PocketDungeonsConfig.mobScaleBase()) - 1.0);
+                PocketDungeonsConfig.mobScaleBase()) - 1.0 + omenBonus);
         // Breezes are disproportionately tedious to kill for their threat level:
         // high HP plus high mobility means a player spends most of the fight
         // chasing, not hitting. An additional HP-only cut on top of the level

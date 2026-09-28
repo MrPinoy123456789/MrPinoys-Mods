@@ -7,22 +7,28 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -79,7 +85,20 @@ final class RoomContent {
     /** How far a repeated spawn may drift off its anchor. One block, as in U3. */
     private static final int SPAWN_JITTER = 1;
 
+    private static final Set<PendingExplosive> PENDING_EXPLOSIVES = ConcurrentHashMap.newKeySet();
+
     private RoomContent() {}
+
+    static void register() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (level == null) {
+                return;
+            }
+            long now = server.getTickCount();
+            PENDING_EXPLOSIVES.removeIf(pending -> pending.tick(level, now));
+        });
+    }
 
     /**
      * @return the trial spawner anchors placed for an {@code encounter} cell
@@ -389,14 +408,15 @@ final class RoomContent {
 
     /**
      * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} TNT blocks
-     * across the cell's floor with stone pressure plates on top, seeded off
-     * the run so a given seed always stamps the same hazards.
+     * across the cell, seeded off the run so a given seed always stamps the
+     * same hazards. The pressure plate sits on a stone support next to the TNT,
+     * not on top of it, so the plate stays supported after the TNT ignites and
+     * can be removed without dropping an item.
      *
      * <p>Same interior margin (3..12) and spawn-anchor skip as
-     * {@link #placeMoltenHazards}. TNT sits at floor level (Y=0) with a
-     * stone pressure plate on top (Y=1). Stepping on the plate triggers
-     * the TNT. The TNT blocks are the reward: the only TNT source in the
-     * game, same way Molten is the only lava source.
+     * {@link #placeMoltenHazards}. The plate is removed with
+     * {@code destroyBlock(..., false)} once the TNT is gone, so no free items
+     * appear on trigger (PD-75).
      */
     private static void placeExplosiveHazards(ServerLevel level, BlockPos cellOrigin,
                                              List<BlockPos> spawns, long seed) {
@@ -405,20 +425,59 @@ final class RoomContent {
             return;
         }
         Random random = new Random(seed ^ cellOrigin.asLong() ^ 0x4578L);
+        List<Direction> directions = List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST);
         int placed = 0;
         int attempts = 0;
         while (placed < count && attempts < count * 8) {
             attempts++;
             int x = 3 + random.nextInt(10);
             int z = 3 + random.nextInt(10);
-            BlockPos floorPos = cellOrigin.offset(x, 0, z);
-            if (spawns.contains(floorPos)) {
+            BlockPos tntPos = cellOrigin.offset(x, 0, z);
+            if (spawns.contains(tntPos)) {
                 continue;
             }
-            level.setBlock(floorPos, Blocks.TNT.defaultBlockState(), FLAGS);
-            level.setBlock(floorPos.above(), Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
+            BlockPos supportPos = findExplosiveSupport(level, tntPos, spawns, directions, random);
+            if (supportPos == null) {
+                continue;
+            }
+            level.setBlock(tntPos, Blocks.TNT.defaultBlockState(), FLAGS);
+            level.setBlock(supportPos, Blocks.STONE.defaultBlockState(), FLAGS);
+            level.setBlock(supportPos.above(), Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
+            PENDING_EXPLOSIVES.add(new PendingExplosive(level, tntPos, supportPos.above()));
             placed++;
         }
+    }
+
+    /**
+     * Finds a floor-level neighbour of {@code tntPos} that is not a spawn
+     * anchor and can hold the support block. Tries the four horizontal
+     * directions in a random order, then falls back to above the TNT if every
+     * side is blocked.
+     */
+    private static BlockPos findExplosiveSupport(ServerLevel level, BlockPos tntPos, List<BlockPos> spawns,
+                                                 List<Direction> directions, Random random) {
+        List<Direction> order = new ArrayList<>(directions);
+        for (int i = order.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            Direction tmp = order.get(i);
+            order.set(i, order.get(j));
+            order.set(j, tmp);
+        }
+        for (Direction dir : order) {
+            BlockPos pos = tntPos.relative(dir);
+            if (spawns.contains(pos)) {
+                continue;
+            }
+            BlockState state = level.getBlockState(pos);
+            if (state.isAir() || state.canBeReplaced()) {
+                return pos;
+            }
+        }
+        BlockPos above = tntPos.above();
+        if (!spawns.contains(above) && level.getBlockState(above).isAir()) {
+            return above;
+        }
+        return null;
     }
 
     /**
@@ -592,5 +651,31 @@ final class RoomContent {
         return dx >= 0 && dx < RoomGeometry.CELL
                 && dz >= 0 && dz < RoomGeometry.CELL
                 && dy >= -maxOffset && dy <= RoomGeometry.CEILING_Y;
+    }
+
+    /** Tracks a freshly placed explosive hazard so its plate can be removed without a drop. */
+    private record PendingExplosive(int dimension, BlockPos tntPos, BlockPos platePos, long deadline) {
+        PendingExplosive(ServerLevel level, BlockPos tntPos, BlockPos platePos) {
+            this(level.dimension().hashCode(), tntPos, platePos,
+                    level.getServer().getTickCount() + 20L * 30);
+        }
+
+        boolean tick(ServerLevel level, long now) {
+            if (now > deadline) {
+                return true;
+            }
+            if (level.dimension().hashCode() != dimension) {
+                return false;
+            }
+            BlockState state = level.getBlockState(tntPos);
+            if (state.is(Blocks.TNT)) {
+                return false;
+            }
+            BlockState plate = level.getBlockState(platePos);
+            if (plate.is(Blocks.STONE_PRESSURE_PLATE)) {
+                level.destroyBlock(platePos, false);
+            }
+            return true;
+        }
     }
 }

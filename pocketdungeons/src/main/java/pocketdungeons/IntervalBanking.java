@@ -18,10 +18,9 @@ import java.util.List;
  * is worth {@code step / floorsPerSafeVisit} levels wherever the party banks,
  * and banking early or late never changes the ladder's pace, only the risk.
  *
- * <p>A high (band 2) finish banks no levels, as it always has, and leaves the
- * carried progress exactly where it was: the floors of a dire interval neither
- * add to it nor spend it. Leaving at a checkpoint instead of going home
- * settles one band worse ({@link #LEAVE_PENALTY}).
+ * <p>Carried progress always converts to levels; omen no longer reduces that.
+ * Leaving at a checkpoint instead of going home settles one band worse
+ * ({@link #LEAVE_PENALTY}). The band still colours the bar and the kit refill.
  */
 final class IntervalBanking {
 
@@ -80,8 +79,8 @@ final class IntervalBanking {
         // floor turns any surplus into levels.
         int kept = Math.max(0, carried);
         int band = band(omenSum, floorSteps.size(), penalty);
-        int chests = Omen.chestCount(band) + Math.max(0, bonusChests);
-        if (floorSteps.isEmpty() || Omen.levelChange(band) == 0) {
+        int chests = Omen.baseRewardChests() + Math.max(0, bonusChests);
+        if (floorSteps.isEmpty()) {
             return new Settlement(band, 0, kept, chests);
         }
         int total = kept + stepSum(floorSteps);
@@ -125,13 +124,10 @@ final class IntervalBanking {
                 + "\n" + (kitRefill ? "Kit refilled" : "No kit refill");
     }
 
-    /** What the key gains, in words: whole levels, steps toward the next, or nothing. */
+    /** What the key gains, in words: whole levels, or steps toward the next. */
     static String keyLine(Settlement now, int floorsPerSafeVisit) {
         if (now.levels() > 0) {
             return "+" + now.levels() + (now.levels() == 1 ? " key level" : " key levels");
-        }
-        if (Omen.levelChange(now.band()) == 0) {
-            return "Key: omen too high";
         }
         return "Key " + now.progress() + "/" + Math.max(1, floorsPerSafeVisit) + " to a level";
     }

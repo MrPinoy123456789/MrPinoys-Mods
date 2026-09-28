@@ -314,7 +314,11 @@ for ((taskName, testClass) in mapOf(
     "zoneRulesTest" to "ZoneRulesTest",
     "intervalBankingTest" to "IntervalBankingTest",
     // Audit wave 2c: the safe-visit kit top-up's pure core.
-    "kitTopUpTest" to "KitTopUpTest"
+    "kitTopUpTest" to "KitTopUpTest",
+    // Lemon steps 1 and 2: the playtest journal line format, the context
+    // snapshot builder, and Lemon's chat routing and bubbles.
+    "journalFormatTest" to "JournalFormatTest",
+    "lemonSpeechTest" to "LemonSpeechTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -377,6 +381,8 @@ tasks.test {
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
     dependsOn("kitTopUpTest")
+    dependsOn("journalFormatTest")
+    dependsOn("lemonSpeechTest")
     failOnNoDiscoveredTests = false
 }
 

@@ -728,6 +728,39 @@ public final class InventorySwap {
     }
 
     /**
+     * Captures each online member's current dungeon inventory into the
+     * interval snapshot. Called when an interval begins so a max-omen death
+     * can revert the unbanked floors to what the party carried at the start.
+     */
+    static void captureIntervalSnapshot(MinecraftServer server, InstanceRecord record) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                continue;
+            }
+            PlayerSlots slots = new PlayerSlots(player);
+            record.interval.inventorySnapshot.put(member, snapshotPlayer(player, slots));
+        }
+    }
+
+    /**
+     * Restores a player's live dungeon inventory to the interval-start
+     * snapshot and writes the same snapshot into their orphan record so it
+     * survives when they are sent home.
+     */
+    static void restoreIntervalSnapshot(MinecraftServer server, ServerPlayer player,
+                                        List<ItemStack> snapshot) {
+        DungeonLog log = DungeonLog.forServer(server);
+        PlayerSlots slots = new PlayerSlots(player);
+        clear(slots);
+        restore(slots, snapshot);
+        slots.flush();
+        List<ItemStack> kept = new ArrayList<>(SLOTS + 8);
+        kept.addAll(snapshot);
+        log.setOrphan(player.getUUID(), OrphanRecord.of(kept));
+    }
+
+    /**
      * Adds {@code stacks} to {@code player}'s dungeon inventory record as
      * loose stacks, for the next restore to place. Used for what does not fit
      * in a live void inventory (kit leftovers, a top-up) and for a top-up owed

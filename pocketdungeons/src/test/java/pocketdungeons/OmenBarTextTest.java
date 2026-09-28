@@ -23,11 +23,11 @@ public class OmenBarTextTest {
 
     private static void testOutcome() {
         checkEquals(OmenBarText.outcome(0), "3 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(1), "2 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(2), "1 reward chest, no key progress");
+        checkEquals(OmenBarText.outcome(1), "3 reward chests, key progress");
+        checkEquals(OmenBarText.outcome(2), "3 reward chests, key progress");
         // The depth bonus rides on the chest count.
         checkEquals(OmenBarText.outcome(1, 3), "3 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(2, 1), "1 reward chest, no key progress");
+        checkEquals(OmenBarText.outcome(2, 1), "1 reward chest, key progress");
     }
 
     private static void testBandCeilingAndProgress() {
@@ -52,14 +52,14 @@ public class OmenBarTextTest {
     }
 
     private static void testActiveTitle() {
-        // The spawner gate leads (playtest 2026-09-26, A1), counted against what is needed.
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "Spawners 5/6 | Omen 2/4, 2 chests");
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 6, 8, 6), "Spawners done | Omen 2/4, 2 chests");
-        // No reading yet, or a floor without spawners: the gate is left off.
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Omen 0/4, 3 chests");
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Omen 0/4, 3 chests");
-        // The floor's omen is shown clamped.
-        checkEquals(OmenBarText.activeTitle(9, 2, 1, 0, 0, 0), "Omen 4/4, 1 chest");
+        // The spawner gate leads (playtest 2026-09-26, A1), counted as remaining.
+        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "1 Spawners remaining | Omen 2/4 | 2 chests");
+        checkEquals(OmenBarText.activeTitle(2, 1, 2, 6, 8, 6), "Spawners done | Omen 2/4 | 2 chests");
+        // Omen 0 is hidden; a floor without spawners still shows done.
+        checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Spawners done | 3 chests");
+        checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Spawners done | 3 chests");
+        // The floor's omen is shown clamped; high band appends the death warning.
+        checkEquals(OmenBarText.activeTitle(9, 2, 1, 0, 0, 0), "Spawners done | Omen 4/4 | 1 chest | one more fall ends the run");
     }
 
     private static void testClearedTitle() {
@@ -67,13 +67,13 @@ public class OmenBarTextTest {
         checkEquals(OmenBarText.clearedTitle(3, 3, false, 0, 3), "Floor 3 of 3 cleared | 3 reward chests, key progress");
         // Past the usual length the floor is deep, not "4 of 3".
         checkEquals(OmenBarText.clearedTitle(4, 3, false, 1, 3), "Floor 4 cleared, deep | 3 reward chests, key progress");
-        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2, 2), "Mine floor 5 cleared | 2 reward chests, no key progress");
+        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2, 2), "Mine floor 5 cleared | 2 reward chests, key progress");
     }
 
     private static void testCompletionVerdict() {
         checkEquals(OmenBarText.completionVerdict(0, 3), "The omen sits calm: 3 reward chests, key progress so far.");
         checkEquals(OmenBarText.completionVerdict(1, 2), "The omen sits uneasy: 2 reward chests, key progress so far.");
-        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 reward chest, no key progress so far.");
+        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 reward chest, key progress so far.");
     }
 
     private static void testPreviewFloor() {
@@ -84,8 +84,8 @@ public class OmenBarTextTest {
     }
 
     private static void testRiseLine() {
-        checkEquals(OmenBarText.riseLine(Omen.Source.DWELL, 2), "The walls notice you lingering in an unsolved room. Omen 2/4.");
-        checkEquals(OmenBarText.riseLine(Omen.Source.SHRIEK, 7), "Something below heard that. Omen 4/4.");
+        checkEquals(OmenBarText.riseLine(Omen.Source.DWELL, 2), "The walls notice you lingering; more enemies are coming. Omen 2/4.");
+        checkEquals(OmenBarText.riseLine(Omen.Source.SHRIEK, 7), "Something below heard that; it is sending company. Omen 4/4.");
         // Dwell is held back hardest; a bargain is never held back.
         check(OmenBarText.cueCooldownTicks(Omen.Source.BARGAIN), 0);
         if (OmenBarText.cueCooldownTicks(Omen.Source.DWELL) <= OmenBarText.cueCooldownTicks(Omen.Source.SENSOR)) {

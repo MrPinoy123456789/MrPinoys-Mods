@@ -65,6 +65,7 @@ at home before the first door.
 | `bank` | Interval settled for this player | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `band`, `levels_gained`, `carry`, `chests`, `depth_bonus`, `key_level` |
 | `kit_topup` | Kit top-up applied | `band`, `granted` (object item id to count), `tools_replaced` (array) |
 | `quit_floor` | `/dungeon quit` | `penalty` (levels) |
+| `run_failed` | A max-omen death fails the whole run | `cause` (damage type id), `floor_omen`, `interval_omen`, `floor`, `slot` |
 | `owner_hold` | Owner reconnect grace starts, resumes or expires | `state`: `start`, `resume`, `expire` |
 | `checkin` | Player answers the in-game check-in | `prompt` (`after_bank`, `after_quit`, `after_session`), `score` (1 to 5, or null if skipped), `comment` (string, may be empty) |
 | `report` | `/dungeon report <text>` or the check-in's "something broke" | `text`, `pos` (`"x,y,z"`), `room`, `recent` (last 10 `ev` names for this player) |

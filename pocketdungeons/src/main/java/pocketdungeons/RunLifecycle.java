@@ -1063,7 +1063,7 @@ final class RunLifecycle {
         // counted from, and what going home would settle if nothing else rises.
         int band = Omen.band(record.interval.bankedOmenSum(), Math.max(1, floorsCleared));
         String verdict = OmenBarText.completionVerdict(band,
-                record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.chestCount(band));
+                record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.baseRewardChests());
         if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
             // sees the depth reached and the escalating loot tier before
@@ -1154,13 +1154,12 @@ final class RunLifecycle {
         // settles (IntervalBanking), whichever door the next floor takes.
         record.interval.floorSteps.add(record.floor.chosenStep);
 
-        // M48: the omen finish table (spec 5.2, 5.4). OmenSources accrues the
-        // floor in progress into record.interval.omen; close it here and key
-        // the band off the interval's sum over the floors cleared so far. The
-        // zone's depth bonus adds chests on the deeper floors.
+        // Omen no longer reduces chests or key progress; it adds danger. The
+        // base reward is always three chests, plus the zone's depth bonus on
+        // deeper floors. The band still colours the bar and the kit refill.
         ZoneRules rules = ZoneRules.of(record);
         int band = bankFloorOmen(record);
-        int chests = Omen.chestCount(band) + rules.bonusChests(floorsCleared);
+        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
         // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
@@ -1614,7 +1613,7 @@ final class RunLifecycle {
             }
         }
 
-        beginHomecoming(record, server.overworld().getGameTime());
+        beginHomecoming(record, server, server.overworld().getGameTime());
 
         // M65: transition to HOME. The room is loaded, the door is open,
         // and the party can walk through. No teleport and no chime. One line
@@ -1681,9 +1680,10 @@ final class RunLifecycle {
      * member has crossed into the room ({@code Instances.onTick} then clears
      * them); the room's lobby layout replaces the floor's.
      */
-    static void beginHomecoming(InstanceRecord record, long now) {
+    static void beginHomecoming(InstanceRecord record, MinecraftServer server, long now) {
         record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout, now);
         record.beginInterval(Instances.lobbyLayout(record.roomCellOrigin));
+        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     /**
@@ -1757,6 +1757,7 @@ final class RunLifecycle {
         // no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(Instances.lobbyLayout(safeOrigin));
+        InventorySwap.captureIntervalSnapshot(server, record);
 
         RunSession.transition(record, RunSession.Phase.HOME);
 
@@ -1913,15 +1914,16 @@ final class RunLifecycle {
     /**
      * The keystone half of {@link #quitDoor}: depletes the owner alone (a
      * party member riding along never had a key at stake) by
-     * {@code timedOutDepletion}, the config key's name kept from the clock it
-     * used to belong to. Charged whichever door opened the floor, the free
-     * door included.
+     * {@code timedOutDepletion}. The config key's name is kept from the clock it
+     * used to belong to, and the default is now 1. Charged whichever door
+     * opened the floor, the free door included.
      */
     private static void applyQuitPenalty(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
+        int cost = PocketDungeonsConfig.timedOutDepletion();
         returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
         owner.sendSystemMessage(Component.literal(
-                "You quit the door. Your keystone is downgraded by "
-                        + PocketDungeonsConfig.timedOutDepletion() + ".")
+                "You quit the door. Your keystone is downgraded by " + cost
+                        + (cost == 1 ? " level." : " levels."))
                 .withStyle(ChatFormatting.YELLOW));
         Chime.doorQuit(owner);
     }

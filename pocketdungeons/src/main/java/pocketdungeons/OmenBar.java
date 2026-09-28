@@ -80,7 +80,7 @@ final class OmenBar {
         int sum = record.interval.omenSum();
         int band = Omen.band(sum, floorCount);
         int chests = !active && record.floor.rewardChests >= 0 ? record.floor.rewardChests
-                : Omen.chestCount(band) + ZoneRules.of(record).bonusChests(floorCount);
+                : Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorCount);
         String title;
         if (active) {
             int total = record.floor.spawnersTotal;
@@ -142,6 +142,7 @@ final class OmenBar {
             return;
         }
         PlaytestJournal.omenRise(server, record, source, amount, omen, at);
+        Instances.spawnOmenWave(server, record, omen);
         OmenBar bar = of(record);
         long now = server.getTickCount();
         int slot = source.ordinal();

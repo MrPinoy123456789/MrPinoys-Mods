@@ -189,10 +189,14 @@ final class DialogScreens {
      * no round trip through {@link DialogRouter} is needed.
      */
     static Dialog quitDoorConfirm() {
+        int cost = PocketDungeonsConfig.timedOutDepletion();
+        String costLine = cost == 1 ? "Costs 1 keystone level." : "Costs " + cost + " keystone levels.";
         return DialogKit.confirm("Quit the dungeon?",
-                List.of(DialogKit.text("Quitting fails this dungeon and downgrades your keystone."),
+                List.of(DialogKit.text(Component.literal(costLine)
+                                .withStyle(ChatFormatting.YELLOW)),
+                        DialogKit.text("Quitting fails this dungeon and sends you back to the safe room."),
                         DialogKit.text(Component.literal(
-                                "You will stay in the safe room and can pick a new door.")
+                                "You keep your home room and can pick a new door.")
                                 .withStyle(ChatFormatting.GRAY))),
                 DialogKit.command("Quit Door", null, "/dungeon quit"),
                 DialogKit.closeButton("Cancel"));
