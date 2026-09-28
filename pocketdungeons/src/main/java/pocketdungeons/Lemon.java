@@ -120,9 +120,9 @@ final class Lemon {
         /** Set by {@code think}: Lemon stays away, not listening lit, until it next speaks or is spoken to. */
         boolean hidden;
         long lastAddressed = -CONVERSATION_TICKS;
-        int spot;
-        boolean combat;
-        long nextSpotCheck;
+        /** Side Lemon hovers on: -1 left, 1 right, 0 above. */
+        int side;
+        long nextSideCheck;
 
         State(UUID player) {
             this.player = player;
@@ -268,6 +268,7 @@ final class Lemon {
             state.question = null;
             // Answered: Lemon heads off after a short linger instead of hovering.
             state.idleUntil = now + lingerTicks();
+            state.hidden = false;
             echo(player, text);
             return;
         }
@@ -275,8 +276,6 @@ final class Lemon {
         echo(player, text);
         if (text.isEmpty()) {
             show(player, state, "Yes?", false, "says");
-            // A bare summons: Lemon waits a while for the question itself.
-            state.idleUntil = now + 20L * PocketDungeonsConfig.lemonIdleSeconds();
             PlaytestJournal.lemonAsk(player, text, "guide", 0, 0);
             return;
         }
@@ -477,8 +476,9 @@ final class Lemon {
     }
 
     private static void tickOne(MinecraftServer server, ServerPlayer player, State state, long now) {
-        if (state.llmUntil != 0 && now >= state.llmUntil) {
-            state.llmUntil = 0;
+        Long until = LLM_UNTIL.get(state.player);
+        if (until != null && now >= until) {
+            LLM_UNTIL.remove(state.player);
             PocketDungeonsMod.LOG.info("Lemon mode <{}> guide (lapsed)", player.getName().getString());
         }
         // Guide mode answers whatever the agent left hanging, so the player
@@ -488,13 +488,14 @@ final class Lemon {
             PocketDungeonsMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
                     state.pending.get(state.pending.size() - 1).text());
             resolvePending(player, state, now, "none");
-            show(player, state, HONEST_LINE, false);
+            state.hidden = false;
+            show(player, state, HONEST_LINE, false, "says");
         }
         if (!state.deferred.isEmpty() && now % 10 == 0) {
             state.deferred.removeIf(d -> now - d.queuedAt() > DEFERRED_TTL_TICKS);
             if (!state.deferred.isEmpty() && !inFight(player, now)) {
                 for (Deferred d : new ArrayList<>(state.deferred)) {
-                    show(player, state, d.text(), d.ask());
+                    show(player, state, d.text(), d.ask(), d.ask() ? "asks" : "says");
                 }
                 state.deferred.clear();
             }
@@ -527,7 +528,7 @@ final class Lemon {
             state.waiting = false;
             state.question = null;
         }
-        boolean lit = talking || state.waiting || !state.pending.isEmpty();
+        boolean lit = !state.hidden && (talking || state.waiting || !state.pending.isEmpty());
         state.body.setGlowingTag(lit);
         long deadline = state.waiting ? Math.max(state.idleUntil, state.waitUntil) : state.idleUntil;
         if (!lit && now >= deadline) {
@@ -544,8 +545,13 @@ final class Lemon {
         state.pending.clear();
     }
 
+    private static boolean llmActive(UUID player, long now) {
+        Long until = LLM_UNTIL.get(player);
+        return until != null && now < until;
+    }
+
     private static boolean llmActive(State state, long now) {
-        return state.llmUntil != 0 && now < state.llmUntil;
+        return llmActive(state.player, now);
     }
 
     /** Damage in the last few seconds, or a hostile mob with this player as its target. */
@@ -560,7 +566,11 @@ final class Lemon {
 
     // ---- speech -------------------------------------------------------------------------
 
-    private static void show(ServerPlayer player, State state, String text, boolean ask) {
+    private static long lingerTicks() {
+        return 20L * PocketDungeonsConfig.lemonLingerSeconds();
+    }
+
+    private static void show(ServerPlayer player, State state, String text, boolean ask, String kind) {
         long now = player.level().getServer().getTickCount();
         state.leaving = 0;
         ensureBody(player, state);
@@ -570,13 +580,15 @@ final class Lemon {
         }
         player.sendSystemMessage(Component.literal("Lemon: ").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
                 .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
-        PocketDungeonsMod.LOG.info("Lemon {} <{}> {}", ask ? "asks" : "says", player.getName().getString(), text);
+        PocketDungeonsMod.LOG.info("Lemon {} <{}> {}", kind, player.getName().getString(), text);
         if (ask) {
             state.waiting = true;
             state.question = text;
             state.waitUntil = now + 20L * PocketDungeonsConfig.lemonAskIdleSeconds();
+            state.idleUntil = Math.max(state.idleUntil, state.waitUntil);
+        } else {
+            state.idleUntil = now + lingerTicks();
         }
-        state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
     }
 
     private static void nextBubble(ServerPlayer player, State state) {
@@ -593,7 +605,8 @@ final class Lemon {
         if (state.bubble == null || state.bubble.isRemoved()) {
             ServerLevel level = player.level();
             LemonBubble bubble = new LemonBubble(level, player.getUUID());
-            Vec3 at = state.body.position().add(0, 0.85, 0);
+            long now = level.getServer().getTickCount();
+            Vec3 at = bubbleTarget(player, state.body.position(), inFight(player, now));
             bubble.snapTo(at.x, at.y, at.z, 0.0f, 0.0f);
             state.bubble = bubble;
             level.addFreshEntity(bubble);
@@ -605,14 +618,17 @@ final class Lemon {
     // ---- the body ------------------------------------------------------------------------
 
     private static void ensureBody(ServerPlayer player, State state) {
+        if (state.hidden) {
+            return;
+        }
         if (state.body != null && !state.body.isRemoved() && state.body.level() == player.level()) {
             return;
         }
         despawn(player.level().getServer(), state, false);
         ServerLevel level = player.level();
         long now = level.getServer().getTickCount();
-        state.side = pickSide(player, state.side);
-        Vec3 at = hoverTarget(player, state.side, now);
+        state.side = pickSide(player, state.side, now);
+        Vec3 at = hoverTarget(player, state.side, now, false);
         LemonBody body = new LemonBody(level, player.getUUID());
         body.snapTo(at.x, at.y, at.z, facing(at, player), 0.0f);
         state.body = body;
@@ -627,10 +643,11 @@ final class Lemon {
 
     private static void hover(ServerPlayer player, State state, long now) {
         if (now >= state.nextSideCheck) {
-            state.side = pickSide(player, state.side);
+            state.side = pickSide(player, state.side, now);
             state.nextSideCheck = now + 10;
         }
-        Vec3 target = hoverTarget(player, state.side, now);
+        boolean combat = inFight(player, now);
+        Vec3 target = hoverTarget(player, state.side, now, combat);
         Vec3 current = state.body.position();
         Vec3 next = current.distanceToSqr(target) > 64 ? target : current.add(target.subtract(current).scale(0.3));
         float yaw = facing(next, player);
@@ -639,35 +656,52 @@ final class Lemon {
         state.body.setYHeadRot(yaw);
         state.body.setYBodyRot(yaw);
         if (state.bubble != null) {
-            state.bubble.setPos(next.add(0, 0.85, 0));
+            state.bubble.setPos(bubbleTarget(player, state.body.position(), combat));
         }
     }
 
     /**
-     * Where Lemon hovers: beside the player's shoulder and a little ahead
-     * ({@code side} 1 right, -1 left), at the edge of their view rather than
-     * in it, with a gentle bob; {@code side} 0 is above their head, for a
-     * cramped corridor.
+     * Where Lemon hovers: off to one side so the bubble can sit near the centre
+     * of the player's view. Calm combat keeps Lemon close and readable; during
+     * a fight it drifts farther out of the way.
      */
-    private static Vec3 hoverTarget(ServerPlayer player, int side, long now) {
+    private static Vec3 hoverTarget(ServerPlayer player, int side, long now, boolean combat) {
         double yaw = Math.toRadians(player.getYRot());
         Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
         Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
-        double bob = Math.sin(now * 0.15) * 0.06;
-        // Far enough out that the bubble above Lemon is readable without turning:
-        // about 2.4 blocks away, off to one side, a little below eye height.
+        double bob = Math.sin(now * 0.12) * 0.05;
+        double ahead = combat ? 4.2 : 3.0;
+        double off = combat ? 1.6 : 0.7;
         if (side == 0) {
-            return player.position().add(forward.scale(1.6)).add(0, 2.2 + bob, 0);
+            // Above the player's head, only when both sides are blocked.
+            return player.position().add(forward.scale(ahead * 0.6)).add(0, 2.3 + bob, 0);
         }
-        return player.position().add(right.scale(1.3 * side)).add(forward.scale(2.0)).add(0, 1.35 + bob, 0);
+        return player.position()
+                .add(right.scale(off * side))
+                .add(forward.scale(ahead))
+                .add(0, 1.35 + bob, 0);
+    }
+
+    /**
+     * The speech bubble sits closer to the crosshair than the body does, so the
+     * line is readable without turning. If that centre spot is not open, it
+     * falls back to just above Lemon's body.
+     */
+    private static Vec3 bubbleTarget(ServerPlayer player, Vec3 body, boolean combat) {
+        double yaw = Math.toRadians(player.getYRot());
+        Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
+        Vec3 at = player.getEyePosition().add(forward.scale(combat ? 3.8 : 2.6)).add(0, 0.15, 0);
+        if (clear(player, at)) {
+            return at;
+        }
+        return body.add(0, 0.85, 0);
     }
 
     /** The first spot of right, left, above that is open air in sight of the player's eyes. */
-    private static int pickSide(ServerPlayer player, int current) {
-        int[] order = current == -1 ? new int[] {-1, 1, 0} : new int[] {1, -1, 0};
-        long now = player.level().getServer().getTickCount();
+    private static int pickSide(ServerPlayer player, int current, long now) {
+        int[] order = current == 0 ? new int[] {1, -1, 0} : new int[] {current, -current, 0};
         for (int side : order) {
-            if (clear(player, hoverTarget(player, side, now))) {
+            if (clear(player, hoverTarget(player, side, now, false))) {
                 return side;
             }
         }
@@ -675,7 +709,7 @@ final class Lemon {
     }
 
     private static boolean clear(ServerPlayer player, Vec3 at) {
-        AABB box = new AABB(at.x - 0.2, at.y, at.z - 0.2, at.x + 0.2, at.y + 0.6, at.z + 0.2);
+        AABB box = new AABB(at.x - 0.25, at.y, at.z - 0.25, at.x + 0.25, at.y + 0.7, at.z + 0.25);
         if (!player.level().noCollision(box)) {
             return false;
         }

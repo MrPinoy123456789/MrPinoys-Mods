@@ -52,19 +52,18 @@ Anywhere else: `node pocketdungeons/tools/server/pdserver.mjs <command>`. Below,
 
 | Command | Use |
 |---|---|
-| `server status` | Is the server up, who is online. |
+| `server status` | Is the server up, who is online. Prints `UP. ...` or `DOWN.`, plus the last five log lines. |
 | `server sync` | Skips every event logged before now. Run it once before your first `wait`, so you do not react to old sessions. |
-| `server wait --player <p> --timeout 240` | **Your main loop.** Blocks until something new happens (up to 240 s), prints the new events, one per line, then exits. It also keeps `<p>`'s Lemon connected to you (llm mode) while the server is up. Prints `no new events (timeout)` or `server is down (timeout)` when nothing happened. |
+| `server wait --player <p> --timeout 240` | **Your main loop.** Blocks until something new happens (up to 240 s), prints the new events, one per line, then exits. It also keeps `<p>`'s Lemon in llm mode while the server is up, and re-asserts llm mode immediately when that player joins. Prints `no new events (timeout)` or `server is down (timeout)` when nothing happened. `chat` and `wait` share one cursor: use one or the other. |
 | `server context <p>` | One line of JSON: where the player is and what is going on (section 3.2). Run it before answering anything about their situation. |
 | `server lemon say <p> <text>` | Lemon appears and says the text, then idles away. |
 | `server lemon ask <p> <text>` | Lemon appears highlighted, asks, and waits; the reply arrives as a `lemon answer` event. |
-| `server lemon quiet <p>` | Lemon vanishes now. |
+| `server lemon reply <p> <text>` | Answer a pending question. Delivered now, never held for combat or quiet. The journal records `answered_by: llm` with the wait time. |
+| `server lemon think <p> [text]` | Show a short "let me check" line, then Lemon vanishes until the reply. With no text it uses Lemon's default line. |
+| `server lemon quiet <p>` | Lemon vanishes and holds unprompted lines until the player speaks to Lemon again; replies still come. |
 | `server lemon mode <p> guide` | Hand Lemon back to its built-in guide (do this when you finish). |
 | `server cmd <console command>` | Any server console command, without the slash. Only with the player's yes if it changes their game. |
 | `server stop` | Clean shutdown. Only if the player asks. |
-
-Only one reader may consume events: do not run `server chat` while you use
-`server wait` (they share a cursor).
 
 ### 3.1 Event lines
 
@@ -77,14 +76,33 @@ Only one reader may consume events: do not run `server chat` while you use
 | `19:04:02 lemon ask <Name> where do I go` | **The player spoke to Lemon.** | Answer (section 5.1 or 5.2). Top priority. |
 | `19:04:30 lemon answer <Name> it was fine` | Reply to your last `lemon ask` | Note it, maybe one follow-up (section 5.3). |
 | `19:04:10 lemon says <Name> ...` | Lemon spoke (your own line, or the built-in guide) | Nothing. |
+| `19:04:10 lemon asks <Name> ...` | Lemon asked (your own line, or the built-in guide) | Nothing if it was yours. |
+| `19:04:30 lemon replies <Name> ...` | Your `server lemon reply` answered a pending question | Nothing; it means the answer was delivered. |
+| `19:04:33 lemon thinks <Name> ...` | Your `server lemon think` line | Nothing. |
 | `19:05:00 lemon unanswered <Name> ...` | A question went unanswered in time (you were slow or away) | Answer it now if still relevant; note it. |
-| `19:12:45 floor MrPinoy completed floor 1 of slot 0 (...)` | A floor was cleared | A natural break: the moment for one question. |
+| `19:22:01 lemon held <Name> (fight) watch out for the plates` | Your line was held because the player was in a fight (or quiet) | It will be delivered when safe. |
+| `19:12:45 floor Name completed floor 1 of slot 0 (...)` | A floor was cleared | A natural break: the moment for one question. |
 | `19:18:00 report <Name> the wall is missing` | The player filed a bug with `/dungeon report` | Handle as a bug (section 5.4). |
 | `19:03:56 chat <Name> hi` | Ordinary chat not addressed to Lemon (party play) | Usually nothing. |
 | `19:40:02 error ...` | A mod warning or error | Note it with the time; if it matches what the player is doing, mention it in the bug notes. |
 | `22:05:30 server ready` / `server stopping` | Server started / is stopping | Note it. |
 
-### 3.2 The context snapshot
+Kinds: `chat`, `join`, `leave`, `floor`, `lemon` (with sub-kind after the second
+word), `report`, `error`, `server ready`, `server stopping`.
+
+`wait` ignores its own `lemon mode`, `lemon say`, `lemon ask`, `lemon reply`, and
+`lemon think` echoes so it does not wake itself. It still reports the player's
+`lemon ask` and `lemon answer`, and all non-Lemon events.
+
+### 3.2 Chat limits
+
+Minecraft chat is limited to **256 characters**. RCON commands also have a
+practical limit of about 1400 bytes. Keep `lemon` lines short: the mod splits
+long ones into several bubbles. If a line is cut off or refused, shorten it.
+`server say` messages are shown in full to you, but only the first 256 characters
+reach the player.
+
+### 3.3 The context snapshot
 
 `server context <p>` prints JSON with these top-level keys: `phase` (HOME,
 PREVIEW, ACTIVE, FLOOR_CLEARED, SAFE_RETURN or NONE), `floor`, `zone`,

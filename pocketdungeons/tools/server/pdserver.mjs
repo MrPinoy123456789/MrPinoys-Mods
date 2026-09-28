@@ -11,9 +11,11 @@
 //   sync                               skip everything logged so far (start a session fresh)
 //   wait [--player <p>] [--timeout <s>] block until new events arrive, print them; keeps <p>'s Lemon in llm mode
 //   context <player>                   the player's context snapshot, one line of JSON
-//   lemon say|ask <player> <text...>   speak through Lemon (ask waits for the player's reply)
-//   lemon quiet <player>               make Lemon vanish now
-//   lemon mode <player> <guide|llm>    llm holds the player's questions for you; refresh it every few minutes
+//   lemon say|ask <player> <text...>     speak through Lemon (ask waits for the player's reply)
+//   lemon reply <player> <text...>       answer a pending question, never held for combat or quiet
+//   lemon think <player> [text...]     "let me check" line; Lemon hides until the reply
+//   lemon quiet <player>                 make Lemon vanish and hold unprompted lines until the player speaks
+//   lemon mode <player> <guide|llm>      llm holds the player's questions for you; refresh it every few minutes
 //
 // The server runs from source with Gradle (runServer) in pocketdungeons/run, bound
 // to 127.0.0.1, RCON enabled. It is the local TEST server, never the live server.
@@ -105,7 +107,7 @@ function rcon(command, timeoutMs = 8000) {
   })
 }
 
-const isUp = () => rcon('list', 3000).then(() => true, () => false)
+const isUp = () => rcon('list', 3000).then(text => text, () => null)
 
 /**
  * Whether a server process still holds the world's session.lock. It stops answering
@@ -166,10 +168,13 @@ function readNew(fromStart) {
   const buf = Buffer.alloc(Math.max(0, len))
   if (len > 0) { const fd = openSync(logPath, 'r'); readSync(fd, buf, 0, len, cursor.offset); closeSync(fd) }
   // Only consume whole lines, so a half-written line is read next time.
+  // Set the cursor to the current file size rather than the bytes consumed:
+  // new lines appended during this read are included in `whole` and must not be
+  // re-read on the next call.
   const text = buf.toString('utf8')
   const lastNl = text.lastIndexOf('\n')
   const whole = lastNl >= 0 ? text.slice(0, lastNl + 1) : ''
-  writeFileSync(cursorPath, JSON.stringify({ offset: cursor.offset + Buffer.byteLength(whole, 'utf8') }))
+  writeFileSync(cursorPath, JSON.stringify({ offset: size }))
   return whole.split(/\r?\n/).map(eventOf).filter(Boolean)
 }
 
@@ -255,8 +260,14 @@ async function stop() {
 }
 
 async function status() {
-  if (await isUp()) {
-    console.log(`UP. ${await rcon('list')}`)
+  const reply = await isUp()
+  if (reply !== null) {
+    const trimmed = (reply || '').trim()
+    if (trimmed) {
+      console.log(`UP. ${trimmed}`)
+    } else {
+      console.log('UP. (RCON player list is empty)')
+    }
   } else {
     console.log('DOWN.')
   }
@@ -317,8 +328,16 @@ async function wait() {
       lastRefresh = Date.now()
     }
     const events = readNew(false)
-    if (events.length) {
-      for (const e of events) console.log(e)
+    // The agent's own Lemon mode refreshes, and any Lemon event the agent
+    // caused, must not wake `wait` from its own output.
+    const external = events.filter(e => !/^\S+ lemon (mode|say|ask|reply|think) /.test(e))
+    const joined = player && events.some(e => new RegExp(`^\\S+ join ${player}$`).test(e))
+    if (joined && up) {
+      await rcon(`dungeon lemon mode ${player} llm`).catch(() => {})
+      lastRefresh = Date.now()
+    }
+    if (external.length) {
+      for (const e of external) console.log(e)
       return
     }
     if (Date.now() - startedAt >= timeout) {
@@ -339,10 +358,11 @@ async function lemon() {
   const [action, player, ...words] = rest
   const text = words.join(' ')
   let command
-  if ((action === 'say' || action === 'ask') && player && text) command = `dungeon lemon ${action} ${player} ${text}`
+  if ((action === 'say' || action === 'ask' || action === 'reply') && player && text) command = `dungeon lemon ${action} ${player} ${text}`
+  else if (action === 'think' && player) command = `dungeon lemon think ${player}${text ? ' ' + text : ''}`
   else if (action === 'quiet' && player) command = `dungeon lemon quiet ${player}`
   else if (action === 'mode' && player && (text === 'guide' || text === 'llm')) command = `dungeon lemon mode ${player} ${text}`
-  else throw new Error('usage: lemon say|ask <player> <text...> | lemon quiet <player> | lemon mode <player> <guide|llm>')
+  else throw new Error('usage: lemon say|ask|reply <player> <text...> | lemon think <player> [text...] | lemon quiet <player> | lemon mode <player> <guide|llm>')
   console.log((await rcon(command)) || '(no output)')
 }
 

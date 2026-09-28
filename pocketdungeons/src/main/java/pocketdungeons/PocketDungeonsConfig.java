@@ -67,6 +67,10 @@ public final class PocketDungeonsConfig {
     private static int lemonLlmLapseSeconds = 300;
     /** Seconds a player's question waits for the agent before guide mode answers it. */
     private static int lemonFallbackSeconds = 45;
+    /** Seconds Lemon stays after its last line before vanishing. */
+    private static int lemonLingerSeconds = 4;
+    /** Seconds a {@code dungeon lemon think} holds the guide's fallback answer. */
+    private static int lemonThinkSeconds = 90;
 
     // ---- layout planning ----------------------------------------------------
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
@@ -452,6 +456,14 @@ public final class PocketDungeonsConfig {
         return lemonFallbackSeconds;
     }
 
+    public static int lemonLingerSeconds() {
+        return lemonLingerSeconds;
+    }
+
+    public static int lemonThinkSeconds() {
+        return lemonThinkSeconds;
+    }
+
     public static int pathLengthMin() {
         return pathLengthMin;
     }
@@ -687,6 +699,8 @@ public final class PocketDungeonsConfig {
         lemonAskIdleSeconds = 120;
         lemonLlmLapseSeconds = 300;
         lemonFallbackSeconds = 45;
+        lemonLingerSeconds = 4;
+        lemonThinkSeconds = 90;
 
         pathLengthMin = 8;
         pathLengthMax = 12;
@@ -807,6 +821,10 @@ public final class PocketDungeonsConfig {
                 v -> v >= 30 && v <= 3600, "must be between 30 and 3600");
         lemonFallbackSeconds = readInt(root, "lemonFallbackSeconds", 45,
                 v -> v >= 5 && v <= 600, "must be between 5 and 600");
+        lemonLingerSeconds = readInt(root, "lemonLingerSeconds", 4,
+                v -> v >= 1 && v <= 60, "must be between 1 and 60");
+        lemonThinkSeconds = readInt(root, "lemonThinkSeconds", 90,
+                v -> v >= 10 && v <= 600, "must be between 10 and 600");
 
         pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
@@ -1145,6 +1163,8 @@ public final class PocketDungeonsConfig {
         root.addProperty("lemonAskIdleSeconds", 120);
         root.addProperty("lemonLlmLapseSeconds", 300);
         root.addProperty("lemonFallbackSeconds", 45);
+        root.addProperty("lemonLingerSeconds", 4);
+        root.addProperty("lemonThinkSeconds", 90);
 
         root.addProperty("pathLengthMin", 8);
         root.addProperty("pathLengthMax", 12);

@@ -67,12 +67,39 @@ final class LemonCommands {
                                         .executes(ctx -> deliver(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "target"),
                                                 StringArgumentType.getString(ctx, "text"), true)))))
+                .then(Commands.literal("reply")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .then(Commands.argument("text", StringArgumentType.greedyString())
+                                        .executes(ctx -> {
+                                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                            Lemon.reply(target, StringArgumentType.getString(ctx, "text"));
+                                            reply(ctx.getSource(), "Replied to " + target.getName().getString() + ".");
+                                            return 1;
+                                        }))))
+                .then(Commands.literal("think")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .then(Commands.argument("text", StringArgumentType.greedyString())
+                                        .executes(ctx -> {
+                                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                            Lemon.think(target, StringArgumentType.getString(ctx, "text"));
+                                            reply(ctx.getSource(), "Thinking line shown to "
+                                                    + target.getName().getString() + ".");
+                                            return 1;
+                                        }))
+                                .executes(ctx -> {
+                                    ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                    Lemon.think(target, "");
+                                    reply(ctx.getSource(), "Thinking line shown to "
+                                            + target.getName().getString() + ".");
+                                    return 1;
+                                })))
                 .then(Commands.literal("quiet")
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> {
                                     ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
-                                    Lemon.hush(target);
-                                    reply(ctx.getSource(), "Lemon vanished for " + target.getName().getString() + ".");
+                                    Lemon.quietUntilSpoken(target);
+                                    reply(ctx.getSource(), "Lemon hushed for " + target.getName().getString()
+                                            + "; unprompted lines wait until they speak to Lemon.");
                                     return 1;
                                 })))
                 .then(Commands.literal("mode")
