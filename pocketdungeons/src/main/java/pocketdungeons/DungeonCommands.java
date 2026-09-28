@@ -192,8 +192,18 @@ final class DungeonCommands {
                     // and deleting room templates from inside the game.
                     .then(RoomBuilderCommands.branch())
 
+                    // A note for the playtest journal (docs/PLAYTEST_EVENTS.md).
+                    .then(LemonCommands.reportNode())
+
+                    // The agent's console driver for Lemon (docs/LEMON_SPEC.md 5).
+                    .then(LemonCommands.driverNode())
+
                     .then(Commands.literal("admin")
                             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+
+                            // The player's context snapshot as one line of JSON
+                            // (docs/LEMON_SPEC.md 3), for agents over RCON.
+                            .then(LemonCommands.contextNode())
 
                             .then(Commands.literal("list")
                                     .executes(ctx -> list(ctx.getSource())))

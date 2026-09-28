@@ -81,6 +81,19 @@ final class FloorState {
     /** Cells whose every trial spawner has reached cooldown, so the cleared chime fires once per cell. */
     final Set<PlanCell> clearedCells = new HashSet<>();
 
+    /**
+     * The committed plan's cell to room map ({@link FloorRooms#of}), so a
+     * position resolves to a room id. Empty before the first commit and for
+     * runs built without a floor plan (admin builds, untimed runs).
+     */
+    Map<PlanCell, FloorRooms.Room> rooms = Map.of();
+
+    /** Plan cells some member has stood in on this floor, for the journal's first-entry event. */
+    final Set<PlanCell> enteredRooms = new HashSet<>();
+
+    /** Overworld game time at the commit that opened this floor, or 0 before one. */
+    long startedAtTick;
+
     /** This floor's trial spawners grouped by cell, built on the first watch tick and reused after. */
     Map<PlanCell, List<BlockPos>> spawnerCellsByCell;
 

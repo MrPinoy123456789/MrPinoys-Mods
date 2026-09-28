@@ -121,6 +121,7 @@ final class RunLifecycle {
         if (existing == null) {
             return false;
         }
+        PlaytestJournal.hintEnter(player.getUUID(), "reenter");
         Instances.admit(server, existing, player);
         player.sendSystemMessage(Component.literal("You step back into your dungeon.")
                 .withStyle(ChatFormatting.GOLD));
@@ -629,6 +630,8 @@ final class RunLifecycle {
         if (!offer.free()) {
             Fuel.spendBanked(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }
+        PlaytestJournal.doorCommit(server, record, step,
+                offer.free() ? 0 : PocketDungeonsConfig.fuelCostPerGreaterDoor());
 
         Set<String> granted = AffixMath.effective(player.getUUID(), offer.level(),
                 offer.affixes(), AffixManifest.current().definitions());
@@ -875,6 +878,7 @@ final class RunLifecycle {
                 && betweenFloors(record)) {
             return leaveAtCheckpoint(server, record, player);
         }
+        PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
 
         // T2.6: a deliberate /dungeon exit is still a leadership change if the
         // owner is walking out on a party that is still in there.
@@ -933,7 +937,10 @@ final class RunLifecycle {
         if (record.phase == RunSession.Phase.PREVIEW && level != null) {
             Instances.clearPreview(level, record, true);
         }
-        settleOnce(server, record, IntervalBanking.LEAVE_PENALTY);
+        for (UUID member : record.members.keySet()) {
+            PlaytestJournal.hintLeave(member, "checkpoint_exit", record);
+        }
+        settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "checkpoint_exit");
         Instances.announce(server, record, owner.getName().getString()
                 + " leaves at the checkpoint. The run ends, and the interval banks one band worse.",
                 owner.getUUID());
@@ -1107,6 +1114,9 @@ final class RunLifecycle {
         PocketDungeonsMod.LOG.info("{} completed floor {} of slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.interval.floorIndex, record.slot,
                 entry.runsCompleted(), record.floor.rewardChests, record.layout.lootTier());
+        Set<BlockPos> floorSpawners = TrialContent.activeSpawners(record.layout, player.level());
+        PlaytestJournal.floorComplete(player, record,
+                TrialContent.countCleared(player.level(), floorSpawners), floorSpawners.size());
         Chime.runComplete(player);
     }
 
@@ -1215,7 +1225,7 @@ final class RunLifecycle {
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
         RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
-                e -> !(e instanceof ServerPlayer))) {
+                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
             leftover.discard();
         }
         Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
@@ -1299,10 +1309,10 @@ final class RunLifecycle {
      * Settles the interval once: the guard is set before the settlement runs,
      * so one that throws partway is not repeated in full by a retry.
      */
-    private static void settleOnce(MinecraftServer server, InstanceRecord record, int penalty) {
+    private static void settleOnce(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
         if (!record.interval.safeVisitSettled) {
             record.interval.safeVisitSettled = true;
-            settleInterval(server, record, penalty);
+            settleInterval(server, record, penalty, trigger);
         }
     }
 
@@ -1329,6 +1339,15 @@ final class RunLifecycle {
      * ({@link #tallyFloorSpawners}).
      */
     static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty) {
+        settleInterval(server, record, penalty, penalty > 0 ? "checkpoint_exit" : "home_lever");
+    }
+
+    /**
+     * {@link #settleInterval(MinecraftServer, InstanceRecord, int)}, naming what
+     * ended the interval for the journal's {@code bank} event: {@code home_lever},
+     * {@code checkpoint_exit} or {@code grace_expiry}.
+     */
+    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
         if (!record.isKeystoneRun()) {
             return;
         }
@@ -1390,12 +1409,15 @@ final class RunLifecycle {
                 IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
                         interval.bankedOmenSum(), memberEntry.keyProgress(), floorsPerVisit, penalty,
                         bonusChests);
+                int keyLevel = memberEntry.keystoneLevel();
                 if (settled.levels() > 0) {
-                    Keystones.grantLevel(server, member, memberPlayer,
-                            KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel));
+                    keyLevel = KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel);
+                    Keystones.grantLevel(server, member, memberPlayer, keyLevel);
                     record.floor.keystoneReturned.add(member);
                 }
                 log.setKeyProgress(member, settled.progress());
+                PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
+                        bonusChests, keyLevel);
                 memberPlayer.sendSystemMessage(Component.literal(
                         IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
                         .withStyle(ChatFormatting.GOLD));
@@ -1564,7 +1586,7 @@ final class RunLifecycle {
         }
 
         // M65: settle the interval before tearing down the dungeon, once.
-        settleOnce(server, record, 0);
+        settleOnce(server, record, 0, "home_lever");
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
@@ -1829,6 +1851,7 @@ final class RunLifecycle {
                     + grace + " seconds; the doors and the way home wait for them.", null);
             PocketDungeonsMod.LOG.info("Holding slot {} for its owner {} for {}s after a disconnect",
                     record.slot, record.owner, grace);
+            PlaytestJournal.ownerHold(server, record, "start");
         }
         return true;
     }
@@ -1853,12 +1876,13 @@ final class RunLifecycle {
             return false;
         }
         record.ownerAbsentUntilTick = 0;
+        PlaytestJournal.ownerHold(server, record, "expire");
         if (record.isKeystoneRun() && betweenFloors(record)) {
             ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
             if (record.phase == RunSession.Phase.PREVIEW && level != null) {
                 Instances.clearPreview(level, record, true);
             }
-            settleOnce(server, record, IntervalBanking.LEAVE_PENALTY);
+            settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "grace_expiry");
         }
         Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
         InstanceTeardown.purge(server, record, "party leader did not reconnect");
@@ -1962,6 +1986,7 @@ final class RunLifecycle {
         // Apply the keystone penalty, then reset the dungeon to its lobby
         // state. The player stays in the safe room and picks a new door.
         applyQuitPenalty(server, record, player);
+        PlaytestJournal.quitFloor(player, PocketDungeonsConfig.timedOutDepletion());
         Instances.resetToLobby(server, record, true);
         return true;
     }

@@ -272,9 +272,11 @@ final class RoomBuilderCommands {
         // Capture the build cell to the template file, overwriting any existing.
         try {
             StructureTemplate template = new StructureTemplate();
-            template.fillFromWorld(level, record.origin,
-                    new Vec3i(RoomGeometry.CELL, RoomGeometry.CEILING_Y + 1, RoomGeometry.CELL),
-                    true, List.of());
+            Vec3i size = new Vec3i(RoomGeometry.CELL, RoomGeometry.CEILING_Y + 1, RoomGeometry.CELL);
+            Lemon.withoutLemon(level, new net.minecraft.world.phys.AABB(record.origin.getX(), record.origin.getY(),
+                            record.origin.getZ(), record.origin.getX() + size.getX(),
+                            record.origin.getY() + size.getY(), record.origin.getZ() + size.getZ()),
+                    () -> template.fillFromWorld(level, record.origin, size, true, List.of()));
             CompoundTag nbt = template.save(new CompoundTag());
             nbt.putString("pd_author", player.getUUID().toString());
             nbt.putLong("pd_saved_at", System.currentTimeMillis());

@@ -294,7 +294,7 @@ public final class FloorIntervalGameTest {
         InstanceRecord untimed = new InstanceRecord(9986, record.origin, server.getTickCount(),
                 record.layout, Set.of(), UUID.randomUUID(), true);
         untimed.phase = RunSession.Phase.ACTIVE;
-        OmenBar.omenRose(server, untimed, Omen.Source.SHRIEK, 1);
+        OmenBar.omenRose(server, untimed, Omen.Source.SHRIEK, 1, 1, null);
         if (OmenBar.shows(untimed) || untimed.omenBar != null) {
             helper.fail("an admin untimed run is outside the loop and gets no bar");
             return;

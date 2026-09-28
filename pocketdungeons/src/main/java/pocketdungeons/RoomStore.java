@@ -123,12 +123,15 @@ final class RoomStore {
     static boolean capture(ServerLevel level, MinecraftServer server, UUID owner,
                            BlockPos cellOrigin, int capturedQuarterTurns) {
         for (Entity entity : level.getEntities((Entity) null, cellVolume(cellOrigin),
-                e -> !(e instanceof Player) && !isRoomEntity(e))) {
+                e -> !(e instanceof Player) && !Lemon.isPart(e) && !isRoomEntity(e))) {
             entity.discard();
         }
 
+        // Lemon is lifted out for the capture itself: it is neither part of
+        // the room nor something to discard.
         StructureTemplate template = new StructureTemplate();
-        template.fillFromWorld(level, cellOrigin, TemplateStamper.TEMPLATE_SIZE, true, List.of());
+        Lemon.withoutLemon(level, cellVolume(cellOrigin), () ->
+                template.fillFromWorld(level, cellOrigin, TemplateStamper.TEMPLATE_SIZE, true, List.of()));
         CompoundTag tag = template.save(new CompoundTag());
         tag.putInt(ROTATION_KEY, ((capturedQuarterTurns % 4) + 4) % 4);
         tag.putInt(VERSION_KEY, CURRENT_VERSION);
@@ -166,11 +169,16 @@ final class RoomStore {
      *   <li>leash knots ({@link LeashFenceKnotEntity});</li>
      *   <li>armour stands and mannequins;</li>
      *   <li>display entities, except this mod's own screens, which the
-     *       staging room summons fresh and which never belong in a blob;</li>
+     *       staging room summons fresh and which never belong in a blob, and
+     *       Lemon's speech bubble;</li>
      *   <li>tamed animals: tamable pets and tamed horses.</li>
      * </ul>
      */
     static boolean isRoomEntity(Entity entity) {
+        // Lemon's bubble is a display entity, but never part of a room.
+        if (Lemon.isPart(entity)) {
+            return false;
+        }
         if (entity instanceof Display) {
             return !entity.entityTags().contains(DungeonScreen.TAG);
         }

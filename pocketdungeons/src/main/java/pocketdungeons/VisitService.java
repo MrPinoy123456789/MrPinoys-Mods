@@ -70,6 +70,7 @@ final class VisitService {
 
         InstanceRecord owned = findOwnedLiveRoom(owner);
         if (owned != null) {
+            PlaytestJournal.hintEnter(visitor.getUUID(), "visit");
             Instances.admit(server, owned, visitor);
             Chime.visitStarts(visitor);
             recordVisit(server, owner, visitor);
@@ -82,6 +83,7 @@ final class VisitService {
 
         InstanceRecord existingVisit = findVisitInstance(owner);
         if (existingVisit != null) {
+            PlaytestJournal.hintEnter(visitor.getUUID(), "visit");
             Instances.admit(server, existingVisit, visitor);
             Chime.visitStarts(visitor);
             recordVisit(server, owner, visitor);
@@ -152,6 +154,7 @@ final class VisitService {
         record.roomCellOrigin = origin;
         InstanceRegistry.bySlot.put(slot, record);
 
+        PlaytestJournal.hintEnter(visitor.getUUID(), "visit");
         Instances.admit(server, record, visitor);
         Chime.visitStarts(visitor);
 

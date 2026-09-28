@@ -56,6 +56,18 @@ public final class PocketDungeonsConfig {
     private static int maxConcurrentVisits = 16;
     private static int maxConcurrentPreviews = 16;
 
+    // ---- playtest journal and Lemon -------------------------------------------
+    /** Record the playtest journal ({@code docs/PLAYTEST_EVENTS.md}). */
+    private static boolean playtestJournal = true;
+    /** Seconds Lemon lingers after its last line before it vanishes. */
+    private static int lemonIdleSeconds = 20;
+    /** Seconds Lemon waits for the answer to a question before it vanishes. */
+    private static int lemonAskIdleSeconds = 120;
+    /** Seconds an agent's LLM mode lasts without a refresh before Lemon falls back to guide mode. */
+    private static int lemonLlmLapseSeconds = 300;
+    /** Seconds a player's question waits for the agent before guide mode answers it. */
+    private static int lemonFallbackSeconds = 45;
+
     // ---- layout planning ----------------------------------------------------
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
     // branch and loop rates high enough that a floor reads as a small maze
@@ -420,6 +432,26 @@ public final class PocketDungeonsConfig {
         return maxConcurrentPreviews;
     }
 
+    public static boolean playtestJournal() {
+        return playtestJournal;
+    }
+
+    public static int lemonIdleSeconds() {
+        return lemonIdleSeconds;
+    }
+
+    public static int lemonAskIdleSeconds() {
+        return lemonAskIdleSeconds;
+    }
+
+    public static int lemonLlmLapseSeconds() {
+        return lemonLlmLapseSeconds;
+    }
+
+    public static int lemonFallbackSeconds() {
+        return lemonFallbackSeconds;
+    }
+
     public static int pathLengthMin() {
         return pathLengthMin;
     }
@@ -650,6 +682,11 @@ public final class PocketDungeonsConfig {
         maxConcurrentInstances = 32;
         maxConcurrentVisits = 16;
         maxConcurrentPreviews = 16;
+        playtestJournal = true;
+        lemonIdleSeconds = 20;
+        lemonAskIdleSeconds = 120;
+        lemonLlmLapseSeconds = 300;
+        lemonFallbackSeconds = 45;
 
         pathLengthMin = 8;
         pathLengthMax = 12;
@@ -761,6 +798,15 @@ public final class PocketDungeonsConfig {
                 v -> v >= 0, "must be >= 0");
         maxConcurrentPreviews = readInt(root, "maxConcurrentPreviews", 16,
                 v -> v >= 0, "must be >= 0");
+        playtestJournal = readBoolean(root, "playtestJournal", true);
+        lemonIdleSeconds = readInt(root, "lemonIdleSeconds", 20,
+                v -> v >= 3 && v <= 600, "must be between 3 and 600");
+        lemonAskIdleSeconds = readInt(root, "lemonAskIdleSeconds", 120,
+                v -> v >= 10 && v <= 1800, "must be between 10 and 1800");
+        lemonLlmLapseSeconds = readInt(root, "lemonLlmLapseSeconds", 300,
+                v -> v >= 30 && v <= 3600, "must be between 30 and 3600");
+        lemonFallbackSeconds = readInt(root, "lemonFallbackSeconds", 45,
+                v -> v >= 5 && v <= 600, "must be between 5 and 600");
 
         pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
@@ -1094,6 +1140,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("maxConcurrentInstances", 32);
         root.addProperty("maxConcurrentVisits", 16);
         root.addProperty("maxConcurrentPreviews", 16);
+        root.addProperty("playtestJournal", true);
+        root.addProperty("lemonIdleSeconds", 20);
+        root.addProperty("lemonAskIdleSeconds", 120);
+        root.addProperty("lemonLlmLapseSeconds", 300);
+        root.addProperty("lemonFallbackSeconds", 45);
 
         root.addProperty("pathLengthMin", 8);
         root.addProperty("pathLengthMax", 12);

@@ -350,6 +350,7 @@ final class PartyService {
         }
 
         invites.remove(player.getUUID());
+        PlaytestJournal.hintEnter(player.getUUID(), "invite");
         Instances.admit(server, record, player);
 
         player.sendSystemMessage(Component.literal("You step into the dungeon.")

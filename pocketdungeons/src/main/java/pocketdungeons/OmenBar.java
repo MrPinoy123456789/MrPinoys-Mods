@@ -132,11 +132,16 @@ final class OmenBar {
      * The omen just rose to {@code omen} because of {@code source}: a short
      * line on each member's action bar and a low cue, held back per source so
      * dwell does not repeat itself, then an immediate repaint of the bar.
+     * Every rise is journaled ({@code omen_rise}), cue or not: {@code amount}
+     * is the rise itself and {@code at} where it came from, or null for a
+     * floor-wide source.
      */
-    static void omenRose(MinecraftServer server, InstanceRecord record, Omen.Source source, int omen) {
+    static void omenRose(MinecraftServer server, InstanceRecord record, Omen.Source source, int omen,
+                         int amount, net.minecraft.core.BlockPos at) {
         if (!record.inFloorLoop()) {
             return;
         }
+        PlaytestJournal.omenRise(server, record, source, amount, omen, at);
         OmenBar bar = of(record);
         long now = server.getTickCount();
         int slot = source.ordinal();

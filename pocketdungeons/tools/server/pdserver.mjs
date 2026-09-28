@@ -7,7 +7,11 @@
 //   status                             up or down, players online, last log lines
 //   say <player|@a> <text...>          chat to a player as [Interviewer]
 //   cmd <command...>                   run a console command, print the reply
-//   chat [--all] [--follow]            new chat, joins, floors and errors since the last read
+//   chat [--all] [--follow]            new chat, joins, floors, Lemon and errors since the last read
+//   context <player>                   the player's context snapshot, one line of JSON
+//   lemon say|ask <player> <text...>   speak through Lemon (ask waits for the player's reply)
+//   lemon quiet <player>               make Lemon vanish now
+//   lemon mode <player> <guide|llm>    llm holds the player's questions for you; refresh it every few minutes
 //
 // The server runs from source with Gradle (runServer) in pocketdungeons/run, bound
 // to 127.0.0.1, RCON enabled. It is the local TEST server, never the live server.
@@ -42,7 +46,11 @@ function props() {
     .map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]))
 }
 
-/** Sends one RCON command; resolves with the reply text, rejects if the server is not reachable. */
+/**
+ * Sends one RCON command; resolves with the reply text, rejects if the server is not reachable.
+ * The server splits a long reply into 4096-byte packets, so a second packet of an unknown type is
+ * sent straight after the command: the server answers it after the command's last packet.
+ */
 function rcon(command, timeoutMs = 8000) {
   const conf = props()
   if (conf['enable-rcon'] !== 'true' || !conf['rcon.password']) {
@@ -61,6 +69,7 @@ function rcon(command, timeoutMs = 8000) {
     const sock = createConnection({ host: '127.0.0.1', port: Number(conf['rcon.port'] || 25575) })
     let pending = Buffer.alloc(0)
     let authed = false
+    let reply = ''
     const fail = e => { sock.destroy(); rejectP(e) }
     sock.setTimeout(timeoutMs, () => fail(new Error('RCON timed out')))
     sock.on('error', fail)
@@ -77,9 +86,12 @@ function rcon(command, timeoutMs = 8000) {
           if (id === -1) return fail(new Error('RCON authentication failed'))
           authed = true
           sock.write(packet(2, 2, command))
-        } else {
+          sock.write(packet(3, 0, ''))
+        } else if (id === 2) {
+          reply += body
+        } else if (id === 3) {
           sock.end()
-          resolveP(body)
+          resolveP(reply)
         }
       }
     })
@@ -90,7 +102,11 @@ const isUp = () => rcon('list', 3000).then(() => true, () => false)
 
 // ---- log reading -----------------------------------------------------------------
 
-const EVENT = /\) (\[Not Secure\] )?<([^>]+)> (.*)$|(\S+) (joined|left) the game|completed floor|\/(WARN|ERROR)\] \(PocketDungeons\)|Exception|Stopping server|Done \(/
+const EVENT = /\) (\[Not Secure\] )?<([^>]+)> (.*)$|(\S+) (joined|left) the game|completed floor|\/(WARN|ERROR)\] \(PocketDungeons\)|\(PocketDungeons\) (Lemon \w+ <|Report from )|Exception|Stopping server|Done \(/
+// Lemon's lines: chat routed to Lemon is not broadcast, so the mod logs it (and Lemon's own lines) itself.
+// Anchored to the line's own logger prefix, so chat that quotes one cannot pass for one.
+const LEMON = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\/INFO\] \(PocketDungeons\) Lemon (\w+) <([^>]+)>(?: (.*))?$/
+const REPORT = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\/INFO\] \(PocketDungeons\) Report from ([^:]+): (.*)$/
 const NOISE = /oshi|SystemReport/
 
 /** Turns a raw log line into a compact event line, or null if it is not one agents care about. */
@@ -98,7 +114,11 @@ function eventOf(line) {
   // Untimestamped lines are stack-trace continuations; the timestamped line above them is enough.
   const time = (line.match(/^\[(\d\d:\d\d:\d\d)\]/) ?? [])[1]
   if (!time || !EVENT.test(line) || NOISE.test(line)) return null
-  let m = line.match(/\) (?:\[Not Secure\] )?<([^>]+)> (.*)$/)
+  let m = line.match(LEMON)
+  if (m) return `${time} lemon ${m[1]} <${m[2]}>${m[3] ? ' ' + m[3] : ''}`
+  m = line.match(REPORT)
+  if (m) return `${time} report <${m[1]}> ${m[2]}`
+  m = line.match(/\) (?:\[Not Secure\] )?<([^>]+)> (.*)$/)
   if (m) return `${time} chat <${m[1]}> ${m[2]}`
   m = line.match(/(\S+) (joined|left) the game/)
   if (m) return `${time} ${m[2] === 'joined' ? 'join' : 'leave'} ${m[1]}`
@@ -220,9 +240,26 @@ async function chat() {
   }
 }
 
-const verbs = { start, stop, status, say, cmd, chat }
+async function context() {
+  const [player] = rest
+  if (!player) throw new Error('usage: context <player>')
+  console.log(await rcon(`dungeon admin context ${player}`))
+}
+
+async function lemon() {
+  const [action, player, ...words] = rest
+  const text = words.join(' ')
+  let command
+  if ((action === 'say' || action === 'ask') && player && text) command = `dungeon lemon ${action} ${player} ${text}`
+  else if (action === 'quiet' && player) command = `dungeon lemon quiet ${player}`
+  else if (action === 'mode' && player && (text === 'guide' || text === 'llm')) command = `dungeon lemon mode ${player} ${text}`
+  else throw new Error('usage: lemon say|ask <player> <text...> | lemon quiet <player> | lemon mode <player> <guide|llm>')
+  console.log((await rcon(command)) || '(no output)')
+}
+
+const verbs = { start, stop, status, say, cmd, chat, context, lemon }
 if (!verbs[verb]) {
-  console.log('usage: node pdserver.mjs <start|stop|status|say|cmd|chat> [...]  (see README.md)')
+  console.log('usage: node pdserver.mjs <start|stop|status|say|cmd|chat|context|lemon> [...]  (see README.md)')
   process.exitCode = 2
 } else {
   verbs[verb]().catch(e => { console.error(`error: ${e.message}`); process.exitCode = 1 })

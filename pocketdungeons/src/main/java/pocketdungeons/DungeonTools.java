@@ -281,6 +281,7 @@ public final class DungeonTools {
         if (record != null) {
             record.playerPlaced.put(pos.immutable(), playerUuid);
         }
+        PlaytestJournal.countPlacement(playerUuid);
     }
 
     /**

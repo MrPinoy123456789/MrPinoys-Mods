@@ -38,6 +38,11 @@ else `node pdserver.mjs <command>`.
 | `chat` | Prints the events since the last time anyone ran `chat` (a cursor is kept in `run/.agent-chat-cursor.json`), then exits. |
 | `chat --all` | Prints every event in the current log. |
 | `chat --follow` | Prints new events as they happen, until stopped. |
+| `context <player>` | Prints the player's context snapshot as one line of JSON: where they are, every room on the floor, omen, spawners, inventory essentials, Lemon's state and their last 20 journal events (`docs/LEMON_SPEC.md` section 3). |
+| `lemon say <player> <text>` | Lemon appears beside the player, says it (a speech bubble only they see, plus a yellow `Lemon:` chat line), then vanishes. |
+| `lemon ask <player> <text>` | The same, then Lemon stays lit and waits for the reply; the player's next line to Lemon comes back as a `lemon answer` event. |
+| `lemon quiet <player>` | Lemon vanishes now. |
+| `lemon mode <player> <guide|llm>` | `llm` holds the player's questions to Lemon for you to answer (with `lemon say`). It lapses back to `guide` after 5 minutes (`lemonLlmLapseSeconds`), so set it again every few minutes while you are connected. A question you leave unanswered for 45 seconds (`lemonFallbackSeconds`) gets Lemon's own honest "I do not know that one yet." |
 
 ### Event lines
 
@@ -52,8 +57,25 @@ else `node pdserver.mjs <command>`.
 22:05:30 server ready
 ```
 
-Kinds: `chat`, `join`, `leave`, `floor`, `error` (a Pocket Dungeons WARN or ERROR,
-or an exception), `server ready`, `server stopping`.
+Kinds: `chat`, `join`, `leave`, `floor`, `lemon`, `report`, `error` (a Pocket Dungeons
+WARN or ERROR, or an exception), `server ready`, `server stopping`.
+
+Lemon lines look like this:
+
+```
+19:20:01 lemon mode <MrPinoy123456789> llm
+19:20:14 lemon ask <MrPinoy123456789> where do I bank?
+19:20:30 lemon says <MrPinoy123456789> Pull the HOME lever in the staging room.
+19:21:02 lemon asks <MrPinoy123456789> How did that floor feel?
+19:21:20 lemon answer <MrPinoy123456789> too many skeletons
+19:25:40 lemon unanswered <MrPinoy123456789> what is a keystone
+```
+
+`lemon ask` is the player talking to Lemon, `lemon answer` their reply to your `lemon ask`,
+`lemon says` and `lemon asks` are Lemon speaking, `lemon held` a line of yours held back (the
+player is in a fight, or has Lemon quiet), `lemon unanswered` a question nobody answered in
+time. Solo, everything the player types in chat goes to Lemon and is not broadcast, so it
+shows up here as `lemon ask`, never as `chat`; in a party only lines that start with "Lemon" do.
 
 ## A live interview session
 
@@ -63,7 +85,10 @@ or an exception), `server ready`, `server stopping`.
    `server chat --follow` if your environment can stream a long-running
    command's output (Claude Code: the Monitor tool).
 3. When they join, greet them once with `server say <name> "..."` and tell them
-   they can just type in chat.
+   they can just type in chat. To speak through Lemon instead, set
+   `server lemon mode <name> llm` (and again every few minutes), then use
+   `server lemon say` and `server lemon ask`; their replies arrive as `lemon` events.
+   `server context <name>` shows what they are standing in before you ask.
 4. Ask at natural breaks (a `floor` event, after they go home), never mid-fight
    unless they start it. Short questions, one at a time, a few per hour, and stop
    when asked. The full interview method is in
@@ -79,7 +104,7 @@ or an exception), `server ready`, `server stopping`.
 | Server log | `pocketdungeons/run/logs/latest.log` |
 | Build and startup output | `pocketdungeons/run/logs/agent-console.log` |
 | RCON port and password | `pocketdungeons/run/server.properties` (`rcon.port`, `rcon.password`); the server binds to 127.0.0.1 only |
-| Playtest journal (once built) | `pocketdungeons/run/world/pocketdungeons/playtest/` (format: `pocketdungeons/docs/PLAYTEST_EVENTS.md`) |
+| Playtest journal | `pocketdungeons/run/world/pocketdungeons/playtest/<yyyy-mm-dd>/<uuid>.jsonl` (format: `pocketdungeons/docs/PLAYTEST_EVENTS.md`) |
 
 ## Troubleshooting
 
@@ -88,5 +113,7 @@ or an exception), `server ready`, `server stopping`.
   memory means the machine is short of RAM: close other large programs.
 - **`RCON authentication failed`:** the password in `server.properties` changed
   while the server was running; restart the server.
+- **`lemon say` text is cut off or refused:** a console command over RCON is limited to
+  about 1400 bytes. Keep Lemon's lines short; it splits long ones into bubbles anyway.
 - **The player cannot connect:** check `server status` says `UP`, and that their
   game is 26.2. Use `127.0.0.1` if `localhost` fails.

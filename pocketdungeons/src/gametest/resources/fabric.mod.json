@@ -22,7 +22,8 @@
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
-      "pocketdungeons.SeamGameTest"
+      "pocketdungeons.SeamGameTest",
+      "pocketdungeons.LemonGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

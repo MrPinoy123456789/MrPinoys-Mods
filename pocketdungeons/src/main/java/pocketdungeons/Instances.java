@@ -161,6 +161,7 @@ final class Instances {
                 Pocket2.dieInChild(player.level().getServer(), player, record);
                 return false;
             }
+            PlaytestJournal.rescue(player, record, source);
             // M27.3: deferred until extended dungeons. A checkpoint that
             // respawns the player at the last cleared cell instead of the
             // entrance is not worth building while the current layout is
@@ -178,7 +179,7 @@ final class Instances {
         // ServerEntityEvents.ENTITY_LOAD instead, a module this mod already
         // depends on for ThemeManifest/RoomManifest's own SERVER_STARTED hook.
         ServerEntityEvents.ENTITY_LOAD.register((entity, entityLevel) -> {
-            if (!(entity instanceof Mob mob)
+            if (!(entity instanceof Mob mob) || Lemon.isPart(entity)
                     || !entityLevel.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return;
             }
@@ -471,6 +472,7 @@ final class Instances {
         // An owner back within their reconnect grace: the run is theirs again.
         if (player.getUUID().equals(record.owner) && record.ownerAbsentUntilTick != 0) {
             record.ownerAbsentUntilTick = 0;
+            PlaytestJournal.ownerHold(server, record, "resume");
             announce(server, record, player.getName().getString() + " is back. The run goes on.",
                     player.getUUID());
         }
@@ -1166,6 +1168,7 @@ final class Instances {
         record.floor.previewRecipePlan = recipePlan;
         record.floor.previewOfferStep = step;
         RunSession.transition(record, RunSession.Phase.PREVIEW);
+        PlaytestJournal.doorPreview(server, record, step, offer.level(), effectiveThemeId, affixes);
         return true;
     }
 
@@ -1368,6 +1371,10 @@ final class Instances {
         // during the run (compass study list, etc.).
         next.recipeTags = record.floor.previewRecipePlan != null
                 ? recipeTagsFromPlan(record.floor.previewRecipePlan) : null;
+        // The cell to room map, so any position on this floor names its room
+        // (the journal, the context snapshot, Lemon).
+        next.rooms = FloorRooms.of(plan);
+        next.startedAtTick = server.overworld().getGameTime();
         // M66: populate the completion study list for the compass recipe.
         // The list is the run's room names, which the completion line
         // reports when the compass effect is active.
@@ -1396,7 +1403,8 @@ final class Instances {
             int before = record.interval.omen;
             record.interval.omen = Omen.add(record.interval.omen, headStart);
             if (record.interval.omen > before) {
-                OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen);
+                OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
+                        record.interval.omen - before, null);
             }
         }
 
@@ -1627,7 +1635,7 @@ final class Instances {
                 origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
                 origin.getZ() + RoomGeometry.CELL + 1);
         for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
-                e -> !(e instanceof ServerPlayer)
+                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e)
                         && !CellGeometry.insideAnyCell(e.blockPosition(), keepCells))) {
             entity.discard();
         }
@@ -2090,6 +2098,7 @@ final class Instances {
      * @return whether the player was re-admitted
      */
     static boolean rejoinOwnedInstance(MinecraftServer server, ServerPlayer player, ReturnPoint point) {
+        PlaytestJournal.hintEnter(player.getUUID(), "rejoin");
         if (!RunLifecycle.reenterOwnedInstance(player)) {
             return false;
         }
@@ -2260,6 +2269,7 @@ final class Instances {
                             entrance.getZ() + 0.5, Set.of(), record.layout.entranceYaw(), 0.0f, false);
                     continue;
                 }
+                PlaytestJournal.roomEntered(player, record);
                 // M33: the guided Tame a Wolf task has no Fabric event to hook
                 // (fabric-api ships none for TamableAnimal#tame, and the
                 // one-mixin budget is already spent on CustomClickMixin -- see

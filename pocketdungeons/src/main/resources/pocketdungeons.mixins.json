@@ -6,7 +6,10 @@
     "CustomClickMixin",
     "ResultSlotMixin",
     "BlockItemPlaceMixin",
-    "ServerExplosionMixin"
+    "ServerExplosionMixin",
+    "ServerCommonPacketListenerAccessor",
+    "TextDisplayAccessor",
+    "DisplayAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

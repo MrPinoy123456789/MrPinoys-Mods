@@ -523,6 +523,7 @@ public final class DialogRouter {
             return;
         }
         log.setBag(player.getUUID(), bagId);
+        PlaytestJournal.bagChosen(player, bagId);
         List<ItemStack> leftover = Bags.apply(player, bagId);
         if (leftover != null) {
             // The kit is granted once, here. Entering and leaving never hand

@@ -172,14 +172,14 @@ final class OmenSources {
                 // rather than rounding every poll down to nothing.
                 int gained = Omen.sensorContribution(armed.pendingPulses);
                 if (gained > 0) {
-                    add(server, record, gained, Omen.Source.SENSOR);
+                    add(server, record, gained, Omen.Source.SENSOR, origin);
                     armed.pendingPulses -= gained * 5;
                 }
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
                 if (now && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
-                    add(server, record, Omen.shriekContribution(1), Omen.Source.SHRIEK);
+                    add(server, record, Omen.shriekContribution(1), Omen.Source.SHRIEK, pos);
                 }
                 armed.wasActive.put(pos, now);
             }
@@ -191,11 +191,12 @@ final class OmenSources {
                     int before = record.interval.omen;
                     record.interval.omen = Omen.set(Omen.bargainOmen());
                     if (record.interval.omen > before) {
-                        OmenBar.omenRose(server, record, Omen.Source.BARGAIN, record.interval.omen);
+                        OmenBar.omenRose(server, record, Omen.Source.BARGAIN, record.interval.omen,
+                                record.interval.omen - before, armed.spurChest);
                     }
                 } else {
                     // Barred Vault is relief: a negative contribution.
-                    add(server, record, Omen.barredVaultContribution(), null);
+                    add(server, record, Omen.barredVaultContribution(), null, armed.spurChest);
                 }
             }
         }
@@ -230,7 +231,7 @@ final class OmenSources {
             boolean staging = origin.equals(record.stagingCellOrigin);
             int total = Omen.dwellContribution(dwell.seconds, unsolved(level, origin), staging);
             if (total > dwell.awarded) {
-                add(server, record, total - dwell.awarded, Omen.Source.DWELL);
+                add(server, record, total - dwell.awarded, Omen.Source.DWELL, at);
                 dwell.awarded = total;
             }
         }
@@ -254,7 +255,7 @@ final class OmenSources {
      * and silent, and so is a rise the per-floor clamp swallowed.
      */
     private static void add(MinecraftServer server, InstanceRecord record, int contribution,
-                            Omen.Source source) {
+                            Omen.Source source, BlockPos at) {
         if (source != null) {
             contribution = ZoneRules.of(record).scaleOmen(contribution);
         }
@@ -264,7 +265,7 @@ final class OmenSources {
         int before = record.interval.omen;
         record.interval.omen = Omen.clamp(Omen.add(record.interval.omen, contribution));
         if (source != null && record.interval.omen > before) {
-            OmenBar.omenRose(server, record, source, record.interval.omen);
+            OmenBar.omenRose(server, record, source, record.interval.omen, record.interval.omen - before, at);
         }
     }
 

@@ -125,6 +125,7 @@ final class InstanceTeardown {
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
+                PlaytestJournal.hintLeave(member, "purge", record);
                 Instances.eject(server, record, player);
                 player.sendSystemMessage(Component.literal("Your dungeon has closed.")
                         .withStyle(ChatFormatting.GRAY));
@@ -305,7 +306,7 @@ final class InstanceTeardown {
         // Sweep after clearing, not before: anything the clear itself shakes
         // loose has to be caught too, or it outlives the instance.
         for (Entity entity : level.getEntitiesOfClass(
-                Entity.class, clear.bounds, e -> !(e instanceof ServerPlayer))) {
+                Entity.class, clear.bounds, e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
             entity.discard();
         }
         for (BlockPos cellOrigin : clear.cellOrigins) {

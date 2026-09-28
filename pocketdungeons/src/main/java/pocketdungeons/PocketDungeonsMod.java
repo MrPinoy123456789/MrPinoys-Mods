@@ -31,6 +31,10 @@ public final class PocketDungeonsMod implements ModInitializer {
     public void onInitialize() {
         PocketDungeonsConfig.load(FabricLoader.getInstance().getConfigDir());
         DungeonCommands.register();
+        // Ahead of Instances, so its connection handlers read a player's
+        // instance before Instances' own handlers detach them.
+        PlaytestJournal.register();
+        Lemon.register();
         Instances.register();
         RitualListener.register();
         SilenceListener.register();

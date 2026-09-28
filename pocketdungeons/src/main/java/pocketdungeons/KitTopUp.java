@@ -311,6 +311,7 @@ final class KitTopUp {
         Plan plan = plan(bag.kitBaseline, held, emptiesInPack, emptiesStored, band, fractions,
                 ZoneRules.of(record).kitTopUpScale());
         Delivery delivery = grant(server, log, member, bag, plan, inside);
+        PlaytestJournal.kitTopUp(member, record, band, plan);
         boolean bandEarnedNone = fraction(false, band, fractions) <= 0.0;
         String line = summary(plan, delivery.names(), bandEarnedNone);
         if (!plan.grants().isEmpty()) {

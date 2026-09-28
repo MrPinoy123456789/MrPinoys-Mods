@@ -3,7 +3,9 @@
 The contract between the mod's in-game playtest journal (which records what
 happens and asks the check-in questions) and the `/playtest` interview skill
 (`.claude/skills/playtest/`), which reads it. Status: format agreed 2026-09-26;
-the in-game side is not built yet.
+the journal is built (`PlaytestJournal`, 2026-09-27). The check-in dialog is not
+built: Lemon (`docs/LEMON_SPEC.md`) replaces it, so `checkin` lines are not
+written yet and `playtestCheckins` is not read.
 
 ## Why one system
 
@@ -41,6 +43,10 @@ for; there is no second telemetry system.
 | `zone` | string | Zone/theme id of the current floor, or `""` |
 | `party` | int | Party size at the time, 1 when solo |
 
+`floor` is the floor in play while the run is `ACTIVE` (1 for the first floor of an
+interval), the floor just cleared between floors (`FLOOR_CLEARED`, `PREVIEW`), and 0
+at home before the first door.
+
 ## Events
 
 | `ev` | When | Extra fields |
@@ -63,6 +69,23 @@ for; there is no second telemetry system.
 | `checkin` | Player answers the in-game check-in | `prompt` (`after_bank`, `after_quit`, `after_session`), `score` (1 to 5, or null if skipped), `comment` (string, may be empty) |
 | `report` | `/dungeon report <text>` or the check-in's "something broke" | `text`, `pos` (`"x,y,z"`), `room`, `recent` (last 10 `ev` names for this player) |
 | `error` | The mod logs an error while this player is in an instance | `message` (first line only) |
+| `lemon_ask` | The player says something to Lemon (written once it is answered, or not) | `text`, `room`, `answered_by` (`guide`, `llm`, `none`), `hint_tier` (0 if not a hint), `wait_s` (seconds until answered) |
+| `lemon_hint` | Lemon offers a hint unprompted | `trigger` (`dwell`, `rescues`, `wandering`), `room`, `tier` |
+| `lemon_tutorial` | A tutorial moment fires | `moment` |
+| `lemon_answer` | The player answers a question Lemon (the interviewer) asked | `question`, `text` |
+
+`room` is a room id from the floor's cell to room map (the placed room's manifest
+name, for example `pocketdungeons:hold_the_plate`), one of the pseudo-rooms
+`safe_room`, `staging_room` and `preview`, or `""` anywhere else. Two cells can
+place the same room; `room_entered` carries the `cell` to tell them apart.
+
+How the events are sourced, where it is not obvious: `leave_dungeon`'s `reason` is
+`disconnect` for a logout inside and otherwise comes from the code path that moved
+the player (`other` when none said); `session_leave`'s `quit` is a connection the
+client closed, which a crash can also look like; `omen_rise` is written for every
+member present, with the room the rise came from (or each member's own room for a
+floor-wide source); `error` is written for every player in an instance at the time.
+`lemon_hint` and `lemon_tutorial` come with guide mode and are not written yet.
 
 `blocks_placed` and `durability_used` count this player's own actions on the
 floor: blocks placed in dungeon cells, and durability points lost by tools and
