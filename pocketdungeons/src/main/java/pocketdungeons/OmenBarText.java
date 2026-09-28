@@ -53,7 +53,8 @@ final class OmenBarText {
             int needed = Math.max(1, spawnersNeeded);
             int cleared = Math.max(0, spawnersCleared);
             int remaining = Math.max(0, needed - cleared);
-            title.append(remaining == 0 ? "Spawners done" : remaining + " Spawners remaining");
+            title.append(remaining == 0 ? "Spawners done"
+                    : remaining + " Spawner" + (remaining == 1 ? "" : "s") + " remaining");
         } else {
             title.append("Spawners done");
         }

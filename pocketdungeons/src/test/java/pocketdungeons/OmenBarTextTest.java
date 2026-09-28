@@ -53,8 +53,9 @@ public class OmenBarTextTest {
 
     private static void testActiveTitle() {
         // The spawner gate leads (playtest 2026-09-26, A1), counted as remaining.
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "1 Spawners remaining | Omen 2/4 | 2 chests");
+        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | 2 chests");
         checkEquals(OmenBarText.activeTitle(2, 1, 2, 6, 8, 6), "Spawners done | Omen 2/4 | 2 chests");
+        checkEquals(OmenBarText.activeTitle(2, 1, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | 2 chests");
         // Omen 0 is hidden; a floor without spawners still shows done.
         checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Spawners done | 3 chests");
         checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Spawners done | 3 chests");

@@ -4965,3 +4965,22 @@ Source: `docs/playtests/2026-09-27-3.md`.
 **Severity:** Low (polish, but it is in the player's face during combat).
 **Status:** Fixed (2026-09-28).
 **Fix:** Added `lemonLingerSeconds` config (default 4). A reply that resolves the pending question sets `idleUntil` to now plus the linger time. When the last bubble expires and there is no pending question, Lemon despawns after the linger time instead of waiting for the full idle/fallback window. The timer is paused while waiting on an `ask`.
+
+### PD-78: `blaze_cellar` fails to stamp because it has no climbable return path (High)
+
+**Reported:** 2026-09-28 during live verification of the omen/Lemon changes.
+**Severity:** High (blocks a run from starting whenever the room is selected).
+**Status:** Open.
+**Expected:** pulling the lever generates the dungeon behind the staging room.
+**Actual:** the server throws `IllegalStateException: room pocketdungeons:blaze_cellar has spanY 2 but no climbable return path from its lower story to the upper floor (spec 13.4)` and the player sees "The dungeon failed to build. Try another door." The same room can be rolled repeatedly, so retrying the same door can keep failing.
+**Likely cause:** the `blaze_cellar` room template is two stories tall but does not contain a ladder, scaffolding, water column, or other climbable path back to the upper floor. `LayoutStamper.stamp` validates this per spec 13.4 and aborts.
+**Fix ideas:**
+1. Edit the `blaze_cellar.nbt` structure to add a climbable return path (ladder or water) from the lower story to the upper floor.
+2. Remove `blaze_cellar` from the room pool until it is fixed.
+3. Relax the stamper validation for this room if the lower story is optional/dead-end, but that contradicts spec 13.4.
+**References:**
+- `LayoutStamper.java` line 246: the validation that throws.
+- `src/main/resources/data/pocketdungeons/dungeon_room/blaze_cellar.json`
+- `src/main/resources/data/pocketdungeons/structure/rooms/blaze_cellar.nbt`
+
+**Workaround:** choose a different door; the three offers roll different room sets, and the failure only occurs when `blaze_cellar` is part of the selected layout.
