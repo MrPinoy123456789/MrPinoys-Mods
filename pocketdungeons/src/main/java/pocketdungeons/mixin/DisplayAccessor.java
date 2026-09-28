@@ -17,4 +17,7 @@ public interface DisplayAccessor {
 
     @Invoker("setPosRotInterpolationDuration")
     void pocketdungeons$setPosRotInterpolationDuration(int ticks);
+
+    @Invoker("setTransformation")
+    void pocketdungeons$setTransformation(com.mojang.math.Transformation transformation);
 }

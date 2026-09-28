@@ -72,9 +72,14 @@ function rcon(command, timeoutMs = 8000) {
     let pending = Buffer.alloc(0)
     let authed = false
     let reply = ''
-    const fail = e => { sock.destroy(); rejectP(e) }
+    let settled = false
+    const done = text => { if (!settled) { settled = true; resolveP(text) } }
+    const fail = e => { sock.destroy(); if (!settled) { settled = true; rejectP(e) } }
     sock.setTimeout(timeoutMs, () => fail(new Error('RCON timed out')))
     sock.on('error', fail)
+    // A command like "stop" closes the connection before the end marker comes back:
+    // once the command was sent, a close means it was received, so settle with what arrived.
+    sock.on('close', () => authed ? done(reply) : fail(new Error('RCON connection closed before login')))
     sock.on('connect', () => sock.write(packet(1, 3, conf['rcon.password'])))
     sock.on('data', chunk => {
       pending = Buffer.concat([pending, chunk])
@@ -93,7 +98,7 @@ function rcon(command, timeoutMs = 8000) {
           reply += body
         } else if (id === 3) {
           sock.end()
-          resolveP(reply)
+          done(reply)
         }
       }
     })
@@ -101,6 +106,24 @@ function rcon(command, timeoutMs = 8000) {
 }
 
 const isUp = () => rcon('list', 3000).then(() => true, () => false)
+
+/**
+ * Whether a server process still holds the world's session.lock. It stops answering
+ * RCON before it finishes saving, so this, not RCON, says when it has really exited.
+ */
+function worldLocked() {
+  let level = 'world'
+  try { level = props()['level-name'] || 'world' } catch { /* defaults */ }
+  const lock = join(runDir, level, 'session.lock')
+  if (!existsSync(lock)) return false
+  try { readFileSync(lock); return false } catch (e) { return e.code === 'EBUSY' || e.code === 'EPERM' || e.code === 'EACCES' }
+}
+
+/** The server log's lines written since `sinceMs`, or none if it has not been touched since. */
+function logSince(sinceMs) {
+  if (!existsSync(logPath) || statSync(logPath).mtimeMs < sinceMs) return []
+  return readFileSync(logPath, 'utf8').split(/\r?\n/)
+}
 
 // ---- log reading -----------------------------------------------------------------
 
@@ -161,6 +184,16 @@ async function start() {
   const timeout = Number(flagValue('--timeout', 300)) * 1000
   const windowed = flag('--window')
   if (await isUp()) { console.log('Test server is already running.'); return }
+  // A server that is still shutting down holds the world lock; a new one would fail to start.
+  for (let i = 0; i < 30 && worldLocked(); i++) {
+    if (i === 0) console.log('Waiting for the previous server to release the world...')
+    await sleep(2000)
+  }
+  if (worldLocked()) {
+    console.log('Another server process still holds the world (session.lock). Stop it first.')
+    process.exitCode = 1
+    return
+  }
   const freeGb = freemem() / 2 ** 30
   if (freeGb < 3) console.log(`Warning: only ${freeGb.toFixed(1)} GB of RAM free; the build and server need about 3 GB.`)
   mkdirSync(join(runDir, 'logs'), { recursive: true })
@@ -187,9 +220,22 @@ async function start() {
       console.log(`\nReady after ${Math.round((Date.now() - startedAt) / 1000)}s. Players connect to localhost (port 25565).`)
       return
     }
+    // In window mode the build output is only in that window; the server log still shows a failed start.
+    const failed = logSince(startedAt).findIndex(l => l.includes('Failed to start the minecraft server'))
+    if (failed >= 0) {
+      console.log('\nThe server failed to start:')
+      console.log(logSince(startedAt).slice(failed, failed + 4).join('\n'))
+      process.exitCode = 1
+      return
+    }
   }
-  console.log(`\nNot ready after ${timeout / 1000}s. Last console output:`)
-  if (existsSync(consoleLog)) console.log(readFileSync(consoleLog, 'utf8').split(/\r?\n/).filter(Boolean).slice(-15).join('\n'))
+  console.log(`\nNot ready after ${timeout / 1000}s.`)
+  if (!windowed && existsSync(consoleLog)) {
+    console.log('Last console output:')
+    console.log(readFileSync(consoleLog, 'utf8').split(/\r?\n/).filter(Boolean).slice(-15).join('\n'))
+  } else {
+    console.log('It was started in a window: the build or startup error is shown there.')
+  }
   process.exitCode = 1
 }
 
@@ -201,9 +247,10 @@ async function stop() {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeout) {
     await sleep(2000)
-    if (!(await isUp())) { console.log('Test server stopped cleanly.'); return }
+    // RCON goes quiet before the final save finishes; the world lock is released only on exit.
+    if (!(await isUp()) && !worldLocked()) { console.log('Test server stopped cleanly.'); return }
   }
-  console.log('Server still answering after the stop timeout; check it by hand.')
+  console.log('Server still running after the stop timeout; check it by hand.')
   process.exitCode = 1
 }
 

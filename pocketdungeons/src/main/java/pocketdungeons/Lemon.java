@@ -559,10 +559,12 @@ final class Lemon {
         Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
         Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
         double bob = Math.sin(now * 0.15) * 0.06;
+        // Far enough out that the bubble above Lemon is readable without turning:
+        // about 2.4 blocks away, off to one side, a little below eye height.
         if (side == 0) {
-            return player.position().add(forward.scale(-0.2)).add(0, 2.35 + bob, 0);
+            return player.position().add(forward.scale(1.6)).add(0, 2.2 + bob, 0);
         }
-        return player.position().add(right.scale(0.9 * side)).add(forward.scale(0.8)).add(0, 1.3 + bob, 0);
+        return player.position().add(right.scale(1.3 * side)).add(forward.scale(2.0)).add(0, 1.35 + bob, 0);
     }
 
     /** The first spot of right, left, above that is open air in sight of the player's eyes. */

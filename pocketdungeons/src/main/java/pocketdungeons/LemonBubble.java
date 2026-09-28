@@ -17,6 +17,9 @@ import java.util.UUID;
  */
 final class LemonBubble extends Display.TextDisplay {
 
+    /** Render scale of the bubble's text; 1 is a vanilla text display's size. */
+    static final float SCALE = 0.5f;
+
     final UUID owner;
 
     LemonBubble(Level level, UUID owner) {
@@ -27,8 +30,11 @@ final class LemonBubble extends Display.TextDisplay {
         DisplayAccessor display = (DisplayAccessor) (Object) this;
         display.pocketdungeons$setBillboardConstraints(Display.BillboardConstraints.CENTER);
         display.pocketdungeons$setPosRotInterpolationDuration(3);
+        // Half size: at full scale the bubble filled the view at conversation distance.
+        display.pocketdungeons$setTransformation(new com.mojang.math.Transformation(
+                null, null, new org.joml.Vector3f(SCALE, SCALE, SCALE), null));
         TextDisplayAccessor text = (TextDisplayAccessor) (Object) this;
-        text.pocketdungeons$setLineWidth(150);
+        text.pocketdungeons$setLineWidth(160);
         text.pocketdungeons$setBackgroundColor(0xB0202020);
     }
 
