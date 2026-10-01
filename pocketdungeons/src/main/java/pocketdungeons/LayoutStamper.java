@@ -217,7 +217,7 @@ final class LayoutStamper {
             if (placed == null) {
                 throw new IllegalStateException("plan has no room for cell " + cell);
             }
-            RoomManifest.Entry entry = manifest.byName(placed.name());
+            RoomManifest.Entry entry = entryAt(manifest, plan, cell);
             if (entry == null) {
                 throw new IllegalStateException("manifest has no room named " + placed.name());
             }
@@ -323,7 +323,7 @@ final class LayoutStamper {
     private static Map<PlanCell, Integer> cellSpanY(DungeonPlan plan, RoomManifest manifest) {
         Map<PlanCell, Integer> out = new HashMap<>();
         for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : plan.rooms().entrySet()) {
-            RoomManifest.Entry entry = manifest.byName(e.getValue().name());
+            RoomManifest.Entry entry = entryAt(manifest, plan, e.getKey());
             if (entry != null && entry.meta.spanY > 1) {
                 out.put(e.getKey(), entry.meta.spanY);
             }
@@ -700,8 +700,8 @@ final class LayoutStamper {
         }
         String nameA = roomNameAt(plan, a);
         String nameB = roomNameAt(plan, b);
-        BlockState materialA = windowMaterialAt(manifest, nameA);
-        BlockState materialB = windowMaterialAt(manifest, nameB);
+        BlockState materialA = windowMaterialAt(manifest, plan, a);
+        BlockState materialB = windowMaterialAt(manifest, plan, b);
         if (materialA == null || materialB == null) {
             if (materialA != materialB) {
                 PocketDungeonsMod.LOG.warn(
@@ -724,18 +724,36 @@ final class LayoutStamper {
     }
 
     /**
-     * The band fill a named room asks for, or {@code null} for {@code none}
+     * The band fill the room at {@code cell} asks for, or {@code null} for {@code none}
      * and for a room the manifest cannot resolve. An unresolvable name is
      * already fatal earlier in the stamp, so reaching here with one means the
      * plan changed underneath us, and leaving the wall solid is the harmless
      * read of that.
      */
-    private static BlockState windowMaterialAt(RoomManifest manifest, String roomName) {
-        if (roomName == null) {
+    private static BlockState windowMaterialAt(RoomManifest manifest, DungeonPlan plan, PlanCell cell) {
+        RoomManifest.Entry entry = entryAt(manifest, plan, cell);
+        return entry == null ? null : RoomBuilder.windowMaterial(entry.meta.window);
+    }
+
+    /**
+     * PD-93: the manifest entry for the room planned at {@code cell}, or
+     * {@code null} if the cell has no room or no manifest knows it. The anomaly
+     * cell's room comes out of {@link RoomManifest#currentAnomaly()}, which is
+     * kept apart from {@code manifest} so themed queries never surface it; a
+     * lookup in {@code manifest} alone can never find it.
+     */
+    static RoomManifest.Entry entryAt(RoomManifest manifest, DungeonPlan plan, PlanCell cell) {
+        DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
+        if (placed == null) {
             return null;
         }
-        RoomManifest.Entry entry = manifest.byName(roomName);
-        return entry == null ? null : RoomBuilder.windowMaterial(entry.meta.window);
+        if (cell.equals(plan.anomalyCell())) {
+            RoomManifest.Entry anomaly = RoomManifest.currentAnomaly().byName(placed.name());
+            if (anomaly != null) {
+                return anomaly;
+            }
+        }
+        return manifest.byName(placed.name());
     }
 
     private static void applyConnectorToSide(ServerLevel level, PlanGeometry geometry, PlanCell cell,

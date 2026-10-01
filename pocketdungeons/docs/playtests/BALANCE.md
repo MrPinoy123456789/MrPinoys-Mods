@@ -33,3 +33,10 @@ playtest journal once it exists; blank means not recorded.
 | 2026-09-29 | Prismarine+explosive, slot 0, tier 1 | 2 | solo | 453 | 0 | 0 | 1 | 383 | 3 | calm | | 2026-09-29-2.md |
 | 2026-09-29 | Frostworks, slot 0, tier 1 | 3 | solo | 458 | 0 | 0 | 0 | 0 | 3 | calm | | 2026-09-29-2.md |
 | 2026-09-29 | Infestation, slot 0, tier 1 | 1 | solo | 265 | 0 | 0 | 0 | 0 | 3 | not banked (run failed at omen 4 on F2) | | 2026-09-29-3.md |
+| 2026-09-30 | Prismarine+ominous, slot 0, key 6 | 1 | solo | 236 | 0 | 0 | 0 | 0 | 3 | not banked (PD-93 blocked F2 commit) | | 2026-09-30-2.md |
+| 2026-09-30 | Frostworks+ominous, slot 0, key 6 | 1 | solo | 487 | 1 | 1 | 0 | 400 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |
+| 2026-09-30 | Infestation+ominous, slot 0, key 6 | 2 | solo | 395 | 0 | 0 | 0 | 11 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |
+| 2026-09-30 | Prismarine+ominous, slot 0, key 6 | 3 | solo | 382 | 0 | 0 | 2 | 70 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |
+| 2026-09-30 | Frostworks+ominous, slot 0, key 7 | 1 | solo | 193 | 0 | 0 | 0 | 189 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |
+| 2026-09-30 | Infestation+ominous, slot 0, key 7 | 2 | solo | 636 | 2 | 2 | 0 | 46 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |
+| 2026-09-30 | Prismarine+ominous, slot 0, key 7 | 3 | solo | 449 | 0 | 0 | 10 | 209 | 3 | calm (+1 level, banked after F3) | | 2026-09-30-2.md |

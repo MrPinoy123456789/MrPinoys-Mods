@@ -14,16 +14,6 @@
             {
               "function": "minecraft:set_count",
               "count": 9
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -38,11 +28,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -59,11 +44,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -483,12 +463,7 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:max_stack_size": 8,
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
+                "minecraft:max_stack_size": 8
               }
             }
           ]
@@ -501,35 +476,13 @@
             {
               "function": "minecraft:set_count",
               "count": 16
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:lead",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 4
         },
         {
           "type": "minecraft:item",

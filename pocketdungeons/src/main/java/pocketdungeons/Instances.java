@@ -1439,8 +1439,9 @@ final class Instances {
         // M66: populate the completion study list for the compass recipe.
         // The list is the run's room names, which the completion line
         // reports when the compass effect is active.
-        for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
-            RoomManifest.Entry entry = RoomManifest.current().byName(room.name());
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> placed : plan.rooms().entrySet()) {
+            DungeonPlan.PlacedRoom room = placed.getValue();
+            RoomManifest.Entry entry = LayoutStamper.entryAt(RoomManifest.current(), plan, placed.getKey());
             if (entry != null && entry.meta.content != null && !entry.meta.content.isBlank()) {
                 next.situations.add(entry.meta.content);
             } else {

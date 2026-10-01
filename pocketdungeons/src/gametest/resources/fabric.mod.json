@@ -25,7 +25,8 @@
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
       "pocketdungeons.SeamGameTest",
-      "pocketdungeons.LemonGameTest"
+      "pocketdungeons.LemonGameTest",
+      "pocketdungeons.LootTagGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

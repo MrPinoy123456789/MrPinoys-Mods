@@ -348,6 +348,74 @@ public final class HandlerGameTest {
         helper.succeed();
     }
 
+    /**
+     * PD-78: the baked {@code blaze_cellar} template, stamped the way a run
+     * stamps it, has a return path at every rotation. Its old "staircase"
+     * was a solid pillar, and every run that rolled the room failed to build.
+     */
+    @GameTest(maxTicks = 50)
+    public void blazeCellarTemplateHasAReturnPath(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int q = 0; q < 4; q++) {
+            BlockPos origin = new BlockPos(4096 + q * 2 * RoomGeometry.CELL, 120, 4096);
+            for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
+            }
+            try {
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/blaze_cellar"), q, 1L);
+                helper.assertTrue(ReturnPathValidator.validate(level, origin, 2),
+                        "blaze_cellar has a climbable return path at " + q + " quarter turns");
+            } finally {
+                for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * PD-93: a themed plan whose anomaly roll swapped in an anomaly room
+     * stamps. The room lives in the anomaly manifest, and the stamper used to
+     * look every cell up in the themed one, so every commit of such a door
+     * threw "manifest has no room named pocketdungeons:anomaly_...".
+     */
+    @GameTest(maxTicks = 200)
+    public void anomalyRoomStampsFromTheAnomalyManifest(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonPlan plan = null;
+        for (long seed = 1; seed < 4000 && plan == null; seed++) {
+            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                    LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                    LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                    LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                    LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "frostworks", null);
+            if (outcome.plan() != null && outcome.plan().anomalyCell() != null) {
+                plan = outcome.plan();
+            }
+        }
+        helper.assertTrue(plan != null, "some frostworks seed rolls an anomaly room");
+
+        String anomalyRoom = plan.rooms().get(plan.anomalyCell()).name();
+        helper.assertTrue(RoomManifest.current().byName(anomalyRoom) == null,
+                anomalyRoom + " is absent from the themed manifest, so this test covers PD-93");
+        helper.assertTrue(LayoutStamper.entryAt(RoomManifest.current(), plan, plan.anomalyCell()) != null,
+                anomalyRoom + " resolves for the anomaly cell");
+
+        int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
+        int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
+        BlockPos origin = new BlockPos(8192 - minX * RoomGeometry.CELL, 120, 8192 - minZ * RoomGeometry.CELL);
+        java.util.List<net.minecraft.world.level.ChunkPos> chunks = PlanGeometry.of(origin, plan.cells()).chunks();
+        Instances.forceLoad(level, chunks, true);
+        try {
+            LayoutStamper.stamp(level, origin, plan, 6, java.util.Set.of());
+        } finally {
+            Instances.forceLoad(level, chunks, false);
+        }
+        helper.succeed();
+    }
+
     // ---- ReturnPathValidator: water column ----
 
     /**

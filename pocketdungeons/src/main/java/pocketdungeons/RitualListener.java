@@ -254,11 +254,11 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // The salvage bench (playtest 2026-09-29, A3). A positive test on the
-        // held item like the reroll station: gear or a vault key in hand
-        // opens the bench, anything else (an empty hand, a sneak) is the
-        // vanilla grindstone.
-        if (SalvageStation.onUse(serverPlayer, level.getBlockState(pos), hand)) {
+        // The salvage bench (playtest 2026-09-29, A3). PD-96: any use that is
+        // not a sneak opens it, so a player finds it; a sneak is the vanilla
+        // grindstone, and the bench's Disenchant button hands over to it.
+        if (SalvageStation.onUse(serverPlayer, level.getBlockState(pos), hand,
+                net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 

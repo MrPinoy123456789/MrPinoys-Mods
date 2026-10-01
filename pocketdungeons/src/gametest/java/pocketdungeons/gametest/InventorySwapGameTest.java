@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The five scenarios SITUATIONS_SPEC section 10 step 1 asks for, run against a
+ * The five scenarios SITUATIONS_SPEC section 10 step 1 asks for, plus the PD-92
+ * max-omen revert, run against a
  * real dedicated server with a real {@code ServerPlayer}.
  *
  * <p>No Carpet. {@code GameTestHelper.makeMockServerPlayerInLevel} builds a
@@ -274,6 +275,60 @@ public final class InventorySwapGameTest {
         helper.assertValueEqual(countOf(backup.subList(0, 36), Items.COBBLESTONE), 36 * 64,
                 "the rest of the inventory went into the backup alongside it");
 
+        cleanUp(server, player);
+        helper.succeed();
+    }
+
+    /**
+     * PD-92: a max-omen ejection reverts the pack to the interval-start
+     * snapshot, sends the player home, and the next entry hands back every
+     * stack exactly once.
+     *
+     * <p>The snapshot fills the main inventory, so its cursor stack has to go
+     * loose, and the record already holds a loose stack from before the
+     * failure, which the revert must not wipe. Loot picked up during the
+     * interval must not survive it.
+     */
+    @GameTest
+    public void maxOmenEjectionKeepsEachStackOnce(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerLevel dungeon = requireDungeon(helper, server);
+        ServerLevel overworld = server.overworld();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+
+        emptyInventory(player);
+        intoVoid(helper, player, dungeon);
+
+        List<ItemStack> snapshot = new ArrayList<>();
+        for (int slot = 0; slot < InventorySwap.Probe.SLOTS; slot++) {
+            snapshot.add(slot < 36 ? new ItemStack(Items.COBBLESTONE, 64) : ItemStack.EMPTY);
+        }
+        snapshot.set(0, new ItemStack(Items.DIAMOND_SWORD));
+        snapshot.set(8, new ItemStack(Items.COOKED_BEEF, 32));
+        snapshot.set(36, new ItemStack(Items.NETHERITE_BOOTS));
+        snapshot.set(InventorySwap.Probe.SLOTS - 1, new ItemStack(Items.NETHERITE_INGOT, 3));
+
+        // The interval's loot, and a top-up that did not fit earlier.
+        player.getInventory().setItem(5, new ItemStack(Items.GOLD_INGOT, 7));
+        InventorySwap.Probe.keepLoose(player, List.of(new ItemStack(Items.EMERALD, 5)));
+
+        InventorySwap.Probe.restoreIntervalSnapshotNow(player, snapshot);
+        outOfVoid(helper, player, overworld);
+        helper.assertFalse(InventorySwap.Probe.isStashed(player), "the ejection restored survival");
+        intoVoid(helper, player, dungeon);
+
+        List<ItemStack> held = liveSlots(player);
+        held.addAll(InventorySwap.Probe.keptOf(player));
+        helper.assertValueEqual(countOf(held, Items.DIAMOND_SWORD), 1, "the sword exists once");
+        helper.assertValueEqual(countOf(held, Items.COOKED_BEEF), 32, "the food exists once");
+        helper.assertValueEqual(countOf(held, Items.NETHERITE_BOOTS), 1, "the boots exist once");
+        helper.assertValueEqual(countOf(held, Items.COBBLESTONE), 34 * 64, "the filler exists once");
+        helper.assertValueEqual(countOf(held, Items.NETHERITE_INGOT), 3,
+                "the cursor stack went loose and exists once");
+        helper.assertValueEqual(countOf(held, Items.EMERALD), 5, "the earlier loose stack survived");
+        helper.assertValueEqual(countOf(held, Items.GOLD_INGOT), 0, "the interval's loot was reverted");
+
+        InventorySwap.Probe.clearKept(player);
         cleanUp(server, player);
         helper.succeed();
     }

@@ -21,8 +21,9 @@ import java.util.Set;
  * SITUATIONS_SPEC 3.2's bag authoring rules, turned into assertions.
  *
  * <p>The rules are "every bag has food", "no bag carries armour or a weapon
- * better than stone", "Pilgrim is bread and nothing else", and (spec 11.9)
- * "every item carries the {@code pocketdungeons.bag} tag". They are content
+ * better than stone", "Pilgrim is bread and nothing else", and (spec 11.9,
+ * narrowed by PD-95) "every unstackable item carries the {@code pocketdungeons.bag}
+ * tag, and no stackable item does". They are content
  * rules, not code rules, so nothing in Java enforces them and a pack author
  * adding a ninth bag has no other guard rail. Parsing the shipped JSON here is
  * the cheapest place they will ever be checked, and it runs without a server.
@@ -235,14 +236,30 @@ public class BagTableTest {
     }
 
     /** Spec 11.9: every bag item carries the {@code pocketdungeons.bag} byte. */
+    /**
+     * PD-95: the bag items that stack to 1. Only these carry the tag; a tag on
+     * a stackable item stops it merging with the same item from anywhere else.
+     */
+    private static final Set<String> UNSTACKABLE = Set.of(
+            "minecraft:bow", "minecraft:flint_and_steel", "minecraft:lava_bucket",
+            "minecraft:milk_bucket", "minecraft:spyglass", "minecraft:stone_pickaxe",
+            "minecraft:water_bucket");
+
     private static void checkTagged(String bag, JsonObject table) {
         for (JsonObject entry : entriesOf(table)) {
             String name = entry.get("name").getAsString();
-            if (!hasBagTag(entry)) {
+            boolean tagged = hasBagTag(entry);
+            if (UNSTACKABLE.contains(name) && !tagged) {
                 throw new AssertionError("bag " + bag + ": " + name + " has no "
                         + "custom_data.pocketdungeons.bag. Spec 11.9 uses that tag to tell what "
                         + "the mod handed out from what another mod injected, so an untagged bag "
-                        + "item would be reported as coming from outside the run.");
+                        + "tool would be reported as coming from outside the run.");
+            }
+            if (!UNSTACKABLE.contains(name) && tagged) {
+                throw new AssertionError("bag " + bag + ": " + name + " stacks, so it must not "
+                        + "carry custom_data.pocketdungeons.bag (PD-95): the tag stops it merging "
+                        + "with the same item from a chest, a mob or a block. If " + name
+                        + " really stacks to 1, add it to UNSTACKABLE.");
             }
         }
     }

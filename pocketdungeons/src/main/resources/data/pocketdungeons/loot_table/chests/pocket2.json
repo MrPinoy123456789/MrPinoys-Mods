@@ -14,16 +14,6 @@
             {
               "function": "minecraft:set_count",
               "count": 4
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -38,11 +28,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -65,16 +50,6 @@
                 "min": 1,
                 "max": 1
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -89,16 +64,6 @@
                 "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]

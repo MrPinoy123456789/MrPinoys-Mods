@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.HopperBlock;
+import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
@@ -431,9 +432,9 @@ final class SituationSpecs {
      * where a blaze threatens them. Water or snowballs (the player's
      * advantage: snowballs deal 3 damage to blazes, water puts out their
      * fire and damages them) defeat the blaze. A reward chest sits at
-     * (13, -8, 13) in the SE corner. A permanent staircase along the north
-     * wall climbs from the lower floor back to the upper floor, so the
-     * return path needs no tool.
+     * (13, -8, 13) in the SE corner. A ladder in the NW corner climbs from
+     * the lower floor back to the upper floor, so the return path needs no
+     * tool.
      *
      * <p>Two useful solutions: use snowballs (if carried from an earlier
      * room or found in the cellar) to damage the blaze from range, or use
@@ -442,12 +443,14 @@ final class SituationSpecs {
      * mobs if they follow the player down), and the snowballs are a
      * resource (carry forward for other situations).
      *
-     * <p>The staircase is a column of solid blocks stepping up one at a
-     * time from the lower floor (y -8) to the upper floor (y -1), with air
-     * above each step. The shaft through the upper floor, filler, and
-     * lower ceiling is carved at (8, z 8). The staircase exit is at
-     * (8, 0, 1), one block inside the north wall, clear of the doorway
-     * plane at z 0.
+     * <p>The drop shaft through the upper floor, filler, and lower ceiling
+     * is carved at (8, z 8). PD-78: the return path used to be a solid
+     * pillar at (8, z 1) that read as a staircase in this comment but had
+     * no steps, so {@link ReturnPathValidator} refused every stamp. It is
+     * now a ladder column at (1, z 1) from the lower story's first block
+     * (y -7) up through the filler and a hole in the upper floor (y 0),
+     * hung on the north wall. The corner keeps the hole clear of every
+     * doorway and of the drop shaft.
      */
     private static RoomSpec blazeCellar() {
         return new RoomSpec("blaze_cellar", EnumSet.of(ENTRANCE, EXIT))
@@ -456,7 +459,6 @@ final class SituationSpecs {
                 .chests(new BlockPos(13, -8, 13))
                 .decor((level, o) -> {
                     BlockState air = Blocks.AIR.defaultBlockState();
-                    BlockState stone = Blocks.STONE.defaultBlockState();
                     BlockState snowballPot = Blocks.DECORATED_POT.defaultBlockState();
 
                     // Shaft through the upper floor (y 0), filler (y -1, -2),
@@ -465,12 +467,13 @@ final class SituationSpecs {
                         RoomBuilder.set(level, o.offset(8, y, 8), air);
                     }
 
-                    // Permanent staircase along the north wall (z 1), from
-                    // the lower floor up to the upper floor. Each step is
-                    // one block higher, climbing from y -8 to y -1.
-                    for (int step = 0; step < 8; step++) {
-                        int y = -8 + step;
-                        RoomBuilder.set(level, o.offset(8, y, 1), stone);
+                    // The way back up: a ladder in the NW corner from the
+                    // lower story's first block through the upper floor,
+                    // facing south so it hangs on the north wall at z 0.
+                    BlockState ladder = Blocks.LADDER.defaultBlockState()
+                            .setValue(LadderBlock.FACING, Direction.SOUTH);
+                    for (int y = -7; y <= 0; y++) {
+                        RoomBuilder.set(level, o.offset(1, y, 1), ladder);
                     }
 
                     // A pot with snowballs on the upper floor, so the player

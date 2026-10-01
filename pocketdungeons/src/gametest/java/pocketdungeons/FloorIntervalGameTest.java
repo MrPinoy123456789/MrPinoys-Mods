@@ -349,10 +349,14 @@ public final class FloorIntervalGameTest {
                 helper.fail("the unbanked loot survived a max-omen death");
                 return;
             }
+            // The leave keeps the reverted pack. PD-92: the revert used to
+            // write the record too, and the leave then kept every stack twice.
+            InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
+            InventorySwap.Probe.reconcileNow(player);
             List<ItemStack> kept = log.orphanOf(player.getUUID()).items();
             if (kept.stream().anyMatch(s -> s.is(Items.DIAMOND))
-                    || kept.stream().noneMatch(s -> s.is(Items.STONE_SWORD))) {
-                helper.fail("the kept pack is not the one carried in: " + kept);
+                    || kept.stream().filter(s -> s.is(Items.STONE_SWORD)).count() != 1) {
+                helper.fail("the kept pack is not the one carried in, once: " + kept);
                 return;
             }
         } finally {

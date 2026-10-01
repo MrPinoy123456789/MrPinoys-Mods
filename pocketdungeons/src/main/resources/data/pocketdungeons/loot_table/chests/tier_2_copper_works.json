@@ -28,11 +28,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -54,11 +49,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -72,16 +62,6 @@
             {
               "function": "minecraft:set_count",
               "count": 1
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ],
           "weight": 3
@@ -93,16 +73,6 @@
             {
               "function": "minecraft:set_count",
               "count": 1
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ],
           "weight": 2
@@ -110,18 +80,6 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:lightning_rod",
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ],
           "weight": 1
         }
       ]

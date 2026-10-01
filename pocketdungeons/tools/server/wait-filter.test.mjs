@@ -4,7 +4,7 @@
 // strings in Lemon.java and marked "format".
 
 import assert from 'node:assert/strict'
-import { eventOf, wakesWait } from './wait-filter.mjs'
+import { eventOf, quietVerdict, wakesWait } from './wait-filter.mjs'
 
 const P = 'MrPinoy123456789'
 const INFO = '[Server thread/INFO]'
@@ -48,5 +48,15 @@ for (const [line, expected] of cases) {
 // Chat that quotes a Lemon line is still the player's chat, and still wakes.
 assert.equal(wakesWait(eventOf(`[12:00:00] ${INFO} (Minecraft) <${P}> Lemon says <x> hi`)), true)
 
-console.log(failed ? `${failed} of ${cases.length} failed` : `all ${cases.length + 1} passed`)
+// PD-80: a quiet timeout calls the server down only when nothing fresh says it is up.
+const quiet = 'no new events (timeout)'
+const down = 'server is down (timeout)'
+const none = { finalCheck: false, sawLines: false, recentLog: false, worldLocked: false }
+assert.equal(quietVerdict(none), down)
+assert.equal(quietVerdict({ ...none, finalCheck: true }), quiet)
+assert.equal(quietVerdict({ ...none, sawLines: true }), quiet)
+assert.equal(quietVerdict({ ...none, recentLog: true }), quiet)
+assert.equal(quietVerdict({ ...none, worldLocked: true }), quiet)
+
+console.log(failed ? `${failed} of ${cases.length} failed` : `all ${cases.length + 6} passed`)
 process.exitCode = failed ? 1 : 0

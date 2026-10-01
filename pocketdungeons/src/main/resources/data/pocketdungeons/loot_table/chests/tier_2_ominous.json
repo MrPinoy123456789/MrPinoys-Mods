@@ -18,16 +18,6 @@
                 "min": 1,
                 "max": 3
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -42,16 +32,6 @@
                 "min": 1,
                 "max": 3
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -65,16 +45,6 @@
               "count": {
                 "min": 1,
                 "max": 4
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -93,11 +63,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -113,16 +78,6 @@
                 "type": "minecraft:binomial",
                 "n": 6,
                 "p": 0.1667
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -142,11 +97,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -163,16 +113,6 @@
                 "min": 6,
                 "max": 13
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -186,16 +126,6 @@
               "count": {
                 "min": 6,
                 "max": 13
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -211,16 +141,6 @@
                 "min": 2,
                 "max": 5
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -234,16 +154,6 @@
               "count": {
                 "min": 4,
                 "max": 10
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -263,11 +173,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -283,16 +188,6 @@
                 "min": 1,
                 "max": 1
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -306,16 +201,6 @@
               "count": {
                 "min": 1,
                 "max": 3
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -331,16 +216,6 @@
                 "min": 1,
                 "max": 3
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -354,16 +229,6 @@
               "count": {
                 "min": 1,
                 "max": 3
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -379,34 +244,12 @@
                 "min": 1,
                 "max": 3
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:diamond",
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "name": "minecraft:diamond"
         },
         {
           "type": "minecraft:item",
@@ -418,16 +261,6 @@
               "count": {
                 "min": 2,
                 "max": 5
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -442,16 +275,6 @@
               "count": {
                 "min": 1,
                 "max": 3
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -471,11 +294,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -492,16 +310,6 @@
                 "min": 1,
                 "max": 2
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -516,16 +324,6 @@
                 "min": 2,
                 "max": 7
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -539,16 +337,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -564,35 +352,13 @@
                 "min": 1,
                 "max": 4
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_block",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 3
         },
         {
           "type": "minecraft:item",
@@ -604,16 +370,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -629,134 +385,18 @@
                 "min": 1,
                 "max": 4
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_block",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:echo_shard",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_custom_data",
-              "tag": "{kamutotems:{boss_stone:2}}"
-            },
-            {
-              "function": "minecraft:set_name",
-              "name": {
-                "text": "Boss Stone II",
-                "italic": false,
-                "color": "light_purple"
-              },
-              "target": "custom_name"
-            },
-            {
-              "function": "minecraft:set_lore",
-              "mode": "replace_all",
-              "lore": [
-                {
-                  "text": "Grip it and a trial finds you.",
-                  "italic": true,
-                  "color": "gray"
-                }
-              ]
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:echo_shard",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_custom_data",
-              "tag": "{kamutotems:{boss_stone:1}}"
-            },
-            {
-              "function": "minecraft:set_name",
-              "name": {
-                "text": "Boss Stone I",
-                "italic": false,
-                "color": "light_purple"
-              },
-              "target": "custom_name"
-            },
-            {
-              "function": "minecraft:set_lore",
-              "mode": "replace_all",
-              "lore": [
-                {
-                  "text": "Grip it and a trial finds you.",
-                  "italic": true,
-                  "color": "gray"
-                }
-              ]
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 3
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:brewing_stand",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 4
         },
         {
           "type": "minecraft:item",
@@ -768,16 +408,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -793,35 +423,13 @@
                 "min": 2,
                 "max": 7
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:cauldron",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 3
         },
         {
           "type": "minecraft:item",
@@ -974,16 +582,6 @@
                 "min": 1,
                 "max": 2
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -997,16 +595,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -1040,12 +628,7 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:max_stack_size": 8,
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
+                "minecraft:max_stack_size": 8
               }
             }
           ]
@@ -1058,35 +641,13 @@
             {
               "function": "minecraft:set_count",
               "count": 16
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:lead",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 4
         },
         {
           "type": "minecraft:item",

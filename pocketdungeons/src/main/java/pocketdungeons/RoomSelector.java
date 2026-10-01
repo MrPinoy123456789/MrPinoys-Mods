@@ -114,6 +114,7 @@ final class RoomSelector {
         Map<PlanCell, DungeonPlan.PlacedRoom> placed = pass.placed();
         Set<PlanCell> fallbacks = pass.fallbacks();
         PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths);
+        String anomalyName = anomalyCell == null ? null : placed.get(anomalyCell).name();
 
         // M66: apply recipe guarantees after the main pass and anomaly roll.
         // Each guarantee forces a specific room onto an eligible cell. The
@@ -122,6 +123,12 @@ final class RoomSelector {
         // available tags at that cell's depth.
         if (recipePlan != null) {
             applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan);
+        }
+        // PD-93: a guarantee may have forced a themed room onto the anomaly
+        // cell. That cell is no longer an anomaly, and calling it one would
+        // send the stamper to the anomaly manifest for a room it does not hold.
+        if (anomalyCell != null && !anomalyName.equals(placed.get(anomalyCell).name())) {
+            anomalyCell = null;
         }
 
         DungeonPlan plan = new DungeonPlan(

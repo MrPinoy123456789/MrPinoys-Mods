@@ -11,16 +11,6 @@
             {
               "function": "minecraft:set_count",
               "count": 8
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         }

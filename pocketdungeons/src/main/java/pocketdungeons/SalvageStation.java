@@ -11,12 +11,16 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.GrindstoneMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -33,10 +37,11 @@ import java.util.Map;
  * {@code docs/reference/SALVAGE_PROPOSAL.md}; the arithmetic is
  * {@link SalvageMath}.
  *
- * <p><b>Positive test, like {@link RerollStation}.</b> The configured block
- * (a grindstone by default) is claimed only when the main hand holds
- * something the bench takes, and never while sneaking. An empty hand, or
- * anything else, still opens the vanilla grindstone.
+ * <p><b>Every use opens it (PD-96).</b> The configured block (a grindstone by
+ * default) opens the bench on any use that is not a sneak, whatever the hand
+ * holds; a bench that only answered to the right item was one nobody found.
+ * Sneaking still opens the vanilla grindstone, and the bench offers a
+ * Disenchant button that hands a single enchanted item over to it.
  *
  * <p><b>A drop-in screen, not a one-item picker.</b> Clearing four bows one
  * click at a time is the chore the player complained about, so the bench is
@@ -55,6 +60,7 @@ final class SalvageStation {
 
     private static final int INPUT_SLOTS = 18;
     private static final int SUMMARY_SLOT = 22;
+    private static final int DISENCHANT_SLOT = 26;
 
     private SalvageStation() {}
 
@@ -137,30 +143,36 @@ final class SalvageStation {
     /**
      * Called from {@link RitualListener#onUseBlock} with the other stations.
      * Returns whether this click was handled; {@code false} means not our
-     * block, a sneak, or nothing the bench takes in hand, and the vanilla
-     * grindstone runs as usual.
+     * block or a sneak, and the vanilla grindstone runs as usual. Below the
+     * unlock level the vanilla grindstone runs too, unless the hand holds
+     * something the bench takes, which earns the "needs level N" line.
      */
-    static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand) {
+    static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
+                         ContainerLevelAccess access) {
         if (!matchesStation(state) || player.isShiftKeyDown()) {
             return false;
         }
         ItemStack held = player.getItemInHand(hand);
-        if (!classify(held).takes()) {
-            return false;
-        }
-        if (levelTooLow(player)) {
-            return true;
+        boolean takes = classify(held).takes();
+        if (keystoneLevel(player) < PocketDungeonsConfig.salvageUnlockLevel()) {
+            return takes && levelTooLow(player);
         }
         Input input = new Input();
-        input.setItem(0, held.copy());
-        player.setItemInHand(hand, ItemStack.EMPTY);
-        open(player, input);
+        if (takes) {
+            input.setItem(0, held.copy());
+            player.setItemInHand(hand, ItemStack.EMPTY);
+        }
+        open(player, input, access);
         return true;
     }
 
+    private static int keystoneLevel(ServerPlayer player) {
+        return DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
+    }
+
     private static boolean levelTooLow(ServerPlayer player) {
-        int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
-        return StationSupport.levelTooLow(player, level, PocketDungeonsConfig.salvageUnlockLevel(), "salvage bench");
+        return StationSupport.levelTooLow(player, keystoneLevel(player),
+                PocketDungeonsConfig.salvageUnlockLevel(), "salvage bench");
     }
 
     // ---- the screen ----------------------------------------------------------------
@@ -184,7 +196,7 @@ final class SalvageStation {
         }
     }
 
-    private static void open(ServerPlayer player, Input input) {
+    private static void open(ServerPlayer player, Input input, ContainerLevelAccess access) {
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false) {
             @Override
             public void onRemoved() {
@@ -197,12 +209,12 @@ final class SalvageStation {
         }
         GuiElementBuilder filler = new GuiElementBuilder(Items.STAINED_GLASS_PANE.gray()).hideTooltip();
         for (int i = INPUT_SLOTS; i < INPUT_SLOTS + 9; i++) {
-            if (i != SUMMARY_SLOT) {
+            if (i != SUMMARY_SLOT && i != DISENCHANT_SLOT) {
                 gui.setSlot(i, filler);
             }
         }
-        refresh(gui, player, input);
-        input.onChange = () -> refresh(gui, player, input);
+        refresh(gui, player, input, access);
+        input.onChange = () -> refresh(gui, player, input, access);
         if (!gui.open()) {
             // Never opened, so onRemoved will not run: the item taken from
             // the hand goes straight back.
@@ -267,7 +279,8 @@ final class SalvageStation {
         return new Quote(gear, gearEmeralds, keys, ominousKeys, mobGear, xp, refused, firstRefusal);
     }
 
-    private static void refresh(SimpleGui gui, ServerPlayer player, SimpleContainer input) {
+    private static void refresh(SimpleGui gui, ServerPlayer player, SimpleContainer input,
+                                ContainerLevelAccess access) {
         Quote q = quote(input);
         List<Component> lore = new ArrayList<>();
         if (q.gear() > 0) {
@@ -301,14 +314,87 @@ final class SalvageStation {
                     .withStyle(s -> s.withItalic(false)));
             lore.add(Component.literal("Click to salvage.").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
-            button.setCallback((index, clickType, action, g) -> salvage(gui, player, input));
+            button.setCallback((index, clickType, action, g) -> salvage(gui, player, input, access));
         } else {
             button.setName(Component.literal("Nothing to salvage yet").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Drop in gear or vault keys."));
+            lore.add(line("They pay emeralds, fuel or XP."));
         }
+        lore.add(Component.literal("Sneak and use the grindstone for the plain one.")
+                .withStyle(ChatFormatting.DARK_GRAY).withStyle(s -> s.withItalic(false)));
         button.setLore(lore);
         gui.setSlot(SUMMARY_SLOT, button);
+        gui.setSlot(DISENCHANT_SLOT, disenchantButton(gui, player, input, access));
+    }
+
+    /**
+     * The slot of the one disenchantable item in {@code input}, or -1 unless
+     * it holds exactly one item and that item carries enchantments the
+     * vanilla grindstone would strip.
+     */
+    static int loneDisenchantable(SimpleContainer input) {
+        int found = -1;
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            ItemStack stack = input.getItem(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            if (found >= 0 || stack.getCount() != 1) {
+                return -1;
+            }
+            found = i;
+        }
+        if (found < 0) {
+            return -1;
+        }
+        ItemStack stack = input.getItem(found);
+        boolean enchanted = stack.isEnchanted()
+                || !stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY).isEmpty();
+        return enchanted ? found : -1;
+    }
+
+    private static GuiElementBuilder disenchantButton(SimpleGui gui, ServerPlayer player,
+                                                      SimpleContainer input, ContainerLevelAccess access) {
+        int slot = loneDisenchantable(input);
+        if (slot < 0) {
+            return new GuiElementBuilder(Items.BOOK)
+                    .setName(Component.literal("Disenchant").withStyle(ChatFormatting.GRAY)
+                            .withStyle(s -> s.withItalic(false)))
+                    .setLore(List.of(line("Put one enchanted item in alone"),
+                            line("to strip it on the plain grindstone.")));
+        }
+        return new GuiElementBuilder(Items.ENCHANTED_BOOK)
+                .setName(Component.literal("Disenchant").withStyle(ChatFormatting.LIGHT_PURPLE)
+                        .withStyle(s -> s.withItalic(false)))
+                .setLore(List.of(line("Moves " + input.getItem(slot).getHoverName().getString()),
+                        line("to the plain grindstone.")))
+                .setCallback((index, clickType, action, g) -> toVanilla(gui, player, input, access));
+    }
+
+    /**
+     * The Disenchant button: takes the lone enchanted item out of the bench,
+     * closes it (nothing else is in it to hand back) and opens the vanilla
+     * grindstone with the item already in its top slot. The grindstone's own
+     * close returns the item if the player walks away.
+     */
+    private static void toVanilla(SimpleGui gui, ServerPlayer player, SimpleContainer input,
+                                  ContainerLevelAccess access) {
+        int slot = loneDisenchantable(input);
+        if (slot < 0) {
+            return;
+        }
+        ItemStack item = input.removeItemNoUpdate(slot);
+        gui.close();
+        player.openMenu(new SimpleMenuProvider(
+                (id, inventory, p) -> new GrindstoneMenu(id, inventory, access),
+                Component.translatable("container.grindstone_title")));
+        if (player.containerMenu instanceof GrindstoneMenu menu) {
+            menu.getSlot(0).set(item);
+            menu.broadcastChanges();
+        } else {
+            player.getInventory().placeItemBackInInventory(item);
+        }
     }
 
     private static Component line(String text) {
@@ -322,9 +408,10 @@ final class SalvageStation {
     // ---- paying out ----------------------------------------------------------------
 
     /** The Salvage button: pays for the screen's contents and redraws what is left. */
-    private static void salvage(SimpleGui gui, ServerPlayer player, SimpleContainer input) {
+    private static void salvage(SimpleGui gui, ServerPlayer player, SimpleContainer input,
+                                ContainerLevelAccess access) {
         if (salvageContents(player, input) != null) {
-            refresh(gui, player, input);
+            refresh(gui, player, input, access);
         }
     }
 

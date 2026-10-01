@@ -15,12 +15,7 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:max_stack_size": 8,
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
+                "minecraft:max_stack_size": 8
               }
             }
           ]
@@ -58,16 +53,6 @@
             {
               "function": "minecraft:set_count",
               "count": 8
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         }

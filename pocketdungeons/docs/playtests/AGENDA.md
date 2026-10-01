@@ -28,6 +28,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-09-29-1.md:** omen stayed 0 across all 5 cleared floors and the interval; one death rescue did not visibly change the band (still calm at the bank). The danger model had nothing to show this session (low).
 - **2026-09-29-2.md:** rescues now tick floor omen to 1 (seen twice); the player never mentioned the bar unprompted and banks still happen at band calm. Omen is changing state, but there is still no sign he reads it (low).
 - **2026-09-29-3.md:** first observed run failure at max omen: an ominous floor 2 ended `run_failed` at floor/interval omen 4 after an arrow death. The danger model finally bit. He never commented on the fail, so whether the bar telegraphed it is still unknown (medium).
+- **2026-09-30-2.md:** the player asked whether deaths raise omen, learned they do not, then argued deaths should add omen and proposed a wider scale: 10 baseline plus 5 per extra party member. He also proposed consumable totems reducing omen by 1. This is strong counterplay design input, but still not evidence that the bar itself is being read (high).
 
 ## A2. What makes a player go home, and when?
 - **Why:** bank-anywhere replaced the forced safe room. The depth bonus and the
@@ -42,6 +43,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-09-27-3.md:** moved from floor 2 to floor 3, at the green "TIME TO GO HOME" screen, but the player asked why it was time and what descending would do: a traffic light, not a weighed gamble. Descended again one minute after going home (medium).
 - **2026-09-29-1.md:** the floor 2 bank was an accidental GO HOME pull, not a decision (see A5); the floor 3 bank followed a rescue at calm band. No weighed go-home moment observed (medium).
 - **2026-09-29-2.md:** two voluntary banks, both after floor 3 via the HOME lever (key 4 then 5). Floor 3 is becoming his routine exit; still never weighs the door 2+ gamble because the gate hides it (low).
+- **2026-09-30-2.md:** two more voluntary 3-floor banks (level 6 and level 7). Floor 3 remains the routine exit, though a later preview offered and accepted a paid step 2 basalt_foundry run (medium).
 
 ## A3. Does the strict resource economy feel tense or tedious?
 - **Why:** scarcity of blocks and durability is a core strength (owner). It
@@ -55,6 +57,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-09-27-3.md:** no wood complaint this session; proposed the Grove as a small capped wood source (its logs are all unbreakable wall). Only one interval played, so the three-run retest is still open (low).
 - **2026-09-29-1.md:** the complaint flipped to surplus: "accumulating too much gear and vault keys", wants a scrap or redemption outlet. Two full intervals, no scarcity friction mentioned (medium).
 - **Changed 2026-09-29:** the salvage bench (a grindstone station, `docs/reference/SALVAGE_PROPOSAL.md`): tagged gear pays 1 emerald per tier, vault keys 1 (ominous 3), mob gear XP only. Retest: does the surplus complaint go away, and do `salvage` journal events show it used every interval without emeralds piling up at the gamble?
+- **2026-09-30-2.md:** salvage worked once explained (3 mob gear for XP, 5 keys plus 1 ominous key for 8 emeralds), but the player had to ask whether it existed and how to use it. Emeralds still accumulated with no sink; merchant rooms, two-way trading, workstation durability/refills, and utility blocks like cobblestone and sand all came up as economy pressure valves (high).
 
 ## A4. Does the kit top-up feel fair and understood?
 - **Why:** the top-up by band ties the economy to omen. It only works if players
@@ -64,6 +67,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Evidence:** 2026-09-27-1.md: not noticed until asked right after a go-home; the one restock seen was a spyglass the player called useless, delivered invisibly to the kept dungeon inventory (medium).
 - **Changed 2026-09-27:** the restock line says where the items went and flashes on the action bar. Retest: noticed unprompted?
 - **2026-09-27-3.md:** noticed unprompted, but as absent: "I don't think my bag refilled" after a top-up of 6 arrows and a spyglass. "Kit refilled" on the screen implies a full refill (medium).
+- **2026-09-30-2.md:** one bank granted only a spyglass and another granted nothing; neither drew a comment. Still no evidence the player connects top-ups to band (low).
 
 ## A5. Is the HOME lever and staging room readable without help?
 - **Why:** the staging room carries three doors, a commit lever, the HOME lever
@@ -86,6 +90,8 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Evidence:** 2026-09-27-3.md: the free door on all four descents, committed 1 to 8 seconds after the preview; reason not asked yet (low). 2026-09-29-1.md: the free door again, committed 18 s after preview on a check-in run that was quit at once; reason still unasked (very low).
 - **2026-09-29-1.md:** asked directly: "I would take deeper doors, but my keystone level is too low I think so they're unavailable." Door 3 needs level 15 while he sat at keystone 1-3; the free door is forced, not chosen. His suggestions: hide unavailable doors so a newly unlocked door is itself the signal; put door 2 at level 7 or 8 (high).
 - **2026-09-29-2.md:** gating verified in game: at keystone ~4-5 the selector showed exactly one door ("it correctly showed 1"). He reached key 5 by session end, still under the door 2 gate of 7; no real door choice observed yet (medium).
+- **2026-09-30-1.md:** at keystone 5 only door 1 was available; it rolled PD-78 `blaze_cellar` and failed six commits. "There is no other doors due to my keystone level." Gating now amplifies a bad roll into a session blocker (high).
+- **2026-09-30-2.md:** first observed non-free choice after progression caught up: a step 2, level 9 basalt_foundry preview with Feral and Ominous was committed for 3 fuel over the level 8 frostworks option. The paid door finally produced a real pick, but only after many levels of forced door 1 (medium).
 
 ## A7. What pulls a player into another session?
 - **Why:** the game has to stand on its own and hold people for hours.
@@ -93,6 +99,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   pull is outside the mod entirely.
 - **Status:** partial
 - **Evidence:** 2026-09-27-1.md: the imagined pull is a stocked home and feeling "kitted out" (tree farm, many chests) (low).
+- **2026-09-30-2.md:** the strongest pull remains economy and progression utility: salvage, merchant rooms, emerald sinks, workstation limits, and Lemon-granted generation perks were all proposed as reasons to keep collecting (medium).
 
 ## A8. Where does a session drag, and where does it spike?
 - **Why:** pacing across a floor and an interval. Long floors, repeated rooms and
@@ -101,6 +108,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   or phases (the digest's per-floor seconds and check-ins point at them).
 - **Status:** partial
 - **Evidence:** 2026-09-27-1.md: "doesn't feel like it's getting too risky"; only the pillager floor spiked; floor 2 took 4 to 6.5 min (low).
+- **2026-09-30-2.md:** good spikes came from surprise slimes, dungeon-wide endermen, darkness that made the player pause before moving, and varied ominous enemies and rooms. The level 7 ominous floors still did not feel much harder than the prior level (medium).
 
 ## A9. Does the room (home) matter to the player?
 - **Why:** the room is the long-term product: decorating, trophies, showing it
@@ -129,7 +137,11 @@ item when it recurs or the owner says it matters.
 - **Big-title delivery is liked:** floor-clear title praised unprompted and suggested for the go-home moment too (2026-09-29-1.md). Candidate: more big-text moments where they fit.
 - **Locked doors shown but unreachable** (2026-09-29-1.md): door 3 wanted keystone 15 while the player sat at 1-3; he would rather locked doors be hidden entirely. Tied to A6.
 - **Surplus needs a sink** (2026-09-29-1.md): "too much gear and vault keys", wants scrap or redemption. Tied to A3.
-- **Interviewer reliability resolved once:** 2026-09-29-1.md is the first session since the theme emerged where nothing was missed; both questions answered in 10 to 13 s after the PD-79 fix. Keep the theme until PD-80 also proves out. 2026-09-29-2.md: two more misses, both agent-side (a shell quoting error aborted the reply; pausing the wait loop silently lapsed llm mode and one question hit the fallback at wait_s 0). PD-80 false-down also reproduced twice.
+- **Interviewer reliability resolved once:** 2026-09-29-1.md is the first session since the theme emerged where nothing was missed; both questions answered in 10 to 13 s after the PD-79 fix. Keep the theme until PD-80 also proves out. 2026-09-29-2.md: two more misses, both agent-side (a shell quoting error aborted the reply; pausing the wait loop silently lapsed llm mode and one question hit the fallback at wait_s 0). PD-80 false-down also reproduced twice. 2026-09-30-1.md: PD-80 reproduced again and the false-down gap left one question unanswered for 45 s.
 - **Dead mechanics vs dead time** (2026-09-29-2.md): the hold-the-plate early-complete fix removed dead time but he called the result "pointless"; his counter-proposal is waves that spawn off the plate itself, escalating with remaining time. A mechanic should be rescued, not skipped.
 - **Flat rooms leave systems stranded** (2026-09-29-2.md): building blocks are dead loot because nothing is vertical; trap blocks telegraph instead of catch. Same root cause: geometry never demands climbing or hides mechanisms.
 - **Lemon steers the test** (2026-09-29-2.md): player wants Lemon to bias dungeon generation toward rooms needing coverage. Harness feature, ties to verification pain (thicket could not be inspected before teardown).
+- **Station discoverability** (2026-09-30-2.md): the Salvage Bench worked, but only after the player asked whether it existed and how to open it. Candidate for promotion if other hidden stations repeat the pattern.
+- **Merchant economy** (2026-09-30-2.md): the player independently proposed merchant rooms, two-way buy/sell trades, and Ordeal-gated merchants as the missing sink for emeralds and collected clutter.
+- **Lemon as a negotiated system** (2026-09-30-2.md): building on "Lemon steers the test", the player wants item requests, dungeon-generation favors, temporary perks, and persuasion through conversation.
+- **Light as architecture** (2026-09-30-2.md): dark rooms, covered lamps, ceiling-high interior walls, and player-placed torches produced the strongest pacing feedback this session.

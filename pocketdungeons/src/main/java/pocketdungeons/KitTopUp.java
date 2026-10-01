@@ -346,7 +346,8 @@ final class KitTopUp {
      * name. Inside, grants go into the live pack (an empty is turned back into
      * its kit item first) and what does not fit is kept for the next entry;
      * outside, everything is added to the kept dungeon inventory. Every
-     * granted stack carries the bag tag and, where one roll of the kit table
+     * granted tool carries the bag tag (a stackable grant does not, PD-95,
+     * so it merges with the same item from loot) and, where one roll of the kit table
      * has it, that kit item's components (a Mason pickaxe keeps its short
      * durability, a torch stack its eight-high cap).
      */
@@ -376,8 +377,8 @@ final class KitTopUp {
                 }
                 template = new ItemStack(item);
             }
-            template = template.copyWithCount(1);
-            if (!InventorySwap.isBagTagged(template)) {
+            template = InventorySwap.withoutStackableBagTag(template.copyWithCount(1));
+            if (InventorySwap.wantsBagTag(template) && !InventorySwap.isBagTagged(template)) {
                 CustomData.update(DataComponents.CUSTOM_DATA, template, tag -> {
                     CompoundTag mine = tag.getCompound(PocketDungeonsMod.MOD_ID).orElseGet(CompoundTag::new);
                     mine.putInt("bag", 1);

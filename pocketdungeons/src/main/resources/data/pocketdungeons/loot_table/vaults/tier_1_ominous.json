@@ -9,19 +9,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:diamond",
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "name": "minecraft:diamond"
         },
         {
           "type": "minecraft:item",
@@ -33,16 +21,6 @@
               "count": {
                 "min": 1,
                 "max": 4
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -57,16 +35,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -86,11 +54,6 @@
             {
               "function": "minecraft:set_components",
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                },
                 "minecraft:max_stack_size": 8
               }
             }
@@ -106,57 +69,6 @@
               "count": {
                 "min": 1,
                 "max": 1
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:echo_shard",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_custom_data",
-              "tag": "{kamutotems:{boss_stone:1}}"
-            },
-            {
-              "function": "minecraft:set_name",
-              "name": {
-                "text": "Boss Stone I",
-                "italic": false,
-                "color": "light_purple"
-              },
-              "target": "custom_name"
-            },
-            {
-              "function": "minecraft:set_lore",
-              "mode": "replace_all",
-              "lore": [
-                {
-                  "text": "Grip it and a trial finds you.",
-                  "italic": true,
-                  "color": "gray"
-                }
-              ]
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]

@@ -7,19 +7,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:ominous_bottle",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 1
         }
       ]
     },
@@ -40,16 +28,6 @@
                 "min": 2,
                 "max": 4
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -64,16 +42,6 @@
                 "min": 2,
                 "max": 5
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
             }
           ]
         },
@@ -87,16 +55,6 @@
               "count": {
                 "min": 3,
                 "max": 6
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]
@@ -232,16 +190,6 @@
               "count": {
                 "min": 1,
                 "max": 1
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
               }
             }
           ]

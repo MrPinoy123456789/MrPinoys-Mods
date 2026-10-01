@@ -39,3 +39,19 @@ const LEMON_OWN = /^\S+ lemon (mode|says|asks|replies|thinks|held|hushed) /
 export function wakesWait(event) {
   return !LEMON_OWN.test(event)
 }
+
+/**
+ * PD-80: what a quiet `wait` prints when its timeout passes. The checks made during the
+ * wait only decide whether to refresh Lemon; they do not count here, because a stale
+ * failure among them is what printed "server is down" over a running server. Any one
+ * piece of fresh proof is enough to call the server up:
+ *   finalCheck   the RCON check made at the reporting point answered
+ *   sawLines     the log grew during the wait (events, Lemon's own lines, RCON accepts)
+ *   recentLog    the log was written in the last 20 s (a crashed server goes quiet)
+ *   worldLocked  a server process still holds the world's session.lock
+ */
+export function quietVerdict({ finalCheck, sawLines, recentLog, worldLocked }) {
+  return finalCheck || sawLines || recentLog || worldLocked
+    ? 'no new events (timeout)'
+    : 'server is down (timeout)'
+}

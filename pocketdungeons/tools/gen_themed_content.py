@@ -81,8 +81,25 @@ def spawner_config(prefix, tier, ominous, roster):
     }
 
 
+# PD-95: only items that stack to 1 carry the bag tag. On a stackable item the
+# tag stops it merging with the same item from anywhere else.
+UNSTACKABLE = {
+    'minecraft:' + n for n in (
+        'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_sword',
+        'diamond_axe', 'iron_axe', 'wooden_axe', 'stone_pickaxe', 'iron_pickaxe',
+        'iron_shovel', 'bow', 'crossbow', 'trident', 'shears', 'shield', 'spyglass',
+        'flint_and_steel', 'water_bucket', 'lava_bucket', 'milk_bucket',
+        'powder_snow_bucket', 'oak_boat', 'enchanted_book', 'golden_boots',
+    )
+} | {
+    'minecraft:%s_%s' % (mat, piece)
+    for mat in ('leather', 'chainmail', 'iron', 'diamond', 'netherite')
+    for piece in ('helmet', 'chestplate', 'leggings', 'boots')
+}
+
+
 def item_entry(name, weight, count=None, damage=False, custom_data=None):
-    """One themed-pool item entry with the bag tag and optional count/damage."""
+    """One themed-pool item entry with optional count/damage, tagged if it stacks to 1."""
     functions = []
     if count is not None:
         if isinstance(count, tuple):
@@ -91,20 +108,22 @@ def item_entry(name, weight, count=None, damage=False, custom_data=None):
                                         'min': count[0], 'max': count[1]}})
         else:
             functions.append({'function': 'minecraft:set_count', 'count': count})
-    cd = {'pocketdungeons': {'bag': 1}}
+    mine = {'bag': 1} if 'minecraft:' + name in UNSTACKABLE or custom_data else {}
     if custom_data:
-        cd['pocketdungeons'].update(custom_data)
-    components = {'minecraft:custom_data': cd}
+        mine.update(custom_data)
+    components = {'minecraft:custom_data': {'pocketdungeons': mine}} if mine else {}
     if isinstance(count, tuple):
         components['minecraft:max_stack_size'] = 8
-    functions.append({'function': 'minecraft:set_components',
-                      'components': components})
+    if components:
+        functions.append({'function': 'minecraft:set_components',
+                          'components': components})
     if damage:
         functions.append({'function': 'minecraft:set_damage',
                           'damage': {'type': 'minecraft:uniform',
                                      'min': 0.1, 'max': 0.6}})
-    entry = {'type': 'minecraft:item', 'name': 'minecraft:' + name,
-             'functions': functions}
+    entry = {'type': 'minecraft:item', 'name': 'minecraft:' + name}
+    if functions:
+        entry['functions'] = functions
     if weight is not None:
         entry['weight'] = weight
     return entry

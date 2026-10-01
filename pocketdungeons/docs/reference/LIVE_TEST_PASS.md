@@ -196,7 +196,8 @@
    is ominous from the entrance onward.
 3. **Expected:** completion payout is 1.5x, and the completion line says the
    run was ominous.
-4. **Expected:** an ominous vault drops a Boss Stone.
+4. **Expected:** an ominous vault drops ominous loot and never a Boss Stone
+   (PD-94 removed the Kamu Totems tokens).
 
 ### 4.4 Trial Omen does not escape
 

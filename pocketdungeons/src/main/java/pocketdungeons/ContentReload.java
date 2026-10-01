@@ -10,6 +10,7 @@ import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * M68: the single owner of a Pocket Dungeons content reload. Builds a candidate
@@ -172,8 +173,12 @@ final class ContentReload {
                 continue;
             }
             boolean stale = false;
-            for (DungeonPlan.PlacedRoom placed : record.floor.previewPlan.rooms().values()) {
-                if (snapshot.rooms().byName(placed.name()) == null) {
+            DungeonPlan preview = record.floor.previewPlan;
+            for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> placed : preview.rooms().entrySet()) {
+                // PD-93: the anomaly cell's room lives in the anomaly manifest.
+                RoomManifest source = placed.getKey().equals(preview.anomalyCell())
+                        ? snapshot.anomalyRooms() : snapshot.rooms();
+                if (source.byName(placed.getValue().name()) == null) {
                     stale = true;
                     break;
                 }

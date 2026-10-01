@@ -152,6 +152,39 @@ public final class InventorySwap {
         public static void reconcileAllNow(MinecraftServer server) {
             reconcileAll(server);
         }
+
+        /** The stacks kept in this player's dungeon inventory record, or an empty list. */
+        public static List<ItemStack> keptOf(ServerPlayer player) {
+            MinecraftServer server = player.level().getServer();
+            if (server == null) {
+                return List.of();
+            }
+            return DungeonLog.forServer(server).orphanOf(player.getUUID()).items();
+        }
+
+        /** Adds loose stacks to this player's record, as a top-up that did not fit would. */
+        public static void keepLoose(ServerPlayer player, List<ItemStack> stacks) {
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                keepForNextEntry(DungeonLog.forServer(server), player.getUUID(), stacks);
+            }
+        }
+
+        /** Clears this player's dungeon inventory record. Test cleanup only. */
+        public static void clearKept(ServerPlayer player) {
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                DungeonLog.forServer(server).setOrphan(player.getUUID(), OrphanRecord.NONE);
+            }
+        }
+
+        /** The max-omen revert, the same call {@code Instances.failRunOmen} makes. */
+        public static void restoreIntervalSnapshotNow(ServerPlayer player, List<ItemStack> snapshot) {
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                restoreIntervalSnapshot(server, player, snapshot);
+            }
+        }
     }
 
     // ---- the 42 slot snapshot ----------------------------------------------
@@ -577,6 +610,37 @@ public final class InventorySwap {
         return mine != null && mine.getIntOr("bag", 0) != 0;
     }
 
+    /**
+     * PD-95: whether a stack the mod hands out should carry the bag tag. Only
+     * items that stack to 1 do: on anything stackable the tag is a component
+     * difference, and it stopped a chest's iron ingots merging with the iron
+     * ingots already in the pack.
+     */
+    static boolean wantsBagTag(ItemStack stack) {
+        return !stack.isEmpty() && stack.getMaxStackSize() == 1;
+    }
+
+    /**
+     * PD-95: a copy of {@code stack} without the bag tag, if it is stackable
+     * and the tag is the only custom data it carries. Older loot tables tagged
+     * every reward; this lets those stacks merge with the same item from
+     * anywhere else. A stack carrying anything more (a tier, a shell unlock) is
+     * returned unchanged, since it would not merge anyway.
+     */
+    static ItemStack withoutStackableBagTag(ItemStack stack) {
+        if (wantsBagTag(stack) || !isBagTagged(stack)) {
+            return stack;
+        }
+        CompoundTag root = stack.get(DataComponents.CUSTOM_DATA).copyTag();
+        CompoundTag mine = root.getCompound(PocketDungeonsMod.MOD_ID).orElseThrow();
+        if (mine.size() != 1 || root.size() != 1) {
+            return stack;
+        }
+        ItemStack copy = stack.copy();
+        copy.remove(DataComponents.CUSTOM_DATA);
+        return copy;
+    }
+
     /** Whether this stack is something the mod itself handed the player: bag loot, or their keystone. */
     static boolean isOurs(ItemStack stack) {
         return isBagTagged(stack) || Keystone.isKeystone(stack);
@@ -678,8 +742,11 @@ public final class InventorySwap {
         clear(slots);
         List<ItemStack> overflow;
         try {
-            overflow = restoreKept(slots, log.orphanOf(player.getUUID()).items(),
-                    keystoneFor(log, player), Keystone::isKeystone);
+            List<ItemStack> kept = new ArrayList<>();
+            for (ItemStack stack : log.orphanOf(player.getUUID()).items()) {
+                kept.add(withoutStackableBagTag(stack));
+            }
+            overflow = restoreKept(slots, kept, keystoneFor(log, player), Keystone::isKeystone);
         } catch (RuntimeException e) {
             // The record still holds the whole pack. Leave the slots empty so
             // the next leave cannot keep half a restore on top of it.
@@ -762,19 +829,24 @@ public final class InventorySwap {
 
     /**
      * Restores a player's live dungeon inventory to the interval-start
-     * snapshot and writes the same snapshot into their orphan record so it
-     * survives when they are sent home.
+     * snapshot. Only the live inventory: the ejection that follows sends them
+     * home, and {@link #leaveVoid} keeps what is live as their pack, along with
+     * the loose stacks already in their record.
+     *
+     * <p>PD-92: this used to write the snapshot into the record as well, so the
+     * leave found every stack twice, once live and once held, kept the live
+     * one in its slot and carried the held one as a loose copy. It also wrote
+     * over any loose stacks the record was holding. A cursor stack the snapshot
+     * has no free slot for is kept as loose instead of dropped.
      */
     static void restoreIntervalSnapshot(MinecraftServer server, ServerPlayer player,
                                         List<ItemStack> snapshot) {
         DungeonLog log = DungeonLog.forServer(server);
         PlayerSlots slots = new PlayerSlots(player);
         clear(slots);
-        restore(slots, snapshot);
+        ItemStack overflow = restore(slots, snapshot);
         slots.flush();
-        List<ItemStack> kept = new ArrayList<>(SLOTS + 8);
-        kept.addAll(snapshot);
-        log.setOrphan(player.getUUID(), OrphanRecord.of(kept));
+        keepForNextEntry(log, player.getUUID(), List.of(overflow));
     }
 
     /**
@@ -863,10 +935,11 @@ public final class InventorySwap {
     }
 
     /**
-     * Spec 11.9's belt and braces. Anything in the void inventory that is
-     * neither bag loot nor the keystone got there without this mod handing it
-     * over: blocks mined in a room, or the "another mod put a netherite sword
-     * in my inventory mid-run" case.
+     * Spec 11.9's belt and braces. Any unstackable item in the void inventory
+     * that is neither bag loot nor the keystone got there without this mod
+     * handing it over: the "another mod put a netherite sword in my inventory
+     * mid-run" case. Stackable items are not checked (PD-95): rewards no
+     * longer tag them, and mined blocks were always untagged.
      *
      * <p>A notice, not a confiscation. The stacks stay in the dungeon
      * inventory with everything else, because they may well be legitimate
@@ -875,7 +948,9 @@ public final class InventorySwap {
      * and the survival backup never mix.
      */
     private static void warnAboutUntagged(ServerPlayer player, List<ItemStack> voidInventory) {
-        List<ItemStack> strays = untagged(voidInventory, ItemStack::isEmpty, InventorySwap::isOurs);
+        // PD-95: stackable rewards carry no tag any more, so only gear counts.
+        List<ItemStack> strays = untagged(voidInventory, stack -> stack.isEmpty() || !wantsBagTag(stack),
+                InventorySwap::isOurs);
         if (strays.isEmpty()) {
             return;
         }

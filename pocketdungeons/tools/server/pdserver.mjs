@@ -26,7 +26,7 @@ import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freemem, platform } from 'node:os'
-import { eventOf, wakesWait } from './wait-filter.mjs'
+import { eventOf, quietVerdict, wakesWait } from './wait-filter.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const modDir = resolve(here, '..', '..')
@@ -129,6 +129,11 @@ function logSince(sinceMs) {
 }
 
 // ---- log reading -----------------------------------------------------------------
+
+/** The server log's size in bytes, or -1 if there is none. */
+function logSize() {
+  return existsSync(logPath) ? statSync(logPath).size : -1
+}
 
 /** New event lines since the saved cursor; a shorter log than the cursor means the server restarted. */
 function readNew(fromStart) {
@@ -287,21 +292,23 @@ async function sync() {
  * that player's Lemon in llm mode, refreshing it every minute while the server is up.
  *
  * PD-80: one slow or failed `list` (3 s RCON timeout) used to flip `up` and print
- * "server is down" at the timeout while the server was fine. A running server is only
- * called down after two failed checks in a row, and a down verdict is checked once
- * more before it is printed.
+ * "server is down" at the timeout while the server was fine. Two failed checks in a row
+ * still stop the Lemon refresh, but the timeout verdict ignores them: it is made fresh
+ * at the reporting point (quietVerdict in wait-filter.mjs), from a longer RCON check
+ * tried twice, the log growing during the wait, recent log output and the world lock.
  */
 async function wait() {
   const timeout = Number(flagValue('--timeout', 240)) * 1000
   const player = flagValue('--player', null)
   const startedAt = Date.now()
+  const startSize = logSize()
   let up = null
   let failures = 0
   let lastCheck = 0
   let lastRefresh = 0
   for (;;) {
     if (Date.now() - lastCheck >= 15000) {
-      if (await isUp()) {
+      if ((await isUp()) !== null) {
         up = true
         failures = 0
       } else {
@@ -327,8 +334,11 @@ async function wait() {
       return
     }
     if (Date.now() - startedAt >= timeout) {
-      if (!up) up = !!(await isUp())
-      console.log(up ? 'no new events (timeout)' : 'server is down (timeout)')
+      const answers = () => rcon('list', 8000).then(() => true, () => false)
+      const finalCheck = (await answers()) || (await answers())
+      const size = logSize()
+      const recentLog = size >= 0 && Date.now() - statSync(logPath).mtimeMs < 20000
+      console.log(quietVerdict({ finalCheck, sawLines: size !== startSize, recentLog, worldLocked: worldLocked() }))
       return
     }
     await sleep(1000)

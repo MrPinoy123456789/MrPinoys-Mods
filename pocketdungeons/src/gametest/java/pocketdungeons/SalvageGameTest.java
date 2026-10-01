@@ -100,6 +100,58 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
+    /**
+     * PD-96: an empty hand opens the bench, so a player who never held the
+     * right item still finds it. A sneak is the vanilla grindstone, and so is
+     * any use below the unlock level that holds nothing the bench takes.
+     */
+    @GameTest
+    public void anyUseOpensTheBenchAndASneakDoesNot(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        emptyInventory(player);
+        net.minecraft.world.level.block.state.BlockState grindstone =
+                net.minecraft.world.level.block.Blocks.GRINDSTONE.defaultBlockState();
+        net.minecraft.world.InteractionHand hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        net.minecraft.world.inventory.ContainerLevelAccess access =
+                net.minecraft.world.inventory.ContainerLevelAccess.NULL;
+
+        DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
+        helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access),
+                "below the unlock level an empty hand gets the vanilla grindstone");
+
+        DungeonLog.forServer(server).setKeystone(player.getUUID(), 5, Set.of());
+        player.setShiftKeyDown(true);
+        helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access),
+                "a sneak gets the vanilla grindstone");
+        player.setShiftKeyDown(false);
+        helper.assertTrue(SalvageStation.onUse(player, grindstone, hand, access),
+                "an empty hand opens the bench");
+        player.closeContainer();
+
+        cleanUp(server, player);
+        helper.succeed();
+    }
+
+    /** PD-96: Disenchant is offered for exactly one enchanted item, alone in the bench. */
+    @GameTest
+    public void disenchantNeedsOneEnchantedItemAlone(GameTestHelper helper) {
+        ItemStack sword = new ItemStack(Items.IRON_SWORD);
+        sword.enchant(helper.getLevel().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS), 2);
+
+        SimpleContainer input = new SimpleContainer(18);
+        helper.assertValueEqual(SalvageStation.loneDisenchantable(input), -1, "an empty bench offers nothing");
+        input.setItem(4, new ItemStack(Items.IRON_SWORD));
+        helper.assertValueEqual(SalvageStation.loneDisenchantable(input), -1, "a plain sword has nothing to strip");
+        input.setItem(4, sword);
+        helper.assertValueEqual(SalvageStation.loneDisenchantable(input), 4, "an enchanted sword alone is offered");
+        input.setItem(5, new ItemStack(Items.TRIAL_KEY));
+        helper.assertValueEqual(SalvageStation.loneDisenchantable(input), -1, "not with anything beside it");
+        helper.succeed();
+    }
+
     private static ItemStack tagged(Item item, String key, int value) {
         ItemStack stack = new ItemStack(item);
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
