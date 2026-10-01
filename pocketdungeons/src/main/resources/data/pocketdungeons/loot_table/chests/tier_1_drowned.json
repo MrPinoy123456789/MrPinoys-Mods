@@ -601,19 +601,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:trial_key",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            }
-          ]
+          "weight": 3
         }
       ]
     }

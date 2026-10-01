@@ -24,6 +24,6 @@
   "rewardRoomGraceSeconds": 600,
   "threeChestPercent": 60,
   "twoChestPercent": 80,
-  "timedOutDepletion": 2,
+  "timedOutDepletion": 1,
   "lateCompletionDepletion": 2
 }

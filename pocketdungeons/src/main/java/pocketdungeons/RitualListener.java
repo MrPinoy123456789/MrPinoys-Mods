@@ -64,6 +64,7 @@ final class RitualListener {
             Fuel.warmUp();
             RerollStation.warmUp();
             GambleStation.warmUp();
+            SalvageStation.warmUp();
             TrimListener.warmUp();
             CubeStation.warmUp();
             PowerListener.warmUp();
@@ -82,6 +83,14 @@ final class RitualListener {
         }
 
         BlockPos pos = hit.getBlockPos();
+
+        // PD-87: keys from before the fix carry the chest tables' bag tag,
+        // which the vault's component match refuses. Strip it on the way in so
+        // the key already in the player's pack still opens the vault; the
+        // vault itself then runs as vanilla.
+        if (level.getBlockState(pos).is(Blocks.VAULT)) {
+            TrialContent.bareKey(serverPlayer.getMainHandItem());
+        }
 
         // Dev tool: right-click any block with a spyglass to get its
         // coordinates in chat, both absolute and relative to its chunk and
@@ -215,6 +224,12 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // An Ordeal's lever: pulled once, it ends the room's danger and stays
+        // down. Claimed ahead of vanilla so it can never be pushed back up.
+        if (Ordeals.onUse(serverPlayer, pos)) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // M14: the reroll station. A positive test on the held item, same as
         // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by
@@ -236,6 +251,14 @@ final class RitualListener {
         // the reroll station above; anything else at the same block falls
         // straight through to vanilla's own behaviour.
         if (CubeStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // The salvage bench (playtest 2026-09-29, A3). A positive test on the
+        // held item like the reroll station: gear or a vault key in hand
+        // opens the bench, anything else (an empty hand, a sneak) is the
+        // vanilla grindstone.
+        if (SalvageStation.onUse(serverPlayer, level.getBlockState(pos), hand)) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -267,13 +290,19 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // The HOME lever in a cleared floor's staging room: banks the interval
-        // and takes the party home. Claimed for any member so vanilla never
-        // flips it; goHome refuses anyone but the owner.
+        // The HOME lever in a cleared floor's staging room: asks first, and
+        // the confirm banks the interval and takes the party home (playtest
+        // 2026-09-29, A5: a misclick ended a run). Claimed for any member so
+        // vanilla never flips it; goHome refuses anyone but the owner, so a
+        // member gets that refusal straight away rather than the dialog.
         if (Instances.isHomeLever(serverPlayer, pos)) {
-            if (RunLifecycle.goHome(serverPlayer)) {
-                Chime.runComplete(serverPlayer);
-            } else {
+            InstanceRecord homeRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+            if (homeRecord != null && serverPlayer.getUUID().equals(homeRecord.owner)
+                    && serverPlayer.level().getServer() != null) {
+                DialogKit.show(serverPlayer, DialogScreens.goHomeConfirm(
+                        serverPlayer.level().getServer(), homeRecord));
+                Chime.menuOpens(serverPlayer);
+            } else if (!RunLifecycle.goHome(serverPlayer)) {
                 Chime.refused(serverPlayer);
             }
             return InteractionResult.SUCCESS_SERVER;
@@ -480,7 +509,7 @@ final class RitualListener {
         if (offer.free()) {
             return null;
         }
-        int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+        int minLevel = PocketDungeonsConfig.doorMinLevel(step);
         if (entry.keystoneLevel() < minLevel) {
             return "Door " + step + " needs level " + minLevel;
         }

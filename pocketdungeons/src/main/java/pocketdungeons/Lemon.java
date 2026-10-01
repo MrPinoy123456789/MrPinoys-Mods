@@ -122,7 +122,6 @@ final class Lemon {
         long lastAddressed = -CONVERSATION_TICKS;
         /** Side Lemon hovers on: -1 left, 1 right, 0 above. */
         int side;
-        long nextSideCheck;
         /** Where Lemon stays put (before its bob); null until placed. It only turns in place. */
         Vec3 anchor;
         /** Whether {@link #anchor} was chosen at fight distance. */
@@ -290,6 +289,7 @@ final class Lemon {
             // it, so once the reply is said it leaves (PD-77).
             state.hidden = false;
             ensureBody(player, state);
+            reanchorIfStale(player, state);
             return;
         }
         show(player, state, HONEST_LINE, false, "says");
@@ -578,6 +578,7 @@ final class Lemon {
         long now = player.level().getServer().getTickCount();
         state.leaving = 0;
         ensureBody(player, state);
+        reanchorIfStale(player, state);
         state.bubbles.addAll(LemonSpeech.bubbles(text));
         if (state.bubbleTicksLeft == 0) {
             nextBubble(player, state);
@@ -609,8 +610,7 @@ final class Lemon {
         if (state.bubble == null || state.bubble.isRemoved()) {
             ServerLevel level = player.level();
             LemonBubble bubble = new LemonBubble(level, player.getUUID());
-            long now = level.getServer().getTickCount();
-            Vec3 at = bubbleTarget(player, state.body.position(), inFight(player, now));
+            Vec3 at = bubbleTarget(state.body.position());
             bubble.snapTo(at.x, at.y, at.z, 0.0f, 0.0f);
             state.bubble = bubble;
             level.addFreshEntity(bubble);
@@ -647,27 +647,22 @@ final class Lemon {
         chirp(player, SoundEvents.ALLAY_AMBIENT_WITHOUT_ITEM, 0.6f, 1.2f);
     }
 
-    /** Past this many blocks away Lemon comes back to the player. */
+    /** Past this many blocks away an anchor counts as stale when Lemon next speaks. */
     private static final double ANCHOR_MAX_DIST = 9.0;
-    /** Lemon moves once it is this far off the player's facing: well outside the view. */
+    /** An anchor this far off the player's facing counts as stale when Lemon next speaks. */
     private static final double ANCHOR_MAX_ANGLE = Math.toRadians(100);
 
     /**
-     * Lemon stays at its anchor and only turns to face the player, so they can walk
-     * past it. It picks a new spot in view only when the old one is far out of view,
-     * too far away, no longer clear (a wall or doorway between them), or a fight
+     * Lemon stays at its anchor and only turns to face the player, so they can
+     * walk past it or away from it and it stays where it is (player request,
+     * 2026-09-29). It moves only for a new point of interest: when it next
+     * speaks or is spoken to and the old spot is stale, or when a fight
      * starts or ends and it needs the other distance.
      */
     private static void hover(ServerPlayer player, State state, long now) {
         boolean combat = inFight(player, now);
-        boolean check = now >= state.nextSideCheck;
-        if (check) {
-            state.nextSideCheck = now + 10;
-        }
-        if (state.anchor == null || combat != state.anchorCombat || anchorLost(player, state.anchor, check)) {
-            state.side = pickSide(player, state.side, now);
-            state.anchor = hoverTarget(player, state.side, now, combat).subtract(0, bob(now), 0);
-            state.anchorCombat = combat;
+        if (state.anchor == null || combat != state.anchorCombat) {
+            reanchor(player, state, now, combat);
         }
         Vec3 target = state.anchor.add(0, bob(now), 0);
         Vec3 current = state.body.position();
@@ -678,11 +673,26 @@ final class Lemon {
         state.body.setYHeadRot(yaw);
         state.body.setYBodyRot(yaw);
         if (state.bubble != null) {
-            state.bubble.setPos(bubbleTarget(player, state.body.position(), combat));
+            state.bubble.setPos(bubbleTarget(state.body.position()));
         }
     }
 
-    private static boolean anchorLost(ServerPlayer player, Vec3 anchor, boolean checkClear) {
+    private static void reanchor(ServerPlayer player, State state, long now, boolean combat) {
+        state.side = pickSide(player, state.side, now);
+        state.anchor = hoverTarget(player, state.side, now, combat).subtract(0, bob(now), 0);
+        state.anchorCombat = combat;
+    }
+
+    /** A new spot in view, but only if the old anchor is far away, out of view or blocked. */
+    private static void reanchorIfStale(ServerPlayer player, State state) {
+        if (state.body == null || state.anchor == null || !stale(player, state.anchor)) {
+            return;
+        }
+        long now = player.level().getServer().getTickCount();
+        reanchor(player, state, now, inFight(player, now));
+    }
+
+    private static boolean stale(ServerPlayer player, Vec3 anchor) {
         Vec3 to = anchor.subtract(player.position());
         double flat = Math.sqrt(to.x * to.x + to.z * to.z);
         if (flat > ANCHOR_MAX_DIST) {
@@ -693,7 +703,7 @@ final class Lemon {
         if (flat > 1.0 && (to.x * forward.x + to.z * forward.z) / flat < Math.cos(ANCHOR_MAX_ANGLE)) {
             return true;
         }
-        return checkClear && !clear(player, anchor);
+        return !clear(player, anchor);
     }
 
     private static double bob(long now) {
@@ -723,17 +733,10 @@ final class Lemon {
     }
 
     /**
-     * The speech bubble sits closer to the crosshair than the body does, so the
-     * line is readable without turning. If that centre spot is not open, it
-     * falls back to just above Lemon's body.
+     * The speech bubble sits just above Lemon's head and shares its anchor, so
+     * the text stays where Lemon is when the player looks or walks away.
      */
-    private static Vec3 bubbleTarget(ServerPlayer player, Vec3 body, boolean combat) {
-        double yaw = Math.toRadians(player.getYRot());
-        Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
-        Vec3 at = player.getEyePosition().add(forward.scale(combat ? 3.8 : 2.6)).add(0, 0.15, 0);
-        if (clear(player, at)) {
-            return at;
-        }
+    private static Vec3 bubbleTarget(Vec3 body) {
         return body.add(0, 0.85, 0);
     }
 

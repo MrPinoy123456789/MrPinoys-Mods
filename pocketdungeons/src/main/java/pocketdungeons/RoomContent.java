@@ -409,9 +409,18 @@ final class RoomContent {
     /**
      * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} TNT blocks
      * across the cell, seeded off the run so a given seed always stamps the
-     * same hazards. The pressure plate sits on a stone support next to the TNT,
-     * not on top of it, so the plate stays supported after the TNT ignites and
-     * can be removed without dropping an item.
+     * same hazards. Each TNT replaces a floor block, and its pressure plate
+     * lies flush on a floor block beside it: stepping on the plate strongly
+     * powers that floor block, which ignites the TNT next to it. The plate
+     * rests on ordinary floor, not on the TNT, so it stays supported when the
+     * TNT turns into a primed entity and can be removed without dropping.
+     *
+     * <p>PD-88: the support used to be looked for among air neighbours at
+     * floor level, which a solid floor never has, so every hazard took the
+     * fallback: a stone block stacked on the TNT with the plate on top. A
+     * raised plate on a pillar reads as a mechanism to walk around and could
+     * never catch a careless step. A TNT with no conductive floor beside it
+     * to take the plate is skipped rather than given a pillar.
      *
      * <p>Same interior margin (3..12) and spawn-anchor skip as
      * {@link #placeMoltenHazards}. The plate is removed with
@@ -433,29 +442,36 @@ final class RoomContent {
             int x = 3 + random.nextInt(10);
             int z = 3 + random.nextInt(10);
             BlockPos tntPos = cellOrigin.offset(x, 0, z);
-            if (spawns.contains(tntPos)) {
+            if (spawns.contains(tntPos) || spawns.contains(tntPos.above())
+                    || level.getBlockState(tntPos).is(Blocks.TNT)
+                    || !level.getBlockState(tntPos.above()).isAir()) {
+                // Not under another hazard's plate, and not on top of a TNT
+                // already placed.
                 continue;
             }
-            BlockPos supportPos = findExplosiveSupport(level, tntPos, spawns, directions, random);
-            if (supportPos == null) {
+            BlockPos platePos = findFlushPlate(level, tntPos, spawns, directions, random);
+            if (platePos == null) {
                 continue;
             }
             level.setBlock(tntPos, Blocks.TNT.defaultBlockState(), FLAGS);
-            level.setBlock(supportPos, Blocks.STONE.defaultBlockState(), FLAGS);
-            level.setBlock(supportPos.above(), Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
-            PENDING_EXPLOSIVES.add(new PendingExplosive(level, tntPos, supportPos.above()));
+            level.setBlock(platePos, Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
+            PENDING_EXPLOSIVES.add(new PendingExplosive(level, tntPos, platePos));
             placed++;
         }
     }
 
     /**
-     * Finds a floor-level neighbour of {@code tntPos} that is not a spawn
-     * anchor and can hold the support block. Tries the four horizontal
-     * directions in a random order, then falls back to above the TNT if every
-     * side is blocked.
+     * PD-88: where the plate for the TNT at {@code tntPos} goes, flush on the
+     * floor beside it: a horizontal neighbour at floor level that is a solid
+     * redstone conductor (so the pressed plate powers it into the TNT) with
+     * air above it for the plate. Directions are tried in a seeded random
+     * order.
+     *
+     * @return the plate position (floor level plus one), or {@code null} if no
+     *         neighbour qualifies
      */
-    private static BlockPos findExplosiveSupport(ServerLevel level, BlockPos tntPos, List<BlockPos> spawns,
-                                                 List<Direction> directions, Random random) {
+    private static BlockPos findFlushPlate(ServerLevel level, BlockPos tntPos, List<BlockPos> spawns,
+                                           List<Direction> directions, Random random) {
         List<Direction> order = new ArrayList<>(directions);
         for (int i = order.size() - 1; i > 0; i--) {
             int j = random.nextInt(i + 1);
@@ -464,18 +480,18 @@ final class RoomContent {
             order.set(j, tmp);
         }
         for (Direction dir : order) {
-            BlockPos pos = tntPos.relative(dir);
-            if (spawns.contains(pos)) {
+            BlockPos floor = tntPos.relative(dir);
+            BlockPos plate = floor.above();
+            if (spawns.contains(floor) || spawns.contains(plate)) {
                 continue;
             }
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir() || state.canBeReplaced()) {
-                return pos;
+            BlockState below = level.getBlockState(floor);
+            if (below.is(Blocks.TNT) || !below.isRedstoneConductor(level, floor)) {
+                continue;
             }
-        }
-        BlockPos above = tntPos.above();
-        if (!spawns.contains(above) && level.getBlockState(above).isAir()) {
-            return above;
+            if (level.getBlockState(plate).isAir()) {
+                return plate;
+            }
         }
         return null;
     }
@@ -653,11 +669,20 @@ final class RoomContent {
                 && dy >= -maxOffset && dy <= RoomGeometry.CEILING_Y;
     }
 
-    /** Tracks a freshly placed explosive hazard so its plate can be removed without a drop. */
+    /**
+     * Tracks a placed explosive hazard so its plate can be removed without a
+     * drop.
+     *
+     * <p>PD-88: the watch used to lapse 30 s after the stamp, long before a
+     * player reaches a room on a floor stamped all at once, so a triggered
+     * plate stayed behind and the blast dropped it as a free item. It now
+     * lasts an hour, and ends as soon as the hazard's chunk is unloaded (the
+     * floor was torn down) so it never loads a chunk to look.
+     */
     private record PendingExplosive(int dimension, BlockPos tntPos, BlockPos platePos, long deadline) {
         PendingExplosive(ServerLevel level, BlockPos tntPos, BlockPos platePos) {
             this(level.dimension().hashCode(), tntPos, platePos,
-                    level.getServer().getTickCount() + 20L * 30);
+                    level.getServer().getTickCount() + 20L * 60 * 60);
         }
 
         boolean tick(ServerLevel level, long now) {
@@ -666,6 +691,9 @@ final class RoomContent {
             }
             if (level.dimension().hashCode() != dimension) {
                 return false;
+            }
+            if (!level.isLoaded(tntPos)) {
+                return true;
             }
             BlockState state = level.getBlockState(tntPos);
             if (state.is(Blocks.TNT)) {

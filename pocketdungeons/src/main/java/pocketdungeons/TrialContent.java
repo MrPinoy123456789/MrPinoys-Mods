@@ -144,9 +144,8 @@ final class TrialContent {
         MechanismSpecs.registerHandlers();
         PressureSpecs.registerHandlers();
         SpurSpecs.registerHandlers();
-        CollapsingBridgeHandler.register();
-        HoldThePlateHandler.register();
-        RisingLavaHandler.register();
+        TraversalSpecs.registerHandlers();
+        Ordeals.register();
         SituationSpecs.registerHandlers();
     }
 
@@ -895,6 +894,21 @@ final class TrialContent {
                     : net.minecraft.world.item.Items.TRIAL_KEY);
         }
         return new ItemStack(item);
+    }
+
+    /**
+     * PD-87: drops any custom data from a vault key in place, so a key a chest
+     * table once tagged ({@code pocketdungeons.bag}) is the same bare item the
+     * vault asks for and a spawner ejects. Anything that is not a vault key is
+     * left alone.
+     */
+    static void bareKey(ItemStack stack) {
+        if (stack.isEmpty() || !stack.has(net.minecraft.core.component.DataComponents.CUSTOM_DATA)) {
+            return;
+        }
+        if (stack.is(keyStack(false).getItem()) || stack.is(keyStack(true).getItem())) {
+            stack.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        }
     }
 
     // ---- shared -------------------------------------------------------------

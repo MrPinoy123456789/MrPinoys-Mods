@@ -4994,3 +4994,112 @@ Source: `docs/playtests/2026-09-27-3.md`.
 **Actual:** `pdserver.mjs:333` filters `/^\S+ lemon (mode|say|ask|reply|think) /`. The player's line `lemon ask <Name> ...` matches, so it is dropped. The agent's echoes are logged as `lemon says|asks|replies|thinks`, which do not match, so they wake `wait` instead.
 **Fix idea:** filter `/^\S+ lemon (mode|says|replies|thinks) /` plus `lemon asks` lines the agent sent, and never `lemon ask` or `lemon answer`.
 **Workaround:** poll `server chat` and re-send `lemon mode <p> llm` every minute.
+
+### PD-80: `server wait` often reports `server is down (timeout)` while the server is up (Low)
+**Status:** Fixed 2026-09-29 (after playtest 2026-09-29-2 reproduced it twice more). `wait` in `pdserver.mjs` now calls a running server down only after two failed `isUp` checks in a row, and re-checks once at the timeout before printing `server is down`. Unverified live: needs a long quiet `wait` against a running server.
+**Expected:** a quiet timeout on a running server prints `no new events (timeout)`.
+**Actual:** in playtest 2026-09-27-5, 4 of 6 quiet `wait --player MrPinoy123456789 --timeout 240` calls printed `server is down (timeout)`, while `server status` run right after printed `UP.` and the log showed RCON clients connecting every 15 s. The player was offline the whole time.
+**Likely cause:** `wait` (`pdserver.mjs`, around line 298) re-checks `up = await isUp()` every 15 s and trusts only the last result; one slow or failed `list` (3 s RCON timeout) near the deadline flips the final message. Possibly the offline `lemon mode <p> llm` refresh on the same cycle interferes.
+**Fix idea:** report down only after two consecutive failed checks, or re-check once at the timeout before printing.
+**Impact:** an agent following the runbook could wrongly end a session after "server down for 10 minutes".
+### PD-81: `/dungeon quit` still costs 2 keystone levels; the decided cost is 1 (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-1.md`. A quit on floor 1 logged `penalty: 2` in the playtest journal.
+**Severity:** Medium (economy value contradicts the 2026-09-27 owner decision; the quit confirmation shows the wrong cost).
+**Status:** Fixed 2026-09-29 (configs updated; code default already 1).
+**Expected:** quit on an active floor costs 1 keystone level (`timedOutDepletion`, decision 2026-09-27), and the confirmation states it.
+**Actual:** cost 2.
+**Likely cause:** the decision was applied only as a code default (`PocketDungeonsConfig.java:143`, `:1205`). Existing `pocketdungeons.json` files keep their stored value (`run/config/pocketdungeons.json:40` still has 2; missing-key updates never rewrite a present key), and the checked-in `config/pocketdungeons.default.json:27` still ships 2.
+**Fix idea:** set `timedOutDepletion` to 1 in `pocketdungeons.default.json` and migrate or rewrite the value in existing configs, or accept per-server divergence and document it.
+### PD-82: Lemon can be handed equippable items; allay give animates client-side (Low)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-1.md`. Player: "I'm able to give you items since you're an Allay, we should remove that."
+**Severity:** Low (item actually lost onto Lemon only for equippable items; for anything else it is a client-side prediction that corrects itself).
+**Status:** Fixed 2026-09-29 (pending restart to verify in game).
+**Expected:** interacting with Lemon never transfers or equips an item.
+**Actual:** `LemonBody.interact` returned PASS, so `Player.interactOn` fell through to `ItemStack.interactLivingEntity`; an item with an `equippable` component (armour, pumpkin, ...) ran `equipOnTarget` and was equipped onto Lemon's slot server-side. For non-equippable items the vanilla allay give (`Allay.mobInteract`, already bypassed) still played client-side prediction: item appears in Lemon's hand, then snaps back.
+**Cause:** PASS left the item fallback path open; `LivingEntity.isEquippableInSlot` was not overridden.
+**Fix:** `LemonBody.interact` now returns `InteractionResult.FAIL` (consumes the interaction, kills the item fallback) and `isEquippableInSlot` returns false. The client prediction on the vanilla-allay wire entity cannot be fully removed; the item never actually leaves the player's inventory now.
+### PD-83: `breeze_arena` breezes hop off the spawn platform into lava and die (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-1.md`. Player: "The breezes just spawned, went in the lava and died."
+**Severity:** Medium (the encounter resolves itself without the player).
+**Status:** Fixed 2026-09-29, verified in game 2026-09-29-2 ("Breeze arena was good"; floor logged 383 durability spent on a real fight). The centre pad is now 4x4 (x,z 6..9) and the stone walkways bridge straight across the lava to it, leaving an L-shaped lava pit in each corner of the centre (12 cells, was 32). A hop off the pad lands on stone; knockback off the pad or a bridge still lands in lava. `breeze_arena.nbt` regenerated with the new `/dungeon admin gentemplates <room>` (one template, not the library). Spawns stay on stone: breeze spawn placement needs solid ground below.
+**Expected:** breezes stay a threat; lava is danger for the player via knockback, not a mob disposal.
+**Actual:** breezes spawn on the small platform and hop into the lava centre shortly after.
+**Likely cause:** `KnowledgeSpecs.java:breezeArena` builds lava across the middle (x,z 5-10 at y 0) with a 2x2 stone platform under the spawner (comment at :446 acknowledges spawn-death only). Once the breeze jumps it lands in lava; most of the room floor is lava.
+**Fix idea:** widen the spawn platform, add landing pads so a hop lands on stone, or gate the arena's lava cells.
+
+### PD-84: GO HOME lever stands beside door 3; a player reaching for a door banked by accident (High)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-1.md`. "I accidentally pulled it, I didn't want to go home"; "I was trying to change my door selection." The 19:29 bank was a misclick (A5 regression after PD-70).
+**Severity:** High (a misclick ends the interval; there was no confirm).
+**Status:** Fixed 2026-09-29, verified in game 2026-09-29-2: two deliberate `home_lever` banks journal `trigger: home_lever` end to end with no misclick reported. Two changes. (1) The lever moved: `HOME_LEVER_ALONG` 5 to 2, the go-home screen from along 2..4 to 3..5, the bulb over the lever (`RoomTemplateGenerator`, `RoomProtection.isFurniture`, `DungeonScreen.HOME_SCREEN_ALONG`). The screen now sits between the lever and the doors, three clear blocks of door row on every wall; `RoomFurnitureTest` pins the gap. Not along 1: on a NORTH selector wall that is in front of the wall lodestone. (2) The pull asks first: `RitualListener` opens `DialogScreens.goHomeConfirm` (what going home banks, Go Home / Stay) for the owner; Go Home runs `/dungeon cashout`, which now plays the chime the lever used to. A non-owner still gets goHome's refusal.
+**Expected:** door select and GO HOME cannot be confused, and one stray click cannot end a run.
+**Actual:** on a SOUTH or WEST selector wall the viewer-mirrored HOME lever (along 5 seen, absolute 10) stood directly beside selector door 3 (absolute 9), which keeps its absolute slot; the lever banked on the first pull.
+**Cause:** PD-70 mirrored the levers but not the doors, so on mirrored walls the one free block in the row fell on the DESCEND side and GO HOME touched the doors. `RitualListener` called `RunLifecycle.goHome` directly on the pull.
+
+### PD-85: The door-preview glass sits behind the selector doors; the doors block the view (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-2.md`. Player: "It's kind of awkward having the preview glass behind the doors since the doors cover up what I can see. We should move the glass and ensure that there isn't a wall blocking the preview into the room from the new glass position."
+**Severity:** Medium (the preview's job is showing the next room; the doors occlude exactly that sight line).
+**Status:** Fixed 2026-09-29 (pending in-game look). The preview now also cuts a side window, 1 wide by 3 tall, at absolute along 6 (`RoomBuilder.PREVIEW_WINDOW_ALONG`, the window band's column) through both the staging room's wall and the entrance cell's wall, so the glass is beside door 1, not behind the doors. Along 6 is the one column beside the door slot that nothing stands in front of on every selector wall (the commit lever and go-home control are viewer mirrored and land at 5 or 10 and 2..5 or 10..13); `RoomFurnitureTest.testPreviewSideWindowIsClear` pins that. The door-slot glass stays as the seal (its top course is still a view). `clearPreview` hands the staging half back to the shell wall; a commit seals the staging half and patches the entrance half by copying the course beside it.
+**Expected:** the preview window is beside, above, or otherwise offset from the doors so the whole glass shows the previewed room, and nothing but glass stands between the player and the room.
+**Actual:** the glass pane is directly behind the selector doors, so a closed door covers most of the window.
+**Fix idea:** move the preview window out of the door row (above the doors, or on a wall segment between selector wall and HOME screen), and verify the wall on the far side does not block the view into the room either.
+
+### PD-86: `thicket` cave spider spawner never fires (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-2.md`. Player spent ~3 min in the room (21:37:23 to 21:40:37): "the spawner in the room filled webs doesn't spawn anything."
+**Severity:** Medium (the room's only encounter is dead).
+**Status:** Fixed 2026-09-29, verified in game 2026-09-29-3 ("yes in a good way, it works": cave spiders spawn; the room is now "pretty difficult"). Root cause found by reading, not by the suspects below: `TraversalSpecs` registered its situation handlers (`thicket`, `ice_run`, `flooded_hall`, `chasm`, `powder_snow_field`) in a `static {}` block, and on a live server nothing initialises that class except `/dungeon admin gentemplates` (`TraversalSpecs.list`). So `Situations.isRegistered("thicket")` was false, the cell fell through to the plain corridor dispatch, and `ClassicSpawners.configure` never ran: the baked zombie spawner (confirmed in `thicket.nbt` at 8,1,8) stayed a zombie spawner with no custom rules in a lit room. The same bug silenced `ice_run`'s breezes and `flooded_hall`'s iron doors and drowned. Now `TraversalSpecs.registerHandlers()` runs from `TrialContent.warmUp()` like every other family. Gametests `HandlerGameTest.traversalHandlersAreRegistered` and `thicketSpawnerBecomesCaveSpider` pin it.
+**Expected:** the classic spawner produces cave spiders while a player is in range.
+**Actual:** nothing spawned.
+**Likely cause:** unknown. `ClassicSpawners.configure` rewrites the baked spawner to `CAVE_SPIDER` with `custom_spawn_rules` 0..15 at stamp time (PD-68), and the tuning caps (`SpawnCount` 2, delays 200 to 400) should fire within seconds. Suspects: the spawn-position check failing inside the cobweb checkerboard, the baked block not being a `SPAWNER`, or the spawn rules not applying. Verification attempt in `2026-09-29-2.md` could not inspect the block entity before the cells released; a clone-scan of the suspected cell found no spawner block at all, so template placement is also in doubt.
+**Fix idea:** stamp a thicket on a test slot and `/data get` the spawner's block entity; check `SpawnData` id and rules, then watch whether `BaseSpawner` attempts fire.
+
+### PD-87: A trial key does not stack with other trial keys and does not work (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-2.md`. Player: "I have trial key in my inventory that doesn't work and doesn't stack with the other ones."
+**Severity:** Medium (a duped-looking, unstackable key reads as broken loot).
+**Status:** Fixed 2026-09-29. Cause confirmed: the nine chest tables (`chests/tier_N`, `_drowned`, `_ominous`) and two spur vault tables stamped `custom_data {pocketdungeons:{bag:1}}` on `minecraft:trial_key`, while trial spawners eject a bare key (`spawners/trial_key`) and the vault's `key_item` is a bare key (`TrialContent.keyStack`). A vault matches item and components, so the tagged key opened nothing, and the two kinds never stacked. The bag tag on keys only fed an informational "untagged stack" notice. All eleven entries are bare now; `TrialKeyLootTest` walks every loot table and fails on any key entry with a function. Keys already in packs are stripped of custom data when used on a vault (`RitualListener`, `TrialContent.bareKey`).
+**Expected:** all trial keys are identical items that stack and open vaults.
+**Actual:** at least one key carries different data: it refuses to stack and "doesn't work".
+**Likely cause:** a loot source writes a component onto the key (a name, tag or custom data) that vanilla keys lack; non-identical components block stacking, and if the vault checks the key by components the odd key may also fail to open.
+**Fix idea:** find every loot path that creates `minecraft:trial_key` (vault `keytag`, chest loot tables, mob drops) and confirm they emit a bare item; check what the vault requires.
+
+### PD-88: The explosive hazard's plate support makes the trap untriggerable by accident (Low)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-2.md`. Player: "Why is there a stone block between the tnt and the pressure plates, I won't accidentally step on the tnt like this" and later "the stoneblock between the tnt is a bug".
+**Severity:** Low (a hazard that can never catch anyone is decoration, but it does not break a run).
+**Status:** Fixed 2026-09-29 (pending in-game look). The stone block was not the intended design but its fallback: `findExplosiveSupport` looked for an air neighbour at floor level, which a solid floor never has, so every hazard stacked stone on the TNT with the plate on top. Now the plate lies flush on a conductive floor block beside the TNT (`RoomContent.findFlushPlate`): the pressed plate strongly powers that floor block, which ignites the TNT next to it, and the plate still rests on ordinary floor when the TNT turns into a primed entity. A TNT with no qualifying neighbour is skipped, never given a pillar. The plate watch that removes a triggered plate without a drop used to lapse 30 s after the stamp (long before a player arrives); it now lasts an hour and ends when the chunk unloads. Floor obstruction scatter: not done, since there is no decor pass to hang it on; noted in the playtest file for the room pass.
+**Expected:** the explosive hazard can catch a careless player.
+**Actual:** `RoomContent.placeExplosiveHazards` puts the pressure plate on a stone support block adjacent to the TNT (so the plate survives ignition), which reads as a separated, avoidable mechanism.
+**Fix idea:** hide the support (put the plate flush at floor level over the TNT, or embed the support in the floor) while keeping the plate alive after ignition; or replace the readable pair with a floor that gives way. The player also suggested scattered floor obstructions as general room texture, worth a separate decor pass.
+
+### PD-89: Crafted diamond gear sidesteps the durability economy (Medium)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-3.md`. Player: "this diamond sword I've crafted has lasted a really long time"; "i've used it for at least a few floors and it's hardly damaged."
+**Severity:** Medium (one crafted item removes the weapon wear loop that the loot tables are tuned around).
+**Status:** Fixed 2026-09-30, pending in-game verify. Not a design gap: a craft-path leak. The mod already caps crafted and dropped weapons and armour (`DungeonTools.durabilityCap`: diamond 96 each, vanilla 1561 sword, 363 to 528 armour). The player's save showed both crafted diamond swords with no `max_damage` (full 1561, damage 90) while his diamond armour and dropped iron sword carried the caps (96, 64). Cause: shift-clicking a result runs `CraftingMenu.quickMoveStack`, which moves the stack without `ResultSlot.remove`, the only place `ResultSlotMixin` capped it. Fix: `CraftedDurabilityMixin` caps in place at `Item.onCraftedBy`, which that path calls on the stack just before moving it (and every other craft path calls too); `DungeonTools.capInPlace`. The armour counterpoint is the cap working as tuned: 96 per piece against vanilla's 363 to 528, drained a point or more per hit taken, so it goes about four to five times faster than vanilla. Swords already crafted before the fix keep 1561 until they break.
+**Expected:** crafted gear competes with dungeon drops inside the same churn.
+**Actual:** a vanilla diamond sword (~1500 durability) outlasts every dungeon drop, so once the player crafts one the short-lived-gear economy stops applying to their main weapon.
+**Counterpoint:** same session, "my diamond armour broke VERY quickly", "probably combat". Armour drains a point per hit taken, so the sword's longevity may be vanilla asymmetry rather than a mod issue on its own; check whether the armour drain rate is vanilla before retuning either direction.
+**Fix idea:** decide the intended ceiling: shorter-lived crafting results inside the dungeon, a durability tax on crafted gear at the anvil/kit level, or accept the leak and rebalance drops around it.
+
+### PD-90: `room_bias` has no lockout, slow apply feedback, no timeout, and the door sign does not show it (Low)
+
+**Reported:** 2026-09-29, live session `docs/playtests/2026-09-29-3.md`. Player (after consenting to a bias and watching it take ~2 min because the MCP server was mid-restart): "next time you use the generation-bias feature, you should lock me out of starting the next run while you set it up, do it faster and have an appropriate timeout time in case you get stuck, also have the sign above the doors reflect this."
+**Severity:** Low (harness feature; the gap between consent and application let him reach the door while setup was still in flight).
+**Status:** Fixed 2026-09-30, pending in-game verify. (1) Lockout: `/dungeon admin bias hold <player> [seconds]` (MCP `room_bias_hold`) refuses door preview and commit with the seconds left. (2) Feedback: setting or clearing a bias releases every hold and tells each player choosing a door what changed ("Lemon has set up the next floor: it leans toward thicket (x20)"); the server side was already instant, the 2 minutes were the MCP restart. (3) Timeout: a hold defaults to 90 s, is capped at 180, and runs out on its own with a message; the MCP bias calls now time out at 10 s. (4) Door screen: a countdown line while held, then "Leaning toward: thicket x20" while a bias is in force, refreshed on every change. Also closed a gap the report implied: a preview planned before the bias changed is refused at commit ("Right-click the door again"), since a preview plans its floor when it opens.
+**Expected:** while a bias is being arranged the next door is held; the bias applies quickly or fails loudly inside a timeout; the staging room sign shows what is currently biased.
+**Actual:** the bias is applied at once with no player-facing hold or acknowledgement, and nothing in the staging room shows a bias is in force.
+**Fix idea:** a `bias` flag the door/commit path checks (hold commit while set, or show "preparing"), plus a sign line listing active biases; on the MCP side a bounded apply so a stuck agent does not leave the player waiting.
+
+### PD-91: Rising Lava never armed in a real run; its lava never spread (Medium)
+
+**Found:** 2026-09-30, moving the room handlers onto the Ordeal framework (`docs/reference/ORDEALS.md`).
+**Severity:** Medium (a whole room's danger silently missing; nobody had seen the room work in play).
+**Status:** Fixed 2026-09-30, pending in-game verify.
+**Actual:** the `rising_lava` situation handler returned `null` without calling `RisingLavaHandler.arm`, and nothing else armed it. Only `HandlerGameTest` did, so the tests passed while live rooms stayed inert: no lava, a lever that did nothing.
+**Fix:** the room is now `RisingLavaOrdeal`, armed from `LayoutStamper.applyDirectionalGates` right after its lever is placed on the exit side. The baked lever came out of the template: at the old spot it faced into the open exit doorway, and a layout turned round would have put it at the entrance. Note for the next playtest: this is the first time the lava actually runs, filling the room in about seven seconds unless the lever is reached.

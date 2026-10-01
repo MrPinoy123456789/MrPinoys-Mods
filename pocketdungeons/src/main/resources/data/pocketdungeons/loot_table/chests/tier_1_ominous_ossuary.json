@@ -37,7 +37,7 @@
               }
             }
           ],
-          "weight": 5
+          "weight": 7
         },
         {
           "type": "minecraft:item",
@@ -114,7 +114,7 @@
               }
             }
           ],
-          "weight": 4
+          "weight": 1
         },
         {
           "type": "minecraft:item",

@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * The station picker: an SGUI chest where the room's owner takes station
- * blocks to place in their room. Three vanilla blocks, one per sink, each
+ * blocks to place in their room. Four vanilla blocks, one per sink, each
  * unlocked at a keystone-level threshold. Locked stations appear as greyed
  * icons with their unlock requirement in the lore; unlocked stations are
  * clickable and give the player the block item to place wherever they want.
@@ -53,9 +53,10 @@ import java.util.List;
 final class StationPicker {
 
     /** Middle row of a 9x3 chest, spaced for readability. */
-    private static final int SLOT_REROLL = 11;
-    private static final int SLOT_GAMBLE = 13;
-    private static final int SLOT_CUBE = 15;
+    private static final int SLOT_SALVAGE = 10;
+    private static final int SLOT_REROLL = 12;
+    private static final int SLOT_GAMBLE = 14;
+    private static final int SLOT_CUBE = 16;
 
     private StationPicker() {}
 
@@ -69,6 +70,18 @@ final class StationPicker {
                 .get(player.getUUID()).keystoneLevel();
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false);
         gui.setTitle(Component.literal("Stations"));
+
+        gui.setSlot(SLOT_SALVAGE, stationElement(
+                "Salvage Bench",
+                resolveItem(PocketDungeonsConfig.salvageBlock()),
+                level >= PocketDungeonsConfig.salvageUnlockLevel(),
+                PocketDungeonsConfig.salvageUnlockLevel(),
+                List.of(
+                        "Scraps surplus gear and spare vault keys.",
+                        "Dungeon gear and keys pay emeralds; mob gear pays XP.",
+                        "Right-click the block with gear or a key in hand.",
+                        "An empty hand uses it as a normal grindstone."),
+                player));
 
         gui.setSlot(SLOT_REROLL, stationElement(
                 "Smithing Table",

@@ -42,18 +42,38 @@ final class TraversalSpecs {
 
     private TraversalSpecs() {}
 
-    static {
+    private static boolean handlersRegistered;
+
+    /**
+     * Registers the traversal family's situation handlers. Called from
+     * {@link TrialContent#warmUp} like every other family.
+     *
+     * <p>PD-86: this used to be a static initializer, which only runs when the
+     * class is first touched, and on a live server nothing but
+     * {@code /dungeon admin gentemplates} ({@link #list}) ever touched it. So
+     * {@code thicket}, {@code ice_run} and {@code flooded_hall} were never
+     * registered: their cells fell through to the plain corridor dispatch and
+     * the baked zombie spawner stayed a zombie spawner that a lit room never
+     * lets fire.
+     */
+    static void registerHandlers() {
+        if (handlersRegistered) {
+            return;
+        }
+        handlersRegistered = true;
+
         Situations.register("flooded_hall", TraversalSpecs::floodedHall);
         // PD-68: the baked classic spawner is a zombie spawner that a lit room
         // never lets fire; give it the room's own mob and light-free rules.
+        // The Ordeal also sets the spawner to its mob (ClassicSpawners).
         Situations.register("thicket", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
-            ClassicSpawners.configure(level, o, EntityTypes.CAVE_SPIDER);
+            Ordeals.arm(SpawnerOrdeal.THICKET, level, o);
             return null;
         });
         Situations.register("ice_run", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
-            ClassicSpawners.configure(level, o, EntityTypes.BREEZE);
+            Ordeals.arm(SpawnerOrdeal.ICE_RUN, level, o);
             return null;
         });
         // M58: template-only traversal rooms. The decor in the RoomSpec is
@@ -143,43 +163,73 @@ final class TraversalSpecs {
                 .spawner(new BlockPos(8, 1, 8))
                 .decor((level, o) -> {
                     BlockState web = Blocks.COBWEB.defaultBlockState();
-                    // Playtest 2026-09-27: half the webs. A 3D checkerboard
-                    // keeps every step slow without walling the room solid.
+                    // Playtest 2026-09-27: half the webs, as a 3D checkerboard.
+                    // Playtest 2026-09-29-3, once the spawner fired: half again,
+                    // "a kind of lattice". Every fourth diagonal plane: a quarter
+                    // of the cells, and a two-block-tall player now meets a web
+                    // on about half their steps rather than on every one.
                     for (int x = 1; x <= CELL - 2; x++) {
                         for (int z = 1; z <= CELL - 2; z++) {
                             for (int y = 1; y <= WALL_HEIGHT; y++) {
-                                if ((x + y + z) % 2 != 0) {
+                                if ((x + y + z) % 4 != 0) {
                                     continue;
                                 }
                                 RoomBuilder.set(level, o.offset(x, y, z), web);
                             }
                         }
                     }
+                    // The Ordeal's lever on the spawner's east face, its lamp
+                    // above. Neither cell is on the web lattice.
+                    Ordeals.placeWallLever(level, o.offset(9, 1, 8), Direction.EAST);
                 }));
 
-        // Ice Run: blue ice floor with stone ledges along the north and
-        // south walls at y=3, pointed dripstone spikes at floor level beside
-        // the walls, and a breeze spawner on the north ledge. The spawner
-        // is set to breezes at stamp time (ClassicSpawners, PD-68).
+        // Ice Run (owner design, 2026-09-30): a climbing Ordeal. Floating
+        // packed ice hops rise from each doorway to a 2x2 snow platform in
+        // the middle of the room, three blocks up, with the Ordeal's lever on
+        // top. Miss a hop and you land on the floor, where the higher hops
+        // are out of reach: back to the start. A stray spawner on the floor
+        // shoots you off the ice. Or pillar: three looted blocks from the
+        // floor reach the platform, the room's vertical answer.
+        //
+        // Heights: the interior is y=1..5 under the ceiling at 6. Hops are
+        // y=1 (top at 2) then y=2 (top at 3); the platform is y=3 (top at 4,
+        // head clear at 5.8). The last jump up brushes the ceiling, which
+        // still lands it. The course is symmetric under a half turn (x and z
+        // both mirrored), so a turned room keeps a course from each door to
+        // the middle and the lever can be baked.
         specs.add(new RoomSpec("ice_run", EnumSet.of(Direction.WEST, Direction.EAST))
-                .spawner(new BlockPos(4, 4, 2))
+                .spawner(new BlockPos(8, 1, 2))
                 .decor((level, o) -> {
-                    BlockState blueIce = Blocks.BLUE_ICE.defaultBlockState();
-                    BlockState stone = Blocks.STONE.defaultBlockState();
+                    BlockState floor = Blocks.PACKED_ICE.defaultBlockState();
+                    BlockState hop = Blocks.PACKED_ICE.defaultBlockState();
+                    BlockState platform = Blocks.SNOW_BLOCK.defaultBlockState();
                     BlockState spike = Blocks.POINTED_DRIPSTONE.defaultBlockState();
                     for (int x = 1; x <= CELL - 2; x++) {
                         for (int z = 1; z <= CELL - 2; z++) {
-                            RoomBuilder.set(level, o.offset(x, 0, z), blueIce);
+                            RoomBuilder.set(level, o.offset(x, 0, z), floor);
                         }
                     }
-                    for (int x = 1; x <= CELL - 2; x++) {
-                        RoomBuilder.set(level, o.offset(x, 3, 1), stone);
-                        RoomBuilder.set(level, o.offset(x, 3, CELL - 2), stone);
+                    // West approach, then the same course turned half round
+                    // for the east: (x, z) -> (15 - x, 15 - z).
+                    int[][] hops = {{2, 1, 7}, {4, 2, 8}, {6, 2, 6}};
+                    for (int[] h : hops) {
+                        RoomBuilder.set(level, o.offset(h[0], h[1], h[2]), hop);
+                        RoomBuilder.set(level, o.offset(CELL - 1 - h[0], h[1], CELL - 1 - h[2]), hop);
                     }
-                    for (int x = 2; x <= CELL - 3; x++) {
-                        RoomBuilder.set(level, o.offset(x, 1, 2), spike);
-                        RoomBuilder.set(level, o.offset(x, 1, CELL - 3), spike);
+                    for (int x = 7; x <= 8; x++) {
+                        for (int z = 7; z <= 8; z++) {
+                            RoomBuilder.set(level, o.offset(x, 3, z), platform);
+                        }
                     }
+                    // Dripstone under the gaps, so a fall from the ice hurts.
+                    int[][] spikes = {{5, 7}, {7, 9}};
+                    for (int[] s : spikes) {
+                        RoomBuilder.set(level, o.offset(s[0], 1, s[1]), spike);
+                        RoomBuilder.set(level, o.offset(CELL - 1 - s[0], 1, CELL - 1 - s[1]), spike);
+                    }
+                    // The Ordeal's lever stands on the platform; its lamp is
+                    // the platform block under it, lit through the lever.
+                    Ordeals.placeFloorLever(level, o.offset(8, 4, 8));
                 }));
 
         return specs;

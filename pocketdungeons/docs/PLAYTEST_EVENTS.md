@@ -65,6 +65,8 @@ at home before the first door.
 | `bank` | Interval settled for this player | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `band`, `levels_gained`, `carry`, `chests`, `depth_bonus`, `key_level` |
 | `kit_topup` | Kit top-up applied | `band`, `granted` (object item id to count), `tools_replaced` (array) |
 | `quit_floor` | `/dungeon quit` | `penalty` (levels) |
+| `ordeal` | An Ordeal room is resolved (its lever pulled, or its objective met), written for each player in the room | `ordeal` (`rising_lava`, `collapsing_bridge`, `thicket`, `ice_run`, `hold_the_plate`), `seconds` since the room was armed |
+| `salvage` | The Salvage button at the salvage bench pays out | `gear`, `keys`, `ominous_keys`, `mob_gear` (counts taken); `emeralds`, `fuel`, `xp` (paid) |
 | `run_failed` | A max-omen death fails the whole run | `cause` (damage type id), `floor_omen`, `interval_omen`, `floor`, `slot` |
 | `owner_hold` | Owner reconnect grace starts, resumes or expires | `state`: `start`, `resume`, `expire` |
 | `checkin` | Player answers the in-game check-in | `prompt` (`after_bank`, `after_quit`, `after_session`), `score` (1 to 5, or null if skipped), `comment` (string, may be empty) |

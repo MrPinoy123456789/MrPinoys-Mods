@@ -444,14 +444,25 @@ final class KnowledgeSpecs {
                         RoomBuilder.set(level, o.offset(x, 0, 8), plat);
                     }
                     // Fighting platform under the spawner so the breeze has
-                    // solid ground to stand on. Without this the spawner sits
-                    // over lava and the breeze falls in and dies on spawn.
-                    // The platform is small (2x2) so knockback into the
-                    // surrounding lava is still the room's danger.
-                    RoomBuilder.set(level, o.offset(7, 0, 7), plat);
-                    RoomBuilder.set(level, o.offset(8, 0, 8), plat);
-                    RoomBuilder.set(level, o.offset(7, 0, 8), plat);
-                    RoomBuilder.set(level, o.offset(8, 0, 7), plat);
+                    // solid ground to stand on. PD-83: a 2x2 pad kept the
+                    // breeze alive only until its first hop, which landed in
+                    // the lava and let the room clear itself. The pad is now
+                    // 4x4 (6..9) and the walkways bridge straight across the
+                    // lava to it, so a hop from the pad lands on stone. What
+                    // is left of the lava is an L-shaped pit in each corner
+                    // of the centre: knockback off the pad or a bridge is
+                    // still the room's danger for the player.
+                    for (int x = 6; x <= 9; x++) {
+                        for (int z = 6; z <= 9; z++) {
+                            RoomBuilder.set(level, o.offset(x, 0, z), plat);
+                        }
+                    }
+                    for (int i = 5; i <= 10; i++) {
+                        RoomBuilder.set(level, o.offset(7, 0, i), plat);
+                        RoomBuilder.set(level, o.offset(8, 0, i), plat);
+                        RoomBuilder.set(level, o.offset(i, 0, 7), plat);
+                        RoomBuilder.set(level, o.offset(i, 0, 8), plat);
+                    }
                 });
     }
 

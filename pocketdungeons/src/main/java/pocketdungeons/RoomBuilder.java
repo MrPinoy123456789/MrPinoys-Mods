@@ -356,6 +356,57 @@ final class RoomBuilder {
         doorSlot(level, cellOrigin, door, Blocks.GLASS.defaultBlockState());
     }
 
+    /**
+     * PD-85: where the door preview's side window stands along the wall, the
+     * column just left of the door slot in absolute terms. The selector doors
+     * stand one block in front of along 7..9 and cover the slot itself, so a
+     * window there showed the previewed room only above the doors. Along 6 is
+     * the one column beside the slot that nothing stands in front of on every
+     * selector wall: the commit lever and go-home control are viewer mirrored
+     * ({@link RoomGeometry#viewerAlong}) and land at 5 or 10 and 2..5 or 10..13,
+     * never 6. It is also the window band's column, so the far wall of the
+     * entrance cell is plain template wall there, which the preview cuts too.
+     */
+    static final int PREVIEW_WINDOW_ALONG = WINDOW_MIN;
+
+    /**
+     * PD-85: fills the preview side window column on {@code wall} (along
+     * {@link #PREVIEW_WINDOW_ALONG}, Y=1..{@link RoomGeometry#DOOR_HEIGHT})
+     * with {@code state}: glass while a preview stands, the room's wall again
+     * when it goes. Both the staging room and the entrance cell cut the same
+     * column, so the two walls between them line up by construction.
+     */
+    static void previewSideWindow(ServerLevel level, BlockPos cellOrigin, Direction wall, BlockState state) {
+        for (int y = 1; y <= DOOR_HEIGHT; y++) {
+            set(level, sideWindowPos(cellOrigin, wall, PREVIEW_WINDOW_ALONG, y), state);
+        }
+    }
+
+    /**
+     * PD-85: closes the preview side window on a cell whose wall is not a
+     * known shell (a themed dungeon cell), copying each course from the block
+     * one further along the wall so the patch matches whatever the template
+     * built there.
+     */
+    static void sealPreviewSideWindowLikeBeside(ServerLevel level, BlockPos cellOrigin, Direction wall) {
+        int i = PREVIEW_WINDOW_ALONG;
+        for (int y = 1; y <= DOOR_HEIGHT; y++) {
+            BlockPos pos = sideWindowPos(cellOrigin, wall, i, y);
+            BlockPos beside = sideWindowPos(cellOrigin, wall, i - 1, y);
+            set(level, pos, level.getBlockState(beside));
+        }
+    }
+
+    private static BlockPos sideWindowPos(BlockPos cellOrigin, Direction wall, int along, int y) {
+        return switch (wall) {
+            case NORTH -> cellOrigin.offset(along, y, 0);
+            case SOUTH -> cellOrigin.offset(along, y, CELL - 1);
+            case WEST -> cellOrigin.offset(0, y, along);
+            case EAST -> cellOrigin.offset(CELL - 1, y, along);
+            default -> throw new IllegalArgumentException("wall must be horizontal: " + wall);
+        };
+    }
+
     private static void doorSlot(ServerLevel level, BlockPos cellOrigin, Direction door, BlockState state) {
         for (int y = 1; y <= DOOR_HEIGHT; y++) {
             for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {

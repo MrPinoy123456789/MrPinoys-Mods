@@ -9,6 +9,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -101,7 +102,15 @@ final class LemonBody extends Allay {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand, Vec3 location) {
-        return InteractionResult.PASS;
+        // FAIL, not PASS: PASS lets interactOn fall through to the held item's
+        // interactLivingEntity, which can equip armour and the like onto this
+        // allay (it is still a LivingEntity).
+        return InteractionResult.FAIL;
+    }
+
+    @Override
+    public boolean isEquippableInSlot(ItemStack stack, EquipmentSlot slot) {
+        return false;
     }
 
     @Override

@@ -7,7 +7,7 @@
   "maxPerDungeon": -1,
   "content": "ice_run",
   "tier": 2,
-  "provides": ["wind_charge"],
+  "provides": [],
   "requires": [],
   "pressure": "local",
   "access": "open",

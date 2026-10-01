@@ -200,6 +200,13 @@ public final class PocketDungeonsConfig {
      * premium path at all, not that it reaches a worse version of it.
      */
     private static int greaterDoorMinLevel = 15;
+    /**
+     * Door 2's own keystone level gate, below {@link #greaterDoorMinLevel}
+     * which now gates door 3 only (playtest 2026-09-29: at one shared gate of
+     * 15 a new player never saw a door choice at all; the player asked for
+     * door 2 at level 7 or 8).
+     */
+    private static int door2MinLevel = 7;
 
     // ---- Pocket2 sub-dungeon (M25) -------------------------------------------
     /** How long a Pocket2 child stays open once entered, in seconds. */
@@ -300,6 +307,33 @@ public final class PocketDungeonsConfig {
      * accumulate first.
      */
     private static int gambleUnlockLevel = 10;
+
+    // ---- salvage bench (playtest 2026-09-29, docs/reference/SALVAGE_PROPOSAL.md) --
+    /**
+     * The block the salvage bench is. Claimed only while the player holds
+     * something salvageable, so an empty hand still opens the vanilla
+     * grindstone.
+     */
+    private static String salvageBlock = "minecraft:grindstone";
+    /**
+     * Emeralds per tier for one piece of tagged gear. A tier-N gamble costs
+     * {@link #gambleEmeraldsPerTier} times N, so at 1 here scrapping back
+     * into the gamble is always 6 to 1 and never a loop that pays.
+     */
+    private static int salvageEmeraldsPerTier = 1;
+    /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */
+    private static int salvageKeyEmeralds = 1;
+    /** Emeralds per ominous vault key. */
+    private static int salvageOminousKeyEmeralds = 3;
+    /**
+     * Vault keys per unit of engine fuel, instead of emeralds; 0 turns it
+     * off. Off by default (owner decision 2026-09-29): at about 3 spare keys
+     * an interval any rate here moves fuel income a lot, so it waits until
+     * door 2 use shows fuel is the bottleneck.
+     */
+    private static int salvageKeysPerFuel = 0;
+    /** Keystone level the bench opens at. 1: the surplus starts in the first interval. */
+    private static int salvageUnlockLevel = 1;
 
     // ---- Herobrine Cube (M17) -----------------------------------------------
     /**
@@ -589,6 +623,23 @@ public final class PocketDungeonsConfig {
         return greaterDoorMinLevel;
     }
 
+    public static int door2MinLevel() {
+        return door2MinLevel;
+    }
+
+    /**
+     * The keystone level selector door {@code step} needs before a gated
+     * (non-free) offer behind it can be taken: door 2 has its own gate,
+     * door 3 keeps {@link #greaterDoorMinLevel}. Door 1 is never gated.
+     */
+    public static int doorMinLevel(int step) {
+        return switch (step) {
+            case 1 -> 0;
+            case 2 -> door2MinLevel;
+            default -> greaterDoorMinLevel;
+        };
+    }
+
     public static int pocket2TimerSeconds() {
         return pocket2TimerSeconds;
     }
@@ -631,6 +682,30 @@ public final class PocketDungeonsConfig {
 
     public static int gambleUnlockLevel() {
         return gambleUnlockLevel;
+    }
+
+    public static String salvageBlock() {
+        return salvageBlock;
+    }
+
+    public static int salvageEmeraldsPerTier() {
+        return salvageEmeraldsPerTier;
+    }
+
+    public static int salvageKeyEmeralds() {
+        return salvageKeyEmeralds;
+    }
+
+    public static int salvageOminousKeyEmeralds() {
+        return salvageOminousKeyEmeralds;
+    }
+
+    public static int salvageKeysPerFuel() {
+        return salvageKeysPerFuel;
+    }
+
+    public static int salvageUnlockLevel() {
+        return salvageUnlockLevel;
     }
 
     public static String cubeBlock() {
@@ -754,6 +829,7 @@ public final class PocketDungeonsConfig {
         fuelCostPerGreaterDoor = 3;
         fuelPerFreeRun = 1;
         greaterDoorMinLevel = 15;
+        door2MinLevel = 7;
 
         pocket2TimerSeconds = 60;
         pocket2DoorChance = 0.2;
@@ -772,6 +848,13 @@ public final class PocketDungeonsConfig {
         gambleSlotMultiplier = 1.5;
         gambleWeightedSlot = "weapon";
         gambleUnlockLevel = 10;
+
+        salvageBlock = "minecraft:grindstone";
+        salvageEmeraldsPerTier = 1;
+        salvageKeyEmeralds = 1;
+        salvageOminousKeyEmeralds = 3;
+        salvageKeysPerFuel = 0;
+        salvageUnlockLevel = 1;
 
         cubeBlock = "minecraft:beacon";
         cubeUnlockLevel = 15;
@@ -928,6 +1011,7 @@ public final class PocketDungeonsConfig {
         fuelCostPerGreaterDoor = readInt(root, "fuelCostPerGreaterDoor", 3, v -> v >= 0, "must be >= 0");
         fuelPerFreeRun = readInt(root, "fuelPerFreeRun", 1, v -> v >= 0, "must be >= 0");
         greaterDoorMinLevel = readInt(root, "greaterDoorMinLevel", 15, v -> v >= 1, "must be >= 1");
+        door2MinLevel = readInt(root, "door2MinLevel", 7, v -> v >= 1, "must be >= 1");
 
         pocket2TimerSeconds = readInt(root, "pocket2TimerSeconds", 60, v -> v >= 1, "must be >= 1");
         pocket2DoorChance = readDouble(root, "pocket2DoorChance", 0.2,
@@ -950,6 +1034,13 @@ public final class PocketDungeonsConfig {
         gambleWeightedSlot = readString(root, "gambleWeightedSlot", "weapon", false);
         gambleUnlockLevel = readInt(root, "gambleUnlockLevel", 10, v -> v >= 1, "must be >= 1");
 
+        salvageBlock = readString(root, "salvageBlock", "minecraft:grindstone", false);
+        salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
+        salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
+        salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
+        salvageKeysPerFuel = readInt(root, "salvageKeysPerFuel", 0, v -> v >= 0, "must be >= 0");
+        salvageUnlockLevel = readInt(root, "salvageUnlockLevel", 1, v -> v >= 1, "must be >= 1");
+
         cubeBlock = readString(root, "cubeBlock", "minecraft:beacon", false);
         cubeUnlockLevel = readInt(root, "cubeUnlockLevel", 15, v -> v >= 1, "must be >= 1");
         powerBonuses = readPowerBonuses(root);
@@ -964,9 +1055,11 @@ public final class PocketDungeonsConfig {
         // level cap can be a legitimate server choice, so this warns rather
         // than refuses or clamps; the operator just needs to know what it
         // costs.
-        warnIfGateUnreachable("greaterDoorMinLevel", greaterDoorMinLevel, "Greater doors");
+        warnIfGateUnreachable("greaterDoorMinLevel", greaterDoorMinLevel, "Door 3");
+        warnIfGateUnreachable("door2MinLevel", door2MinLevel, "Door 2");
         warnIfGateUnreachable("rerollUnlockLevel", rerollUnlockLevel, "the reroll station");
         warnIfGateUnreachable("gambleUnlockLevel", gambleUnlockLevel, "the gamble station");
+        warnIfGateUnreachable("salvageUnlockLevel", salvageUnlockLevel, "the salvage bench");
         warnIfGateUnreachable("cubeUnlockLevel", cubeUnlockLevel, "the Herobrine Cube");
     }
 
@@ -1221,6 +1314,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("fuelCostPerGreaterDoor", 3);
         root.addProperty("fuelPerFreeRun", 1);
         root.addProperty("greaterDoorMinLevel", 15);
+        root.addProperty("door2MinLevel", 7);
 
         root.addProperty("pocket2TimerSeconds", 60);
         root.addProperty("pocket2DoorChance", 0.2);
@@ -1248,6 +1342,13 @@ public final class PocketDungeonsConfig {
         root.addProperty("gambleSlotMultiplier", 1.5);
         root.addProperty("gambleWeightedSlot", "weapon");
         root.addProperty("gambleUnlockLevel", 10);
+
+        root.addProperty("salvageBlock", "minecraft:grindstone");
+        root.addProperty("salvageEmeraldsPerTier", 1);
+        root.addProperty("salvageKeyEmeralds", 1);
+        root.addProperty("salvageOminousKeyEmeralds", 3);
+        root.addProperty("salvageKeysPerFuel", 0);
+        root.addProperty("salvageUnlockLevel", 1);
 
         root.addProperty("cubeBlock", "minecraft:beacon");
         root.addProperty("cubeUnlockLevel", 15);

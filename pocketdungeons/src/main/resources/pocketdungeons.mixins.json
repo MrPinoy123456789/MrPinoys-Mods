@@ -5,6 +5,7 @@
   "mixins": [
     "CustomClickMixin",
     "ResultSlotMixin",
+    "CraftedDurabilityMixin",
     "BlockItemPlaceMixin",
     "ServerExplosionMixin",
     "ServerCommonPacketListenerAccessor",

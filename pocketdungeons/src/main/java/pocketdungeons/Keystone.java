@@ -81,7 +81,7 @@ final class Keystone {
      * Which half of the ladder a door belongs to (M12). {@code FREE} is door 1:
      * untimed cost, no depletion on failure, pays out fuel. {@code GREATER} is
      * doors 2/3: costs fuel, keeps the clock and the depletion, and is refused
-     * below {@link PocketDungeonsConfig#greaterDoorMinLevel()}.
+     * below its door's {@link PocketDungeonsConfig#doorMinLevel(int)}.
      */
     /** M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is active. */
     enum Tier { FREE, GREATER, EXPERIMENTAL }

@@ -40,9 +40,9 @@ public final class HandlerGameTest {
 
     /** Ticks to wait for Locks.tick (period 10) to evaluate at least once. */
     private static final long LOCK_WAIT = 25L;
-    /** Ticks to wait for RisingLavaHandler.tick (period 2) to evaluate. */
+    /** Ticks to wait for RisingLavaOrdeal (through Ordeals.tick) (period 2) to evaluate. */
     private static final long LAVA_WAIT = 15L;
-    /** Ticks to wait for CollapsingBridgeHandler.tick (period 2) to evaluate. */
+    /** Ticks to wait for CollapsingBridgeOrdeal (through Ordeals.tick) (period 2) to evaluate. */
     private static final long BRIDGE_WAIT = 15L;
 
     // ---- Locks: ITEM_KEY ----
@@ -184,7 +184,7 @@ public final class HandlerGameTest {
         });
     }
 
-    // ---- RisingLavaHandler: lever drain ----
+    // ---- RisingLavaOrdeal: lever drain ----
 
     /**
      * Pulling the lever drains all lava and marks the room solved. The handler
@@ -201,8 +201,8 @@ public final class HandlerGameTest {
         // Place a lever and some lava.
         level.setBlock(leverPos, Blocks.LEVER.defaultBlockState(), 3);
         level.setBlock(lavaPos, Blocks.LAVA.defaultBlockState(), 3);
-        RisingLavaHandler.arm(level, origin);
-        helper.assertTrue(RisingLavaHandler.isArmed(origin), "the lava hazard armed");
+        Ordeals.arm(RisingLavaOrdeal.INSTANCE, level, origin);
+        helper.assertTrue(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin), "the lava hazard armed");
 
         // Pull the lever: powered = true.
         BlockState leverState = level.getBlockState(leverPos);
@@ -211,14 +211,14 @@ public final class HandlerGameTest {
         helper.runAfterDelay(LAVA_WAIT, () -> {
             helper.assertFalse(level.getBlockState(lavaPos).is(Blocks.LAVA),
                     "the lava was drained when the lever was pulled");
-            helper.assertFalse(RisingLavaHandler.isArmed(origin),
+            helper.assertFalse(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin),
                     "the solved room dropped itself from the active map");
-            RisingLavaHandler.clear(origin);
+            Ordeals.clear(origin);
             helper.succeed();
         });
     }
 
-    // ---- RisingLavaHandler: stale cleanup ----
+    // ---- RisingLavaOrdeal: stale cleanup ----
 
     /**
      * A lava room whose lever has been torn down is stale and must be purged.
@@ -231,21 +231,21 @@ public final class HandlerGameTest {
         BlockPos leverPos = helper.absolutePos(new BlockPos(1, 1, 1));
 
         level.setBlock(leverPos, Blocks.LEVER.defaultBlockState(), 3);
-        RisingLavaHandler.arm(level, origin);
-        helper.assertTrue(RisingLavaHandler.isArmed(origin), "the lava hazard armed");
+        Ordeals.arm(RisingLavaOrdeal.INSTANCE, level, origin);
+        helper.assertTrue(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin), "the lava hazard armed");
 
         // Remove the lever: the room is stale.
         level.setBlock(leverPos, Blocks.AIR.defaultBlockState(), 3);
 
         helper.runAfterDelay(LAVA_WAIT, () -> {
-            helper.assertFalse(RisingLavaHandler.isArmed(origin),
+            helper.assertFalse(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin),
                     "the stale lava hazard was purged when its lever disappeared");
-            RisingLavaHandler.clear(origin);
+            Ordeals.clear(origin);
             helper.succeed();
         });
     }
 
-    // ---- CollapsingBridgeHandler: stale cleanup ----
+    // ---- CollapsingBridgeOrdeal: stale cleanup ----
 
     /**
      * A bridge whose pistons have been torn down is stale and must be purged.
@@ -272,22 +272,22 @@ public final class HandlerGameTest {
         level.setBlock(pistonA.south().south(), Blocks.OAK_PLANKS.defaultBlockState(), 3);
         level.setBlock(pistonB.north().north(), Blocks.OAK_PLANKS.defaultBlockState(), 3);
 
-        CollapsingBridgeHandler.arm(level, origin);
-        helper.assertTrue(CollapsingBridgeHandler.isArmed(origin), "the bridge armed");
+        Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origin);
+        helper.assertTrue(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin), "the bridge armed");
 
         // Remove the pistons: the bridge is stale.
         level.setBlock(pistonA, Blocks.AIR.defaultBlockState(), 3);
         level.setBlock(pistonB, Blocks.AIR.defaultBlockState(), 3);
 
         helper.runAfterDelay(BRIDGE_WAIT, () -> {
-            helper.assertFalse(CollapsingBridgeHandler.isArmed(origin),
+            helper.assertFalse(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin),
                     "the stale bridge was purged when its pistons disappeared");
-            CollapsingBridgeHandler.clear(origin);
+            Ordeals.clear(origin);
             helper.succeed();
         });
     }
 
-    // ---- CollapsingBridgeHandler: duplicate arming ----
+    // ---- CollapsingBridgeOrdeal: duplicate arming ----
 
     /**
      * Arming a bridge over a cell that already has one replaces it. A restamp
@@ -313,12 +313,12 @@ public final class HandlerGameTest {
         level.setBlock(pistonA.south().south(), Blocks.OAK_PLANKS.defaultBlockState(), 3);
         level.setBlock(pistonB.north().north(), Blocks.OAK_PLANKS.defaultBlockState(), 3);
 
-        CollapsingBridgeHandler.arm(level, origin);
-        helper.assertTrue(CollapsingBridgeHandler.isArmed(origin), "first arm took");
+        Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origin);
+        helper.assertTrue(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin), "first arm took");
         // Re-arm: the old bridge is replaced.
-        CollapsingBridgeHandler.arm(level, origin);
-        helper.assertTrue(CollapsingBridgeHandler.isArmed(origin), "second arm replaced the first");
-        CollapsingBridgeHandler.clear(origin);
+        Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origin);
+        helper.assertTrue(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin), "second arm replaced the first");
+        Ordeals.clear(origin);
         helper.succeed();
     }
 
@@ -428,6 +428,48 @@ public final class HandlerGameTest {
 
         helper.assertFalse(ReturnPathValidator.validate(level, origin, 2),
                 "a room with no climbable route does not validate");
+        helper.succeed();
+    }
+
+    // ---- PD-86: the traversal family's classic spawners ----
+
+    /**
+     * PD-86: the traversal handlers are registered on a live server, not only
+     * after {@code /dungeon admin gentemplates} has touched the class. Before
+     * the fix a thicket cell fell through to the corridor dispatch and its
+     * baked zombie spawner never fired.
+     */
+    @GameTest(maxTicks = 20)
+    public void traversalHandlersAreRegistered(GameTestHelper helper) {
+        for (String id : new String[] {"thicket", "ice_run", "flooded_hall", "chasm", "powder_snow_field"}) {
+            helper.assertTrue(Situations.isRegistered(id), "situation " + id + " is registered at boot");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * PD-86: a thicket stamp turns the baked zombie spawner into a cave spider
+     * spawner with light-free custom spawn rules, which is what lets it fire
+     * in a sea-lantern-lit room.
+     */
+    @GameTest(maxTicks = 20)
+    public void thicketSpawnerBecomesCaveSpider(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 0, 0));
+        BlockPos spawnerPos = origin.offset(3, 1, 3);
+        level.setBlock(spawnerPos, Blocks.SPAWNER.defaultBlockState(), 3);
+        if (level.getBlockEntity(spawnerPos) instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity spawner) {
+            spawner.setEntityId(net.minecraft.world.entity.EntityTypes.ZOMBIE, level.getRandom());
+        }
+        Situations.apply(level, origin, "corridor", 0, null, java.util.List.of(), 0L,
+                java.util.Set.of(), "", null, false, "thicket");
+        var tag = level.getBlockEntity(spawnerPos).saveWithoutMetadata(level.registryAccess());
+        var spawnData = tag.getCompoundOrEmpty("SpawnData");
+        helper.assertTrue("minecraft:cave_spider".equals(
+                        spawnData.getCompoundOrEmpty("entity").getStringOr("id", "")),
+                "the thicket spawner spawns cave spiders: " + spawnData);
+        helper.assertTrue(spawnData.contains("custom_spawn_rules"),
+                "the thicket spawner carries light-free custom spawn rules: " + spawnData);
         helper.succeed();
     }
 

@@ -644,20 +644,24 @@ the high end), not a code defect; record what you find here either way.
 ### 16.2 Doors 2/3 read as costed and gated
 
 1. Open a lobby and read door 2 and door 3's dialogs.
-2. **Expected:** both name a fuel cost (`fuelCostPerGreaterDoor`, default 3)
-   and a minimum keystone level (`greaterDoorMinLevel`, default 15).
+2. **Expected:** both name a fuel cost (`fuelCostPerGreaterDoor`, default 3).
+   Each has its own minimum keystone level: door 2 `door2MinLevel` (default
+   7), door 3 `greaterDoorMinLevel` (default 15).
 
 ### 16.3 The level gate actually refuses
 
-1. With a keystone below `greaterDoorMinLevel` (a fresh level-1 key, by
-   default), take door 2 or door 3.
-2. **Expected:** refused with a chat message naming the required level. No
-   fuel is spent, no dungeon is generated, and the door is still there to
-   try again (or to pick a different door).
+1. With a fresh level-1 key, look at the staging room's doors.
+2. **Expected:** only door 1 stands (playtest 2026-09-29: a door whose level
+   gate is out of reach is not placed at all, and its bulb is plain wall).
+   Door 2 appears once the key reaches `door2MinLevel`, door 3 at
+   `greaterDoorMinLevel`.
+3. Still below the gate, type `/dungeon choose 2`.
+4. **Expected:** refused with a chat message naming the required level. No
+   fuel is spent and no dungeon is generated.
 
 ### 16.4 The fuel gate actually refuses
 
-1. With a keystone at or above `greaterDoorMinLevel` but fewer than
+1. With a keystone at or above the door's level gate but fewer than
    `fuelCostPerGreaterDoor` echo shards in inventory, take door 2 or door 3.
 2. **Expected:** refused with a chat message naming the cost. No echo shards
    are spent.
@@ -1114,9 +1118,9 @@ interactions all need a live client.
 
 ### 23.7 Level gate refusal
 
-1. Select a greater door at a keystone level below `greaterDoorMinLevel`.
-2. Pull the lever.
-3. **Expected:** the door screen shows the level-gate refusal and the run
+1. At a keystone level below `door2MinLevel`, look for door 2.
+2. **Expected:** it is not there to select; only the doors the key can reach
+   stand. `/dungeon choose 2` is refused with the level named, and the run
    does not start.
 
 ### 23.8 Visiting a room
@@ -2859,3 +2863,28 @@ From `docs/LEMON_SPEC.md` (steps 1 and 2). Headless: the journal line format, th
 - Privacy (two players): each sees their own Lemon and bubble only, never the other's, however close they stand; in a party, only lines starting with "Lemon" (any case, comma or colon optional) go to Lemon, and the rest is ordinary chat everyone sees. "lemonade" stays ordinary chat.
 - Leftovers: with Lemon out, go home (the room is saved) and come back: no allay or bubble in the room. Clear a floor with Lemon out: it survives the floor advance and the homecoming cleanup, and `/dungeon admin diagnostics` entity counts drop back after it vanishes. Log out, change dimension, die: Lemon is gone each time and comes back only when it next speaks. Restart the server: no allay is left anywhere.
 - Mobs: mobs never attack Lemon, it takes no damage from anything (sweep it with a sword, lava, a creeper), cannot be leashed or handed an item, and never picks up drops. It does not set off sculk sensors in an omen room.
+
+## 49. The salvage bench (2026-09-29)
+
+From `docs/reference/SALVAGE_PROPOSAL.md`. Headless: `SalvageMathTest` pins the rates and that scrap back into the gamble never pays; `SalvageGameTest` pins what is taken, what is paid and what stays. Everything below needs a player.
+
+- Stations: the lodestone menu's Stations picker shows the Salvage Bench (a grindstone) first, open at level 1. Take it and place it in the safe room.
+- Grindstone still works: right-click it with an empty hand, or while sneaking: the vanilla grindstone opens.
+- Open: right-click it holding a bow. The Salvage Bench screen opens with the bow already in the first slot and your hand empty. The grindstone button underneath reads "Mob gear: 1 for 1 XP" (more for an enchanted bow).
+- Mixed load: drop in a tier-2 dungeon sword, three trial keys, an ominous key and a stack of dirt. The summary reads gear 2 emeralds, keys 3, ominous keys 3, and "Stays: 64 (Dirt: not gear or a vault key)". Click Salvage: 8 emeralds and the XP arrive, the grindstone sound plays, chat says "Salvaged for 8 emeralds, N XP.", only the dirt is left in the screen.
+- Refusals: imbued gear, trimmed armour, a bag item and your keystone all stay in the screen with their reason on the summary.
+- Closing: close the screen with items in it; they come back to your inventory. Log out with the screen open; on return, the items are in your inventory or on the floor where you stood, never gone.
+- Journal: each Salvage click writes one `salvage` line with the counts and the payout.
+- Keys to fuel (operator): set `salvageKeysPerFuel` to 3 and reload. Five keys show "Vault keys: 3 for 1 fuel (2 short of the next, they stay)"; after Salvage two keys remain and one fuel arrives.
+
+## 50. Ordeals (2026-09-30)
+
+From `docs/reference/ORDEALS.md`. Headless: `OrdealGameTest` pins the lever (resolves once, stays down, lights its lamp), the protected fixtures and the doused spawner; `HandlerGameTest` keeps the lava and bridge ticks. Use `/dungeon admin bias <room> 20` to roll each room. Everything below needs a player.
+
+- Rising Lava: entering, lava creeps in from both side walls a row a second. A lever with a lamp above it stands beside the exit doorway on the far side, whichever way the room is turned. Pull it: the lava drains, a chime, "The lava drains away." on the action bar, the lamp lights. Pull again: "Already done. The lever stays down."
+- Collapsing Bridge: the lever and lamp are beside the exit. Cross, pull it: "The bridge locks in place."; walk back over every segment, none drops.
+- Thicket: a lever on the spawner's east face with a lamp above. Reach it through the webs and pull: smoke, an extinguish sound, "The spawner goes dark.", no more cave spiders. A torch on the spawner no longer does anything.
+- Ice Run: packed ice hops rise from each doorway to a snow platform in the middle, three blocks up, with the lever on top and its lamp as the block under it. Strays spawn on the floor and shoot at you. Miss a hop: you land on the floor and cannot reach the higher hops from there; walk back to the first. Pillar three blocks from the floor instead: you can step onto the platform. Pull the lever: the spawner goes dark and the platform's lamp lights.
+- Hold the Plate: hold 30 s through the waves: "The door grinds open." with the Ordeal chime; no lever.
+- Fixtures: try to break any Ordeal lever or lamp, by hand, with a pickaxe, with TNT: none of them break.
+- Journal: each resolution writes an `ordeal` line with the room and the seconds since it armed.

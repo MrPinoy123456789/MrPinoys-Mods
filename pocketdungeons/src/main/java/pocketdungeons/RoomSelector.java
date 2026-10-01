@@ -406,16 +406,21 @@ final class RoomSelector {
         // rotation for a symmetric room is desirable anyway.
         int total = 0;
         for (RoomManifest.Match match : eligible) {
-            total += Math.max(1, match.entry().meta.weight);
+            total += biasedWeight(match);
         }
         int roll = rng.nextInt(total);
         for (RoomManifest.Match match : eligible) {
-            roll -= Math.max(1, match.entry().meta.weight);
+            roll -= biasedWeight(match);
             if (roll < 0) {
                 return match;
             }
         }
         return eligible.get(eligible.size() - 1);
+    }
+
+    /** A match's declared weight times any playtest bias on its room ({@link PlaytestBias}). */
+    private static int biasedWeight(RoomManifest.Match match) {
+        return Math.max(1, match.entry().meta.weight) * PlaytestBias.of(match.entry().name);
     }
 
     /**
@@ -843,7 +848,7 @@ final class RoomSelector {
              * a manifest republish.
              */
             private int weightOf(RoomManifest.Match match) {
-                int base = Math.max(1, match.entry().meta.weight);
+                int base = biasedWeight(match);
                 if (!weightedRooms.isEmpty()
                         && weightedRooms.contains(match.entry().name)) {
                     return base * 3;

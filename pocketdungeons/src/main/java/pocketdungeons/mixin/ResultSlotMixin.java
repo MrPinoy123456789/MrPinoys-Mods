@@ -23,8 +23,10 @@ import pocketdungeons.PocketDungeonsMod;
  * <p>Injects at the return of {@link ResultSlot#remove}: the item has already
  * been lifted out of the result container, so modifying the returned stack
  * changes what lands in the player's cursor or inventory without affecting the
- * result slot's own state. This catches every take path: click, shift-click,
- * and the recipe book's delegated take.
+ * result slot's own state. This catches the click-to-take path. It does not
+ * catch shift-click: {@code CraftingMenu.quickMoveStack} moves the result
+ * stack without calling {@code remove} (PD-89), which
+ * {@link CraftedDurabilityMixin} covers.
  *
  * <p>Only fires for {@code ServerPlayer}s inside the dungeon dimension. A
  * player crafting in the overworld gets vanilla durability, so the cap does

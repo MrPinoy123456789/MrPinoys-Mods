@@ -82,6 +82,9 @@ final class RoomProtection {
         if (isShell(pos, dungeonCellOrigin)) {
             return InteractionResult.PASS; // shell protection handles this
         }
+        if (Ordeals.isFixture(pos)) {
+            return InteractionResult.FAIL; // an Ordeal's lever or lamp
+        }
         BlockState state = level.getBlockState(pos);
         if (DungeonTools.isCorrectTool(serverPlayer.getMainHandItem(), state)) {
             return InteractionResult.PASS;
@@ -140,6 +143,11 @@ final class RoomProtection {
                 if (player.isCreative()) {
                     DungeonTools.forgetPlayerPlacement(pos);
                     return true;
+                }
+                // An Ordeal's lever and lamp: breaking the lever would strand
+                // the room, breaking the lamp would lose its "done" signal.
+                if (Ordeals.isFixture(pos)) {
+                    return false;
                 }
                 if (DungeonTools.isPlayerPlaced(pos, player.getUUID())) {
                     DungeonTools.forgetPlayerPlacement(pos);
@@ -272,8 +280,9 @@ final class RoomProtection {
      * three doors plus the 8x2 black concrete screen above that, and the
      * three selector doors themselves at Y=1..2 standing one block in front
      * of the wall. Left of the doors, the go-home control a cleared floor's
-     * staging room carries: its lever and sign in the same row at along 5,
-     * and its 3x3 screen with a bulb on top set into the wall at along 2..4.
+     * staging room carries: its lever and sign in the same row at along 2,
+     * and set into the wall its 3x3 screen at along 3..5 and a bulb over
+     * the lever.
      * The selector doors are mod-placed furniture the same as
      * the bulbs and the lever: the owner cannot break them, only the mod
      * clears and re-places them through the door selection flow.
@@ -322,15 +331,17 @@ final class RoomProtection {
         if (perp == doorPlane && seen == 10 && (y == 2 || y == 3)) {
             return true; // the commit lever and the sign above it
         }
-        if (perp == doorPlane && seen == 5 && (y == 2 || y == 3)) {
+        if (perp == doorPlane && seen == RoomTemplateGenerator.HOME_LEVER_ALONG && (y == 2 || y == 3)) {
             return true; // the go-home lever and the sign above it
         }
         if (perp == wallPlane) {
-            if (y >= 1 && y <= 3 && seen >= 2 && seen <= 4) {
+            if (y >= RoomTemplateGenerator.HOME_SCREEN_Y_MIN && y <= RoomTemplateGenerator.HOME_SCREEN_Y_MAX
+                    && seen >= RoomTemplateGenerator.HOME_SCREEN_ALONG_MIN
+                    && seen <= RoomTemplateGenerator.HOME_SCREEN_ALONG_MAX) {
                 return true; // the go-home screen blocks
             }
-            if (y == 4 && seen == 3) {
-                return true; // the go-home bulb over them
+            if (y == RoomTemplateGenerator.HOME_BULB_Y && seen == RoomTemplateGenerator.HOME_BULB_ALONG) {
+                return true; // the go-home bulb over the lever
             }
             if (y == 3 && along >= 7 && along <= 9) {
                 return true; // the three copper bulbs, one over each door

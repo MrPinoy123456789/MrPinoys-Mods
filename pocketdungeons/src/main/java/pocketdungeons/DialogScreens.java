@@ -202,6 +202,29 @@ final class DialogScreens {
                 DialogKit.closeButton("Cancel"));
     }
 
+    /**
+     * The confirmation the HOME lever opens before it banks. Playtest
+     * 2026-09-29 (A5): a player reaching for a door pulled the lever by
+     * accident and ended the interval, so the pull now asks first and says
+     * what going home keeps. The confirm is the typed way home
+     * ({@code /dungeon cashout}), so this is tier A like {@link #quitDoorConfirm}.
+     */
+    static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
+        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
+        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
+        String keeps = "Banks now: " + IntervalBanking.chests(now.chests()).replace("chest", "reward chest")
+                + ", " + IntervalBanking.keyLine(now, floorsPerVisit);
+        return DialogKit.confirm("Go home?",
+                List.of(DialogKit.text(Component.literal("Ends this run and takes the party home.")
+                                .withStyle(ChatFormatting.YELLOW)),
+                        DialogKit.text(keeps),
+                        DialogKit.text(Component.literal(
+                                "To keep going, right-click a door and pull DESCEND instead.")
+                                .withStyle(ChatFormatting.GRAY))),
+                DialogKit.command("Go Home", null, "/dungeon cashout"),
+                DialogKit.closeButton("Stay"));
+    }
+
     // ---- section 3: party invite -------------------------------------------
 
     /**

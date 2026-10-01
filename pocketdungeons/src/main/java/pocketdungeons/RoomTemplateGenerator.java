@@ -155,23 +155,43 @@ final class RoomTemplateGenerator {
     }
 
     static void generate(ServerLevel level) {
+        generate(level, null);
+    }
+
+    /**
+     * Queues every room template, or with {@code only} set just the one of
+     * that name, for capture.
+     *
+     * @return how many templates were queued
+     */
+    static int generate(ServerLevel level, String only) {
         Path outDir = templateOutDir();
         if (outDir == null) {
-            return;
+            return 0;
         }
 
+        int queued = 0;
+        int anomalies = 0;
         List<RoomSpec> specs = specs();
         for (int i = 0; i < specs.size(); i++) {
-            buildAndQueue(level, outDir, specs.get(i), i * SCRATCH_PITCH);
+            if (only == null || only.equals(specs.get(i).name)) {
+                buildAndQueue(level, outDir, specs.get(i), i * SCRATCH_PITCH);
+                queued++;
+            }
         }
 
         List<RoomSpec> anomalySpecs = anomalySpecs();
         for (int i = 0; i < anomalySpecs.size(); i++) {
-            buildAndQueue(level, outDir, anomalySpecs.get(i), (specs.size() + i) * SCRATCH_PITCH);
+            if (only == null || only.equals(anomalySpecs.get(i).name)) {
+                buildAndQueue(level, outDir, anomalySpecs.get(i), (specs.size() + i) * SCRATCH_PITCH);
+                queued++;
+                anomalies++;
+            }
         }
 
         PocketDungeonsMod.LOG.info("Queued {} pocketdungeons room templates for capture ({} anomaly)",
-                specs.size() + anomalySpecs.size(), anomalySpecs.size());
+                queued, anomalies);
+        return queued;
     }
 
     /**
@@ -354,21 +374,29 @@ final class RoomTemplateGenerator {
     private static final int SIGN_Y = 3;
 
     /**
-     * The go-home control, on the selector wall left of the doors, mirroring
-     * the commit lever: a second lever in the door row at along 5 with its
-     * own sign, and set into the wall at along 2..4 a 3x3 screen with a
-     * copper bulb over its middle. Only a cleared floor's staging room has
-     * one ({@link #placeHomeControl}); the lever banks the interval and
-     * takes the party home, and the bulb lights once the interval has run
-     * its usual length. {@link RoomProtection#isFurniture} protects the same
-     * positions.
+     * The go-home control, on the selector wall left of the doors: a second
+     * lever in the door row at along 2 with its own sign, and set into the
+     * wall at along 3..5 a 3x3 screen, with a copper bulb in the wall over
+     * the lever. Only a cleared floor's staging room has one
+     * ({@link #placeHomeControl}); the lever asks, then banks the interval
+     * and takes the party home, and the bulb lights once the interval has
+     * run its usual length. {@link RoomProtection#isFurniture} protects the
+     * same positions.
+     *
+     * <p>Playtest 2026-09-29 (A5): the lever used to stand at along 5, which
+     * on a mirrored wall (the doors keep their absolute slot) put it right
+     * beside door 3, and a player reaching for a door pulled it and ended
+     * the interval. The lever now stands at the far end with the screen
+     * between it and the doors: at least three blocks of screen between
+     * the lever and the nearest door on every wall. Not along 1: on a NORTH selector wall that is in front of
+     * the wall lodestone.
      */
-    static final int HOME_LEVER_ALONG = 5;
-    static final int HOME_SCREEN_ALONG_MIN = 2;
-    static final int HOME_SCREEN_ALONG_MAX = 4;
+    static final int HOME_LEVER_ALONG = 2;
+    static final int HOME_SCREEN_ALONG_MIN = 3;
+    static final int HOME_SCREEN_ALONG_MAX = 5;
     static final int HOME_SCREEN_Y_MIN = 1;
     static final int HOME_SCREEN_Y_MAX = 3;
-    static final int HOME_BULB_ALONG = 3;
+    static final int HOME_BULB_ALONG = 2;
     static final int HOME_BULB_Y = 4;
     /** The go-home lever's sign: a verb, like DESCEND (playtest 2026-09-27, A5). */
     private static final String HOME_SIGN_WORD = "GO HOME";
@@ -425,6 +453,20 @@ final class RoomTemplateGenerator {
             RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
             RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
         }
+    }
+
+    /**
+     * Takes selector door {@code step} (2 or 3) back out and hands its bulb
+     * position back to plain wall, for a door the owner's key cannot reach
+     * yet ({@code Instances.hideLockedDoors}). The wall behind is already
+     * sealed, so the gap reads as wall, not as a missing door.
+     */
+    static void hideSelectorDoor(ServerLevel level, BlockPos o, DoorMask.Direction wall, int step) {
+        int along = bulbAlongForStep(step);
+        BlockPos lower = selectorDoorPos(o, wall, along);
+        RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
+        RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
+        RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), RoomBuilder.shellWallAt(level, o));
     }
 
     /**

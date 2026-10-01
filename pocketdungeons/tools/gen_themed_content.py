@@ -189,10 +189,11 @@ THEMES = {
             3: [('skeleton', 5, 'ranged'), ('stray', 3, 'ranged')],
         },
         'pool_items': [
-            item_entry('arrow', 5, (3, 9)),
+            item_entry('arrow', 7, (3, 9)),
             item_entry('bone', 5, (2, 5)),
             item_entry('bone_block', 3, (1, 2)),
-            item_entry('bow', 2, damage=True),
+            # Playtest 2026-09-29-2: bows were disposable next to scarce arrows.
+            item_entry('bow', 1, damage=True),
             item_entry('wither_skeleton_skull', 1),
         ],
     },

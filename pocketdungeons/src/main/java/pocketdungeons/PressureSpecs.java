@@ -7,12 +7,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
@@ -69,19 +67,22 @@ final class PressureSpecs {
         Situations.register("hold_the_plate", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
             // PD-67: the plate timer lives in code, not in the template's redstone.
-            HoldThePlateHandler.arm(level, o);
-            return TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
+            // Armed after the encounter so the handler sees the room's trial
+            // spawners, which raise the plate's waves while it is held.
+            BlockPos spawner = TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
                     "hold_the_plate", true);
+            Ordeals.arm(HoldThePlateOrdeal.INSTANCE, level, o);
+            return spawner;
         });
         // M58: template-only pressure rooms. The decor in the RoomSpec is
         // the whole of the content; the handler owns the cell.
         Situations.register("rising_lava", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
+        // Rising Lava and Collapsing Bridge are Ordeals whose lever sits at
+        // the exit, which is only known once the plan's doors are placed:
+        // LayoutStamper.applyDirectionalGates places the lever and arms them.
         Situations.register("collapsing_bridge", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> {
-            CollapsingBridgeHandler.arm(level, o);
-            return null;
-        });
+                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
     }
 
     // ---- shared helpers -----------------------------------------------------
@@ -124,7 +125,7 @@ final class PressureSpecs {
 // ---- 1. Rising Lava -----------------------------------------------------
 
 // Fixed 2026-09-04: replaced broken dispenser/hopper/redstone circuit
-// with code-driven lava spread (RisingLavaHandler). Lava now spreads
+// with code-driven lava spread (RisingLavaOrdeal). Lava now spreads
 // from both side walls toward the center while players are present,
 // stops when the lever is pulled, and recedes when the room is empty.
 // See docs/ROOM_FIXES.md.
@@ -134,7 +135,7 @@ final class PressureSpecs {
  * toward the center. A lever on the far wall stops the lava and drains
  * the room. When no players remain, the lava recedes on its own.
  *
- * <p>The spread and recede are driven by {@link RisingLavaHandler} in
+ * <p>The spread and recede are driven by {@link RisingLavaOrdeal} in
  * code, not redstone. Vanilla redstone cannot detect players in a room
  * or place/remove lava on a timer.
  */
@@ -148,13 +149,9 @@ private static RoomSpec risingLava() {
                         set(level, o, x, 0, z, trench);
                     }
                 }
-                // Lever on the east wall at the exit, in the doorway lane.
-                // The player runs the length of the corridor and pulls it
-                // to stop the lava.
-                set(level, o, CELL - 2, 1, RoomGeometry.DOOR_MIN,
-                        Blocks.LEVER.defaultBlockState()
-                                .setValue(LeverBlock.FACE, AttachFace.WALL)
-                                .setValue(LeverBlock.FACING, Direction.WEST));
+                // The lever and its lamp are not baked: the layout can turn
+                // the room round, so LayoutStamper places them on the exit
+                // side at stamp time (Ordeals, 2026-09-30).
             });
 }
 
@@ -182,12 +179,12 @@ private static RoomSpec risingLava() {
      *
      * <p>Observers and repeaters cannot detect a player standing on a block
      * (observers detect block state changes, not entities), so the collapse
-     * is driven by {@link CollapsingBridgeHandler} in code: it checks the
+     * is driven by {@link CollapsingBridgeOrdeal} in code: it checks the
      * player's position each tick, retracts the pistons after a delay, and
      * re-extends after a longer delay so backtracking survives.
      */
     // Fixed 2026-09-04: replaced broken observer/piston redstone with
-    // code-driven collapse (CollapsingBridgeHandler). Observers cannot detect
+    // code-driven collapse (CollapsingBridgeOrdeal). Observers cannot detect
     // players. Redesigned to PWSSWP with pillars. See docs/ROOM_FIXES.md.
     private static RoomSpec collapsingBridge() {
         return new RoomSpec("collapsing_bridge", EnumSet.of(ENTRANCE, EXIT))
@@ -251,12 +248,12 @@ private static RoomSpec risingLava() {
 
     /**
      * A stone pressure plate in the room centre and a trial spawner. Stand on
-     * the plate for {@link HoldThePlateHandler#HOLD_SECONDS} seconds and the
+     * the plate for {@link HoldThePlateOrdeal#HOLD_SECONDS} seconds and the
      * iron door at the exit opens; step off and the count resets. The spawner
      * sits between the entrance and the plate so the decision is informed from
      * the doorway.
      *
-     * <p>PD-67: the count lives in {@link HoldThePlateHandler}, not in redstone.
+     * <p>PD-67: the count lives in {@link HoldThePlateOrdeal}, not in redstone.
      * The template used to carry a hopper clock, a comparator, dust and a
      * repeater, but the diodes faced the wrong way (a diode's FACING is its
      * input side), the plate was wired to nothing and the clock had no lock,

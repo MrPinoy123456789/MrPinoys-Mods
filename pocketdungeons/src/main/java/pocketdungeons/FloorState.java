@@ -133,6 +133,12 @@ final class FloorState {
     /** The plan behind the current door preview, reused by the commit. {@code null} with no preview. */
     DungeonPlan previewPlan;
 
+    /**
+     * PD-90: {@link PlaytestBias#generation} when {@link #previewPlan} was
+     * planned, so a commit can tell the bias changed under an open preview.
+     */
+    int previewBiasGeneration;
+
     /** The world origin of the stamped preview cell, or {@code null} with no preview. */
     BlockPos previewCellOrigin;
 

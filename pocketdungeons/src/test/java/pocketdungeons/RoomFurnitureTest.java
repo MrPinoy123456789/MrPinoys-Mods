@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
  * its sign in the same row beside the third door, the three copper bulbs
  * and the black concrete door screen set into that wall, and the engine
  * block with its screen on the wall to the left of the selector wall, and
- * the go-home control left of the doors (its lever and sign in the door row,
+ * the go-home control at the far left of the doors (its lever and sign in the door row,
  * its screen and bulb in the wall). Nothing else in the room is furniture. Runs headless like
  * {@link RoomShellTest}.
  *
@@ -30,6 +30,7 @@ public class RoomFurnitureTest {
             testHomeControl(wall);
             testEngineOnLeftWall(wall);
             testInteriorIsNeverFurniture(wall);
+            testPreviewSideWindowIsClear(wall);
         }
         testOutsideRoomIsNeverFurniture();
         testFurnitureDependsOnSelectorWall();
@@ -68,40 +69,44 @@ public class RoomFurnitureTest {
                 check(isFurniture(wallRing(wall, along, y), wall), "screen " + wall + " " + along + " " + y);
             }
         }
-        // The screen stops at 11; 12 is plain protected wall, not furniture.
-        // On a mirrored wall the go-home bulb sits at absolute 12, so the plain
-        // edge is the other end there.
-        int edge = RoomGeometry.mirrorsAlong(wall) ? 3 : 12;
-        check(!isFurniture(wallRing(wall, edge, 4), wall), "screen edge " + wall);
+        // The screen runs 4..11; 3 and 12 either side are plain protected
+        // wall. The go-home bulb sits one further out, over its lever.
+        check(!isFurniture(wallRing(wall, 3, 4), wall), "screen edge " + wall);
+        check(!isFurniture(wallRing(wall, 12, 4), wall), "screen edge " + wall);
     }
 
     /**
-     * The go-home control mirrors the commit lever on the other side of the
-     * doors: a lever at along 5, Y=2 with its sign at Y=3 in the door row, and
-     * in the wall a 3x3 screen at along 2..4, Y=1..3 with a bulb at along 3,
-     * Y=4. The positions must agree with {@code RoomTemplateGenerator}'s
-     * {@code HOME_*} constants.
+     * The go-home control stands at the far end of the selector wall from
+     * the commit lever: a lever at along 2, Y=2 with its sign at Y=3 in the
+     * door row, and in the wall a 3x3 screen at along 3..5, Y=1..3 and a bulb
+     * at along 2, Y=4 over the lever. The positions must agree with
+     * {@code RoomTemplateGenerator}'s {@code HOME_*} constants.
      */
     private static void testHomeControl(DoorMask.Direction wall) {
-        check(RoomTemplateGenerator.HOME_LEVER_ALONG == 5 && RoomTemplateGenerator.HOME_BULB_ALONG == 3
+        check(RoomTemplateGenerator.HOME_LEVER_ALONG == 2 && RoomTemplateGenerator.HOME_BULB_ALONG == 2
                 && RoomTemplateGenerator.HOME_BULB_Y == 4, "placement constants match the protected positions");
-        check(isFurniture(doorPlane(wall, seen(wall, 5), 2), wall), "home lever " + wall);
-        check(isFurniture(doorPlane(wall, seen(wall, 5), 3), wall), "home sign " + wall);
-        check(!isFurniture(doorPlane(wall, seen(wall, 5), 1), wall), "nothing under the home lever " + wall);
-        // The doors keep their absolute slot (7..9) while the levers mirror, so
-        // the one free spot in the row is absolute 6 on every wall: between the
-        // home lever and the doors, or on a mirrored wall between the doors and
-        // the commit lever.
-        check(!isFurniture(doorPlane(wall, 6, 2), wall), "the free spot in the lever row " + wall);
-        check(!isFurniture(doorPlane(wall, seen(wall, 4), 2), wall), "beyond the home lever " + wall);
-        for (int along = 2; along <= 4; along++) {
+        check(isFurniture(doorPlane(wall, seen(wall, 2), 2), wall), "home lever " + wall);
+        check(isFurniture(doorPlane(wall, seen(wall, 2), 3), wall), "home sign " + wall);
+        check(!isFurniture(doorPlane(wall, seen(wall, 2), 1), wall), "nothing under the home lever " + wall);
+        // Playtest 2026-09-29 (A5): the door row between the home lever and
+        // the nearest selector door is empty, at least three blocks of it on
+        // every wall, so reaching for a door never lands on the lever.
+        for (int along = 3; along <= 5; along++) {
+            check(!isFurniture(doorPlane(wall, seen(wall, along), 2), wall),
+                    "the clear row between the home lever and the doors " + wall + " " + along);
+        }
+        int nearestDoor = RoomGeometry.mirrorsAlong(wall) ? seen(wall, 9) : 7;
+        check(nearestDoor - RoomTemplateGenerator.HOME_LEVER_ALONG >= 4,
+                "home lever well clear of the doors " + wall);
+        check(!isFurniture(doorPlane(wall, seen(wall, 1), 2), wall), "beyond the home lever " + wall);
+        for (int along = 3; along <= 5; along++) {
             for (int y = 1; y <= 3; y++) {
                 check(isFurniture(wallRing(wall, seen(wall, along), y), wall), "home screen " + wall + " " + along + " " + y);
             }
         }
-        check(isFurniture(wallRing(wall, seen(wall, 3), 4), wall), "home bulb " + wall);
-        check(!isFurniture(wallRing(wall, seen(wall, 1), 2), wall), "home screen edge " + wall);
-        check(!isFurniture(wallRing(wall, seen(wall, 5), 1), wall), "home screen edge " + wall);
+        check(isFurniture(wallRing(wall, seen(wall, 2), 4), wall), "home bulb " + wall);
+        check(!isFurniture(wallRing(wall, seen(wall, 2), 2), wall), "home screen edge " + wall);
+        check(!isFurniture(wallRing(wall, seen(wall, 6), 1), wall), "home screen edge " + wall);
     }
 
     /**
@@ -138,16 +143,17 @@ public class RoomFurnitureTest {
                         // The only interior cells that are furniture are on
                         // the door plane, one block in front of the selector
                         // wall: the three selector doors (along 7..9, Y=1..2),
-                        // the commit and go-home levers (along 10 and 5,
+                        // the commit and go-home levers (seen along 10 and 2,
                         // Y=2), and their signs (Y=3). The bulbs, the engine
                         // and the screens sit in the wall ring, never in the
                         // interior.
                         int along = alongOf(wall, x, z);
+                        int seenAlong = seen(wall, along);
                         int perp = (wall == DoorMask.Direction.NORTH || wall == DoorMask.Direction.SOUTH) ? z : x;
                         boolean onDoorPlane = perp == doorPlaneOf(wall);
                         boolean selectorDoor = onDoorPlane && (y == 1 || y == 2) && along >= 7 && along <= 9;
-                        boolean lever = onDoorPlane && y == 2 && (along == 10 || along == 5);
-                        boolean sign = onDoorPlane && y == 3 && (along == 10 || along == 5);
+                        boolean lever = onDoorPlane && y == 2 && (seenAlong == 10 || seenAlong == 2);
+                        boolean sign = onDoorPlane && y == 3 && (seenAlong == 10 || seenAlong == 2);
                         if (!selectorDoor && !lever && !sign) {
                             throw new AssertionError("interior should never be furniture: "
                                     + wall + " at " + x + "," + y + "," + z);
@@ -155,6 +161,22 @@ public class RoomFurnitureTest {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * PD-85: the door preview's side window column (along 6, Y=1..3) is clear
+     * on every selector wall, in the wall and in the row in front of it, so
+     * nothing mod-placed stands between the player and the glass. The go-home
+     * screen and the commit lever are viewer mirrored and must never land
+     * there.
+     */
+    private static void testPreviewSideWindowIsClear(DoorMask.Direction wall) {
+        int along = RoomBuilder.PREVIEW_WINDOW_ALONG;
+        check(along < RoomGeometry.DOOR_MIN, "side window beside the door slot, not in it");
+        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
+            check(!isFurniture(wallRing(wall, along, y), wall), "side window clear in the wall " + wall + " " + y);
+            check(!isFurniture(doorPlane(wall, along, y), wall), "side window clear in front " + wall + " " + y);
         }
     }
 
@@ -183,8 +205,8 @@ public class RoomFurnitureTest {
     private static void testOffsetOrigin() {
         BlockPos origin = new BlockPos(100, 32, -200);
         check(isFurniture(origin.offset(7, 3, 15), origin, DoorMask.Direction.SOUTH));
-        check(isFurniture(origin.offset(10, 2, 14), origin, DoorMask.Direction.SOUTH));
-        check(isFurniture(origin.offset(10, 3, 14), origin, DoorMask.Direction.SOUTH));
+        check(isFurniture(origin.offset(13, 2, 14), origin, DoorMask.Direction.SOUTH)); // the home lever
+        check(isFurniture(origin.offset(13, 3, 14), origin, DoorMask.Direction.SOUTH)); // its sign
         check(isFurniture(origin.offset(15, 2, 7), origin, DoorMask.Direction.SOUTH));
         check(!isFurniture(origin.offset(5, 2, 5), origin, DoorMask.Direction.SOUTH));
     }

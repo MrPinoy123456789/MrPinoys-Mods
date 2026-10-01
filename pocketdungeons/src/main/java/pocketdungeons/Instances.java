@@ -665,6 +665,7 @@ final class Instances {
             // M19: the physical selection furniture (bulbs, lever, screens) and
             // the two text_display entities, summoned fresh at every stamp and
             // never captured with the room. They live in the staging room now.
+            hideLockedDoors(level, stagingOrigin, dungeonDir, owner);
             DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                     DungeonScreen.idleContent(level, owner));
             DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
@@ -982,6 +983,31 @@ final class Instances {
     }
 
     /**
+     * Takes a selector door back out when its keystone level gate
+     * ({@link PocketDungeonsConfig#doorMinLevel}) is above the owner's key,
+     * bulb and all, so the staging room shows only the doors they can reach.
+     * Playtest 2026-09-29 (A6): the player would rather see one door at level
+     * 1 and notice when a second one appears, which is itself the unlock
+     * signal. Door 1 always stands. The fuel gate never hides a door: the
+     * engine is fed in this same room, so a door short of fuel stays and the
+     * screen says what it needs. Run after every placement of the doors.
+     */
+    static void hideLockedDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall, UUID owner) {
+        if (level == null || o == null || wall == null || owner == null) {
+            return;
+        }
+        DungeonLog.Entry entry = DungeonLog.forServer(level.getServer()).get(owner);
+        int keyLevel = Math.max(1, entry.keystoneLevel());
+        Keystone.Offer[] offers = Keystone.offers(owner, keyLevel, entry.currentTheme(), entry.depth());
+        for (int step = 2; step <= 3; step++) {
+            Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
+            if (!offer.free() && keyLevel < PocketDungeonsConfig.doorMinLevel(step)) {
+                RoomTemplateGenerator.hideSelectorDoor(level, o, wall, step);
+            }
+        }
+    }
+
+    /**
      * Whether {@code pos} is the go-home lever in the staging room of the run
      * this player is in. Any member's click is claimed, so vanilla never
      * flips the lever, and {@code RunLifecycle.goHome} answers a non-owner
@@ -1208,6 +1234,24 @@ final class Instances {
         // party can see through into the room. Glass (not open air) so the
         // player cannot walk in before committing.
         RoomBuilder.windowDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
+        // PD-85: the selector doors stand in front of that slot and cover all
+        // but its top course, so the view the party actually gets is a side
+        // window beside the doors, cut through both walls. The slot glass
+        // stays: it is the seal, and its top course is still a view.
+        BlockState glass = Blocks.GLASS.defaultBlockState();
+        RoomBuilder.previewSideWindow(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass);
+        RoomBuilder.previewSideWindow(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)), glass);
+    }
+
+    /**
+     * PD-85: hands the staging room's preview side window back to its wall.
+     * The entrance cell's half goes with the cell when a preview is cleared;
+     * on a commit {@link #connectStagingToEntrance} patches it separately.
+     */
+    private static void sealPreviewSideWindow(ServerLevel level, BlockPos stagingOrigin,
+                                              DoorMask.Direction dungeonDoor) {
+        RoomBuilder.previewSideWindow(level, stagingOrigin, mcDirection(dungeonDoor),
+                RoomBuilder.shellWallAt(level, stagingOrigin));
     }
 
     /**
@@ -1233,8 +1277,10 @@ final class Instances {
         // one block inside the room, so re-placing them never covered it: seal
         // the slot back to wall (the clear already put the bedrock behind it).
         RoomBuilder.sealDoor(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor));
+        sealPreviewSideWindow(level, record.stagingCellOrigin, record.roomDungeonDoor);
         RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
                 record.roomDungeonDoor);
+        hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
         record.floor.previewPlan = null;
         record.floor.previewCellOrigin = null;
         // M66: clear the recipe plan and, on a true cancel, restore the
@@ -1466,6 +1512,12 @@ final class Instances {
                                          DoorMask.Direction dungeonDoor) {
         RoomBuilder.openDoor(level, stagingOrigin, mcDirection(dungeonDoor));
         RoomBuilder.openDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
+        // PD-85: the side window was only for looking; the doorway replaces
+        // it. The entrance half copies the course beside it, since a themed
+        // cell's wall is not the staging room's shell.
+        sealPreviewSideWindow(level, stagingOrigin, dungeonDoor);
+        RoomBuilder.sealPreviewSideWindowLikeBeside(level, entranceOrigin,
+                mcDirection(CellGeometry.opposite(dungeonDoor)));
         RoomTemplateGenerator.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
         RoomTemplateGenerator.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
         // The choosing is over, and so is the way home from this checkpoint.
@@ -1566,6 +1618,7 @@ final class Instances {
         BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
         record.stagingCellOrigin = stagingOrigin;
         // Summon fresh screens at the staging room.
+        hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
@@ -2125,6 +2178,7 @@ final class Instances {
         record.roomDungeonDoor = newDungeonDir;
 
         // Summon fresh screens at the new staging room.
+        hideLockedDoors(level, newStagingOrigin, newDungeonDir, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, newDungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newStagingOrigin, newDungeonDir,

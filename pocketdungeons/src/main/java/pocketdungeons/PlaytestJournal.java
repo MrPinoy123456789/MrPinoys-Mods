@@ -387,6 +387,16 @@ final class PlaytestJournal {
         safely("quit_floor", () -> record(player, "quit_floor", Map.of("penalty", penalty)));
     }
 
+    /** An Ordeal resolved, written for every player in the room: which one, and seconds since it armed. */
+    static void ordealResolved(ServerPlayer player, String ordeal, long seconds) {
+        safely("ordeal", () -> record(player, "ordeal", Map.of("ordeal", ordeal, "seconds", seconds)));
+    }
+
+    /** One salvage at the bench: what went in and what came out (A3, the surplus sink). */
+    static void salvage(ServerPlayer player, Map<String, ?> extras) {
+        safely("salvage", () -> record(player, "salvage", extras));
+    }
+
     /**
      * The owner's reconnect grace started, lifted or ran out: written for the
      * owner (online or not) and every member present.

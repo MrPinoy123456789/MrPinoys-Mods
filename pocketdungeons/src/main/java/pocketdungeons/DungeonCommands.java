@@ -95,9 +95,18 @@ final class DungeonCommands {
                     // The HOME lever, typed: banks the interval and takes the
                     // party home from any checkpoint, in any zone. The name is
                     // the Endless Mine's, which had this before every staging
-                    // room did. See RunLifecycle.goHome.
+                    // room did. See RunLifecycle.goHome. The lever's confirm
+                    // dialog runs this too, so the chime the lever used to
+                    // play lives here now.
                     .then(Commands.literal("cashout")
-                            .executes(ctx -> RunLifecycle.goHome(ctx.getSource().getPlayerOrException()) ? 1 : 0))
+                            .executes(ctx -> {
+                                ServerPlayer home = ctx.getSource().getPlayerOrException();
+                                if (RunLifecycle.goHome(home)) {
+                                    Chime.runComplete(home);
+                                    return 1;
+                                }
+                                return 0;
+                            }))
 
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
@@ -267,7 +276,12 @@ final class DungeonCommands {
                                                                             ctx, "theme")))))))
 
                             .then(Commands.literal("gentemplates")
-                                    .executes(ctx -> generateTemplates(ctx.getSource())))
+                                    .executes(ctx -> generateTemplates(ctx.getSource(), null))
+                                    // One room by name, so a spec fix rewrites
+                                    // only its own .nbt, not the whole library.
+                                    .then(Commands.argument("room", StringArgumentType.word())
+                                            .executes(ctx -> generateTemplates(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "room")))))
 
                             .then(Commands.literal("buildroom")
                                     .executes(ctx -> buildRoom(ctx.getSource())))
@@ -292,6 +306,30 @@ final class DungeonCommands {
 
                             .then(Commands.literal("coverage")
                                     .executes(ctx -> coverage(ctx.getSource())))
+
+                            // Playtest tooling: steer room selection toward rooms under test.
+                            .then(Commands.literal("bias")
+                                    .executes(ctx -> listBias(ctx.getSource()))
+                                    .then(Commands.literal("clear")
+                                            .executes(ctx -> clearBias(ctx.getSource())))
+                                    // PD-90: hold a player's doors while a bias is set up.
+                                    .then(Commands.literal("hold")
+                                            .then(Commands.argument("player", StringArgumentType.word())
+                                                    .executes(ctx -> holdBias(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "player"),
+                                                            PlaytestBias.DEFAULT_HOLD_SECONDS))
+                                                    .then(Commands.argument("seconds",
+                                                                    IntegerArgumentType.integer(0,
+                                                                            PlaytestBias.MAX_HOLD_SECONDS))
+                                                            .executes(ctx -> holdBias(ctx.getSource(),
+                                                                    StringArgumentType.getString(ctx, "player"),
+                                                                    IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                                    .then(Commands.argument("room", StringArgumentType.string())
+                                            .then(Commands.argument("multiplier",
+                                                            IntegerArgumentType.integer(1, PlaytestBias.MAX_MULTIPLIER))
+                                                    .executes(ctx -> setBias(ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "room"),
+                                                            IntegerArgumentType.getInteger(ctx, "multiplier"))))))
 
                             .then(Commands.literal("plan")
                                     .then(Commands.argument("seed", LongArgumentType.longArg())
@@ -846,15 +884,19 @@ final class DungeonCommands {
         return 1;
     }
 
-    private static int generateTemplates(CommandSourceStack source) {
+    private static int generateTemplates(CommandSourceStack source, String room) {
         ServerLevel level = source.getServer().getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
             source.sendFailure(Component.literal("The dungeon dimension is not loaded."));
             return 0;
         }
-        RoomTemplateGenerator.generate(level);
+        int queued = RoomTemplateGenerator.generate(level, room);
+        if (queued == 0) {
+            source.sendFailure(Component.literal("No room template is named " + room + "."));
+            return 0;
+        }
         source.sendSuccess(() -> Component.literal(
-                "Queued room template generation; files will be written next tick."), true);
+                "Queued " + queued + " room template(s); files will be written next tick."), true);
         return 1;
     }
 
@@ -1527,6 +1569,79 @@ final class DungeonCommands {
      * single-door masks: the graph generator holds those two cells to one door
      * each, so a multi-door end cap is unreachable content, not a hole.
      */
+    /** {@code /dungeon admin bias}: the playtest room biases in force. */
+    private static int listBias(CommandSourceStack source) {
+        Map<String, Integer> all = PlaytestBias.all();
+        if (all.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No room bias set; every room draws its declared weight."), false);
+            return 1;
+        }
+        StringBuilder line = new StringBuilder("Room bias (next floors planned):");
+        all.forEach((room, mult) -> line.append(' ').append(room).append(" x").append(mult));
+        source.sendSuccess(() -> Component.literal(line.toString()), false);
+        return all.size();
+    }
+
+    /**
+     * {@code /dungeon admin bias <room> <multiplier>}: multiplies the room's
+     * weight in every floor planned from now on, until a restart or
+     * {@code bias clear}. 1 removes the bias. Refuses a name the manifest
+     * does not know, so a typo is not a silent no-op.
+     */
+    private static int setBias(CommandSourceStack source, String room, int multiplier) {
+        String name = PlaytestBias.qualify(room);
+        if (RoomManifest.current().byName(name) == null) {
+            source.sendFailure(Component.literal("No room named " + name + " in the manifest."));
+            return 0;
+        }
+        PlaytestBias.set(name, multiplier);
+        String shortName = name.replaceFirst("^" + PocketDungeonsMod.MOD_ID + ":", "");
+        PlaytestBias.announce(source.getServer(), multiplier == 1
+                ? "Lemon took the lean off " + shortName + "."
+                : "Lemon has set up the next floor: it leans toward " + shortName + " (x" + multiplier
+                        + "). Open a door to see it.");
+        source.sendSuccess(() -> Component.literal(multiplier == 1
+                ? "Bias removed: " + name + " draws its declared weight."
+                : "Bias set: " + name + " x" + multiplier + " for floors planned from now on. "
+                        + "It still has to fit a cell's doors, role and depth."), true);
+        return 1;
+    }
+
+    /** {@code /dungeon admin bias clear}. */
+    private static int clearBias(CommandSourceStack source) {
+        PlaytestBias.clear();
+        PlaytestBias.announce(source.getServer(), "Lemon cleared the room lean; floors plan as usual again.");
+        source.sendSuccess(() -> Component.literal("Room bias cleared."), true);
+        return 1;
+    }
+
+    /**
+     * {@code /dungeon admin bias hold <player> [seconds]} (PD-90): stops the
+     * player previewing or committing a door while a bias is being set up.
+     * Setting or clearing a bias releases it; otherwise it runs out on its
+     * own, at most {@link PlaytestBias#MAX_HOLD_SECONDS} later. 0 releases.
+     */
+    private static int holdBias(CommandSourceStack source, String playerName, int seconds) {
+        ServerPlayer player = source.getServer().getPlayerList().getPlayerByName(playerName);
+        if (player == null) {
+            source.sendFailure(Component.literal(playerName + " is not online."));
+            return 0;
+        }
+        int held = PlaytestBias.hold(player.getUUID(), seconds);
+        if (held > 0) {
+            player.sendSystemMessage(Component.literal("Lemon is setting up the next floor. Your doors wait up to "
+                    + held + "s.").withStyle(ChatFormatting.LIGHT_PURPLE));
+        } else {
+            player.sendSystemMessage(Component.literal("Your doors are open again.")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+        DungeonScreen.refreshDoorScreens(source.getServer());
+        source.sendSuccess(() -> Component.literal(held > 0
+                ? "Held " + playerName + "'s doors for " + held + "s; setting a bias releases them."
+                : "Released " + playerName + "'s doors."), true);
+        return 1;
+    }
+
     private static int coverage(CommandSourceStack source) {
         RoomManifest manifest = RoomManifest.current();
         if (manifest.rooms().isEmpty()) {

@@ -441,6 +441,12 @@ final class RunLifecycle {
                 entry.currentTheme(), entry.depth());
         Keystone.Offer offer = offers[step - 1];
 
+        // PD-90: Lemon is setting up a playtest bias for this player; the
+        // floor a preview plans now would not carry it.
+        if (refuseWhileHeld(player, record)) {
+            return false;
+        }
+
         // M76: refuse a new preview once the server is at the declared preview
         // cap, before the catalyst is escrowed inside previewDoor. A player
         // switching doors does not count: their own existing preview is
@@ -460,8 +466,15 @@ final class RunLifecycle {
         // The Greater tier's refusals are checked at the door screen level
         // (doorRefusal) before this is called, but re-check here for safety.
         if (!offer.free()) {
-            int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+            int minLevel = PocketDungeonsConfig.doorMinLevel(step);
             if (entry.keystoneLevel() < minLevel) {
+                // A level-gated door is not placed in the staging room
+                // (Instances.hideLockedDoors), so only the typed
+                // /dungeon choose reaches this; say why.
+                player.sendSystemMessage(Component.literal(
+                        "Door " + step + " needs keystone level " + minLevel + " or higher; yours is ["
+                                + entry.keystoneLevel() + "].")
+                        .withStyle(ChatFormatting.RED));
                 return false;
             }
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
@@ -481,6 +494,18 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
+        record.floor.previewBiasGeneration = PlaytestBias.generation();
+        return true;
+    }
+
+    /** PD-90: refuses, with the time left, while a playtest bias hold is on the run's owner. */
+    private static boolean refuseWhileHeld(ServerPlayer player, InstanceRecord record) {
+        int held = PlaytestBias.holdSecondsLeft(record.owner);
+        if (held <= 0) {
+            return false;
+        }
+        player.sendSystemMessage(Component.literal("Lemon is setting up the next floor. Your doors open in "
+                + held + "s at most.").withStyle(ChatFormatting.YELLOW));
         return true;
     }
 
@@ -510,6 +535,18 @@ final class RunLifecycle {
         }
         int step = record.floor.selectedStep;
 
+        // PD-90: no commit while Lemon holds the doors, and none on a preview
+        // planned before the bias last changed: that floor would not carry it.
+        if (refuseWhileHeld(player, record)) {
+            return false;
+        }
+        if (record.floor.previewBiasGeneration != PlaytestBias.generation()) {
+            player.sendSystemMessage(Component.literal(
+                    "The next floor changed while this door was open. Right-click the door again to see it.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
+        }
+
         // M55/M65: the beginRun gate. Every party member must be standing
         // in the staging room before the host can commit, on every floor
         // advance, not only the first one. Solo players skip the wait.
@@ -536,7 +573,7 @@ final class RunLifecycle {
         // M12: re-check the Greater tier refusals at commit time, since the
         // player's state may have changed since the preview.
         if (!offer.free()) {
-            int minLevel = PocketDungeonsConfig.greaterDoorMinLevel();
+            int minLevel = PocketDungeonsConfig.doorMinLevel(step);
             if (entry.keystoneLevel() < minLevel) {
                 player.sendSystemMessage(Component.literal(
                         "Door " + step + " needs keystone level " + minLevel + " or higher; yours is ["
@@ -1189,6 +1226,7 @@ final class RunLifecycle {
 
         // Summon fresh screens at the new staging room.
         record.floor.selectedStep = 0;
+        Instances.hideLockedDoors(level, newStagingOrigin, farWall, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
                 DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
@@ -1297,9 +1335,26 @@ final class RunLifecycle {
      * the moment of choosing between home and the next floor.
      */
     private static void showFloorClearedTitle(ServerPlayer player, String headline) {
+        showBigTitle(player, headline, "GO HOME or DESCEND");
+    }
+
+    /**
+     * The go-home title, sent to each member as their interval banks through
+     * the home lever: {@code HOME} large, what they keep small. Playtest
+     * 2026-09-29: the player liked the floor-clear title as a channel and
+     * asked for the same at the moment of going home.
+     */
+    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled,
+                                      int floorsPerSafeVisit) {
+        showBigTitle(player, "HOME", IntervalBanking.chests(settled.chests()).replace("chest", "reward chest")
+                + ", " + IntervalBanking.keyLine(settled, floorsPerSafeVisit));
+    }
+
+    /** The big on-screen title shared by the floor clear and the way home. */
+    private static void showBigTitle(ServerPlayer player, String headline, String subtitle) {
         player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 50, 15));
         player.connection.send(new ClientboundSetSubtitleTextPacket(
-                Component.literal("GO HOME or DESCEND").withStyle(ChatFormatting.GRAY)));
+                Component.literal(subtitle).withStyle(ChatFormatting.GRAY)));
         player.connection.send(new ClientboundSetTitleTextPacket(
                 Component.literal(headline).withStyle(ChatFormatting.GOLD)));
     }
@@ -1420,6 +1475,9 @@ final class RunLifecycle {
                 memberPlayer.sendSystemMessage(Component.literal(
                         IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
                         .withStyle(ChatFormatting.GOLD));
+                if ("home_lever".equals(trigger)) {
+                    showHomeTitle(memberPlayer, settled, floorsPerVisit);
+                }
             }
 
             // M12: door 1's second job, when the interval's last floor was the
@@ -1717,6 +1775,7 @@ final class RunLifecycle {
         record.stagingCellOrigin = stagingOrigin;
 
         // Summon fresh screens at the staging room.
+        Instances.hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
         DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,

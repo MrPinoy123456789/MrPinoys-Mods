@@ -34,16 +34,18 @@ All vanilla, so it works for players without a client mod.
   every other player's entity tracking (a small mixin on the server's entity
   tracking is allowed for this; the mixin rule is relaxed). In a party, each player
   sees only their own Lemon.
-- **Appears when speaking:** summoned at a spot near the player's shoulder with a
-  poof of particles and an allay chirp. While present it hovers within about two
-  blocks, drifting gently, keeping line of sight, and never blocking doorways or
-  the player's view of what they are looking at.
+- **Appears when speaking:** summoned at a spot in view off to one side with a
+  poof of particles and an allay chirp. While present it stays at that spot,
+  only turning to face the player and bobbing gently; walking away or turning
+  leaves it behind. It picks a new spot only when it next speaks or is spoken
+  to and the old spot is far away, out of view or blocked, or when a fight
+  starts or ends and it needs the other distance.
 - **Highlighted while talking or waiting for an answer:** a glowing outline in
   yellow (vanilla glowing plus a team colour).
 - **Vanishes when quiet:** after a short idle period (about 20 seconds after its
   last line, longer while waiting for an answer, configurable) it drifts away and
   disappears with a soft poof.
-- **Speech in two places:** a floating speech bubble beside it (a text display
+- **Speech in two places:** a floating speech bubble just above its head (a text display
   entity, also private to the player) for the current line, and a chat line with a
   yellow `Lemon:` tag so there is a history. Long text is split into short bubbles
   shown in sequence.

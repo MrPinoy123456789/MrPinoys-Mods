@@ -402,11 +402,15 @@ final class MechanismSpecs {
     // ---- 5. Gallery ---------------------------------------------------------
 
     /**
-     * Three target blocks up the west wall, each under a redstone lamp that
-     * lights when it is hit. Arrows, snowballs, eggs and wind charges all
-     * activate a target. Open access: no door, no gate. The player walks
-     * up to the wall and recovers spent projectiles by hand. Two dirt
-     * blocks by the entrance make good on {@code provides: blocks}.
+     * Three plinths up the west wall, each a chiseled stone brick with a
+     * potted fern on top: a gallery of things on display. Open access: no
+     * door, no gate. Two dirt blocks by the entrance make good on
+     * {@code provides: blocks}.
+     *
+     * <p>Playtest 2026-09-29: the plinths used to be target blocks under
+     * redstone lamps that lit when hit, which read as a lock waiting to be
+     * solved in an open corridor. Decor must not mimic puzzle props, so
+     * nothing here reacts to the player any more.
      */
     // Fixed 2026-09-04: removed broken iron door, chest gate, hopper column,
     // and hopper run. Arrows stick to targets in vanilla and never reach
@@ -414,10 +418,10 @@ final class MechanismSpecs {
     private static RoomSpec gallery() {
         return new RoomSpec("gallery", EnumSet.of(ENTRANCE, EXIT))
                 .decor((level, o) -> {
-                    // Three targets up the west wall, each with its lamp.
+                    // Three plinths up the west wall, a plant on each.
                     for (int z : new int[]{4, 8, 12}) {
-                        RoomBuilder.set(level, o.offset(1, 2, z), Blocks.TARGET.defaultBlockState());
-                        RoomBuilder.set(level, o.offset(1, 3, z), Blocks.REDSTONE_LAMP.defaultBlockState());
+                        RoomBuilder.set(level, o.offset(1, 1, z), Blocks.CHISELED_STONE_BRICKS.defaultBlockState());
+                        RoomBuilder.set(level, o.offset(1, 2, z), Blocks.POTTED_FERN.defaultBlockState());
                     }
                     // provides: blocks.
                     RoomBuilder.set(level, o.offset(5, 1, 10), Blocks.DIRT.defaultBlockState());

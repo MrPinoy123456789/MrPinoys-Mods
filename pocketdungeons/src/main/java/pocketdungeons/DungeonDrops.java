@@ -28,7 +28,10 @@ import java.util.List;
  *       carry the same cut in their data files, where an author can see it.</li>
  *   <li><strong>Equipment drops.</strong> A mob's worn or held gear drops at
  *       least {@link #EQUIPMENT_DROP_CHANCE} of the time (the trial spawner
- *       tables said 0, vanilla says 0.085).</li>
+ *       tables said 0, vanilla says 0.085). A bow or crossbow in the hand
+ *       floors at {@link #RANGED_DROP_CHANCE} instead (playtest 2026-09-29-2:
+ *       every skeleton is an archer, so the general floor turned bows into
+ *       disposables while arrows stayed scarce).</li>
  *   <li><strong>Raised spawner rewards (PD-72).</strong> A trial spawner that
  *       hangs above the floor (Ledge Archers) ejects its key or emeralds onto
  *       its own top, out of reach. Items that appear there are moved to the
@@ -41,6 +44,13 @@ final class DungeonDrops {
     static final double BONE_SHARE = 0.25;
     /** Floor for a dungeon mob's per-slot equipment drop chance. */
     static final float EQUIPMENT_DROP_CHANCE = 0.2f;
+    /**
+     * The floor for a held bow or crossbow. Lower than the rest because
+     * skeletons are the commonest mob and each one holds a bow: at the general
+     * floor a floor's worth of archers left a pile of bows and made Unbreaking
+     * worthless next to arrow-saving enchantments.
+     */
+    static final float RANGED_DROP_CHANCE = 0.05f;
 
     private static final List<EquipmentSlot> GEAR_SLOTS = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
             EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET);
@@ -93,9 +103,14 @@ final class DungeonDrops {
                 }
             } else if (entity instanceof Mob mob) {
                 for (EquipmentSlot slot : GEAR_SLOTS) {
-                    if (!mob.getItemBySlot(slot).isEmpty()
-                            && mob.getDropChances().byEquipment(slot) < EQUIPMENT_DROP_CHANCE) {
-                        mob.setDropChance(slot, EQUIPMENT_DROP_CHANCE);
+                    ItemStack worn = mob.getItemBySlot(slot);
+                    if (worn.isEmpty()) {
+                        continue;
+                    }
+                    float floor = worn.is(Items.BOW) || worn.is(Items.CROSSBOW)
+                            ? RANGED_DROP_CHANCE : EQUIPMENT_DROP_CHANCE;
+                    if (mob.getDropChances().byEquipment(slot) < floor) {
+                        mob.setDropChance(slot, floor);
                     }
                 }
             }

@@ -192,9 +192,7 @@ final class InstanceTeardown {
         for (BlockPos cellOrigin : cellOrigins) {
             Locks.clear(cellOrigin);
             OmenSources.clear(cellOrigin);
-            CollapsingBridgeHandler.clear(cellOrigin);
-            HoldThePlateHandler.clear(cellOrigin);
-            RisingLavaHandler.clear(cellOrigin);
+            Ordeals.clear(cellOrigin);
         }
 
         ServerLevel level = dungeonLevel(server);

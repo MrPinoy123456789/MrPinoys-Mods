@@ -20,3 +20,16 @@ playtest journal once it exists; blank means not recorded.
 | 2026-09-27 | Infestation, slot 0, key 4, tier 1 | 1 | solo | 1240 | 3 | 1 | 4 | 251 | 2 | calm (+1 level) | | 2026-09-27-3.md |
 | 2026-09-27 | Prismarine, slot 0, key 4, tier 1 | 2 | solo | 521 | 0 | 0 | 0 | 0 | 2 | calm (+1 level) | | 2026-09-27-3.md |
 | 2026-09-27 | Frostworks, slot 0, key 4, tier 1 | 3 | solo | 284 | 0 | 1 | 0 | 0 | 3 | calm (+1 level) | | 2026-09-27-3.md |
+| 2026-09-29 | Infestation, slot 0, key 3, tier 1 | 1 | solo | 116 | 0 | 0 | 0 | 0 | 3 | calm (+1 level, banked after F2) | | 2026-09-29-1.md |
+| 2026-09-29 | Prismarine, slot 0, key 2, tier 1 | 2 | solo | 504 | 0 | 0 | 0 | 85 | 3 | calm (+1 level) | | 2026-09-29-1.md |
+| 2026-09-29 | Frostworks, slot 0, key 3, tier 1 | 1 | solo | 318 | 0 | 0 | 0 | 71 | 3 | calm (+1 level, banked after F3) | | 2026-09-29-1.md |
+| 2026-09-29 | Infestation, slot 0, key 2, tier 1 | 2 | solo | 193 | 0 | 0 | 0 | 25 | 3 | calm (+1 level, banked after F3) | | 2026-09-29-1.md |
+| 2026-09-29 | Prismarine, slot 0, tier 1 | 3 | solo | 292 | 0 | 1 | 0 | 0 | 3 | calm (+1 level) | | 2026-09-29-1.md |
+| 2026-09-29 | Frostworks, slot 0, tier 1 | 1 | solo | 353 | 1 | 1 | 0 | 115 | 3 | not banked (AFK grace purge) | | 2026-09-29-2.md |
+| 2026-09-29 | Infestation, slot 0, tier 1 | 1 | solo | 294 | 0 | 0 | 0 | 0 | 3 | calm (+1 level, banked after F3) | | 2026-09-29-2.md |
+| 2026-09-29 | Prismarine, slot 0, tier 1 | 2 | solo | 953 | 1 | 1 | 0 | 20 | 3 | calm | | 2026-09-29-2.md |
+| 2026-09-29 | Frostworks, slot 0, tier 1 | 3 | solo | 180 | 0 | 0 | 0 | 18 | 3 | calm | | 2026-09-29-2.md |
+| 2026-09-29 | Infestation+explosive, slot 0, tier 1 | 1 | solo | 606 | 0 | 0 | 1 | 74 | 3 | calm (+1 level, banked after F3) | | 2026-09-29-2.md |
+| 2026-09-29 | Prismarine+explosive, slot 0, tier 1 | 2 | solo | 453 | 0 | 0 | 1 | 383 | 3 | calm | | 2026-09-29-2.md |
+| 2026-09-29 | Frostworks, slot 0, tier 1 | 3 | solo | 458 | 0 | 0 | 0 | 0 | 3 | calm | | 2026-09-29-2.md |
+| 2026-09-29 | Infestation, slot 0, tier 1 | 1 | solo | 265 | 0 | 0 | 0 | 0 | 3 | not banked (run failed at omen 4 on F2) | | 2026-09-29-3.md |

@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -14,12 +13,22 @@ import net.minecraft.world.level.block.state.properties.PistonType;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Drives the Collapsing Bridge room's piston segments.
+ * The Collapsing Bridge Ordeal.
+ *
+ * <ul>
+ *   <li>Objective: cross to the far side.</li>
+ *   <li>Danger: each plank segment drops away shortly after a player stands on it.</li>
+ *   <li>Resolution: the lever on the far side locks every segment out, a
+ *       permanent bridge for the way back and for the rest of the party.</li>
+ * </ul>
+ *
+ * <p>The lever and its lamp are placed at runtime on the exit side
+ * ({@code LayoutStamper.applyDirectionalGates}), because the layout can turn
+ * the room round and a baked lever would then sit at the entrance. Armed from
+ * there too, after the lever exists.
  *
  * <p>The template places sticky pistons in the extended state with oak planks
  * forming the bridge. Observers cannot detect a player standing on a block
@@ -30,11 +39,12 @@ import java.util.Map;
  * the piston heads, move the planks back to the retracted position). After a
  * re-extend delay, reverse the operation so the player can backtrack.
  *
- * <p>Follows the same pattern as {@link Locks}: arm at stamp time, scan once
- * for the blocks (rotation-agnostic), evaluate on a slow tick, clear on
- * teardown.
+ * <p>{@link Ordeals} runs it: arm at stamp time, scan once for the blocks
+ * (rotation-agnostic), evaluate on a slow tick, clear on teardown.
  */
-final class CollapsingBridgeHandler {
+final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge> {
+
+    static final CollapsingBridgeOrdeal INSTANCE = new CollapsingBridgeOrdeal();
 
     private static final int STAMP_FLAGS = net.minecraft.world.level.block.Block.UPDATE_CLIENTS
             | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS;
@@ -56,22 +66,12 @@ final class CollapsingBridgeHandler {
         }
     }
 
-    /** One cell's bridge: the level it lives in and its segments. */
-    private record Bridge(ServerLevel level, List<Segment> segments) {}
+    /** One cell's bridge: its segments and the far-side lever, if placed. */
+    record Bridge(List<Segment> segments, BlockPos lever) {}
 
-    /** Keyed by cell origin: one bridge per collapsing bridge cell. */
-    private static final Map<BlockPos, Bridge> ACTIVE = new LinkedHashMap<>();
-
-    private CollapsingBridgeHandler() {}
-
-    /** Wires the evaluation tick. Call once from onInitialize. */
-    static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (server.getTickCount() % PERIOD != 0 || ACTIVE.isEmpty()) {
-                return;
-            }
-            tick();
-        });
+    private CollapsingBridgeOrdeal() {
+        super("collapsing_bridge", PERIOD, "cross to the far side",
+                "the planks drop away under you", "the far-side lever locks the bridge in place");
     }
 
     /**
@@ -81,7 +81,8 @@ final class CollapsingBridgeHandler {
      * the head). Rotation-agnostic: the scan reads the world, not authored
      * coordinates.
      */
-    static void arm(ServerLevel level, BlockPos cellOrigin) {
+    @Override
+    Bridge arm(ServerLevel level, BlockPos cellOrigin) {
         List<BlockPos> pistons = new ArrayList<>();
         for (int x = 0; x < RoomGeometry.CELL; x++) {
             for (int z = 0; z < RoomGeometry.CELL; z++) {
@@ -95,7 +96,7 @@ final class CollapsingBridgeHandler {
             }
         }
         if (pistons.isEmpty()) {
-            return;
+            return null;
         }
         // Pair pistons that face each other. The head is one block in the
         // facing direction; the plank is one more block beyond that.
@@ -125,41 +126,42 @@ final class CollapsingBridgeHandler {
             BlockPos plankB = headB.relative(facingB);
             segments.add(new Segment(pa, headA, plankA, pb, headB, plankB, 0, 0, false));
         }
-        if (!segments.isEmpty()) {
-            ACTIVE.put(cellOrigin.immutable(), new Bridge(level, segments));
+        if (segments.isEmpty()) {
+            return null;
         }
+        return new Bridge(List.copyOf(segments), Ordeals.findLever(level, cellOrigin));
     }
 
-    /** Drops one cell's bridge. Called from teardown. */
-    static void clear(BlockPos cellOrigin) {
-        ACTIVE.remove(cellOrigin);
+    @Override
+    BlockPos lever(Bridge bridge) {
+        return bridge.lever();
     }
 
-    /** Whether the cell still has an armed bridge. For tests and teardown. */
-    static boolean isArmed(BlockPos cellOrigin) {
-        return ACTIVE.containsKey(cellOrigin);
-    }
-
-    private static void tick() {
-        ACTIVE.entrySet().removeIf(entry -> {
-            Bridge bridge = entry.getValue();
-            List<Segment> segments = bridge.segments();
-            if (segments.isEmpty() || stale(bridge)) {
-                return true;
-            }
-            List<Segment> updated = new ArrayList<>(segments.size());
-            for (Segment seg : segments) {
-                updated.add(evaluate(bridge.level(), seg));
-            }
-            ACTIVE.put(entry.getKey(), new Bridge(bridge.level(), updated));
-            return false;
-        });
+    @Override
+    Bridge tickDanger(ServerLevel level, BlockPos cellOrigin, Bridge bridge) {
+        List<Segment> updated = new ArrayList<>(bridge.segments().size());
+        for (Segment seg : bridge.segments()) {
+            updated.add(evaluate(level, seg));
+        }
+        return new Bridge(updated, bridge.lever());
     }
 
     /** Whether the cell has been torn down. No piston left means no cell left. */
-    private static boolean stale(Bridge bridge) {
+    @Override
+    boolean stale(ServerLevel level, Bridge bridge) {
         Segment first = bridge.segments().getFirst();
-        return !bridge.level().getBlockState(first.pistonA()).is(Blocks.STICKY_PISTON);
+        return !level.getBlockState(first.pistonA()).is(Blocks.STICKY_PISTON);
+    }
+
+    /** Every dropped segment comes back, and nothing drops again: the tick stops with the Ordeal. */
+    @Override
+    String resolve(ServerLevel level, BlockPos cellOrigin, Bridge bridge) {
+        for (Segment seg : bridge.segments()) {
+            if (seg.collapsed()) {
+                reextend(level, seg);
+            }
+        }
+        return "The bridge locks in place.";
     }
 
     private static Segment evaluate(ServerLevel level, Segment seg) {

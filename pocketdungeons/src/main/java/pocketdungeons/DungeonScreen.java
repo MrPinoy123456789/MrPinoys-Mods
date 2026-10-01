@@ -89,11 +89,11 @@ final class DungeonScreen {
     private static final double TRACKER_SCREEN_ALONG = 7.5;
     /**
      * The go-home screen sits on the selector wall's 3x3 backdrop at along
-     * 2..4, Y=1..3 ({@link RoomTemplateGenerator#HOME_LEVER_ALONG}): its
-     * middle is the centre of block 3 and the middle of row 2. A little
+     * 3..5, Y=1..3 ({@link RoomTemplateGenerator#HOME_LEVER_ALONG}): its
+     * middle is the centre of block 4 and the middle of row 2. A little
      * smaller than the engine screen so its three lines stay on the panel.
      */
-    private static final double HOME_SCREEN_ALONG = 3.5;
+    private static final double HOME_SCREEN_ALONG = 4.5;
     private static final double HOME_CENTER_Y = 2.5;
     private static final float HOME_SCALE = 0.8f;
     private static final int LINE_WIDTH = 200;
@@ -231,7 +231,50 @@ final class DungeonScreen {
             content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
                     .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
         }
+        Component bias = biasNote(owner);
+        if (bias != null) {
+            content.append(bias);
+        }
         return content;
+    }
+
+    /**
+     * PD-90: the door screen's line for playtest biases: a countdown while
+     * Lemon holds the owner's doors to set one up, otherwise the rooms the
+     * next floors lean toward, or {@code null} with neither.
+     */
+    static Component biasNote(UUID owner) {
+        int held = PlaytestBias.holdSecondsLeft(owner);
+        if (held > 0) {
+            return Component.literal("\nLemon is setting up the next floor (" + held + "s)")
+                    .withStyle(ChatFormatting.GOLD);
+        }
+        String biases = PlaytestBias.describe();
+        if (biases.isEmpty()) {
+            return null;
+        }
+        return Component.literal("\nLeaning toward: " + biases).withStyle(ChatFormatting.LIGHT_PURPLE);
+    }
+
+    /**
+     * Redraws every door screen that is waiting on a choice, with whatever it
+     * should show now: the open preview, or the idle text. PD-90: run when a
+     * bias or a hold changes, and each second while a hold counts down.
+     */
+    static void refreshDoorScreens(MinecraftServer server) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return;
+        }
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            if (record.visitInstance || record.stagingCellOrigin == null || !RunSession.canChooseDoor(record)) {
+                continue;
+            }
+            int step = record.floor.selectedStep;
+            updateDoor(level, record, step >= 1 && step <= 3 && record.floor.previewPlan != null
+                    ? previewContent(level, record, step)
+                    : idleContent(level, record.owner));
+        }
     }
 
     /**
@@ -275,6 +318,10 @@ final class DungeonScreen {
         }
         if (offerLevel <= 1) {
             content.append(Component.literal("\nPull the lever to descend!").withStyle(ChatFormatting.GREEN));
+        }
+        Component bias = biasNote(owner);
+        if (bias != null) {
+            content.append(bias);
         }
         return content;
     }

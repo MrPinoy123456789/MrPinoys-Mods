@@ -92,12 +92,36 @@ public final class DungeonTools {
             return stack; // already capped (or a kit item authored lower): never raise it
         }
         ItemStack copy = stack.copy();
-        copy.set(DataComponents.MAX_DAMAGE, cap);
-        int damage = stack.getDamageValue();
-        if (damage > 0 && max != null) {
-            copy.setDamageValue(scaledDamage(damage, max, cap));
-        }
+        capInPlace(copy);
         return copy;
+    }
+
+    /**
+     * {@link #limitDurability} on {@code stack} itself rather than on a copy.
+     * PD-89: shift-clicking a crafting result ({@code CraftingMenu.quickMoveStack})
+     * moves the result stack straight into the inventory and never goes
+     * through {@code ResultSlot.remove}, so {@link ResultSlotMixin} missed it
+     * and a crafted diamond sword kept its full 1561. The one call that path
+     * makes on the stack before moving it is {@code Item.onCraftedBy}, and
+     * {@code CraftedDurabilityMixin} caps it there, in place.
+     */
+    public static void capInPlace(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        int cap = durabilityCap(stack.getItem());
+        if (cap <= 0) {
+            return;
+        }
+        Integer max = stack.get(DataComponents.MAX_DAMAGE);
+        if (max != null && max <= cap) {
+            return;
+        }
+        int damage = stack.getDamageValue();
+        stack.set(DataComponents.MAX_DAMAGE, cap);
+        if (damage > 0 && max != null) {
+            stack.setDamageValue(scaledDamage(damage, max, cap));
+        }
     }
 
     /**
@@ -333,7 +357,8 @@ public final class DungeonTools {
             }
         }
         BlockPos dungeonCellOrigin = Instances.dungeonCellOriginAt(pos);
-        return dungeonCellOrigin != null && RoomProtection.isShell(pos, dungeonCellOrigin);
+        return dungeonCellOrigin != null
+                && (RoomProtection.isShell(pos, dungeonCellOrigin) || Ordeals.isFixture(pos));
     }
 
     /**

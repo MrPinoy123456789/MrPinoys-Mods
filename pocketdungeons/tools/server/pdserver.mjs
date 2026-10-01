@@ -285,17 +285,29 @@ async function sync() {
  * Blocks until there are new events (or the timeout passes) and prints them: the
  * one-command loop for agents that cannot stream output. With --player it also keeps
  * that player's Lemon in llm mode, refreshing it every minute while the server is up.
+ *
+ * PD-80: one slow or failed `list` (3 s RCON timeout) used to flip `up` and print
+ * "server is down" at the timeout while the server was fine. A running server is only
+ * called down after two failed checks in a row, and a down verdict is checked once
+ * more before it is printed.
  */
 async function wait() {
   const timeout = Number(flagValue('--timeout', 240)) * 1000
   const player = flagValue('--player', null)
   const startedAt = Date.now()
-  let up = false
+  let up = null
+  let failures = 0
   let lastCheck = 0
   let lastRefresh = 0
   for (;;) {
     if (Date.now() - lastCheck >= 15000) {
-      up = await isUp()
+      if (await isUp()) {
+        up = true
+        failures = 0
+      } else {
+        failures++
+        if (up === null || failures >= 2) up = false
+      }
       lastCheck = Date.now()
     }
     if (player && up && Date.now() - lastRefresh >= 60000) {
@@ -315,6 +327,7 @@ async function wait() {
       return
     }
     if (Date.now() - startedAt >= timeout) {
+      if (!up) up = !!(await isUp())
       console.log(up ? 'no new events (timeout)' : 'server is down (timeout)')
       return
     }

@@ -46,7 +46,7 @@ else `node pdserver.mjs <command>`.
 | `lemon reply <player> <text>` | Answer the player's pending question. Delivered now, never held for a fight or quiet. The journal records `answered_by: llm` and the wait time. |
 | `lemon think <player> [text]` | Show a short "let me check" line, then Lemon vanishes until the reply. With no text it uses Lemon's default line. |
 | `lemon quiet <player>` | Lemon vanishes and holds unprompted lines until the player speaks to Lemon again; replies still arrive. |
-| `lemon mode <player> <guide|llm>` | `llm` holds the player's questions to Lemon for you to answer (with `lemon reply`). It lapses back to `guide` after 5 minutes (`lemonLlmLapseSeconds`), so set it again every few minutes while you are connected. A question you leave unanswered for 45 seconds (`lemonFallbackSeconds`) gets Lemon's own honest "I do not know that one yet." |
+| `lemon mode <player> <guide|llm>` | `llm` holds the player's questions to Lemon for you to answer (with `lemon reply`). It lapses back to `guide` after 5 minutes (`lemonLlmLapseSeconds`), so set it again every few minutes while you are connected. The MCP server (`mcp.mjs`) does this for you: once you call `lemon_mode llm` or `wait_events` for a player, it refreshes llm mode every minute for as long as you keep making MCP calls (any tool, not only `wait_events`), and stops after 20 minutes of silence or on `lemon_mode guide`. A question you leave unanswered for 45 seconds (`lemonFallbackSeconds`) gets Lemon's own honest "I do not know that one yet." |
 
 ### Chat limits
 

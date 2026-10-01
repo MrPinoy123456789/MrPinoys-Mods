@@ -299,6 +299,7 @@ for ((taskName, testClass) in mapOf(
     "taskTrackerTest" to "TaskTrackerTest",
     "rerollMathTest" to "RerollMathTest",
     "gambleMathTest" to "GambleMathTest",
+    "salvageMathTest" to "SalvageMathTest",
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
@@ -343,7 +344,9 @@ for ((taskName, testClass) in mapOf(
     // Lemon steps 1 and 2: the playtest journal line format, the context
     // snapshot builder, and Lemon's chat routing and bubbles.
     "journalFormatTest" to "JournalFormatTest",
-    "lemonSpeechTest" to "LemonSpeechTest"
+    "lemonSpeechTest" to "LemonSpeechTest",
+    // PD-87: trial keys from every loot source are bare, identical items.
+    "trialKeyLootTest" to "TrialKeyLootTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -358,6 +361,7 @@ tasks.test {
     dependsOn("adventureGraphTest")
     dependsOn("dungeonLogTest")
     dependsOn("taskTrackerTest")
+    dependsOn("salvageMathTest")
     dependsOn("rerollMathTest")
     dependsOn("gambleMathTest")
     dependsOn("powerEquipMathTest")
@@ -377,6 +381,7 @@ tasks.test {
     dependsOn("cellGeometryTest")
     dependsOn("roomShellTest")
     dependsOn("roomFurnitureTest")
+    dependsOn("trialKeyLootTest")
     dependsOn("dungeonShellProtectionTest")
     dependsOn("lobbyBrowserTest")
     dependsOn("lodestoneMenuTest")
