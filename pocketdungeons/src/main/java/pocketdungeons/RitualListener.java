@@ -254,9 +254,10 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // The salvage bench (playtest 2026-09-29, A3). PD-96: any use that is
-        // not a sneak opens it, so a player finds it; a sneak is the vanilla
-        // grindstone, and the bench's Disenchant button hands over to it.
+        // The salvage bench (playtest 2026-09-29, A3). PD-96: in the dungeon,
+        // any use that is not a sneak opens it, so a player finds it; a sneak
+        // is the vanilla grindstone, and the bench's Disenchant button hands
+        // over to it. Outside the dungeon the grindstone is always vanilla.
         if (SalvageStation.onUse(serverPlayer, level.getBlockState(pos), hand,
                 net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos))) {
             return InteractionResult.SUCCESS_SERVER;

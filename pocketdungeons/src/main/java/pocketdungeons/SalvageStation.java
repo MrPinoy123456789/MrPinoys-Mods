@@ -37,11 +37,12 @@ import java.util.Map;
  * {@code docs/reference/SALVAGE_PROPOSAL.md}; the arithmetic is
  * {@link SalvageMath}.
  *
- * <p><b>Every use opens it (PD-96).</b> The configured block (a grindstone by
- * default) opens the bench on any use that is not a sneak, whatever the hand
- * holds; a bench that only answered to the right item was one nobody found.
- * Sneaking still opens the vanilla grindstone, and the bench offers a
- * Disenchant button that hands a single enchanted item over to it.
+ * <p><b>Every use in the dungeon opens it (PD-96).</b> The configured block (a
+ * grindstone by default) opens the bench on any use that is not a sneak,
+ * whatever the hand holds; a bench that only answered to the right item was
+ * one nobody found. Sneaking still opens the vanilla grindstone, and the bench
+ * offers a Disenchant button that hands a single enchanted item over to it.
+ * Outside the dungeon dimension every grindstone is vanilla.
  *
  * <p><b>A drop-in screen, not a one-item picker.</b> Clearing four bows one
  * click at a time is the chore the player complained about, so the bench is
@@ -143,13 +144,21 @@ final class SalvageStation {
     /**
      * Called from {@link RitualListener#onUseBlock} with the other stations.
      * Returns whether this click was handled; {@code false} means not our
-     * block or a sneak, and the vanilla grindstone runs as usual. Below the
-     * unlock level the vanilla grindstone runs too, unless the hand holds
-     * something the bench takes, which earns the "needs level N" line.
+     * block, not the dungeon, or a sneak, and the vanilla grindstone runs as
+     * usual. Below the unlock level the vanilla grindstone runs too, unless
+     * the hand holds something the bench takes, which earns the "needs level
+     * N" line.
      */
     static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
                          ContainerLevelAccess access) {
-        if (!matchesStation(state) || player.isShiftKeyDown()) {
+        return onUse(player, state, hand, access,
+                player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL));
+    }
+
+    /** As above, with the dimension test supplied so a gametest can stand in the dungeon. */
+    static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
+                         ContainerLevelAccess access, boolean inDungeon) {
+        if (!inDungeon || !matchesStation(state) || player.isShiftKeyDown()) {
             return false;
         }
         ItemStack held = player.getItemInHand(hand);
