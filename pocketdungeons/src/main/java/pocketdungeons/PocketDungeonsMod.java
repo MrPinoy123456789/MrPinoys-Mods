@@ -47,7 +47,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         OmenSources.register();
         DungeonDrops.register();
         SpiderUnstick.register();
-        VaultShare.register();
+        PartyRewards.register();
         StaggeredTitle.register();
         RoomScan.register();
         RoomContent.register();

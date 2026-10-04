@@ -12,7 +12,8 @@
     "TextDisplayAccessor",
     "DisplayAccessor",
     "OmenWaveNoDropsMixin",
-    "TrialSpawnerStateDataAccessor"
+    "TrialSpawnerStateDataAccessor",
+    "VaultServerDataAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

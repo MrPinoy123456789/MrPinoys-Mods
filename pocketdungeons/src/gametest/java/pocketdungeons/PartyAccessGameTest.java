@@ -111,8 +111,9 @@ public final class PartyAccessGameTest {
     }
 
     /**
-     * Playtest 2026-10-03-2: a vault one member opened counts as opened for
-     * the whole party, so a party of two no longer loots each vault twice.
+     * Playtest 2026-10-03-2 (owner rule): a party opens each vault once, and
+     * that opening pays one roll of the vault's table per member. The
+     * companion is marked as paid, and the eject list gains a second roll.
      */
     @GameTest(maxTicks = 20)
     public void vaultPaysThePartyOnce(GameTestHelper helper) {
@@ -126,12 +127,43 @@ public final class PartyAccessGameTest {
         BlockPos vault = helper.absolutePos(new BlockPos(2, 1, 2));
         try {
             helper.getLevel().setBlockAndUpdate(vault, Blocks.VAULT.defaultBlockState());
-            int marked = VaultShare.shareWithParty(server, helper.getLevel(), vault, owner.getUUID());
-            helper.assertValueEqual(marked, 1, "the companion is marked as paid by the owner's vault");
+            var be = (net.minecraft.world.level.block.entity.vault.VaultBlockEntity)
+                    helper.getLevel().getBlockEntity(vault);
+            var data = (pocketdungeons.mixin.VaultServerDataAccessor) (Object) be.getServerData();
+            data.pocketdungeons$setItemsToEject(new java.util.ArrayList<>(List.of(new ItemStack(Items.EMERALD))));
+            int extra = PartyRewards.payParty(server, helper.getLevel(), vault, owner.getUUID());
+            helper.assertValueEqual(extra, 1, "one extra roll for the one companion");
+            helper.assertTrue(data.pocketdungeons$getItemsToEject().size() > 1,
+                    "the opening ejects the owner's roll and the companion's, got "
+                            + data.pocketdungeons$getItemsToEject().size() + " items");
         } finally {
             helper.getLevel().setBlockAndUpdate(vault, Blocks.AIR.defaultBlockState());
             unregister(9973, owner, companion);
         }
+        helper.succeed();
+    }
+
+    /**
+     * Playtest 2026-10-03-2 (owner rule): a beaten trial spawner ejects one
+     * reward for the party, not one per player it saw. A spawner still
+     * fighting keeps every player, since that sets its mob count.
+     */
+    @GameTest(maxTicks = 20)
+    public void spawnerPaysOneKeyPerParty(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        helper.getLevel().setBlockAndUpdate(pos, Blocks.TRIAL_SPAWNER.defaultBlockState());
+        var spawner = (net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity)
+                helper.getLevel().getBlockEntity(pos);
+        java.util.Set<java.util.UUID> rewarded = ((pocketdungeons.mixin.TrialSpawnerStateDataAccessor)
+                (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$detectedPlayers();
+        rewarded.add(java.util.UUID.randomUUID());
+        rewarded.add(java.util.UUID.randomUUID());
+        PartyRewards.oneRewardPerSpawner(helper.getLevel(), List.of(pos));
+        helper.assertValueEqual(rewarded.size(), 2, "a spawner still fighting keeps both players");
+        spawner.setState(helper.getLevel(),
+                net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState.WAITING_FOR_REWARD_EJECTION);
+        PartyRewards.oneRewardPerSpawner(helper.getLevel(), List.of(pos));
+        helper.assertValueEqual(rewarded.size(), 1, "a beaten spawner rewards one player, so ejects one key");
         helper.succeed();
     }
 

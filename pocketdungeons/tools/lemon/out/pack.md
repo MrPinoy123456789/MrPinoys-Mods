@@ -288,10 +288,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 ### L22. 2026-10-03: balance batch
 
 - **Status:** owed
-- **Changed:** 2026-10-03: the first floor of an interval has at most 2 encounter cells (`firstFloorMaxEncounters`); chests carry fewer logs and more planks; a vault pays a party once (one member opening it marks the rest as paid); the floor history rows are 20 percent bigger and the heading sits higher; a tamed spawner wolf counts as defeated; a chest leather cap salvages; Disenchant works with an empty bench.
+- **Changed:** 2026-10-03: the first floor of an interval has at most 2 encounter cells (`firstFloorMaxEncounters`); chests carry fewer logs and more planks; a trial spawner ejects one key per party, and a vault opens once per party but pays one loot roll per member (owner rule; `PartyRewards`); the floor history rows are 20 percent bigger and the heading sits higher; a tamed spawner wolf counts as defeated; a chest leather cap salvages; Disenchant works with an empty bench.
 - **Do:** watch floor 1 length and spawner count, chest contents, and a two-player vault. Ask whether the history board reads well.
-- **Pass:** floor 1 shows 2 spawners or fewer and runs well under 300 s; one vault opening per party; the board text fits its backdrop.
-- **Fail signs:** history rows wider than the panel, a vault the second player can still open, floor 1 with 3 or more spawners.
+- **Pass:** floor 1 shows 2 spawners or fewer and runs well under 300 s; in a party of two, one key per spawner and one vault opening that ejects about twice a solo vault; the board text fits its backdrop.
+- **Fail signs:** history rows wider than the panel, two keys from one spawner, a vault the second player can still open, a party vault that pays like a solo one, floor 1 with 3 or more spawners.
 
 # Rooms (id: roles, tier, depth, requirements)
 

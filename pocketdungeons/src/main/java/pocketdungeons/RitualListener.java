@@ -94,7 +94,7 @@ final class RitualListener {
             TrialContent.bareKey(serverPlayer.getMainHandItem());
             if (level instanceof ServerLevel serverLevel
                     && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                VaultShare.clicked(serverPlayer, serverLevel, pos);
+                PartyRewards.vaultClicked(serverPlayer, serverLevel, pos);
             }
         }
 
