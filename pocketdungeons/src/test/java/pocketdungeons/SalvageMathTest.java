@@ -12,6 +12,7 @@ public class SalvageMathTest {
         testMobGear();
         testKeys();
         testKeysToFuel();
+        testMaterials();
         System.out.println("SalvageMathTest passed");
     }
 
@@ -66,5 +67,28 @@ public class SalvageMathTest {
         if (actual != expected) {
             throw new AssertionError("expected " + expected + " but was " + actual);
         }
+    }
+
+    private static void check(int actual, int expected, String what) {
+        if (actual != expected) {
+            throw new AssertionError(what + ": expected " + expected + " but was " + actual);
+        }
+    }
+
+    /**
+     * Owner request (2026-10-03): chestplate and leggings give 2 at 75 percent
+     * and above, 1 from 25 to under 75, none below; every other piece gives 1
+     * at 75 and above only. Measured against the stack's own (reduced) max.
+     */
+    private static void testMaterials() {
+        check(SalvageMath.materials(true, 40, 40), 2, "a full chestplate gives 2");
+        check(SalvageMath.materials(true, 30, 40), 2, "a chestplate at exactly 75 percent gives 2");
+        check(SalvageMath.materials(true, 29, 40), 1, "a chestplate just under 75 percent gives 1");
+        check(SalvageMath.materials(true, 10, 40), 1, "a chestplate at exactly 25 percent gives 1");
+        check(SalvageMath.materials(true, 9, 40), 0, "a chestplate under 25 percent gives nothing");
+        check(SalvageMath.materials(false, 48, 64), 1, "a sword at 75 percent of its reduced max gives 1");
+        check(SalvageMath.materials(false, 47, 64), 0, "a sword under 75 percent gives nothing");
+        check(SalvageMath.materials(false, 3, 64), 0, "a worn sword gives nothing");
+        check(SalvageMath.materials(true, 0, 0), 0, "an undamageable item gives nothing");
     }
 }

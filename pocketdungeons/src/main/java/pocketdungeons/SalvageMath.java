@@ -32,6 +32,38 @@ final class SalvageMath {
         return 1 + Math.max(0, enchantCostSum) / 2;
     }
 
+    /**
+     * Materials back from one piece of gear (owner request, 2026-10-03): the
+     * raw material it is made of, by how much durability is left.
+     * Deliberately scarce, and never nuggets.
+     * <ul>
+     *   <li>A chestplate or leggings ({@code large}): 2 at 75 percent or
+     *       more, 1 from 25 to under 75 percent.</li>
+     *   <li>Anything else (helmet, boots, weapon, tool): 1 at 75 percent or
+     *       more.</li>
+     *   <li>Under 25 percent: nothing; the piece is worth only its XP or
+     *       emeralds.</li>
+     * </ul>
+     * {@code max} is the stack's own maximum, so the mod's reduced dungeon
+     * durability is what the percentage is taken against.
+     *
+     * @param left durability remaining
+     * @param max  the stack's maximum durability; 0 or less pays nothing
+     */
+    static int materials(boolean large, int left, int max) {
+        if (max <= 0 || left <= 0) {
+            return 0;
+        }
+        // Integer comparison: left / max >= 3 / 4 without rounding.
+        if (left * 4L >= max * 3L) {
+            return large ? 2 : 1;
+        }
+        if (large && left * 4L >= max) {
+            return 1;
+        }
+        return 0;
+    }
+
     /** Emeralds for {@code keys} keys at {@code perKey} each; negatives pay nothing. */
     static int keyEmeralds(int keys, int perKey) {
         return Math.max(0, keys) * Math.max(0, perKey);

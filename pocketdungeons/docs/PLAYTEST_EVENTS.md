@@ -64,6 +64,7 @@ at home before the first door.
 | `floor_complete` | This player is credited with the floor | `seconds`, `omen`, `spawners_cleared`, `spawners_total`, `rescues`, `blocks_placed`, `durability_used`, `chests` |
 | `bank` | Interval settled for this player | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `band`, `levels_gained`, `carry`, `chests`, `depth_bonus`, `key_level` |
 | `kit_topup` | Kit top-up applied | `band`, `granted` (object item id to count), `tools_replaced` (array) |
+| `inventory_snapshot` | A floor clear, a bank, an exit or a checkpoint exit (playtest 2026-10-03-2) | `trigger`; `pack`, `run_storage`, `ender_chest`, `kept` (each `items`: item id to count, and `gear`: `item`, `left`, `max`, optional `tier`, `enchants`, `kit`); `survival_stashed` (stack count only) |
 | `quit_floor` | `/dungeon quit` | `penalty` (levels) |
 | `ordeal` | An Ordeal room is resolved (its lever pulled, or its objective met), written for each player in the room | `ordeal` (`rising_lava`, `collapsing_bridge`, `thicket`, `ice_run`, `hold_the_plate`), `seconds` since the room was armed |
 | `salvage` | The Salvage button at the salvage bench pays out | `gear`, `keys`, `ominous_keys`, `mob_gear` (counts taken); `emeralds`, `fuel`, `xp` (paid) |

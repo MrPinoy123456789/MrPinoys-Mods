@@ -167,6 +167,35 @@ public final class PartyAccessGameTest {
         helper.succeed();
     }
 
+    /**
+     * Playtest 2026-10-03-2: the journal's inventory snapshot lists every
+     * item by id and every piece of gear with its durability and tier, so
+     * the loot a session gave out can be analysed afterwards.
+     */
+    @GameTest(maxTicks = 20)
+    public void inventorySnapshotDescribesItemsAndGear(GameTestHelper helper) {
+        ItemStack cap = new ItemStack(Items.LEATHER_HELMET);
+        cap.setDamageValue(10);
+        net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                cap, tag -> {
+                    net.minecraft.nbt.CompoundTag mine = new net.minecraft.nbt.CompoundTag();
+                    mine.putInt("tier", 1);
+                    tag.put(PocketDungeonsMod.MOD_ID, mine);
+                });
+        java.util.Map<String, Object> out = PlaytestJournal.describe(List.of(
+                new ItemStack(Items.BREAD, 3), new ItemStack(Items.BREAD, 2), ItemStack.EMPTY, cap));
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Integer> items = (java.util.Map<String, Integer>) out.get("items");
+        helper.assertValueEqual(items.get("minecraft:bread"), 5, "bread totals across stacks");
+        helper.assertValueEqual(items.get("minecraft:leather_helmet"), 1, "the cap is counted");
+        @SuppressWarnings("unchecked")
+        List<java.util.Map<String, Object>> gear = (List<java.util.Map<String, Object>>) out.get("gear");
+        helper.assertValueEqual(gear.size(), 1, "one damageable piece");
+        helper.assertValueEqual(gear.get(0).get("left"), cap.getMaxDamage() - 10, "durability left");
+        helper.assertValueEqual(gear.get(0).get("tier"), 1, "loot tier");
+        helper.succeed();
+    }
+
     private static InteractionResult use(GameTestHelper helper, ServerPlayer player, BlockPos pos, Direction face) {
         BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(pos).relative(face, 0.5), face, pos, false);
         return UseBlockCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, hit);

@@ -383,6 +383,78 @@ final class PlaytestJournal {
         });
     }
 
+    /**
+     * Every item the player holds, by store (playtest 2026-10-03-2: the loot
+     * could not be analysed afterwards, because the journal kept only an
+     * inventory digest). Written at a floor clear, a bank and an exit:
+     * {@code pack} is the live inventory (armour and off hand included),
+     * {@code run_storage} the run's ender chest, {@code ender_chest} the real
+     * one, {@code kept} the dungeon pack waiting for the next entry, and
+     * {@code survival_stashed} only counts the stacks of the survival
+     * inventory held while the player is inside.
+     */
+    static void inventorySnapshot(ServerPlayer player, InstanceRecord record, String trigger) {
+        safely("inventory_snapshot", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("trigger", trigger);
+            Inventory inventory = player.getInventory();
+            List<ItemStack> pack = new ArrayList<>();
+            for (int i = 0; i < inventory.getContainerSize(); i++) {
+                pack.add(inventory.getItem(i));
+            }
+            extras.put("pack", describe(pack));
+            net.minecraft.world.SimpleContainer storage = record == null ? null
+                    : record.runStorage.get(player.getUUID());
+            extras.put("run_storage", describe(storage == null ? List.of() : storage.getItems()));
+            extras.put("ender_chest", describe(player.getEnderChestInventory().getItems()));
+            DungeonLog log = DungeonLog.forServer(player.level().getServer());
+            extras.put("kept", describe(log.orphanOf(player.getUUID()).items()));
+            extras.put("survival_stashed", (int) log.stashOf(player.getUUID()).backup().stream()
+                    .filter(s -> !s.isEmpty()).count());
+            record(player, record, "inventory_snapshot", extras);
+        });
+    }
+
+    /**
+     * A list of stacks as {@code items} (id to total count, sorted) and
+     * {@code gear} (one entry per damageable piece: id, durability left and
+     * max, loot tier, enchantment count, and whether it is kit). Package
+     * private for the gametest.
+     */
+    static Map<String, Object> describe(Collection<ItemStack> stacks) {
+        Map<String, Integer> items = new java.util.TreeMap<>();
+        List<Map<String, Object>> gear = new ArrayList<>();
+        for (ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+            items.merge(id, stack.getCount(), Integer::sum);
+            if (stack.isDamageableItem()) {
+                Map<String, Object> piece = new LinkedHashMap<>();
+                piece.put("item", id);
+                piece.put("left", stack.getMaxDamage() - stack.getDamageValue());
+                piece.put("max", stack.getMaxDamage());
+                int tier = RerollStation.tierOf(stack);
+                if (tier > 0) {
+                    piece.put("tier", tier);
+                }
+                int enchants = stack.getEnchantments().size();
+                if (enchants > 0) {
+                    piece.put("enchants", enchants);
+                }
+                if (InventorySwap.isBagTagged(stack) && tier <= 0) {
+                    piece.put("kit", true);
+                }
+                gear.add(piece);
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("items", items);
+        out.put("gear", gear);
+        return out;
+    }
+
     /** The safe room as the player left it: the stations placed and what the chests hold (playtest 2026-10-03, A9). */
     static void roomScan(ServerPlayer player, InstanceRecord record, RoomScan.Summary summary) {
         safely("room_scan", () -> {

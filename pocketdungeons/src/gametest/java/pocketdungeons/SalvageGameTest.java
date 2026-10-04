@@ -115,6 +115,43 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
+    /**
+     * Owner request (2026-10-03): salvage gives the gear's material back by
+     * durability left, measured against the stack's own reduced maximum. An
+     * iron chestplate capped at 64 with 54 left (84 percent) gives 2 ingots,
+     * iron leggings at 40 percent give 1, a leather helmet at 50 percent and
+     * an iron sword at 20 percent give nothing but their usual payout.
+     */
+    @GameTest
+    public void salvageGivesMaterialsByDurability(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        DungeonLog.forServer(server).setKeystone(player.getUUID(), 3, Set.of());
+        emptyInventory(player);
+
+        SimpleContainer input = new SimpleContainer(18);
+        input.setItem(0, worn(new ItemStack(Items.IRON_CHESTPLATE), 64, 54));
+        input.setItem(1, worn(new ItemStack(Items.IRON_LEGGINGS), 50, 20));
+        input.setItem(2, worn(new ItemStack(Items.LEATHER_HELMET), 32, 16));
+        input.setItem(3, worn(tagged(Items.IRON_SWORD, "tier", 1), 64, 12));
+
+        SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
+        helper.assertTrue(paid != null, "the gear salvages");
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3, "2 ingots from the chestplate, 1 from the leggings");
+        helper.assertValueEqual(countIn(player, Items.LEATHER), 0, "a half-worn helmet gives no leather");
+        helper.assertValueEqual(countIn(player, Items.IRON_NUGGET), 0, "never nuggets");
+
+        cleanUp(server, player);
+        helper.succeed();
+    }
+
+    /** {@code stack} with the dungeon's reduced maximum {@code max} and {@code left} durability remaining. */
+    private static ItemStack worn(ItemStack stack, int max, int left) {
+        stack.set(DataComponents.MAX_DAMAGE, max);
+        stack.setDamageValue(max - left);
+        return stack;
+    }
+
     private static ItemStack trimmedLeggings(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
         var pattern = access.lookupOrThrow(net.minecraft.core.registries.Registries.TRIM_PATTERN)

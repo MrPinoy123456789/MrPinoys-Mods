@@ -921,6 +921,7 @@ final class RunLifecycle {
                 && betweenFloors(record)) {
             return leaveAtCheckpoint(server, record, player);
         }
+        PlaytestJournal.inventorySnapshot(player, record, "exit");
         PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
 
         // T2.6: a deliberate /dungeon exit is still a leadership change if the
@@ -981,6 +982,10 @@ final class RunLifecycle {
             Instances.clearPreview(level, record, true);
         }
         for (UUID member : record.members.keySet()) {
+            ServerPlayer leaving = server.getPlayerList().getPlayer(member);
+            if (leaving != null) {
+                PlaytestJournal.inventorySnapshot(leaving, record, "checkpoint_exit");
+            }
             PlaytestJournal.hintLeave(member, "checkpoint_exit", record);
         }
         settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "checkpoint_exit");
@@ -1167,6 +1172,7 @@ final class RunLifecycle {
         Set<BlockPos> floorSpawners = TrialContent.activeSpawners(record.layout, player.level());
         PlaytestJournal.floorComplete(player, record,
                 TrialContent.countCleared(player.level(), floorSpawners), floorSpawners.size());
+        PlaytestJournal.inventorySnapshot(player, record, "floor_complete");
         // A party member who completes after the first: their entry lands in
         // their own history; the board shows the owner's, so repaint it.
         FloorHistory.refresh(server, record);
@@ -1432,6 +1438,7 @@ final class RunLifecycle {
                 log.setKeyProgress(member, settled.progress());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
                         bonusChests, keyLevel);
+                PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
                 memberPlayer.sendSystemMessage(Component.literal(
                         IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
                         .withStyle(ChatFormatting.GOLD));
