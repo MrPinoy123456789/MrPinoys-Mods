@@ -57,6 +57,15 @@ final class DungeonRoomMeta {
     static final String ACCESS_GATED = "gated";
 
     /**
+     * PD-133: the wall every gated room is authored to be entered through, at
+     * rotation 0. Each template family (mechanism, pressure, situation,
+     * knowledge) builds its gate on the east wall and leaves the west wall
+     * open, so this is the side that must face the approach once the room is
+     * rotated into a cell.
+     */
+    static final int GATED_ENTRY_AT_ROTATION_0 = DoorMask.WEST;
+
+    /**
      * M45: what fills the window band on this room's connected walls, one of
      * {@link #WINDOW_BARS}, {@link #WINDOW_GLASS}, {@link #WINDOW_TINTED_GLASS}
      * or {@link #WINDOW_NONE}. Never null; defaults to {@code bars}.

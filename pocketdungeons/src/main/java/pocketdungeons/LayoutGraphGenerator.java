@@ -708,6 +708,66 @@ public final class LayoutGraphGenerator {
         }
     }
 
+    /**
+     * Playtest 2026-10-03-2: caps the encounter cells at {@code max}, turning
+     * the extras into corridors, so the first floor of an interval runs about
+     * two spawners ("floor 1 should be about 2 spawners, not 4"). Off-path
+     * encounters go first, then on-path ones from the entrance end, and the
+     * last encounter on the critical path always stays. Loot is then trimmed
+     * the same way to keep {@code loot <= encounter}, the key budget
+     * {@link #balanceKeyBudget} enforces, keeping one loot cell on the path.
+     *
+     * @param max the most encounter cells to keep; 0 or less returns the shape unchanged
+     */
+    static DungeonShape capEncounters(DungeonShape shape, int max) {
+        if (max <= 0 || countRole(shape.roles(), ROLE_ENCOUNTER) <= max) {
+            return shape;
+        }
+        Map<PlanCell, String> roles = new HashMap<>(shape.roles());
+        List<PlanCell> path = shape.criticalPath();
+        demote(roles, path, ROLE_ENCOUNTER, max);
+        demote(roles, path, ROLE_LOOT, countRole(roles, ROLE_ENCOUNTER));
+        return new DungeonShape(shape.seed(), shape.cells(), shape.openEdges(), shape.entrance(),
+                shape.terminal(), path, roles);
+    }
+
+    /** Turns {@code role} cells into corridors until at most {@code keep} remain; see {@link #capEncounters}. */
+    private static void demote(Map<PlanCell, String> roles, List<PlanCell> path, String role, int keep) {
+        List<PlanCell> order = new ArrayList<>();
+        List<PlanCell> offPath = new ArrayList<>();
+        for (Map.Entry<PlanCell, String> e : roles.entrySet()) {
+            if (role.equals(e.getValue()) && !path.contains(e.getKey())) {
+                offPath.add(e.getKey());
+            }
+        }
+        offPath.sort((a, b) -> a.x() != b.x() ? Integer.compare(a.x(), b.x()) : Integer.compare(a.z(), b.z()));
+        order.addAll(offPath);
+        for (PlanCell cell : path) {
+            if (role.equals(roles.get(cell))) {
+                order.add(cell);
+            }
+        }
+        for (PlanCell cell : order) {
+            if (countRole(roles, role) <= keep) {
+                return;
+            }
+            if (path.contains(cell) && onPath(roles, path, role) <= 1) {
+                return;
+            }
+            roles.put(cell, ROLE_CORRIDOR);
+        }
+    }
+
+    private static int onPath(Map<PlanCell, String> roles, List<PlanCell> path, String role) {
+        int count = 0;
+        for (PlanCell cell : path) {
+            if (role.equals(roles.get(cell))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private static int countRole(Map<PlanCell, String> roles, String role) {
         int count = 0;
         for (String assigned : roles.values()) {

@@ -255,7 +255,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ### L18. 2026-10-02: themed merchants
 
-- **Status:** owed, 2026-10-02-2.md: the player asked for a merchant ("I haven't seen a merchant yet"); with consent the run was steered with `dungeon admin bias the_store 20` but no Store showed before the wrap. Bias cleared. Retry with a bias held on door selection (`room_bias_hold`).
+- **Status:** owed, 2026-10-02-2.md: the player asked for a merchant ("I haven't seen a merchant yet"); with consent the run was steered with `dungeon admin bias the_store 20` but no Store showed before the wrap. Bias cleared. Retry with a bias held on door selection (`room_bias_hold`). 2026-10-03-2.md: bias x20 then x50 over about 7 floors, still no Store (PD-137); the vanilla trading screen was never seen. Still owed. PD-137 fixed 2026-10-03: the Store could never be placed (a one-door room with only the corridor role); it is a loot room now, so a bias should place it on most floors.
 - **Changed:** 2026-10-02 (another agent, see `docs/reference/THEMED_MERCHANTS.md`): the Store's merchant is chosen by the floor's theme and prices stock in that floor's mob drops (bones, string, blaze rods, magma cream, ender pearls and so on). Themes without a merchant keep the emerald shopkeeper. The four game tests pass; the live behaviour is unseen.
 - **Do:** bias a Store room on an ossuary or basalt_foundry floor (ask first). Watch whether the player brings the right drops and whether the prices read as fair.
 - **Pass:** the merchant is named for the theme, the shop shows drop prices, buying takes the drops, a saved shop survives a reload.
@@ -269,9 +269,33 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** red line and low note in the staging room and on floors; green line and chime in the safe room; a block placed in the safe room is still there after a run and a return; a row of blocks does not play a row of notes.
 - **Fail signs:** green in the staging room, red in the safe room, a green block that is gone on return, chat spam, no sound.
 
+### L20. 2026-10-03: gated puzzle rooms face the approach (PD-133)
+
+- **Status:** owed
+- **Changed:** 2026-10-03: every gated room (rotation_lock, frame_lock, plate_pair, item_plate, flow_puzzle, hold_the_plate, sorting_floor, sensor_gallery and the knowledge rooms) is turned so its open side faces the cell you arrive from. sorting_floor and sensor_gallery used to be dead ends with a door into the wall; they are real pass-through gates now, with regenerated templates.
+- **Do:** bias `rotation_lock`, then `sorting_floor` and `sensor_gallery` (ask first). Walk in from the previous room.
+- **Pass:** the iron door is always on the far side; the room can be entered and solved; solving opens the way on.
+- **Fail signs:** a closed iron door facing the way in, a gate that opens nothing, a sensor gallery door that never opens.
+
+### L21. 2026-10-03: party members in the leader's rooms (PD-131, PD-132)
+
+- **Status:** owed
+- **Changed:** 2026-10-03 (owner request): a party member may open chests, use every station and place blocks in the leader's safe and staging rooms; a lobby-directory guest still may not build. Clicking a station with a block in hand opens it. The bag chest stays until the door is chosen, and clicking it with a bag already chosen names your bag.
+- **Do:** with two players, have the companion craft and salvage holding a stack of blocks, place a block in the leader's room, and click the bag chest before and after picking.
+- **Pass:** every station opens every time; blocks place; a bagless companion can always pick a bag after the leader did.
+- **Fail signs:** a station that refuses, a placement refused for a companion, the bag chest missing for a bagless member.
+
+### L22. 2026-10-03: balance batch
+
+- **Status:** owed
+- **Changed:** 2026-10-03: the first floor of an interval has at most 2 encounter cells (`firstFloorMaxEncounters`); chests carry fewer logs and more planks; a vault pays a party once (one member opening it marks the rest as paid); the floor history rows are 20 percent bigger and the heading sits higher; a tamed spawner wolf counts as defeated; a chest leather cap salvages; Disenchant works with an empty bench.
+- **Do:** watch floor 1 length and spawner count, chest contents, and a two-player vault. Ask whether the history board reads well.
+- **Pass:** floor 1 shows 2 spawners or fewer and runs well under 300 s; one vault opening per party; the board text fits its backdrop.
+- **Fail signs:** history rows wider than the panel, a vault the second player can still open, floor 1 with 3 or more spawners.
+
 # Rooms (id: roles, tier, depth, requirements)
 
-- barred_vault: corridor, tier 2, depth 2+, needs trial_key, pressure omen
+- barred_vault: loot, tier 2, depth 2+, needs trial_key, pressure omen
 - basalt_foundry_crucible: loot, depth 1+
 - bazaar: corridor, tier 2, depth 1+
 - blaze_cellar: encounter, tier 3, depth 2+
@@ -309,7 +333,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - ledge_archers: encounter, tier 1, depth 0+
 - loot_vault: loot, depth 0+
 - mossy_tee: encounter/corridor, depth 2+
-- ominous_bargain: corridor, tier 3, depth 3+, pressure omen
+- ominous_bargain: loot, tier 3, depth 3+, pressure omen
 - ossuary_crypt: encounter, depth 1+
 - pillar_cross: encounter/corridor, depth 2+
 - plate_pair: corridor, tier 1, depth 0+, needs mob, access gated
@@ -324,10 +348,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 - sorting_floor: corridor, tier 2, depth 0+, access gated
 - spawner_den: encounter, depth 2+
 - sump: corridor, tier 2, depth 0+
-- the_altar: corridor, tier 2, depth 2+, pressure omen
+- the_altar: loot, tier 2, depth 2+, pressure omen
 - the_herd: corridor, tier 1, depth 0+
 - the_raid: encounter, tier 3, depth 2+, access gated
-- the_store: corridor, tier 1, depth 1+, pressure omen
+- the_store: loot, tier 1, depth 1+, pressure omen
 - thicket: corridor, tier 1, depth 0+, pressure local
 - treasure_alcove: loot, depth 1+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local

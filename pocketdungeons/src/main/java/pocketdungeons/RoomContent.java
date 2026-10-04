@@ -563,7 +563,7 @@ final class RoomContent {
     }
 
     /**
-     * Every container block entity inside the cell.
+     * Every chest and barrel inside the cell (PD-136).
      *
      * <p>A cell is exactly one chunk (slot origins are chunk-aligned, see
      * {@code PlanGeometry}), so this is a direct lookup of that chunk's block
@@ -584,7 +584,16 @@ final class RoomContent {
             if (entry.getValue() instanceof VaultBlockEntity) {
                 continue;
             }
-            if (entry.getValue() instanceof RandomizableContainer) {
+            // PD-136 (playtest 2026-10-03-2): chests and barrels only. A
+            // dispenser, dropper, hopper or decorated pot is a randomizable
+            // container too, and the corridor role's removeChests pass took
+            // the tripwire hall's six wall dispensers out, leaving holes onto
+            // the bedrock envelope (PD-109). The same test let a loot cell
+            // promote a hopper to its vault.
+            BlockEntity be = entry.getValue();
+            if (be instanceof RandomizableContainer
+                    && (be instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
+                        || be instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity)) {
                 found.add(pos.immutable());
             }
         }

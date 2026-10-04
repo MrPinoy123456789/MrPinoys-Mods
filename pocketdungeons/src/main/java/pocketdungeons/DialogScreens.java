@@ -91,6 +91,8 @@ final class DialogScreens {
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
     static final String ACTION_QUIT_DUNGEON = "quit_dungeon";
     static final String ACTION_QUIT_DUNGEON_CONFIRM = "quit_dungeon_confirm";
+    /** Playtest 2026-10-03 (A2): the menu's Reset Key option opens {@link #resetKeyConfirm}. */
+    static final String ACTION_RESET_KEY = "reset_key";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
     static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
 
@@ -330,10 +332,7 @@ final class DialogScreens {
         if (notice != null) {
             body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
         }
-        body.add(DialogKit.text(entries.isEmpty()
-                ? "Nobody may enter your room but you."
-                : entries.size() + " player" + (entries.size() == 1 ? "" : "s")
-                        + " may enter your room."));
+        body.add(DialogKit.text(whitelistLine(entries.size())));
 
         List<ActionButton> buttons = new ArrayList<>();
         for (UUID id : entries) {
@@ -701,6 +700,10 @@ final class DialogScreens {
             }
             options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
             options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
+            // The key is the room owner's; a visitor has no say over it.
+            if (roomOwner) {
+                options.add(resetKeyOption());
+            }
             return options;
         }
         return List.of(
@@ -716,7 +719,37 @@ final class DialogScreens {
                 new MenuOption("Stations", "Take a station block for your room",
                         ACTION_STATIONS),
                 new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE),
-                new MenuOption("Diaries", null, ACTION_DIARIES));
+                new MenuOption("Diaries", null, ACTION_DIARIES),
+                resetKeyOption());
+    }
+
+    /**
+     * Start over from scratch (playtest 2026-10-03, A2: "there should also be a
+     * feature to let me reset the run myself"). Last in the menu, behind a confirm.
+     */
+    private static MenuOption resetKeyOption() {
+        return new MenuOption("Reset Key", "Start again from keystone 1, with a confirm first",
+                ACTION_RESET_KEY);
+    }
+
+    /**
+     * The confirmation for the menu's Reset Key option. The confirm is the typed
+     * way ({@code /dungeon resetkey}), which is safe mid-run: it quits the door
+     * first, then clears the campaign, bag and keystones and hands over a fresh
+     * keystone [1]. Shells, diaries and room settings stay. Tier A, like
+     * {@link #quitDoorConfirm}.
+     */
+    static Dialog resetKeyConfirm() {
+        return DialogKit.confirm("Reset your key?",
+                List.of(DialogKit.text(Component.literal("This starts you over from keystone 1.")
+                                .withStyle(ChatFormatting.YELLOW)),
+                        DialogKit.text("Your keystone progress, bag and any run in progress are cleared. "
+                                + "A fresh keystone [1] is put in your hand."),
+                        DialogKit.text(Component.literal(
+                                "Your shells, diary entries and room settings are kept.")
+                                .withStyle(ChatFormatting.GRAY))),
+                DialogKit.command("Reset Key", null, "/dungeon resetkey"),
+                DialogKit.closeButton("Cancel"));
     }
 
     /**
@@ -776,6 +809,29 @@ final class DialogScreens {
                 backToMenuButton(owner));
     }
 
+    /**
+     * PD-130 (playtest 2026-10-03-2): the lobby listing, said on its own line.
+     * The screen used to put "public" next to "Nobody may enter your room
+     * but you.", two separate channels read as one contradictory sentence.
+     */
+    static String listingLine(boolean publicListed) {
+        return publicListed
+                ? "Listed in the lobby directory: anyone can drop in to look around."
+                : "Not listed in the lobby directory.";
+    }
+
+    /**
+     * PD-130: the whitelist, said on its own line. Whitelisted players may
+     * visit through their friends list at any time and build in the room;
+     * the party always may while it is with you (PD-132).
+     */
+    static String whitelistLine(int whitelisted) {
+        return whitelisted == 0
+                ? "No trusted players. Your party can build here while they are with you."
+                : whitelisted + " trusted player" + (whitelisted == 1 ? "" : "s")
+                        + " may visit from their friends list and build here.";
+    }
+
     // ---- section 12: room management (M21) ---------------------------------
 
     /**
@@ -790,14 +846,10 @@ final class DialogScreens {
         List<DialogBody> body = new ArrayList<>();
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         String name = entry.roomName().isBlank() ? "Unnamed" : entry.roomName();
-        body.add(DialogKit.text("Room " + name + " is "
-                + (entry.publicListed() ? "public" : "private") + "."));
+        body.add(DialogKit.text("Room " + name + ". " + listingLine(entry.publicListed())));
         List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(owner));
         entries.sort(Comparator.comparing(UUID::toString));
-        body.add(DialogKit.text(entries.isEmpty()
-                ? "Nobody may enter your room but you."
-                : entries.size() + " player" + (entries.size() == 1 ? "" : "s")
-                        + " may enter your room."));
+        body.add(DialogKit.text(whitelistLine(entries.size())));
 
         List<ActionButton> buttons = new ArrayList<>();
         for (UUID id : entries) {

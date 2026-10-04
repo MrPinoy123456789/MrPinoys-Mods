@@ -34,7 +34,7 @@ import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freemem, platform } from 'node:os'
-import { eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
+import { dedupeHeard, eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 import { Kinetic, remoteConfig } from './kinetic.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -475,7 +475,7 @@ async function wait() {
     }
     const events = await readNew(false).catch(() => [])
     // Lemon's own lines (the agent's echoes, mode refreshes) never wake wait; see wait-filter.mjs.
-    const external = events.filter(wakesWait)
+    const external = dedupeHeard(events).filter(wakesWait)
     const joined = player && events.some(e => new RegExp(`^\\S+ join ${player}$`).test(e))
     if (joined && up) {
       await send(`dungeon lemon mode ${player} llm`)

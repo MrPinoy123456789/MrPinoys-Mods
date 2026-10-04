@@ -659,6 +659,253 @@ public final class HandlerGameTest {
     }
 
     /**
+     * PD-133 (playtest 2026-10-03-2): every gated room can be entered from the
+     * cell it is approached from. The party walked out of the entrance hall
+     * into a rotation_lock whose iron door faced them, because the selector
+     * kept whichever of the two straight rotations it rolled.
+     *
+     * <p>For each gated room in the live manifest, each of the four approach
+     * directions (every straight neighbour mask, both ways round) and both
+     * rotations that fit the mask, {@link RoomSelector#orientGatedRooms}
+     * picks the rotation; the room is stamped at it and the entry lane (the
+     * doorway and three blocks in, two tall) must be walkable, and every iron
+     * door must stand in the half of the room away from the approach.
+     */
+    @GameTest(maxTicks = 200)
+    public void gatedRoomsCanBeEnteredFromEveryApproach(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int cell = RoomGeometry.CELL;
+        java.util.List<String> failures = new java.util.ArrayList<>();
+        int rooms = 0;
+        int stamps = 0;
+        int row = 0;
+        int[][] steps = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (RoomManifest.Entry entry : RoomManifest.current().rooms()) {
+            if (!DungeonRoomMeta.ACCESS_GATED.equals(entry.meta.access)) {
+                continue;
+            }
+            rooms++;
+            row++;
+            int column = 0;
+            int before = stamps;
+            for (int[] step : steps) {
+                PlanCell from = new PlanCell(0, 0);
+                PlanCell gate = new PlanCell(step[0], step[1]);
+                PlanCell past = new PlanCell(2 * step[0], 2 * step[1]);
+                java.util.Set<PlanCell> cells = new java.util.LinkedHashSet<>(java.util.List.of(from, gate, past));
+                java.util.Set<PlanEdge> edges = new java.util.LinkedHashSet<>(java.util.List.of(
+                        new PlanEdge(from, gate), new PlanEdge(gate, past)));
+                java.util.Map<PlanCell, String> roles = new java.util.LinkedHashMap<>();
+                roles.put(from, RoleIds.ENTRANCE);
+                roles.put(gate, RoleIds.CORRIDOR);
+                roles.put(past, RoleIds.EXIT);
+                DungeonShape shape = new DungeonShape(1L, cells, edges, from, past,
+                        java.util.List.of(from, gate, past), roles);
+                java.util.Map<PlanCell, Integer> depths = java.util.Map.of(from, 0, gate, 1, past, 2);
+                int straight = DoorMask.fromEdges(java.util.EnumSet.of(
+                        gate.directionTo(from), gate.directionTo(past)));
+                for (int rolled = 0; rolled < 4; rolled++) {
+                    if (entry.maskAtRotation(rolled) != straight) {
+                        continue;
+                    }
+                    java.util.Map<PlanCell, DungeonPlan.PlacedRoom> placed = new java.util.HashMap<>();
+                    placed.put(gate, new DungeonPlan.PlacedRoom(entry.name, rolled));
+                    RoomSelector.orientGatedRooms(shape, RoomManifest.current(), placed, depths);
+                    int q = placed.get(gate).rotation();
+                    BlockPos origin = new BlockPos(16384 + column * 2 * cell, 120, 16384 + row * 2 * cell);
+                    column++;
+                    stamps++;
+                    level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+                    try {
+                        TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                                net.minecraft.resources.Identifier.parse(entry.meta.template), q, 1L);
+                        String label = entry.name + " approached from " + gate.directionTo(from)
+                                + " (rolled " + rolled + ", placed " + q + ")";
+                        // The entry lane, authored at rotation 0 along the west wall:
+                        // at least one of the two doorway columns walkable from the
+                        // doorway plane three blocks in (sorting_floor's channel
+                        // fences one of them on purpose).
+                        java.util.List<String> blocked = new java.util.ArrayList<>();
+                        for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
+                            String block = null;
+                            for (int x = 0; x <= 3 && block == null; x++) {
+                                for (int y = 1; y <= 2 && block == null; y++) {
+                                    BlockPos pos = origin.offset(rotateLocal(x, z, q, cell)).above(y);
+                                    BlockState state = level.getBlockState(pos);
+                                    if (state.is(Blocks.IRON_DOOR)
+                                            || !state.getCollisionShape(level, pos).isEmpty()) {
+                                        block = "local " + x + "," + y + "," + z + " " + state.getBlock();
+                                    }
+                                }
+                            }
+                            if (block != null) {
+                                blocked.add(block);
+                            }
+                        }
+                        if (blocked.size() == 2) {
+                            failures.add(label + ": entry lane blocked at " + blocked);
+                        }
+                        // Every iron door sits in the far half from the approach.
+                        for (int x = 0; x < cell; x++) {
+                            for (int z = 0; z < cell; z++) {
+                                BlockPos pos = origin.offset(rotateLocal(x, z, q, cell)).above(1);
+                                if (x < cell / 2 && level.getBlockState(pos).is(Blocks.IRON_DOOR)) {
+                                    failures.add(label + ": iron door on the approach side at local " + x + "," + z);
+                                }
+                            }
+                        }
+                    } finally {
+                        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+                    }
+                }
+            }
+            if (stamps - before != 8) {
+                failures.add(entry.name + " fits a straight cell at " + (stamps - before)
+                        + " of 8 approach and rotation pairs (mask "
+                        + DoorMask.toLetters(entry.maskAtRotation0) + ")");
+            }
+        }
+        helper.assertTrue(rooms >= 10, "the manifest has its gated rooms (found " + rooms + ")");
+        helper.assertTrue(failures.isEmpty(), "gated rooms that cannot be entered: " + failures);
+        helper.succeed();
+    }
+
+    /**
+     * A template-local (x, z) at rotation 0 as an offset from the cell origin
+     * once the room is stamped at {@code q} clockwise quarter turns, matching
+     * {@link TemplateStamper}'s pivot and per-rotation offsets.
+     */
+    private static BlockPos rotateLocal(int x, int z, int q, int cell) {
+        int m = cell - 1;
+        return switch (q) {
+            case 1 -> new BlockPos(m - z, 0, x);
+            case 2 -> new BlockPos(m - x, 0, m - z);
+            case 3 -> new BlockPos(z, 0, m - x);
+            default -> new BlockPos(x, 0, z);
+        };
+    }
+
+    /**
+     * PD-137 (playtest 2026-10-03-2): every spur room can be placed. A spur
+     * has one door, and the generator gives every dead-end cell the loot
+     * role, so a spur authored as {@code corridor} fitted no cell at all:
+     * {@code room_bias the_store} x50 across seven floors placed nothing.
+     * With the Store biased, it must turn up on most floors that have a
+     * spur deep enough for it, and each spur must appear somewhere in an
+     * unbiased sweep.
+     */
+    @GameTest(maxTicks = 200)
+    public void everySpurRoomCanBePlaced(GameTestHelper helper) {
+        java.util.Map<String, Integer> seen = new java.util.TreeMap<>();
+        for (String spur : new String[]{"the_store", "the_altar", "barred_vault", "ominous_bargain"}) {
+            seen.put("pocketdungeons:" + spur, 0);
+        }
+        for (long seed = 1; seed <= 400; seed++) {
+            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                    LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                    LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                    LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                    LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "deepslate", null);
+            if (outcome.plan() == null) {
+                continue;
+            }
+            for (DungeonPlan.PlacedRoom room : outcome.plan().rooms().values()) {
+                seen.computeIfPresent(room.name(), (k, v) -> v + 1);
+            }
+        }
+        int biased = 0;
+        int floors = 0;
+        PlaytestBias.set("the_store", PlaytestBias.MAX_MULTIPLIER);
+        try {
+            for (long seed = 1; seed <= 100; seed++) {
+                LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                        LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                        LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                        LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                        LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "deepslate", null);
+                if (outcome.plan() == null) {
+                    continue;
+                }
+                floors++;
+                if (outcome.plan().rooms().values().stream()
+                        .anyMatch(r -> r.name().equals("pocketdungeons:the_store"))) {
+                    biased++;
+                }
+            }
+        } finally {
+            PlaytestBias.set("the_store", 1);
+        }
+        helper.assertTrue(!seen.containsValue(0), "spur rooms never placed in 400 floors: " + seen);
+        helper.assertTrue(biased * 3 >= floors, "the_store x50 placed on " + biased + " of " + floors
+                + " floors, wanted at least a third");
+        helper.succeed();
+    }
+
+    /**
+     * PD-134 (playtest 2026-10-03-2): a wolf tamed out of a trial spawner
+     * counts as defeated. The spawner waits on every mob it spawned, and a
+     * tamed wolf never dies, so the kennel spawner never cleared. A wild
+     * wolf in the same spawner is still waited on.
+     */
+    @GameTest(maxTicks = 40)
+    public void tamedWolfIsReleasedFromItsSpawner(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        level.setBlockAndUpdate(pos, Blocks.TRIAL_SPAWNER.defaultBlockState());
+        @SuppressWarnings("removal")
+        net.minecraft.server.level.ServerPlayer tamer = helper.makeMockServerPlayerInLevel();
+        net.minecraft.world.entity.animal.wolf.Wolf tamed =
+                helper.spawn(net.minecraft.world.entity.EntityTypes.WOLF, new BlockPos(3, 1, 3));
+        net.minecraft.world.entity.animal.wolf.Wolf wild =
+                helper.spawn(net.minecraft.world.entity.EntityTypes.WOLF, new BlockPos(4, 1, 3));
+        tamed.tame(tamer);
+        var spawner = (net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity) level.getBlockEntity(pos);
+        java.util.Set<java.util.UUID> waiting = ((pocketdungeons.mixin.TrialSpawnerStateDataAccessor)
+                (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$currentMobs();
+        waiting.add(tamed.getUUID());
+        waiting.add(wild.getUUID());
+        TrialContent.releaseTamed(level, java.util.Set.of(pos));
+        helper.assertFalse(waiting.contains(tamed.getUUID()), "the tamed wolf no longer holds the spawner");
+        helper.assertTrue(waiting.contains(wild.getUUID()), "the wild wolf still does");
+        helper.succeed();
+    }
+
+    /**
+     * PD-136 (playtest 2026-10-03-2, second sighting of PD-109): the tripwire
+     * hall keeps its six wall dispensers once the corridor role has run. The
+     * role's chest removal took every randomizable container, dispensers
+     * included, and left holes onto the bedrock envelope. The stamp-only
+     * test below never ran the role, so it never saw it.
+     */
+    @GameTest(maxTicks = 100)
+    public void tripwireHallKeepsItsDispensersThroughTheCorridorRole(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int cell = RoomGeometry.CELL;
+        BlockPos origin = new BlockPos(8192, 120, 14336);
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        try {
+            java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
+                    origin, net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), 1, 1L);
+            Situations.apply(level, origin, RoleIds.CORRIDOR, 1, DifficultyProfile.of(5, 1), spawns, 1L,
+                    java.util.Set.of(), "", null, false, "tripwire_hall");
+            int dispensers = 0;
+            for (int x = 0; x < cell; x++) {
+                for (int y = 0; y <= 4; y++) {
+                    for (int z = 0; z < cell; z++) {
+                        if (level.getBlockState(origin.offset(x, y, z)).is(Blocks.DISPENSER)) {
+                            dispensers++;
+                        }
+                    }
+                }
+            }
+            helper.assertValueEqual(dispensers, 6, "dispensers left after the corridor role");
+        } finally {
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+        }
+        helper.succeed();
+    }
+
+    /**
      * PD-109: the tripwire hall's hooks, strings and dispensers survive the
      * template stamp at every rotation (the player saw the traps missing).
      */
@@ -1052,6 +1299,58 @@ public final class HandlerGameTest {
                 level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
             }
         });
+    }
+
+    /**
+     * Playtest 2026-10-03: every big title goes through {@link StaggeredTitle}.
+     * A sequence for a player who is not online ends at once instead of
+     * throwing or lingering, so a logout mid-reveal (or a floor commit racing a
+     * disconnect) leaves nothing running.
+     */
+    @GameTest(maxTicks = 100)
+    public void staggeredTitleForAnOfflinePlayerDrains(GameTestHelper helper) {
+        net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        StaggeredTitle.show(helper.getLevel().getServer(), player.getUUID(),
+                net.minecraft.network.chat.Component.literal("HOME"),
+                java.util.List.of("one", "two", "three"), net.minecraft.ChatFormatting.GRAY);
+        helper.runAfterDelay(4 * StaggeredTitle.BEAT_TICKS, () -> {
+            helper.assertFalse(StaggeredTitle.isRunning(player.getUUID()), "the sequence drained");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Playtest 2026-10-03 (A9): the room scan reads what a real capture writes.
+     * A grindstone, a crafting table and a chest of planks are captured the way
+     * {@link RoomStore#capture} captures a room, and the summary must name them.
+     * The blob keys the scan relies on (palette, blocks, state, nbt, Items) are
+     * exactly what this exercises, so a format change fails here, not in play.
+     */
+    @GameTest
+    public void roomScanReadsStationsAndChestsFromARealCapture(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos base = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlock(base, Blocks.GRINDSTONE.defaultBlockState(), 3);
+        level.setBlock(base.east(), Blocks.CRAFTING_TABLE.defaultBlockState(), 3);
+        level.setBlock(base.east(2), Blocks.CHEST.defaultBlockState(), 3);
+        net.minecraft.world.Container chest = (net.minecraft.world.Container) level.getBlockEntity(base.east(2));
+        chest.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.OAK_PLANKS, 12));
+        chest.setItem(1, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT, 5));
+
+        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate template =
+                new net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate();
+        template.fillFromWorld(level, base, new net.minecraft.core.Vec3i(3, 1, 1), true, java.util.List.of());
+        net.minecraft.nbt.CompoundTag blob = template.save(new net.minecraft.nbt.CompoundTag());
+
+        RoomScan.Summary summary = RoomScan.summarize(blob, RoomScan.stationBlockIds());
+        helper.assertValueEqual(summary.stations().get("grindstone"), 1, "the grindstone is a station");
+        helper.assertValueEqual(summary.stations().get("crafting_table"), 1, "the crafting table is a station");
+        helper.assertValueEqual(summary.containers(), 1, "one chest stands in the room");
+        helper.assertValueEqual(summary.items().get("oak_planks"), 12, "the planks in it are counted");
+        helper.assertValueEqual(summary.items().get("iron_ingot"), 5, "so is the iron");
+        helper.assertTrue(RoomScan.tip(summary) == null, "a room with a crafting table needs no tip");
+        helper.assertTrue(RoomScan.toJson(summary).getAsJsonObject("stations").has("grindstone"), "and the JSON names it");
+        helper.succeed();
     }
 
     /** Discards everything but players around a cell: the stand, its drops and the arrows the traps fired. */

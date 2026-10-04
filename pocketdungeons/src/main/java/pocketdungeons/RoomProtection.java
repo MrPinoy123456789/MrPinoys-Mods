@@ -449,6 +449,9 @@ final class RoomProtection {
         if (!(player instanceof ServerPlayer) || level.isClientSide()) {
             return false;
         }
+        if (isCompanion(player.getUUID(), roomOwner)) {
+            return true;
+        }
         var server = level.getServer();
         if (server == null) {
             return false;
@@ -463,6 +466,23 @@ final class RoomProtection {
      * chest, barrel, shulker box and the like, not a station or the ender
      * chest, which stay open to everyone (T2.2's table).
      */
+    /**
+     * PD-132 (playtest 2026-10-03-2): whether {@code player} is in the room
+     * owner's own party right now. A companion was refused every chest,
+     * station click with a block in hand, and placement in the leader's safe
+     * and staging rooms unless the leader had whitelisted them, which read
+     * as "sometimes I can, sometimes I can't". The owner asked for party
+     * members to be able to modify the leader's room, so they now share the
+     * owner's permission for as long as they are in the party. A guest from
+     * the lobby directory ({@link InstanceRecord#guests}) and anyone in a
+     * read-only visit instance are not companions.
+     */
+    static boolean isCompanion(UUID player, UUID roomOwner) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player);
+        return record != null && !record.visitInstance && roomOwner.equals(record.owner)
+                && record.members.containsKey(player) && !record.guests.contains(player);
+    }
+
     static boolean denyContainerUse(Level level, Player player, BlockPos pos, BlockEntity blockEntity) {
         if (!(blockEntity instanceof RandomizableContainer)) {
             return false; // not a lootable container -- a station, unaffected

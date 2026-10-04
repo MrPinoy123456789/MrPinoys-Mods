@@ -53,6 +53,16 @@ final class InstanceRecord {
     /** Member -> where that member came from. Insertion-ordered: opener first. */
     final Map<UUID, ReturnPoint> members = new LinkedHashMap<>();
 
+    /**
+     * PD-132 (playtest 2026-10-03-2): members who walked in from the lobby
+     * directory rather than through the owner's party. A visit to a home
+     * owner joins that owner's own instance, so membership alone cannot tell
+     * a guest from a companion. Companions may build and use everything in
+     * the owner's rooms ({@link RoomProtection#isPermitted}); guests keep the
+     * read-only mask. Cleared when the member leaves or joins the party.
+     */
+    final java.util.Set<UUID> guests = new java.util.HashSet<>();
+
     /** Each member's run storage (see {@link RunStorage}); in memory, returned when the run closes. */
     final Map<UUID, net.minecraft.world.SimpleContainer> runStorage = new java.util.HashMap<>();
 

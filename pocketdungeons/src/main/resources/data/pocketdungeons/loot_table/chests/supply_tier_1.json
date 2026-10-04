@@ -169,7 +169,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:oak_log",
-          "weight": 10,
+          "weight": 4,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -211,7 +211,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:oak_planks",
-          "weight": 6,
+          "weight": 12,
           "functions": [
             {
               "function": "minecraft:set_count",

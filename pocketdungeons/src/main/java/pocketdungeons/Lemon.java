@@ -202,11 +202,21 @@ final class Lemon {
         // fabric-message-api-v1 7.0.7: ALLOW_CHAT_MESSAGE returning false
         // cancels PlayerList.broadcastChatMessage, vanilla's log line included).
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
-            String text = LemonSpeech.addressed(message.signedContent(), soloForChat(sender));
+            boolean solo = soloForChat(sender);
+            String text = LemonSpeech.addressed(message.signedContent(), solo);
+            MinecraftServer server = sender.level().getServer();
+            if (!solo) {
+                // Lemon takes in the whole party's chat, not only the lines meant for her.
+                String said = message.signedContent();
+                if (server.isSameThread()) {
+                    overheard(sender, said);
+                } else {
+                    server.execute(() -> overheard(sender, said));
+                }
+            }
             if (text == null) {
                 return true;
             }
-            MinecraftServer server = sender.level().getServer();
             if (server.isSameThread()) {
                 heard(sender, text);
             } else {
@@ -214,6 +224,57 @@ final class Lemon {
             }
             return false;
         });
+    }
+
+    /**
+     * The party takes in what {@code speaker} said (owner decision, 2026-10-03):
+     * every other online member's journal gets a {@code lemon_heard} line tagged
+     * with the speaker's name, so a Lemon that is reading one member's
+     * {@code context} sees the whole party's talk and can tell who said what.
+     * The speaker's own words are already a {@code lemon_ask} (addressed to Lemon)
+     * or an ordinary chat line (the server log already names them), and ordinary
+     * party chat is still broadcast, so members keep talking to each other.
+     */
+    static void overheard(ServerPlayer speaker, String said) {
+        String text = said == null ? "" : said.trim();
+        if (text.isEmpty()) {
+            return;
+        }
+        String from = speaker.getName().getString();
+        boolean anyone = false;
+        for (ServerPlayer member : partyOf(speaker)) {
+            if (!member.getUUID().equals(speaker.getUUID())) {
+                PlaytestJournal.lemonHeard(member, from, text);
+                anyone = true;
+            }
+        }
+        // PD-138: the operator's wait stream is read from the server log, and
+        // lemon_heard only reached the journal, so party talk showed as plain
+        // chat. One line per utterance, however many members heard it.
+        if (anyone) {
+            PocketDungeonsMod.LOG.info("Lemon heard <{}> {}", from, text);
+        }
+    }
+
+    /** Every online member of {@code player}'s party (their instance's members, else their party), themselves included. */
+    static List<ServerPlayer> partyOf(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        java.util.Set<UUID> ids = new java.util.LinkedHashSet<>();
+        ids.add(player.getUUID());
+        if (record != null) {
+            ids.addAll(record.members.keySet());
+        } else {
+            ids.addAll(PartyService.partyCompanions(player.getUUID()));
+        }
+        List<ServerPlayer> online = new ArrayList<>();
+        for (UUID id : ids) {
+            ServerPlayer member = server.getPlayerList().getPlayer(id);
+            if (member != null) {
+                online.add(member);
+            }
+        }
+        return online;
     }
 
     /**
@@ -300,7 +361,7 @@ final class Lemon {
             PlaytestJournal.lemonAsk(player, text, "guide", 0, 0);
             return;
         }
-        if (llmActive(player.getUUID(), now)) {
+        if (agentServing(player.getUUID(), now)) {
             state.pending.add(new Question(text, now));
             // Lemon turns up and listens, lit, while the agent thinks. The
             // pending question keeps it lit and present; nothing else holds
@@ -391,15 +452,25 @@ final class Lemon {
      * the last half minute). Answers go through {@link #reply}.
      */
     static Delivery say(ServerPlayer player, String text) {
-        return deliver(player, text, false);
+        return deliver(player, text, false, "says");
+    }
+
+    /**
+     * PD-138 (playtest 2026-10-03-2): a tour line from {@link FirstVisitTutorial}
+     * or {@link StationTutorial}. Delivered exactly like {@link #say}, but logged
+     * as {@code Lemon tour}, so the operator's {@code wait} shows which tour
+     * lines fired; {@code Lemon says} is the agent's own echo and never shows.
+     */
+    static Delivery tour(ServerPlayer player, String text) {
+        return deliver(player, text, false, "tour");
     }
 
     /** {@code dungeon lemon ask}: like {@link #say}, then highlighted and waiting for the reply. */
     static Delivery ask(ServerPlayer player, String text) {
-        return deliver(player, text, true);
+        return deliver(player, text, true, "asks");
     }
 
-    private static Delivery deliver(ServerPlayer player, String text, boolean ask) {
+    private static Delivery deliver(ServerPlayer player, String text, boolean ask, String verb) {
         long now = player.level().getServer().getTickCount();
         State state = stateFor(player.getUUID());
         boolean prompted = !state.pending.isEmpty() || now - state.lastAddressed < CONVERSATION_TICKS;
@@ -415,7 +486,7 @@ final class Lemon {
             }
         }
         resolvePending(player, state, now, "llm");
-        show(player, state, text, ask, ask ? "asks" : "says");
+        show(player, state, text, ask, verb);
         return Delivery.SHOWN;
     }
 
@@ -548,7 +619,7 @@ final class Lemon {
         }
         // Guide mode answers whatever the agent left hanging, so the player
         // is never ignored.
-        if (!state.pending.isEmpty() && fallbackDue(llmActive(state, now),
+        if (!state.pending.isEmpty() && fallbackDue(agentServing(state.player, now),
                 state.pending.get(0).askedAt(), state.thinkingUntil, now)) {
             PocketDungeonsMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
                     state.pending.get(state.pending.size() - 1).text());
@@ -634,6 +705,26 @@ final class Lemon {
 
     private static boolean llmActive(State state, long now) {
         return llmActive(state.player, now);
+    }
+
+    /**
+     * PD-138 (playtest 2026-10-03-2): whether an agent will answer this
+     * player's question: theirs is in llm mode, or the agent is serving
+     * anyone on the server. A player who spoke in the seconds after joining,
+     * before the agent's mode refresh reached them, was answered at once by
+     * the guide ({@code answered_by: none}, wait 0) though the agent was
+     * there. Now the question waits the usual fallback time for it.
+     */
+    private static boolean agentServing(UUID player, long now) {
+        if (llmActive(player, now)) {
+            return true;
+        }
+        for (Long until : LLM_UNTIL.values()) {
+            if (until != null && now < until) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Damage in the last few seconds, or a hostile mob with this player as its target. */

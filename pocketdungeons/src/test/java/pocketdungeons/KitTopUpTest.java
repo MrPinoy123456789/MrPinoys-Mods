@@ -40,6 +40,7 @@ public class KitTopUpTest {
         testNeverAboveBaseline();
         testToolsReplacedWhenMissingAtCalmOnly();
         testDamagedToolIsHeldNotRepaired();
+        testWornToolIsGrantedAFreshOneBeside();
         testEmptiesAreRefilledNotDuplicated();
         testStoredEmptyBlocksAMint();
         testRoundingEpsilon();
@@ -110,6 +111,52 @@ public class KitTopUpTest {
         // A damaged pickaxe is still a pickaxe: counted by type, so held.
         KitTopUp.Plan p = plan(List.of(PICK), Map.of("minecraft:stone_pickaxe", 1), 0, 1.0);
         check(p.grants().isEmpty() && !p.anyDeficit(), "a held tool, damaged or not, is not replaced");
+    }
+
+    /** A stack of {@code id} with {@code damage} taken, as the item codec writes it. */
+    private static CompoundTag damaged(String id, int damage) {
+        CompoundTag stack = item(id, 1);
+        CompoundTag components = new CompoundTag();
+        components.putInt("minecraft:damage", damage);
+        stack.put("components", components);
+        return stack;
+    }
+
+    private static Map<String, Integer> heldWithWear(CompoundTag stack, Map<String, Integer> wearMax) {
+        Map<String, Integer> held = new HashMap<>();
+        KitTopUp.countItems(stack, true, Set.of("minecraft:flint_and_steel"), wearMax, held);
+        return held;
+    }
+
+    private static void testWornToolIsGrantedAFreshOneBeside() {
+        BagDefinition.KitItem flint = new BagDefinition.KitItem("minecraft:flint_and_steel", 1, true, null);
+        Map<String, Integer> wear = Map.of("minecraft:flint_and_steel", 64);
+
+        check(!KitTopUp.isWorn(0, 64), "a new tool is not worn");
+        check(!KitTopUp.isWorn(48, 64), "exactly 25 percent left is not yet worn");
+        check(KitTopUp.isWorn(49, 64), "under 25 percent left is worn");
+        check(!KitTopUp.isWorn(10, 0), "an item with no durability is never worn");
+
+        // 80 percent left (damage 13 of 64): still held, nothing granted.
+        Map<String, Integer> healthy = heldWithWear(damaged("minecraft:flint_and_steel", 13), wear);
+        check(healthy.getOrDefault("minecraft:flint_and_steel", 0) == 1, "a healthy tool counts as held");
+        check(plan(List.of(flint), healthy, 0, 1.0).grants().isEmpty(), "80 percent left grants nothing");
+
+        // 4 uses left (damage 60 of 64), the playtest's flint and steel: not held, a fresh one at calm.
+        Map<String, Integer> worn = heldWithWear(damaged("minecraft:flint_and_steel", 60), wear);
+        check(worn.getOrDefault("minecraft:flint_and_steel", 0) == 0, "a worn tool does not count as held");
+        check(granted(plan(List.of(flint), worn, 0, 1.0), "minecraft:flint_and_steel") == 1,
+                "a worn tool at the calm band is granted a fresh one");
+
+        // The caller leaves wearMax empty outside the calm band: the worn tool counts, nothing is granted.
+        Map<String, Integer> midBand = heldWithWear(damaged("minecraft:flint_and_steel", 60), Map.of());
+        check(plan(List.of(flint), midBand, 1, 1.0).grants().isEmpty(), "mid band: a worn tool is a cost of overstay");
+
+        // A stack's own max_damage wins over the default (a short-lived Mason pickaxe).
+        CompoundTag shortLived = damaged("minecraft:flint_and_steel", 5);
+        shortLived.getCompoundOrEmpty("components").putInt("minecraft:max_damage", 6);
+        check(heldWithWear(shortLived, wear).getOrDefault("minecraft:flint_and_steel", 0) == 0,
+                "5 of a custom 6 is worn even though the default max is 64");
     }
 
     private static void testEmptiesAreRefilledNotDuplicated() {

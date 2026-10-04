@@ -142,6 +142,7 @@ Added to `docs/PLAYTEST_EVENTS.md`:
 | `ev` | When | Extra fields |
 |---|---|---|
 | `lemon_ask` | The player says something to Lemon | `text`, `room`, `answered_by` (`guide`, `llm`, `none`), `hint_tier` (0 if not a hint) |
+| `lemon_heard` | A party member said something in chat (written for each other online member) | `from` (the speaker's name), `text` |
 | `lemon_hint` | Lemon offers a hint unprompted | `trigger` (`dwell`, `rescues`, `wandering`), `room`, `tier` |
 | `lemon_tutorial` | A tutorial moment fires | `moment` |
 | `lemon_answer` | The player answers a question Lemon (the interviewer) asked | `question`, `text` |

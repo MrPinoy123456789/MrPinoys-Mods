@@ -81,6 +81,16 @@ final class StationTutorial {
         String key() {
             return "station_" + id;
         }
+
+        /** The block that is this station, as a namespaced id, for the room scan to look for. */
+        String blockId() {
+            return switch (this) {
+                case SALVAGE -> PocketDungeonsConfig.salvageBlock();
+                case REROLL -> PocketDungeonsConfig.rerollBlock();
+                case GAMBLE -> "minecraft:smithing_table";
+                case CUBE -> PocketDungeonsConfig.cubeBlock();
+            };
+        }
     }
 
     private static final Step[] ORDER = Step.values();
@@ -121,9 +131,18 @@ final class StationTutorial {
             return;
         }
         DungeonLog log = DungeonLog.forServer(server);
-        Step step = next(log, player.getUUID(), log.get(player.getUUID()).keystoneLevel());
+        int level = log.get(player.getUUID()).keystoneLevel();
+        RoomScan.Summary room = RoomScan.latest(player.getUUID());
+        Step step = next(log, player.getUUID(), level);
+        // A station already standing in the room needs no nudge (playtest 2026-10-03, A9/A5):
+        // the scan of the last exit says so, and the step is done for good.
+        while (step != null && room != null && room.has(step.blockId())) {
+            markDone(log, player.getUUID(), step);
+            step = next(log, player.getUUID(), level);
+        }
         if (step != null) {
-            Lemon.say(player, step.line());
+            String tip = RoomScan.tip(room);
+            Lemon.tour(player, tip == null ? step.line() : tip + " " + step.line());
         }
     }
 

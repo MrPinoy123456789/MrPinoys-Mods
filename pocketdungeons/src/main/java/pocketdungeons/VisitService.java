@@ -71,6 +71,9 @@ final class VisitService {
         InstanceRecord owned = findOwnedLiveRoom(owner);
         if (owned != null) {
             PlaytestJournal.hintEnter(visitor.getUUID(), "visit");
+            // PD-132: a guest in a live home, not a companion: the room's
+            // permission mask stays read-only for them.
+            owned.guests.add(visitor.getUUID());
             Instances.admit(server, owned, visitor);
             Chime.visitStarts(visitor);
             recordVisit(server, owner, visitor);

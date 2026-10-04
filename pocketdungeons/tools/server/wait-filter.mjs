@@ -15,7 +15,9 @@ const NOISE = /oshi|SystemReport/
 // Vanilla's routine warnings. A dev-format line names its logger and only the mod's
 // WARN and ERROR lines count; a vanilla-format line cannot say whose it is, so these
 // are the ones left out instead.
-const VANILLA_WARN_NOISE = /Can't keep up!|moved too quickly|moved wrongly|Ambiguity between arguments/
+// PD-139: "Mismatch in destroy block pos" is vanilla's start and stop of a dig landing on
+// different blocks; it came in bursts of 33 in one session and is never the mod's.
+const VANILLA_WARN_NOISE = /Can't keep up!|moved too quickly|moved wrongly|Ambiguity between arguments|Mismatch in destroy block pos/
 
 /** Turns a raw log line into a compact event line, or null if it is not one agents care about. */
 export function eventOf(line) {
@@ -46,6 +48,23 @@ export function eventOf(line) {
 // question) and `lemon quiet` (typed /lemon quiet or /lemon on). `lemon unanswered`
 // carries a player question that timed out unanswered, so it wakes too.
 const LEMON_OWN = /^\S+ lemon (mode|says|asks|replies|thinks|held|hushed) /
+
+/**
+ * PD-138: party chat is logged twice, once as vanilla's chat line and once as
+ * `Lemon heard` (the party's journals took it in). Keeps the `lemon heard` event,
+ * which says it reached the party, and drops the matching `chat` event.
+ */
+export function dedupeHeard(events) {
+  const heard = new Set()
+  for (const e of events) {
+    const m = e.match(/^\S+ lemon heard (<[^>]+> .*)$/)
+    if (m) heard.add(m[1])
+  }
+  return events.filter(e => {
+    const m = e.match(/^\S+ chat (<[^>]+> .*)$/)
+    return !(m && heard.has(m[1]))
+  })
+}
 
 /** True when a compact event line should wake `wait`: anything except Lemon's own lines. */
 export function wakesWait(event) {

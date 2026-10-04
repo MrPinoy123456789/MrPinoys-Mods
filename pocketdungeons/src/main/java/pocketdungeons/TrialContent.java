@@ -408,6 +408,27 @@ final class TrialContent {
      * <p>A position with no trial spawner block entity any more (broken, somehow)
      * also counts as not cleared, for the same reason.
      */
+    /**
+     * PD-134 (playtest 2026-10-03-2): lets each spawner forget any mob a
+     * player has tamed. A trial spawner finishes a wave only when every mob
+     * it spawned has died, so a wolf tamed out of the kennel spawner kept it
+     * waiting forever and the floor's spawner count stalled. A tamed mob is
+     * the player's now; to the spawner it counts as defeated.
+     */
+    static void releaseTamed(ServerLevel level, Set<BlockPos> spawners) {
+        for (BlockPos pos : spawners) {
+            if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner)) {
+                continue;
+            }
+            java.util.Set<java.util.UUID> waiting = ((pocketdungeons.mixin.TrialSpawnerStateDataAccessor)
+                    (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$currentMobs();
+            if (waiting.removeIf(id -> level.getEntity(id)
+                    instanceof net.minecraft.world.entity.TamableAnimal animal && animal.isTame())) {
+                spawner.setChanged();
+            }
+        }
+    }
+
     static int countCleared(ServerLevel level, Set<BlockPos> spawners) {
         int cleared = 0;
         for (BlockPos pos : spawners) {

@@ -54,8 +54,12 @@ import java.util.UUID;
  *   <li><strong>Scaled by band.</strong> Stackable lines restore
  *       {@code floor(deficit x bandFraction x zone kitTopUpScale)}, with the
  *       band fractions from config (calm 1.0, mid 0.5, high 0 by default).
- *       A durability line (a tool) is replaced only when missing, only at the
- *       calm band, and a damaged one is never repaired.</li>
+ *       A durability line (a tool) is replaced only when missing or worn,
+ *       only at the calm band, and a damaged one is never repaired. A worn
+ *       copy (see {@link #WORN_REMAINING}) does not count as held, so a fresh
+ *       one is granted beside it; the worn one stays with its owner
+ *       (playtest 2026-10-03, A4: "I didn't get a flint and steel", owner
+ *       decision: give the kit again, no swap).</li>
  *   <li><strong>Empties are refilled, not duplicated.</strong> A line that
  *       empties into another item (a water bucket into a bucket) turns a held
  *       empty back into the kit item. A new one is minted only when no empty
@@ -73,6 +77,19 @@ import java.util.UUID;
 final class KitTopUp {
 
     private KitTopUp() {}
+
+    /**
+     * A tool with less than this share of its durability left is worn (playtest
+     * 2026-10-03, A4: a flint and steel at 4 uses was not restocked). The share
+     * is of the item's maximum, so a short-lived Mason pickaxe wears by the same
+     * rule as a stone one.
+     */
+    static final double WORN_REMAINING = 0.25;
+
+    /** Whether a tool with {@code damage} taken of {@code maxDamage} is worn. */
+    static boolean isWorn(int damage, int maxDamage) {
+        return maxDamage > 0 && (maxDamage - damage) < maxDamage * WORN_REMAINING;
+    }
 
     /**
      * One line's grant.
@@ -208,21 +225,43 @@ final class KitTopUp {
      * entity type rather than an item.
      */
     static void countItems(Tag tag, boolean rootIsItem, Set<String> ids, Map<String, Integer> into) {
+        countItems(tag, rootIsItem, ids, Map.of(), into);
+    }
+
+    /**
+     * As {@link #countItems(Tag, boolean, Set, Map)}, but a stack of an item
+     * named in {@code wearMax} (item id to its default maximum durability) that
+     * is {@linkplain #isWorn worn} is not counted: it is not held, as far as a
+     * restock is concerned. The stack's own {@code minecraft:max_damage}
+     * component, when it has one, wins over the default.
+     */
+    static void countItems(Tag tag, boolean rootIsItem, Set<String> ids, Map<String, Integer> wearMax,
+                           Map<String, Integer> into) {
         if (tag instanceof CompoundTag compound) {
             if (rootIsItem && compound.get("id") instanceof StringTag) {
                 String id = compound.getStringOr("id", "");
-                if (ids.contains(id)) {
+                if (ids.contains(id) && !wornStack(compound, id, wearMax)) {
                     into.merge(id, Math.max(0, compound.getIntOr("count", 1)), Integer::sum);
                 }
             }
             for (String key : compound.keySet()) {
-                countItems(compound.get(key), true, ids, into);
+                countItems(compound.get(key), true, ids, wearMax, into);
             }
         } else if (tag instanceof ListTag list) {
             for (Tag element : list) {
-                countItems(element, true, ids, into);
+                countItems(element, true, ids, wearMax, into);
             }
         }
+    }
+
+    private static boolean wornStack(CompoundTag stack, String id, Map<String, Integer> wearMax) {
+        Integer defaultMax = wearMax.get(id);
+        if (defaultMax == null) {
+            return false;
+        }
+        CompoundTag components = stack.getCompoundOrEmpty("components");
+        int max = components.getIntOr("minecraft:max_damage", defaultMax);
+        return isWorn(components.getIntOr("minecraft:damage", 0), max);
     }
 
     /**
@@ -231,14 +270,20 @@ final class KitTopUp {
      * entity id itself.
      */
     static void countRoom(CompoundTag room, Set<String> ids, Map<String, Integer> into) {
+        countRoom(room, ids, Map.of(), into);
+    }
+
+    /** As {@link #countRoom(CompoundTag, Set, Map)}, skipping worn tools named in {@code wearMax}. */
+    static void countRoom(CompoundTag room, Set<String> ids, Map<String, Integer> wearMax,
+                          Map<String, Integer> into) {
         for (Tag block : room.getListOrEmpty("blocks")) {
             if (block instanceof CompoundTag compound && compound.get("nbt") instanceof CompoundTag nbt) {
-                countItems(nbt, false, ids, into);
+                countItems(nbt, false, ids, wearMax, into);
             }
         }
         for (Tag entity : room.getListOrEmpty("entities")) {
             if (entity instanceof CompoundTag compound && compound.get("nbt") instanceof CompoundTag nbt) {
-                countItems(nbt, false, ids, into);
+                countItems(nbt, false, ids, wearMax, into);
             }
         }
     }
@@ -274,6 +319,18 @@ final class KitTopUp {
             }
         }
 
+        // Worn tools stop counting as held, at the calm band only: a worn tool in a
+        // bad interval stays a cost of overstay.
+        Map<String, Integer> wearMax = new HashMap<>();
+        if (band <= 0) {
+            for (BagDefinition.KitItem line : bag.kitBaseline) {
+                Item item = line.durability() ? resolve(line.item()) : null;
+                if (item != null && new ItemStack(item).getMaxDamage() > 0) {
+                    wearMax.put(line.item(), new ItemStack(item).getMaxDamage());
+                }
+            }
+        }
+
         DynamicOps<Tag> ops = server.registryAccess().createSerializationContext(NbtOps.INSTANCE);
         boolean inside = log.stashOf(id).stashed();
         Map<String, Integer> held = new HashMap<>();
@@ -282,14 +339,14 @@ final class KitTopUp {
             InventorySwap.PlayerSlots slots = new InventorySwap.PlayerSlots(member);
             for (int i = 0; i < InventorySwap.SLOTS; i++) {
                 ItemStack stack = slots.get(i);
-                countStack(ops, stack, ids, held);
+                countStack(ops, stack, ids, wearMax, held);
                 if (isConvertibleSlot(i) && empties.contains(itemId(stack))) {
                     emptiesInPack.merge(itemId(stack), stack.getCount(), Integer::sum);
                 }
             }
         }
         for (ItemStack stack : log.orphanOf(id).items()) {
-            countStack(ops, stack, ids, held);
+            countStack(ops, stack, ids, wearMax, held);
         }
         Set<UUID> rooms = new LinkedHashSet<>();
         if (record.owner != null && !record.visitInstance) {
@@ -299,7 +356,7 @@ final class KitTopUp {
         for (UUID owner : rooms) {
             CompoundTag room = RoomStore.load(server, owner);
             if (room != null) {
-                countRoom(room, ids, held);
+                countRoom(room, ids, wearMax, held);
             }
         }
         Map<String, Integer> emptiesStored = new HashMap<>();
@@ -437,12 +494,12 @@ final class KitTopUp {
     }
 
     private static void countStack(DynamicOps<Tag> ops, ItemStack stack, Set<String> ids,
-                                   Map<String, Integer> into) {
+                                   Map<String, Integer> wearMax, Map<String, Integer> into) {
         if (stack.isEmpty()) {
             return;
         }
         ItemStack.CODEC.encodeStart(ops, stack).result()
-                .ifPresent(tag -> countItems(tag, true, ids, into));
+                .ifPresent(tag -> countItems(tag, true, ids, wearMax, into));
     }
 
     static String itemId(ItemStack stack) {

@@ -297,6 +297,10 @@ for ((taskName, testClass) in mapOf(
     "adventureGraphTest" to "AdventureGraphTest",
     "dungeonLogTest" to "DungeonLogTest",
     "stationTutorialTest" to "StationTutorialTest",
+    // Playtest 2026-10-03 (A5): the first-visit tour.
+    "firstVisitTutorialTest" to "FirstVisitTutorialTest",
+    // Playtest 2026-10-03 (A9): the safe-room scan on each exit.
+    "roomScanTest" to "RoomScanTest",
     "floorHistoryTest" to "FloorHistoryTest",
     "rerollMathTest" to "RerollMathTest",
     "gambleMathTest" to "GambleMathTest",
@@ -347,7 +351,11 @@ for ((taskName, testClass) in mapOf(
     "journalFormatTest" to "JournalFormatTest",
     "lemonSpeechTest" to "LemonSpeechTest",
     // PD-87: trial keys from every loot source are bare, identical items.
-    "trialKeyLootTest" to "TrialKeyLootTest"
+    "trialKeyLootTest" to "TrialKeyLootTest",
+    // Playtest 2026-10-03 (A3): the tier 1 chest tables carry oak planks.
+    "chestPlankLootTest" to "ChestPlankLootTest",
+    // Playtest 2026-10-03: one staggered reveal for all big text.
+    "staggeredTitleTest" to "StaggeredTitleTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -362,6 +370,8 @@ tasks.test {
     dependsOn("adventureGraphTest")
     dependsOn("dungeonLogTest")
     dependsOn("stationTutorialTest")
+    dependsOn("firstVisitTutorialTest")
+    dependsOn("roomScanTest")
     dependsOn("floorHistoryTest")
     dependsOn("salvageMathTest")
     dependsOn("rerollMathTest")
@@ -383,6 +393,8 @@ tasks.test {
     dependsOn("roomShellTest")
     dependsOn("roomFurnitureTest")
     dependsOn("trialKeyLootTest")
+    dependsOn("chestPlankLootTest")
+    dependsOn("staggeredTitleTest")
     dependsOn("dungeonShellProtectionTest")
     dependsOn("lobbyBrowserTest")
     dependsOn("lodestoneMenuTest")

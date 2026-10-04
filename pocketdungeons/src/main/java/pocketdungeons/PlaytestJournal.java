@@ -383,6 +383,17 @@ final class PlaytestJournal {
         });
     }
 
+    /** The safe room as the player left it: the stations placed and what the chests hold (playtest 2026-10-03, A9). */
+    static void roomScan(ServerPlayer player, InstanceRecord record, RoomScan.Summary summary) {
+        safely("room_scan", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("stations", summary.stations());
+            extras.put("containers", summary.containers());
+            extras.put("items", summary.items());
+            record(player, record, "room_scan", extras);
+        });
+    }
+
     static void quitFloor(ServerPlayer player, int penalty) {
         safely("quit_floor", () -> record(player, "quit_floor", Map.of("penalty", penalty)));
     }
@@ -468,6 +479,22 @@ final class PlaytestJournal {
             extras.put("hint_tier", hintTier);
             extras.put("wait_s", waitSeconds);
             record(player, "lemon_ask", extras);
+        });
+    }
+
+    /**
+     * A party member said {@code text} in chat and {@code player} is in their party
+     * (owner decision, 2026-10-03: Lemon takes in what the whole party says, tagged
+     * with who said it). Written for the listener, so their {@code context} shows
+     * the party's side of the conversation; the speaker's own line is a
+     * {@code lemon_ask} or plain chat already.
+     */
+    static void lemonHeard(ServerPlayer player, String from, String text) {
+        safely("lemon_heard", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("from", from);
+            extras.put("text", text);
+            record(player, "lemon_heard", extras);
         });
     }
 

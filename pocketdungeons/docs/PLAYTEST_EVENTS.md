@@ -75,6 +75,7 @@ at home before the first door.
 | `lemon_ask` | The player says something to Lemon (written once it is answered, or not) | `text`, `room`, `answered_by` (`guide`, `llm`, `none`), `hint_tier` (0 if not a hint), `wait_s` (seconds until answered) |
 | `lemon_hint` | Lemon offers a hint unprompted | `trigger` (`dwell`, `rescues`, `wandering`), `room`, `tier` |
 | `lemon_tutorial` | A tutorial moment fires | `moment` |
+| `lemon_heard` | A party member said something in chat (written for each other online member, 2026-10-03) | `from` (the speaker's name), `text` |
 | `lemon_answer` | The player answers a question Lemon (the interviewer) asked | `question`, `text` |
 
 `room` is a room id from the floor's cell to room map (the placed room's manifest

@@ -823,3 +823,38 @@ Not scheduled; each came from the player as an idea for later.
 - **End stone** has no use beyond decoration and pillaring. Give it a function or remove it from loot.
 - **Surplus sinks** for string, bones, blaze powder and magma cream (the player always has too much of them).
 - **Hold the plate:** in a party only one player should need to stand on the plate; show the timer as big text just under the omen bar.
+
+---
+
+## Next up: one Lemon per party (from playtest 2026-10-03, owner decision)
+
+**Scheduled as the next thing done after the 2026-10-03 first-session batch.**
+
+Today every player has a private Lemon: her body is sent only to its owner
+(`LemonBody.broadcastToPlayer`), chat and replies are per player (`Lemon.STATES`),
+and the right-click menu answers only the owner. The first-visit tour
+(`FirstVisitTutorial`) already runs off the party leader's progress, but each
+member still hears it from their own Lemon.
+
+The owner wants one Lemon per party, belonging to the party leader, that the
+other members can see and talk to.
+
+Open design questions to settle first:
+
+- **Visibility:** the leader's Lemon becomes visible to every member; the private
+  per-client body goes away for members.
+- **Chat routing:** a member's question goes to the leader's Lemon. Are her answers
+  public to the party or private to the asker? (Needs an owner answer.)
+- **Agent and LLM mode:** `wait_events`, the journal and `context` are keyed per
+  player. They must record which member asked, and LLM mode must stay one switch
+  per party or become per asker.
+- **Ownership changes:** Lemon moves to the new leader when the party disbands,
+  the leader leaves or logs out, or leadership passes. A solo player is their own
+  leader and sees no change.
+- **Right-click menu:** it opens the lodestone menu for the clicker, not the owner,
+  once other players can reach her.
+- **Tour flags:** stay the leader's; a member never marks or restarts them.
+
+Touches: `Lemon`, `LemonBody`, `LemonBubble`, `LemonCommands`, `PlayerContext`,
+`PlaytestJournal`, `FirstVisitTutorial`, the `tools/server` harness and
+`LEMON_SPEC.md` / `LEMON_AGENT.md`.

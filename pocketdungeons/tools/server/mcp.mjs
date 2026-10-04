@@ -119,7 +119,18 @@ if (admin) {
       description: 'PD-90: the moment the player agrees to a bias, hold their doors (no preview, no commit, a countdown on the door screen) while you set it up. Setting or clearing the bias releases the hold and tells the player it is done; if you get stuck the hold runs out by itself (default 90 s, at most 180) and says so. seconds 0 releases it.',
       inputSchema: obj({ player, seconds: { type: 'number', description: 'Seconds to hold, 1 to 180. Default 90. 0 releases.' } }, ['player']),
       run: async a => {
-        const args = ['cmd', 'dungeon', 'admin', 'bias', 'hold', a.player]
+        // PD-138: a call without player sent the word "undefined" to the server
+        // ("undefined is not online"). With one player online, hold theirs.
+        let target = a.player
+        if (!target) {
+          const listed = (await pd(['cmd', 'list'], 10000)).out
+          const names = (listed.split(':').slice(1).join(':') || '').split(',').map(n => n.trim()).filter(Boolean)
+          if (names.length !== 1) {
+            return `room_bias_hold needs player: ${names.length ? 'online are ' + names.join(', ') : 'nobody is online'}.`
+          }
+          target = names[0]
+        }
+        const args = ['cmd', 'dungeon', 'admin', 'bias', 'hold', target]
         if (a.seconds !== undefined) args.push(String(Math.max(0, Math.min(180, Math.round(a.seconds)))))
         return (await pd(args, 10000)).out
       },

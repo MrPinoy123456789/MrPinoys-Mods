@@ -137,6 +137,21 @@ final class LayoutPlanner {
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags, RunRecipePlan recipePlan) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme,
+                requiredEntranceDirection, bagTags, recipePlan, 0);
+    }
+
+    /**
+     * As above, with the encounter cells capped at {@code maxEncounters}
+     * ({@link LayoutGraphGenerator#capEncounters}); 0 means no cap. The live
+     * caller caps the first floor of an interval (playtest 2026-10-03-2).
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
+                        Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -156,6 +171,7 @@ final class LayoutPlanner {
             if (requiredEntranceDirection != null) {
                 shape = rotateToEntranceDirection(shape, requiredEntranceDirection);
             }
+            shape = LayoutGraphGenerator.capEncounters(shape, maxEncounters);
 
             List<String> shapeProblems = LayoutGraphGenerator.validate(shape);
             if (!shapeProblems.isEmpty()) {

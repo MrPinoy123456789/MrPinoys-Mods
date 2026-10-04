@@ -47,7 +47,9 @@ public final class PocketDungeonsMod implements ModInitializer {
         OmenSources.register();
         DungeonDrops.register();
         SpiderUnstick.register();
-        FloorStartTitle.register();
+        VaultShare.register();
+        StaggeredTitle.register();
+        RoomScan.register();
         RoomContent.register();
         // M68: a single reload listener owns the atomic build then commit of
         // all five content surfaces, replacing the per loader listeners

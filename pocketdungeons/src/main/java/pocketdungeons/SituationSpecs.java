@@ -7,7 +7,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.HopperBlock;
@@ -17,7 +16,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.ComparatorMode;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
@@ -56,13 +54,21 @@ final class SituationSpecs {
      */
     static void registerHandlers() {
         // Non-combat rooms: own the cell, no trial spawner.
-        for (String id : new String[]{"sump", "ropewalk", "sorting_floor"}) {
+        for (String id : new String[]{"sump", "ropewalk"}) {
             Situations.register(id, (level, o, role, depth, profile, spawns, seed,
                     affixes, lootSuffix, theme, voidedFloor, content) -> {
                 // Own the cell so removeChests does not strip authored chests.
                 return null;
             });
         }
+        // PD-133: the sorting floor's comparator read the wrong side and never
+        // opened the door. The filter hopper only passes the stick, so "any
+        // item in the return chest" is the same question, asked by a Lock.
+        Situations.register("sorting_floor", (level, o, role, depth, profile, spawns, seed,
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            Locks.arm(level, o, Locks.Kind.ITEM_ANY, null);
+            return null;
+        });
         // Combat rooms: place a trial spawner with a situation-specific config.
         Situations.register("sensor_gallery", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) ->
@@ -292,10 +298,8 @@ final class SituationSpecs {
                     // Return chest past the door at (14, 1, 10).
                     placeReturnChest(level, o.offset(14, 1, 10));
 
-                    // Comparator reads the chest, outputs north to the door.
-                    placeComparator(level, o.offset(14, 1, 9), Direction.NORTH);
-                    placeDust(level, o.offset(14, 1, 8));
-                    placeDust(level, o.offset(14, 1, 7));
+                    // No comparator: the Lock armed in registerHandlers reads
+                    // the chest and opens the door (PD-133).
 
                     // Key item (stick) on a pedestal at (4, 2, 8).
                     placeSolid(level, o.offset(4, 1, 8));
@@ -355,9 +359,17 @@ final class SituationSpecs {
                         placeDust(level, o.offset(x, 1, 7));
                         placeDust(level, o.offset(x, 1, 6));
                     }
-                    for (int x = 4; x <= 14; x++) {
+                    for (int x = 4; x <= 12; x++) {
                         placeDust(level, o.offset(x, 1, 6));
                     }
+                    // PD-133: the line used to run on to x 14 and end beside
+                    // nothing. A repeater at x 13 now drives a wall block at
+                    // x 14, beside the door's north leaf, the way Rotation
+                    // Lock's gate does. FACING is the input side (PD-99).
+                    RoomBuilder.set(level, o.offset(DOOR_X, 1, Z0 - 1), RoomBuilder.WALL);
+                    RoomBuilder.set(level, o.offset(DOOR_X - 1, 1, Z0 - 1),
+                            Blocks.REPEATER.defaultBlockState()
+                                    .setValue(RepeaterBlock.FACING, Direction.WEST));
 
                     // Two loose wool blocks for muting sensors (stealth).
                     RoomBuilder.set(level, o.offset(2, 1, 2), wool);
@@ -500,16 +512,21 @@ final class SituationSpecs {
 
     // ---- shared helpers -----------------------------------------------------
 
-    private static final int WALL_X = RoomGeometry.CELL - 1;
+    /**
+     * Where the iron door stands: one block inside the east doorway plane.
+     * PD-133: it used to stand at x 15, in the doorway plane itself, which
+     * overwrote the east jigsaws, so the manifest read sorting_floor and
+     * sensor_gallery as west-only dead ends and their gates led nowhere.
+     */
+    private static final int DOOR_X = RoomGeometry.CELL - 2;
     private static final int Z0 = RoomGeometry.DOOR_MIN;
     private static final int Z1 = RoomGeometry.DOOR_MAX;
 
     /**
-     * Places the iron door pair in the east doorway (y 1..2 at z 7..8, x 15)
-     * and fills the top doorway block (y 3) with a wall block. One block
-     * inside the doorway plane (Trap 20): the door sits at x 15, the wall
-     * block at x 15, y 3; the canonical jigsaws at the doorway plane are not
-     * touched.
+     * Places the iron door pair one block inside the east doorway (y 1..2 at
+     * z 7..8, x 14) and fills the block above it (y 3) with wall so it cannot
+     * be jumped. The doorway plane at x 15 is left alone (Trap 20): its
+     * jigsaws are what the manifest reads the east door from.
      */
     private static void placeIronDoor(ServerLevel level, BlockPos o) {
         for (int z = Z0; z <= Z1; z++) {
@@ -519,11 +536,11 @@ final class SituationSpecs {
                     .setValue(DoorBlock.FACING, Direction.WEST)
                     .setValue(DoorBlock.HINGE, hinge)
                     .setValue(DoorBlock.OPEN, false);
-            BlockPos bottom = o.offset(WALL_X, 1, z);
+            BlockPos bottom = o.offset(DOOR_X, 1, z);
             RoomBuilder.set(level, bottom, lower);
             RoomBuilder.set(level, bottom.above(),
                     lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-            RoomBuilder.set(level, o.offset(WALL_X, 3, z), RoomBuilder.WALL);
+            RoomBuilder.set(level, o.offset(DOOR_X, 3, z), RoomBuilder.WALL);
         }
     }
 
@@ -537,13 +554,6 @@ final class SituationSpecs {
     private static void placeHopper(ServerLevel level, BlockPos pos, Direction facing) {
         RoomBuilder.set(level, pos, Blocks.HOPPER.defaultBlockState()
                 .setValue(HopperBlock.FACING, facing));
-    }
-
-    /** A comparator in compare mode facing {@code facing} (output direction). */
-    private static void placeComparator(ServerLevel level, BlockPos pos, Direction facing) {
-        RoomBuilder.set(level, pos, Blocks.COMPARATOR.defaultBlockState()
-                .setValue(ComparatorBlock.FACING, facing)
-                .setValue(ComparatorBlock.MODE, ComparatorMode.COMPARE));
     }
 
     /** Redstone dust. */

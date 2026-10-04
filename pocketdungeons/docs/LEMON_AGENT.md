@@ -96,6 +96,8 @@ Anywhere else: `node pocketdungeons/tools/server/pdserver.mjs <command>`. Below,
 | `19:12:45 floor Name completed floor 1 of slot 0 (...)` | A floor was cleared | A natural break: the moment for one question. |
 | `19:18:00 report <Name> the wall is missing` | The player filed a bug with `/dungeon report` | Handle as a bug (section 5.4). |
 | `19:03:56 chat <Name> hi` | Ordinary chat not addressed to Lemon (party play) | Usually nothing. |
+| `19:03:56 lemon heard <Name> hi` | Party chat the other members' journals took in (PD-138); printed in place of the matching `chat` line | Usually nothing; it tells you who said it in a party. |
+| `19:04:12 lemon tour <Name> Next to it is the board.` | A line of the built-in tour (first visit or stations) was shown (PD-138) | Nothing; note which tour lines fired. |
 | `19:40:02 error ...` | A mod warning or error | Note it with the time; if it matches what the player is doing, mention it in the bug notes. |
 | `22:05:30 server ready` / `server stopping` | Server started / is stopping | Note it. |
 
@@ -106,7 +108,8 @@ word), `report`, `error`, `server ready`, `server stopping`.
 `lemon replies`, `lemon thinks` (your own lines, logged in the third person),
 `lemon held`, `lemon hushed` and `lemon mode`. Those still print if they arrive
 alongside a waking event. It wakes on everything from the player (`lemon ask`,
-`lemon answer`, `lemon quiet`, `lemon summoned`, `chat`, `join`, `leave`, `floor`, `report`), on
+`lemon answer`, `lemon quiet`, `lemon summoned`, `lemon heard`, `chat`, `join`, `leave`, `floor`, `report`), on the
+built-in tour's `lemon tour` lines, on
 `lemon unanswered`, and on `error` and server lines. The filter is
 `tools/server/wait-filter.mjs`; `node tools/server/wait-filter.test.mjs` checks it.
 

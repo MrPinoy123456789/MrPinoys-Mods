@@ -131,6 +131,7 @@ final class RoomSelector {
         if (anomalyCell != null && !anomalyName.equals(placed.get(anomalyCell).name())) {
             anomalyCell = null;
         }
+        orientGatedRooms(shape, manifest, placed, depths);
 
         Map<PlanCell, List<String>> provides = new HashMap<>();
         Set<PlanCell> multiStory = new HashSet<>();
@@ -162,6 +163,96 @@ final class RoomSelector {
                 rubble,
                 sealed);
         return new Result(plan, null, Set.copyOf(fallbacks), pass.backtrackSteps());
+    }
+
+    /**
+     * PD-133 (playtest 2026-10-03-2): turns every gated room so its entry wall
+     * faces the cell the player arrives from.
+     *
+     * <p>A gated room is a straight pass-through (west entry, east gate), so
+     * its mask fits a straight cell at two rotations 180 degrees apart, and
+     * every placement route (the main pass, the anomaly roll, recipe
+     * guarantees) kept whichever one it rolled. Half the time that put the
+     * iron door on the near side: the party walked out of the entrance hall
+     * into a closed door they could not open from outside. The mask is the
+     * same at both rotations, so swapping the rotation here changes nothing
+     * the solvability pass proved.
+     *
+     * <p>The approach is the critical path predecessor for a spine cell and
+     * the shallowest open neighbour otherwise. A room whose mask has no
+     * rotation that both fits the cell and faces the approach is left alone
+     * and logged, since that is a content error (a gated room authored with
+     * a corner or tee mask) rather than a roll to fix here.
+     */
+    static void orientGatedRooms(DungeonShape shape, RoomManifest manifest,
+                                 Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                 Map<PlanCell, Integer> depths) {
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
+            PlanCell cell = e.getKey();
+            DungeonPlan.PlacedRoom room = e.getValue();
+            RoomManifest.Entry entry = manifest.byName(room.name());
+            if (entry == null || !DungeonRoomMeta.ACCESS_GATED.equals(entry.meta.access)
+                    || (entry.maskAtRotation0 & DungeonRoomMeta.GATED_ENTRY_AT_ROTATION_0) == 0) {
+                continue;
+            }
+            PlanCell from = approach(shape, cell, depths);
+            DoorMask.Direction dir = from == null ? null : cell.directionTo(from);
+            if (dir == null) {
+                continue;
+            }
+            int want = DoorMask.fromEdges(java.util.EnumSet.of(dir));
+            int mask = entry.maskAtRotation(room.rotation());
+            if (DoorMask.rotateClockwise(DungeonRoomMeta.GATED_ENTRY_AT_ROTATION_0, room.rotation()) == want) {
+                continue;
+            }
+            int chosen = -1;
+            for (int r = 0; r < 4; r++) {
+                if (entry.maskAtRotation(r) == mask
+                        && DoorMask.rotateClockwise(DungeonRoomMeta.GATED_ENTRY_AT_ROTATION_0, r) == want) {
+                    chosen = r;
+                    break;
+                }
+            }
+            if (chosen < 0) {
+                PocketDungeonsMod.LOG.warn("Gated room {} at {} cannot face its approach from {}: mask {}",
+                        room.name(), cell, DoorMask.toLetters(want), DoorMask.toLetters(mask));
+                continue;
+            }
+            e.setValue(new DungeonPlan.PlacedRoom(room.name(), chosen));
+        }
+    }
+
+    /**
+     * PD-133: the cell a player reaches {@code cell} from. On the critical path
+     * that is the previous path cell; elsewhere it is the open neighbour with
+     * the smallest depth, ties broken by grid position so a plan is
+     * reproducible. Null for the entrance or an unconnected cell.
+     */
+    static PlanCell approach(DungeonShape shape, PlanCell cell, Map<PlanCell, Integer> depths) {
+        List<PlanCell> path = shape.criticalPath();
+        int index = path.indexOf(cell);
+        if (index > 0) {
+            return path.get(index - 1);
+        }
+        PlanCell best = null;
+        int bestDepth = Integer.MAX_VALUE;
+        for (PlanEdge edge : shape.openEdges()) {
+            if (!edge.touches(cell)) {
+                continue;
+            }
+            PlanCell other = edge.other(cell);
+            int d = depths.getOrDefault(other, Integer.MAX_VALUE);
+            if (best == null || d < bestDepth
+                    || (d == bestDepth && (other.x() < best.x()
+                        || (other.x() == best.x() && other.z() < best.z())))) {
+                best = other;
+                bestDepth = d;
+            }
+        }
+        if (best != null && bestDepth >= depths.getOrDefault(cell, 0)) {
+            return null;
+        }
+        return best;
     }
 
     /** The chance a plan with an eligible door gets one rubble doorway. */
@@ -668,7 +759,7 @@ final class RoomSelector {
             List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
             onSpine = new HashSet<>(spine);
             branches = branchGroups(shape, onSpine);
-            gateCell = designateGateCell(shape, spine, manifest, theme);
+            gateCell = designateGateCell(shape, spine, manifest, theme, maxTier);
 
             for (PlanCell cell : order) {
                 int mask = requiredMask(shape, cell);
@@ -758,7 +849,7 @@ final class RoomSelector {
                 }
                 // Optimistic on the placement rules too: a cell rejected here is
                 // rejected on its requires alone, never on where it happens to sit.
-                if (solvable(matches.get(i), optimistic, onSpine.contains(cell), false, false)
+                if (solvable(matches.get(i), optimistic, onSpine.contains(cell), false, false, maxTier)
                         .isEmpty()) {
                     forced.add(cell);
                 }
@@ -931,7 +1022,7 @@ final class RoomSelector {
                 } else {
                     int branch = branches.getOrDefault(cell, SPINE_BRANCH);
                     pool = solvable(all, availableFor(index), onSpine.contains(cell),
-                            gatedBefore(index).contains(branch), cell.equals(gateCell));
+                            gatedBefore(index).contains(branch), cell.equals(gateCell), maxTier);
                 }
                 this.startedEmpty = pool.isEmpty();
                 if (pool.isEmpty()) {
@@ -1128,7 +1219,7 @@ final class RoomSelector {
      *         no gated rooms in it
      */
     private static PlanCell designateGateCell(DungeonShape shape, List<PlanCell> spine,
-                                              RoomManifest manifest, String theme) {
+                                              RoomManifest manifest, String theme, int maxTier) {
         List<PlanCell> eligible = new ArrayList<>();
         for (PlanCell cell : spine) {
             if (cell.equals(shape.entrance()) || cell.equals(shape.terminal())) {
@@ -1140,7 +1231,11 @@ final class RoomSelector {
             }
             for (RoomManifest.Match match : manifest.queryAnyRotation(
                     requiredMask(shape, cell), role, theme)) {
-                if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)) {
+                // PD-139: a gate above the floor's tier is no gate to offer;
+                // designating it forced a tier 2 or 3 room onto a keystone 1
+                // floor and logged a "Room tier gap" every plan.
+                if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)
+                        && match.entry().meta.tier <= maxTier) {
                     eligible.add(cell);
                     break;
                 }
@@ -1167,7 +1262,7 @@ final class RoomSelector {
      */
     private static List<RoomManifest.Match> solvable(List<RoomManifest.Match> matches,
                                                      Set<String> available, boolean onSpine,
-                                                     boolean branchGated, boolean isGateCell) {
+                                                     boolean branchGated, boolean isGateCell, int maxTier) {
         List<RoomManifest.Match> pool = withTags(matches, available, onSpine, branchGated);
         if (pool.isEmpty() && branchGated) {
             // The one-gate-per-branch rule emptied the pool on its own. It is a
@@ -1182,7 +1277,8 @@ final class RoomSelector {
         }
         List<RoomManifest.Match> gated = new ArrayList<>();
         for (RoomManifest.Match match : pool) {
-            if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)) {
+            if (DungeonRoomMeta.ACCESS_GATED.equals(match.entry().meta.access)
+                    && match.entry().meta.tier <= maxTier) {
                 gated.add(match);
             }
         }

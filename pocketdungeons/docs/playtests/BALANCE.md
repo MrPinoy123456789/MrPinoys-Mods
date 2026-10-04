@@ -78,3 +78,14 @@ playtest journal once it exists; blank means not recorded.
 
 - **Echo shards.** The player does not want the 0.5 chance per cleared floor (`echoShardFloorChance`): one guaranteed shard per full 3-floor interval plus the Ordeal chance only. Floor 3 of the second set (ender_archive, 926 s) ran long only because of PD-113.
 - **Pace.** A set of three floors took about 20 to 25 minutes (19:34 to 19:53, 20:08 to 20:36 local). The 118 s basalt_foundry floor had 3 of 4 spawners cleared and omen 0.
+
+## Observations 2026-10-03-2
+
+| Date | Zone | Floor | Party | Seconds | Omen | Rescues | Blocks | Durability | Chests | Band at bank | Rating |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-03 | prismarine | 1 | 2 | 298 | 0 | 0 | 1 | 0 | 3 | n/a | none |
+| 2026-10-03 | frostworks | 2 | 2 | 210 | 0 | 0 | 0 | 172 | 3 | n/a | none |
+| 2026-10-03 | prismarine | 4 | 2 | 243 | 2 | 0 | 0 | 0 | 4 | n/a | none |
+| 2026-10-03 | frostworks | 1 (set 3) | 2 | 225 | 0 | 0 | 2 | 100 | 3 | n/a | none |
+
+- Player: floor 1 should be about 2 spawners; the starting kit runs out of food. A party of 2 gets 4x vault loot, "too much". Fewer chest logs, more planks.

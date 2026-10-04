@@ -83,6 +83,12 @@ public final class PocketDungeonsConfig {
     // obvious far end.
     private static int pathLengthMin = 8;
     private static int pathLengthMax = 12;
+    /**
+     * Playtest 2026-10-03-2: the most encounter cells the first floor of an
+     * interval may hold, so floor 1 runs about two spawners rather than four
+     * ("floor 1 should be about 2 spawners"; 298 s at 05:04). 0 means no cap.
+     */
+    private static int firstFloorMaxEncounters = 2;
     private static double branchProbability = 0.55;
     private static double loopProbability = 0.30;
     private static int planAttemptBudget = 32;
@@ -538,6 +544,10 @@ public final class PocketDungeonsConfig {
         return pathLengthMax;
     }
 
+    public static int firstFloorMaxEncounters() {
+        return firstFloorMaxEncounters;
+    }
+
     public static double branchProbability() {
         return branchProbability;
     }
@@ -848,6 +858,7 @@ public final class PocketDungeonsConfig {
 
         pathLengthMin = 8;
         pathLengthMax = 12;
+        firstFloorMaxEncounters = 2;
         branchProbability = 0.55;
         loopProbability = 0.30;
         planAttemptBudget = 32;
@@ -991,6 +1002,8 @@ public final class PocketDungeonsConfig {
 
         pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
         pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
+        firstFloorMaxEncounters = readInt(root, "firstFloorMaxEncounters", 2, v -> v >= 0,
+                "must be >= 0 (0 means no cap)");
         if (pathLengthMax < pathLengthMin) {
             PocketDungeonsMod.LOG.error(
                     "pocketdungeons.json pathLengthMax ({}) is below pathLengthMin ({}); "
@@ -1363,6 +1376,7 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("pathLengthMin", 8);
         root.addProperty("pathLengthMax", 12);
+        root.addProperty("firstFloorMaxEncounters", 2);
         root.addProperty("branchProbability", 0.55);
         root.addProperty("loopProbability", 0.30);
         root.addProperty("planAttemptBudget", 32);

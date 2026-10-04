@@ -170,3 +170,9 @@ item when it recurs or the owner says it matters.
 - **3D maps and Ordeals as vertical gates** (2026-10-02-2.md): a procedural map with vertical movement gated by Ordeals; endless mines as the vertical inverse with more Ordeals. Needs a dimension height decision (`dimension_type/void.json` is y 0 to 256). Ties to "Flat rooms leave systems stranded".
 - **Stations should be crafted, not handed out** (2026-10-02-2.md): he would rather craft each station than take it from Lemon; reroll belongs to the enchanting table; Mending is a bought book. Ties to A3.
 - **Interviewer reliability, again** (2026-10-02-2.md): at least 8 questions were hidden from the agent by the `wait` cursor (PD-118) and answered by the fallback; the owner noticed and said so. A direct log monitor worked. Keep the theme open until PD-118 is fixed and a session runs clean.
+
+### Added 2026-10-03-2 (see docs/playtests/2026-10-03-2.md)
+
+- Party play friction: bag chest, stations and building for a second member, loot doubling (PD-131, PD-132). First session, watch for a second mention.
+- Themed and funny rooms: the player wants rooms that tell a story by layout (bouncy castle slime pit, farm animal rooms, a shrub tree room).
+- Lemon tips in the moment: the player saw tips only later in chat. Ask whether bubbles are noticed during play.

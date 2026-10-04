@@ -60,6 +60,7 @@ public class GraphSolvabilityTest {
         testConsumableNeverGatesTheSpine();
         testAccessPlacement();
         testGuaranteePreservesSolvability();
+        testGatedRoomsFaceTheApproach();
         System.out.println("GraphSolvabilityTest passed");
     }
 
@@ -941,6 +942,93 @@ public class GraphSolvabilityTest {
         }
         System.out.println("Guarantee preserves solvability: " + floors + " floors, "
                 + guaranteesReverted + " kept pot_room (guarantee reverted)");
+    }
+
+    /**
+     * PD-133 (playtest 2026-10-03-2): a gated room is entered through its
+     * authored west wall, so after placement that wall must face the cell the
+     * player arrives from. A straight cell fits the room at two rotations, and
+     * the selector used to keep whichever it rolled, which put the iron door
+     * on the near side half the time.
+     *
+     * <p>Two parts: a three-cell line laid out in each of the four compass
+     * directions (every straight neighbour mask, both ways round), and a
+     * sweep of generated floors where the gate lands on spines and spurs.
+     */
+    private static void testGatedRoomsFaceTheApproach() {
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        entries.addAll(everyMask("hall", List.of("entrance"), List.of(), List.of()));
+        entries.addAll(everyMask("way_out", List.of("exit"), List.of(), List.of()));
+        entries.addAll(everyMask("passage", List.of("corridor"), List.of(), List.of()));
+        entries.addAll(everyMask("hoard", List.of("loot"), List.of(), List.of()));
+        entries.addAll(everyMask("plain_fight", List.of("encounter"), List.of(), List.of()));
+        // The real gated rooms: one west entry and one east gate at rotation 0.
+        entries.add(new RoomManifest.Entry("pocketdungeons:gate",
+                meta("gate", List.of("corridor", "encounter", "loot"), List.of(), List.of(),
+                        DungeonRoomMeta.ACCESS_GATED, 50), DoorMask.WEST | DoorMask.EAST));
+        RoomManifest manifest = RoomManifest.create(entries, List.of());
+
+        int checked = 0;
+        int[][] steps = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] step : steps) {
+            PlanCell a = new PlanCell(0, 0);
+            PlanCell b = new PlanCell(step[0], step[1]);
+            PlanCell c = new PlanCell(2 * step[0], 2 * step[1]);
+            Set<PlanCell> cells = new LinkedHashSet<>(List.of(a, b, c));
+            Set<PlanEdge> edges = new LinkedHashSet<>(List.of(new PlanEdge(a, b), new PlanEdge(b, c)));
+            Map<PlanCell, String> roles = new LinkedHashMap<>();
+            roles.put(a, RoleIds.ENTRANCE);
+            roles.put(b, RoleIds.CORRIDOR);
+            roles.put(c, RoleIds.EXIT);
+            for (long seed = 0; seed < 40; seed++) {
+                DungeonShape shape = new DungeonShape(seed, cells, edges, a, c, List.of(a, b, c), roles);
+                DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null,
+                        BagTags.pilgrim()).plan();
+                DungeonPlan.PlacedRoom room = plan.rooms().get(b);
+                if (!room.name().equals("pocketdungeons:gate")) {
+                    continue;
+                }
+                checked++;
+                assertFacesApproach("line " + step[0] + "," + step[1] + " seed " + seed,
+                        b, a, room.rotation());
+            }
+        }
+        if (checked < 80) {
+            throw new AssertionError("expected the gate on most line fixtures, got " + checked);
+        }
+
+        int swept = 0;
+        for (long seed = 0; seed < 200; seed++) {
+            DungeonShape shape = LayoutGraphGenerator.generate(seed, 8, 12);
+            if (shape == null) {
+                continue;
+            }
+            DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null,
+                    BagTags.pilgrim()).plan();
+            for (PlanCell cell : shape.cells()) {
+                DungeonPlan.PlacedRoom room = plan.rooms().get(cell);
+                if (!room.name().equals("pocketdungeons:gate")) {
+                    continue;
+                }
+                PlanCell from = RoomSelector.approach(shape, cell, plan.depths());
+                swept++;
+                assertFacesApproach("seed " + seed + " cell " + cell, cell, from, room.rotation());
+            }
+        }
+        if (swept < 100) {
+            throw new AssertionError("expected at least 100 gated placements in the sweep, got " + swept);
+        }
+        System.out.println("Gated rooms face the approach: " + checked + " line placements, "
+                + swept + " generated placements");
+    }
+
+    private static void assertFacesApproach(String label, PlanCell cell, PlanCell from, int rotation) {
+        int entry = DoorMask.rotateClockwise(DungeonRoomMeta.GATED_ENTRY_AT_ROTATION_0, rotation);
+        int want = DoorMask.fromEdges(java.util.EnumSet.of(cell.directionTo(from)));
+        if (entry != want) {
+            throw new AssertionError(label + ": gated room entered from " + DoorMask.toLetters(want)
+                    + " but its entry faces " + DoorMask.toLetters(entry) + " at rotation " + rotation);
+        }
     }
 
     // ---- fixtures ----

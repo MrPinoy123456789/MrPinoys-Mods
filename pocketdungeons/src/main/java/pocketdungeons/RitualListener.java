@@ -92,6 +92,10 @@ final class RitualListener {
         // vault itself then runs as vanilla.
         if (level.getBlockState(pos).is(Blocks.VAULT)) {
             TrialContent.bareKey(serverPlayer.getMainHandItem());
+            if (level instanceof ServerLevel serverLevel
+                    && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                VaultShare.clicked(serverPlayer, serverLevel, pos);
+            }
         }
 
         // Dev tool: right-click any block with a spyglass to get its
@@ -138,12 +142,24 @@ final class RitualListener {
         // otherwise block it (the bag chest is a waxed oxidized copper chest,
         // deliberately, to read as distinct from loot chests). Position-based, the same way
         // the selector doors, lever and engine are identified.
+        // PD-131: every click on the bag chest is answered. A member who
+        // already carries a bag used to fall through to the container denial
+        // and get nothing at all, which read as "I can see it but cannot use it".
         InstanceRecord bagRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
         if (bagRecord != null && !bagRecord.visitInstance && bagRecord.roomCellOrigin != null
                 && pos.equals(Instances.bagChestPos(bagRecord.roomCellOrigin))
-                && level.getBlockState(pos).is(Instances.bagChestBlock())
-                && DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID()).isEmpty()) {
-            DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
+                && level.getBlockState(pos).is(Instances.bagChestBlock())) {
+            String carried = DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID());
+            if (carried.isEmpty()) {
+                DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
+            } else {
+                BagDefinition bag = Bags.byId(carried);
+                serverPlayer.sendSystemMessage(Component.literal("You already carry "
+                        + (bag == null ? "a bag" : bag.label)
+                        + ". It is yours until you reset your keystone; the chest is for anyone still without one.")
+                        .withStyle(ChatFormatting.YELLOW));
+                Chime.refused(serverPlayer);
+            }
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -197,7 +213,11 @@ final class RitualListener {
         // for the same position.
         InstanceRecord placementRoomRecord = Instances.roomRecordAt(placementPos);
         UUID placementRoomOwner = placementRoomRecord == null ? null : placementRoomRecord.owner;
-        if (placementRoomOwner != null && isPlacementSource(player.getItemInHand(hand))) {
+        // PD-132: a click that opens a station is a use, not a placement, so
+        // a guest holding a block can still craft, smelt or salvage; vanilla
+        // never places the held block when the clicked block consumes the use.
+        if (placementRoomOwner != null && isPlacementSource(player.getItemInHand(hand))
+                && !opensStation(serverPlayer, level, pos)) {
             // M55: use roomOriginAt to get the correct cell origin (safe room
             // or staging room) for this position, and roomDungeonDoorAt for
             // the furniture direction (only set for the staging room).
@@ -522,6 +542,26 @@ final class RitualListener {
      * they are only visiting, and nobody, owner included, can aim either at
      * the shell or the mod furniture.
      */
+    /**
+     * PD-132 (playtest 2026-10-03-2): whether a right-click on {@code pos}
+     * opens something rather than placing the held item: any block with a
+     * menu (crafting table, furnace, grindstone, smithing table, chests) or
+     * one of the mod's stations, unless the player is sneaking, which is how
+     * vanilla places against an interactive block. Before this, a party
+     * member holding blocks was refused every station in the leader's staging
+     * room, and with an empty hand was let in, which read as intermittent.
+     */
+    static boolean opensStation(ServerPlayer player, Level level, BlockPos pos) {
+        if (player.isSecondaryUseActive()) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        return state.getMenuProvider(level, pos) != null
+                || RerollStation.matchesStation(state)
+                || CubeStation.matchesStation(state)
+                || SalvageStation.matchesStation(state);
+    }
+
     private static boolean isPlacementSource(ItemStack stack) {
         net.minecraft.world.item.Item item = stack.getItem();
         return item instanceof net.minecraft.world.item.BlockItem

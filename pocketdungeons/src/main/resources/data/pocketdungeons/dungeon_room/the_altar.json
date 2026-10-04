@@ -1,7 +1,7 @@
 {
   "template": "pocketdungeons:rooms/the_altar",
   "footprint": [1, 1],
-  "roles": ["corridor"],
+  "roles": ["loot"],
   "weight": 1,
   "minDepth": 2,
   "maxPerDungeon": 2,

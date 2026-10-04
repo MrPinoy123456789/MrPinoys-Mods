@@ -11,7 +11,8 @@
     "ServerCommonPacketListenerAccessor",
     "TextDisplayAccessor",
     "DisplayAccessor",
-    "OmenWaveNoDropsMixin"
+    "OmenWaveNoDropsMixin",
+    "TrialSpawnerStateDataAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

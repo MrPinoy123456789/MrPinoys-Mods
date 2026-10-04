@@ -74,14 +74,20 @@ final class DungeonScreen {
     private static final float DOOR_SCALE = 2.0f;
     /**
      * The board body, 20 percent larger than the 0.6 it had (playtest
-     * 2026-10-02-1). Ten rows still sit inside the four-row backdrop; the width
-     * is the part to check in play, since it depends on the uniform font.
+     * 2026-10-02-1), and 20 percent larger again (playtest 2026-10-03-2,
+     * "rows about 20% bigger"). Ten rows span about y 2.5 to 4.7, inside the
+     * four-row backdrop; the width is the part to check in play, since it
+     * depends on the uniform font.
      */
-    private static final float HISTORY_SCALE = 0.72f;
+    private static final float HISTORY_SCALE = 0.86f;
     /** The "FLOOR HISTORY" heading: its own display, much larger than the rows. */
     private static final float HISTORY_HEADING_SCALE = 1.6f;
-    /** Bottom of the heading and middle of the body, in blocks above the room floor. */
-    private static final double HISTORY_HEADING_Y = 5.0;
+    /**
+     * Bottom of the heading and middle of the body, in blocks above the room
+     * floor. The heading sits at 5.4, up from 5.0 (playtest 2026-10-03-2,
+     * "heading a bit higher"), which also clears the taller rows.
+     */
+    private static final double HISTORY_HEADING_Y = 5.4;
     private static final double HISTORY_BODY_CENTER_Y = 3.6;
 
     private static final String BILLBOARD_FIXED = "fixed";

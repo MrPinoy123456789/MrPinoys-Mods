@@ -4,7 +4,7 @@
 // strings in Lemon.java and marked "format".
 
 import assert from 'node:assert/strict'
-import { eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
+import { dedupeHeard, eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 
 const P = 'MrPinoy123456789'
 const INFO = '[Server thread/INFO]'
@@ -87,5 +87,15 @@ assert.equal(read1.bytes, Buffer.byteLength(`${ask}\n`))
 assert.equal(wholeLines(Buffer.from('half a line')).bytes, 0)
 assert.equal(wholeLines(Buffer.from('caf\u00e9 \u2713\r\n')).bytes, Buffer.byteLength('caf\u00e9 \u2713\r\n'))
 
-console.log(failed ? `${failed} of ${cases.length} failed` : `all ${cases.length + 16} passed`)
+// PD-139: vanilla's dig mismatch is noise, not an error event.
+assert.equal(eventOf(`[04:01:25] [Server thread/WARN]: Mismatch in destroy block pos: BlockPos{x=6, y=64, z=88} BlockPos{x=19, y=65, z=99}`), null)
+// PD-138: party talk the journals took in, and the tour's lines, both wake.
+assert.equal(wakesWait(eventOf(`[12:00:00] ${INFO}: Lemon heard <${P}> lets go left`)), true) // format
+assert.equal(wakesWait(eventOf(`[12:00:00] ${INFO}: Lemon tour <${P}> Next to it is the board.`)), true) // format
+// A party line logged as chat and as heard prints once, as heard.
+const both = dedupeHeard([`12:00:00 chat <${P}> lets go left`, `12:00:00 lemon heard <${P}> lets go left`,
+  `12:00:01 chat <${P}> solo line`])
+assert.deepEqual(both, [`12:00:00 lemon heard <${P}> lets go left`, `12:00:01 chat <${P}> solo line`])
+
+console.log(failed ? `${failed} of ${cases.length} failed` : `all ${cases.length + 20} passed`)
 process.exitCode = failed ? 1 : 0

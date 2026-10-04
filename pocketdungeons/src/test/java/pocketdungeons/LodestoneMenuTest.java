@@ -26,7 +26,7 @@ public class LodestoneMenuTest {
         // Overworld menu: Start Dungeon, Browse Lobbies, Visit a Friend,
         // Manage Room, Stations, Inspect Keystone, Diaries.
         List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false, false);
-        check(overworld.size(), 7, "overworld menu has seven options");
+        check(overworld.size(), 8, "overworld menu has eight options");
         check(overworld.get(0).label(), "Start Dungeon", "overworld first is Start Dungeon");
         check(overworld.get(0).action(), DialogScreens.ACTION_START_DUNGEON,
                 "Start Dungeon carries its action id");
@@ -53,7 +53,7 @@ public class LodestoneMenuTest {
         // Change Shell, Stations, Inspect Keystone, Diaries. No Quit Door,
         // because there is no door to quit.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true, false);
-        check(owner.size(), 6, "in-dungeon owner menu (lobby) has six options");
+        check(owner.size(), 7, "in-dungeon owner menu (lobby) has seven options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON,
                 "Leave carries its action id");
@@ -65,13 +65,16 @@ public class LodestoneMenuTest {
         check(owner.get(3).action(), DialogScreens.ACTION_STATIONS,
                 "Stations carries its action id");
         check(owner.get(4).label(), "Inspect Keystone", "in-dungeon fifth is Inspect Keystone");
-        check(owner.get(5).label(), "Diaries", "in-dungeon owner last is Diaries");
+        check(owner.get(5).label(), "Diaries", "in-dungeon owner sixth is Diaries");
+        check(owner.get(6).label(), "Reset Key", "in-dungeon owner last is Reset Key");
+        check(owner.get(6).action(), DialogScreens.ACTION_RESET_KEY, "Reset Key opens its confirm");
+        check(overworld.get(7).label(), "Reset Key", "overworld last is Reset Key");
         check(owner.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
         // In-dungeon owner, door chosen (mid-run): Quit Door appears after Leave.
         List<DialogScreens.MenuOption> ownerRun = DialogScreens.menuOptions(true, true, true);
-        check(ownerRun.size(), 7, "in-dungeon owner menu (mid-run) has seven options");
+        check(ownerRun.size(), 8, "in-dungeon owner menu (mid-run) has eight options");
         check(ownerRun.get(0).label(), "Leave", "mid-run first is Leave");
         check(ownerRun.get(1).label(), "Quit Door", "mid-run second is Quit Door");
         check(ownerRun.get(1).action(), DialogScreens.ACTION_QUIT_DUNGEON,
@@ -84,6 +87,8 @@ public class LodestoneMenuTest {
         check(visitor.get(0).label(), "Leave", "visitor sees Leave");
         check(visitor.get(1).label(), "Inspect Keystone", "visitor sees Inspect Keystone");
         check(visitor.get(2).label(), "Diaries", "visitor sees Diaries");
+        check(visitor.stream().noneMatch(o -> o.action().equals(DialogScreens.ACTION_RESET_KEY)), true,
+                "a visitor never sees Reset Key");
 
         // The dialog is a MultiActionDialog with one button per option, each
         // carrying the owner UUID so DialogRouter's owner check passes.
@@ -92,7 +97,7 @@ public class LodestoneMenuTest {
                 "overworld menu is a MultiActionDialog");
         net.minecraft.server.dialog.MultiActionDialog list =
                 (net.minecraft.server.dialog.MultiActionDialog) dialog;
-        check(list.actions().size(), 7, "one button per overworld option");
+        check(list.actions().size(), 8, "one button per overworld option");
         net.minecraft.server.dialog.action.CustomAll action =
                 (net.minecraft.server.dialog.action.CustomAll) list.actions().get(0).action().orElseThrow();
         net.minecraft.nbt.CompoundTag payload = action.additions().orElseThrow();
@@ -102,8 +107,19 @@ public class LodestoneMenuTest {
         net.minecraft.server.dialog.Dialog dungeonDialog = DialogScreens.lodestoneMenuDialog(owner, player, true);
         check(dungeonDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
                 "in-dungeon menu is a MultiActionDialog");
-        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 6,
+        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 7,
                 "one button per in-dungeon owner option");
+
+        // PD-130: the listing and the whitelist are two lines, and a public
+        // room never claims that nobody may enter.
+        check(DialogScreens.listingLine(true).startsWith("Listed in the lobby directory"), true,
+                "a public room says it is listed");
+        check(DialogScreens.listingLine(false), "Not listed in the lobby directory.",
+                "a private room says it is not listed");
+        check(DialogScreens.whitelistLine(0).contains("Nobody"), false,
+                "an empty whitelist no longer reads as nobody may enter");
+        check(DialogScreens.whitelistLine(1), "1 trusted player may visit from their friends list and build here.",
+                "one trusted player");
 
         System.out.println("LodestoneMenuTest passed");
     }

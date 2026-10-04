@@ -20,9 +20,53 @@ final class LayoutGraphGeneratorHarness {
 
     private LayoutGraphGeneratorHarness() {}
 
+    /**
+     * Playtest 2026-10-03-2: the first floor's encounter cap. Over 500 seeds,
+     * a capped shape keeps at most two encounters, at least one on the
+     * critical path, no more loot than encounters, and still validates.
+     */
+    private static void verifyEncounterCap(int minPathLength, int maxPathLength) {
+        int capped = 0;
+        for (long seed = 0; seed < 500; seed++) {
+            DungeonShape shape = LayoutGraphGenerator.generate(seed, minPathLength, maxPathLength);
+            if (shape == null) {
+                continue;
+            }
+            DungeonShape out = LayoutGraphGenerator.capEncounters(shape, 2);
+            int encounters = 0, loot = 0, onPath = 0;
+            for (Map.Entry<PlanCell, String> e : out.roles().entrySet()) {
+                if (RoleIds.ENCOUNTER.equals(e.getValue())) {
+                    encounters++;
+                    if (out.criticalPath().contains(e.getKey())) {
+                        onPath++;
+                    }
+                } else if (RoleIds.LOOT.equals(e.getValue())) {
+                    loot++;
+                }
+            }
+            if (encounters > 2 || onPath < 1 || loot > encounters) {
+                throw new AssertionError("seed " + seed + ": capped shape has " + encounters
+                        + " encounters (" + onPath + " on path) and " + loot + " loot");
+            }
+            List<String> problems = new java.util.ArrayList<>(LayoutGraphGenerator.validate(out));
+            problems.removeIf(p -> p.contains(LayoutGraphGenerator.NO_BACKWARDS_MARKER));
+            if (!problems.isEmpty()) {
+                throw new AssertionError("seed " + seed + ": capped shape fails validation: " + problems);
+            }
+            if (out != shape) {
+                capped++;
+            }
+        }
+        if (capped < 100) {
+            throw new AssertionError("expected the cap to bite on at least 100 of 500 shapes, got " + capped);
+        }
+        System.out.println("Encounter cap: " + capped + " of 500 shapes capped to 2 encounters\n");
+    }
+
     public static void main(String[] args) {
         int minPathLength = 8;
         int maxPathLength = 12;
+        verifyEncounterCap(minPathLength, maxPathLength);
 
         System.out.println("=== LayoutGraphGenerator verification ===\n");
 

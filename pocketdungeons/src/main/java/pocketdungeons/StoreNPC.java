@@ -1,13 +1,13 @@
 package pocketdungeons;
 
-import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import eu.pb4.sgui.api.gui.SimpleGui;
+import eu.pb4.sgui.api.gui.MerchantGui;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -21,25 +21,32 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
-import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.trading.ItemCost;
+import net.minecraft.world.item.trading.MerchantOffer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
  * M35 store anomaly: a shopkeeper villager that spawns in the store anomaly
  * room and sells a limited, randomized selection of visible items for
  * emeralds. Unlike {@link GambleStation}, the player sees exactly what they
- * are buying: each slot in the shop GUI shows the real item, its price, and
- * its stock count. When the stock runs out, the slot goes empty.
+ * are buying: the shop is the vanilla villager trading screen (SGUI's
+ * {@link MerchantGui}, playtest 2026-10-03 L18), one offer per stock line,
+ * showing the real item and its stock in the lore. When the stock runs out the
+ * offer shows the villager's red cross for the rest of the run, and the next
+ * time the shop opens the line is gone.
  *
  * <h2>Why a villager, not a custom entity</h2>
  *
@@ -53,8 +60,18 @@ import java.util.Set;
  * <p>The shop's inventory is rolled from category pools (armour, weapons,
  * blocks, food, utility) when the room is stamped, and stored on the villager
  * via entity tags so it persists across chunk reloads. Each slot is one item
- * type with a price (in emeralds) and a stock count. Buying decrements the
- * stock; when it reaches zero the slot is empty for the rest of the run.
+ * type with a price and a stock count. Buying decrements the stock; when it
+ * reaches zero the line is sold out for the rest of the run.
+ *
+ * <h2>Paying</h2>
+ *
+ * <p>The player pays through the two input slots of the trading screen, the
+ * way the {@link GambleStation} does: selecting an offer fills the inputs from
+ * the pack, and taking the result runs {@link #sell}, which re-reads the
+ * villager's live stock and counts the payment itself. Nothing the client says
+ * about the offer is trusted, and the vanilla trade never completes
+ * ({@code onTrade} always returns false), so the display slots cannot be
+ * pulled out as items.
  *
  * <h2>Themed merchants</h2>
  *
@@ -75,10 +92,6 @@ final class StoreNPC {
 
     static final String STORE_TAG = "pocketdungeons_store";
     private static final String INVENTORY_TAG = "pocketdungeons_store_inv";
-
-    /** How many slots the shop GUI has (one row of 9, minus the border). */
-    private static final int SHOP_SLOTS = 7;
-    private static final int GUI_ROWS = 5;
 
     private StoreNPC() {}
 
@@ -154,125 +167,141 @@ final class StoreNPC {
         level.addFreshEntity(villager);
     }
 
+    /** The outcome of one purchase attempt. */
+    enum Sale { BOUGHT, SOLD_OUT, SHORT, GONE }
+
     /**
-     * Opens the shop GUI for {@code player}. Each slot shows the real item,
-     * its emerald price, and remaining stock. Clicking a slot buys one item
-     * if the player has enough emeralds and stock remains.
+     * Opens the shop for {@code player} as the villager trading screen: one
+     * offer per line still in stock, priced in the line's currency. Selecting
+     * an offer fills the input slots from the pack; taking the result buys one.
      */
     private static void openShop(ServerPlayer player, Villager villager) {
         List<ShopEntry> inventory = loadInventory(villager);
+        // Offer index to inventory index: lines already sold out are left out
+        // when the shop opens, and one that sells out meanwhile keeps its place.
+        List<Integer> lines = new ArrayList<>();
 
-        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x5, player, false);
-        gui.setTitle(villager.getName());
-
-        // Top border
-        for (int i = 0; i < 9; i++) {
-            gui.setSlot(i, border(Items.GLASS_PANE));
-        }
-        // Side borders
-        for (int row = 1; row < GUI_ROWS - 1; row++) {
-            gui.setSlot(row * 9, border(Items.GLASS_PANE));
-            gui.setSlot(row * 9 + 8, border(Items.GLASS_PANE));
-        }
-        // Bottom border with a close button in the centre
-        for (int i = (GUI_ROWS - 1) * 9; i < GUI_ROWS * 9; i++) {
-            gui.setSlot(i, border(Items.GLASS_PANE));
-        }
-        gui.setSlot((GUI_ROWS - 1) * 9 + 4, new GuiElementBuilder(Items.BARRIER)
-                .setName(Component.literal("Close").withStyle(ChatFormatting.RED))
-                .setCallback((index, clickType, actionType, g) -> g.close()));
-
-        // Shop items: 7 slots starting at row 1, col 1
-        for (int i = 0; i < SHOP_SLOTS; i++) {
-            int slot = 10 + i + (i / 7) * 2; // row 1, cols 1..7
-            if (i >= inventory.size() || inventory.get(i).stock <= 0) {
-                // Empty slot: sold out
-                gui.setSlot(slot, new GuiElementBuilder(Items.GLASS_PANE)
-                        .setName(Component.literal("Sold out")
-                                .withStyle(ChatFormatting.DARK_GRAY)));
-                continue;
+        MerchantGui gui = new MerchantGui(player, false) {
+            @Override
+            public boolean onTrade(MerchantOffer offer) {
+                int offerIndex = getOfferIndex(offer);
+                if (offerIndex < 0 || offerIndex >= lines.size()) {
+                    return false;
+                }
+                int line = lines.get(offerIndex);
+                Sale sale = sell(player, villager, line, this.merchantInventory);
+                List<ShopEntry> after = loadInventory(villager);
+                ShopEntry now = line < after.size() ? after.get(line) : null;
+                switch (sale) {
+                    case BOUGHT -> {
+                        player.sendSystemMessage(Component.literal("Bought " + now.itemName + ".")
+                                .withStyle(ChatFormatting.AQUA));
+                        merchant.getOffers().set(offerIndex, offerFor(now));
+                        sendUpdate();
+                    }
+                    case SOLD_OUT -> {
+                        player.sendSystemMessage(Component.literal("Sold out.").withStyle(ChatFormatting.YELLOW));
+                        if (now != null) {
+                            merchant.getOffers().set(offerIndex, offerFor(now));
+                            sendUpdate();
+                        }
+                    }
+                    case SHORT -> player.sendSystemMessage(Component.literal("You need " + now.price + " "
+                            + now.currency.name() + ".").withStyle(ChatFormatting.YELLOW));
+                    case GONE -> player.sendSystemMessage(Component.literal("That is no longer for sale.")
+                            .withStyle(ChatFormatting.YELLOW));
+                }
+                return false;
             }
-            ShopEntry entry = inventory.get(i);
-            gui.setSlot(slot, shopElement(entry, player, villager, i));
-        }
+        };
+        gui.setTitle(villager.getName());
+        gui.setIsLeveled(false);
 
+        for (int i = 0; i < inventory.size(); i++) {
+            if (inventory.get(i).stock > 0) {
+                lines.add(i);
+                gui.addTrade(offerFor(inventory.get(i)));
+            }
+        }
+        if (lines.isEmpty()) {
+            player.sendSystemMessage(Component.literal("The shelves are bare. Everything has been sold.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
         gui.open();
     }
 
     /**
-     * One shop slot: the real item as the icon, lore showing price and stock,
-     * and a callback that buys one on left-click.
+     * One line as a trading offer: the real item as the result with its stock in
+     * the lore, the price as the input (a second input carries the part of a
+     * price a single stack of the currency cannot hold), and the stock as
+     * {@code maxUses}. A line with no stock left is marked fully used, which is
+     * the villager's red cross.
      */
-    private static GuiElementBuilder shopElement(ShopEntry entry, ServerPlayer player,
-                                                  Villager villager, int slotIndex) {
-        GuiElementBuilder builder = GuiElementBuilder.from(entry.stack())
-                .setName(Component.literal(entry.itemName)
-                        .withStyle(ChatFormatting.WHITE));
-        builder.setLore(List.of(
-                Component.literal("Price: " + entry.price + " " + entry.currency.name())
-                        .withStyle(ChatFormatting.GOLD)
-                        .withStyle(s -> s.withItalic(false)),
-                Component.literal("In stock: " + entry.stock)
-                        .withStyle(ChatFormatting.GREEN)
-                        .withStyle(s -> s.withItalic(false)),
-                Component.literal("Click to buy one.")
-                        .withStyle(ChatFormatting.YELLOW)
-                        .withStyle(s -> s.withItalic(false))));
-        builder.setCallback((index, clickType, actionType, gui) -> {
-            if (!clickType.isLeft) {
-                return;
-            }
-            buy(player, villager, slotIndex, entry, gui);
-        });
-        return builder;
+    static MerchantOffer offerFor(ShopEntry entry) {
+        ItemStack result = entry.stack();
+        result.set(DataComponents.CUSTOM_NAME, Component.literal(entry.itemName)
+                .withStyle(ChatFormatting.WHITE).withStyle(st -> st.withItalic(false)));
+        result.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("In stock: " + entry.stock).withStyle(ChatFormatting.GREEN)
+                        .withStyle(st -> st.withItalic(false)),
+                Component.literal("Costs " + entry.price + " " + entry.currency.name() + ".")
+                        .withStyle(ChatFormatting.GOLD).withStyle(st -> st.withItalic(false)))));
+        Item coin = entry.currency.item();
+        int perStack = Math.max(1, coin.getDefaultMaxStackSize());
+        int first = Math.min(entry.price, perStack);
+        int second = Math.min(entry.price - first, perStack);
+        int maxUses = Math.max(1, entry.stock);
+        int uses = entry.stock <= 0 ? maxUses : 0;
+        return new MerchantOffer(new ItemCost(coin, first),
+                second > 0 ? Optional.of(new ItemCost(coin, second)) : Optional.empty(),
+                result, uses, maxUses, 0, 0f);
     }
 
     /**
-     * Buys one item from {@code slotIndex}: checks emeralds, deducts, delivers
-     * the item, decrements stock, and refreshes the GUI slot.
+     * Sells one of line {@code line} for what sits in the trading screen's two
+     * input slots ({@code payment}). Everything is checked against the
+     * villager's saved inventory, not the offer the client picked: the stock
+     * must still be there and the inputs must hold the whole price in the
+     * line's currency. The payment is taken, the item delivered, the stock
+     * saved one lower. Package private so a game test can drive it without a
+     * client.
      */
-    private static void buy(ServerPlayer player, Villager villager, int slotIndex,
-                            ShopEntry entry, eu.pb4.sgui.api.gui.SlotBasedGui gui) {
+    static Sale sell(ServerPlayer player, Villager villager, int line, Container payment) {
         List<ShopEntry> inventory = loadInventory(villager);
-        if (slotIndex >= inventory.size()) {
-            return;
+        if (line < 0 || line >= inventory.size()) {
+            return Sale.GONE;
         }
-        ShopEntry current = inventory.get(slotIndex);
+        ShopEntry current = inventory.get(line);
         if (current.stock <= 0) {
-            player.sendSystemMessage(Component.literal("Sold out.")
-                    .withStyle(ChatFormatting.YELLOW));
-            return;
+            return Sale.SOLD_OUT;
         }
-        // Inventory only: a stack on the cursor is not spendable, so counting
-        // it would let a purchase go through with the payment half-taken.
         Item coin = current.currency.item();
-        if (player.getInventory().countItem(coin) < current.price) {
-            player.sendSystemMessage(Component.literal("You need " + current.price + " "
-                            + current.currency.name() + ".")
-                    .withStyle(ChatFormatting.YELLOW));
-            return;
+        int held = 0;
+        for (int slot = 0; slot < Math.min(2, payment.getContainerSize()); slot++) {
+            ItemStack in = payment.getItem(slot);
+            if (in.is(coin)) {
+                held += in.getCount();
+            }
         }
-
-        player.getInventory().clearOrCountMatchingItems(
-                stack -> stack.is(coin), current.price,
-                new net.minecraft.world.SimpleContainer(0));
+        if (held < current.price) {
+            return Sale.SHORT;
+        }
+        int owed = current.price;
+        for (int slot = 0; slot < Math.min(2, payment.getContainerSize()) && owed > 0; slot++) {
+            ItemStack in = payment.getItem(slot);
+            if (in.is(coin)) {
+                int take = Math.min(owed, in.getCount());
+                in.shrink(take);
+                owed -= take;
+                // setItem, not just shrink, so the screen sees the inputs change.
+                payment.setItem(slot, in.isEmpty() ? ItemStack.EMPTY : in);
+            }
+        }
         Payout.deliver(player, current.stack());
-
         current.stock--;
         saveInventory(villager, inventory);
-
-        player.sendSystemMessage(Component.literal("Bought " + current.itemName + ".")
-                .withStyle(ChatFormatting.AQUA));
-
-        // Refresh the slot
-        int slot = 10 + slotIndex + (slotIndex / 7) * 2;
-        if (current.stock <= 0) {
-            gui.setSlot(slot, new GuiElementBuilder(Items.GLASS_PANE)
-                    .setName(Component.literal("Sold out")
-                            .withStyle(ChatFormatting.DARK_GRAY)));
-        } else {
-            gui.setSlot(slot, shopElement(current, player, villager, slotIndex));
-        }
+        return Sale.BOUGHT;
     }
 
     // ---- inventory persistence on the villager entity ----
@@ -282,7 +311,7 @@ final class StoreNPC {
      * that currency, remaining stock. Mutable stock so buying can decrement it
      * in place.
      */
-    private static final class ShopEntry {
+    static final class ShopEntry {
         final Item item;
         /** The potion for a potion entry, else {@code null}. */
         final Holder<Potion> potion;
@@ -545,9 +574,4 @@ final class StoreNPC {
             new Pool(WEAPON_POOL, 1, 1, 1),
             new Pool(POTION_POOL, 3, 1, 2));
     private static final List<Pool> RARE = List.of(new Pool(VALUABLE_POOL, 5, 1, 4));
-
-    private static GuiElementBuilder border(Item icon) {
-        return new GuiElementBuilder(icon)
-                .setName(Component.empty());
-    }
 }

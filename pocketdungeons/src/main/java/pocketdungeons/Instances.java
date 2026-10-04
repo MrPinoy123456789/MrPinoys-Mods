@@ -1138,7 +1138,8 @@ final class Instances {
                     minPath, maxPath,
                     PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
                     PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
-                    dungeonDoor, bagTags, recipePlan);
+                    dungeonDoor, bagTags, recipePlan,
+                    record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0);
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();
             lastAttempts = outcome.attemptsUsed();
@@ -2049,6 +2050,7 @@ final class Instances {
         OmenSources.forget(member);
         OmenBar.detach(record, member);
         ReturnPoint point = record.members.remove(member);
+        record.guests.remove(member);
         InstanceRegistry.byMember.remove(member);
         record.floor.onPad.remove(member);
         if (player != null) {
@@ -2538,6 +2540,7 @@ final class Instances {
         // spawner on the floor, the same count RunLifecycle.completeRun gates
         // the pad on. Progress lives on the bar, not in chat.
         Set<BlockPos> gatedSpawners = TrialContent.activeSpawners(record.layout, level);
+        TrialContent.releaseTamed(level, gatedSpawners);
         record.floor.spawnersTotal = gatedSpawners.size();
         record.floor.spawnersCleared = TrialContent.countCleared(level, gatedSpawners);
         for (Map.Entry<PlanCell, List<BlockPos>> e : record.floor.spawnerCellsByCell.entrySet()) {

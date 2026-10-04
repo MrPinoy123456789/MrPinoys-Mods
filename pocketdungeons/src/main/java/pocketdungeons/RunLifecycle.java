@@ -5,9 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -619,6 +616,9 @@ final class RunLifecycle {
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
+            // Playtest 2026-10-03 (A9): read the room once as the player leaves it,
+            // from the blob just saved, before it is despawned.
+            RoomScan.onExit(server, record, player);
             despawnRoomBehindStaging(level, record);
         }
 
@@ -1093,6 +1093,8 @@ final class RunLifecycle {
             // (keystone, prestige, payout, bounty) happens at the safe
             // visit, not here.
             advanceFloor(server, record);
+            // Playtest 2026-10-03 (A5): the first floor cleared is when Lemon explains run storage and the set of three.
+            FirstVisitTutorial.floorCleared(server, record);
         }
 
         // M65: per-floor observations only. The completion count and theme
@@ -1349,13 +1351,15 @@ final class RunLifecycle {
         showBigTitle(player, "HOME", IntervalBanking.keyLine(settled, floorsPerSafeVisit));
     }
 
-    /** The big on-screen title shared by the floor clear and the way home. */
+    /**
+     * The big on-screen title shared by the floor clear and the way home: the
+     * headline, then the subtitle one beat later, the same staggered reveal as
+     * the floor start ({@link StaggeredTitle}).
+     */
     private static void showBigTitle(ServerPlayer player, String headline, String subtitle) {
-        player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 50, 15));
-        player.connection.send(new ClientboundSetSubtitleTextPacket(
-                Component.literal(subtitle).withStyle(ChatFormatting.GRAY)));
-        player.connection.send(new ClientboundSetTitleTextPacket(
-                Component.literal(headline).withStyle(ChatFormatting.GOLD)));
+        StaggeredTitle.show(player.level().getServer(), player.getUUID(),
+                Component.literal(headline).withStyle(ChatFormatting.GOLD),
+                List.of(subtitle), ChatFormatting.GRAY);
     }
 
     /**
@@ -1644,7 +1648,7 @@ final class RunLifecycle {
         RunSession.transition(record, RunSession.Phase.HOME);
         Instances.announce(server, record, "Home is through the open door: your own room. Build and decorate"
                 + " it freely; everything you place is kept, and chests there are safe storage.", null);
-        StationTutorial.nagMembers(server, record);
+        FirstVisitTutorial.homeArrival(server, record);
         return true;
     }
 
@@ -1786,7 +1790,7 @@ final class RunLifecycle {
         player.sendSystemMessage(Component.literal(
                 "You return to the safe room. The dungeon closes behind you.")
                 .withStyle(ChatFormatting.GREEN));
-        StationTutorial.nagMembers(server, record);
+        FirstVisitTutorial.homeArrival(server, record);
         // M67: no sound for room movement (VISION.md §4, milestone constraint).
         return true;
     }

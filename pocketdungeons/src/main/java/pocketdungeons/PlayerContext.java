@@ -49,7 +49,9 @@ final class PlayerContext {
                     String roomCell, List<RoomView> rooms, int floorOmen, int intervalOmen, int band, int floorsCounted,
                     int spawnersCleared, int spawnersNeeded, int spawnersTotal,
                     List<ToolView> tools, int blocks, int food, int freeSlots, boolean nearFull,
-                    Lemon.View lemon, List<JsonObject> recent) {}
+                    Lemon.View lemon, List<JsonObject> recent,
+                    /** The last {@link RoomScan} of the player's safe room, or null before their first exit. */
+                    JsonObject safeRoom) {}
 
     /** A pack with this few free slots or fewer is near full. */
     static final int NEAR_FULL_SLOTS = 3;
@@ -57,7 +59,9 @@ final class PlayerContext {
     /**
      * The snapshot as JSON. Top-level keys, in order: {@code t player name phase
      * slot floor zone keystone run_level party dimension room room_cell rooms omen spawners
-     * inventory lemon recent}.
+     * inventory lemon recent}, then {@code safe_room} once the player has left home
+     * at least once (the last {@link RoomScan}; the plain {@code room} key is the
+     * dungeon room they stand in).
      */
     static JsonObject toJson(Snapshot s) {
         JsonObject o = new JsonObject();
@@ -136,6 +140,9 @@ final class PlayerContext {
             recent.add(event);
         }
         o.add("recent", recent);
+        if (s.safeRoom() != null) {
+            o.add("safe_room", s.safeRoom());
+        }
         return o;
     }
 
@@ -220,7 +227,8 @@ final class PlayerContext {
                 roomCell, rooms, floorOmen, intervalOmen, bandSoFar(intervalOmen, floorsCounted), floorsCounted,
                 cleared, DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()), total,
                 tools, blocks, food, free, free <= NEAR_FULL_SLOTS, Lemon.view(player),
-                PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS));
+                PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS),
+                RoomScan.latest(player.getUUID()) == null ? null : RoomScan.toJson(RoomScan.latest(player.getUUID())));
     }
 
     /** Every plan room of the floor with its entered flag, spawners and lock. */

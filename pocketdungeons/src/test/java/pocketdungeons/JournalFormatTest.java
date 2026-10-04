@@ -114,7 +114,7 @@ public class JournalFormatTest {
                 2, 5, PlayerContext.bandSoFar(5, 2), 2, 3, 5, 6,
                 List.of(new PlayerContext.ToolView("minecraft:stone_pickaxe", 40, 131)), 64, 5, 2, true,
                 new Lemon.View(true, true, "llm", false, false, 1, false, "How was that floor?"),
-                List.of(JournalFormat.parse("{\"ev\":\"door_commit\",\"step\":2}")));
+                List.of(JournalFormat.parse("{\"ev\":\"door_commit\",\"step\":2}")), null);
         JsonObject o = PlayerContext.toJson(s);
         List<String> keys = List.copyOf(o.keySet());
         checkEquals(String.join(" ", keys), "t player name phase slot floor zone keystone run_level party dimension "

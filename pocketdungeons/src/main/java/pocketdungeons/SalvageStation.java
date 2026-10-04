@@ -103,14 +103,18 @@ final class SalvageStation {
         if (stack.isEmpty()) {
             return refuse("empty");
         }
-        if (InventorySwap.isOurs(stack)) {
-            return refuse("part of your kit, it goes home with you");
-        }
         if (stack.is(TrialContent.keyStack(true).getItem())) {
             return take(Kind.OMINOUS_KEY);
         }
         if (stack.is(TrialContent.keyStack(false).getItem())) {
             return take(Kind.KEY);
+        }
+        // PD-135 (playtest 2026-10-03-2): chest loot carries the bag tag too
+        // (it keeps the piece in the dungeon inventory), so this refused every
+        // armour piece found in a chest, a leather cap included, as "part of
+        // your kit". The kit is the bag-tagged gear with no tier.
+        if (InventorySwap.isOurs(stack) && RerollStation.tierOf(stack) <= 0) {
+            return refuse("part of your kit, it goes home with you");
         }
         if (LockInStation.isLocked(stack)) {
             return refuse("locked in, kept safe");
@@ -379,12 +383,23 @@ final class SalvageStation {
     private static GuiElementBuilder disenchantButton(SimpleGui gui, ServerPlayer player,
                                                       SimpleContainer input, ContainerLevelAccess access) {
         int slot = loneDisenchantable(input);
+        if (slot < 0 && inputEmpty(input)) {
+            // PD-135 (playtest 2026-10-03-2): disenchanting no longer needs
+            // an item in the bench first. An empty bench opens the plain
+            // grindstone, and the player puts the item in there.
+            return new GuiElementBuilder(Items.ENCHANTED_BOOK)
+                    .setName(Component.literal("Disenchant").withStyle(ChatFormatting.LIGHT_PURPLE)
+                            .withStyle(s -> s.withItalic(false)))
+                    .setLore(List.of(line("Opens the plain grindstone"),
+                            line("to strip enchantments.")))
+                    .setCallback((index, clickType, action, g) -> toVanilla(gui, player, input, access));
+        }
         if (slot < 0) {
             return new GuiElementBuilder(Items.BOOK)
                     .setName(Component.literal("Disenchant").withStyle(ChatFormatting.GRAY)
                             .withStyle(s -> s.withItalic(false)))
-                    .setLore(List.of(line("Put one enchanted item in alone"),
-                            line("to strip it on the plain grindstone.")));
+                    .setLore(List.of(line("Take the other items out, or leave"),
+                            line("one enchanted item in alone.")));
         }
         return new GuiElementBuilder(Items.ENCHANTED_BOOK)
                 .setName(Component.literal("Disenchant").withStyle(ChatFormatting.LIGHT_PURPLE)
@@ -403,14 +418,17 @@ final class SalvageStation {
     private static void toVanilla(SimpleGui gui, ServerPlayer player, SimpleContainer input,
                                   ContainerLevelAccess access) {
         int slot = loneDisenchantable(input);
-        if (slot < 0) {
+        if (slot < 0 && !inputEmpty(input)) {
             return;
         }
-        ItemStack item = input.removeItemNoUpdate(slot);
+        ItemStack item = slot < 0 ? ItemStack.EMPTY : input.removeItemNoUpdate(slot);
         gui.close();
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, p) -> new GrindstoneMenu(id, inventory, access),
                 Component.translatable("container.grindstone_title")));
+        if (item.isEmpty()) {
+            return;
+        }
         if (player.containerMenu instanceof GrindstoneMenu menu) {
             menu.getSlot(0).set(item);
             menu.broadcastChanges();

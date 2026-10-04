@@ -30,7 +30,8 @@
       "pocketdungeons.FloorHistoryGameTest",
       "pocketdungeons.FountainGameTest",
       "pocketdungeons.LockInGameTest",
-      "pocketdungeons.ThemedMerchantGameTest"
+      "pocketdungeons.ThemedMerchantGameTest",
+      "pocketdungeons.PartyAccessGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

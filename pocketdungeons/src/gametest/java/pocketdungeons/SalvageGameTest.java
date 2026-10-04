@@ -82,6 +82,28 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
+    /**
+     * PD-135 (playtest 2026-10-03-2): a leather cap from a dungeon chest is
+     * salvaged. Chest loot carries the bag tag beside its tier, and the kit
+     * refusal used to catch it first ("Kept, not salvaged: part of your kit").
+     */
+    @GameTest
+    public void chestLeatherCapIsSalvaged(GameTestHelper helper) {
+        ItemStack cap = new ItemStack(Items.LEATHER_HELMET);
+        CustomData.update(DataComponents.CUSTOM_DATA, cap, tag -> {
+            CompoundTag mine = new CompoundTag();
+            mine.putInt("tier", 1);
+            mine.putInt("bag", 1);
+            tag.put(PocketDungeonsMod.MOD_ID, mine);
+        });
+        SalvageStation.Verdict verdict = SalvageStation.classify(cap);
+        helper.assertTrue(verdict.kind() == SalvageStation.Kind.GEAR,
+                "a tier 1 chest leather cap is salvageable gear, got " + verdict);
+        helper.assertTrue(!SalvageStation.classify(tagged(Items.LEATHER_HELMET, "bag", 1)).takes(),
+                "a kit leather cap (bag, no tier) is still kept");
+        helper.succeed();
+    }
+
     /** PD-108: plain mob armour is salvageable; trimmed armour is refused with a reason the player can read. */
     @GameTest
     public void plainDiamondLeggingsSalvageAndTrimmedAreExplained(GameTestHelper helper) {

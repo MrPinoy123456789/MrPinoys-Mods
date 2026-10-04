@@ -5,7 +5,12 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -89,6 +94,80 @@ public final class ThemedMerchantGameTest {
             villager.discard();
         }
         helper.succeed();
+    }
+
+    /**
+     * Playtest 2026-10-03 (L18): the shop is the villager trading screen. The
+     * screen itself is client work; what is checkable headless is the sale it
+     * runs. Short payment sells nothing, a full payment takes exactly the price
+     * and lowers the stock by one, and a line bought out says sold out.
+     */
+    @GameTest
+    public void aSaleTakesExactlyThePriceAndLowersStockUntilSoldOut(GameTestHelper helper) {
+        Villager villager = spawnStore(helper, null, 3);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        String[] fields = entries(villager).get(0).split(",", 5);
+        int price = Integer.parseInt(fields[2]);
+        int stock = Integer.parseInt(fields[3]);
+
+        SimpleContainer pay = new SimpleContainer(3);
+        pay.setItem(0, new ItemStack(Items.EMERALD, price - 1));
+        helper.assertTrue(StoreNPC.sell(player, villager, 0, pay) == StoreNPC.Sale.SHORT,
+                "one emerald short is not a sale");
+        helper.assertValueEqual(stockOf(villager, 0), stock, "a refused sale leaves the stock alone");
+
+        pay.setItem(0, new ItemStack(Items.EMERALD, price + 2));
+        helper.assertTrue(StoreNPC.sell(player, villager, 0, pay) == StoreNPC.Sale.BOUGHT, "full payment buys");
+        helper.assertValueEqual(pay.getItem(0).getCount(), 2, "exactly the price was taken from the inputs");
+        helper.assertValueEqual(stockOf(villager, 0), stock - 1, "buying lowers the stock by one");
+
+        // Split payment across both inputs works the same.
+        pay.clearContent();
+        int firstHalf = price / 2;
+        pay.setItem(0, new ItemStack(Items.EMERALD, firstHalf));
+        pay.setItem(1, new ItemStack(Items.EMERALD, price - firstHalf));
+        helper.assertTrue(StoreNPC.sell(player, villager, 0, pay) == StoreNPC.Sale.BOUGHT,
+                "a price split across both input slots buys");
+        helper.assertTrue(pay.getItem(0).isEmpty() && pay.getItem(1).isEmpty(), "and takes both halves");
+
+        while (stockOf(villager, 0) > 0) {
+            pay.setItem(0, new ItemStack(Items.EMERALD, price));
+            helper.assertTrue(StoreNPC.sell(player, villager, 0, pay) == StoreNPC.Sale.BOUGHT, "buying down the stock");
+        }
+        pay.setItem(0, new ItemStack(Items.EMERALD, price));
+        helper.assertTrue(StoreNPC.sell(player, villager, 0, pay) == StoreNPC.Sale.SOLD_OUT, "a line bought out is sold out");
+        helper.assertValueEqual(pay.getItem(0).getCount(), price, "and takes no payment");
+        helper.assertTrue(StoreNPC.sell(player, villager, 99, pay) == StoreNPC.Sale.GONE, "no such line");
+        villager.discard();
+        helper.succeed();
+    }
+
+    /** The offer a line becomes: stock as max uses, a red cross at zero, a second input for a big price. */
+    @GameTest
+    public void anOfferCarriesStockAndSplitsABigPrice(GameTestHelper helper) {
+        StoreNPC.ShopEntry stocked = new StoreNPC.ShopEntry(Items.IRON_SWORD, null, "Iron Sword",
+                MerchantThemes.EMERALD, 5, 3);
+        MerchantOffer offer = StoreNPC.offerFor(stocked);
+        helper.assertTrue(!offer.isOutOfStock(), "a line with stock is on sale");
+        helper.assertValueEqual(offer.getMaxUses(), 3, "stock is the max uses");
+        helper.assertTrue(offer.getResult().is(Items.IRON_SWORD), "the result is the real item");
+        helper.assertValueEqual(offer.getCostA().getCount(), 5, "a small price is one input");
+        helper.assertTrue(offer.getItemCostB().isEmpty(), "and has no second input");
+
+        StoreNPC.ShopEntry gone = new StoreNPC.ShopEntry(Items.IRON_SWORD, null, "Iron Sword",
+                MerchantThemes.EMERALD, 5, 0);
+        helper.assertTrue(StoreNPC.offerFor(gone).isOutOfStock(), "a line with no stock shows the red cross");
+
+        StoreNPC.ShopEntry big = new StoreNPC.ShopEntry(Items.IRON_SWORD, null, "Iron Sword",
+                MerchantThemes.EMERALD, 70, 1);
+        MerchantOffer bigOffer = StoreNPC.offerFor(big);
+        helper.assertValueEqual(bigOffer.getCostA().getCount(), 64, "a price past a stack fills the first input");
+        helper.assertValueEqual(bigOffer.getItemCostB().get().count(), 6, "and the rest goes in the second");
+        helper.succeed();
+    }
+
+    private static int stockOf(Villager villager, int line) {
+        return Integer.parseInt(entries(villager).get(line).split(",", 5)[3]);
     }
 
     private static Villager spawnStore(GameTestHelper helper, String theme, long seed) {

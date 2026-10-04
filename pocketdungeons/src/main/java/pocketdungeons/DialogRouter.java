@@ -95,6 +95,8 @@ public final class DialogRouter {
                     RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
             case DialogScreens.ACTION_QUIT_DUNGEON ->
                     DialogKit.show(player, DialogScreens.quitDoorConfirm());
+            case DialogScreens.ACTION_RESET_KEY ->
+                    DialogKit.show(player, DialogScreens.resetKeyConfirm());
             case DialogScreens.ACTION_SET_ROOM_NAME -> setRoomName(player, server,
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_TOGGLE_PUBLIC -> togglePublic(player, server);
@@ -520,10 +522,9 @@ public final class DialogRouter {
      * and have no bag assigned), then records the bag on their
      * {@link DungeonLog} entry, rolls the bag's kit into their inventory (the
      * one time it is ever handed over; what does not fit waits in their
-     * dungeon inventory), and clears the bag chest once every member present
-     * has chosen. The chest is
-     * also cleared on door-choice and save, so a member who skips it simply
-     * enters with the keystone alone and gets the chest back next lobby.
+     * dungeon inventory). The chest stays standing (PD-131); it is cleared on
+     * door-choice and save, so a member who skips it simply enters with the
+     * keystone alone and gets the chest back next lobby.
      */
     private static void confirmBag(ServerPlayer player, MinecraftServer server, String bagId) {
         BagDefinition bag = Bags.byId(bagId);
@@ -544,6 +545,7 @@ public final class DialogRouter {
         }
         log.setBag(player.getUUID(), bagId);
         PlaytestJournal.bagChosen(player, bagId);
+        FirstVisitTutorial.bagChosen(server, record, player);
         List<ItemStack> leftover = Bags.apply(player, bagId);
         if (leftover != null) {
             // The kit is granted once, here. Entering and leaving never hand
@@ -551,21 +553,11 @@ public final class DialogRouter {
             log.setKitGranted(player.getUUID(), true);
             InventorySwap.keepForNextEntry(log, player.getUUID(), leftover);
         }
-        // Clear the chest once every member present has chosen; until then it
-        // stays so a bagless member can still pick.
-        boolean anyBagless = log.bagOf(record.owner).isEmpty();
-        for (UUID member : record.members.keySet()) {
-            if (log.bagOf(member).isEmpty()) {
-                anyBagless = true;
-                break;
-            }
-        }
-        if (!anyBagless) {
-            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-            if (level != null) {
-                Instances.clearBagChest(level, record.roomCellOrigin);
-            }
-        }
+        // PD-131: the chest is not cleared on a pick. It used to go once every
+        // member present had chosen, so a companion who was between rejoins at
+        // that moment came back to no chest. It stays until the door is chosen
+        // or the room is saved, which clear it already, and a click from
+        // someone who has a bag says so (RitualListener).
         player.sendSystemMessage(Component.literal(
                 "You chose " + bag.label
                         + ". It is yours until you reset your keystone.")
