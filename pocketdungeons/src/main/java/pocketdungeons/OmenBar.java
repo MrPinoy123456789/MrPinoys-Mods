@@ -34,6 +34,16 @@ final class OmenBar {
 
     /** Server tick of the last cue per {@link Omen.Source}, for {@link OmenBarText#cueCooldownTicks}. */
     private final long[] lastCueTick = new long[Omen.Source.values().length];
+    /** Last tick any rise made a sound, so a gain inside a line cooldown is still heard once a second (item 17). */
+    private long lastSoundTick = Long.MIN_VALUE / 2;
+
+    /** The cue line being held on the action bar, and the tick it stops being repainted. */
+    private Component heldLine;
+    private long heldUntilTick;
+    private long lastRepaintTick;
+
+    /** Ticks between repaints of a held line; under the client's own fade so it never blinks out. */
+    private static final int HELD_REPAINT_TICKS = 40;
 
     private OmenBar() {
         Arrays.fill(lastCueTick, Long.MIN_VALUE / 2);
@@ -90,6 +100,7 @@ final class OmenBar {
             title = OmenBarText.clearedTitle(record.interval.floorIndex, PocketDungeonsConfig.floorsPerSafeVisit(),
                     record.interval.endlessMine, band, chests);
         }
+        repaintHeldLine(server, record, bar);
         bar.event.setName(Component.literal(title));
         bar.event.setColor(colour(band));
         bar.event.setProgress(Omen.bandProgress(sum, floorCount));
@@ -104,6 +115,28 @@ final class OmenBar {
             if (!record.members.containsKey(watching.getUUID())
                     || !watching.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 bar.event.removePlayer(watching);
+            }
+        }
+    }
+
+    /** Repaints the held cue line (PD-100) until its hold runs out. */
+    private static void repaintHeldLine(MinecraftServer server, InstanceRecord record, OmenBar bar) {
+        if (bar.heldLine == null) {
+            return;
+        }
+        long now = server.getTickCount();
+        if (now >= bar.heldUntilTick) {
+            bar.heldLine = null;
+            return;
+        }
+        if (now - bar.lastRepaintTick < HELD_REPAINT_TICKS) {
+            return;
+        }
+        bar.lastRepaintTick = now;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                player.sendOverlayMessage(bar.heldLine);
             }
         }
     }
@@ -150,10 +183,26 @@ final class OmenBar {
             bar.lastCueTick[slot] = now;
             Component line = Component.literal(OmenBarText.riseLine(source, omen))
                     .withStyle(ChatFormatting.DARK_PURPLE);
+            int hold = OmenBarText.holdTicks(source);
+            if (hold > 0) {
+                bar.heldLine = line;
+                bar.heldUntilTick = now + hold;
+                bar.lastRepaintTick = now;
+            }
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
                 if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                     player.sendOverlayMessage(line);
+                    Chime.omenRises(player, source);
+                }
+            }
+            bar.lastSoundTick = now;
+        } else if (now - bar.lastSoundTick >= 20) {
+            // A gain inside the line's cooldown is still heard, once a second at most.
+            bar.lastSoundTick = now;
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(member);
+                if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                     Chime.omenRises(player, source);
                 }
             }

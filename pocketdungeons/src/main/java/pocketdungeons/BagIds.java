@@ -31,6 +31,7 @@ final class BagIds {
     static final String SHEPHERD = "pocketdungeons:shepherd";
     static final String INNKEEPER = "pocketdungeons:innkeeper";
     static final String PILGRIM = "pocketdungeons:pilgrim";
+    static final String GUARD = "pocketdungeons:guard";
 
     /**
      * The built-in ids in the order the enum declared them, which is the
@@ -39,7 +40,7 @@ final class BagIds {
      * this list is the order-zero baseline.
      */
     static final List<String> BUILT_IN_ORDER = List.of(
-            MASON, PLUMBER, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM);
+            MASON, PLUMBER, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM, GUARD);
 
     /**
      * Legacy bare enum name to namespaced id. {@code "mason"} (a pre-M70
@@ -59,6 +60,7 @@ final class BagIds {
         map.put("shepherd", SHEPHERD);
         map.put("innkeeper", INNKEEPER);
         map.put("pilgrim", PILGRIM);
+        map.put("guard", GUARD);
         return map;
     }
 

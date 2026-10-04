@@ -104,6 +104,8 @@ public final class DialogRouter {
             case DialogScreens.ACTION_UNLOCK_SHELL -> unlockShell(player,
                     tag.getStringOr(DialogScreens.KEY_SHELL, ""));
             case DialogScreens.ACTION_DIARIES -> diaries(player, server);
+            case DialogScreens.ACTION_READ_DIARY -> readDiary(player, server,
+                    tag.getIntOr(DialogScreens.KEY_DIARY, 0));
             case DialogScreens.ACTION_STATIONS -> StationPicker.open(player);
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
@@ -192,6 +194,7 @@ public final class DialogRouter {
             // VisitService already uses for visitStarts, and it carries.
             // M22: a per-player packet, not a room-wide broadcast.
             Chime.runStarts(player);
+            FloorStartTitle.show(player.level().getServer(), InstanceRegistry.byMember.get(player.getUUID()));
             player.sendSystemMessage(Component.literal("The lodestone pulls you under.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
             return;
@@ -227,6 +230,23 @@ public final class DialogRouter {
     /** The menu's Manage Room option: the whitelist plus name and visibility. */
     private static void manageRoom(ServerPlayer player, MinecraftServer server) {
         DialogKit.show(player, DialogScreens.manageRoom(server, player.getUUID()));
+    }
+
+    /** Opens an unlocked diary entry in the book screen; an entry not yet found re-shows the list. */
+    private static void readDiary(ServerPlayer player, MinecraftServer server, int number) {
+        Diaries.Entry entry = null;
+        for (Diaries.Entry candidate : Diaries.current().entries()) {
+            if (candidate.number() == number) {
+                entry = candidate;
+            }
+        }
+        boolean unlocked = entry != null
+                && DungeonLog.forServer(server).get(player.getUUID()).diaryBandsSeen().contains(entry.band());
+        if (!unlocked) {
+            diaries(player, server);
+            return;
+        }
+        DiaryReading.openBook(player, DiaryDelivery.book(entry, false));
     }
 
     /** The menu's Diaries option, and the reader's own Back button (both re-open the same list). */

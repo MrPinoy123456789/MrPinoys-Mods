@@ -15,6 +15,9 @@ final class KeystoneMath {
 
     private KeystoneMath() {}
 
+    /** The keystone level where loot tier 4, the netherite set, begins. */
+    static final int NETHERITE_LEVEL = 20;
+
     /** Every mint runs through this, so no arithmetic elsewhere has to know the bounds. */
     static int clampLevel(int level, int maxLevel) {
         int cap = Math.max(1, maxLevel);
@@ -43,7 +46,9 @@ final class KeystoneMath {
     }
 
     /**
-     * Loot tier from keystone level: 1-4 is tier 1, 5-9 tier 2, 10 and up tier 3.
+     * Loot tier from keystone level: 1-4 is tier 1, 5-9 tier 2, 10-19 tier 3 (the
+     * diamond set), 20 and up tier 4 (the netherite set, 2026-10-01: netherite
+     * arrived too quickly at level 10).
      *
      * <p>This is what U7 re-keys off path length. The split is deliberate --
      * the planner decides how <em>big</em> a dungeon is, the keystone decides how
@@ -54,7 +59,10 @@ final class KeystoneMath {
         if (level <= 4) {
             return 1;
         }
-        return level <= 9 ? 2 : 3;
+        if (level <= 9) {
+            return 2;
+        }
+        return level <= NETHERITE_LEVEL - 1 ? 3 : 4;
     }
 
 }

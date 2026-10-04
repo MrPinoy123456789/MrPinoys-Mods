@@ -322,6 +322,33 @@ public final class HandlerGameTest {
         helper.succeed();
     }
 
+    // ---- CollapsingBridgeOrdeal: real template ----
+
+    /**
+     * PD-123: the collapsing_bridge template can be captured while retracting,
+     * which stores {@code moving_piston} blocks instead of sticky pistons.
+     * Arming must still find the pistons, normalise them and extend the bridge.
+     */
+    @GameTest(maxTicks = 100)
+    public void collapsingBridgeTemplateArmsAtEveryRotation(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int q = 0; q < 4; q++) {
+            BlockPos origin = new BlockPos(4096 + q * 2 * RoomGeometry.CELL, 120, 4096);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+            try {
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/collapsing_bridge"), q, 1L);
+                Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origin);
+                helper.assertTrue(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin),
+                        "collapsing_bridge armed at rotation " + q);
+                Ordeals.clear(origin);
+            } finally {
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            }
+        }
+        helper.succeed();
+    }
+
     // ---- ReturnPathValidator: ladder column ----
 
     /**
@@ -372,6 +399,384 @@ public final class HandlerGameTest {
                 }
             }
         }
+        helper.succeed();
+    }
+
+    /**
+     * PD-97: the baked {@code sump} template has a return path at every
+     * rotation. Its old "staircase" was a solid pillar, like PD-78's
+     * {@code blaze_cellar}, and every run that rolled the room failed to build.
+     */
+    @GameTest(maxTicks = 50)
+    public void sumpTemplateHasAReturnPath(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int q = 0; q < 4; q++) {
+            BlockPos origin = new BlockPos(4096 + q * 2 * RoomGeometry.CELL, 120, 4096 + 4 * RoomGeometry.CELL);
+            for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
+            }
+            try {
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/sump"), q, 1L);
+                helper.assertTrue(ReturnPathValidator.validate(level, origin, 2),
+                        "sump has a climbable return path at " + q + " quarter turns");
+            } finally {
+                for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Two-story Ordeal rooms (2026-10-02): each of the three, stamped at a
+     * quarter turn and sealed, has rubble over every hole in its upper floor,
+     * hides its lower story's spawners from the clear gate, and after a blast
+     * is open again with its ladder's top rung back. (The return-path check
+     * reads only below the upper floor, so it passes either way; the holes
+     * are checked directly.)
+     */
+    @GameTest(maxTicks = 80)
+    public void sealedTwoStoryRoomsOpenToABlast(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        String[] rooms = {"blaze_cellar", "slime_pit", "sump"};
+        java.util.List<BlockPos> origins = new java.util.ArrayList<>();
+        java.util.List<java.util.List<BlockPos>> holesByRoom = new java.util.ArrayList<>();
+        for (int r = 0; r < rooms.length; r++) {
+            BlockPos origin = new BlockPos(4096 + r * 2 * RoomGeometry.CELL, 120, 4096 + 7 * RoomGeometry.CELL);
+            origins.add(origin);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+            TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                    net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/" + rooms[r]), 1, 1L);
+            helper.assertTrue(ReturnPathValidator.validate(level, origin, 2), rooms[r] + " starts open");
+            java.util.List<BlockPos> holes = new java.util.ArrayList<>();
+            for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+                for (int z = 1; z < RoomGeometry.CELL - 1; z++) {
+                    BlockPos top = origin.offset(x, 0, z);
+                    if (open(level, top) && open(level, top.below())) {
+                        holes.add(top);
+                    }
+                }
+            }
+            holesByRoom.add(holes);
+            // slime_pit's only opening is its ladder (8, 1): the slime is a floor, not a
+            // shaft. The other two rooms have a shaft as well.
+            int openings = "slime_pit".equals(rooms[r]) ? 1 : 2;
+            helper.assertTrue(holes.size() >= openings, rooms[r] + " has its way down, found " + holes);
+            RubbleOrdeal.sealFloor(level, origin);
+            Ordeals.armAt(RubbleOrdeal.FLOOR, level, origin, origin.below());
+            for (BlockPos hole : holes) {
+                helper.assertTrue(RubbleOrdeal.isArmedRubble(level, hole), rooms[r] + " sealed the hole at " + hole);
+            }
+            BlockPos first = holes.get(0);
+            helper.assertTrue(RubbleOrdeal.hidesSpawner(level, origin.offset(8, -8, 8)),
+                    rooms[r] + "'s lower story is hidden from the clear gate");
+            helper.assertTrue(RubbleOrdeal.blast(level, net.minecraft.world.phys.Vec3.atCenterOf(first).add(0, 2, 0),
+                    3.0f), rooms[r] + " is reached by a blast over its rubble");
+        }
+        helper.runAfterDelay(30, () -> {
+            try {
+                for (int r = 0; r < rooms.length; r++) {
+                    BlockPos origin = origins.get(r);
+                    for (BlockPos hole : holesByRoom.get(r)) {
+                        helper.assertTrue(open(level, hole), rooms[r] + " is open again at " + hole);
+                        if (level.getBlockState(hole.below()).is(net.minecraft.world.level.block.Blocks.LADDER)) {
+                            helper.assertTrue(level.getBlockState(hole).is(net.minecraft.world.level.block.Blocks.LADDER),
+                                    rooms[r] + " has its ladder's top rung back at " + hole);
+                        }
+                    }
+                    helper.assertTrue(ReturnPathValidator.validate(level, origin, 2),
+                            rooms[r] + " has its return path after the blast");
+                    helper.assertFalse(RubbleOrdeal.hidesSpawner(level, origin.offset(8, -8, 8)),
+                            rooms[r] + "'s lower story counts again");
+                }
+                helper.succeed();
+            } finally {
+                for (BlockPos origin : origins) {
+                    Ordeals.clear(origin);
+                    level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+                }
+            }
+        });
+    }
+
+    /**
+     * PD-98: each situation combat room, stamped from its baked template the
+     * way a run stamps it and then handed to its situation handler, ends up
+     * with a configured trial spawner. {@code kennel_crossing} once stamped
+     * with none because the handler found no anchor.
+     */
+    @GameTest(maxTicks = 100)
+    public void situationCombatRoomsStampATrialSpawner(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        java.util.List<String> failures = new java.util.ArrayList<>();
+        int row = 0;
+        for (String id : new String[]{"sensor_gallery", "kennel_crossing", "blaze_cellar"}) {
+            for (int q = 0; q < 4; q++) {
+                BlockPos origin = new BlockPos(6144 + q * 2 * RoomGeometry.CELL, 120,
+                        6144 + row * 3 * RoomGeometry.CELL);
+                for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
+                }
+                try {
+                    java.util.List<BlockPos> spawns = TemplateStamper.place(level,
+                            level.getServer().getStructureManager(), origin,
+                            net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/" + id),
+                            q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
+                    BlockPos anchor = Situations.apply(level, origin, "encounter", 1,
+                            DifficultyProfile.of(5, 1), spawns, 1L, java.util.Set.of(), "", null,
+                            false, id);
+                    if (anchor == null || !(level.getBlockEntity(anchor)
+                            instanceof net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity)) {
+                        failures.add(id + " at " + q + " quarter turns placed no trial spawner");
+                    }
+                } finally {
+                    for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                        level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                    }
+                }
+            }
+            row++;
+        }
+        helper.assertTrue(failures.isEmpty(), "situation combat rooms: " + failures);
+        helper.succeed();
+    }
+
+    /**
+     * PD-98: the kennel's wolves can only spawn on {@code WOLVES_SPAWNABLE_ON}
+     * blocks (a trial spawner runs the mob's own placement rules), so the pen
+     * floor is grass and the spawner's range stays inside the pen. At every
+     * rotation, several free spots around the spawner must sit on wolf ground.
+     */
+    @GameTest(maxTicks = 100)
+    public void kennelPenLetsWolvesSpawn(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int q = 0; q < 4; q++) {
+            BlockPos origin = new BlockPos(6144 + q * 2 * RoomGeometry.CELL, 120, 6144 + 5 * 3 * RoomGeometry.CELL);
+            for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
+            }
+            try {
+                java.util.List<BlockPos> spawns = TemplateStamper.place(level,
+                        level.getServer().getStructureManager(), origin,
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/kennel_crossing"),
+                        q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
+                BlockPos anchor = Situations.apply(level, origin, "encounter", 1,
+                        DifficultyProfile.of(5, 1), spawns, 1L, java.util.Set.of(), "", null,
+                        false, "kennel_crossing");
+                helper.assertTrue(anchor != null, "kennel_crossing placed a spawner at " + q + " quarter turns");
+                int spots = 0;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        BlockPos pos = anchor.offset(dx, 0, dz);
+                        if (level.getBlockState(pos).isAir() && level.getBlockState(pos.above()).isAir()
+                                && level.getBlockState(pos.below())
+                                        .is(net.minecraft.tags.BlockTags.WOLVES_SPAWNABLE_ON)) {
+                            spots++;
+                        }
+                    }
+                }
+                helper.assertTrue(spots >= 3, "the kennel pen has " + spots
+                        + " wolf spawn spots at " + q + " quarter turns, wanted at least 3");
+            } finally {
+                for (int dx = 0; dx < 2 * RoomGeometry.CELL; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * PD-99: {@code rotation_lock} opens when its frame is on position 8 and
+     * stays shut otherwise, at every room rotation. The comparator and the
+     * door repeater used to face the wrong way round, so the redstone never
+     * carried the frame's signal to the door.
+     */
+    @GameTest(maxTicks = 300)
+    public void rotationLockSolvesAtEveryRotation(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int cell = RoomGeometry.CELL;
+        BlockPos[] origins = new BlockPos[8];
+        boolean[] solved = new boolean[8];
+        for (int i = 0; i < 8; i++) {
+            solved[i] = i % 2 == 0;
+            origins[i] = new BlockPos(8192 + i * 2 * cell, 120, 8192);
+            for (int dx = 0; dx < 2 * cell; dx += 16) {
+                level.setChunkForced((origins[i].getX() + dx) >> 4, origins[i].getZ() >> 4, true);
+            }
+        }
+        // Entities (the frame) need the chunks fully loaded before the stamp.
+        helper.runAfterDelay(20, () -> {
+            for (int i = 0; i < 8; i++) {
+                int q = i / 2;
+                net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(origins[i])
+                        .expandTowards(cell, 6, cell);
+                // The test world persists between runs: clear frames a past run left behind.
+                for (net.minecraft.world.entity.decoration.ItemFrame old : level.getEntitiesOfClass(
+                        net.minecraft.world.entity.decoration.ItemFrame.class, box)) {
+                    old.discard();
+                }
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origins[i],
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/rotation_lock"), q, 1L);
+                java.util.List<net.minecraft.world.entity.decoration.ItemFrame> frames =
+                        level.getEntitiesOfClass(net.minecraft.world.entity.decoration.ItemFrame.class, box);
+                helper.assertTrue(frames.size() == 1, "rotation_lock has one item frame at " + q
+                        + " quarter turns, found " + frames.size());
+                if (solved[i]) {
+                    frames.get(0).setRotation(7);
+                }
+            }
+        });
+        helper.runAfterDelay(100, () -> {
+            java.util.List<String> failures = new java.util.ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                int open = 0;
+                for (int x = 0; x < cell; x++) {
+                    for (int y = 1; y <= 3; y++) {
+                        for (int z = 0; z < cell; z++) {
+                            BlockState state = level.getBlockState(origins[i].offset(x, y, z));
+                            if (state.is(Blocks.IRON_DOOR) && state.getValue(DoorBlock.OPEN)) {
+                                open++;
+                            }
+                        }
+                    }
+                }
+                if (solved[i] != (open > 0)) {
+                    failures.add("q" + (i / 2) + (solved[i] ? " solved" : " unsolved")
+                            + " has " + open + " open door blocks");
+                }
+            }
+            for (BlockPos origin : origins) {
+                for (int dx = 0; dx < 2 * cell; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                }
+            }
+            helper.assertTrue(failures.isEmpty(), "rotation_lock: " + failures);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * PD-109: the tripwire hall's hooks, strings and dispensers survive the
+     * template stamp at every rotation (the player saw the traps missing).
+     */
+    @GameTest(maxTicks = 300)
+    public void tripwireHallKeepsItsTrapsAtEveryRotation(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int cell = RoomGeometry.CELL;
+        BlockPos[] origins = new BlockPos[4];
+        for (int i = 0; i < 4; i++) {
+            origins[i] = new BlockPos(8192 + i * 2 * cell, 120, 12288);
+            for (int dx = 0; dx < 2 * cell; dx += 16) {
+                level.setChunkForced((origins[i].getX() + dx) >> 4, origins[i].getZ() >> 4, true);
+            }
+        }
+        helper.runAfterDelay(20, () -> {
+            for (int q = 0; q < 4; q++) {
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origins[q],
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), q, 1L);
+            }
+        });
+        helper.runAfterDelay(60, () -> {
+            java.util.List<String> failures = new java.util.ArrayList<>();
+            for (int q = 0; q < 4; q++) {
+                int hooks = 0, strings = 0, dispensers = 0;
+                for (int x = 0; x < cell; x++) {
+                    for (int y = 0; y <= 4; y++) {
+                        for (int z = 0; z < cell; z++) {
+                            BlockState state = level.getBlockState(origins[q].offset(x, y, z));
+                            if (state.is(Blocks.TRIPWIRE_HOOK)) {
+                                hooks++;
+                            } else if (state.is(Blocks.TRIPWIRE)) {
+                                strings++;
+                            } else if (state.is(Blocks.DISPENSER)) {
+                                dispensers++;
+                            }
+                        }
+                    }
+                }
+                if (hooks != 6 || strings != 36 || dispensers != 6) {
+                    failures.add("q" + q + ": hooks " + hooks + "/6, string " + strings + "/36, dispensers "
+                            + dispensers + "/6");
+                }
+            }
+            for (BlockPos origin : origins) {
+                for (int dx = 0; dx < 2 * cell; dx += 16) {
+                    level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, false);
+                }
+            }
+            helper.assertTrue(failures.isEmpty(), "tripwire_hall traps missing: " + failures);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * PD-103: the blacksmith sweep's scan covers the staging room. A
+     * blacksmith past the doorway, outside the old 12 block box, is still
+     * found, so the sweep anchors it instead of spawning a second one.
+     */
+    @GameTest(maxTicks = 100)
+    public void blacksmithSweepSeesIntoTheStagingRoom(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos roomOrigin = new BlockPos(10240, 120, 10240);
+        for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
+            level.setChunkForced((roomOrigin.getX() + dx) >> 4, roomOrigin.getZ() >> 4, true);
+        }
+        helper.runAfterDelay(20, () -> {
+            net.minecraft.world.entity.npc.villager.Villager villager =
+                    net.minecraft.world.entity.EntityTypes.VILLAGER.create(level,
+                            net.minecraft.world.entity.EntitySpawnReason.EVENT);
+            villager.setPos(roomOrigin.getX() + RoomGeometry.CELL / 2.0 + 18, roomOrigin.getY() + 1,
+                    roomOrigin.getZ() + RoomGeometry.CELL / 2.0);
+            villager.addTag(BlacksmithNPC.BLACKSMITH_TAG);
+            level.addFreshEntity(villager);
+            boolean found = BlacksmithNPC.findAllBlacksmiths(level, roomOrigin).contains(villager);
+            villager.discard();
+            for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
+                level.setChunkForced((roomOrigin.getX() + dx) >> 4, roomOrigin.getZ() >> 4, false);
+            }
+            helper.assertTrue(found, "a blacksmith 18 blocks past the room centre, in the staging room, is found");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * PD-78 and PD-97 were the same authoring mistake in two rooms, each found
+     * by a player whose door would not build. Every multi-story room in the
+     * manifest, stamped from its baked template at every rotation, has a
+     * return path, so a third one fails here instead.
+     */
+    @GameTest(maxTicks = 100)
+    public void everyMultiStoryRoomHasAReturnPath(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        java.util.List<String> failures = new java.util.ArrayList<>();
+        int checked = 0;
+        int row = 0;
+        for (RoomManifest.Entry entry : RoomManifest.current().rooms()) {
+            if (entry.meta.spanY <= 1) {
+                continue;
+            }
+            checked++;
+            row++;
+            for (int q = 0; q < 4; q++) {
+                BlockPos origin = new BlockPos(6144 + q * 2 * RoomGeometry.CELL, 120,
+                        6144 + row * 2 * RoomGeometry.CELL);
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+                try {
+                    TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                            net.minecraft.resources.Identifier.parse(entry.meta.template), q, 1L);
+                    if (!ReturnPathValidator.validate(level, origin, entry.meta.spanY)) {
+                        failures.add(entry.name + " at " + q + " quarter turns");
+                    }
+                } finally {
+                    level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+                }
+            }
+        }
+        helper.assertTrue(checked >= 3, "the manifest has its multi-story rooms (found " + checked + ")");
+        helper.assertTrue(failures.isEmpty(), "multi-story rooms with no return path: " + failures);
         helper.succeed();
     }
 
@@ -564,5 +969,100 @@ public final class HandlerGameTest {
     private static boolean isDoorOpen(ServerLevel level, BlockPos doorLower) {
         return level.getBlockState(doorLower).is(Blocks.IRON_DOOR)
                 && level.getBlockState(doorLower).getValue(DoorBlock.OPEN);
+    }
+
+    /** Air or ladder: a block a player can pass through in a shaft. */
+    /**
+     * Playtest 2026-10-02-1: every staging room carries the run storage ender
+     * chest, set into the wall right of the selector doors and facing into the
+     * room, at every rotation. Shell, so nobody can break it, and clear of every
+     * furniture position.
+     */
+    @GameTest(maxTicks = 100)
+    public void stagingRoomCarriesTheRunStorageChest(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DoorMask.Direction[] walls = DoorMask.Direction.values();
+        java.util.List<BlockPos> origins = new java.util.ArrayList<>();
+        try {
+            for (int i = 0; i < walls.length; i++) {
+                BlockPos origin = new BlockPos(4096 + i * 2 * RoomGeometry.CELL, 120, 4096 + 9 * RoomGeometry.CELL);
+                origins.add(origin);
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+                Instances.stampStagingRoom(level, origin, walls[i]);
+                BlockPos chest = RoomTemplateGenerator.runStoragePos(origin, walls[i]);
+                BlockState state = level.getBlockState(chest);
+                helper.assertTrue(state.is(Blocks.ENDER_CHEST), walls[i] + ": the ender chest is in the wall, found " + state);
+                helper.assertTrue(RunStorage.matchesStation(state), walls[i] + ": the chest opens run storage");
+                Direction facing = state.getValue(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING);
+                helper.assertTrue(level.getBlockState(chest.relative(facing)).isAir(),
+                        walls[i] + ": the chest faces into the room, not into the wall");
+                helper.assertTrue(RoomProtection.isShell(chest, origin), walls[i] + ": the chest is shell");
+                helper.assertFalse(RoomProtection.isFurniture(chest, origin, walls[i]),
+                        walls[i] + ": the chest is clear of the furniture");
+            }
+            helper.succeed();
+        } finally {
+            for (BlockPos origin : origins) {
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            }
+        }
+    }
+
+    /**
+     * PD-109 follow-up: the traps do not only survive the stamp, they fire. The
+     * room is stamped the way the playtest's infestation floor stamped it (the
+     * theme_deepslate processors), something steps on the middle of the first
+     * wire, and the dispenser that wire feeds must spend an arrow.
+     */
+    @GameTest(maxTicks = 240)
+    public void tripwireHallTrapsFireUnderTheTheme(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = new BlockPos(8192, 120, 12288 + 4 * RoomGeometry.CELL);
+        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+        BlockPos dispenser = origin.offset(4, 2, 0);
+        // The test world persists between runs: arrows and drops left by an earlier
+        // run lie on the wire and would fire the fresh dispenser during the stamp.
+        // The chunk has to be loaded before its old entities can be found, so the
+        // sweep and the stamp wait for it.
+        helper.runAfterDelay(20, () -> {
+            clearRoomEntities(level, origin);
+            TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                    net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), 0, 1L,
+                    net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
+        });
+        helper.runAfterDelay(40, () -> {
+            helper.assertTrue(level.getBlockState(origin.offset(4, 1, 7)).is(Blocks.TRIPWIRE),
+                    "the first wire crosses the doorway lane");
+            helper.assertTrue(level.getBlockEntity(dispenser) instanceof Container c && c.getItem(0).getCount() == 3,
+                    "the dispenser starts with three arrows, found "
+                            + level.getBlockState(dispenser) + " holding "
+                            + (level.getBlockEntity(dispenser) instanceof Container c2 ? c2.getItem(0) : "no container"));
+            net.minecraft.world.entity.decoration.ArmorStand stand = new net.minecraft.world.entity.decoration.ArmorStand(
+                    level, origin.getX() + 4.5, origin.getY() + 1, origin.getZ() + 7.5);
+            level.addFreshEntity(stand);
+        });
+        helper.runAfterDelay(100, () -> {
+            try {
+                int left = level.getBlockEntity(dispenser) instanceof Container c ? c.getItem(0).getCount() : -1;
+                helper.assertTrue(left >= 0 && left < 3, "stepping on the wire fires its dispenser, arrows left " + left
+                        + ", hook " + level.getBlockState(origin.offset(4, 1, 1)));
+                helper.succeed();
+            } finally {
+                clearRoomEntities(level, origin);
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            }
+        });
+    }
+
+    /** Discards everything but players around a cell: the stand, its drops and the arrows the traps fired. */
+    private static void clearRoomEntities(ServerLevel level, BlockPos origin) {
+        level.getEntities((net.minecraft.world.entity.Entity) null,
+                new net.minecraft.world.phys.AABB(origin).inflate(RoomGeometry.CELL),
+                e -> !(e instanceof net.minecraft.world.entity.player.Player)).forEach(e -> e.discard());
+    }
+
+    private static boolean open(ServerLevel level, BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+        return state.isAir() || state.is(net.minecraft.world.level.block.Blocks.LADDER);
     }
 }

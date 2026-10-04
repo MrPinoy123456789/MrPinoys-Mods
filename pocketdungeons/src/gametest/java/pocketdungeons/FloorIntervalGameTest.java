@@ -306,11 +306,11 @@ public final class FloorIntervalGameTest {
     }
 
     /**
-     * A max-omen death on the very first interval of a fresh run reverts the
-     * dungeon pack. That interval comes from the record's field initializer,
-     * not from beginInterval, so the snapshot has to be taken when the pack is
-     * swapped in on entry. Loot picked up after entry is lost; the pack
-     * carried in is kept.
+     * PD-121: a fresh player's kit is applied after entry, so the interval
+     * snapshot taken on entry would be empty. The snapshot is retaken at the
+     * first door commit; a max-omen death then reverts to that committed pack,
+     * not the empty entry snapshot. Loot picked up after the commit is lost; the
+     * pack carried in is kept.
      */
     @GameTest(maxTicks = 20)
     public void maxOmenDeathOnFirstIntervalRevertsInventory(GameTestHelper helper) {
@@ -330,10 +330,10 @@ public final class FloorIntervalGameTest {
         for (int i = 0; i < InventorySwap.SLOTS; i++) {
             pack.add(ItemStack.EMPTY);
         }
-        pack.set(3, new ItemStack(Items.STONE_SWORD));
         log.setOrphan(player.getUUID(), new InventorySwap.OrphanRecord(pack));
         try {
-            // Entry: the pack is swapped in where the player stands.
+            // Entry: the pack is swapped in where the player stands. Because the
+            // orphan pack is empty, the entry snapshot is empty.
             InventorySwap.Probe.useDimensionForTesting(Level.OVERWORLD);
             InventorySwap.Probe.forceStash(player, false, List.of());
             InventorySwap.Probe.reconcileNow(player);
@@ -341,12 +341,22 @@ public final class FloorIntervalGameTest {
                 helper.fail("entering on the first interval took no snapshot");
                 return;
             }
+
+            // Simulate the bag kit being granted after entry, then the first
+            // door commit refreshing the snapshot.
+            player.getInventory().add(new ItemStack(Items.STONE_SWORD));
+            InventorySwap.snapshotAtFirstCommit(server, record);
+
             // Unbanked loot, then the killing blow at max omen.
             player.getInventory().add(new ItemStack(Items.DIAMOND, 7));
             Instances.failRunOmen(server, record, player, player.damageSources().generic());
 
             if (player.getInventory().countItem(Items.DIAMOND) != 0) {
                 helper.fail("the unbanked loot survived a max-omen death");
+                return;
+            }
+            if (player.getInventory().countItem(Items.STONE_SWORD) != 1) {
+                helper.fail("the bag kit did not survive a max-omen death");
                 return;
             }
             // The leave keeps the reverted pack. PD-92: the revert used to

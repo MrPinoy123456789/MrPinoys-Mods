@@ -55,6 +55,18 @@ function agenda() {
   return rows.map(r => `- ${r.title} (${r.status})${r.retest ? `. ${r.retest}` : ''}`).join('\n')
 }
 
+// Live checks owed (docs/playtests/LIVE_CHECKS.md): each owed row whole, since the
+// steps and pass signs are the point, under the file's own rules for working them.
+function liveChecks() {
+  const md = read(join(mod, 'docs', 'playtests', 'LIVE_CHECKS.md')).replace(/\r\n/g, '\n')
+  const rules = md.split('\n---\n')[0].split('\n').slice(1).join('\n').trim()
+  const owed = md.split(/\n(?=## L\d)/).slice(1)
+    .map(block => block.split(/\n## Done/)[0].trim())
+    .filter(block => /\*\*Status:\*\* owed/.test(block))
+    .map(block => block.replace(/^## /, '### '))
+  return owed.length ? `${rules}\n\n${owed.join('\n\n')}` : ''
+}
+
 function rooms() {
   const dir = join(mod, 'src', 'main', 'resources', 'data', 'pocketdungeons', 'dungeon_room')
   const lines = readdirSync(dir).filter(f => f.endsWith('.json')).sort().map(f => {
@@ -82,6 +94,7 @@ const pack = [
   hints ? `# Puzzle hint ladders\n\n${hints.replace(/^# .*\n/, '').trim()}` : '',
   decisions ? `# How the game is meant to work (owner decisions)\n\n${decisions.replace(/^## .*\n/, '').trim()}` : '',
   `# Open research questions (ask about these at breaks)\n\n${agenda()}`,
+  liveChecks() ? `# Live checks owed (this session's verification goals)\n\n${liveChecks()}` : '',
   `# Rooms (id: roles, tier, depth, requirements)\n\n${rooms()}`,
 ].filter(Boolean).join('\n\n')
 

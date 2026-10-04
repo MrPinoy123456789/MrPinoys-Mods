@@ -1,9 +1,7 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -12,7 +10,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 /**
- * Silenced's curse: a member of a Silenced run cannot use a consumable.
+ * Silenced's curse: a member of a Silenced run pays omen for the consumables they use
+ * (playtest 2026-10-02-1; it used to block them outright).
  *
  * <p>The kiss is the same sentence and lives entirely in
  * {@link TrialContent#applyEncounter} -- Silenced also tightens
@@ -56,9 +55,12 @@ final class SilenceListener {
         if (!Instances.affixesFor(serverPlayer.getUUID()).contains(AffixIds.SILENCED)) {
             return InteractionResult.PASS;
         }
-        serverPlayer.sendSystemMessage(Component.literal(
-                        "Silenced: no consumables. That is the whole reason they can't hear you either.")
-                .withStyle(ChatFormatting.DARK_AQUA));
-        return InteractionResult.FAIL;
+        // Playtest 2026-10-02-1: Silenced no longer blocks the item. The use
+        // goes through and feeds the omen instead (every few uses).
+        InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+        if (record != null) {
+            OmenSources.silencedUse(serverPlayer.level().getServer(), record, serverPlayer.getUUID());
+        }
+        return InteractionResult.PASS;
     }
 }

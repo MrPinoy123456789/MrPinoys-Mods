@@ -46,8 +46,9 @@ import java.util.Map;
  *
  * <p><b>A drop-in screen, not a one-item picker.</b> Clearing four bows one
  * click at a time is the chore the player complained about, so the bench is
- * an 18-slot SGUI chest with a summary button underneath. The item the
- * player clicked with goes straight in. Things the bench refuses (imbued or
+ * an 18-slot SGUI chest with a summary button underneath. A plain use only
+ * opens it and leaves the held stack alone (PD-101); the player drops items
+ * in from the inventory. Things the bench refuses (imbued or
  * trimmed gear, anything that goes home with the player, anything that is
  * not gear or a key) may be dropped in but stay put and are named on the
  * summary. Closing the screen by any path, disconnect included, hands back
@@ -103,7 +104,7 @@ final class SalvageStation {
             return refuse("empty");
         }
         if (InventorySwap.isOurs(stack)) {
-            return refuse("goes home with you");
+            return refuse("part of your kit, it goes home with you");
         }
         if (stack.is(TrialContent.keyStack(true).getItem())) {
             return take(Kind.OMINOUS_KEY);
@@ -111,14 +112,17 @@ final class SalvageStation {
         if (stack.is(TrialContent.keyStack(false).getItem())) {
             return take(Kind.KEY);
         }
+        if (LockInStation.isLocked(stack)) {
+            return refuse("locked in, kept safe");
+        }
         if (!CubeStation.powerOf(stack).isBlank()) {
-            return refuse("imbued with a power");
+            return refuse("imbued with a power, kept safe");
         }
         if (!CubeStation.rewardOf(stack).isBlank()) {
-            return refuse("a rare reward for the Cube");
+            return refuse("a rare Cube reward, kept safe");
         }
         if (stack.has(DataComponents.TRIM)) {
-            return refuse("trimmed");
+            return refuse("trimmed armour is kept safe, never scrapped");
         }
         if (RerollStation.tierOf(stack) > 0) {
             return take(Kind.GEAR);
@@ -166,12 +170,10 @@ final class SalvageStation {
         if (keystoneLevel(player) < PocketDungeonsConfig.salvageUnlockLevel()) {
             return takes && levelTooLow(player);
         }
-        Input input = new Input();
-        if (takes) {
-            input.setItem(0, held.copy());
-            player.setItemInHand(hand, ItemStack.EMPTY);
-        }
-        open(player, input, access);
+        // PD-101: opening never moves the held stack; depositing is a
+        // deliberate click inside the screen.
+        StationTutorial.used(player, StationTutorial.Step.SALVAGE);
+        open(player, new Input(), access);
         return true;
     }
 
@@ -225,8 +227,8 @@ final class SalvageStation {
         refresh(gui, player, input, access);
         input.onChange = () -> refresh(gui, player, input, access);
         if (!gui.open()) {
-            // Never opened, so onRemoved will not run: the item taken from
-            // the hand goes straight back.
+            // Never opened, so onRemoved will not run: anything already in
+            // the screen goes straight back.
             handBack(player, input);
         }
     }
@@ -280,7 +282,8 @@ final class SalvageStation {
                 case REFUSED -> {
                     refused += count;
                     if (firstRefusal.isEmpty()) {
-                        firstRefusal = stack.getHoverName().getString() + ": " + verdict.reason();
+                        firstRefusal = "Kept, not salvaged: " + verdict.reason()
+                                + " (" + stack.getHoverName().getString() + ")";
                     }
                 }
             }
@@ -314,18 +317,28 @@ final class SalvageStation {
             lore.add(line("Mob gear: " + q.mobGear() + " for " + q.xp() + " XP"));
         }
         if (q.refused() > 0) {
-            lore.add(Component.literal("Stays: " + q.refused() + " (" + q.firstRefusal() + ")")
+            String text = q.firstRefusal();
+            if (q.refused() > 1) {
+                text = text + " and " + (q.refused() - 1) + " more";
+            }
+            lore.add(Component.literal(text)
                     .withStyle(ChatFormatting.YELLOW).withStyle(s -> s.withItalic(false)));
         }
         GuiElementBuilder button = new GuiElementBuilder(Items.GRINDSTONE);
+        boolean inputEmpty = inputEmpty(input);
         if (q.anything()) {
             button.setName(Component.literal("Salvage").withStyle(ChatFormatting.GREEN)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(Component.literal("Click to salvage.").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             button.setCallback((index, clickType, action, g) -> salvage(gui, player, input, access));
+        } else if (inputEmpty) {
+            button.setName(Component.literal("Put gear here to salvage").withStyle(ChatFormatting.GRAY)
+                    .withStyle(s -> s.withItalic(false)));
+            lore.add(line("Click gear in your pack to move it in."));
+            lore.add(line("It pays emeralds, fuel or XP."));
         } else {
-            button.setName(Component.literal("Nothing to salvage yet").withStyle(ChatFormatting.GRAY)
+            button.setName(Component.literal("Nothing here can be salvaged").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Drop in gear or vault keys."));
             lore.add(line("They pay emeralds, fuel or XP."));
@@ -404,6 +417,15 @@ final class SalvageStation {
         } else {
             player.getInventory().placeItemBackInInventory(item);
         }
+    }
+
+    private static boolean inputEmpty(SimpleContainer input) {
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            if (!input.getItem(i).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Component line(String text) {

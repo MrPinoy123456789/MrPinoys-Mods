@@ -43,7 +43,17 @@ files).
 
 ## 3. The tool
 
-All server interaction goes through one tool. On Windows:
+**Check for the Lemon MCP tools first** (`status`, `wait_events`, `lemon_say`,
+and so on, usually prefixed `mcp__lemon__`). The workspace `.mcp.json` registers
+the `lemon` server (`tools/server/mcp.mjs --admin`), but Claude Code only loads
+MCP servers when a session starts, so a session begun before the file existed
+never has them. If the tools are missing, do not fall back to the shell silently:
+tell the owner, confirm `.mcp.json` is present, and ask them to restart the
+session (or approve the project server) so the tools load. Use the shell tool
+below only if the owner says to. The MCP server refreshes llm mode for you; the
+shell loop does not.
+
+All server interaction otherwise goes through one tool. On Windows:
 
     pocketdungeons\tools\server\server.bat <command>
 
@@ -81,6 +91,7 @@ Anywhere else: `node pocketdungeons/tools/server/pdserver.mjs <command>`. Below,
 | `19:04:30 lemon replies <Name> ...` | Your `server lemon reply` answered a pending question | Nothing; it means the answer was delivered. |
 | `19:04:33 lemon thinks <Name> ...` | Your `server lemon think` line | Nothing. |
 | `19:05:00 lemon unanswered <Name> ...` | A question went unanswered in time (you were slow or away) | Answer it now if still relevant; note it. |
+| `19:06:12 lemon summoned <Name>` | The player right-clicked their keystone to call Lemon over | They want Lemon: `server lemon say` something short and useful, or ask what they need. |
 | `19:22:01 lemon held <Name> (fight) watch out for the plates` | Your line was held because the player was in a fight (or quiet) | It will be delivered when safe. |
 | `19:12:45 floor Name completed floor 1 of slot 0 (...)` | A floor was cleared | A natural break: the moment for one question. |
 | `19:18:00 report <Name> the wall is missing` | The player filed a bug with `/dungeon report` | Handle as a bug (section 5.4). |
@@ -95,7 +106,7 @@ word), `report`, `error`, `server ready`, `server stopping`.
 `lemon replies`, `lemon thinks` (your own lines, logged in the third person),
 `lemon held`, `lemon hushed` and `lemon mode`. Those still print if they arrive
 alongside a waking event. It wakes on everything from the player (`lemon ask`,
-`lemon answer`, `lemon quiet`, `chat`, `join`, `leave`, `floor`, `report`), on
+`lemon answer`, `lemon quiet`, `lemon summoned`, `chat`, `join`, `leave`, `floor`, `report`), on
 `lemon unanswered`, and on `error` and server lines. The filter is
 `tools/server/wait-filter.mjs`; `node tools/server/wait-filter.test.mjs` checks it.
 
@@ -131,6 +142,10 @@ and its behaviour is in the Java source under
 2. **Prepare** (about five minutes, before or while waiting for them):
    - Read `pocketdungeons/docs/playtests/AGENDA.md`: the questions we want
      answered. Note the open and partial ones.
+   - Read `pocketdungeons/docs/playtests/LIVE_CHECKS.md`: fixes that still need
+     one look in real play. Every `owed` row is a goal for this session; its
+     rules say how to ask the player and which checks are watch only. Update
+     the rows before you end (section 7).
    - Read the newest one or two files in `pocketdungeons/docs/playtests/` named
      like `2026-09-27-1.md`: what happened last time, and their open questions.
    - Skim `pocketdungeons/docs/AUDIT_2026-09.md` section 11 (the decisions log)
@@ -143,7 +158,15 @@ and its behaviour is in the Java source under
    about clearing old slots), note them and carry on.
 4. **Loop:** run `server wait --player <p> --timeout 240`, handle every line it
    prints (table 3.1), then run it again. Keep looping until section 7 says stop.
-   Handle a `lemon ask` within about 30 seconds of seeing it.
+   Handle a `lemon ask` within about 30 seconds of seeing it. The built-in guide
+   answers "I do not know that one yet." 45 seconds after the player asks, and
+   the clock starts when they type, not when `wait` returns. So the first thing
+   you do with a `lemon ask` is one of two calls, before any `context`, code
+   read or note: `server lemon reply` if you can answer from what you know, or
+   `server lemon think <p>` if you need to look something up. `think` holds the
+   question for 90 seconds; reply inside that, then go back to `wait`.
+   Investigating first is what made most asks in playtests 2026-09-30-2 and
+   2026-10-01-1 time out (PD-79).
 5. **When they join:** greet once with `server lemon say`, for example "Hi, I'm
    Lemon. Talk to me anytime, just type. I'll ask the odd question at quiet
    moments." Then leave them to play.
@@ -226,7 +249,10 @@ tells you to stop.
    log, curiosity threads, balance observations, quotes); update `AGENDA.md`
    statuses and evidence; append new bugs to
    `pocketdungeons/docs/reference/BUGS.md` (continue its PD numbering); append rows
-   to `pocketdungeons/docs/playtests/BALANCE.md`.
+   to `pocketdungeons/docs/playtests/BALANCE.md`; update every row you worked
+   in `pocketdungeons/docs/playtests/LIVE_CHECKS.md` (passed, failed, or still
+   owed with what blocked it), then rebuild the pack with
+   `node tools/lemon/build-pack.mjs` so the next agent sees the new list.
 3. Leave the server running unless the player asked you to stop it.
 4. Report back: the top three findings, bugs filed, agenda items moved, and the
    harness notes (section 8).
@@ -238,3 +264,10 @@ instructions. If something here is wrong, unclear or missing, or a command fails
 or behaves unexpectedly, do not work around it silently: add it under a
 `## Harness notes` heading at the end of the notes file, with the exact command,
 what it printed, and what you expected. The owner uses these to fix the harness.
+
+**Harness and llm mode bugs are playtest bugs.** A missed or late `lemon ask`,
+an ask that never reaches `wait`, a cursor replay, llm mode lapsing, or any other
+fault in the Lemon tooling gets a numbered entry in the write-up's Bugs section
+and in `docs/reference/BUGS.md` (continue its `PD-n` numbering), with severity,
+repro and likely cause, exactly like a game bug. Do not leave it only under
+Harness notes.

@@ -104,6 +104,9 @@ final class DialogScreens {
     static final String ACTION_UNLOCK_SHELL = "unlock_shell";
     /** (M26) The lodestone menu's Diaries option, and the reader's own Back button. */
     static final String ACTION_DIARIES = "diaries";
+    /** Reads one unlocked diary entry in the book screen (playtest 2026-10-02-1). */
+    static final String ACTION_READ_DIARY = "read_diary";
+    static final String KEY_DIARY = "pd_diary";
     /** The lodestone menu's Stations option: opens the SGUI station picker (owner-only). */
     static final String ACTION_STATIONS = "stations";
     /**
@@ -212,8 +215,7 @@ final class DialogScreens {
     static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        String keeps = "Banks now: " + IntervalBanking.chests(now.chests()).replace("chest", "reward chest")
-                + ", " + IntervalBanking.keyLine(now, floorsPerVisit);
+        String keeps = "Banks now: " + IntervalBanking.keyLine(now, floorsPerVisit);
         return DialogKit.confirm("Go home?",
                 List.of(DialogKit.text(Component.literal("Ends this run and takes the party home.")
                                 .withStyle(ChatFormatting.YELLOW)),
@@ -969,8 +971,13 @@ final class DialogScreens {
         List<ActionButton> buttons = new ArrayList<>();
         for (Diaries.Entry diaryEntry : Diaries.current().entries()) {
             if (seen.contains(diaryEntry.band())) {
-                buttons.add(showDialogButton("Entry " + diaryEntry.number() + ": " + diaryEntry.title(),
-                        diaryReader(diaryEntry, owner)));
+                // Playtest 2026-10-02-1: reading opens the book screen, as if the
+                // player had used the book in hand, not this dialog.
+                CompoundTag context = new CompoundTag();
+                context.putString(KEY_OWNER, owner.toString());
+                context.putInt(KEY_DIARY, diaryEntry.number());
+                buttons.add(DialogKit.button("Entry " + diaryEntry.number() + ": " + diaryEntry.title(), null,
+                        DialogKit.submit(ACTION_READ_DIARY, context)));
             } else {
                 body.add(DialogKit.text(Component.literal("Entry " + diaryEntry.number() + ": ???")
                         .withStyle(ChatFormatting.GRAY)));

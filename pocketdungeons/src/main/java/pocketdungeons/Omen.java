@@ -29,7 +29,7 @@ final class Omen {
      * {@code DEPTH} is a zone's head start on a floor past its usual length
      * ({@link ZoneRules#baseOmen}).
      */
-    enum Source { DWELL, SENSOR, SHRIEK, BARGAIN, DEPTH }
+    enum Source { DWELL, SENSOR, SHRIEK, BARGAIN, DEPTH, SILENCE }
 
     // ---- source table (spec 5.2) ----------------------------------------
 
@@ -117,6 +117,26 @@ final class Omen {
      */
     static int set(int value) {
         return clamp(value);
+    }
+
+    // ---- ominous roll (2026-10-01) ----------------------------------------
+
+    /**
+     * The chance the next floor turns ominous, rolled once the party has
+     * chosen a door. It is the share of the possible omen the party has banked
+     * so far this interval: every cleared floor could have carried
+     * {@value MAX_OMEN}, so a calm interval never rolls it and a dire one
+     * nearly always does. The first floor of an interval has nothing banked
+     * and so is never ominous by roll.
+     *
+     * @param bankedOmenSum the cleared floors' clamped omen, summed
+     * @param floorsBanked  how many floors that sum covers
+     */
+    static double ominousChance(int bankedOmenSum, int floorsBanked) {
+        if (floorsBanked <= 0 || bankedOmenSum <= 0) {
+            return 0.0;
+        }
+        return Math.min(1.0, (double) bankedOmenSum / (floorsBanked * MAX_OMEN));
     }
 
     // ---- per-floor sum (spec 5.4) ---------------------------------------

@@ -6,12 +6,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -79,13 +81,25 @@ final class RoomProtection {
         if (dungeonCellOrigin == null) {
             return InteractionResult.PASS;
         }
+        // A rubble doorway sits in the shell, so no tool breaks it; say what does.
+        if (RubbleOrdeal.isArmedRubble(serverPlayer.level(), pos)) {
+            sendActionBar(serverPlayer, "Rubble. No tool moves it: it takes an explosion, TNT or a creeper.",
+                    ChatFormatting.GOLD, lastWrongToolTick);
+            return InteractionResult.FAIL;
+        }
+        BlockState state = level.getBlockState(pos);
+        // PD-126: an iron door never breaks by hand; say why it is shut.
+        if (state.is(Blocks.IRON_DOOR)) {
+            sendActionBar(serverPlayer, doorReason(serverPlayer.level(), dungeonCellOrigin),
+                    ChatFormatting.YELLOW, lastDoorReasonTick);
+            return InteractionResult.FAIL;
+        }
         if (isShell(pos, dungeonCellOrigin)) {
             return InteractionResult.PASS; // shell protection handles this
         }
         if (Ordeals.isFixture(pos)) {
             return InteractionResult.FAIL; // an Ordeal's lever or lamp
         }
-        BlockState state = level.getBlockState(pos);
         if (DungeonTools.isCorrectTool(serverPlayer.getMainHandItem(), state)) {
             return InteractionResult.PASS;
         }
@@ -97,20 +111,46 @@ final class RoomProtection {
         // Wrong tool: cancel the mining start and give feedback.
         String message = DungeonTools.requiredToolMessage(state);
         if (message != null) {
-            long now = serverPlayer.level().getGameTime();
-            Long lastSent = lastWrongToolTick.get(serverPlayer.getUUID());
-            if (lastSent == null || now - lastSent >= 20) {
-                lastWrongToolTick.put(serverPlayer.getUUID(), now);
-                serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(
-                        Component.literal(message).withStyle(ChatFormatting.RED)));
-                Chime.wrongTool(serverPlayer);
-            }
+            sendActionBar(serverPlayer, message, ChatFormatting.RED, lastWrongToolTick);
+            Chime.wrongTool(serverPlayer);
         }
         return InteractionResult.FAIL;
     }
 
     /** Rate-limiting map for wrong-tool feedback: player UUID to last game tick sent. */
     private static final java.util.Map<UUID, Long> lastWrongToolTick = new java.util.HashMap<>();
+    /** Rate-limiting map for iron-door reason feedback. */
+    private static final java.util.Map<UUID, Long> lastDoorReasonTick = new java.util.HashMap<>();
+
+    /** Sends an action bar line to {@code player}, throttled to once per second. */
+    private static void sendActionBar(ServerPlayer player, String message, ChatFormatting colour,
+                                      java.util.Map<UUID, Long> lastTick) {
+        long now = player.level().getGameTime();
+        Long lastSent = lastTick.get(player.getUUID());
+        if (lastSent != null && now - lastSent < 20) {
+            return;
+        }
+        lastTick.put(player.getUUID(), now);
+        player.connection.send(new ClientboundSetActionBarTextPacket(
+                Component.literal(message).withStyle(colour)));
+    }
+
+    /**
+     * PD-126: builds a reason why an iron door in a dungeon cell will not open
+     * by mining it. If a lock or armed Ordeal owns the cell, say what to do;
+     * otherwise give the generic redstone hint.
+     */
+    private static String doorReason(ServerLevel level, BlockPos cellOrigin) {
+        String lockHint = Locks.hint(cellOrigin);
+        if (lockHint != null) {
+            return lockHint;
+        }
+        String ordealObjective = Ordeals.objectiveAt(cellOrigin);
+        if (ordealObjective != null) {
+            return "Opens when you " + ordealObjective;
+        }
+        return "Iron door. No tool opens it: use its lever, or any redstone (a button, plate or torch).";
+    }
 
     private static boolean beforeBlockBreak(Level level, Player player, BlockPos pos,
                                              BlockState state, BlockEntity blockEntity) {
@@ -134,12 +174,12 @@ final class RoomProtection {
                 // M48: "right tool for the job." A block inside a dungeon cell
                 // is unbreakable unless the player is holding the correct tool
                 // for it, or the block was placed by that player (so you can
-                // always clean up your own builds). TNT bypasses this check
-                // entirely because explosions do not go through
-                // PlayerBlockBreakEvents; the ServerExplosionMixin handles
-                // shell protection for explosions separately. Creative players
-                // bypass the tool check: they are operators building or
-                // debugging, not playing the survival loop.
+                // always clean up your own builds). Explosions do not go through
+                // PlayerBlockBreakEvents; the ServerExplosionMixin blocks all
+                // explosion block damage inside dungeon cells, so TNT cannot
+                // bypass the tool rule either. Creative players bypass the tool
+                // check: they are operators building or debugging, not playing the
+                // survival loop.
                 if (player.isCreative()) {
                     DungeonTools.forgetPlayerPlacement(pos);
                     return true;
@@ -270,7 +310,7 @@ final class RoomProtection {
             return false; // outside the room's own 16x16x7 box
         }
         return selectorWallFurniture(x, y, z, selectorWall)
-                || engineWallFurniture(x, y, z, selectorWall);
+                || historyWallFurniture(x, y, z, selectorWall);
     }
 
     /**
@@ -354,12 +394,11 @@ final class RoomProtection {
     }
 
     /**
-     * The engine-wall half of {@link #isFurniture}: on the wall to the left of
-     * the selector wall, the respawn anchor at Y=2 and the engine bay above it,
-     * which is the screen row at Y=4 with a crying obsidian end block at each
-     * side and a course of polished blackstone bezel at Y=3 and Y=5.
+     * The left-wall half of {@link #isFurniture}: on the wall to the left of
+     * the selector wall, the floor history board's panel (along 4..11, rows
+     * 2..5), where the echo shard engine used to be.
      */
-    private static boolean engineWallFurniture(int x, int y, int z, DoorMask.Direction selectorWall) {
+    private static boolean historyWallFurniture(int x, int y, int z, DoorMask.Direction selectorWall) {
         DoorMask.Direction engineWall = RoomGeometry.leftOf(selectorWall);
         int along;
         switch (engineWall) {
@@ -391,13 +430,9 @@ final class RoomProtection {
                 return false;
             }
         }
-        if (y == 2 && along == 7) {
-            return true; // the engine block
-        }
-        if (y == 4 && along >= 4 && along <= 10) {
-            return true; // the screen row and its two crying obsidian end blocks
-        }
-        return (y == 3 || y == 5) && along >= 5 && along <= 9; // the bezel courses
+        return y >= RoomTemplateGenerator.HISTORY_Y_MIN && y <= RoomTemplateGenerator.HISTORY_Y_MAX
+                && along >= RoomTemplateGenerator.HISTORY_ALONG_MIN
+                && along <= RoomTemplateGenerator.HISTORY_ALONG_MAX; // the floor history panel
     }
 
     /**

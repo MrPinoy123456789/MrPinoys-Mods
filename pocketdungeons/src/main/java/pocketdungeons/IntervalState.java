@@ -42,21 +42,22 @@ final class IntervalState {
     final List<Integer> floorSteps = new ArrayList<>();
 
     /**
-     * Trial spawners cleared, and trial spawners there were, summed over the
-     * interval's floors as each floor is left behind. The Clear the Halls and
-     * Tidy bounties read these, so every floor of the interval counts, not
-     * only the last.
-     */
-    int spawnersCleared;
-    int spawnersTotal;
-
-    /**
-     * Snapshot of each member's dungeon inventory at interval start, used when a
-     * max-omen death fails the run and the unbanked floors must pay nothing.
-     * Stored as 42-slot lists (main, armour, offhand, cursor), copied so the
-     * live inventory cannot mutate them.
+     * Snapshot of each member's dungeon inventory, used when a max-omen death fails
+     * the run and the unbanked floors must pay nothing. Stored as 42-slot lists
+     * (main, armour, offhand, cursor), copied so the live inventory cannot mutate
+     * them. For a fresh interval the definitive snapshot is taken at the first
+     * door commit ({@link InventorySwap#snapshotAtFirstCommit}), after the bag kit
+     * has been applied.
      */
     final Map<UUID, List<ItemStack>> inventorySnapshot = new HashMap<>();
+
+    /**
+     * Each member's run storage at interval start ({@link RunStorage}), taken
+     * on their first open this interval and rolled back with
+     * {@link #inventorySnapshot} on a max-omen death. A member with no entry
+     * has not touched their storage this interval.
+     */
+    final Map<UUID, List<ItemStack>> storageSnapshot = new HashMap<>();
 
     /**
      * Whether this interval is an Endless Mine. Set on the first commit whose

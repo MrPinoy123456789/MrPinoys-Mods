@@ -4990,15 +4990,15 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-09-27 23:21, live session `docs/playtests/2026-09-27-4.md`. The player's question never reached the agent and timed out into the built-in "I do not know that one yet."; the player stopped the session to get it fixed.
 **Severity:** High (the Lemon harness cannot hear the player; it ended a session).
-**Status:** Open.
+**Status:** Fixed 2026-10-01, live check owed (`LIVE_CHECKS.md` L6). Diagnosis from the 2026-09-30 and 2026-10-01 logs: the original filter bug was already gone (player `lemon ask` lines wake `wait`). When the agent sat in `wait`, asks were answered in 8 to 14 s (23:16:08 to 23:16:22, 23:22:50 to 23:23:01). Every timeout had the agent busy elsewhere: replies landed 50 s to 6 min after the ask, often answering the previous question, and none was preceded by a `think`. Two real harness bugs made that worse. `Lemon.think` set `thinkingUntil` and nothing read it, so a think never held the 45 s fallback; `Lemon.fallbackDue` now waits for whichever is later (`LemonGameTest.thinkHoldsTheFallback`). `pdserver.mjs readNew` moved the cursor to the file size while parsing only whole lines, so a line caught mid-write was skipped for good; `wholeLines` now advances by the bytes consumed (`wait-filter.test.mjs`). `LEMON_AGENT.md` section 4 step 4 now tells the agent to reply or think before investigating.
 **Expected:** `wait` wakes on `lemon ask <Name> ...` (the player speaking to Lemon) and ignores only the agent's own echoes.
 **Actual:** `pdserver.mjs:333` filters `/^\S+ lemon (mode|say|ask|reply|think) /`. The player's line `lemon ask <Name> ...` matches, so it is dropped. The agent's echoes are logged as `lemon says|asks|replies|thinks`, which do not match, so they wake `wait` instead.
-**Live evidence 2026-09-30-2:** several player asks still timed out before an llm reply, including the merchant-room, two-way merchant, and Lemon-persuasion suggestions. The active wait surfaced some asks only alongside their `lemon unanswered` fallback. Needs a fresh diagnosis: this may be a wait-wake bug, agent response latency, or both.
+**Live evidence 2026-09-30-2:** several player asks still timed out before an llm reply, including the merchant-room, two-way merchant, and Lemon-persuasion suggestions. The active wait surfaced some asks only alongside their `lemon unanswered` fallback. 2026-10-01-1 reproduced one more timeout on the torch-drop suggestion, while later asks were answered in 8 to 12 seconds. Needs a fresh diagnosis: this may be a wait-wake bug, agent response latency, or both.
 **Fix idea:** filter `/^\S+ lemon (mode|says|replies|thinks) /` plus `lemon asks` lines the agent sent, and never `lemon ask` or `lemon answer`. Then test that a player ask wakes a 240 s wait immediately and leaves enough time for `lemon reply`.
 **Workaround:** poll `server chat` and re-send `lemon mode <p> llm` every minute.
 
 ### PD-80: `server wait` often reports `server is down (timeout)` while the server is up (Low)
-**Status:** Fixed again 2026-09-30, verified by one live quiet wait in `2026-09-30-2.md`; keep watching during Lemon sessions. The verdict at the timeout no longer trusts the checks made during the wait: `quietVerdict` (`wait-filter.mjs`) calls the server up on any fresh proof, either an RCON `list` at the reporting point (8 s, tried twice), the log growing during the wait, log output in the last 20 s, or a held `session.lock`. `wait-filter.test.mjs` covers it. The session log showed no RCON connections at all from 21:23:28 to 21:26:58, so the failing checks never reached the server; the root cause of that is still unknown.
+**Status:** Fixed again 2026-09-30, verified by one live quiet wait in `2026-09-30-2.md` and two more in `2026-10-01-1.md`; keep watching during Lemon sessions. The verdict at the timeout no longer trusts the checks made during the wait: `quietVerdict` (`wait-filter.mjs`) calls the server up on any fresh proof, either an RCON `list` at the reporting point (8 s, tried twice), the log growing during the wait, log output in the last 20 s, or a held `session.lock`. `wait-filter.test.mjs` covers it. The session log showed no RCON connections at all from 21:23:28 to 21:26:58, so the failing checks never reached the server; the root cause of that is still unknown.
 **History:** a 2026-09-30-1 quiet wait still printed `server is down (timeout)` while `status` immediately showed the server UP with the player online, so the 2026-09-29 fix did not hold in live use.
 **Expected:** a quiet timeout on a running server prints `no new events (timeout)`.
 **Actual:** in playtest 2026-09-27-5, 4 of 6 quiet `wait --player MrPinoy123456789 --timeout 240` calls printed `server is down (timeout)`, while `server status` run right after printed `UP.` and the log showed RCON clients connecting every 15 s. The player was offline the whole time.
@@ -5111,7 +5111,7 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-09-30, live session `docs/playtests/2026-09-30-1.md`. Player: "some of my items may have been duplicated between either server resets or when the dungeon closed while I was away."
 **Severity:** High (real item duplication, confirmed from Lost and Found records).
-**Status:** Fixed 2026-09-30, live max-omen death pending. `restoreIntervalSnapshot` restores only the live inventory; the leave that follows the ejection keeps it once, with the record's existing loose stacks carried along (the old write also wiped those). A cursor stack with no free slot is kept loose instead of dropped. `InventorySwapGameTest.maxOmenEjectionKeepsEachStackOnce` reverts, leaves and re-enters and counts every stack (including one that must go loose and an earlier loose stack); `FloorIntervalGameTest.maxOmenDeathOnFirstIntervalRevertsInventory` now checks the kept pack after the leave, sword exactly once. The offline-member branch of `failRunOmen` still writes the snapshot over the record, but a disconnect detaches the member first, so it should be unreachable. Copies already duplicated in a player's pack are not removed.
+**Status:** Fixed 2026-09-30, verified in game 2026-10-01. `restoreIntervalSnapshot` restores only the live inventory; the leave that follows the ejection keeps it once, with the record's existing loose stacks carried along (the old write also wiped those). A cursor stack with no free slot is kept loose instead of dropped. `InventorySwapGameTest.maxOmenEjectionKeepsEachStackOnce` reverts, leaves and re-enters and counts every stack (including one that must go loose and an earlier loose stack); `FloorIntervalGameTest.maxOmenDeathOnFirstIntervalRevertsInventory` now checks the kept pack after the leave, sword exactly once. The offline-member branch of `failRunOmen` still writes the snapshot over the record, but a disconnect detaches the member first, so it should be unreachable. Copies already duplicated in a player's pack are not removed. Live pass: the 2026-10-01T08:10:53Z max-omen `LEAVING` record and the inventory after 08:11:08 re-entry contain each recorded stack once.
 **Expected:** a max-omen run failure restores the interval-start dungeon inventory once, then stores that same pack for the next entry.
 **Actual:** the 2026-10-01T04:23:11Z `LEAVING` Lost and Found record contains the interval-start stacks plus copies of the first six non-empty stacks in later free slots: oak log, shears, diamond sword, cooked beef, arrows and a bow. The 2026-09-30T06:18:31Z `LEAVING` record has each stack once. The player's live inventory after re-entry shows the same duplicated-looking result.
 **Likely cause:** `Instances.failRunOmen` calls `InventorySwap.restoreIntervalSnapshot` before `eject`. `restoreIntervalSnapshot` clears and restores the live inventory, then writes the same snapshot into `log.setOrphan` (`InventorySwap.java` lines 768 to 778). The subsequent `leaveVoid` snapshots that restored inventory and calls `keptInventory(voidInventory, log.orphanOf(...).items(), ...)`. Because the live inventory and `alreadyHeld` now contain the same stack in the same slot, `keptInventory` keeps the live stack in place and appends the held copy as loose (`InventorySwap.java` lines 465 to 489). The next `restoreKept` places those loose copies into free slots.
@@ -5141,7 +5141,7 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-09-30, live session `docs/playtests/2026-09-30-2.md`.
 **Severity:** Medium (inventory churn and false duplication signals on normal materials).
-**Status:** Fixed 2026-10-01, live check pending. Only items that stack to 1 carry the bag tag now: 645 bare `{pocketdungeons:{bag:1}}` entries on stackable items were stripped across 72 loot-table files (gear, and tokens carrying a tier, shell unlock or cube reward, keep theirs). `KitTopUp` tags only unstackable grants. On entry, `InventorySwap.withoutStackableBagTag` strips the tag from stackables in the kept pack, so old split stacks become identical and combine by hand. The leave-time stray notice checks unstackable items only. `LootTagGameTest` walks every shipped table against the live item registry and checks the strip; `BagTableTest` now requires the tag on bag tools and forbids it on stackables. `tools/gen_themed_content.py` follows the same rule, but it is stale against the shipped tables (spawner weights and pools were hand edited since), so do not rerun it blind. Not changed: the spec's `max_stack_size` 8 caps still keep capped loot from merging with vanilla 64-stacks.
+**Status:** Fixed 2026-10-01, partially verified in game. Only items that stack to 1 carry the bag tag now: 645 bare `{pocketdungeons:{bag:1}}` entries on stackable items were stripped across 72 loot-table files (gear, and tokens carrying a tier, shell unlock or cube reward, keep theirs). `KitTopUp` tags only unstackable grants. On entry, `InventorySwap.withoutStackableBagTag` strips the tag from stackables in the kept pack, so old split stacks become identical and combine by hand; the 2026-10-01 max-omen save shows stackables restored without fresh `bag:1` splits. The leave-time stray notice checks unstackable items only. `LootTagGameTest` walks every shipped table against the live item registry and checks the strip; `BagTableTest` now requires the tag on bag tools and forbids it on stackables. `tools/gen_themed_content.py` follows the same rule, but it is stale against the shipped tables (spawner weights and pools were hand edited since), so do not rerun it blind. Not changed: the spec's `max_stack_size` 8 caps still keep capped loot from merging with vanilla 64-stacks. Still pending: a fresh reward and an identical existing stack merging in live play.
 **Expected:** two otherwise identical stacks of common loot, such as iron ingots, stack together when the player wants them to.
 **Actual:** a vault granted 3 iron ingots carrying `custom_data.pocketdungeons.bag = 1`, while a separate stack of 14 plain iron ingots stayed unmerged. Earlier in the same session a tagged 2-ingot stack also failed to merge with 15 plain ingots. A source sweep found 860 `bag: 1` reward entries across 75 loot-table files, plus kit top-up tagging in `KitTopUp.java` lines 378 to 385, so this is systemic rather than one bad table.
 **Likely cause:** the M49 bag tag uses visible `custom_data`, which makes components differ and prevents stacking. The tag exists so `InventorySwap.isOurs` can distinguish mod-granted stacks (`InventorySwap.java` lines 593 to 615), but it has the same player-visible side effect documented for trial keys in PD-56 and PD-87.
@@ -5151,8 +5151,284 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-09-30, live session `docs/playtests/2026-09-30-2.md`.
 **Severity:** Medium (the economy feature exists, but a normal player cannot discover it without outside knowledge).
-**Status:** Fixed 2026-10-01, live check pending. In the dungeon dimension, any non-sneak use of the salvage block opens the bench, whatever the hand holds (below the unlock level an empty hand still gets the vanilla grindstone). Sneaking is the vanilla grindstone, and the summary says so. A Disenchant button (slot 26) lights up when exactly one enchanted item sits alone in the bench and moves it into a real `GrindstoneMenu`. Outside the dungeon every grindstone is vanilla, including with gear or a key in hand (owner decision 2026-10-01). `SalvageGameTest.anyUseOpensTheBenchAndASneakDoesNot` and `disenchantNeedsOneEnchantedItemAlone` cover it.
+**Status:** Fixed 2026-10-01, live use observed but discovery still unverified. In the dungeon dimension, any non-sneak use of the salvage block opens the bench, whatever the hand holds (below the unlock level an empty hand still gets the vanilla grindstone). Sneaking is the vanilla grindstone, and the summary says so. A Disenchant button (slot 26) lights up when exactly one enchanted item sits alone in the bench and moves it into a real `GrindstoneMenu`. Outside the dungeon every grindstone is vanilla, including with gear or a key in hand (owner decision 2026-10-01). `SalvageGameTest.anyUseOpensTheBenchAndASneakDoesNot` and `disenchantNeedsOneEnchantedItemAlone` cover it. 2026-10-01-1 logged one successful 1 XP salvage, but the player already knew the feature, so it does not prove first-time discovery.
 **Expected:** the grindstone tells the player that it can salvage, or any ordinary non-sneak use opens a screen that presents salvage clearly.
 **Actual:** the player asked whether the salvager was in the game, then said there was no indication in game. `SalvageStation.onUse` only claims the click when the main hand already holds an accepted item; an empty hand or unrelated item falls through to the vanilla grindstone. After the interaction was explained, four salvage events paid correctly.
 **Likely cause:** `SalvageStation.java` lines 143 to 159 intentionally refuse the click unless `classify(held).takes()`, and no room text, tooltip, guide line, or nearby sign explains the alternate use.
 **Fix idea:** open the Salvage Bench on any non-sneak grindstone use, then include vanilla disenchanting as a separate action when exactly one disenchantable item is present. If preserving vanilla access matters more, add an obvious prompt near the grindstone and a first-use hint when the player holds eligible loot. Add a use-block test for an empty hand and a loot-table or journal test proving a first-time player sees the hint.
+
+### PD-97: `sump` fails to stamp because it has no climbable return path (High)
+
+**Reported:** 2026-10-01, live session `docs/playtests/2026-10-01-1.md`.
+**Severity:** High (blocks the selected door whenever the room is rolled).
+**Status:** Fixed 2026-10-01, live commit owed (`LIVE_CHECKS.md` L1). The cause matched PD-78: `SituationSpecs.sump` built a solid stone pillar at (8, z 1) and called it a staircase. It is now a ladder column at (14, z 1), y -7 to 0, on the north wall, clear of the NW water source, the east doorway and the drop shaft; `sump.nbt` regenerated with `gentemplates sump`. `HandlerGameTest.sumpTemplateHasAReturnPath` checks all four rotations, and `everyMultiStoryRoomHasAReturnPath` stamps every `spanY > 1` room in the manifest at every rotation, so a third room with this defect fails the build. Validator unchanged.
+**Expected:** pulling the commit lever generates the dungeon behind the staging room.
+**Actual:** the level 9 basalt_foundry preview committed at 00:51:17 and threw `IllegalStateException: room pocketdungeons:sump has spanY 2 but no climbable return path from its lower story to the upper floor (spec 13.4)` at `LayoutStamper.java:246`. The player saw "The dungeon failed to build. Try another door." The follow-up basalt_foundry commit at 00:52:00 succeeded, so the failure is room-specific.
+**Likely cause:** the `sump` template is two stories tall but lacks a ladder, water column, staircase, or other return route accepted by `ReturnPathValidator`. This is the same defect class as PD-78, on a different room.
+**Fix idea:** inspect `src/main/resources/data/pocketdungeons/structure/rooms/sump.nbt` and the `sump` situation spec. Add a real return path and regenerate the template, or remove `sump` from the selectable pool until repaired. Add a `ReturnPathValidator` regression test for `sump` at all rotations, like the `blaze_cellar` test.
+
+### PD-98: `kennel_crossing` situation room stamps with no spawner at all (High)
+
+**Reported:** 2026-10-01, live session `docs/playtests/2026-10-01-2.md`. Player: "Why is nothing spawning from this spawner?"
+**Severity:** High (an encounter room provides no fight and no clear-gate spawner whenever it rolls).
+**Status:** Fixed 2026-10-01, pending in-game verify. The 21:27:11 log line was not kennel_crossing: the kennel stamped a spawner fine (no warning at 20:44). It was `blaze_cellar`, whose spawner sits at y -8 in the lower story, below the range `TrialContent.cellBlockEntities` scanned (dy >= 0), so no anchor was found. The range now reaches down through a two-story room. The kennel's real defect: a trial spawner runs the mob's own placement rules, and `Wolf.checkWolfSpawnRules` needs `WOLVES_SPAWNABLE_ON` ground, so on stone brick the spawner never produced a wolf. The pen floor is now grass and `kennel_crossing` spawn_range is 1, so the pack spawns inside the pen and the gate is the release. Template recaptured. Gametests `situationCombatRoomsStampATrialSpawner` and `kennelPenLetsWolvesSpawn`.
+**Expected:** `kennel_crossing` places a working trial spawner (wolves) like its sibling situation rooms.
+**Actual:** the player stood in `kennel_crossing` (infestation floor 1, cell -2,-1) and nothing spawned. The server log confirms the room stamped with no spawner: `Situation encounter cell at 160, 64, 512 has no spawner anchor; no trial spawner placed` at 21:27:11 local.
+**Likely cause:** `SituationSpecs.kennelCrossing` declares `.spawner(new BlockPos(8, 1, 8))` but no `.spawns()` anchor list and the regenerated NBT carries no authored trial spawner. In `TrialContent.applyEncounter` (`TrialContent.java` lines 293 to 327), `authoredTrialSpawners` finds nothing, `encounterAnchor` returns null, the warn fires, and the method returns without placing anything. The early return also skips `clearClassicSpawners`, so the classic spawner (if stamped by the spec) may sit unconfigured. The same defect class probably affects `sensor_gallery` and `blaze_cellar` if their NBTs lack authored trial spawners too.
+**Fix idea:** either give the situation NBTs authored trial spawner blocks, or fall back to the spec's `.spawner()` position when `encounterAnchor` finds no spawn list. Add a stamper test that stamps each situation combat room and asserts a configured trial spawner exists.
+
+### PD-99: `rotation_lock` comparator appears not to open the door (Medium)
+
+**Reported:** 2026-10-01, live session `docs/playtests/2026-10-01-2.md`. Player: "I think the comparator was backwards and wasn't working, also there was a redstone block, I think the room design is not correct."
+**Severity:** Medium (a mechanism room may be unsolvable in some orientations).
+**Status:** Fixed 2026-10-01, pending in-game verify. The player was right: a comparator or repeater `FACING` is the INPUT side in vanilla, and the room passed the output direction. The comparator read the output dust instead of the frame, and the door repeater took input from the wall block. Both now face WEST. Not a rotation problem. Template recaptured. Gametest `rotationLockSolvesAtEveryRotation` (frame on 8 opens the door, frame on 1 does not, all four rotations). Same inversion suspected in `sorting_floor` (`SituationSpecs` comparator at 14,1,9 facing NORTH, chest to its south), `barred_vault`, `ominous_bargain` and `the_altar` (`SpurSpecs`); not touched, see PD-104.
+**Expected:** rotating the item frame to position 8 passes the comparator subtract check and opens the door, at every room rotation.
+**Actual:** the player clicked through rotations and the door did not open; he suspects the comparator faces the wrong way.
+**Likely cause:** `MechanismSpecs.rotationLock` (around line 343) places the comparator, redstone block and dust at fixed offsets and facings; if the room template or stamp rotates the cell, the comparator or the side input may not rotate with it. Needs live inspection of a rotated stamp or a gametest that solves the room at each rotation.
+**Fix idea:** stamp `rotation_lock` at all four rotations in a gametest, set the frame to rotation 8, and assert the door opens.
+
+### PD-100: Omen sensor line flashes too briefly to read (Low)
+
+**Reported:** 2026-10-01, live session `docs/playtests/2026-10-01-2.md`. Player: "There was text saying 'A sculk stalks my steps' or something but it went away before I could read it all."
+**Severity:** Low (readability; the mechanic's only explanation is unreadable).
+**Status:** Fixed 2026-10-01, pending in-game verify. The sensor line is repainted on the action bar every 2 seconds for 8 seconds (`OmenBarText.holdTicks`, `OmenBar.repaintHeldLine`).
+**Expected:** the SENSOR omen line ("The sculk counts your steps; the next fight will be harder.", `OmenBarText.java:116`) stays up long enough to read, or repeats while sensors keep pulsing.
+**Actual:** the line disappears before the player can finish reading it.
+
+### PD-101: Salvage Bench swallows the held item on open (Medium)
+
+**Reported:** 2026-10-01, live session `docs/playtests/2026-10-01-2.md`. Player: "Now that the Salvage Bench opens up on right-click, it shouldn't automatically put my item in hand into the station, it should just open the station."
+**Severity:** Medium (surprise item movement on a UI open; risks accidental salvage of held gear).
+**Status:** Fixed 2026-10-01, pending in-game verify. `SalvageStation.onUse` no longer moves the held stack; it only opens the bench. Gametest `openingTheBenchLeavesTheHeldItemAlone`.
+**Expected:** a plain right-click opens the bench UI without touching the held stack; depositing an item is a deliberate second action.
+**Actual:** right-click with an item in hand places it into the bench as part of the open.
+
+### PD-102: Commit stamp failed behind the staging room, then disconnect in PREVIEW (High)
+
+**Reported:** 2026-10-01, earlier session digest (`docs/playtests/2026-10-01-2.md` summary; journal 07:41 to 08:13 UTC).
+**Severity:** High (a failed commit plus a disconnect during preview).
+**Status:** Fixed 2026-10-01 (cause was PD-97). The logged exception is `IllegalStateException: room pocketdungeons:sump has spanY 2 but no climbable return path` (LayoutStamper.java:246) at 00:51:17 local; the sump ladder fix already covers it, and `everyMultiStoryRoomHasAReturnPath` guards the class. The failure path restores the catalyst and tears down the half-stamped cells; the disconnect at 01:13 was a normal close of slot 0 (log shows "member disconnected"). No separate preview-state bug found.
+**Expected:** committing a door always stamps or fails with a clear player-facing reason; disconnects during PREVIEW clean up gracefully.
+**Actual:** log shows `Commit stamp failed behind the staging room at 0, 64, 16` (`Instances.java:1410`) at 07:51, and the player disconnected while still in PREVIEW at 08:13.
+**Likely cause:** unknown; `Instances.java` around line 1410 logs this when the staging-room commit stamper throws. Needs the exception text from that log window.
+
+### PD-103: Blacksmiths wander into the staging room and multiply (Medium)
+
+**Reported:** 2026-10-01, owner report. Player: blacksmiths are entering the staging room and triggering new blacksmiths to spawn, so several exist at once.
+**Severity:** Medium (NPC duplication; also means a blacksmith can loiter in the staging room where it does not belong).
+**Status:** Fixed 2026-10-01, pending in-game verify. `BlacksmithNPC.findAllBlacksmiths` now scans 24 blocks each way horizontally from the room centre (was 12), which covers the staging room, so an escapee is found, anchored and deduplicated. Gametest `blacksmithSweepSeesIntoTheStagingRoom`.
+**Expected:** exactly one blacksmith per room with a smithing table, anchored near the table.
+**Actual:** multiple tagged blacksmiths accumulate when one wanders into the staging room.
+**Likely cause:** `BlacksmithNPC.sweep` finds existing blacksmiths with `findAllBlacksmiths`, which scans an `AABB` of `SCAN_RADIUS` 12 around the room centre (`BlacksmithNPC.java` lines 190 to 196). A blacksmith that wanders out through the door into the staging room leaves that box. The sweep then sees `blacksmiths.isEmpty()` and spawns a replacement (line 146), while the escaped villager is never found again: the duplicate cleanup at line 150 only discards extras inside the scan box, and `anchorBlacksmith` only pulls back the first found. The staging room's adjacency makes "past the door" reliably outside 12 blocks of the room centre. The class javadoc already anticipated duplicates "if the villager wandered out of the scan radius and a new one spawned", but the fix only dedups inside the same too-small box.
+**Fix idea:** enlarge the search to cover the staging room too (or find blacksmiths by tag across the whole instance cell block rather than a radius around centre), anchor by distance to the door threshold before it crosses, or give the blacksmith `setNoAi` when it approaches the staging doorway. A gametest could simulate a blacksmith entity just past the door, run the sweep, and assert it is discarded rather than left while a second one spawns.
+
+### PD-104: other rooms wire comparators and repeaters backwards (Medium)
+
+**Reported:** 2026-10-01, found while fixing PD-99.
+**Status:** Open, unverified in play.
+**Likely cause:** vanilla `FACING` on a comparator or repeater is the input side. `SituationSpecs.sortingFloor` (comparator at 14,1,9 facing NORTH, chest at 14,1,10 to its south), `SpurSpecs.barredVault` and `ominousBargain` (comparator at 9,1,10 facing NORTH, chest to its west) and `theAltar` pass an "output direction" like `rotation_lock` did. If these doors are meant to open from the redstone rather than from `Locks`, they never will.
+**Fix idea:** check which of these rooms `Locks` already drives; for the rest, flip the facing, recapture, and add a solve gametest like `rotationLockSolvesAtEveryRotation`.
+
+### PD-105: Lemon's journal can be taken from her menu (Low)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "correctly has the book, but when I right clicked on her, she gave me the book. I should not be able to take her diary/journal."
+**Severity:** Low (cosmetic, but lets the player remove Lemon's prop).
+**Status:** Fixed 2026-10-02 (second pass), pending in-game verify. Cause (review 2026-10-02, F4): client-side prediction. The client knows Lemon only as a vanilla allay, so an empty-hand click runs vanilla `Allay.mobInteract` on the client, which empties her hand and adds the journal to the player's hotbar on their screen alone. Nothing moved on the server, which is why the gametest could not see it; it began when Lemon was given the `WRITABLE_BOOK`. `LemonBody.interact` now resyncs the player's slots and Lemon's held item after every click (`undoClientPrediction`). First pass notes: the current `LemonBody` already refuses every vanilla hand-off path (`interact` opens the menu in the main hand and FAILs everything else; the lodestone menu is a dialog with no item slots), so the cause could not be reproduced in the tree. New gametest `lemonKeepsHerJournalWhateverTheClick` clicks Lemon with either hand, empty and holding an item, and asserts the book stays and nothing is handed over. If a player still gets the book, capture the exact click and what the menu showed.
+**Expected:** right-clicking Lemon opens her lodestone menu / journal UI, but the book item is locked in place (or the menu is read-only).
+**Actual:** the player can take the book out of the menu.
+
+### PD-106: Mob spawners drop too much trimmed armour (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "The mobs from this spawner dropped A LOT of trimmed armour. Too much armour in general too."
+**Severity:** Medium (loot inflation; trimmed armour loses its special identity).
+**Status:** Fixed 2026-10-02, pending in-game verify. Cause: five tier 3 spawner configs (`copper_works`, `crypt`, `frostworks`, `ossuary`, generic `tier_3`) equipped mobs from vanilla `equipment/trial_chamber_*` (full trimmed armour) and `DungeonDrops` floored every slot at a 0.2 drop chance. Now all spawners use our own untrimmed `equipment/tier_3_*` tables and armour slots floor at `ARMOUR_DROP_CHANCE` 0.08. Gametest `spawnerEquipmentIsOursAndExists`.
+**Expected:** armour drops are paced so trimmed pieces feel rare and valuable.
+**Actual:** one combat room produced multiple trimmed armour pieces.
+
+### PD-107: A single spawner mixes unrelated mob types (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "This spawner was spawning zombies, breezes, spiders, skeletons, just too many different kinds of mobs. On occasion this is okay like a 'chaotic' spawner but the spawners should typically be themed."
+**Severity:** Medium (theme readability; the room's danger becomes noise).
+**Status:** Fixed 2026-10-02, pending in-game verify. Cause: themed spawners were already two mob types, but themeless rooms (themes `blackstone`, `drowned_vault`, `prismarine`, and any room with no theme prefix) used the broad generic `tier_N` pool (tier 3 had 11 mob types). New narrow families `undead`, `bones`, `spiders` (two related mobs each, three tiers) are picked per cell by `TrialContent.genericPrefix`; `chaoticSpawnerChance` (default 0.05) keeps the broad pool as an explicit chaotic spawner.
+**Expected:** a non-chaotic spawner in a themed room draws from a narrow, theme-appropriate pool.
+**Actual:** one spawner produced zombies, breezes, spiders and skeletons together.
+**Likely cause:** either a generic spawner config is being reused across rooms, or a room-specific config was made too broad. The player is fine with a rare "chaotic" exception, but ordinary rooms should read as themed.
+
+### PD-108: Some gear cannot be salvaged (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "There's gear like the diamond leggings in my inventory that I can't salvage."
+**Severity:** Medium (feature inconsistency; player has a sink but some loot refuses it).
+**Status:** Fixed 2026-10-02, pending in-game verify. Cause: almost certainly trimmed vanilla trial chamber armour, which the bench refuses on purpose. Trimmed armour is still refused, but the reason now reads "trimmed armour is kept safe, never scrapped" (and the other refusals say why too), and the PD-106 fix stops most trimmed drops. Gametest `plainDiamondLeggingsSalvageAndTrimmedAreExplained`.
+**Expected:** all dropped/looted gear that the player would reasonably want to convert is accepted by the Salvage Bench.
+**Actual:** diamond leggings were rejected.
+**Likely cause:** `SalvageStation` classifies items by some rule (durability threshold, tag, origin) that excludes certain drops. Check `SalvageStation.classify` and whether the leggings carry a rejected tag or zero durability.
+
+### PD-109: Tripwire traps in the tripwire room are deleted by the room shell (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "This tripwire room is cool but I think the traps were deleted by the room's bedrock shell or something."
+**Severity:** Medium (a themed room loses its mechanic).
+**Status:** Open, not reproduced 2026-10-02. The bedrock shell ring sits one block OUTSIDE the cell (`BedrockEnvelope.ringPos`), so it cannot overwrite the hooks (z=1,14) or dispensers (z=0,15). New gametest `tripwireHallKeepsItsTrapsAtEveryRotation` stamps the template at all four rotations and finds 6 hooks, 36 string and 6 dispensers every time. Kept as a regression guard. Second pass (review 2026-10-02): the doorway theory (F5) was wrong; the room is only picked where its east/west jigsaw doors match the plan, so no doorway is ever carved into the dispenser walls. The playtest floor was `infestation` (theme_deepslate processors) with only Silenced, so no Explosive, Molten or Voided hazard touched it. New gametest `tripwireHallTrapsFireUnderTheTheme` stamps the room with that theme, steps on a wire and sees the dispenser spend an arrow. So the traps are built and work; the likely cause is that they read as missing: thin string on the dark deepslate floor and dispensers flush in deepslate brick. Needs a live look: ask the player what they expected to see. The player's own suggestion (a narrower room, so the traps read at a glance) is an owner design call.
+**Expected:** tripwire hooks, string and dispensers survive stamping and are reachable.
+**Actual:** the traps appeared missing.
+**Likely cause:** the mechanism blocks sit on or near the room shell; the stamper's immutable shell pass overwrites them.
+**Fix idea:** move the tripwire assembly inward, or make the room narrower as the player suggested, so the shell does not clip it.
+
+### PD-110: Spiders climb walls and get stuck in room corners (Low)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "Spider ai often randomly climbs up the walls in the corner and gets stuck up there" and "usually corners, might be a pathing bug."
+**Severity:** Low (aesthetics / occasional soft-lock for the mob, not the player).
+**Status:** Fixed 2026-10-02, pending in-game verify. Chose the tick check over template geometry (no template recapture): `SpiderUnstick` sets a dungeon spider back on the floor beneath it after 5 seconds of untargeted climbing more than 3 blocks above the floor.
+**Expected:** spiders can navigate the room corners without freezing in the ceiling.
+**Actual:** spiders climb into corners and stay there.
+**Likely cause:** vanilla spider wall-climb AI plus the room's tight ceiling/wall junction; the mob's hitbox or pathing target ends up in an unresolvable spot.
+**Fix idea:** add a small ledge or overhang that spiders cannot cling to, or cap ceiling climbing height below the corner seam.
+
+### PD-111: Spawner gate message should state how many remain, not just "go finish the rest" (Low)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "It says, 'Not yet, 3/5 trial spawners cleared. Go finish the rest.' When it should just tell me to finish x needed amount more."
+**Severity:** Low (readability).
+**Status:** Fixed 2026-10-02. The gate now says "Not yet: clear N more trial spawner(s).", using `DifficultyProfile.spawnersStillNeeded` (the same threshold the gate uses, so 3 of 5 cleared says 1 more). Unit test in `OmenBarTextTest`.
+**Expected:** the message reads "Clear 2 more spawners" (or similar) rather than a fraction plus a vague directive.
+**Actual:** message shows a fraction and "Go finish the rest."
+
+### PD-112: SENSOR omen line needs a sound cue (Low)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-1.md`. Player: "'The sculk counts your steps...' line should come with a sound effect. Maybe one of the warden ambient sounds."
+**Severity:** Low (feedback; complements PD-100).
+**Status:** Fixed 2026-10-02, pending in-game verify. A quiet `SCULK_CLICKING` already played; it is now `WARDEN_NEARBY_CLOSER` at 0.7 volume, and every omen gain is audible (a gain inside a line's cooldown plays its cue at most once a second, `OmenBar.omenRose`).
+**Expected:** a distinct sound plays when the sculk-sensor omen line appears.
+**Actual:** only text appears.
+
+## Found in the live Lemon playtest (2026-10-02, session 2)
+
+### PD-113: An enderman teleports out of its room and keeps a trial spawner from clearing (High)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "I think at least one enderman teleported out of bound and now I can't complete the floor."
+**Severity:** High (the floor cannot be completed; a manual console cleanup was needed).
+**Status:** Open. Worked around live by killing the endermen in `pocketdungeons:void`.
+**Repro:** ender_archive floor 3, spawners 2 of 3, the open one the hall_tee at cell 3,1. Two endermen were alive: one at (-11.6, 39, 14.5), one at (128.2, 72, 414.2), over 400 blocks away. After killing both, the gate read 3 of 3 and the player finished the floor.
+**Expected:** a trial spawner reaches cooldown once its mobs are dead, or the mob cannot leave the instance.
+**Actual:** the gate counts only spawners in `COOLDOWN` (`TrialContent.countCleared`), and vanilla holds a spawner out of cooldown while a tracked mob is alive, so an enderman that teleports far away stalls it.
+**Fix idea:** cancel enderman teleports that land outside the cell or instance bounds, or count a spawner cleared when its remaining mobs are outside the floor.
+
+### PD-114: The frame_lock exit opens onto a nether brick wall (High, needs repro)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "It correctly opens the door after being rotated 8 times, but on the other side of the door is netherbricks blocking my path." He said a second room had the same problem ("both ordeal rooms had this problem").
+**Severity:** High (a gated route that opens onto solid wall).
+**Status:** Open, not reproduced. The floor was `basalt_foundry`, whose processor turns every stone brick into nether brick, so the wall is the room shell; rubble is cobblestone, tuff and deepslate, so this is not the L11 rubble feature. The plan was cell -1,2 `frame_lock` between `hall_tee` cells at -1,1 and -1,3.
+**Expected:** the unlocked door leads into the next room.
+**Actual:** a solid wall stands behind it.
+**Fix idea:** `dungeon admin bias frame_lock 20` and stand at the exit with the player; compare the room's door slots with the plan's connectors at every rotation (a gametest like the multi-story one).
+
+### PD-115: Tridents cannot be salvaged (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Tridents can't be salvaged."
+**Severity:** Medium (surplus gear has no outlet; related to PD-108).
+**Status:** Open. Check `SalvageStation.classify` for the trident; PD-108's refusal text may or may not name it.
+
+### PD-116: Selecting a staging door replaces its light with the preview glass; door 3 has no glass (Medium)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Two of the lights for the selection doors disappeared and were replaced by the preview glass", on the two lowest-level doors when one is selected for preview; "this new 3rd door doesn't have preview glass behind it currently."
+**Severity:** Medium (related to PD-85).
+**Status:** Open.
+**Player's proposed fix:** the selected door temporarily vanishes while its light stays on so he looks through it; changing the selection restores that door and hides the new one.
+**Fix idea:** put preview glass behind all three doors and stop the preview from overwriting the door light blocks.
+
+### PD-117: The floor history board's row text is still too small (Low)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Floor history look good but the row text should be 20% bigger."
+**Severity:** Low. **Status:** Open. Raise the row scale (`HISTORY_SCALE`) by about 20 percent and check the rows still fit the wall.
+
+### PD-118: Lemon tooling hides and delays player questions (High, harness)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`; the owner also reported "you're missing my messages".
+**Severity:** High (at least 8 questions hit the 45 s fallback "I do not know that one yet"; the owner nearly lost data).
+**Status:** Open. Worked around live with a persistent `tail -F latest.log | grep` monitor, after which every ask arrived within seconds.
+**Repro:** a background `server wait --player <p> --timeout 240` loop printed `no new events (timeout)` while `Lemon ask` lines sat in `run/logs/latest.log`; later a wait printed the whole log from `server ready` (offset 0) twice. At 20:44 the cursor file `run/.agent-chat-cursor.json` held offset 457312, equal to the log size, while two asks (20:42:09, 20:44:11) had never been printed. Some asks never produced a `lemon ask` line at all before the fallback (`Lemon unanswered` only).
+**Likely cause:** `tools/server/pdserver.mjs` lines 138 to 153: a cursor parse failure silently resets the offset to 0 (`catch { cursor = { offset: 0 } }`), the cursor write is not atomic, and `wait` and `chat --all` share it, so overlapping or concurrent runs can corrupt or advance it past lines that were never printed.
+**Fix idea:** write the cursor atomically (temp file then rename), keep the old offset when it cannot be parsed, never let `chat --all` move it, and refuse a second concurrent `wait` for the same player. Add a test with a corrupted cursor.
+
+### PD-119: No join event and no llm mode when the player is already online (Medium, harness)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`.
+**Repro:** the player joined at 19:22:37, before the loop's `server sync`; no `join` event reached the agent, `lemon mode llm` failed with "No player was found" while the server had no players, and the first greeting was held for a fight until 19:36:56.
+**Fix idea:** have `wait --player` assert llm mode as soon as the player is online (not only on a join event), and have `status` report whether Lemon is in llm mode for each player.
+
+### PD-120: The session had no Lemon MCP tools (Low, process)
+
+**Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`.
+**Status:** Fixed 2026-10-02: `.mcp.json` at the workspace root registers `lemon` (`tools/server/mcp.mjs --admin`), and `docs/LEMON_AGENT.md` and the playtest skill tell agents to check for the `mcp__lemon__*` tools first and ask for a restart rather than silently using the shell loop.
+
+## Found in the live Lemon playtest (2026-10-03, session 1, Kinetic server)
+
+Report: `docs/playtests/2026-10-03-1.md`. First-ever session of a fresh player (keystone 1, Sapper's Bag).
+
+### PD-121: A failed first run empties a new player's kit (High)
+
+**Reported:** 2026-10-03. Player: "I failed my first run (it's way too hard), but even worse I lost all my items and don't have my kit."
+**Severity:** High (the one-time kit is gone for good; `kit_granted` is already set, so nothing re-grants it).
+**Status:** Fixed 2026-10-03. The interval snapshot is now retaken at the first door commit, after the bag has been applied.
+**Repro:** first entry 06:14:16, bag chosen 06:16:09, first door committed 06:27:41, `run_failed` at 06:37:19 (omen 4). Before: flint and steel 64, blocks 3, food 8. After: tools, blocks and food all 0.
+**Cause:** `InventorySwap.snapshotOnEntry` took the first interval snapshot when the dungeon pack was first swapped in, which was before the bag was chosen, so the snapshot was an empty pack. Nothing refreshed it after `Bags.apply`, and `Instances.failRunOmen` restored that snapshot.
+**Fix:** `RunLifecycle.commitDoor` calls `InventorySwap.snapshotAtFirstCommit`, which overwrites the entry snapshot on the first door commit of the interval. `FloorIntervalGameTest.maxOmenDeathOnFirstIntervalRevertsInventory` covers the case.
+**Live check:** a fresh player's kit survives a max-omen fail on the first interval.
+
+### PD-122: Keystone 1 rolls tier 2 and 3 rooms (Medium)
+
+**Reported:** 2026-10-03. Player: "Definitely shouldn't be getting witherskeletons, blazes and other challenging rooms on the first floor", later "Breeze also very difficult for this level."
+**Severity:** Medium (a new player hit three rescues and omen 4 in about nine minutes on floor 1).
+**Status:** Fixed 2026-10-03. Room selection now enforces `room.tier <= lootTier(offerLevel)`.
+**Rooms seen at keystone 1 and 2:** `wither_loft` (tier 3), `blaze_loft`, `rising_lava`, `breeze_arena` (tier 2).
+**Fix:** `RoomSelector.preferred` filters out rooms whose `tier` exceeds the floor's loot tier (`KeystoneMath.lootTier(recipePlan.offerLevel)`). If that leaves no room for a cell, it falls back to the full list and logs a warning, so a catalogue gap is visible. `PlanSelectorTest.testTierGate` covers the filter and fallback. Recipe-guaranteed rooms are not capped.
+**Live check:** keystone 1 floors contain only tier-1 rooms.
+
+### PD-123: The collapsing_bridge ordeal never arms (Medium)
+
+**Reported:** 2026-10-03 (server log). `Ordeal collapsing_bridge at -16, 64, 128 found nothing to arm` at 06:46:30 and `... at 0, 64, 304 found nothing to arm` at 07:08:53.
+**Severity:** Medium (two of two occurrences; the ordeal does nothing).
+**Status:** Fixed 2026-10-03.
+**Cause:** the `collapsing_bridge` template was captured while the bridge was retracting, so every piston position was a `minecraft:moving_piston` block instead of a `sticky_piston`. `CollapsingBridgeOrdeal.arm` only scanned for `STICKY_PISTON`, found nothing, and logged "found nothing to arm".
+**Fix:** `CollapsingBridgeOrdeal.arm` now normalises `moving_piston` blocks back to sticky pistons before scanning, then re-extends each segment so the bridge is active. `HandlerGameTest.collapsingBridgeTemplateArmsAtEveryRotation` stamps the real template and asserts it arms at all four rotations.
+**Live check:** the collapsing bridge ordeal arms, planks drop and return, and the lever opens the way back.
+
+### PD-124: The explosive affix's TNT breaks room mechanisms (Medium)
+
+**Reported:** 2026-10-03. Player: "The tnt blew up and destroyed two surround pressure plates." His fix: TNT that flashes and bangs when stepped on but breaks no blocks.
+**Severity:** Medium (a puzzle room can lose parts; the floor stayed finishable this time).
+**Status:** Fixed 2026-10-03.
+**Fix:** the `explosive` affix now places fake TNT mines. A mine triggers when a player stands on the TNT block: it hisses for one second, then explodes with `Level.ExplosionInteraction.NONE`, which damages and knocks back entities but breaks no blocks. After a cooldown it re-arms. Flint and steel and fire charges are refused on affix TNT by `RitualListener` with a message. In addition, `ServerExplosionMixin` no longer allows any TNT source to break blocks inside dungeon cells: only `RubbleOrdeal.blast` reacts to explosions. Sapper TNT can still clear rubble but cannot destroy pressure plates, chests, doors or other mechanisms.
+**Live check:** affix TNT bangs but leaves plates, chests and doors intact; Sapper TNT clears rubble and nothing else.
+
+### PD-125: hold_the_plate with ranged skeletons pins the player (Low)
+
+**Reported:** 2026-10-03. Player: "I can't dodge the arrows if I'm stuck standing on the plate. I can't really hit the skeletons either since they are range", and "I can't dodge the arrows while loading up" (crossbow).
+**Status:** Fixed 2026-10-03.
+**Fix:** `HoldThePlateOrdeal.tickDanger` now pauses the hold count when the player steps off the plate, instead of resetting it. A paused overlay tells the player how long is left and to step back on. Already-raised waves do not fire again, and the spawn cap still prevents farming.
+**Live check:** the player can step off to dodge, then back on to resume the hold.
+
+### PD-126: A protected door gives no reason (Low, needs repro)
+
+**Reported:** 2026-10-03. Player: "There's a door in front of me and there's no way to open, I can't mine it... It doesn't say anything because I can normally mine iron doors with a pickaxe but there's room protection on this door from somewhere else."
+**Status:** Fixed 2026-10-03.
+**Fix:** `RoomProtection.onAttackBlock` now intercepts left-clicks on iron doors in dungeon cells and sends an action bar reason. If the cell has an armed lock, `Locks.hint` explains the condition ("Put any item in the chest to open it.", "Put <key> in the chest to open it.", or "Hold every pressure plate down at once."). If the cell has an armed Ordeal, the Ordeal's objective is shown ("Opens when you hold the plate for 30 seconds", etc.). Otherwise a generic redstone hint is shown.
+**Live check:** hitting a protected iron door explains why it will not break.
+
+### PD-127: The salvage bench's wording reads as a rule (Low)
+
+**Reported:** 2026-10-03. He read "Nothing to salvage yet" (shown whenever the input slots are empty) and "Stays: 1 (Leather Cap: ...)" (the item name starts the line) as a refusal and a cap. One leather piece did salvage (journal `salvage`, mob_gear 1). The refusal reason itself was never captured.
+**Status:** Fixed 2026-10-03.
+**Fix:** `SalvageStation.refresh` now shows "Put gear here to salvage" with "Click gear in your pack to move it in." when the input slots are empty. When items are present but nothing is salvageable, it shows "Nothing here can be salvaged". Refusal text now leads with the reason: "Kept, not salvaged: <reason> (<item name>)", and appends "and N more" when several items are refused.
+**Live check:** the bench's empty state and refusals read as explanations, not rules.
+
+### PD-128: Lemon agent tooling gaps seen on the remote server (Medium, harness)
+
+**Reported:** 2026-10-03 (agent notes).
+- PD-118 recurred: the ask "How do I pick a door?" at 06:20:03 never reached `wait_events` (`answered_by` none, `wait_s` 91) and was found only in `context` recent.
+- `lemon_mode llm` lapses after 300 s, so the agent must refresh about every 4 minutes or the asks fall to the scripted guide (seen 06:44).
+- `lemon_say` with no `player` returns "No player was found" in remote mode.
+- `session_notes` is read-only (it returns the newest playtest file), so an agent cannot save notes through it.
+**Fix idea:** have `wait` assert llm mode on its own, make `player` optional when exactly one is online, and add a `note` tool or say so plainly in the tool description.
+
+### PD-109 update
+
+A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, keystone 3) the player found no dispensers and "bedrock through one of the sides", which supports the shell overwrite cause above.

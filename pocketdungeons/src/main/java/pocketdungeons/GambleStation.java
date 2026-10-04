@@ -38,14 +38,10 @@ import java.util.Map;
  * reroll: a player who knows what they want rerolls it; a player who wants
  * more shots at <em>something</em> for a slot gambles.
  *
- * <p><b>Always claims its block, unlike {@link RerollStation}.</b> The reroll
- * station is a positive test on the held item, so a non-gear item at the same
- * block still gets vanilla's own screen; a gamble draw has nothing to check
- * about what is held, so the configured block is fully claimed the moment it
- * matches, the same way a selector door claims its click. The
- * default ({@code minecraft:waxed_oxidized_copper_chest}) is picked so an
- * operator is unlikely to already be using it for its vanilla purpose
- * somewhere the gamble would surprise them.
+ * <p><b>No block of its own (playtest 2026-10-02-1).</b> The gamble used to open from
+ * a waxed oxidized copper chest as well as from the blacksmith, a duplicate. The
+ * block now opens {@link RunStorage}; the blacksmith ({@link BlacksmithNPC}) is
+ * the only way in, through {@link #openGui}.
  *
  * <p><b>The draw is a direct {@link LootTable} roll, not a chest.</b> M13's
  * gear pool is authored as {@code gear/<slot>_<tier>} tables specifically so
@@ -69,10 +65,6 @@ import java.util.Map;
  */
 final class GambleStation {
 
-    private static final ConfiguredItem GAMBLE_BLOCK_ITEM = new ConfiguredItem("gambleBlock",
-            PocketDungeonsConfig::gambleBlock,
-            "the gamble station will never open for anybody.");
-
     /** The representative item shown for each slot in the trade list. */
     private static final Map<String, Item> SLOT_ICONS = Map.of(
             "helmet", Items.IRON_HELMET,
@@ -82,35 +74,6 @@ final class GambleStation {
             "weapon", Items.IRON_SWORD);
 
     private GambleStation() {}
-
-    /** Resolves the configured block once, so a typo is a boot-time log line. */
-    static void warmUp() {
-        GAMBLE_BLOCK_ITEM.get();
-    }
-
-    /** Whether {@code state} is the configured gamble station block. */
-    static boolean matchesStation(BlockState state) {
-        return StationSupport.matchesBlock(GAMBLE_BLOCK_ITEM, state);
-    }
-
-    /**
-     * Called from {@link RitualListener#onUseBlock} ahead of the lodestone
-     * branch. Returns whether this click was handled: {@code false} means
-     * "not our block", and the caller keeps falling through exactly as it
-     * already does for every other positive test.
-     */
-    static boolean onUse(ServerPlayer player, BlockState state) {
-        if (!matchesStation(state)) {
-            return false;
-        }
-        // The level gate lives in openGui itself now (PD-51): this used to
-        // duplicate the check here, which is exactly how PD-51 happened --
-        // BlacksmithNPC grew a second entry point to openGui and nobody
-        // copied the check onto it. One gate, checked once, cannot be
-        // forgotten by a future third caller.
-        openGui(player);
-        return true;
-    }
 
     /**
      * Opens the gamble trading screen for {@code player}, or refuses with the
@@ -173,6 +136,7 @@ final class GambleStation {
         }
 
         gui.open();
+        StationTutorial.used(player, StationTutorial.Step.GAMBLE);
         return true;
     }
 
@@ -230,10 +194,6 @@ final class GambleStation {
             merchantInventory.setItem(0, ItemStack.EMPTY);
         }
         Payout.deliver(player, drawn);
-        // PD-25: this used to fire from onUse, on opening the trade screen,
-        // before anything was spent. Moved to the point the emeralds are
-        // actually debited, matching the gamble task's label.
-        TaskTracker.progress(player, TaskTracker.Task.GAMBLE, 1);
 
         player.sendSystemMessage(Component.literal("Gambled into " + drawn.getHoverName().getString() + ".")
                 .withStyle(ChatFormatting.AQUA));

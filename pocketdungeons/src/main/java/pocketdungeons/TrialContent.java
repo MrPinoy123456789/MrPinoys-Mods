@@ -171,6 +171,9 @@ final class TrialContent {
         boolean silenced = affixes.contains(AffixIds.SILENCED);
         ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
         String spawnerPrefix = runTheme == null ? null : runTheme.meta().spawnerPrefix;
+        if (spawnerPrefix == null || spawnerPrefix.isBlank()) {
+            spawnerPrefix = genericPrefix(cellOrigin);
+        }
         // M68: a theme's namespaced normal_spawner / ominous_spawner override
         // the legacy spawner_prefix composition. A third party theme can now
         // point at its own namespace's trial spawner configs instead of
@@ -370,6 +373,10 @@ final class TrialContent {
      * run and carries only the spawners the current stamping pass placed,
      * so stale positions from previous runs cannot leak in.
      *
+     * <p>2026-10-02: a spawner under an unbroken rubble floor seal
+     * ({@link RubbleOrdeal#hidesSpawner}) is left out until the seal breaks,
+     * since nobody can reach it before then.
+     *
      * <p>The live block-entity check drops any position whose spawner was
      * broken or never placed (a stamping failure that returned null but
      * was still added to the set, or a player who broke the spawner
@@ -378,7 +385,10 @@ final class TrialContent {
     static Set<BlockPos> activeSpawners(InstanceLayout layout, ServerLevel level) {
         Set<BlockPos> out = new LinkedHashSet<>();
         for (BlockPos pos : layout.trialSpawners()) {
-            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity) {
+            // A spawner under an unbroken rubble floor seal is out of reach
+            // until a blast opens it, so it does not hold the floor shut.
+            if (level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity
+                    && !RubbleOrdeal.hidesSpawner(level, pos)) {
                 out.add(pos);
             }
         }
@@ -424,6 +434,27 @@ final class TrialContent {
             }
         }
         return false;
+    }
+
+    /** The narrow generic spawner families (PD-107): two related mob types each, at most. */
+    static final String[] GENERIC_FAMILIES = {"undead", "bones", "spiders"};
+
+    /**
+     * The spawner prefix for a themeless room (PD-107, playtest 2026-10-02-1: one
+     * spawner mixed zombies, breezes, spiders and skeletons). Picks one narrow
+     * family from the cell, so a room reads as one idea and the same cell always
+     * rolls the same family. A configured share keeps the broad pool, the
+     * explicit chaotic spawner ({@code null} prefix).
+     */
+    static String genericPrefix(BlockPos cellOrigin) {
+        long h = cellOrigin.asLong() * 0x9E3779B97F4A7C15L;
+        h ^= h >>> 29;
+        double roll = ((h >>> 11) & 0xFFFFFFFFL) / (double) 0x100000000L;
+        if (roll < PocketDungeonsConfig.chaoticSpawnerChance()) {
+            return null;
+        }
+        int pick = (int) Math.floorMod(h >>> 3, (long) GENERIC_FAMILIES.length);
+        return GENERIC_FAMILIES[pick];
     }
 
     static String configId(String prefix, int tier, boolean ominous) {
@@ -951,7 +982,12 @@ final class TrialContent {
                 Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, path));
     }
 
-    /** A cell is exactly one chunk, so this is a map lookup, not a 1,792-block scan. */
+    /**
+     * A cell is exactly one chunk, so this is a map lookup, not a 1,792-block scan.
+     * The range reaches down through a two story room's lower story: PD-98's
+     * {@code blaze_cellar} authors its spawner at y -8, and a range that
+     * started at the cell floor never saw it.
+     */
     private static Iterable<Map.Entry<BlockPos, BlockEntity>> cellBlockEntities(
             ServerLevel level, BlockPos cellOrigin) {
         LevelChunk chunk = level.getChunkAt(cellOrigin);
@@ -962,7 +998,8 @@ final class TrialContent {
             int dy = pos.getY() - cellOrigin.getY();
             int dz = pos.getZ() - cellOrigin.getZ();
             if (dx >= 0 && dx < RoomGeometry.CELL && dz >= 0 && dz < RoomGeometry.CELL
-                    && dy >= 0 && dy <= RoomGeometry.CEILING_Y) {
+                    && dy >= -RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y)
+                    && dy <= RoomGeometry.CEILING_Y) {
                 out.add(entry);
             }
         }

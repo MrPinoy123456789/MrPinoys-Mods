@@ -1,1 +1,1 @@
-{"version": 1, "label": "Voided", "blurb": "Voided: the floor falls away, and the void stares back.", "order": 7, "min_level": 45, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"voided_floor": true}}
+{"version": 1, "label": "Voided", "short_name": "Vd'd", "blurb": "Voided: the floor falls away, and the void stares back.", "order": 7, "min_level": 45, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"voided_floor": true}}

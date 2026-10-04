@@ -113,7 +113,7 @@ const tools = {
 
 if (admin) {
   Object.assign(tools, {
-    server_start: { description: 'Build the mod and start the test server (a minute or two).', inputSchema: obj({}), run: async () => (await pd(['start'], 400000)).out },
+    server_start: { description: 'Start the test server (a minute or two; the local one builds the mod from source first).', inputSchema: obj({}), run: async () => (await pd(['start'], 400000)).out },
     server_stop: { description: 'Save and stop the test server. Only if the player asks.', inputSchema: obj({}), run: async () => (await pd(['stop'], 200000)).out },
     room_bias_hold: {
       description: 'PD-90: the moment the player agrees to a bias, hold their doors (no preview, no commit, a countdown on the door screen) while you set it up. Setting or clearing the bias releases the hold and tells the player it is done; if you get stuck the hold runs out by itself (default 90 s, at most 180) and says so. seconds 0 releases it.',
@@ -153,7 +153,7 @@ async function handle(msg) {
         protocolVersion: params.protocolVersion || '2025-06-18',
         capabilities: { tools: {} },
         serverInfo: { name: 'pocketdungeons-lemon', version: '0.1.0' },
-        instructions: 'Drives Lemon on the local Pocket Dungeons test server. Call knowledge_pack once, then sync, then loop on wait_events. Rules: LEMON_AGENT.md.',
+        instructions: 'Drives Lemon on the Pocket Dungeons test server (local, or the Kinetic one when kinetic.env is set). Call knowledge_pack once, then sync, then loop on wait_events. Rules: LEMON_AGENT.md.',
       })
     case 'ping': return ok({})
     case 'tools/list':

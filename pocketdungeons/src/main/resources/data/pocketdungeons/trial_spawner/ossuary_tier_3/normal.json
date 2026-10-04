@@ -12,7 +12,7 @@
           "id": "minecraft:skeleton"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_ranged",
+          "loot_table": "pocketdungeons:equipment/tier_3_ranged",
           "slot_drop_chances": 0.0
         }
       },
@@ -24,7 +24,7 @@
           "id": "minecraft:stray"
         },
         "equipment": {
-          "loot_table": "minecraft:equipment/trial_chamber_ranged",
+          "loot_table": "pocketdungeons:equipment/tier_3_ranged",
           "slot_drop_chances": 0.0
         }
       },

@@ -114,15 +114,15 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.levels(1), "+1 level");
         checkEquals(IntervalBanking.levels(2), "+2 levels");
         checkEquals(IntervalBanking.chests(1), "1 chest");
-        // Plain words (playtest 2026-09-27, A2 and A5): what going home pays.
+        // Plain words (playtest 2026-09-27, A2 and A5; 2026-10-02-1: no chest payout for going home).
         checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false, true),
-                "GOING HOME PAYS\n3 reward chests\n+1 key level\nKit refilled");
+                "GO HOME AFTER 3 FLOORS\n+1 key level\nKit refilled");
         checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true, false),
-                "TIME TO GO HOME\n3 reward chests\n+3 key levels\nNo kit refill");
+                "TIME TO GO HOME\n+3 key levels\nNo kit refill");
         checkEquals(IntervalBanking.homeScreen(settle(List.of(1), 0, 0, 0), L, false, true),
-                "GOING HOME PAYS\n3 reward chests\nKey 1/3 to a level\nKit refilled");
+                "GO HOME AFTER 3 FLOORS\nKey 1/3 to a level\nKit refilled");
         checkEquals(IntervalBanking.bankedLine(settle(List.of(3, 3, 3), 0, 0, 0), L, false),
-                "Home. You keep: 3 reward chests, +3 key levels (0 of 3 steps toward the next). The omen was calm.");
+                "Home. You keep: +3 key levels (0 of 3 steps toward the next). The omen was calm.");
         String left = IntervalBanking.bankedLine(settle(List.of(3), 0, 0, IntervalBanking.LEAVE_PENALTY), L, true);
         check(left.startsWith("You leave at the checkpoint, so the omen counts one band worse."), left);
         for (String line : List.of(left, IntervalBanking.doorLine(1, 0))) {

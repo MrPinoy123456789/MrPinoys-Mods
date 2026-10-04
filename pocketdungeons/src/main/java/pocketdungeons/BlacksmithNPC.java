@@ -63,8 +63,16 @@ final class BlacksmithNPC {
     private static final int SWEEP_INTERVAL_TICKS = 100;
     /** Maximum distance the blacksmith may wander from its smithing table. */
     private static final double MAX_WANDER_SQ = 8.0 * 8.0;
-    /** How far to scan around the room for the smithing table and existing NPC. */
+    /** How far to scan vertically around the room for an existing NPC. */
     private static final double SCAN_RADIUS = 12.0;
+    /**
+     * PD-103: how far to scan horizontally from the room's centre. A cell is
+     * 16 wide and the staging room (or any neighbouring cell) sits through the
+     * door, so one and a half cells reaches the far wall of the neighbour. The
+     * old 12 block box ended four blocks past the doorway: a blacksmith that
+     * wandered out was never found again, and the sweep spawned a second one.
+     */
+    private static final double SCAN_REACH = RoomGeometry.CELL * 1.5;
 
     private BlacksmithNPC() {}
 
@@ -90,13 +98,10 @@ final class BlacksmithNPC {
             villager.lookAt(EntityAnchorArgument.Anchor.EYES, player.getEyePosition());
             villager.setYHeadRot(villager.getYRot());
             villager.setYBodyRot(villager.getYRot());
-            // PD-51: openGui now carries its own gambleUnlockLevel gate and
-            // reports whether it actually opened, so an under-level player
-            // gets the refusal message and no progress credit instead of a
-            // Tier 1 trade screen the block itself would have refused them.
-            if (GambleStation.openGui(serverPlayer)) {
-                TaskTracker.progress(serverPlayer, TaskTracker.Task.GAMBLE, 1);
-            }
+            // PD-51: openGui carries its own gambleUnlockLevel gate, so an
+            // under-level player gets the refusal message instead of a Tier 1
+            // trade screen the block itself would have refused them.
+            GambleStation.openGui(serverPlayer);
             return InteractionResult.SUCCESS;
         });
 
@@ -185,12 +190,13 @@ final class BlacksmithNPC {
     /**
      * Finds all tagged blacksmith villagers near the room. Used by the sweep
      * to detect and clean up duplicates that can appear when a blacksmith
-     * wanders out of the scan radius and a new one spawns.
+     * wanders out of the scan box and a new one spawns; the box covers the
+     * neighbouring cells so the staging room is inside it.
      */
-    private static List<Villager> findAllBlacksmiths(ServerLevel level, BlockPos roomOrigin) {
+    static List<Villager> findAllBlacksmiths(ServerLevel level, BlockPos roomOrigin) {
         BlockPos centre = roomOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         AABB box = AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(centre),
-                SCAN_RADIUS * 2, SCAN_RADIUS * 2, SCAN_RADIUS * 2);
+                SCAN_REACH * 2, SCAN_RADIUS * 2, SCAN_REACH * 2);
         return level.getEntitiesOfClass(Villager.class, box,
                 v -> v.entityTags().contains(BLACKSMITH_TAG));
     }

@@ -63,9 +63,19 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_BASS, 0.2f, 0.7f);
     }
 
+    /** A block placed in the safe room, which keeps it: a bright chime, the opposite of {@link #wrongTool}. */
+    public static void placementKept(ServerPlayer player) {
+        play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.3f, 1.4f);
+    }
+
     /** A run started from the lever or the lodestone menu. */
     public static void runStarts(ServerPlayer player) {
         play(player, Holder.direct(SoundEvents.RESPAWN_ANCHOR_CHARGE), 0.5f, 1.0f);
+    }
+
+    /** One line of the floor-start title landing: a low thud, a little higher for each line. */
+    public static void thud(ServerPlayer player, int line) {
+        play(player, Holder.direct(SoundEvents.ANVIL_LAND), 0.3f, Math.min(1.0f, 0.5f + 0.1f * line));
     }
 
     /** A run completed on the terminal pad. Rising two-note jingle. */
@@ -85,11 +95,12 @@ public final class Chime {
      */
     public static void omenRises(ServerPlayer player, Omen.Source source) {
         switch (source) {
-            case DWELL -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.3f, 0.5f);
-            case SENSOR -> play(player, Holder.direct(SoundEvents.SCULK_CLICKING), 0.4f, 0.8f);
+            case DWELL -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.5f);
+            case SENSOR -> play(player, Holder.direct(SoundEvents.WARDEN_NEARBY_CLOSER), 0.7f, 1.0f);
             case SHRIEK -> play(player, Holder.direct(SoundEvents.WARDEN_HEARTBEAT), 0.6f, 1.0f);
             case BARGAIN -> play(player, SoundEvents.OMINOUS_BOTTLE_DISPOSE, 0.5f, 0.8f);
             case DEPTH -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.35f);
+            case SILENCE -> play(player, Holder.direct(SoundEvents.WARDEN_AMBIENT), 0.5f, 1.2f);
         }
     }
 
@@ -107,11 +118,6 @@ public final class Chime {
     /** The last trial spawner in a cell was cleared (M10). */
     public static void spawnerCleared(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_HAT, 0.12f, 1.5f);
-    }
-
-    /** A fuel item went into the engine terminal and onto the player's balance. */
-    public static void engineFed(ServerPlayer player) {
-        play(player, Holder.direct(SoundEvents.RESPAWN_ANCHOR_CHARGE), 0.4f, 1.2f);
     }
 
     /** The lodestone navigation menu opened (M21). */

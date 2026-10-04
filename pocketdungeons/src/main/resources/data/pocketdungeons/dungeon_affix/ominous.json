@@ -1,1 +1,1 @@
-{"version": 1, "label": "Cooked", "blurb": "Cooked: the whole run runs ominous, and pays out ominous.", "order": 0, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"ominous": true}}
+{"version": 1, "label": "Cooked", "short_name": "Ck'd", "blurb": "Cooked: the whole run runs ominous, and pays out ominous.", "order": 0, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"ominous": true}}

@@ -213,6 +213,107 @@ public final class LemonGameTest {
         helper.succeed();
     }
 
+    /**
+     * The keystone summons Lemon (main hand only), a second use moves the same
+     * Lemon rather than adding one, Lemon holds a journal, and reaching for it
+     * opens the menu without handing the book over.
+     */
+    @GameTest(maxTicks = 20)
+    public void keystoneSummonsLemonWithAJournal(GameTestHelper helper) {
+        ServerPlayer player = standingPlayer(helper, helper.absolutePos(new BlockPos(1, 2, 1)));
+        ServerLevel level = helper.getLevel();
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE_SWORD));
+            player.setItemInHand(InteractionHand.OFF_HAND, Keystone.mint(5));
+            player.gameMode.useItem(player, level, player.getOffhandItem(), InteractionHand.OFF_HAND);
+            if (!bodiesNear(level, player).isEmpty()) {
+                helper.fail("a keystone in the off hand must not summon Lemon");
+                return;
+            }
+
+            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
+            player.setItemInHand(InteractionHand.MAIN_HAND, Keystone.mint(5));
+            if (!player.gameMode.useItem(player, level, player.getMainHandItem(), InteractionHand.MAIN_HAND)
+                    .consumesAction()) {
+                helper.fail("using the keystone should be claimed by the summon");
+                return;
+            }
+            LemonBody body = single(helper, player);
+            if (body == null) {
+                return;
+            }
+            if (!body.getMainHandItem().is(Items.WRITABLE_BOOK)) {
+                helper.fail("Lemon should hold a journal, held " + body.getMainHandItem());
+                return;
+            }
+            player.gameMode.useItem(player, level, player.getMainHandItem(), InteractionHand.MAIN_HAND);
+            if (bodiesNear(level, player).size() != 1 || body.isRemoved()) {
+                helper.fail("a second summon must move the same Lemon, not add one");
+                return;
+            }
+
+            int before = player.getInventory().countItem(Items.WRITABLE_BOOK);
+            if (!body.interact(player, InteractionHand.MAIN_HAND, Vec3.ZERO).consumesAction()) {
+                helper.fail("reaching for the journal should be claimed (it opens the menu)");
+                return;
+            }
+            if (body.interact(player, InteractionHand.OFF_HAND, Vec3.ZERO).consumesAction()) {
+                helper.fail("the off hand click must not open a second menu");
+                return;
+            }
+            if (player.getInventory().countItem(Items.WRITABLE_BOOK) != before
+                    || !body.getMainHandItem().is(Items.WRITABLE_BOOK)) {
+                helper.fail("Lemon must keep the journal");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            Lemon.forget(level.getServer(), player.getUUID());
+        }
+    }
+
+    /**
+     * PD-105: Lemon holds a journal and never hands it over. An empty hand, a
+     * held item, either hand, and a click at the body all leave the book on
+     * Lemon and the player's inventory as it was.
+     */
+    @GameTest(maxTicks = 20)
+    public void lemonKeepsHerJournalWhateverTheClick(GameTestHelper helper) {
+        ServerPlayer player = standingPlayer(helper, helper.absolutePos(new BlockPos(1, 2, 1)));
+        try {
+            Lemon.say(player, "Hello there. This is a test line.");
+            LemonBody body = single(helper, player);
+            if (body == null) {
+                return;
+            }
+            helper.assertTrue(body.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND)
+                    .is(net.minecraft.world.item.Items.WRITABLE_BOOK), "Lemon starts holding the journal");
+            for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
+                for (boolean holding : new boolean[]{false, true}) {
+                    player.getInventory().clearContent();
+                    if (holding) {
+                        player.setItemInHand(hand, new net.minecraft.world.item.ItemStack(
+                                net.minecraft.world.item.Items.DIAMOND));
+                    }
+                    player.interactOn(body, hand, net.minecraft.world.phys.Vec3.ZERO);
+                    helper.assertTrue(body.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND)
+                            .is(net.minecraft.world.item.Items.WRITABLE_BOOK),
+                            "Lemon still holds the journal after " + hand + " holding=" + holding);
+                    helper.assertTrue(!player.getInventory().hasAnyMatching(
+                            s -> s.is(net.minecraft.world.item.Items.WRITABLE_BOOK)),
+                            "the player did not receive the journal after " + hand + " holding=" + holding);
+                    if (holding) {
+                        helper.assertTrue(player.getItemInHand(hand).is(net.minecraft.world.item.Items.DIAMOND),
+                                "the held item was not given to Lemon");
+                    }
+                }
+            }
+            helper.succeed();
+        } finally {
+            Lemon.forget(helper.getLevel().getServer(), player.getUUID());
+        }
+    }
+
     private static LemonBody single(GameTestHelper helper, ServerPlayer player) {
         List<LemonBody> bodies = bodiesNear(helper.getLevel(), player);
         if (bodies.size() != 1) {
@@ -234,5 +335,27 @@ public final class LemonGameTest {
         player.teleportTo(helper.getLevel(), where.getX() + 0.5, where.getY(), where.getZ() + 0.5,
                 Set.of(), 0.0F, 0.0F, false);
         return player;
+    }
+
+    /**
+     * PD-79: a {@code think} holds the guide's fallback until it runs out,
+     * past the usual 45 seconds. It used to be set and never read.
+     */
+    @GameTest(maxTicks = 20)
+    public void thinkHoldsTheFallback(GameTestHelper helper) {
+        long asked = 1000;
+        long fallback = 20L * PocketDungeonsConfig.lemonFallbackSeconds();
+        long thinkUntil = asked + 20L * PocketDungeonsConfig.lemonThinkSeconds();
+        helper.assertTrue(Lemon.fallbackDue(false, asked, 0, asked),
+                "out of llm mode the guide answers at once");
+        helper.assertTrue(!Lemon.fallbackDue(true, asked, 0, asked + fallback - 1),
+                "in llm mode the agent gets the fallback window");
+        helper.assertTrue(Lemon.fallbackDue(true, asked, 0, asked + fallback),
+                "with no think the fallback answers at the window");
+        helper.assertTrue(!Lemon.fallbackDue(true, asked, thinkUntil, asked + fallback),
+                "a think holds the question past the window");
+        helper.assertTrue(Lemon.fallbackDue(true, asked, thinkUntil, thinkUntil),
+                "and lets it go when the think runs out");
+        helper.succeed();
     }
 }

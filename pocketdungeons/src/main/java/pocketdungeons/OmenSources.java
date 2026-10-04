@@ -254,6 +254,29 @@ final class OmenSources {
      * coming from {@code source}; relief ({@code source} null) is unscaled
      * and silent, and so is a rise the per-floor clamp swallowed.
      */
+    /** Consumables used so far by each Silenced player; {@code silencedConsumablesPerOmen} of them raise the omen once. */
+    private static final Map<UUID, Integer> SILENCED_USES = new HashMap<>();
+
+    /**
+     * A Silenced member used a consumable (playtest 2026-10-02-1: Silence no
+     * longer blocks consumables; using one costs omen). Every
+     * {@code silencedConsumablesPerOmen}-th use raises the omen by one.
+     */
+    static void silencedUse(MinecraftServer server, InstanceRecord record, UUID player) {
+        int per = PocketDungeonsConfig.silencedConsumablesPerOmen();
+        int uses = SILENCED_USES.merge(player, 1, Integer::sum);
+        if (uses >= per) {
+            SILENCED_USES.put(player, 0);
+            add(server, record, 1, Omen.Source.SILENCE, null);
+        }
+    }
+
+    /** Takes the given omen off the floor, silently (the fountain cleanse). */
+    static void relieve(MinecraftServer server, InstanceRecord record, int amount) {
+        add(server, record, -Math.abs(amount), null, null);
+        OmenBar.sync(server, record);
+    }
+
     private static void add(MinecraftServer server, InstanceRecord record, int contribution,
                             Omen.Source source, BlockPos at) {
         if (source != null) {

@@ -478,7 +478,8 @@ final class RunLifecycle {
                 return false;
             }
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
-            if (Fuel.banked(player) < cost) {
+            Fuel.refundBanked(player);
+            if (Fuel.carried(player) < cost) {
                 return false;
             }
         }
@@ -582,10 +583,12 @@ final class RunLifecycle {
                 return false;
             }
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
-            if (Fuel.banked(player) < cost) {
+            Fuel.refundBanked(player);
+            int carried = Fuel.carried(player);
+            if (carried < cost) {
                 player.sendSystemMessage(Component.literal(
-                        "Door " + step + " costs " + cost + " fuel; the engine holds "
-                                + Fuel.banked(player) + ". Feed it echo shards first.")
+                        "Not enough echo shards: door " + step + " needs " + cost + ", you carry "
+                                + carried + ".")
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
@@ -663,10 +666,17 @@ final class RunLifecycle {
             CubeRecipe.clearCatalystEscrow(keystone);
         }
 
-        // The spend happens only once the commit has actually succeeded.
+        // The spend happens only once the commit has actually succeeded,
+        // straight from the pack; the gate above checked it was there.
         if (!offer.free()) {
-            Fuel.spendBanked(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
+            Fuel.take(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
         }
+
+        // PD-121: retake the interval snapshot at the first door commit, after
+        // the bag kit has been applied and the door cost paid, so a max-omen
+        // fail reverts to what the player actually carried into the first floor.
+        InventorySwap.snapshotAtFirstCommit(server, record);
+
         PlaytestJournal.doorCommit(server, record, step,
                 offer.free() ? 0 : PocketDungeonsConfig.fuelCostPerGreaterDoor());
 
@@ -678,10 +688,6 @@ final class RunLifecycle {
                 .withStyle(Keystone.colourOf(
                         AffixMath.ordered(granted, AffixManifest.current().definitions())
                                 .stream().map(d -> d.id).findFirst().orElse(null))));
-        TaskTracker.progress(player, TaskTracker.Task.DESCEND, 1);
-        if (step >= 2) {
-            TaskTracker.progress(player, TaskTracker.Task.GREATER_DOOR, 1);
-        }
         return true;
     }
 
@@ -1050,9 +1056,10 @@ final class RunLifecycle {
             int cleared = TrialContent.countCleared(player.level(), spawners);
             if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
                     PocketDungeonsConfig.spawnerClearThreshold())) {
+                int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
+                        PocketDungeonsConfig.spawnerClearThreshold());
                 player.sendSystemMessage(Component.literal(
-                        "Not yet: " + cleared + "/" + spawners.size()
-                                + " trial spawners cleared. Go finish the rest.")
+                        "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
                         .withStyle(ChatFormatting.YELLOW));
                 return;
             }
@@ -1072,7 +1079,11 @@ final class RunLifecycle {
         if (!record.floor.completed.add(player.getUUID())) {
             return;
         }
-        TaskTracker.progress(player, TaskTracker.Task.COMPLETE_RUN, 1);
+
+        // The floor history entry, before advanceFloor counts the floor and
+        // stamps the next staging room (whose board then already shows it).
+        FloorHistory.cleared(player, record,
+                firstCompletion ? record.interval.floorIndex + 1 : record.interval.floorIndex);
 
         if (firstCompletion) {
             // M65: advanceFloor replaces completeDungeon. It does the
@@ -1119,8 +1130,8 @@ final class RunLifecycle {
             // storage, so the choice is spelled out as what each lever pays.
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. A good time to go home: GO HOME keeps the"
-                            + " reward chests and key progress and refills your kit"
+                            + " The chests wait beyond the door. A good time to go home: GO HOME banks your"
+                            + " key progress and refills your kit"
                             + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
                                     ? ". DESCEND pays bonus chests, but every floor deeper starts with the"
                                             + " omen already risen."
@@ -1129,8 +1140,8 @@ final class RunLifecycle {
         } else {
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. GO HOME keeps the reward chests and key"
-                            + " progress and refills your kit; DESCEND for bonus chests and better loot.")
+                            + " The chests wait beyond the door. GO HOME banks your key progress and"
+                            + " refills your kit; DESCEND for bonus chests and better loot.")
                     .withStyle(ChatFormatting.AQUA));
         }
         // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
@@ -1154,6 +1165,9 @@ final class RunLifecycle {
         Set<BlockPos> floorSpawners = TrialContent.activeSpawners(record.layout, player.level());
         PlaytestJournal.floorComplete(player, record,
                 TrialContent.countCleared(player.level(), floorSpawners), floorSpawners.size());
+        // A party member who completes after the first: their entry lands in
+        // their own history; the board shows the owner's, so repaint it.
+        FloorHistory.refresh(server, record);
         Chime.runComplete(player);
     }
 
@@ -1196,6 +1210,14 @@ final class RunLifecycle {
         // deeper floors. The band still colours the bar and the kit refill.
         ZoneRules rules = ZoneRules.of(record);
         int band = bankFloorOmen(record);
+        // Playtest 2026-10-02-1: a chance, per member, of an echo shard on any floor.
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer shardPlayer = server.getPlayerList().getPlayer(member);
+            if (shardPlayer != null && Fuel.rollChance(shardPlayer.getRandom(),
+                    PocketDungeonsConfig.echoShardFloorChance())) {
+                Fuel.grantFrom(shardPlayer, 1, "floor");
+            }
+        }
         int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
@@ -1229,9 +1251,8 @@ final class RunLifecycle {
         Instances.hideLockedDoors(level, newStagingOrigin, farWall, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonEngine(level, newStagingOrigin, farWall, DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, newStagingOrigin, farWall,
-                DungeonScreen.trackerContent(level.getServer(), record.owner));
+        DungeonScreen.summonHistory(level, newStagingOrigin, farWall,
+                FloorHistory.board(level.getServer(), record.owner));
 
         // The way home, beside the doors: the HOME lever and the screen that
         // says what it would bank, lit once the interval has run its usual
@@ -1296,27 +1317,6 @@ final class RunLifecycle {
     }
 
     /**
-     * Adds the floor in hand's trial spawners, cleared and in all, to the
-     * interval's bounty tally, once per cleared floor: when the next door is
-     * committed and the floor is left behind, or when the interval settles
-     * on it. Clear the Halls and Tidy read the tally, so every floor of the
-     * interval counts.
-     */
-    static void tallyFloorSpawners(MinecraftServer server, InstanceRecord record) {
-        if (record.floor.spawnersTallied || record.floor.completed.isEmpty()) {
-            return;
-        }
-        record.floor.spawnersTallied = true;
-        Set<BlockPos> spawners = record.layout.trialSpawners();
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (spawners.isEmpty() || level == null) {
-            return;
-        }
-        record.interval.spawnersTotal += spawners.size();
-        record.interval.spawnersCleared += TrialContent.countCleared(level, spawners);
-    }
-
-    /**
      * What {@code member} would bank if the interval settled right now with
      * {@code penalty} bands of penalty: the go-home screen's numbers, and the
      * same arithmetic {@link #settleInterval} applies.
@@ -1346,8 +1346,7 @@ final class RunLifecycle {
      */
     private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled,
                                       int floorsPerSafeVisit) {
-        showBigTitle(player, "HOME", IntervalBanking.chests(settled.chests()).replace("chest", "reward chest")
-                + ", " + IntervalBanking.keyLine(settled, floorsPerSafeVisit));
+        showBigTitle(player, "HOME", IntervalBanking.keyLine(settled, floorsPerSafeVisit));
     }
 
     /** The big on-screen title shared by the floor clear and the way home. */
@@ -1382,15 +1381,6 @@ final class RunLifecycle {
      * {@link IntervalBanking}'s average-of-doors rule from their own key and
      * their own carried progress, free-door fuel, the payout command, the
      * kit top-up ({@link KitTopUp}), prestige, the diary and the run record.
-     *
-     * <p>Bounty hooks fire once per settlement, for the owner, and only when
-     * the owner is here to bank: a party finishing out an absent owner's
-     * grace does not progress their weeklies. Speedrunner (a calm finish)
-     * and Explorer ask for an interval of the usual length, which is what
-     * they always meant before the party could bank after any floor; Deep
-     * Diver asks for twice that, now reachable by staying in. Clear the Halls
-     * and Tidy count every floor of the interval
-     * ({@link #tallyFloorSpawners}).
      */
     static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty) {
         settleInterval(server, record, penalty, penalty > 0 ? "checkpoint_exit" : "home_lever");
@@ -1405,46 +1395,12 @@ final class RunLifecycle {
         if (!record.isKeystoneRun()) {
             return;
         }
-        tallyFloorSpawners(server, record);
         IntervalState interval = record.interval;
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         int floors = interval.floorSteps.size();
         int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
                 interval.bankedOmenSum(), 0, floorsPerVisit, penalty, bonusChests);
-
-        // M34: weekly bounty hooks. Fire once per settlement, not per member.
-        if (record.members.containsKey(record.owner)) {
-            boolean fullInterval = floors >= floorsPerVisit;
-            if (interval.spawnersTotal > 0) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.CLEAR_HALLS.id, interval.spawnersCleared);
-            }
-            // M65: SPEEDRUNNER is "low-omen completion" (band 0).
-            if (fullInterval && shared.band() == 0) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.SPEEDRUNNER.id, 1);
-            }
-            if (interval.floorSteps.stream().anyMatch(step -> step >= 2)) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.SPELUNKER.id, 1);
-            }
-            // M75: exploration bounties, all solo-achievable. Tidy counts a
-            // full spawner clear (all spawners, not just the threshold
-            // fraction) across the interval.
-            if (fullInterval) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.EXPLORER.id, 1);
-            }
-            if (interval.spawnersTotal > 0 && interval.spawnersCleared >= interval.spawnersTotal) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.TIDY.id, 1);
-            }
-            if (floors >= floorsPerVisit * 2) {
-                BountyTracker.progress(server, record.owner,
-                        BountyTracker.Bounty.DEEP_DIVER.id, 1);
-            }
-        }
 
         // Per-member settlement: keystone levels and carried progress,
         // free-door fuel, payout, prestige, diary.
@@ -1482,8 +1438,16 @@ final class RunLifecycle {
 
             // M12: door 1's second job, when the interval's last floor was the
             // free door. Guaranteed, regardless of omen band.
-            if (record.floor.freeDoor) {
-                Fuel.grant(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun());
+            // Playtest 2026-10-02-1: a full interval pays one shard whichever
+            // door it ended on; a partial one keeps the old free door payout.
+            if (floors >= floorsPerVisit) {
+                Fuel.grantFrom(memberPlayer, PocketDungeonsConfig.echoShardsPerInterval(), "interval");
+                // Lemon's archive: all diaries handed over earns one more.
+                if (LemonArchive.complete(server, member)) {
+                    Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
+                }
+            } else if (record.floor.freeDoor) {
+                Fuel.grantFrom(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun(), "free_door");
             }
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
@@ -1680,6 +1644,7 @@ final class RunLifecycle {
         RunSession.transition(record, RunSession.Phase.HOME);
         Instances.announce(server, record, "Home is through the open door: your own room. Build and decorate"
                 + " it freely; everything you place is kept, and chests there are safe storage.", null);
+        StationTutorial.nagMembers(server, record);
         return true;
     }
 
@@ -1778,10 +1743,8 @@ final class RunLifecycle {
         Instances.hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
-                DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
-                DungeonScreen.trackerContent(level.getServer(), record.owner));
+        DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
+                FloorHistory.board(level.getServer(), record.owner));
 
         // Re-arm the bag chest at the safe room.
         Instances.clearBagChest(level, safeOrigin);
@@ -1823,6 +1786,7 @@ final class RunLifecycle {
         player.sendSystemMessage(Component.literal(
                 "You return to the safe room. The dungeon closes behind you.")
                 .withStyle(ChatFormatting.GREEN));
+        StationTutorial.nagMembers(server, record);
         // M67: no sound for room movement (VISION.md §4, milestone constraint).
         return true;
     }
@@ -2046,6 +2010,7 @@ final class RunLifecycle {
         }
         // Apply the keystone penalty, then reset the dungeon to its lobby
         // state. The player stays in the safe room and picks a new door.
+        FloorHistory.quit(player, record);
         applyQuitPenalty(server, record, player);
         PlaytestJournal.quitFloor(player, PocketDungeonsConfig.timedOutDepletion());
         Instances.resetToLobby(server, record, true);

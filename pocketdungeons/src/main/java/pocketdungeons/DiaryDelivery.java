@@ -72,15 +72,21 @@ final class DiaryDelivery {
     }
 
     private static ItemStack book(Diaries.Entry diary) {
+        return book(diary, true);
+    }
+
+    /** The book for {@code diary}: pages shuffled for a found copy, canonical for reading through Lemon. */
+    static ItemStack book(Diaries.Entry diary, boolean shuffled) {
         ItemStack stack = new ItemStack(Items.WRITTEN_BOOK);
         List<Filterable<Component>> pages = new ArrayList<>();
-        for (String page : shuffledPages(diary)) {
+        for (String page : shuffled ? shuffledPages(diary) : diary.pages()) {
             pages.add(Filterable.passThrough(Component.literal(page)));
         }
         WrittenBookContent content = new WrittenBookContent(
                 Filterable.passThrough("Entry " + diary.number() + ": " + diary.title()),
                 "Alex", 0, pages, true);
         stack.set(DataComponents.WRITTEN_BOOK_CONTENT, content);
+        LemonArchive.tag(stack, diary.band());
         return stack;
     }
 

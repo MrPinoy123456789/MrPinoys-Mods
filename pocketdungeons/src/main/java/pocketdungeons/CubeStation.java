@@ -105,6 +105,10 @@ final class CubeStation {
         if (!matchesStation(state)) {
             return false;
         }
+        if (DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel()
+                >= PocketDungeonsConfig.cubeUnlockLevel()) {
+            StationTutorial.used(player, StationTutorial.Step.CUBE);
+        }
         // M59: check for a Cube recipe first. A recipe is a keystone in the
         // main hand plus a specific second item in the off-hand. The recipe
         // writes a tag into the keystone's custom data that the door reads
@@ -165,7 +169,6 @@ final class CubeStation {
         held.shrink(1);
         player.sendSystemMessage(Component.literal("Extracted. That power is yours to imbue, permanently.")
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
-        TaskTracker.progress(player, TaskTracker.Task.EXTRACT_POWER, 1);
     }
 
     static void showPicker(ServerPlayer player, ItemStack held, String notice) {

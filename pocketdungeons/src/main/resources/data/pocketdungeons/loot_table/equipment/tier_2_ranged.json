@@ -57,7 +57,7 @@
                 "min": 5,
                 "max": 10
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_damage",

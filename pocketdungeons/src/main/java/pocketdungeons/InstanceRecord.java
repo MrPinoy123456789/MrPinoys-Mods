@@ -53,6 +53,9 @@ final class InstanceRecord {
     /** Member -> where that member came from. Insertion-ordered: opener first. */
     final Map<UUID, ReturnPoint> members = new LinkedHashMap<>();
 
+    /** Each member's run storage (see {@link RunStorage}); in memory, returned when the run closes. */
+    final Map<UUID, net.minecraft.world.SimpleContainer> runStorage = new java.util.HashMap<>();
+
     /**
      * (M48) Block positions placed by a player inside a dungeon cell, mapped
      * to the placer's UUID, for the "right tool for the job" exemption: a

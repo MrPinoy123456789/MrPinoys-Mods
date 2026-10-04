@@ -92,12 +92,21 @@ public class OmenBarTextTest {
         if (OmenBarText.cueCooldownTicks(Omen.Source.DWELL) <= OmenBarText.cueCooldownTicks(Omen.Source.SENSOR)) {
             throw new AssertionError("dwell should be rate limited harder than sensor pulses");
         }
+        // PD-100: the sensor line explains a mechanic, so it is held on screen
+        // past the client's three second fade; the other cues are one-shot.
+        if (OmenBarText.holdTicks(Omen.Source.SENSOR) < 20 * 5) {
+            throw new AssertionError("the sensor line should be held long enough to read");
+        }
+        check(OmenBarText.holdTicks(Omen.Source.DWELL), 0);
     }
 
     private static void testSpawnersNeeded() {
         check(DifficultyProfile.spawnersNeeded(8, 0.75), 6);
         check(DifficultyProfile.spawnersNeeded(4, 0.75), 3);
         check(DifficultyProfile.spawnersNeeded(5, 0.75), 4);
+        check(DifficultyProfile.spawnersStillNeeded(3, 5, 0.75), 1);
+        check(DifficultyProfile.spawnersStillNeeded(1, 8, 0.75), 5);
+        check(DifficultyProfile.spawnersStillNeeded(9, 8, 0.75), 0);
         check(DifficultyProfile.spawnersNeeded(1, 0.75), 1);
         check(DifficultyProfile.spawnersNeeded(0, 0.75), 0);
         check(DifficultyProfile.spawnersNeeded(6, 1.0), 6);

@@ -59,7 +59,7 @@ final class ConnectorStamper {
      */
     static boolean leavesWindowBandSolid(ConnectorType type) {
         return switch (type) {
-            case DOOR_WIDE, DOOR_SINGLE, IRON_DOOR -> true;
+            case DOOR_WIDE, DOOR_SINGLE, IRON_DOOR, RUBBLE -> true;
             case DOOR_DOUBLE, OPEN, ARCH -> false;
         };
     }
@@ -87,6 +87,7 @@ final class ConnectorStamper {
             case IRON_DOOR -> applyIronDoor(level, cellOrigin, wall);
             case OPEN -> applyOpen(level, cellOrigin, wall);
             case ARCH -> fill(level, ConnectorGeometry.rect(cellOrigin, wall, 0, CELL - 1, 1, WALL_HEIGHT - 2), AIR);
+            case RUBBLE -> applyRubble(level, cellOrigin, wall);
         }
     }
 
@@ -127,6 +128,23 @@ final class ConnectorStamper {
                 .setValue(LeverBlock.FACE, AttachFace.WALL)
                 .setValue(LeverBlock.FACING, facing);
         level.setBlock(leverPos(cellOrigin, wall, DOOR_MIN - 1, 1), lever, STAMP_FLAGS);
+    }
+
+    /**
+     * Plugs the 2 by 3 door slot with a rubble pile: a mix of
+     * {@link RubbleOrdeal#RUBBLE} blocks chosen per position, so it reads as
+     * fallen stone rather than a built wall. Only a blast clears it
+     * ({@link RubbleOrdeal}); the slot is in the wall ring, so the shell rule
+     * already keeps pickaxes and stray explosions off it. One side only, like
+     * {@link #applyIronDoor}: the far cell keeps its open slot.
+     */
+    static void applyRubble(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
+        for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {
+            for (int y = 1; y <= DOOR_HEIGHT; y++) {
+                BlockPos pos = ConnectorGeometry.wallPos(cellOrigin, wall, i, y);
+                level.setBlock(pos, RubbleOrdeal.rubbleAt(pos), STAMP_FLAGS);
+            }
+        }
     }
 
     /**

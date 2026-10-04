@@ -8,7 +8,8 @@ use it (Claude Code, Devin, a script).
 ## Rules
 
 - **Test server only.** This controls the local server in `pocketdungeons/run`,
-  built from the current source. Never point it at the owner's live server.
+  built from the current source, or the Kinetic test server when `kinetic.env` is
+  set up (see "Remote test server" below). Never point it at the owner's live server.
 - **Always stop with `stop`.** It saves the world first. Killing the process
   skips the save and can lose rooms and inventories.
 - **Ask before changing the player's game.** Commands that teleport, give items,
@@ -103,6 +104,32 @@ shows up here as `lemon ask`, never as `chat`; in a party only lines that start 
 player's `lemon ask`, `lemon answer` and `lemon quiet`, on `lemon unanswered`, and
 on every non-Lemon event. The filter lives in `wait-filter.mjs`; run
 `node wait-filter.test.mjs` to check it against real log lines.
+
+## Remote test server (Kinetic)
+
+The same commands can drive a test server on Kinetic Hosting instead of the local
+one, so a session can run while this PC only hosts the tools. Copy
+`kinetic.env.example` to `kinetic.env` (gitignored) and fill in the panel URL, the
+server's short id and a client API key. Delete `kinetic.env`, or set
+`PD_TARGET=local`, to go back to the local server. The MCP server picks the mode up
+the same way, since every tool runs `pdserver.mjs`.
+
+How it works, through the panel's client API only (no RCON port is opened):
+
+- `start`, `stop` and `status` use the panel's power signals and state.
+- Commands go to the panel console. The panel returns no output, so a command that
+  needs its reply is followed by an unknown marker command, and the reply is the
+  command feedback the server logs between the two.
+- Events are read from the server's own `logs/latest.log` with the same byte cursor
+  as local mode (kept in `.remote/`), so `wait`, `chat` and `sync` behave the same.
+  `wait` polls every 2 seconds and downloads the log only when it has grown.
+  A production server writes vanilla's log prefix (`[time] [thread/LEVEL]: ...`) without
+  the `(PocketDungeons)` logger name the local dev server adds; `wait-filter.mjs` reads both.
+- Every command that starts, stops or uploads first prints the panel server it is about
+  to act on and where the id came from, since `kinetic.env` redirects every call.
+- `deploy` uploads the Pocket Dungeons jar from the workspace's `dist/` folder into
+  the server's `mods/`; `deploy --restart` also restarts the server so it loads.
+  Fabric, Fabric API and the Minecraft version are set up on the panel by hand.
 
 ## A live interview session
 

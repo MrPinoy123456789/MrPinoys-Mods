@@ -811,3 +811,15 @@ Held deliberately. Each is a milestone wearing a feature's clothes.
 5. **The mod stays quiet about the trick** (§4), and everything it does say is
    slang. Silent-vs-slang, not clinical-vs-slang.
 6. **Superseded designs are marked superseded, not deleted.**
+
+---
+
+## Backlog from playtest 2026-10-02-1
+
+Not scheduled; each came from the player as an idea for later.
+
+- **Trim set bonuses:** wearing several pieces of one trim could grant a set bonus, building on the per-piece material bonus in `TrimListener`.
+- **Ominous banners** drop as loot with no purpose. Give them one (a room decoration, a Cube input, a salvage payout) or stop dropping them.
+- **End stone** has no use beyond decoration and pillaring. Give it a function or remove it from loot.
+- **Surplus sinks** for string, bones, blaze powder and magma cream (the player always has too much of them).
+- **Hold the plate:** in a party only one player should need to stand on the plate; show the timer as big text just under the omen bar.

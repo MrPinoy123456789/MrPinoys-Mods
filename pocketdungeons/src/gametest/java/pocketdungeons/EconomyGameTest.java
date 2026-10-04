@@ -38,11 +38,11 @@ import net.minecraft.world.phys.AABB;
 public final class EconomyGameTest {
 
     /**
-     * The banked-fuel ledger balances: what leaves the inventory arrives in the
-     * balance, and what the balance spends does not come back as items.
+     * A Greater door pays from the pack (2026-10-02): what is taken leaves the
+     * inventory, and asking for more than is carried takes only what exists.
      */
     @GameTest
-    public void fuelBankingMovesUnitsWithoutMintingThem(GameTestHelper helper) {
+    public void fuelIsTakenFromThePackWithoutMinting(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         requireFuelItem(helper);
@@ -51,34 +51,22 @@ public final class EconomyGameTest {
         emptyInventory(player);
 
         Fuel.grant(player, 10);
-        helper.assertValueEqual(carriedFuel(player), 10, "a grant of ten put ten fuel in the inventory");
-        helper.assertValueEqual(Fuel.banked(player), 0, "a grant banks nothing on its own");
+        helper.assertValueEqual(Fuel.carried(player), 10, "a grant of ten put ten shards in the pack");
+        helper.assertValueEqual(carriedFuel(player), 10, "and the slot count agrees");
 
-        Fuel.bank(player, 10);
-        helper.assertValueEqual(carriedFuel(player), 0, "banking took the fuel out of the inventory");
-        helper.assertValueEqual(Fuel.banked(player), 10, "and put all ten in the balance");
+        helper.assertValueEqual(Fuel.take(player, 4), 4, "taking four took four");
+        helper.assertValueEqual(Fuel.carried(player), 6, "leaving six");
 
-        Fuel.spendBanked(player, 4);
-        helper.assertValueEqual(Fuel.banked(player), 6, "spending four left six banked");
-        helper.assertValueEqual(carriedFuel(player), 0,
-                "spending the balance did not hand items back");
+        helper.assertValueEqual(Fuel.take(player, 10), 6, "asking for ten took only the six there were");
+        helper.assertValueEqual(Fuel.carried(player), 0, "and nothing is left or minted");
 
         cleanUp(server, log, player);
         helper.succeed();
     }
 
-    /**
-     * Banking more than is carried must credit only what was actually taken.
-     *
-     * <p>{@link Fuel#bank} removes what it can and then credits the full amount
-     * it was asked for, on the documented assumption that the caller checked
-     * first. That assumption is exactly the kind M63 refuses to take on trust:
-     * an inventory can change between the check and the call (a second click, a
-     * teleport, another mod moving a stack), and the failure mode is minting
-     * fuel from nothing rather than refusing.
-     */
+    /** A balance left in the retired engine bank comes back as shards, once. */
     @GameTest
-    public void bankingMoreThanCarriedDoesNotMintFuel(GameTestHelper helper) {
+    public void aBankedBalanceIsRefundedAsShards(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         requireFuelItem(helper);
@@ -86,27 +74,25 @@ public final class EconomyGameTest {
         clearFuel(log, player);
         emptyInventory(player);
 
-        Fuel.grant(player, 3);
-        helper.assertValueEqual(carriedFuel(player), 3, "three fuel carried");
+        log.addFuel(player.getUUID(), 5);
+        Fuel.refundBanked(player);
+        helper.assertValueEqual(Fuel.carried(player), 5, "the five banked shards are back in the pack");
+        helper.assertValueEqual(log.get(player.getUUID()).fuel(), 0, "and the balance is empty");
 
-        Fuel.bank(player, 10);
-
-        helper.assertValueEqual(carriedFuel(player), 0, "banking emptied what was carried");
-        helper.assertValueEqual(Fuel.banked(player), 3,
-                "only the three units that actually existed were credited");
+        Fuel.refundBanked(player);
+        helper.assertValueEqual(Fuel.carried(player), 5, "a second refund hands back nothing more");
 
         cleanUp(server, log, player);
         helper.succeed();
     }
 
     /**
-     * PD-48: an untagged stack of the configured item is not currency.
-     *
-     * <p>Without this the fuel item's vanilla identity is the whole check, and
-     * anything else in the world that hands out an echo shard is a mint.
+     * PD-48, revised 2026-10-02: plain echo shards and this mod's old marked
+     * shards pay for a door; a shard another mod re-skinned with its own
+     * custom data does not, and is never taken.
      */
     @GameTest
-    public void anUntaggedLookalikeIsNotFuel(GameTestHelper helper) {
+    public void plainShardsCountButAnotherModsShardDoesNot(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Item fuelItem = requireFuelItem(helper);
@@ -114,15 +100,26 @@ public final class EconomyGameTest {
         clearFuel(log, player);
         emptyInventory(player);
 
-        player.getInventory().setItem(0, new ItemStack(fuelItem, 64));
-        helper.assertValueEqual(carriedFuel(player), 0,
-                "a bare stack of the fuel item does not count as fuel");
+        player.getInventory().setItem(0, new ItemStack(fuelItem, 3));
+        ItemStack marked = new ItemStack(fuelItem, 2);
+        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, marked, tag -> {
+            net.minecraft.nbt.CompoundTag mine = new net.minecraft.nbt.CompoundTag();
+            mine.putBoolean("fuel", true);
+            tag.put(PocketDungeonsMod.MOD_ID, mine);
+        });
+        player.getInventory().setItem(1, marked);
+        ItemStack foreign = new ItemStack(fuelItem, 7);
+        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, foreign, tag -> {
+            net.minecraft.nbt.CompoundTag theirs = new net.minecraft.nbt.CompoundTag();
+            theirs.putBoolean("boss_stone", true);
+            tag.put("kamutotems", theirs);
+        });
+        player.getInventory().setItem(2, foreign);
 
-        Fuel.bank(player, 64);
-        helper.assertValueEqual(Fuel.banked(player), 0,
-                "and it cannot be banked either");
-        helper.assertValueEqual(player.getInventory().getItem(0).getCount(), 64,
-                "nor is it consumed by the attempt");
+        helper.assertValueEqual(Fuel.carried(player), 5, "three plain and two marked shards count");
+        helper.assertValueEqual(Fuel.take(player, 10), 5, "only those five are taken");
+        helper.assertValueEqual(player.getInventory().getItem(2).getCount(), 7,
+                "the other mod's shards are untouched");
 
         cleanUp(server, log, player);
         helper.succeed();
@@ -253,7 +250,7 @@ public final class EconomyGameTest {
         return item;
     }
 
-    /** How many marked fuel units the player is carrying, by {@link Fuel#isFuel}'s own rule. */
+    /** How many fuel units the player is carrying, by {@link Fuel#isFuel}'s own rule, slot by slot. */
     private static int carriedFuel(ServerPlayer player) {
         int total = 0;
         for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {

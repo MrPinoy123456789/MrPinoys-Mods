@@ -296,15 +296,16 @@ for ((taskName, testClass) in mapOf(
     "keystoneOfferTest" to "KeystoneOfferTest",
     "adventureGraphTest" to "AdventureGraphTest",
     "dungeonLogTest" to "DungeonLogTest",
-    "taskTrackerTest" to "TaskTrackerTest",
+    "stationTutorialTest" to "StationTutorialTest",
+    "floorHistoryTest" to "FloorHistoryTest",
     "rerollMathTest" to "RerollMathTest",
     "gambleMathTest" to "GambleMathTest",
     "salvageMathTest" to "SalvageMathTest",
+    "storePricingTest" to "StorePricingTest",
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
     "connectorTest" to "ConnectorTest",
-    "bountyTrackerTest" to "BountyTrackerTest",
     "cubeStationTest" to "CubeStationTest",
     "roomStoreTest" to "RoomStoreTest",
     "payoutTest" to "PayoutTest",
@@ -360,7 +361,8 @@ tasks.test {
     dependsOn("keystoneOfferTest")
     dependsOn("adventureGraphTest")
     dependsOn("dungeonLogTest")
-    dependsOn("taskTrackerTest")
+    dependsOn("stationTutorialTest")
+    dependsOn("floorHistoryTest")
     dependsOn("salvageMathTest")
     dependsOn("rerollMathTest")
     dependsOn("gambleMathTest")
@@ -368,7 +370,6 @@ tasks.test {
     dependsOn("pocket2Test")
     dependsOn("trialContentConfigIdTest")
     dependsOn("connectorTest")
-    dependsOn("bountyTrackerTest")
     dependsOn("cubeStationTest")
     dependsOn("roomStoreTest")
     dependsOn("payoutTest")

@@ -2,13 +2,17 @@ package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundOpenBookPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerInventoryPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * M26's "reads it out" touch: the moment a player picks up a diary book,
@@ -45,6 +49,25 @@ final class DiaryReading {
                 .replaceAll(" {2,}", "   ");
         String padding = " ".repeat(WINDOW);
         reading.put(player.getUUID(), new ActiveRead(padding + joined + padding, 0));
+    }
+
+    /**
+     * Opens {@code book} in the book screen as if the player had used it in hand.
+     *
+     * <p>The client opens the book from its own copy of the hand slot, so the
+     * book is put there on the client alone: a slot packet with the book, the
+     * open-book packet, then the slot's real contents again. The client copies
+     * the pages when the screen opens, so restoring the slot straight away is
+     * safe. The server inventory is never touched, so a hotbar scroll, a logout
+     * or a server stop cannot delete the held item or leave a book behind (F3,
+     * review 2026-10-02).
+     */
+    static void openBook(ServerPlayer player, ItemStack book) {
+        int slot = player.getInventory().getSelectedSlot();
+        player.connection.send(new ClientboundSetPlayerInventoryPacket(slot, book));
+        player.connection.send(new ClientboundOpenBookPacket(InteractionHand.MAIN_HAND));
+        player.connection.send(new ClientboundSetPlayerInventoryPacket(slot,
+                player.getInventory().getItem(slot).copy()));
     }
 
     private static void onTick(MinecraftServer server) {

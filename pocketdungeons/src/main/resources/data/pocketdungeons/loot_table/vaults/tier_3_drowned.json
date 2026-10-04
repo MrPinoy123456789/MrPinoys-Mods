@@ -93,7 +93,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -112,6 +112,81 @@
                 "type": "minecraft:uniform",
                 "min": 0.1,
                 "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:flow",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:raiser",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:eye",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:ward",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:gold"
+                }
               }
             }
           ]
@@ -128,7 +203,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -147,6 +222,81 @@
                 "type": "minecraft:uniform",
                 "min": 0.1,
                 "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:vex",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:flow",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:bolt",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:flow",
+                  "material": "minecraft:diamond"
+                }
               }
             }
           ]
@@ -163,7 +313,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -182,6 +332,81 @@
                 "type": "minecraft:uniform",
                 "min": 0.1,
                 "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:ward",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:silence",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:bolt",
+                  "material": "minecraft:diamond"
+                }
               }
             }
           ]
@@ -198,7 +423,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -218,6 +443,81 @@
                 "min": 0.1,
                 "max": 0.6
               }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:eye",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:tide",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.02
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:copper"
+                }
+              }
             }
           ]
         },
@@ -233,7 +533,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -268,7 +568,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -303,7 +603,7 @@
                 "min": 25,
                 "max": 35
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",

@@ -26,7 +26,7 @@ package pocketdungeons;
  *   <li>trial count (mob count multiplier, Swarming)</li>
  *   <li>cooldown (spawner cooldown factor, Overclocked)</li>
  *   <li>player range (detection range, Silenced)</li>
- *   <li>consumable rule (block or allow consumables, Silenced)</li>
+ *   <li>consumable rule (allow, block, or raise the omen on use; Silenced uses OMEN, playtest 2026-10-02-1)</li>
  *   <li>neutral wolf spawn (Feral)</li>
  *   <li>interior hazard placement (Molten lava, Explosive TNT)</li>
  *   <li>voided floor (Voided)</li>
@@ -43,7 +43,7 @@ package pocketdungeons;
 final class AffixEffects {
 
     /** How the consumable rule operation reads. {@code ALLOW} is the no-op default. */
-    enum ConsumableRule { ALLOW, BLOCK }
+    enum ConsumableRule { ALLOW, BLOCK, OMEN }
 
     /** The kind of interior hazard placed underfoot. {@code NONE} is the no-op default. */
     enum HazardKind { NONE, LAVA, TNT }
@@ -165,7 +165,7 @@ final class AffixEffects {
      */
     boolean hasAnyOperation() {
         return ominous || trialCountMultiplier != 1.0 || cooldownFactor != 1.0
-                || playerRange != 14 || consumableRule == ConsumableRule.BLOCK
+                || playerRange != 14 || consumableRule != ConsumableRule.ALLOW
                 || neutralWolfSpawn || hazardKind != HazardKind.NONE || voidedFloor
                 || extraTrialBodies || bonusToolPool != null || decorPool != null;
     }

@@ -30,18 +30,26 @@ final class LootTables {
     static final String TIER_1 = "chests/tier_1";
     static final String TIER_2 = "chests/tier_2";
     static final String TIER_3 = "chests/tier_3";
+    static final String TIER_4 = "chests/tier_4";
     static final String TIER_1_OMINOUS = "chests/tier_1_ominous";
     static final String TIER_2_OMINOUS = "chests/tier_2_ominous";
     static final String TIER_3_OMINOUS = "chests/tier_3_ominous";
+    static final String TIER_4_OMINOUS = "chests/tier_4_ominous";
     static final String SUPPLY_TIER_1 = "chests/supply_tier_1";
     static final String SUPPLY_TIER_2 = "chests/supply_tier_2";
     static final String SUPPLY_TIER_3 = "chests/supply_tier_3";
+    static final String SUPPLY_TIER_4 = "chests/supply_tier_4";
     static final String VAULT_TIER_1 = "vaults/tier_1";
     static final String VAULT_TIER_2 = "vaults/tier_2";
     static final String VAULT_TIER_3 = "vaults/tier_3";
+    static final String VAULT_TIER_4 = "vaults/tier_4";
     static final String VAULT_TIER_1_OMINOUS = "vaults/tier_1_ominous";
     static final String VAULT_TIER_2_OMINOUS = "vaults/tier_2_ominous";
     static final String VAULT_TIER_3_OMINOUS = "vaults/tier_3_ominous";
+    static final String VAULT_TIER_4_OMINOUS = "vaults/tier_4_ominous";
+
+    /** The highest loot tier: the netherite set. Tier 3 is the diamond set before it. */
+    static final int MAX_TIER = 4;
 
     /** M25: the Pocket2 child's loose-chest table: shell tokens, fuel, valuables. */
     static final String POCKET2 = "chests/pocket2";
@@ -79,14 +87,15 @@ final class LootTables {
 
     private static List<String> buildAll() {
         List<String> all = new java.util.ArrayList<>(List.of(
-                TIER_1, TIER_2, TIER_3,
-                TIER_1_OMINOUS, TIER_2_OMINOUS, TIER_3_OMINOUS,
-                SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3,
-                VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3,
+                TIER_1, TIER_2, TIER_3, TIER_4,
+                TIER_1_OMINOUS, TIER_2_OMINOUS, TIER_3_OMINOUS, TIER_4_OMINOUS,
+                SUPPLY_TIER_1, SUPPLY_TIER_2, SUPPLY_TIER_3, SUPPLY_TIER_4,
+                VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3, VAULT_TIER_4,
                 VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS,
+                VAULT_TIER_4_OMINOUS,
                 POCKET2, ANOMALY));
         all.addAll(Bags.paths());
-        for (int tier = 1; tier <= 3; tier++) {
+        for (int tier = 1; tier <= MAX_TIER; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));
             }
@@ -111,7 +120,7 @@ final class LootTables {
     }
 
     /**
-     * The reward-chest table for this tier (clamped to 1-3) and ominous flag:
+     * The reward-chest table for this tier (clamped to 1-4) and ominous flag:
      * the loot-cell supply chests' key-gated sibling and the terminal cell's
      * three completion chests. Not the vault; see {@link #vaultTable}.
      */
@@ -119,12 +128,13 @@ final class LootTables {
         return switch (clamp(tier)) {
             case 1 -> ominous ? TIER_1_OMINOUS : TIER_1;
             case 2 -> ominous ? TIER_2_OMINOUS : TIER_2;
-            default -> ominous ? TIER_3_OMINOUS : TIER_3;
+            case 3 -> ominous ? TIER_3_OMINOUS : TIER_3;
+            default -> ominous ? TIER_4_OMINOUS : TIER_4;
         };
     }
 
     /**
-     * The vault table for this tier (clamped to 1-3) and ominous flag.
+     * The vault table for this tier (clamped to 1-4) and ominous flag.
      *
      * <p>Deliberately not {@link #tierTable}, for the same reason
      * {@link #gearTable} is not: a vault is not a chest. A chest holds its roll
@@ -145,21 +155,23 @@ final class LootTables {
         return switch (clamp(tier)) {
             case 1 -> ominous ? VAULT_TIER_1_OMINOUS : VAULT_TIER_1;
             case 2 -> ominous ? VAULT_TIER_2_OMINOUS : VAULT_TIER_2;
-            default -> ominous ? VAULT_TIER_3_OMINOUS : VAULT_TIER_3;
+            case 3 -> ominous ? VAULT_TIER_3_OMINOUS : VAULT_TIER_3;
+            default -> ominous ? VAULT_TIER_4_OMINOUS : VAULT_TIER_4;
         };
     }
 
-    /** The free, ungated supply-chest table for this tier (clamped to 1-3). */
+    /** The free, ungated supply-chest table for this tier (clamped to 1-4). */
     static String supplyTable(int tier) {
         return switch (clamp(tier)) {
             case 1 -> SUPPLY_TIER_1;
             case 2 -> SUPPLY_TIER_2;
-            default -> SUPPLY_TIER_3;
+            case 3 -> SUPPLY_TIER_3;
+            default -> SUPPLY_TIER_4;
         };
     }
 
     private static int clamp(int tier) {
-        return Math.max(1, Math.min(3, tier));
+        return Math.max(1, Math.min(MAX_TIER, tier));
     }
 
     /**

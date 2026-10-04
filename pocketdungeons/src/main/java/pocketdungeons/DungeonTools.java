@@ -4,9 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.PrimedTnt;
-import net.minecraft.world.entity.vehicle.minecart.MinecartTNT;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.Tool;
@@ -362,22 +359,12 @@ public final class DungeonTools {
     }
 
     /**
-     * Whether {@code pos} is inside a dungeon cell (not just the shell), so
-     * non-TNT explosions should be blocked entirely. Called from
-     * {@code ServerExplosionMixin} for creeper/wither/bed explosions: they
-     * damage entities but do not break any block inside a dungeon cell.
+     * Whether {@code pos} is inside a dungeon cell (not just the shell). Called
+     * from {@code ServerExplosionMixin} to block all block destruction from any
+     * explosion source inside a dungeon cell, and from other handlers that need
+     * the same distinction.
      */
     public static boolean isInsideDungeonCell(BlockPos pos) {
         return Instances.dungeonCellOriginAt(pos) != null;
-    }
-
-    /**
-     * Whether the explosion source {@code entity} is TNT: a primed TNT entity
-     * or a TNT minecart. Only TNT sources are allowed to destroy interior
-     * blocks inside dungeon cells; all other explosions (creeper, wither, end
-     * crystal, bed, respawn anchor) damage entities but break no blocks.
-     */
-    public static boolean isTntExplosion(Entity source) {
-        return source instanceof PrimedTnt || source instanceof MinecartTNT;
     }
 }

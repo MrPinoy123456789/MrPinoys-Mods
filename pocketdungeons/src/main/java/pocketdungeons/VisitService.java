@@ -165,10 +165,8 @@ final class VisitService {
         // visitor is already counted.
         DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.roomContent(server, record, visitor));
-        DungeonScreen.summonEngine(level, origin, DoorMask.Direction.SOUTH,
-                DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, origin, DoorMask.Direction.SOUTH,
-                DungeonScreen.trackerContent(server, record.owner));
+        DungeonScreen.summonHistory(level, origin, DoorMask.Direction.SOUTH,
+                FloorHistory.board(server, record.owner));
 
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
         if (ownerPlayer != null) {
@@ -189,7 +187,6 @@ final class VisitService {
     private static void recordVisit(MinecraftServer server, UUID owner, ServerPlayer visitor) {
         DungeonLog.forServer(server).addVisitor(owner, visitor.getName().getString(),
                 System.currentTimeMillis());
-        TaskTracker.progress(visitor, TaskTracker.Task.VISIT_FRIEND, 1);
     }
 
     /**

@@ -118,9 +118,11 @@ final class IntervalBanking {
         // Playtest 2026-09-27 (A2, A5): "banks +0 levels, 1/3 kept, calm" meant
         // nothing to the player, who then saw no reason to go home. The screen
         // now says in plain words what going home pays.
-        String title = goodTime ? "TIME TO GO HOME" : "GOING HOME PAYS";
-        return title + "\n" + chests(now.chests()).replace("chest", "reward chest")
-                + "\n" + keyLine(now, floorsPerSafeVisit)
+        // Playtest 2026-10-02-1: going home does not pay chests (a floor's own
+        // chests are claimed on that floor), so the sign no longer says it does;
+        // it says when going home is the sensible stop instead.
+        String title = goodTime ? "TIME TO GO HOME" : "GO HOME AFTER " + Math.max(1, floorsPerSafeVisit) + " FLOORS";
+        return title + "\n" + keyLine(now, floorsPerSafeVisit)
                 + "\n" + (kitRefill ? "Kit refilled" : "No kit refill");
     }
 
@@ -137,7 +139,7 @@ final class IntervalBanking {
         String opening = leftEarly
                 ? "You leave at the checkpoint, so the omen counts one band worse. You keep: "
                 : "Home. You keep: ";
-        return opening + chests(settled.chests()).replace("chest", "reward chest") + ", "
+        return opening
                 + (settled.levels() > 0 ? levels(settled.levels()).replace("level", "key level") : "no key level yet")
                 + " (" + settled.progress() + " of " + Math.max(1, floorsPerSafeVisit)
                 + " steps toward the next). The omen was " + OmenBarText.bandName(settled.band()) + ".";

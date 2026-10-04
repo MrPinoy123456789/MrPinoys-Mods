@@ -70,16 +70,23 @@ final class SituationTags {
     static final String REDSTONE = "redstone";
 
     /**
+     * A blast: TNT the party carries, or creepers a room upstream spawns. It
+     * clears a rubble doorway ({@link RubbleOrdeal}); the planner only seals a
+     * door with rubble when this is reachable before it.
+     */
+    static final String EXPLOSIVE = "explosive";
+
+    /**
      * Every tag above, in declaration order. Iteration order is stable so the
      * rejection message reads the same on every run.
      */
     static final Set<String> ALL = Collections.unmodifiableSet(new LinkedHashSet<>(List.of(
             BLOCKS, WATER, LAVA, LEAD, MOB, TRIAL_KEY, BOAT, GOLD, SNOWBALLS,
-            SHEARS, PEARL, WIND_CHARGE, MILK, BOW, REDSTONE)));
+            SHEARS, PEARL, WIND_CHARGE, MILK, BOW, REDSTONE, EXPLOSIVE)));
 
     private SituationTags() {}
 
-    /** Whether {@code tag} is one of the fifteen. Null and blank are not. */
+    /** Whether {@code tag} is one of the sixteen. Null and blank are not. */
     static boolean isKnown(String tag) {
         return tag != null && ALL.contains(tag);
     }

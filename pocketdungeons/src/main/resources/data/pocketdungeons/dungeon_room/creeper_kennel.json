@@ -7,7 +7,7 @@
   "maxPerDungeon": 1,
   "content": "creeper_kennel",
   "tier": 2,
-  "provides": [],
+  "provides": ["explosive"],
   "requires": [],
   "access": "open",
   "window": "bars"

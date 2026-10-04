@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pocketdungeons.DungeonTools;
+import pocketdungeons.PlacementNotice;
 import pocketdungeons.PocketDungeonsMod;
 import pocketdungeons.RoomEditorHistory;
 import pocketdungeons.RoomEditorKit;
@@ -73,6 +74,8 @@ public class BlockItemPlaceMixin {
         }
         BlockPos pos = context.getClickedPos();
         DungeonTools.recordPlayerPlacement(player.getUUID(), pos);
+        // Playtest 2026-10-02-1: say whether the block will still be there.
+        PlacementNotice.placed(player, pos);
 
         // Record for undo history (build rooms only). The before-state was
         // captured at HEAD so replaceable blocks undo correctly.

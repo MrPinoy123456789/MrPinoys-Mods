@@ -114,20 +114,4 @@ final class RoomGeometry {
             case WEST -> DoorMask.Direction.SOUTH;
         };
     }
-
-    /**
-     * The wall on the viewer's right when they stand inside the room and face
-     * {@code wall}. This is the wall opposite the engine terminal
-     * ({@link #leftOf}), so the tracker screen hangs there: facing the
-     * selector doors, the engine is on your left and the tracker on your
-     * right, neither behind you.
-     */
-    static DoorMask.Direction rightOf(DoorMask.Direction wall) {
-        return switch (wall) {
-            case NORTH -> DoorMask.Direction.EAST;
-            case SOUTH -> DoorMask.Direction.WEST;
-            case EAST -> DoorMask.Direction.SOUTH;
-            case WEST -> DoorMask.Direction.NORTH;
-        };
-    }
 }

@@ -247,23 +247,6 @@ final class Instances {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 InventorySwap.reconcile(handler.getPlayer()));
 
-        // M33: every joining player gets a reminder of their active guided
-        // task, and if they are logging back into a dungeon room, the tracker
-        // screen is repainted to match. The screen is in-world, not a global
-        // sidebar, so a player who logs in in the overworld simply has a task
-        // waiting on their next visit to a dungeon.
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            ServerPlayer player = handler.getPlayer();
-            Component taskLine = TaskTracker.taskLine(player);
-            if (taskLine != null) {
-                player.sendSystemMessage(Component.literal("Active task: ").withStyle(ChatFormatting.AQUA)
-                        .append(taskLine));
-            }
-            if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
-                DungeonScreen.refreshTracker(server, player.getUUID());
-            }
-        });
-
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
         // freshly started server silently gets the static fallback. This is the
@@ -622,8 +605,7 @@ final class Instances {
 
         // The engine screen was summoned at stamp time without a viewer; now
         // that the owner is standing here, show their actual fuel count.
-        DungeonScreen.updateEngine(level, record, player);
-        DungeonScreen.updateTracker(level, record);
+        DungeonScreen.updateHistory(level, record);
 
         player.sendSystemMessage(Component.literal(
                 "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
@@ -668,10 +650,8 @@ final class Instances {
             hideLockedDoors(level, stagingOrigin, dungeonDir, owner);
             DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                     DungeonScreen.idleContent(level, owner));
-            DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
-                    DungeonScreen.engineContent(null));
-            DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
-                    DungeonScreen.trackerContent(level.getServer(), owner));
+            DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
+                    FloorHistory.board(server, owner));
         } catch (RuntimeException e) {
             // A half-stamped safe or staging room is swept up rather than
             // left for the next allocation to stamp over, the same route
@@ -774,6 +754,7 @@ final class Instances {
         RoomTemplateGenerator.placeSelectorDoors(level, origin, dungeonDir);
         RoomTemplateGenerator.placeWallLodestone(level, origin);
         RoomTemplateGenerator.placeFurniture(level, origin, dungeonDir, true);
+        RoomTemplateGenerator.placeRunStorage(level, origin, dungeonDir);
     }
 
     /**
@@ -823,11 +804,21 @@ final class Instances {
      * floor at standing height. The room is a 16-wide cell with the selector
      * doors, lodestone and furniture all on the walls, so the centre is open
      * floor at every rotation. Detected by position rather than block-entity
-     * NBT, the same way {@link #selectorDoorStep}, {@link #isCommitLever} and
-     * {@link #engineTerminalAt} identify their own fixtures.
+     * NBT, the same way {@link #selectorDoorStep} and {@link #isCommitLever}
+     * identify their own fixtures.
      */
     static BlockPos bagChestPos(BlockPos origin) {
         return origin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
+    }
+
+    /**
+     * The bag chest block: a waxed oxidized copper chest (it swapped places with
+     * the ender chest, which is now run storage; playtest 2026-10-02-1). Looked up
+     * by id because the copper chests live in a weathering collection, not a field.
+     */
+    static net.minecraft.world.level.block.Block bagChestBlock() {
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.withDefaultNamespace("waxed_oxidized_copper_chest"));
     }
 
     /**
@@ -855,8 +846,8 @@ final class Instances {
             return;
         }
         BlockPos pos = bagChestPos(record.roomCellOrigin);
-        if (!level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
-            RoomBuilder.set(level, pos, Blocks.ENDER_CHEST.defaultBlockState());
+        if (!level.getBlockState(pos).is(bagChestBlock())) {
+            RoomBuilder.set(level, pos, bagChestBlock().defaultBlockState());
         }
     }
 
@@ -872,8 +863,8 @@ final class Instances {
             return;
         }
         BlockPos pos = bagChestPos(origin);
-        if (!level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
-            RoomBuilder.set(level, pos, Blocks.ENDER_CHEST.defaultBlockState());
+        if (!level.getBlockState(pos).is(bagChestBlock())) {
+            RoomBuilder.set(level, pos, bagChestBlock().defaultBlockState());
         }
     }
 
@@ -886,7 +877,7 @@ final class Instances {
      */
     static void clearBagChest(ServerLevel level, BlockPos origin) {
         BlockPos pos = bagChestPos(origin);
-        if (level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+        if (level.getBlockState(pos).is(bagChestBlock())) {
             RoomBuilder.set(level, pos, RoomBuilder.AIR);
         }
     }
@@ -1019,21 +1010,6 @@ final class Instances {
             return false;
         }
         return RoomTemplateGenerator.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
-    }
-
-    /**
-     * M19 19.6: whether {@code pos} is the engine terminal in this player's
-     * room: the respawn anchor on the wall to the left of the selector wall
-     * ({@link RoomGeometry#leftOf}). Any member of the room may view or feed
-     * it, since fuel is per-player inventory, so this does not require the
-     * owner.
-     */
-    static boolean engineTerminalAt(ServerPlayer player, BlockPos pos) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || record.stagingCellOrigin == null) {
-            return false;
-        }
-        return RoomTemplateGenerator.enginePos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -1368,15 +1344,12 @@ final class Instances {
                 record.floor.previewRecipePlan);
         boolean openingMine = EndlessMineRules.isMine(record.floor.previewRecipePlan);
 
-        // The floor being left behind adds its spawners to the interval's
-        // bounty tally before its cells are cleared.
-        RunLifecycle.tallyFloorSpawners(server, record);
-
         // M2/M3: clear the previous dungeon before generating the next one.
         // PD-13: its force-load tickets go with its cells.
         RunLifecycle.resetForNextDungeon(server, record);
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
+        boolean ominousRolled = false;
         Set<String> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes(),
                 AffixManifest.current().definitions());
 
@@ -1385,6 +1358,16 @@ final class Instances {
         // uses the same set the player saw.
         if (record.floor.previewRecipePlan != null) {
             affixes = record.floor.previewRecipePlan.effectiveAffixes(affixes);
+        }
+
+        // A floor turns ominous by chance, rolled now that the door is chosen:
+        // the more omen the party has banked this interval, the likelier.
+        if (!affixes.contains(AffixIds.OMINOUS)
+                && level.getRandom().nextDouble() < Omen.ominousChance(
+                        record.interval.bankedOmenSum(), record.interval.floorOmens.size())) {
+            affixes = new java.util.LinkedHashSet<>(affixes);
+            affixes.add(AffixIds.OMINOUS);
+            ominousRolled = true;
         }
 
         // Recompute the plan origin the same way previewDoor did.
@@ -1455,6 +1438,17 @@ final class Instances {
             record.interval.endlessMine = true;
         }
         RunSession.transition(record, RunSession.Phase.ACTIVE);
+
+        if (ominousRolled) {
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(member);
+                if (player != null) {
+                    player.sendSystemMessage(Component.literal(
+                            "The omen you carried tips the floor: this one is Ominous.")
+                            .withStyle(ChatFormatting.LIGHT_PURPLE));
+                }
+            }
+        }
 
         // A zone's floors past its usual length start with omen already on
         // them (ZoneRules.baseOmen): pushing deeper is always a gamble, and
@@ -1622,10 +1616,8 @@ final class Instances {
         hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonEngine(level, stagingOrigin, dungeonDir,
-                DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, stagingOrigin, dungeonDir,
-                DungeonScreen.trackerContent(level.getServer(), record.owner));
+        DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
+                FloorHistory.board(level.getServer(), record.owner));
 
         // Pull every member into the safe room.
         BlockPos roomCentre = safeOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
@@ -1908,6 +1900,9 @@ final class Instances {
     static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
+        FloorHistory.failed(server, record, deadPlayer, source);
+        // Before the purge hands the storage back: it reverts with the pack.
+        RunStorage.rollBackToInterval(record);
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);
@@ -2182,10 +2177,8 @@ final class Instances {
         hideLockedDoors(level, newStagingOrigin, newDungeonDir, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, newDungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonEngine(level, newStagingOrigin, newDungeonDir,
-                DungeonScreen.engineContent(null));
-        DungeonScreen.summonTracker(level, newStagingOrigin, newDungeonDir,
-                DungeonScreen.trackerContent(server, record.owner));
+        DungeonScreen.summonHistory(level, newStagingOrigin, newDungeonDir,
+                FloorHistory.board(level.getServer(), record.owner));
     }
 
     /**
@@ -2481,23 +2474,6 @@ final class Instances {
                     continue;
                 }
                 PlaytestJournal.roomEntered(player, record);
-                // M33: the guided Tame a Wolf task has no Fabric event to hook
-                // (fabric-api ships none for TamableAnimal#tame, and the
-                // one-mixin budget is already spent on CustomClickMixin -- see
-                // CONVENTIONS.md), so it is a reconciliation scan like this
-                // watcher's other checks rather than an edge: any tick this
-                // member has that task active and a wolf they own is standing
-                // nearby, progress fires. progress() is idempotent past the
-                // task's target, so scanning every watch interval rather than
-                // only on a real taming edge costs nothing extra once done.
-                if (TaskTracker.activeTask(player) == TaskTracker.Task.TAME_WOLF
-                        && !player.level().getEntitiesOfClass(
-                                net.minecraft.world.entity.animal.wolf.Wolf.class,
-                                player.getBoundingBox().inflate(8),
-                                wolf -> wolf.isTame() && wolf.getOwnerReference() != null
-                                        && member.equals(wolf.getOwnerReference().getUUID())).isEmpty()) {
-                    TaskTracker.progress(player, TaskTracker.Task.TAME_WOLF, 1);
-                }
 
                 // An edge, not a state: without the onPad set a player standing
                 // still on the pad after completing would be ejected on the very

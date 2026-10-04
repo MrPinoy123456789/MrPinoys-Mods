@@ -23,7 +23,64 @@ public class PlanSelectorTest {
         testBudgetValidation();
         testConfiguredGridSpan();
         testThemeFilter();
+        testRubbleNeedsAnExplosiveBeforeIt();
+        testTierGate();
         System.out.println("PlanSelectorTest passed");
+    }
+
+    /**
+     * Rubble doorways ({@link RoomSelector#pickRubbleEdges}): none without an
+     * explosive, never on the entrance's door, at most one per plan, and with
+     * a creeper room at depth 2 only on a door whose deeper side is past it.
+     */
+    private static void testRubbleNeedsAnExplosiveBeforeIt() {
+        PlanCell c0 = new PlanCell(0, 0);
+        PlanCell c1 = new PlanCell(1, 0);
+        PlanCell c2 = new PlanCell(2, 0);
+        PlanCell c3 = new PlanCell(3, 0);
+        PlanEdge e01 = new PlanEdge(c0, c1);
+        PlanEdge e12 = new PlanEdge(c1, c2);
+        PlanEdge e23 = new PlanEdge(c2, c3);
+        Set<PlanEdge> doors = Set.of(e01, e12, e23);
+        Map<PlanCell, Integer> depths = Map.of(c0, 0, c1, 1, c2, 2, c3, 3);
+
+        int picked = 0;
+        for (long seed = 0; seed < 300; seed++) {
+            if (!RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(), Set.of()).isEmpty()) {
+                throw new AssertionError("no explosive anywhere, yet seed " + seed + " placed rubble");
+            }
+            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(),
+                    Set.of(SituationTags.EXPLOSIVE));
+            if (bag.size() > 1 || bag.contains(e01)) {
+                throw new AssertionError("seed " + seed + " placed " + bag + "; at most one, never the entrance's");
+            }
+            picked += bag.size();
+            Set<PlanEdge> creeper = RoomSelector.pickRubbleEdges(seed, doors, depths, c0,
+                    Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of());
+            if (!creeper.isEmpty() && !creeper.equals(Set.of(e23))) {
+                throw new AssertionError("seed " + seed + " put rubble at " + creeper
+                        + " before the creeper room it needs");
+            }
+        }
+        if (picked < 50 || picked > 160) {
+            throw new AssertionError("with the Sapper's TNT about a third of plans should get rubble, got "
+                    + picked + " of 300");
+        }
+
+        // Sealed two-story cells: all of them with the Sapper's TNT, none without
+        // an explosive, and with a creeper room at depth 2 only those deeper.
+        Set<PlanCell> twoStory = Set.of(c1, c3);
+        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of()).isEmpty()) {
+            throw new AssertionError("no explosive, yet a floor was sealed");
+        }
+        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of(SituationTags.EXPLOSIVE))
+                .equals(twoStory)) {
+            throw new AssertionError("with the Sapper's TNT every two-story cell is sealed");
+        }
+        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of())
+                .equals(Set.of(c3))) {
+            throw new AssertionError("a creeper room at depth 2 can only open floors deeper than it");
+        }
     }
 
     private static void testStraightResolves() {
@@ -128,6 +185,64 @@ public class PlanSelectorTest {
         if (!RoleIds.ENCOUNTER.equals(result.failure().role())) {
             throw new AssertionError("expected theme failure to name encounter role, got " + result.failure());
         }
+    }
+
+    /**
+     * PD-122: room tier is capped at the floor's loot tier. With only a tier 3
+     * room for a slot the plan still resolves (fallback), but when a tier 1 room
+     * is available it is chosen for a tier 1 offer.
+     */
+    private static void testTierGate() {
+        DungeonShape shape = straightShape(4);
+        RunRecipePlan tier1Plan = new RunRecipePlan(false, false, false, false, false, 0,
+                List.of(), List.of(), 0L, 1, Set.of(), Set.of(), 0, Set.of());
+
+        // With only a tier 3 room for the loot slot, the tier 1 cap must fall back.
+        RoomManifest manifest = makeTieredManifest(3);
+        DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), tier1Plan).plan();
+        if (plan == null) {
+            throw new AssertionError("expected straight shape to resolve with tier fallback");
+        }
+        DungeonPlan.PlacedRoom loot = plan.rooms().get(new PlanCell(2, 0));
+        if (loot == null || !"loot_tier3".equals(loot.name())) {
+            throw new AssertionError("tier 1 cap should fall back to tier 3 when no tier 1 room exists, got " + loot);
+        }
+
+        // When a tier 1 room is available it is preferred over the tier 3 room.
+        manifest = makeTieredManifest(1, 3);
+        plan = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), tier1Plan).plan();
+        if (plan == null) {
+            throw new AssertionError("expected straight shape to resolve with a tier 1 room available");
+        }
+        loot = plan.rooms().get(new PlanCell(2, 0));
+        if (loot == null || !"loot_tier1".equals(loot.name())) {
+            throw new AssertionError("tier 1 cap should prefer the tier 1 room, got " + loot);
+        }
+    }
+
+    private static RoomManifest makeTieredManifest(int... tiers) {
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        entries.add(new RoomManifest.Entry("entrance_hall",
+                new DungeonRoomMeta("entrance_hall", 1, 1, List.of(RoleIds.ENTRANCE),
+                        1, 0, -1, null, List.of(), null),
+                DoorMask.EAST));
+        entries.add(new RoomManifest.Entry("encounter_tier1",
+                new DungeonRoomMeta("encounter_tier1", 1, 1, List.of(RoleIds.ENCOUNTER),
+                        1, 0, -1, null, List.of(), null),
+                DoorMask.EAST | DoorMask.WEST));
+        for (int tier : tiers) {
+            String name = tier == 1 ? "loot_tier1" : "loot_tier" + tier;
+            entries.add(new RoomManifest.Entry(name,
+                    new DungeonRoomMeta(name, 1, 1, List.of(RoleIds.LOOT),
+                            1, 0, -1, null, List.of(), null, tier, List.of(), List.of(), null,
+                            DungeonRoomMeta.ACCESS_OPEN, DungeonRoomMeta.WINDOW_BARS, 1),
+                    DoorMask.EAST | DoorMask.WEST));
+        }
+        entries.add(new RoomManifest.Entry("exit_hall",
+                new DungeonRoomMeta("exit_hall", 1, 1, List.of(RoleIds.EXIT),
+                        1, 0, -1, null, List.of(), null),
+                DoorMask.WEST));
+        return RoomManifest.create(entries, List.of());
     }
 
     private static DungeonShape straightShape(int n) {

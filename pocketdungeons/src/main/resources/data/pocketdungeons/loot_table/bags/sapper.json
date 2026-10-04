@@ -11,12 +11,6 @@
             {
               "function": "minecraft:set_count",
               "count": 3
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         }

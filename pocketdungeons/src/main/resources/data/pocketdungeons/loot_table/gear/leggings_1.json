@@ -6,8 +6,8 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_leggings",
-          "weight": 5,
+          "name": "minecraft:leather_leggings",
+          "weight": 10,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
@@ -16,7 +16,7 @@
                 "min": 5,
                 "max": 15
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -35,12 +35,87 @@
                 "min": 0.1,
                 "max": 0.6
               }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:raiser",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:snout",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:wild",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:gold"
+                }
+              }
             }
           ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:chainmail_leggings",
+          "name": "minecraft:copper_leggings",
           "weight": 3,
           "functions": [
             {
@@ -50,7 +125,7 @@
                 "min": 5,
                 "max": 15
               },
-              "options": "#minecraft:on_random_loot"
+              "options": "#pocketdungeons:random_loot"
             },
             {
               "function": "minecraft:set_components",
@@ -69,39 +144,80 @@
                 "min": 0.1,
                 "max": 0.6
               }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:leather_leggings",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 5,
-                "max": 15
-              },
-              "options": "#minecraft:on_random_loot"
             },
             {
               "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
               "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 1
-                  }
+                "minecraft:trim": {
+                  "pattern": "minecraft:bolt",
+                  "material": "minecraft:copper"
                 }
               }
             },
             {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:sentry",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:tide",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.008
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:snout",
+                  "material": "minecraft:gold"
+                }
               }
             }
           ]

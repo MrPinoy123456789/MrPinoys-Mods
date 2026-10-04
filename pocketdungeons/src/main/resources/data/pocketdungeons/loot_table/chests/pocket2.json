@@ -24,12 +24,6 @@
             {
               "function": "minecraft:set_count",
               "count": 8
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         },
@@ -81,8 +75,7 @@
                     "shellUnlock": "sandstone",
                     "bag": 1
                   }
-                },
-                "minecraft:max_stack_size": 8
+                }
               }
             },
             {
@@ -120,8 +113,7 @@
                     "shellUnlock": "deepslate",
                     "bag": 1
                   }
-                },
-                "minecraft:max_stack_size": 8
+                }
               }
             },
             {

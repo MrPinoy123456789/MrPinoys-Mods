@@ -102,9 +102,10 @@ final class RoomSelector {
         Map<PlanCell, Integer> depths = depths(shape);
         List<PlanCell> order = bfsOrder(shape.cells(), depths);
 
+        int maxTier = recipePlan == null ? Integer.MAX_VALUE : KeystoneMath.lootTier(recipePlan.offerLevel);
         Set<String> weighted = recipePlan == null ? Set.of() : Set.copyOf(recipePlan.weightedRooms);
         Pass pass = new Pass(shape, manifest, theme, depths, order,
-                bagTags == null ? Set.of() : bagTags, weighted);
+                bagTags == null ? Set.of() : bagTags, weighted, maxTier);
         Failure failure = pass.prepare();
         if (failure != null) {
             return new Result(null, failure);
@@ -113,7 +114,7 @@ final class RoomSelector {
 
         Map<PlanCell, DungeonPlan.PlacedRoom> placed = pass.placed();
         Set<PlanCell> fallbacks = pass.fallbacks();
-        PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths);
+        PlanCell anomalyCell = rollAnomaly(shape, theme, placed, depths, maxTier);
         String anomalyName = anomalyCell == null ? null : placed.get(anomalyCell).name();
 
         // M66: apply recipe guarantees after the main pass and anomaly roll.
@@ -131,6 +132,22 @@ final class RoomSelector {
             anomalyCell = null;
         }
 
+        Map<PlanCell, List<String>> provides = new HashMap<>();
+        Set<PlanCell> multiStory = new HashSet<>();
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
+            RoomManifest.Entry entry = manifest.byName(e.getValue().name());
+            if (entry != null && entry.meta.provides != null) {
+                provides.put(e.getKey(), entry.meta.provides);
+            }
+            if (entry != null && entry.meta.spanY > 1 && !e.getKey().equals(anomalyCell)) {
+                multiStory.add(e.getKey());
+            }
+        }
+        Set<String> seedTags = bagTags == null ? Set.of() : bagTags;
+        Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), depths, shape.entrance(),
+                provides, seedTags);
+        Set<PlanCell> sealed = pickSealedCells(multiStory, depths, provides, seedTags);
+
         DungeonPlan plan = new DungeonPlan(
                 shape.seed(),
                 Set.copyOf(shape.cells()),
@@ -141,8 +158,86 @@ final class RoomSelector {
                 shape.entrance(),
                 shape.terminal(),
                 List.copyOf(shape.criticalPath()),
-                anomalyCell);
+                anomalyCell,
+                rubble,
+                sealed);
         return new Result(plan, null, Set.copyOf(fallbacks), pass.backtrackSteps());
+    }
+
+    /** The chance a plan with an eligible door gets one rubble doorway. */
+    static final double RUBBLE_CHANCE = 0.35;
+
+    /**
+     * The doors to plug with rubble ({@link ConnectorType#RUBBLE}): at most one,
+     * rolled off the plan seed. A door is eligible when it does not touch the
+     * entrance (the stamper leaves the entrance's doors alone) and an
+     * {@code explosive} is reachable before it: in the party's bag, or provided
+     * by a room at a depth below the door's deeper side. Cells at a smaller
+     * depth are reached without crossing this door, so a creeper room up there
+     * or the Sapper's TNT can always clear it. One per plan, because the bag's
+     * TNT is counted, not endless.
+     */
+    static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, Map<PlanCell, Integer> depths,
+                                         PlanCell entrance, Map<PlanCell, List<String>> provides,
+                                         Set<String> bagTags) {
+        List<PlanEdge> eligible = new ArrayList<>();
+        for (PlanEdge edge : doors) {
+            if (edge.touches(entrance)) {
+                continue;
+            }
+            int deeper = Math.max(depths.getOrDefault(edge.a(), 0), depths.getOrDefault(edge.b(), 0));
+            if (explosiveBelow(deeper, depths, provides, bagTags)) {
+                eligible.add(edge);
+            }
+        }
+        if (eligible.isEmpty()) {
+            return Set.of();
+        }
+        eligible.sort(Comparator.comparingInt(PlanEdge::hashCode)
+                .thenComparing(PlanEdge::toString));
+        // SplitMix64's finaliser first: java.util.Random's first draw barely
+        // moves between nearby seeds (the same reason AffixMath.seed mixes).
+        long mixed = (seed ^ 0x52554242L) * 0x9E3779B97F4A7C15L;
+        mixed = (mixed ^ (mixed >>> 30)) * 0xBF58476D1CE4E5B9L;
+        mixed = (mixed ^ (mixed >>> 27)) * 0x94D049BB133111EBL;
+        Random rng = new Random(mixed ^ (mixed >>> 31));
+        if (rng.nextDouble() >= RUBBLE_CHANCE) {
+            return Set.of();
+        }
+        return Set.of(eligible.get(rng.nextInt(eligible.size())));
+    }
+
+    /**
+     * The two-story cells whose way down is sealed with rubble
+     * ({@link RubbleOrdeal#FLOOR}): every one with an {@code explosive}
+     * reachable at a smaller depth, since the party has to bring the blast in
+     * with them. The rest stamp open, as they always did. A seal gates only
+     * the lower story's reward, never the way on, so there is no cap.
+     */
+    static Set<PlanCell> pickSealedCells(Set<PlanCell> multiStory, Map<PlanCell, Integer> depths,
+                                         Map<PlanCell, List<String>> provides, Set<String> bagTags) {
+        Set<PlanCell> out = new HashSet<>();
+        for (PlanCell cell : multiStory) {
+            if (explosiveBelow(depths.getOrDefault(cell, 0), depths, provides, bagTags)) {
+                out.add(cell);
+            }
+        }
+        return Set.copyOf(out);
+    }
+
+    /** Whether an {@code explosive} is in the bag or provided by a cell shallower than {@code depth}. */
+    private static boolean explosiveBelow(int depth, Map<PlanCell, Integer> depths,
+                                          Map<PlanCell, List<String>> provides, Set<String> bagTags) {
+        if (bagTags.contains(SituationTags.EXPLOSIVE)) {
+            return true;
+        }
+        for (Map.Entry<PlanCell, List<String>> e : provides.entrySet()) {
+            if (depths.getOrDefault(e.getKey(), Integer.MAX_VALUE) < depth
+                    && e.getValue().contains(SituationTags.EXPLOSIVE)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -162,7 +257,7 @@ final class RoomSelector {
      */
     private static PlanCell rollAnomaly(DungeonShape shape, String theme,
                                         Map<PlanCell, DungeonPlan.PlacedRoom> placed,
-                                        Map<PlanCell, Integer> depths) {
+                                        Map<PlanCell, Integer> depths, int maxTier) {
         if (theme == null || AdventureGraphs.current().graph().node(theme) == null) {
             return null;
         }
@@ -192,7 +287,10 @@ final class RoomSelector {
         matches.sort(Comparator.comparing((RoomManifest.Match m) -> m.entry().name)
                 .thenComparingInt(RoomManifest.Match::rotation));
 
-        RoomManifest.Match pick = pick(matches, depths.getOrDefault(candidate, 0), new HashMap<>(), anomalyRng);
+        String descriptor = "anomaly " + candidate + " " + role + " mask " + DoorMask.toLetters(mask)
+                + (theme == null ? "" : " theme " + theme);
+        RoomManifest.Match pick = pick(matches, depths.getOrDefault(candidate, 0), new HashMap<>(),
+                anomalyRng, maxTier, descriptor);
         placed.put(candidate, new DungeonPlan.PlacedRoom(pick.entry().name, pick.rotation()));
         return candidate;
     }
@@ -405,8 +503,9 @@ final class RoomSelector {
      * {@code /dungeon admin coverage} names directly.
      */
     private static RoomManifest.Match pick(List<RoomManifest.Match> matches, int depth,
-                                           Map<String, Integer> used, Random rng) {
-        List<RoomManifest.Match> eligible = preferred(matches, depth, used);
+                                           Map<String, Integer> used, Random rng,
+                                           int maxTier, String descriptor) {
+        List<RoomManifest.Match> eligible = preferred(matches, depth, used, maxTier, descriptor);
 
         // A rotationally symmetric room yields several matches for the same entry
         // and so gets an extra roll. That is harmless, and picking a random
@@ -431,15 +530,32 @@ final class RoomSelector {
     }
 
     /**
-     * The depth and repeat preferences {@link #pick} applies, as a fresh
+     * The tier, depth and repeat preferences {@link #pick} applies, as a fresh
      * mutable list. Extracted from {@code pick} so M47's pass can draw from the
      * same distribution more than once without re-deriving it, and it relaxes
      * to the whole list the same way and for the same reason.
+     *
+     * <p>PD-122: a room whose {@code tier} is higher than the floor's allowed
+     * maximum is filtered out first. If that leaves nothing, the tier filter
+     * is dropped and a warning is logged so a coverage hole shows up in the
+     * server log instead of silently failing the plan.
      */
     private static List<RoomManifest.Match> preferred(List<RoomManifest.Match> matches, int depth,
-                                                      Map<String, Integer> used) {
-        List<RoomManifest.Match> eligible = new ArrayList<>(matches.size());
+                                                      Map<String, Integer> used, int maxTier,
+                                                      String descriptor) {
+        List<RoomManifest.Match> tierEligible = new ArrayList<>(matches.size());
         for (RoomManifest.Match match : matches) {
+            if (match.entry().meta.tier <= maxTier) {
+                tierEligible.add(match);
+            }
+        }
+        if (tierEligible.isEmpty() && !matches.isEmpty()) {
+            PocketDungeonsMod.LOG.warn("Room tier gap for {}: no rooms at tier <= {}; falling back",
+                    descriptor, maxTier);
+            tierEligible = new ArrayList<>(matches);
+        }
+        List<RoomManifest.Match> eligible = new ArrayList<>(tierEligible.size());
+        for (RoomManifest.Match match : tierEligible) {
             DungeonRoomMeta meta = match.entry().meta;
             if (meta.minDepth > depth) {
                 continue;
@@ -450,7 +566,7 @@ final class RoomSelector {
             }
             eligible.add(match);
         }
-        return eligible.isEmpty() ? new ArrayList<>(matches) : eligible;
+        return eligible.isEmpty() ? tierEligible : eligible;
     }
 
     // ---- M47: the root-distance solvability pass (SITUATIONS_SPEC 6.6) ----
@@ -509,6 +625,7 @@ final class RoomSelector {
         private final List<PlanCell> order;
         private final Set<String> bagTags;
         private final Set<String> weightedRooms;
+        private final int maxTier;
 
         private Set<PlanCell> onSpine = Set.of();
         private Map<PlanCell, Integer> branches = Map.of();
@@ -530,7 +647,7 @@ final class RoomSelector {
 
         Pass(DungeonShape shape, RoomManifest manifest, String theme,
              Map<PlanCell, Integer> depths, List<PlanCell> order, Set<String> bagTags,
-             Set<String> weightedRooms) {
+             Set<String> weightedRooms, int maxTier) {
             this.shape = shape;
             this.manifest = manifest;
             this.theme = theme;
@@ -538,6 +655,7 @@ final class RoomSelector {
             this.order = order;
             this.bagTags = bagTags;
             this.weightedRooms = weightedRooms == null ? Set.of() : Set.copyOf(weightedRooms);
+            this.maxTier = maxTier;
         }
 
         /**
@@ -819,7 +937,12 @@ final class RoomSelector {
                 if (pool.isEmpty()) {
                     deepestEmpty = Math.max(deepestEmpty, index);
                 }
-                this.remaining = preferred(pool, depths.getOrDefault(cell, 0), usedBefore(index));
+                String role = shape.roles().get(cell);
+                String descriptor = cell + " " + (role == null ? "no-role" : role)
+                        + " mask " + DoorMask.toLetters(requiredMask(shape, cell))
+                        + (theme == null ? "" : " theme " + theme);
+                this.remaining = preferred(pool, depths.getOrDefault(cell, 0), usedBefore(index),
+                        maxTier, descriptor);
                 // Seeded per cell rather than off one shared stream, so a cell
                 // re-entered after an upstream change draws the same order it
                 // would have drawn the first time.

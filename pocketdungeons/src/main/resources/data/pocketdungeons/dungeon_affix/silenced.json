@@ -1,1 +1,1 @@
-{"version": 1, "label": "Silenced", "blurb": "Silenced: no consumables, and they cannot hear you coming.", "order": 5, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"player_range": 6, "consumable_rule": "BLOCK"}}
+{"version": 1, "label": "Silenced", "short_name": "Slncd", "blurb": "Silenced: using consumables raises the omen, and they cannot hear you coming.", "order": 5, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"player_range": 6, "consumable_rule": "OMEN"}}

@@ -90,8 +90,15 @@ Rule-driven, data-driven, and **never spoils a puzzle**.
   entry, first staging room (doors, preview, commit lever), first omen rise, first
   floor clear, first time home is offered, first go-home, first kit top-up, first
   keystone level-up, first station use, and so on. Each fires once per player
-  (tracked in `DungeonLog`), in the mod's terse voice. The tracker screen keeps
-  showing weekly bounties.
+  (tracked in `DungeonLog`), in the mod's terse voice. (The guided task line,
+  the weekly bounties and the room's tracker screen were removed 2026-10-02;
+  weekly floors and rooms will replace the bounties.)
+- **Summon and journal (2026-10-02):** right-clicking the keystone with it in
+  the main hand summons Lemon, or moves an already present Lemon to a fresh
+  spot in view; it stays `lemonIdleSeconds`, and the log line `Lemon summoned
+  <player>` wakes the agent. Lemon always holds a journal (a book and quill).
+  Reaching for it (a right-click on Lemon) never hands it over: it opens the
+  menu the room's wall lodestone opens.
 - **Stuck detection:** time in an unsolved room past a threshold, repeated
   rescues in the same room, walking back and forth without progress, or a player
   question. Lemon then offers the room's **hint ladder**:

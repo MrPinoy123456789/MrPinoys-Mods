@@ -228,6 +228,7 @@ THEMES = {
             item_entry('magma_cream', 3, (1, 2)),
             item_entry('nether_wart', 3, (1, 2)),
             item_entry('blaze_rod', 1, (1, 2)),
+            item_entry('glass_bottle', 3, 2),  # brewing: wart + magma cream is Fire Resistance
         ],
     },
     'ender_archive': {

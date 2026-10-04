@@ -1,0 +1,1 @@
+{"version": 1, "label": "Guard's Bag", "blurb": "A sword and a shield. Hold the line.", "order": 8, "headline": ["minecraft:stone_sword", "minecraft:shield", "minecraft:bread"], "tags": [], "kit_baseline": [{"item": "minecraft:stone_sword", "count": 1, "durability": true}, {"item": "minecraft:shield", "count": 1, "durability": true}, {"item": "minecraft:bread", "count": 4}]}

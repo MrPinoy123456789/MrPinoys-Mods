@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Regression for the bag picker (M48): the picker lists all eight bags in
+ * Regression for the bag picker (M48): the picker lists all nine bags in
  * declaration order, each button carries the clicker's UUID and the bag id,
  * and the confirm dialog carries the bag id on its Confirm button. No server
  * is available in this headless test, so the live {@link DialogScreens#bagPicker}
@@ -19,7 +19,7 @@ import java.util.UUID;
  * <p>M70: the picker now reads the data-driven {@link BagManifest} rather than
  * the deleted {@code Bags} enum. This test publishes a synthetic manifest
  * built from {@link BagIds} before running, so the headless test sees the same
- * eight bags the live server would load from {@code dungeon_bag/*.json}.
+ * nine bags the live server would load from {@code dungeon_bag/*.json}.
  */
 public class BagSelectionTest {
 
@@ -30,15 +30,15 @@ public class BagSelectionTest {
         net.minecraft.server.Bootstrap.bootStrap();
 
         // M70: publish a synthetic bag manifest from the built-in ids, so
-        // the picker reads the same eight bags the live server would load.
+        // the picker reads the same nine bags the live server would load.
         publishSyntheticManifest();
 
         UUID owner = UUID.fromString("00000000-0000-0000-0000-0000000000c2");
 
-        // The picker lists all eight bags in declaration order, each with a
+        // The picker lists all nine bags in declaration order, each with a
         // non-empty label and blurb.
         List<DialogScreens.BagOption> options = DialogScreens.bagOptions();
-        check(options.size(), 8, "picker lists all eight bags");
+        check(options.size(), 9, "picker lists all nine bags");
         List<String> ids = new ArrayList<>();
         for (DialogScreens.BagOption option : options) {
             ids.add(option.bagId());
@@ -55,7 +55,7 @@ public class BagSelectionTest {
                 "picker is a MultiActionDialog");
         net.minecraft.server.dialog.MultiActionDialog list =
                 (net.minecraft.server.dialog.MultiActionDialog) picker;
-        check(list.actions().size(), 8, "one picker button per bag");
+        check(list.actions().size(), 9, "one picker button per bag");
         for (int i = 0; i < 8; i++) {
             net.minecraft.server.dialog.action.CustomAll action = (net.minecraft.server.dialog.action.CustomAll)
                     list.actions().get(i).action().orElseThrow();
@@ -93,7 +93,7 @@ public class BagSelectionTest {
     }
 
     /**
-     * Publishes a synthetic {@link BagManifest} built from the eight built-in
+     * Publishes a synthetic {@link BagManifest} built from the nine built-in
      * {@link BagIds}, so the headless picker reads the same bags the live
      * server would load from {@code dungeon_bag/*.json}. The definitions carry
      * the label and blurb the JSON files ship, so the dialog text matches.
@@ -109,6 +109,7 @@ public class BagSelectionTest {
                 {BagIds.SHEPHERD, "Shepherd's Bag", "Leads and bones. Something down here will follow you."},
                 {BagIds.INNKEEPER, "Innkeeper's Bag", "Milk, an apple, and a warm light. You will keep."},
                 {BagIds.PILGRIM, "Pilgrim's Bag", "Bread. The rooms owe you the rest."},
+                {BagIds.GUARD, "Guard's Bag", "A sword and a shield. Hold the line."},
         };
         for (int i = 0; i < bags.length; i++) {
             String id = bags[i][0];

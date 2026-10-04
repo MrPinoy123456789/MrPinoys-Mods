@@ -184,7 +184,11 @@ final class MechanismSpecs {
                 .setValue(ComparatorBlock.MODE, ComparatorMode.COMPARE));
     }
 
-    /** A repeater facing {@code facing} (output direction), default 1-tick delay. */
+    /**
+     * A repeater, default 1-tick delay. {@code facing} is vanilla's: the side
+     * the input arrives from, so the signal leaves the opposite way (PD-99: the
+     * door gate used to pass an "output direction" here and ran backwards).
+     */
     private static void placeRepeater(ServerLevel level, BlockPos pos, Direction facing) {
         RoomBuilder.set(level, pos, Blocks.REPEATER.defaultBlockState()
                 .setValue(RepeaterBlock.FACING, facing));
@@ -232,7 +236,8 @@ final class MechanismSpecs {
      */
     private static void placeDoorGate(ServerLevel level, BlockPos o) {
         RoomBuilder.set(level, o.offset(14, 1, 6), RoomBuilder.WALL);
-        placeRepeater(level, o.offset(13, 1, 6), Direction.EAST);
+        // Input from the dust at x=12, output east into the wall block at x=14.
+        placeRepeater(level, o.offset(13, 1, 6), Direction.WEST);
     }
 
     /**
@@ -351,9 +356,12 @@ final class MechanismSpecs {
                     frame.setItem(KEY_ITEM.copy());
                     level.addFreshEntity(frame);
                     // The comparator reads the frame through the support block.
+                    // FACING is the input side (PD-99), so WEST: it reads
+                    // across x=10 to the frame at x=9 and outputs east onto
+                    // the dust at x=12. EAST made it read the output dust.
                     RoomBuilder.set(level, o.offset(11, 1, 6),
                             Blocks.COMPARATOR.defaultBlockState()
-                                    .setValue(ComparatorBlock.FACING, Direction.EAST)
+                                    .setValue(ComparatorBlock.FACING, Direction.WEST)
                                     .setValue(ComparatorBlock.MODE, ComparatorMode.SUBTRACT));
                     placeDust(level, o.offset(12, 1, 6));
                     // The reference: 15 at x=3 decaying one per block to 7 at x=11.

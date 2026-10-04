@@ -101,9 +101,9 @@ final class SituationSpecs {
      * A water source at (2, -8, 2) creates a current flowing southeast across
      * the lower floor, pushing the player away from the reward chest at
      * (13, -8, 13). Two loose stone blocks on the upper floor let the player
-     * redirect the current (place blocks to bend the flow). A dry staircase
-     * along the north wall climbs from the lower floor back to the upper
-     * floor, so the return path is permanent and needs no tool.
+     * redirect the current (place blocks to bend the flow). A ladder in the
+     * NE corner climbs from the lower floor back to the upper floor, so the
+     * return path is permanent and needs no tool.
      *
      * <p>Two useful solutions: redirect the current with the loose blocks
      * and swim with the new flow, or swim against the current directly (slow
@@ -111,12 +111,15 @@ final class SituationSpecs {
      * drowning), a weapon (redirect it to push mobs into the sump), and a
      * resource (water bucket to carry forward).
      *
-     * <p>The staircase is a column of solid blocks stepping up one at a time
-     * from the lower floor (y -8) to the upper floor (y 0), with air above
-     * each step. The shaft through the upper floor, filler, and lower
-     * ceiling is carved at (8, z 8) so the player can drop in. The staircase
-     * exit is at (8, 0, 1), one block inside the north wall, so the doorway
-     * plane at z 0 stays untouched.
+     * <p>The shaft through the upper floor, filler, and lower ceiling is
+     * carved at (8, z 8) so the player can drop in. PD-97: the return path
+     * used to be a solid pillar at (8, z 1) described as a staircase, the
+     * same defect as PD-78's {@code blaze_cellar}, and
+     * {@link ReturnPathValidator} refused every stamp. It is now a ladder
+     * column at (14, z 1) from the lower story's first block (y -7) up
+     * through the filler and a hole in the upper floor (y 0), hung on the
+     * north wall. The NE corner keeps it clear of the water source in the
+     * NW corner, of the east doorway at z 7..8, and of the drop shaft.
      */
     private static RoomSpec sump() {
         return new RoomSpec("sump", EnumSet.of(ENTRANCE, EXIT))
@@ -126,7 +129,6 @@ final class SituationSpecs {
                     BlockState water = Blocks.WATER.defaultBlockState();
                     BlockState air = Blocks.AIR.defaultBlockState();
                     BlockState stone = Blocks.STONE.defaultBlockState();
-                    BlockState stair = Blocks.STONE_BRICK_STAIRS.defaultBlockState();
 
                     // Lower story: flood the floor with a water source in the
                     // NW corner. The current flows southeast across the sump.
@@ -141,16 +143,13 @@ final class SituationSpecs {
                         RoomBuilder.set(level, o.offset(8, y, 8), air);
                     }
 
-                    // Dry staircase along the north wall (z 1), from the
-                    // lower floor up to the upper floor. Each step is one
-                    // block higher than the previous, climbing from y -8 to
-                    // y -1. The step at y -1 is just below the upper floor;
-                    // the player steps onto the upper floor at y 0. The
-                    // shaft at (8, z 8) is the entry; the staircase at
-                    // (8, z 1) is the exit, well clear of the doorway plane.
-                    for (int step = 0; step < 8; step++) {
-                        int y = -8 + step;
-                        RoomBuilder.set(level, o.offset(8, y, 1), stone);
+                    // The way back up: a ladder in the NE corner from the
+                    // lower story's first block through the upper floor,
+                    // facing south so it hangs on the north wall at z 0.
+                    BlockState ladder = Blocks.LADDER.defaultBlockState()
+                            .setValue(LadderBlock.FACING, Direction.SOUTH);
+                    for (int y = -7; y <= 0; y++) {
+                        RoomBuilder.set(level, o.offset(14, y, 1), ladder);
                     }
 
                     // Two loose stone blocks on the upper floor for current
@@ -385,7 +384,9 @@ final class SituationSpecs {
      * bones for later rooms).
      *
      * <p>The kennel is a fence enclosure at (6..9, 1, 6..10) with a fence
-     * gate at (6, 1, 8) facing east. The wolf spawner is at (8, 1, 8). The
+     * gate at (6, 1, 8) facing east. The wolf spawner is at (8, 1, 8), over a
+     * grass floor so wolves can spawn at all (PD-98), and spawns inside the
+     * pen (spawn range 1); opening the gate lets them out. The
      * zombie spawner is at (12, 1, 8) on the far side. The bypass path is
      * at z 14, walled by cobblestone at z 13 from x 1 to x 14, with a
      * one-block gap at x 7 for the player to jump over.
@@ -413,6 +414,19 @@ final class SituationSpecs {
                     RoomBuilder.set(level, o.offset(9, 1, 7), fence);
                     RoomBuilder.set(level, o.offset(9, 1, 8), fence);
                     RoomBuilder.set(level, o.offset(9, 1, 9), fence);
+
+                    // PD-98: the pen floor is grass. A trial spawner runs the
+                    // mob's own placement rules, and a wolf only spawns on
+                    // WOLVES_SPAWNABLE_ON; on stone brick this spawner never
+                    // produced a single wolf. With the spawner's range pulled
+                    // in to 1 (the kennel_crossing configs), the pack spawns
+                    // inside the pen and the gate is the release.
+                    BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
+                    for (int x = 7; x <= 8; x++) {
+                        for (int z = 7; z <= 9; z++) {
+                            RoomBuilder.set(level, o.offset(x, 0, z), grass);
+                        }
+                    }
 
                     // Bypass path: cobblestone wall at z 13 from x 1 to x 14,
                     // one block high. The player jumps over it at any point

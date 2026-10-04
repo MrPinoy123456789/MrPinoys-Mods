@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
@@ -19,6 +20,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
@@ -75,10 +78,11 @@ final class Lemon {
     /**
      * Log kinds that need the agent's attention: the player spoke, answered,
      * was left unanswered, a held line landed or was dropped, the player set
-     * quiet, or the agent's llm mode lapsed.
+     * quiet, the agent's llm mode lapsed, or the player summoned Lemon with
+     * their keystone.
      */
     static final List<String> EVENT_KINDS = List.of("ask", "answer", "unanswered", "delivered", "dropped",
-            "quiet", "lapsed");
+            "quiet", "lapsed", "summoned");
     /** Log kinds that only echo what the agent (or the guide) just did; the command reply already said so. */
     static final List<String> ECHO_KINDS = List.of("says", "asks", "replies", "thinks", "held", "mode", "hushed");
 
@@ -169,6 +173,20 @@ final class Lemon {
                 despawnBody(player.level().getServer(), player.getUUID()));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
                 despawnBody(newPlayer.level().getServer(), newPlayer.getUUID()));
+
+        // The keystone summons Lemon: a right-click with it in the main hand.
+        // A recovery compass has no use of its own, so claiming the click
+        // takes nothing away. Main hand only, or a keystone carried in the
+        // off hand would summon Lemon on every right-click with a sword.
+        UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (level.isClientSide() || hand != InteractionHand.MAIN_HAND
+                    || !(player instanceof ServerPlayer serverPlayer)
+                    || !Keystone.isKeystone(player.getItemInHand(hand))) {
+                return InteractionResult.PASS;
+            }
+            summon(serverPlayer);
+            return InteractionResult.SUCCESS_SERVER;
+        });
 
         // A fight is damage taken or dealt; Lemon never interrupts one unasked.
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
@@ -294,6 +312,49 @@ final class Lemon {
         }
         show(player, state, HONEST_LINE, false, "says");
         PlaytestJournal.lemonAsk(player, text, "none", 0, 0);
+    }
+
+    /**
+     * The player right-clicked their keystone: Lemon comes to them, or, if
+     * already here, moves to a fresh spot in front of them. It stays for
+     * {@code lemonIdleSeconds} and then leaves as usual. A summon counts as
+     * speaking to Lemon: it lifts the agent's quiet, and lines said in the
+     * next half minute are shown even under the player's own quiet. Logged as
+     * {@code Lemon summoned} so a waiting agent wakes and can greet them.
+     */
+    static void summon(ServerPlayer player) {
+        long now = player.level().getServer().getTickCount();
+        State state = stateFor(player.getUUID());
+        state.lastAddressed = now;
+        state.agentQuiet = false;
+        state.hidden = false;
+        state.leaving = 0;
+        boolean present = state.body != null && !state.body.isRemoved() && state.body.level() == player.level();
+        ensureBody(player, state);
+        if (state.body == null) {
+            return;
+        }
+        if (present) {
+            reanchor(player, state, now, inFight(player, now));
+            chirp(player, SoundEvents.ALLAY_AMBIENT_WITH_ITEM, 0.6f, 1.2f);
+        }
+        state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
+        PocketDungeonsMod.LOG.info("Lemon summoned <{}>", player.getName().getString());
+    }
+
+    /**
+     * The player reached for the journal Lemon carries (a right-click on the
+     * body). Lemon keeps it: the player gets the menu the room's lodestone
+     * opens instead, and Lemon stays a while, since they are paying attention.
+     */
+    static void journalReached(ServerPlayer player) {
+        long now = player.level().getServer().getTickCount();
+        State state = STATES.get(player.getUUID());
+        if (state != null) {
+            state.lastAddressed = now;
+            state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
+        }
+        RitualListener.openMenu(player);
     }
 
     /** The player's own line, echoed back to them alone so their chat still reads as a conversation. */
@@ -487,8 +548,8 @@ final class Lemon {
         }
         // Guide mode answers whatever the agent left hanging, so the player
         // is never ignored.
-        if (!state.pending.isEmpty() && (!llmActive(state, now)
-                || now - state.pending.get(0).askedAt() >= 20L * PocketDungeonsConfig.lemonFallbackSeconds())) {
+        if (!state.pending.isEmpty() && fallbackDue(llmActive(state, now),
+                state.pending.get(0).askedAt(), state.thinkingUntil, now)) {
             PocketDungeonsMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
                     state.pending.get(state.pending.size() - 1).text());
             resolvePending(player, state, now, "none");
@@ -547,6 +608,23 @@ final class Lemon {
             PlaytestJournal.lemonAsk(player, q.text(), answeredBy, 0, (now - q.askedAt()) / 20);
         }
         state.pending.clear();
+        state.thinkingUntil = 0;
+    }
+
+    /**
+     * Whether the guide's fallback should answer the oldest pending question
+     * now. Out of llm mode it answers at once. In llm mode it waits
+     * {@code lemonFallbackSeconds} from the question, or until a {@code think}
+     * runs out, whichever is later. PD-79: {@code think} used to set its hold
+     * and nothing read it, so an agent that said "let me check" still lost the
+     * question at 45 seconds.
+     */
+    static boolean fallbackDue(boolean llm, long askedAt, long thinkingUntil, long now) {
+        if (!llm) {
+            return true;
+        }
+        long fallbackAt = askedAt + 20L * PocketDungeonsConfig.lemonFallbackSeconds();
+        return now >= Math.max(fallbackAt, thinkingUntil);
     }
 
     private static boolean llmActive(UUID player, long now) {

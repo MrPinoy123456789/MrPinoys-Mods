@@ -103,13 +103,12 @@ final class DungeonLog extends SavedData {
      *                           the owner's player name instead. A label, not an
      *                           address: the directory routes on the owner UUID
      *                           carried in the button payload, never on this.
-     * @param fuel               the Greater-door fuel this player has banked in
-     *                           an engine terminal. The engine is the only thing
-     *                           that pays a Greater door: loose fuel items in an
-     *                           inventory buy nothing until they have been fed
-     *                           in. Held per player rather than per room because
-     *                           the door being bought is the owner's, the same
-     *                           as the keystone that gates it.
+     * @param fuel               superseded 2026-10-02: the echo shards this
+     *                           player had banked in the engine terminal. A
+     *                           Greater door now takes shards from the pack, so
+     *                           nothing banks any more; {@link Fuel#refundBanked}
+     *                           hands a leftover balance back as shards and
+     *                           zeroes it. The codec field stays (CONVENTIONS.md).
      * @param unlockedShells     (M24) every shell palette this player has
      *                           permanently unlocked, one entry per unlock name
      *                           (see {@code RoomBuilder.SHELL_PALETTES}),
@@ -299,8 +298,10 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, Entry> entries = new HashMap<>();
 
     /**
-     * (M33) Per-player, per-task progress counts for {@link TaskTracker}'s
-     * guided task line. A sidecar map rather than an {@link Entry} field:
+     * (M33) Per-player, per-task progress counts. The guided task line that
+     * introduced it was removed 2026-10-02; {@link StationTutorial} keeps its
+     * steps here, and the old task ids stay in older saves, unread. A sidecar
+     * map rather than an {@link Entry} field:
      * {@code Entry}'s codec is already split across two 16-field groups
      * ({@link #PART_A_CODEC}, {@link #PART_B_CODEC}), and a task's count is
      * read and written far more often than anything else on the entry, so
@@ -310,13 +311,26 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, Map<String, Integer>> taskProgress = new HashMap<>();
 
     /**
-     * (M34) Per-owner, weekly bounty states for {@link BountyTracker}. A
-     * sidecar map for the same reason {@link #taskProgress} is one: the bounty
-     * states are read and written on every mechanic hook, have nothing in
-     * common with a player's campaign history, and would push {@link Entry}'s
-     * codec past its two-group split for no benefit.
+     * (M34) Per-owner, weekly bounty states.
+     *
+     * <p>Superseded 2026-10-02: weekly bounties were removed (weekly floors
+     * and rooms will replace them). Nothing reads or writes this any more; the
+     * codec field is kept so a {@code dungeon_log.dat} that carries bounty
+     * states loads and saves them unchanged (CONVENTIONS.md, codec migration
+     * discipline). Delete it in a later pass.
      */
-    private final Map<UUID, List<BountyTracker.BountyState>> bounties = new HashMap<>();
+    private final Map<UUID, List<LegacyBountyState>> bounties = new HashMap<>();
+
+    /** (M34) One stored weekly bounty. Superseded with {@link #bounties}; kept only for its codec. */
+    private record LegacyBountyState(String weekKey, String bountyId, int progress, boolean completed) {
+
+        static final Codec<LegacyBountyState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.STRING.fieldOf("week").forGetter(LegacyBountyState::weekKey),
+                Codec.STRING.fieldOf("bounty").forGetter(LegacyBountyState::bountyId),
+                Codec.INT.optionalFieldOf("progress", 0).forGetter(LegacyBountyState::progress),
+                Codec.BOOL.optionalFieldOf("completed", false).forGetter(LegacyBountyState::completed)
+        ).apply(instance, LegacyBountyState::new));
+    }
 
     /**
      * (M46) Per-player stashed survival inventories for {@link InventorySwap}.
@@ -358,6 +372,12 @@ final class DungeonLog extends SavedData {
      * list is the only durable proof a run happened; the item is a label.
      */
     private final Map<UUID, List<RunMemento.RunRecord>> runRecords = new HashMap<>();
+
+    /**
+     * (2026-10-02) Per-player floor history for the staging room's board
+     * ({@link FloorHistory}), newest first, capped at {@link FloorHistory#KEPT}.
+     */
+    private final Map<UUID, List<FloorHistory.Entry>> floorHistory = new HashMap<>();
 
     /** (M75) How many run records per player the sidecar keeps; oldest drop off the front. */
     static final int RUN_RECORD_LIMIT = 20;
@@ -489,14 +509,14 @@ final class DungeonLog extends SavedData {
                     .forGetter(PlayerTaskProgress::progress)
     ).apply(instance, PlayerTaskProgress::new));
 
-    /** (M34) One owner's bounty states, keyed the same way {@link PlayerEntry} is. */
-    private record PlayerBounties(UUID player, List<BountyTracker.BountyState> bounties) {}
+    /** (M34) One owner's bounty states, keyed the same way {@link PlayerEntry} is. Superseded; see {@link #bounties}. */
+    private record PlayerBounties(UUID player, List<LegacyBountyState> bounties) {}
 
     private static final Codec<PlayerBounties> PLAYER_BOUNTIES_CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
             Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
                     .forGetter(PlayerBounties::player),
-            BountyTracker.BountyState.CODEC.listOf().fieldOf("bounties")
+            LegacyBountyState.CODEC.listOf().fieldOf("bounties")
                     .forGetter(PlayerBounties::bounties)
     ).apply(instance, PlayerBounties::new));
 
@@ -529,6 +549,17 @@ final class DungeonLog extends SavedData {
                     .forGetter(PlayerRecipeDiscovery::player),
             RecipeDiscovery.CODEC.fieldOf("discovery").forGetter(PlayerRecipeDiscovery::discovery)
     ).apply(instance, PlayerRecipeDiscovery::new));
+
+    /** One player's floor history, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerFloorHistory(UUID player, List<FloorHistory.Entry> entries) {}
+
+    private static final Codec<PlayerFloorHistory> PLAYER_FLOOR_HISTORY_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerFloorHistory::player),
+            FloorHistory.Entry.CODEC.listOf().fieldOf("entries")
+                    .forGetter(PlayerFloorHistory::entries)
+    ).apply(instance, PlayerFloorHistory::new));
 
     /** (M75) One player's run-record sidecar, keyed the same way {@link PlayerEntry} is. */
     private record PlayerRunRecords(UUID player, List<RunMemento.RunRecord> records) {}
@@ -581,14 +612,20 @@ final class DungeonLog extends SavedData {
             // evidence yet".
             PLAYER_RUN_RECORDS_CODEC.listOf().optionalFieldOf("run_records", List.of())
                     .forGetter(log -> log.runRecords.entrySet().stream()
-                            .map(e -> new PlayerRunRecords(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerRunRecords(e.getKey(), e.getValue())).toList()),
+            // 2026-10-02: optional so a dungeon_log.dat written before the
+            // floor history loads unchanged, every player starting with none.
+            PLAYER_FLOOR_HISTORY_CODEC.listOf().optionalFieldOf("floor_history", List.of())
+                    .forGetter(log -> log.floorHistory.entrySet().stream()
+                            .map(e -> new PlayerFloorHistory(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
                                           List<PlayerBounties> bounties, List<PlayerStash> stashes,
                                           List<PlayerOrphan> orphans,
                                           List<PlayerRecipeDiscovery> recipeDiscoveries,
-                                          List<PlayerRunRecords> runRecords) {
+                                          List<PlayerRunRecords> runRecords,
+                                          List<PlayerFloorHistory> floorHistory) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -610,6 +647,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerRunRecords r : runRecords) {
             log.runRecords.put(r.player(), new ArrayList<>(r.records()));
+        }
+        for (PlayerFloorHistory h : floorHistory) {
+            log.floorHistory.put(h.player(), new ArrayList<>(h.entries()));
         }
         return log;
     }
@@ -769,11 +809,9 @@ final class DungeonLog extends SavedData {
     }
 
     /**
-     * Banks {@code amount} fuel for this player, or spends it when negative.
-     * A spend larger than the balance empties it rather than going negative,
-     * because {@link Entry}'s compact constructor clamps at zero; callers check
-     * {@link Fuel#banked} first regardless, and the two that matter (the commit
-     * lever's gate and {@code RunLifecycle.chooseOffer}) both do.
+     * Adds {@code amount} to this player's superseded fuel balance, or takes it
+     * away when negative; the balance never goes below zero. Only
+     * {@link Fuel#refundBanked} still calls this, to empty an old balance.
      */
     void addFuel(UUID player, int amount) {
         if (amount == 0) {
@@ -973,29 +1011,18 @@ final class DungeonLog extends SavedData {
         return next;
     }
 
-    /** (M33) How far {@code player} has progressed on the guided task {@code taskId}, or {@code 0}. */
+    /** (M33) How far {@code player} has progressed on the task {@code taskId}, or {@code 0}. */
     int taskProgress(UUID player, String taskId) {
         return taskProgress.getOrDefault(player, Map.of()).getOrDefault(taskId, 0);
     }
 
-    /** (M33) Sets {@code player}'s progress on {@code taskId}, for {@link TaskTracker}. */
+    /** (M33) Sets {@code player}'s progress on {@code taskId}, for {@link StationTutorial}. */
     void setTaskProgress(UUID player, String taskId, int count) {
         Map<String, Integer> progress = taskProgress.computeIfAbsent(player, k -> new HashMap<>());
         if (Integer.valueOf(count).equals(progress.get(taskId))) {
             return;
         }
         progress.put(taskId, count);
-        setDirty();
-    }
-
-    /** (M34) The owner's stored bounty states, or an empty list if none recorded. */
-    List<BountyTracker.BountyState> bountiesOf(UUID owner) {
-        return bounties.getOrDefault(owner, List.of());
-    }
-
-    /** (M34) Replaces the owner's stored bounty states, for {@link BountyTracker}. */
-    void setBounties(UUID owner, List<BountyTracker.BountyState> states) {
-        bounties.put(owner, List.copyOf(states));
         setDirty();
     }
 
@@ -1120,6 +1147,24 @@ final class DungeonLog extends SavedData {
      */
     List<RunMemento.RunRecord> runRecordsOf(UUID player) {
         return List.copyOf(runRecords.getOrDefault(player, List.of()));
+    }
+
+    /** This player's floor history, newest first, or an empty list. */
+    List<FloorHistory.Entry> floorHistoryOf(UUID player) {
+        return List.copyOf(floorHistory.getOrDefault(player, List.of()));
+    }
+
+    /** Puts {@code entry} at the top of this player's floor history, dropping the oldest past the cap. */
+    void addFloorHistory(UUID player, FloorHistory.Entry entry) {
+        if (entry == null) {
+            return;
+        }
+        List<FloorHistory.Entry> entries = floorHistory.computeIfAbsent(player, k -> new ArrayList<>());
+        entries.add(0, entry);
+        while (entries.size() > FloorHistory.KEPT) {
+            entries.remove(entries.size() - 1);
+        }
+        setDirty();
     }
 
     /** (M75) This player's most recent run record, or {@code null} if none. */

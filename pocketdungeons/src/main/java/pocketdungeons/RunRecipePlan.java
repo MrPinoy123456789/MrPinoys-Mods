@@ -85,7 +85,7 @@ final class RunRecipePlan {
     /** The recipe ids that are active, in resolution order. */
     final Set<String> activeRecipes;
 
-    private RunRecipePlan(boolean ominous, boolean feral, boolean completionStudyList,
+    RunRecipePlan(boolean ominous, boolean feral, boolean completionStudyList,
                          boolean boundedSupply, boolean endlessMine, int pathBonus,
                          List<String> weightedRooms,
                          List<RecipeEffects.GuaranteedRoom> guaranteedRooms,

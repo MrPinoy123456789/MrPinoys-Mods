@@ -29,7 +29,9 @@ Gather silently; do not paste any of this at the player.
    window (grep with a head limit).
 3. **What we want to learn.** Read `pocketdungeons/docs/playtests/AGENDA.md`.
    Note which open or partial items this session gives you a real moment to ask
-   about.
+   about. Also read `pocketdungeons/docs/playtests/LIVE_CHECKS.md`: fixes that
+   still need one look in real play. Note which `owed` rows this session's log
+   or journal can confirm or refute.
 4. **What the design intends.** Skim the parts of
    `pocketdungeons/docs/AUDIT_2026-09.md` section 11 (owner decisions log),
    `pocketdungeons/docs/ZONES_SPEC.md` and `docs/RULES.md` (once it exists) that
@@ -128,6 +130,9 @@ many times, a zone they never saw), ask about it.
    evidence entry citing this file. Add new themes under "Emerging themes";
    promote a theme to a numbered item when it has come up in two sessions or the
    player said it matters a lot. Never delete the owner's items; retire them.
+   Update every `LIVE_CHECKS.md` row the session settled (passed, failed, or
+   still owed with what blocked it), then rebuild Lemon's pack with
+   `node pocketdungeons/tools/lemon/build-pack.mjs`.
 3. Append new bugs to `pocketdungeons/docs/reference/BUGS.md` under a dated
    heading, continuing its `PD-n` numbering (read the highest number first).
 4. Append one row per floor to `pocketdungeons/docs/playtests/BALANCE.md`
@@ -140,7 +145,11 @@ Use when the player is on the local test server and asks for a live
 interview. Everything in sections 1 to 5 still applies; only the channel and
 pacing change. Never do this on the owner's live server.
 
-- **Server control:** everything goes through `pocketdungeons/tools/server/`
+- **Prefer the Lemon MCP:** the workspace `.mcp.json` registers `lemon`
+  (`tools/server/mcp.mjs --admin`). If its tools (`mcp__lemon__*`) are not in
+  your tool list, the session started before it was registered: tell the owner
+  and ask for a restart rather than silently using the shell tool below.
+- **Server control:** otherwise everything goes through `pocketdungeons/tools/server/`
   (read its `README.md`): `server start` / `stop` / `status`, `server say`,
   `server cmd`, `server chat`. On Windows `pocketdungeons\tools\server\server.bat
   <command>`, elsewhere `node pocketdungeons/tools/server/pdserver.mjs <command>`.

@@ -24,7 +24,8 @@ Every Ordeal has:
 | Collapsing Bridge | cross to the far side | planks drop away under you | the far-side lever locks the bridge in place | `CollapsingBridgeOrdeal` |
 | Thicket | reach the spawner through the webs | cobwebs and cave spiders | the lever on the spawner shuts it off | `SpawnerOrdeal.THICKET` |
 | Ice Run | climb the floating ice to the platform in the middle, or pillar up to it | strays on the floor shooting you off the ice; a miss drops you to the floor and back to the start | the lever on the platform shuts the spawner off | `SpawnerOrdeal.ICE_RUN` |
-| Hold the Plate | hold the plate for 30 seconds | waves raised by the plate, and the room's spawner | the hold completes and the exit opens (no lever) | `HoldThePlateOrdeal` |
+| Hold the Plate | hold the plate for 30 seconds | waves raised by the plate, and the room's spawner | the hold completes and the exit opens; the timer pauses when you step off | `HoldThePlateOrdeal` |
+| Rubble | clear a doorway plugged with fallen stone | none; the way on is blocked | any explosion that reaches it (TNT, or a lured creeper) clears it and hurts nothing (no lever) | `RubbleOrdeal` |
 
 ## Conventions
 
@@ -53,6 +54,33 @@ y=3, top at y=4 under a ceiling at 6), so a fall lands on the floor below the
 higher hops and the course starts over. Looted blocks are the other answer:
 three of them pillar a player from the floor onto the platform. A vertical
 Ordeal should keep both routes: the skill route and the resource route.
+
+## Rubble doorways (2026-10-02)
+
+Rubble is a door connector, not a room: `ConnectorType.RUBBLE` plugs one door
+slot with a mix of cobblestone, mossy cobblestone, cobbled deepslate and tuff,
+on the side the player reaches first. `RoomSelector.pickRubbleEdges` chooses
+it, at most one per floor (35 percent of plans that qualify), and only on a
+door that does not touch the entrance and has an `explosive` reachable before
+it: the Sapper's Bag (TNT) or a room upstream that provides it
+(`creeper_kennel`). The slot is in the wall ring, so pickaxes and stray blasts
+cannot shift it, and a mining attempt names what will. Any explosion in the
+dungeon that comes within its radius plus 1.5 blocks of the rubble
+(`ServerExplosionMixin` asks `RubbleOrdeal.blast`) breaks no blocks, hurts and
+pushes nobody, and the rubble clears on the next Ordeal tick. It is armed under
+its doorway (`Ordeals.armAt`), so it shares a cell with the room's own Ordeal.
+
+**Sealed two-story rooms.** The same rubble seals the way down in
+`blaze_cellar`, `slime_pit` and `sump` (`RubbleOrdeal.FLOOR`): rubble over the
+upper floor's drop shaft and ladder hole, so the lower story (the reward, and
+in `blaze_cellar` the blaze encounter) opens only to a blast. The planner seals
+every two-story cell that has an `explosive` reachable at a smaller depth
+(`RoomSelector.pickSealedCells`); without one the room stamps open, as before.
+The seal goes on after the stamp's return-path check, and the blast puts the
+ladder's top rung back, so the climb out works once it is open. Spawners under
+an unbroken seal are left out of the floor's clear gate
+(`RubbleOrdeal.hidesSpawner`), so a sealed room never holds a floor shut. A
+lower story that spans more than one cell is a possible next step, not built.
 
 ## Adding an Ordeal
 

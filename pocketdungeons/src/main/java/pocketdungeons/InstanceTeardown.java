@@ -138,6 +138,8 @@ final class InstanceTeardown {
             // never costs anything.
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
+        // Run storage comes home with its owner, after the eject above.
+        RunStorage.returnAll(server, record);
         OmenBar.close(record);
         if (record.untimed) {
             PocketDungeonsMod.LOG.info("UNTIMED dungeon in slot {} closed ({}), after {}s",

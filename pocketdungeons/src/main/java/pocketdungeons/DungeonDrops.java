@@ -13,6 +13,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Balance rules for everything that drops inside the dungeon dimension
@@ -32,6 +33,12 @@ import java.util.List;
  *       floors at {@link #RANGED_DROP_CHANCE} instead (playtest 2026-09-29-2:
  *       every skeleton is an archer, so the general floor turned bows into
  *       disposables while arrows stayed scarce).</li>
+ *   <li><strong>Torches drop nothing</strong> (playtest 2026-10-01-1). Light is
+ *       a resource here, so a torch broken by any means (by hand, its support
+ *       broken, washed off by water) is gone. Every torch, the player's own
+ *       included: one that came back would let a player carry the same light
+ *       through the run forever. Redstone torches are not light and are left
+ *       alone.</li>
  *   <li><strong>Raised spawner rewards (PD-72).</strong> A trial spawner that
  *       hangs above the floor (Ledge Archers) ejects its key or emeralds onto
  *       its own top, out of reach. Items that appear there are moved to the
@@ -45,12 +52,22 @@ final class DungeonDrops {
     /** Floor for a dungeon mob's per-slot equipment drop chance. */
     static final float EQUIPMENT_DROP_CHANCE = 0.2f;
     /**
+     * The floor for a worn armour slot (PD-106, playtest 2026-10-02-1: "A LOT
+     * of trimmed armour"). Four slots at the general floor rained armour from
+     * one room; this is roughly vanilla's 0.085.
+     */
+    static final float ARMOUR_DROP_CHANCE = 0.08f;
+    /**
      * The floor for a held bow or crossbow. Lower than the rest because
      * skeletons are the commonest mob and each one holds a bow: at the general
      * floor a floor's worth of archers left a pile of bows and made Unbreaking
      * worthless next to arrow-saving enchantments.
      */
     static final float RANGED_DROP_CHANCE = 0.05f;
+
+    /** The block loot tables of the light torches; wall torches drop through these too. */
+    static final Set<String> TORCH_TABLES = Set.of(
+            "minecraft:blocks/torch", "minecraft:blocks/soul_torch", "minecraft:blocks/copper_torch");
 
     private static final List<EquipmentSlot> GEAR_SLOTS = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
             EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET);
@@ -62,6 +79,11 @@ final class DungeonDrops {
         LootTableEvents.MODIFY_DROPS.register((table, context, drops) -> {
             ServerLevel level = context.getLevel();
             if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                return;
+            }
+            String tableId = table.unwrapKey().map(key -> key.identifier().toString()).orElse("");
+            if (TORCH_TABLES.contains(tableId)) {
+                drops.clear();
                 return;
             }
             boolean mobLoot = table.unwrapKey()
@@ -108,7 +130,8 @@ final class DungeonDrops {
                         continue;
                     }
                     float floor = worn.is(Items.BOW) || worn.is(Items.CROSSBOW)
-                            ? RANGED_DROP_CHANCE : EQUIPMENT_DROP_CHANCE;
+                            ? RANGED_DROP_CHANCE
+                            : slot.isArmor() ? ARMOUR_DROP_CHANCE : EQUIPMENT_DROP_CHANCE;
                     if (mob.getDropChances().byEquipment(slot) < floor) {
                         mob.setDropChance(slot, floor);
                     }

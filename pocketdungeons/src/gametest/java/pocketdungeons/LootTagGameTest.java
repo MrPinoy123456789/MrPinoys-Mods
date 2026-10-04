@@ -52,6 +52,70 @@ public final class LootTagGameTest {
     }
 
     /**
+     * PD-106: a trial spawner equips its mobs from our own untrimmed tables,
+     * never vanilla's trial chamber ones (full trimmed armour), and every table
+     * a spawner names exists (the_raid named a tier 3 table that was missing).
+     */
+    @GameTest(maxTicks = 20)
+    public void spawnerEquipmentIsOursAndExists(GameTestHelper helper) {
+        var manager = helper.getLevel().getServer().getResourceManager();
+        Map<Identifier, Resource> configs = manager.listResources("trial_spawner",
+                id -> id.getNamespace().equals(PocketDungeonsMod.MOD_ID) && id.getPath().endsWith(".json"));
+        helper.assertTrue(!configs.isEmpty(), "the mod ships trial spawner configs");
+        java.util.regex.Pattern ref = java.util.regex.Pattern.compile("\"loot_table\"\s*:\s*\"([a-z_]+):(equipment/[a-z0-9_/]+)\"");
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<Identifier, Resource> config : configs.entrySet()) {
+            try (BufferedReader reader = config.getValue().openAsReader()) {
+                String text = reader.lines().reduce("", String::concat);
+                java.util.regex.Matcher m = ref.matcher(text);
+                while (m.find()) {
+                    if (!m.group(1).equals(PocketDungeonsMod.MOD_ID)) {
+                        problems.add(config.getKey() + " uses " + m.group(1) + ":" + m.group(2));
+                    } else if (manager.getResource(Identifier.fromNamespaceAndPath(
+                            PocketDungeonsMod.MOD_ID, "loot_table/" + m.group(2) + ".json")).isEmpty()) {
+                        problems.add(config.getKey() + " names missing table " + m.group(2));
+                    }
+                }
+            } catch (java.io.IOException e) {
+                helper.fail("could not read " + config.getKey() + ": " + e.getMessage());
+                return;
+            }
+        }
+        helper.assertTrue(problems.isEmpty(), "spawner equipment problems: " + problems);
+        helper.succeed();
+    }
+
+    /**
+     * Playtest 2026-10-02-1: no shipped loot table caps a stack size (the old
+     * cap of 8 had no evidence behind it), and a stack that still carries one is
+     * put back to the vanilla size on entry.
+     */
+    @GameTest(maxTicks = 20)
+    public void noLootCapsStackSize(GameTestHelper helper) {
+        Map<Identifier, Resource> tables = helper.getLevel().getServer().getResourceManager()
+                .listResources("loot_table", id -> id.getNamespace().equals(PocketDungeonsMod.MOD_ID)
+                        && id.getPath().endsWith(".json"));
+        List<String> offenders = new ArrayList<>();
+        for (Map.Entry<Identifier, Resource> table : tables.entrySet()) {
+            try (BufferedReader reader = table.getValue().openAsReader()) {
+                if (reader.lines().anyMatch(line -> line.contains("max_stack_size"))) {
+                    offenders.add(table.getKey().toString());
+                }
+            } catch (java.io.IOException e) {
+                helper.fail("could not read " + table.getKey() + ": " + e.getMessage());
+                return;
+            }
+        }
+        helper.assertTrue(offenders.isEmpty(), "loot capping stack size: " + offenders);
+        ItemStack old = new ItemStack(Items.COBBLESTONE, 8);
+        old.set(DataComponents.MAX_STACK_SIZE, 8);
+        ItemStack fixed = InventorySwap.withoutLegacyStackCap(old);
+        helper.assertTrue(fixed.getMaxStackSize() == 64 && fixed.getCount() == 8,
+                "a legacy capped stack is back to the vanilla size, count kept");
+        helper.succeed();
+    }
+
+    /**
      * PD-94: no loot table hands out another mod's token. The Kamu Totems
      * Boss Stones dropped as inert echo shards on a server without that mod.
      */
@@ -73,6 +137,32 @@ public final class LootTagGameTest {
             }
         }
         helper.assertTrue(offenders.isEmpty(), "loot naming kamutotems: " + offenders);
+        helper.succeed();
+    }
+
+    /**
+     * Torches drop nothing in the dungeon (playtest 2026-10-01-1). The rule
+     * keys on block loot tables, so every light torch block, wall variants
+     * included, must drop through one of {@link DungeonDrops#TORCH_TABLES}; a
+     * new torch kind in a game update fails here instead of quietly dropping.
+     */
+    @GameTest(maxTicks = 20)
+    public void everyLightTorchDropsThroughATorchTable(GameTestHelper helper) {
+        List<String> missed = new ArrayList<>();
+        int torches = 0;
+        for (var block : BuiltInRegistries.BLOCK) {
+            String id = BuiltInRegistries.BLOCK.getKey(block).getPath();
+            if (!id.endsWith("torch") || id.contains("redstone") || id.contains("torchflower")) {
+                continue;
+            }
+            torches++;
+            String table = block.getLootTable().map(key -> key.identifier().toString()).orElse("none");
+            if (!DungeonDrops.TORCH_TABLES.contains(table)) {
+                missed.add(id + " -> " + table);
+            }
+        }
+        helper.assertTrue(torches >= 6, "found the torch blocks (" + torches + ")");
+        helper.assertTrue(missed.isEmpty(), "torches outside TORCH_TABLES: " + missed);
         helper.succeed();
     }
 

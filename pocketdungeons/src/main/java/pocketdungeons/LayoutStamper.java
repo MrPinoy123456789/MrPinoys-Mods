@@ -254,10 +254,23 @@ final class LayoutStamper {
             String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
             List<BlockPos> spawnerAnchors = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
-                    isAnomalyCell ? null : theme,
+                    isAnomalyCell && !"store".equals(entry.meta.content) ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
             OmenSources.arm(level, cellOrigin, entry.meta);
             trialSpawners.addAll(spawnerAnchors);
+            // A dead end that holds no fight (a vault, a chest, a wall) may hold a fountain.
+            if (!isAnomalyCell && spawnerAnchors.isEmpty() && !cell.equals(plan.entrance())
+                    && !cell.equals(plan.terminal())
+                    && plan.doors().stream().filter(edge -> edge.touches(cell)).count() == 1) {
+                Fountain.maybePlace(level, cellOrigin, plan.seed());
+            }
+            // A sealed two-story room: rubble over its way down, after the
+            // return-path check above has read the room as built. The seal is
+            // its own Ordeal, keyed under the cell so the room's stays armed.
+            if (plan.sealedCells().contains(cell)) {
+                RubbleOrdeal.sealFloor(level, cellOrigin);
+                Ordeals.armAt(RubbleOrdeal.FLOOR, level, cellOrigin, cellOrigin.below());
+            }
 
             // M25: the pocket door lives in the run's first cleared encounter
             // cell. A cell with no sealed wall cannot host one (every wall
@@ -592,7 +605,10 @@ final class LayoutStamper {
                 continue;
             }
             Random rng = ConnectorType.rngFor(plan.seed(), edge);
-            ConnectorType type = ConnectorType.pick(rng);
+            // The roll is always taken, so a rubble edge leaves every other
+            // edge's rng exactly where it was.
+            ConnectorType rolled = ConnectorType.pick(rng);
+            ConnectorType type = plan.rubbleEdges().contains(edge) ? ConnectorType.RUBBLE : rolled;
             // M45B: the window band rides this same per-edge pass. It is the
             // only place that knows an edge is open, knows both cells that
             // share it, and has already rolled the connector whose shape
@@ -621,7 +637,19 @@ final class LayoutStamper {
             // lever, button or redstone dust there and power the door from
             // behind. See InstanceLayout.ironDoorFarSideSlots and
             // RitualListener's placement check for the rest of it.
-            if (type == ConnectorType.IRON_DOOR) {
+            if (type == ConnectorType.RUBBLE) {
+                // Rubble, like the iron door, goes on the side the player
+                // reaches first; the far cell keeps its open slot. The plug is
+                // a lever-less Ordeal that a blast resolves.
+                PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
+                applyConnectorToSide(level, geometry, nearCell, edge, type, fillNearColumn);
+                DoorMask.Direction nearWall = nearCell.directionTo(edge.other(nearCell));
+                if (nearWall != null) {
+                    BlockPos nearOrigin = geometry.cellOrigin(nearCell);
+                    Ordeals.armAt(RubbleOrdeal.KIND, level, nearOrigin,
+                            ConnectorGeometry.wallPos(nearOrigin, nearWall, RoomGeometry.DOOR_MIN, 1));
+                }
+            } else if (type == ConnectorType.IRON_DOOR) {
                 PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
                 applyConnectorToSide(level, geometry, nearCell, edge, type, fillNearColumn);
                 PlanCell farCell = edge.other(nearCell);

@@ -17,7 +17,7 @@ import java.util.List;
 public class SituationTagsTest {
 
     public static void main(String[] args) {
-        testVocabularyIsTheFifteen();
+        testVocabularyIsTheSixteen();
         testIsKnown();
         testValidateAcceptsKnownTags();
         testValidateAcceptsNullAndEmpty();
@@ -29,11 +29,11 @@ public class SituationTagsTest {
     }
 
     /** The vocabulary is closed. If a tag is added, this line is the reminder. */
-    private static void testVocabularyIsTheFifteen() {
-        check(SituationTags.ALL.size(), 15, "vocabulary size");
+    private static void testVocabularyIsTheSixteen() {
+        check(SituationTags.ALL.size(), 16, "vocabulary size");
         List<String> expected = Arrays.asList(
                 "blocks", "water", "lava", "lead", "mob", "trial_key", "boat", "gold",
-                "snowballs", "shears", "pearl", "wind_charge", "milk", "bow", "redstone");
+                "snowballs", "shears", "pearl", "wind_charge", "milk", "bow", "redstone", "explosive");
         for (String tag : expected) {
             check(SituationTags.ALL.contains(tag), true, "vocabulary contains " + tag);
         }

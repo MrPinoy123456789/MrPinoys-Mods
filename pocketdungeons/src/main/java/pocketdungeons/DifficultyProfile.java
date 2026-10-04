@@ -80,4 +80,9 @@ record DifficultyProfile(int pathLength, int keystoneLevel) {
         }
         return Math.max(0, total);
     }
+
+    /** How many more spawners must clear before the gate passes (PD-111), never negative. */
+    static int spawnersStillNeeded(int cleared, int total, double threshold) {
+        return Math.max(0, spawnersNeeded(total, threshold) - Math.max(0, cleared));
+    }
 }

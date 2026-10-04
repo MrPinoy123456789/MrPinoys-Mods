@@ -3,6 +3,7 @@ package pocketdungeons;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
@@ -126,6 +127,22 @@ final class Locks {
     /** Drops one cell's lock. Called from teardown, per cell of the layout. */
     static void clear(BlockPos cellOrigin) {
         ACTIVE.remove(cellOrigin);
+    }
+
+    /**
+     * PD-126: a one-line hint for an armed lock in this cell, or {@code null}
+     * if there is none.
+     */
+    static String hint(BlockPos cellOrigin) {
+        Lock lock = ACTIVE.get(cellOrigin);
+        if (lock == null) {
+            return null;
+        }
+        return switch (lock.kind()) {
+            case ITEM_ANY -> "Put any item in the chest to open it.";
+            case ITEM_KEY -> "Put " + Component.translatable(lock.key().getDescriptionId()).getString() + " in the chest to open it.";
+            case PLATES_ALL -> "Hold every pressure plate down at once.";
+        };
     }
 
     private static void tick() {

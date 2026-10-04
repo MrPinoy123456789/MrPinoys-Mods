@@ -92,6 +92,16 @@ final class LostAndFound {
         }
     }
 
+    /** As above for a player who is not online: named by uuid, since nothing else is at hand. */
+    static void write(MinecraftServer server, UUID player, String cause, List<ItemStack> stacks) {
+        try {
+            int keystoneLevel = DungeonLog.forServer(server).get(player).keystoneLevel();
+            write(dir(server), player, player.toString(), cause, keystoneLevel, render(server, stacks));
+        } catch (RuntimeException e) {
+            PocketDungeonsMod.LOG.error("Could not write a lost and found entry for {}", player, e);
+        }
+    }
+
     /**
      * The file write itself, taking the directory and the already-rendered
      * lines rather than a server.

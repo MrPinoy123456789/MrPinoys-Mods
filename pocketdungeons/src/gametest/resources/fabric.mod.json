@@ -26,7 +26,11 @@
       "pocketdungeons.BankAnywhereGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.LemonGameTest",
-      "pocketdungeons.LootTagGameTest"
+      "pocketdungeons.LootTagGameTest",
+      "pocketdungeons.FloorHistoryGameTest",
+      "pocketdungeons.FountainGameTest",
+      "pocketdungeons.LockInGameTest",
+      "pocketdungeons.ThemedMerchantGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

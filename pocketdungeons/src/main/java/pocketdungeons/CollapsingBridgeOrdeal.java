@@ -9,11 +9,14 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.PistonType;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The Collapsing Bridge Ordeal.
@@ -30,8 +33,10 @@ import java.util.List;
  * the room round and a baked lever would then sit at the entrance. Armed from
  * there too, after the lever exists.
  *
- * <p>The template places sticky pistons in the extended state with oak planks
- * forming the bridge. Observers cannot detect a player standing on a block
+ * <p>The template places sticky pistons with oak planks forming the bridge.
+ * If the template was captured while retracting, the block positions may be
+ * {@code moving_piston} states; {@link #arm} normalises those back to sticky
+ * pistons before it scans. Observers cannot detect a player standing on a block
  * (they detect block state changes, not entities), so the collapse is driven
  * here in code: each tick, for every armed bridge segment, check whether a
  * player's bounding box overlaps the plank position. If so, start a collapse
@@ -75,14 +80,15 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
     }
 
     /**
-     * Arms the bridge at {@code cellOrigin} by scanning for sticky pistons
-     * and pairing them into segments. Each piston faces toward its partner;
-     * the plank is two blocks in the facing direction from the piston (past
-     * the head). Rotation-agnostic: the scan reads the world, not authored
-     * coordinates.
+     * Arms the bridge at {@code cellOrigin} by normalising any moving-piston
+     * blocks, scanning for sticky pistons and pairing them into segments. Each
+     * piston faces toward its partner; the plank is two blocks in the facing
+     * direction from the piston (past the head). Rotation-agnostic: the scan
+     * reads the world, not authored coordinates.
      */
     @Override
     Bridge arm(ServerLevel level, BlockPos cellOrigin) {
+        normaliseMovingPistons(level, cellOrigin);
         List<BlockPos> pistons = new ArrayList<>();
         for (int x = 0; x < RoomGeometry.CELL; x++) {
             for (int z = 0; z < RoomGeometry.CELL; z++) {
@@ -129,8 +135,52 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
         if (segments.isEmpty()) {
             return null;
         }
+        for (Segment seg : segments) {
+            reextend(level, seg);
+        }
         return new Bridge(List.copyOf(segments), Ordeals.findLever(level, cellOrigin));
     }
+
+    /**
+     * PD-123: a template captured while the bridge is retracting stores
+     * {@code moving_piston} blocks instead of sticky pistons. Turn the piston
+     * bases back into retracted sticky pistons and clear the moved blocks so the
+     * bridge can be re-extended cleanly.
+     *
+     * <p>This must not rely on already-converted neighbours, so every position
+     * is classified against the original set of moving_piston blocks before any
+     * block is changed.
+     */
+    private static void normaliseMovingPistons(ServerLevel level, BlockPos cellOrigin) {
+        List<MovingPiston> moving = new ArrayList<>();
+        Set<BlockPos> movingSet = new HashSet<>();
+        for (int x = 0; x < RoomGeometry.CELL; x++) {
+            for (int z = 0; z < RoomGeometry.CELL; z++) {
+                for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
+                    BlockPos pos = cellOrigin.offset(x, y, z);
+                    BlockState state = level.getBlockState(pos);
+                    if (state.is(Blocks.MOVING_PISTON)) {
+                        Direction facing = state.getValue(BlockStateProperties.FACING);
+                        moving.add(new MovingPiston(pos.immutable(), facing));
+                        movingSet.add(pos.immutable());
+                    }
+                }
+            }
+        }
+        for (MovingPiston mp : moving) {
+            BlockPos behind = mp.pos.relative(mp.facing.getOpposite());
+            boolean isBase = !movingSet.contains(behind);
+            if (isBase) {
+                level.setBlock(mp.pos, Blocks.STICKY_PISTON.defaultBlockState()
+                        .setValue(PistonBaseBlock.FACING, mp.facing)
+                        .setValue(PistonBaseBlock.EXTENDED, false), STAMP_FLAGS);
+            } else {
+                level.setBlock(mp.pos, Blocks.AIR.defaultBlockState(), STAMP_FLAGS);
+            }
+        }
+    }
+
+    private record MovingPiston(BlockPos pos, Direction facing) {}
 
     @Override
     BlockPos lever(Bridge bridge) {

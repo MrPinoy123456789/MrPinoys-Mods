@@ -36,6 +36,8 @@ final class AffixDefinition {
     final String id;
     final String label;
     final String blurb;
+    /** A few letters for tight spaces such as the floor history board; the label when a file gives none. */
+    final String shortName;
     final int order;
     final int minLevel;
     final int weight;
@@ -46,6 +48,13 @@ final class AffixDefinition {
     AffixDefinition(String id, String label, String blurb, int order, int minLevel,
                    int weight, int depletionMultiplier, Set<String> incompatible,
                    AffixEffects effects) {
+        this(id, label, label, blurb, order, minLevel, weight, depletionMultiplier, incompatible, effects);
+    }
+
+    AffixDefinition(String id, String label, String shortName, String blurb, int order, int minLevel,
+                   int weight, int depletionMultiplier, Set<String> incompatible,
+                   AffixEffects effects) {
+        this.shortName = shortName == null || shortName.isBlank() ? label : shortName;
         this.id = id;
         this.label = label;
         this.blurb = blurb;

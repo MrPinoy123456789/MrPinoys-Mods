@@ -45,7 +45,16 @@ final class AffixMeta {
                     "affix '" + id + "' declares no operation; a definition that bends nothing "
                             + "has no business shipping");
         }
-        return new AffixDefinition(id, label, blurb, order, minLevel, weight,
+        // A contraction of at most five letters, and only for longer names: a label
+        // of five letters or fewer is already short and keeps itself (owner, 2026-10-02).
+        String shortName = label;
+        if (label.length() > 5 && obj.has("short_name") && obj.get("short_name").isJsonPrimitive()) {
+            shortName = obj.get("short_name").getAsString().trim();
+            if (shortName.isEmpty() || shortName.length() > 5) {
+                throw new IllegalArgumentException("short_name must be 1 to 5 characters: " + shortName);
+            }
+        }
+        return new AffixDefinition(id, label, shortName, blurb, order, minLevel, weight,
                 depletionMultiplier, incompatible, effects);
     }
 

@@ -117,6 +117,7 @@ final class OmenBarText {
             case SHRIEK -> "Something below heard that; it is sending company.";
             case BARGAIN -> "The bargain is struck; the dungeon leans closer.";
             case DEPTH -> "This deep, the dungeon is already watching; expect heavier guards.";
+            case SILENCE -> "The silence hears you use that; the next fight will be harder.";
         };
         return line + " Omen " + Omen.clamp(omen) + "/" + Omen.MAX_OMEN + ".";
     }
@@ -132,7 +133,21 @@ final class OmenBarText {
             case DWELL -> 20 * 30;
             case SENSOR -> 20 * 10;
             case SHRIEK -> 20 * 3;
+            case SILENCE -> 20 * 2;
             case BARGAIN, DEPTH -> 0;
+        };
+    }
+
+    /**
+     * Game ticks a cue's action bar line is kept on screen after the rise. A
+     * lone overlay message fades in about three seconds, and the sensor line
+     * is the one that explains a mechanic, so it is repainted until the player
+     * has had time to read it (playtest 2026-10-01, PD-100).
+     */
+    static int holdTicks(Omen.Source source) {
+        return switch (source) {
+            case SENSOR -> 20 * 8;
+            default -> 0;
         };
     }
 }

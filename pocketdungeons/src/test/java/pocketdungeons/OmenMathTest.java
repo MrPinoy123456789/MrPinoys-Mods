@@ -18,7 +18,22 @@ public class OmenMathTest {
         testScaling();
         testBandConsequences();
         testDwellExemption();
+        testOminousChance();
         System.out.println("OmenMathTest passed");
+    }
+
+    /** The ominous roll's chance is the share of possible omen banked this interval. */
+    private static void testOminousChance() {
+        if (Omen.ominousChance(0, 0) != 0.0 || Omen.ominousChance(0, 3) != 0.0
+                || Omen.ominousChance(5, 0) != 0.0) {
+            throw new AssertionError("a calm or empty interval never rolls ominous");
+        }
+        if (Math.abs(Omen.ominousChance(6, 3) - 0.5) > 1e-9) {
+            throw new AssertionError("6 of a possible 12 is one half");
+        }
+        if (Omen.ominousChance(40, 3) != 1.0) {
+            throw new AssertionError("the chance is capped at one");
+        }
     }
 
     // ---- every row of the source table (spec 5.2) -----------------------

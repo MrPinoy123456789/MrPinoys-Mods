@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * The station picker: an SGUI chest where the room's owner takes station
- * blocks to place in their room. Four vanilla blocks, one per sink, each
+ * blocks to place in their room. Vanilla blocks, one per sink, each
  * unlocked at a keystone-level threshold. Locked stations appear as greyed
  * icons with their unlock requirement in the lore; unlocked stations are
  * clickable and give the player the block item to place wherever they want.
@@ -54,8 +54,9 @@ final class StationPicker {
 
     /** Middle row of a 9x3 chest, spaced for readability. */
     private static final int SLOT_SALVAGE = 10;
-    private static final int SLOT_REROLL = 12;
-    private static final int SLOT_GAMBLE = 14;
+    private static final int SLOT_REROLL = 11;
+    private static final int SLOT_LECTERN = 12;
+    private static final int SLOT_STORAGE = 14;
     private static final int SLOT_CUBE = 16;
 
     private StationPicker() {}
@@ -95,16 +96,27 @@ final class StationPicker {
                         "A blacksmith NPC spawns near it to sell gear for emeralds."),
                 player));
 
-        gui.setSlot(SLOT_GAMBLE, stationElement(
-                "Gamble Station",
-                resolveItem(PocketDungeonsConfig.gambleBlock()),
-                level >= PocketDungeonsConfig.gambleUnlockLevel(),
-                PocketDungeonsConfig.gambleUnlockLevel(),
+        gui.setSlot(SLOT_STORAGE, stationElement(
+                "Run Storage",
+                resolveItem(PocketDungeonsConfig.storageBlock()),
+                true,
+                0,
                 List.of(
-                        "Trades emeralds for a random piece of gear in a chosen slot.",
-                        "Costs emeralds, scaled by tier. No guarantee of quality.",
-                        "Right-click the block to open the slot picker.",
-                        "Also available from the blacksmith NPC near a smithing table."),
+                        "Twenty-seven slots of your own, for this run only.",
+                        "Place it in the dungeon, right-click to open it. It is not your real ender chest.",
+                        "Everything inside comes home with you when the run closes."),
+                player));
+
+        gui.setSlot(SLOT_LECTERN, stationElement(
+                "Lectern",
+                resolveItem("minecraft:lectern"),
+                level >= PocketDungeonsConfig.lockInUnlockLevel(),
+                PocketDungeonsConfig.lockInUnlockLevel(),
+                List.of(
+                        "A librarian spawns beside it.",
+                        "Locks in a piece of gear: adds Mending and keeps it safe.",
+                        "Costs "+"emeralds. Locked gear cannot be salvaged or rerolled.",
+                        "Right-click the librarian holding the gear."),
                 player));
 
         gui.setSlot(SLOT_CUBE, stationElement(

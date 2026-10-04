@@ -471,6 +471,7 @@ public class SituationSupplyTest {
                 {BagIds.SHEPHERD, java.util.Set.of(SituationTags.LEAD, SituationTags.MOB), 5},
                 {BagIds.INNKEEPER, java.util.Set.of(SituationTags.MILK), 6},
                 {BagIds.PILGRIM, java.util.Set.of(), 7},
+                {BagIds.GUARD, java.util.Set.of(), 8},
         };
         for (Object[] b : bagData) {
             String id = (String) b[0];

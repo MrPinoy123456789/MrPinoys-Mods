@@ -89,7 +89,7 @@ final class SpurSpecs {
         Situations.register("store", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
             StoreShop.build(level, o, seed);
-            StoreNPC.spawn(level, o, seed);
+            StoreNPC.spawn(level, o, seed, theme);
             return null;
         });
         // M58: The Altar. Pure template room with a trial key reward chest.

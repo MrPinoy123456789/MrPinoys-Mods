@@ -1,7 +1,9 @@
 package pocketdungeons;
 
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -13,9 +15,11 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -25,6 +29,10 @@ import java.util.UUID;
  * or pushed, moves only where {@link Lemon} puts it, never reaches a save
  * ({@link #shouldBeSaved}), and makes no vibrations a sculk sensor could
  * hear.
+ *
+ * <p>It always holds a journal (a book and quill), so a player is tempted to
+ * reach for it. A right-click never hands it over: it opens the menu the
+ * room's lodestone opens ({@link Lemon#journalReached}).
  *
  * <p>Private to its player: {@code ChunkMap.TrackedEntity.updatePlayer} (26.2)
  * pairs an entity with a player only when {@link Entity#broadcastToPlayer}
@@ -47,6 +55,7 @@ final class LemonBody extends Allay {
         addTag(Lemon.TAG);
         setCustomName(Component.literal("Lemon").withStyle(ChatFormatting.YELLOW));
         setCustomNameVisible(false);
+        setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
     }
 
     @Override
@@ -102,10 +111,38 @@ final class LemonBody extends Allay {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand, Vec3 location) {
+        // Reaching for the journal opens the menu; Lemon keeps the book. Main
+        // hand only, so one click opens one menu.
+        if (hand == InteractionHand.MAIN_HAND && player instanceof ServerPlayer serverPlayer
+                && owner.equals(serverPlayer.getUUID())) {
+            // A found diary handed over is kept in her archive (playtest 2026-10-02-1).
+            if (!LemonArchive.handOver(serverPlayer, serverPlayer.getMainHandItem())) {
+                Lemon.journalReached(serverPlayer);
+            }
+            undoClientPrediction(serverPlayer);
+            return InteractionResult.SUCCESS_SERVER;
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
+            undoClientPrediction(serverPlayer);
+        }
         // FAIL, not PASS: PASS lets interactOn fall through to the held item's
         // interactLivingEntity, which can equip armour and the like onto this
         // allay (it is still a LivingEntity).
         return InteractionResult.FAIL;
+    }
+
+    /**
+     * PD-105: the client knows this entity only as a vanilla allay, and on an
+     * empty-hand click it predicts vanilla {@code Allay.mobInteract}: the
+     * allay's hand empties and the journal lands in the player's hotbar, on
+     * their screen alone, until something resyncs. Nothing server side ever
+     * moved, so the cure is to resync both at once: the player's slots and
+     * Lemon's held item.
+     */
+    private void undoClientPrediction(ServerPlayer player) {
+        player.containerMenu.sendAllDataToRemote();
+        player.connection.send(new ClientboundSetEquipmentPacket(getId(),
+                List.of(Pair.of(EquipmentSlot.MAINHAND, getMainHandItem().copy()))));
     }
 
     @Override

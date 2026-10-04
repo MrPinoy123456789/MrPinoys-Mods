@@ -93,6 +93,10 @@ final class RerollStation {
         if (tierOf(held) <= 0) {
             return false;
         }
+        if (LockInStation.isLocked(held)) {
+            serverPlayerMessage(player, "That piece is locked in; it cannot be rerolled.");
+            return true;
+        }
 
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int unlock = PocketDungeonsConfig.rerollUnlockLevel();
@@ -100,8 +104,13 @@ final class RerollStation {
             return true;
         }
 
+        StationTutorial.used(player, StationTutorial.Step.REROLL);
         showPicker(player, held, null);
         return true;
+    }
+
+    private static void serverPlayerMessage(ServerPlayer player, String line) {
+        player.sendSystemMessage(Component.literal(line).withStyle(ChatFormatting.YELLOW));
     }
 
     /** Rebuilds and sends the picker from the player's current main-hand item. */
@@ -122,6 +131,10 @@ final class RerollStation {
         if (tier <= 0) {
             player.sendSystemMessage(Component.literal("You are no longer holding tiered gear.")
                     .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
+        if (LockInStation.isLocked(held)) {
+            serverPlayerMessage(player, "That piece is locked in; it cannot be rerolled.");
             return;
         }
 
@@ -158,7 +171,7 @@ final class RerollStation {
         // with one already on the item (Silk Touch alongside Fortune, Sharpness
         // alongside Smite) was never screened out. Both broke the class's own
         // "never strictly worse" guarantee. Treasure-only enchantments
-        // (Mending, Soul Speed, Swift Sneak) are deliberately left reachable:
+        // (Soul Speed, Swift Sneak; Mending since 2026-10-02 is not) are deliberately left reachable:
         // that is a windfall, not the strictly-worse failure this fix closes.
         List<Holder.Reference<Enchantment>> pool = new ArrayList<>();
         for (Identifier id : registry.keySet()) {
@@ -167,6 +180,11 @@ final class RerollStation {
                 continue;
             }
             if (candidate.is(EnchantmentTags.CURSE)) {
+                continue;
+            }
+            // Mending is no longer a reroll windfall: it is the librarian's lock in
+            // (playtest 2026-10-02-1).
+            if (candidate.is(net.minecraft.world.item.enchantment.Enchantments.MENDING)) {
                 continue;
             }
             boolean exclusiveConflict = false;
@@ -215,11 +233,6 @@ final class RerollStation {
         player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.LAPIS_LAZULI), cost,
                 new SimpleContainer(0));
         held.set(DataComponents.ENCHANTMENTS, result);
-        // PD-25: this used to fire from onUse, on opening the picker, before
-        // anything was spent. Moved to the point the lapis is actually
-        // debited, so the task can no longer be completed by right-clicking
-        // the station repeatedly with an empty inventory.
-        TaskTracker.progress(player, TaskTracker.Task.REROLL, 1);
 
         player.sendSystemMessage(Component.literal("Rerolled into "
                 + Enchantment.getFullname(replacement, newLevel).getString() + ".")

@@ -116,12 +116,6 @@
                 "min": 1,
                 "max": 2
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         }
@@ -155,12 +149,6 @@
                 "min": 1,
                 "max": 2
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         },
@@ -189,12 +177,6 @@
                 "min": 1,
                 "max": 2
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         },
@@ -208,12 +190,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
               }
             }
           ]
@@ -270,12 +246,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
               }
             }
           ]
@@ -500,12 +470,6 @@
             {
               "function": "minecraft:set_count",
               "count": 8
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ]
         },

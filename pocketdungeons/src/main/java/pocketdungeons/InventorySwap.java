@@ -628,6 +628,7 @@ public final class InventorySwap {
      * returned unchanged, since it would not merge anyway.
      */
     static ItemStack withoutStackableBagTag(ItemStack stack) {
+        stack = withoutLegacyStackCap(stack);
         if (wantsBagTag(stack) || !isBagTagged(stack)) {
             return stack;
         }
@@ -638,6 +639,24 @@ public final class InventorySwap {
         }
         ItemStack copy = stack.copy();
         copy.remove(DataComponents.CUSTOM_DATA);
+        return copy;
+    }
+
+    /**
+     * Playtest 2026-10-02-1: loot tables used to cap blocks, torches and arrows at
+     * a stack size of 8. The caps are gone; a stack the pack still holds with the
+     * old component is put back to its vanilla size so it merges with new ones.
+     */
+    static ItemStack withoutLegacyStackCap(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return stack;
+        }
+        Integer vanilla = stack.getItem().components().get(DataComponents.MAX_STACK_SIZE);
+        if (vanilla == null || stack.getMaxStackSize() == vanilla) {
+            return stack;
+        }
+        ItemStack copy = stack.copy();
+        copy.set(DataComponents.MAX_STACK_SIZE, vanilla);
         return copy;
     }
 
@@ -825,6 +844,19 @@ public final class InventorySwap {
         }
         record.interval.inventorySnapshot.computeIfAbsent(player.getUUID(),
                 id -> snapshotPlayer(player, new PlayerSlots(player)));
+    }
+
+    /**
+     * PD-121: retakes the interval snapshot when the first door of an interval
+     * is committed. The entry snapshot may have been taken before a fresh player
+     * chose a bag and received the one-time kit, so this refresh makes sure the
+     * revert keeps what they carried into the first floor.
+     */
+    static void snapshotAtFirstCommit(MinecraftServer server, InstanceRecord record) {
+        if (record.interval.floorIndex != 0) {
+            return;
+        }
+        captureIntervalSnapshot(server, record);
     }
 
     /**

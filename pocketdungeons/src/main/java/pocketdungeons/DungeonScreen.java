@@ -48,11 +48,11 @@ import java.util.UUID;
  * face the camera, and the yaw orients that plane so its readable face points
  * into the room. Text renders at 0.025x GUI scale per unit of transformation
  * scale, so the door screen runs at 2.0 (a 9px line becomes half a block:
- * the plan's "2 lines per block") and the engine screen at 1.0.
+ * the plan's "2 lines per block") and the floor history board at 0.6.
  *
  * <p>The screens are transient. They are summoned fresh at every room stamp
  * and re-summoned whenever their content changes ({@link #updateDoor},
- * {@link #updateEngine}); they are never captured with the room. The entity
+ * {@link #updateHistory}); they are never captured with the room. The entity
  * sweeps on teardown and on {@code RoomStore.capture} discard them, which is
  * why every path that re-arms a room re-summons them.
  */
@@ -66,37 +66,45 @@ final class DungeonScreen {
 
     /**
      * Where each screen's text centers vertically. The door screen's backdrop
-     * is the two rows Y=4..5, so the seam between them is at 5.0; the engine
-     * screen's is the single row Y=4, whose middle is 4.5.
+     * is the two rows Y=4..5, so the seam between them is at 5.0; the floor
+     * history board's is the four rows Y=2..5, so its middle is 4.0.
      */
     private static final double DOOR_CENTER_Y = 5.0;
-    private static final double ENGINE_CENTER_Y = 4.5;
-    private static final double TRACKER_CENTER_Y = 4.5;
+    private static final double HISTORY_CENTER_Y = 4.0;
     private static final float DOOR_SCALE = 2.0f;
-    private static final float ENGINE_SCALE = 1.0f;
-    private static final float TRACKER_SCALE = 1.0f;
+    /**
+     * The board body, 20 percent larger than the 0.6 it had (playtest
+     * 2026-10-02-1). Ten rows still sit inside the four-row backdrop; the width
+     * is the part to check in play, since it depends on the uniform font.
+     */
+    private static final float HISTORY_SCALE = 0.72f;
+    /** The "FLOOR HISTORY" heading: its own display, much larger than the rows. */
+    private static final float HISTORY_HEADING_SCALE = 1.6f;
+    /** Bottom of the heading and middle of the body, in blocks above the room floor. */
+    private static final double HISTORY_HEADING_Y = 5.0;
+    private static final double HISTORY_BODY_CENTER_Y = 3.6;
 
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
     /**
      * Where each screen's text centers along its wall. The door screen's
      * backdrop covers blocks 4..11, whose midpoint is the block boundary at
-     * 8.0; the engine screen's covers 5..9, whose midpoint is the middle of
-     * block 7 at 7.5.
+     * 8.0; the floor history board covers the same span on its own wall.
      */
     private static final double DOOR_SCREEN_ALONG = 8.0;
-    private static final double ENGINE_SCREEN_ALONG = 7.5;
-    private static final double TRACKER_SCREEN_ALONG = 7.5;
+    private static final double HISTORY_SCREEN_ALONG = 8.0;
     /**
      * The go-home screen sits on the selector wall's 3x3 backdrop at along
      * 3..5, Y=1..3 ({@link RoomTemplateGenerator#HOME_LEVER_ALONG}): its
      * middle is the centre of block 4 and the middle of row 2. A little
-     * smaller than the engine screen so its three lines stay on the panel.
+     * small enough that its three lines stay on the panel.
      */
     private static final double HOME_SCREEN_ALONG = 4.5;
     private static final double HOME_CENTER_Y = 2.5;
     private static final float HOME_SCALE = 0.8f;
     private static final int LINE_WIDTH = 200;
+    /** A history line is one floor: wide enough that it stays one line on the eight-block panel. */
+    private static final int HISTORY_LINE_WIDTH = 1000;
     private static final boolean SEE_THROUGH = false;
 
     private DungeonScreen() {}
@@ -121,50 +129,33 @@ final class DungeonScreen {
                 yawFor(wall), content);
     }
 
-    /**
-     * Refreshes the engine screen above the engine block. {@code viewer} is
-     * the player whose fuel count the screen shows; {@code null} renders the
-     * cost line without a count (a visit copy, or a stamp where no player is
-     * standing there yet).
-     */
-    static void updateEngine(ServerLevel level, InstanceRecord record, ServerPlayer viewer) {
+    /** Repaints the floor history board in {@code record}'s staging room from its owner's history. */
+    static void updateHistory(ServerLevel level, InstanceRecord record) {
         if (record.stagingCellOrigin == null) {
             return;
         }
-        Component content = engineContent(viewer);
-        summonEngine(level, record.stagingCellOrigin, record.roomDungeonDoor, content);
-    }
-
-    /** Summons the engine screen for a room stamp; see {@link #updateEngine}. */
-    static void summonEngine(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
-                             Component content) {
-        DoorMask.Direction engineWall = RoomGeometry.leftOf(selectorWall);
-        show(level, roomOrigin, engineWall, ENGINE_SCREEN_ALONG, ENGINE_CENTER_Y, ENGINE_SCALE,
-                yawFor(engineWall), content);
+        summonHistory(level, record.stagingCellOrigin, record.roomDungeonDoor,
+                FloorHistory.board(level.getServer(), record.owner));
     }
 
     /**
-     * Refreshes the tracker screen on the wall opposite the engine screen
-     * (the selector wall's right, the engine's left). Shows the owner's
-     * active guided task, or once the tutorial is done, the weekly bounties.
-     * Replaces the old scoreboard sidebar: instead of a global per-player
-     * sidebar, the progress is a third physical screen in the room, visible
-     * only to whoever is standing in it.
+     * Summons the floor history board on the wall to the left of the selector
+     * wall, where the echo shard engine used to be. Always cleared and
+     * summoned fresh rather than updated in place: a screen left there by the
+     * old engine carries the engine's scale, which an in-place text update
+     * would keep.
      */
-    static void updateTracker(ServerLevel level, InstanceRecord record) {
-        if (record.stagingCellOrigin == null) {
-            return;
-        }
-        Component content = trackerContent(level.getServer(), record.owner);
-        summonTracker(level, record.stagingCellOrigin, record.roomDungeonDoor, content);
-    }
-
-    /** Summons the tracker screen for a room stamp; see {@link #updateTracker}. */
-    static void summonTracker(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
-                              Component content) {
-        DoorMask.Direction trackerWall = RoomGeometry.rightOf(selectorWall);
-        show(level, roomOrigin, trackerWall, TRACKER_SCREEN_ALONG, TRACKER_CENTER_Y, TRACKER_SCALE,
-                yawFor(trackerWall), content);
+    static void summonHistory(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
+                              FloorHistory.Board board) {
+        DoorMask.Direction wall = RoomGeometry.leftOf(selectorWall);
+        int lines = lines(board.body());
+        double y = HISTORY_BODY_CENTER_Y - RENDER_SCALE * HISTORY_SCALE * (5 * lines - 1);
+        double[] clearXyz = wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, HISTORY_CENTER_Y);
+        clear(level, clearXyz);
+        summon(level, wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, HISTORY_HEADING_Y), yawFor(wall),
+                HISTORY_HEADING_SCALE, board.heading(), LINE_WIDTH);
+        summon(level, wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, y), yawFor(wall), HISTORY_SCALE,
+                board.body(), HISTORY_LINE_WIDTH);
     }
 
     /**
@@ -190,27 +181,6 @@ final class DungeonScreen {
     /** Takes the go-home screen down with its control, at a commit or on the way home. */
     static void clearHome(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall) {
         clear(level, wallAnchor(roomOrigin, selectorWall, homeScreenAlong(selectorWall), HOME_CENTER_Y));
-    }
-
-    /**
-     * Refreshes the tracker screen for {@code owner}'s room from anywhere
-     * with just a server (the task/bounty progress hooks, which fire without
-     * a level or record in hand). No-op if the owner is not currently in a
-     * dungeon instance, so progress earned outside a room does not summon a
-     * screen into nothing.
-     */
-    static void refreshTracker(MinecraftServer server, UUID owner) {
-        if (owner == null) {
-            return;
-        }
-        InstanceRecord record = InstanceRegistry.byMember.get(owner);
-        if (record == null || record.stagingCellOrigin == null) {
-            return;
-        }
-        ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (dungeon != null) {
-            updateTracker(dungeon, record);
-        }
     }
 
     // ---- the five door-screen contexts (plan 19.1) ---------------------------
@@ -305,11 +275,11 @@ final class DungeonScreen {
             int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
             ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
             if (ownerPlayer != null) {
-                int banked = Fuel.banked(ownerPlayer);
-                content.append(Component.literal("\nFuel " + cost + " of your " + banked)
-                        .withStyle(banked >= cost ? ChatFormatting.GRAY : ChatFormatting.RED));
+                int carried = Fuel.carried(ownerPlayer);
+                content.append(Component.literal("\nEcho shards " + cost + " of your " + carried)
+                        .withStyle(carried >= cost ? ChatFormatting.GRAY : ChatFormatting.RED));
             } else {
-                content.append(Component.literal("\nFuel " + cost).withStyle(ChatFormatting.GRAY));
+                content.append(Component.literal("\nEcho shards " + cost).withStyle(ChatFormatting.GRAY));
             }
         }
         // M27 27.1: the caution indicator for an operator's fixed test offer.
@@ -381,72 +351,6 @@ final class DungeonScreen {
         return Component.literal(message).withStyle(ChatFormatting.RED);
     }
 
-    // ---- engine screen content ----------------------------------------------
-
-    /**
-     * The engine screen: a title, the viewer's banked balance (when there is a
-     * viewer) and the per-premium-door cost.
-     *
-     * <p>The balance, not what the viewer is carrying. Fuel items are how fuel
-     * travels; {@link Fuel#banked} is what a Greater door can actually spend,
-     * and a screen that counted the stack in your pocket instead was reporting
-     * the wrong number at exactly the moment you fed one in, when the two move
-     * in opposite directions.
-     *
-     * <p>The title line is the other half of that: an unlabelled black panel
-     * over a respawn anchor does not announce itself as the engine, so it says
-     * so, in the same gold the door screen's idle title uses.
-     */
-    static Component engineContent(ServerPlayer viewer) {
-        Item fuel = Fuel.item();
-        String fuelName = fuel == null ? "fuel"
-                : Component.translatable(fuel.getDescriptionId()).getString();
-        String balance = viewer != null
-                ? "Stored: " + Fuel.banked(viewer) + " " + fuelName
-                : "Accepts " + fuelName;
-        return Component.literal("ECHO SHARDS").withStyle(ChatFormatting.GOLD)
-                .append(Component.literal("\n" + balance).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal("\nPer premium door: "
-                        + PocketDungeonsConfig.fuelCostPerGreaterDoor()).withStyle(ChatFormatting.GRAY));
-    }
-
-    // ---- tracker screen content ---------------------------------------------
-
-    /**
-     * The tracker screen: the owner's active guided task with its progress,
-     * or once the tutorial is done, the weekly bounties with their progress.
-     * Replaces the old scoreboard sidebar, which was global and per-player;
-     * this is a physical screen in the room, so it is visible only to whoever
-     * is standing in it, and it carries no state outside the room.
-     *
-     * <p>Keys off the owner, not a viewer: a stamp with nobody standing there
-     * still shows the owner's progress, the same way the engine screen's
-     * cost line shows without a viewer. {@code server} or {@code owner} may
-     * be null (a defensive caller), in which case just the title renders.
-     */
-    static Component trackerContent(MinecraftServer server, UUID owner) {
-        if (server == null || owner == null) {
-            return Component.literal("PROGRESS").withStyle(ChatFormatting.GOLD);
-        }
-        DungeonLog log = DungeonLog.forServer(server);
-        int level = log.get(owner).keystoneLevel();
-        Component taskLine = TaskTracker.taskLine(log, owner, level);
-        if (taskLine != null) {
-            return Component.literal("TASK").withStyle(ChatFormatting.GOLD)
-                    .append(Component.literal("\n").append(taskLine));
-        }
-        MutableComponent content = Component.literal("WEEKLY BOUNTIES").withStyle(ChatFormatting.GOLD);
-        List<Component> bountyLines = BountyTracker.bountyLines(log, owner);
-        if (bountyLines == null || bountyLines.isEmpty()) {
-            content.append(Component.literal("\nAll bounties done").withStyle(ChatFormatting.AQUA));
-        } else {
-            for (Component line : bountyLines) {
-                content.append(Component.literal("\n")).append(line);
-            }
-        }
-        return content;
-    }
-
     // ---- summon / update / clear --------------------------------------------
 
     /**
@@ -481,7 +385,7 @@ final class DungeonScreen {
             return;
         }
         clear(level, clearXyz);
-        summon(level, xyz, yaw, scale, text);
+        summon(level, xyz, yaw, scale, text, LINE_WIDTH);
     }
 
     private static void show(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall,
@@ -502,7 +406,8 @@ final class DungeonScreen {
         update(level, clearXyz, xyz, yaw, scale, content);
     }
 
-    private static void summon(ServerLevel level, double[] xyz, float yaw, float scale, Component text) {
+    private static void summon(ServerLevel level, double[] xyz, float yaw, float scale, Component text,
+                               int lineWidth) {
         Display.TextDisplay display = EntityTypes.TEXT_DISPLAY.create(level, EntitySpawnReason.COMMAND);
         if (display == null) {
             return;
@@ -518,7 +423,7 @@ final class DungeonScreen {
         tag.putBoolean("default_background", true);
         tag.putString("alignment", "center");
         tag.putByte("text_opacity", (byte) 255);
-        tag.putInt("line_width", LINE_WIDTH);
+        tag.putInt("line_width", lineWidth);
         // Transformation as the 16-float matrix form of Transformation.EXTENDED_CODEC:
         // a uniform scale around the entity position (verified against the jar).
         tag.put("transformation", scaleTransformation(scale));
@@ -634,7 +539,7 @@ final class DungeonScreen {
         return count;
     }
 
-    private static String themeName(String theme) {
+    static String themeName(String theme) {
         if (theme == null || theme.isEmpty()) {
             return "Uncharted";
         }

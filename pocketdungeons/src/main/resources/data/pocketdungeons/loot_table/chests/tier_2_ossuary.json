@@ -24,12 +24,6 @@
                 "min": 3,
                 "max": 9
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ],
           "weight": 7
@@ -45,12 +39,6 @@
                 "n": 5,
                 "p": 0.175
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ],
           "weight": 5
@@ -65,12 +53,6 @@
                 "type": "minecraft:binomial",
                 "n": 2,
                 "p": 0.1875
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
               }
             }
           ],

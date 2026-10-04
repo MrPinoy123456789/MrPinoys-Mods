@@ -9,11 +9,13 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -21,6 +23,8 @@ import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -85,7 +89,7 @@ final class RoomContent {
     /** How far a repeated spawn may drift off its anchor. One block, as in U3. */
     private static final int SPAWN_JITTER = 1;
 
-    private static final Set<PendingExplosive> PENDING_EXPLOSIVES = ConcurrentHashMap.newKeySet();
+    private static final Set<AffixMine> PENDING_EXPLOSIVES = ConcurrentHashMap.newKeySet();
 
     private RoomContent() {}
 
@@ -133,7 +137,7 @@ final class RoomContent {
                 // shopkeeper villager. No chest, no spawner, no combat: the
                 // store is a safe room the player finds along the critical path.
                 StoreShop.build(level, cellOrigin, seed);
-                StoreNPC.spawn(level, cellOrigin, seed);
+                StoreNPC.spawn(level, cellOrigin, seed, theme);
                 return List.of();
             }
             // M35: a loose chest off the anomaly table regardless of role; never
@@ -203,9 +207,10 @@ final class RoomContent {
         if (affixes.contains(AffixIds.MOLTEN) && isHazardEligible(role)) {
             placeMoltenHazards(level, cellOrigin, spawns, seed);
         }
-        // Explosive: TNT underfoot with pressure pads on top. Same placement
-        // rules as Molten. Entrance and exit excluded to keep lodestone pad
-        // and lobby door passable.
+        // Explosive: fake TNT mines underfoot. Same placement rules as Molten.
+        // Entrance and exit excluded to keep lodestone pad and lobby door
+        // passable. The TNT is part of the floor: stepping on it sets it off,
+        // but the explosion hurts entities without breaking blocks.
         if (affixes.contains(AffixIds.EXPLOSIVE) && isHazardEligible(role)) {
             placeExplosiveHazards(level, cellOrigin, spawns, seed);
         }
@@ -406,26 +411,26 @@ final class RoomContent {
         }
     }
 
+    /** Ticks a fake TNT mine waits before it goes off once stepped on. */
+    private static final int MINE_FUSE_TICKS = 20;
+    /** Ticks before a triggered mine re-arms. */
+    private static final int MINE_COOLDOWN_TICKS = 100;
+
     /**
-     * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} TNT blocks
-     * across the cell, seeded off the run so a given seed always stamps the
-     * same hazards. Each TNT replaces a floor block, and its pressure plate
-     * lies flush on a floor block beside it: stepping on the plate strongly
-     * powers that floor block, which ignites the TNT next to it. The plate
-     * rests on ordinary floor, not on the TNT, so it stays supported when the
-     * TNT turns into a primed entity and can be removed without dropping.
+     * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} fake TNT
+     * mines across the cell, seeded off the run so a given seed always stamps
+     * the same hazards. Each mine replaces a floor block with TNT. Stepping on
+     * top of the TNT starts a short hiss, then the mine explodes with damage and
+     * knockback but no block destruction, and finally re-arms after a cooldown.
      *
-     * <p>PD-88: the support used to be looked for among air neighbours at
-     * floor level, which a solid floor never has, so every hazard took the
-     * fallback: a stone block stacked on the TNT with the plate on top. A
-     * raised plate on a pillar reads as a mechanism to walk around and could
-     * never catch a careless step. A TNT with no conductive floor beside it
-     * to take the plate is skipped rather than given a pillar.
+     * <p>PD-124: real TNT with pressure plates was destroying room mechanisms.
+     * These mines only hurt players, never break blocks, and cannot be primed
+     * with flint and steel (blocked by {@link RitualListener}).
      *
-     * <p>Same interior margin (3..12) and spawn-anchor skip as
-     * {@link #placeMoltenHazards}. The plate is removed with
-     * {@code destroyBlock(..., false)} once the TNT is gone, so no free items
-     * appear on trigger (PD-75).
+     * <p>Placement skips spawn anchors, the cell margin (3..12) and any
+     * position already occupied by another TNT or whose above block is not air.
+     * Same interior margin (3..12) and spawn-anchor skip as
+     * {@link #placeMoltenHazards}.
      */
     private static void placeExplosiveHazards(ServerLevel level, BlockPos cellOrigin,
                                              List<BlockPos> spawns, long seed) {
@@ -434,7 +439,6 @@ final class RoomContent {
             return;
         }
         Random random = new Random(seed ^ cellOrigin.asLong() ^ 0x4578L);
-        List<Direction> directions = List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST);
         int placed = 0;
         int attempts = 0;
         while (placed < count && attempts < count * 8) {
@@ -445,55 +449,13 @@ final class RoomContent {
             if (spawns.contains(tntPos) || spawns.contains(tntPos.above())
                     || level.getBlockState(tntPos).is(Blocks.TNT)
                     || !level.getBlockState(tntPos.above()).isAir()) {
-                // Not under another hazard's plate, and not on top of a TNT
-                // already placed.
                 continue;
             }
-            BlockPos platePos = findFlushPlate(level, tntPos, spawns, directions, random);
-            if (platePos == null) {
-                continue;
-            }
+            BlockState originalFloor = level.getBlockState(tntPos);
             level.setBlock(tntPos, Blocks.TNT.defaultBlockState(), FLAGS);
-            level.setBlock(platePos, Blocks.STONE_PRESSURE_PLATE.defaultBlockState(), FLAGS);
-            PENDING_EXPLOSIVES.add(new PendingExplosive(level, tntPos, platePos));
+            PENDING_EXPLOSIVES.add(new AffixMine(level, tntPos, originalFloor));
             placed++;
         }
-    }
-
-    /**
-     * PD-88: where the plate for the TNT at {@code tntPos} goes, flush on the
-     * floor beside it: a horizontal neighbour at floor level that is a solid
-     * redstone conductor (so the pressed plate powers it into the TNT) with
-     * air above it for the plate. Directions are tried in a seeded random
-     * order.
-     *
-     * @return the plate position (floor level plus one), or {@code null} if no
-     *         neighbour qualifies
-     */
-    private static BlockPos findFlushPlate(ServerLevel level, BlockPos tntPos, List<BlockPos> spawns,
-                                           List<Direction> directions, Random random) {
-        List<Direction> order = new ArrayList<>(directions);
-        for (int i = order.size() - 1; i > 0; i--) {
-            int j = random.nextInt(i + 1);
-            Direction tmp = order.get(i);
-            order.set(i, order.get(j));
-            order.set(j, tmp);
-        }
-        for (Direction dir : order) {
-            BlockPos floor = tntPos.relative(dir);
-            BlockPos plate = floor.above();
-            if (spawns.contains(floor) || spawns.contains(plate)) {
-                continue;
-            }
-            BlockState below = level.getBlockState(floor);
-            if (below.is(Blocks.TNT) || !below.isRedstoneConductor(level, floor)) {
-                continue;
-            }
-            if (level.getBlockState(plate).isAir()) {
-                return plate;
-            }
-        }
-        return null;
     }
 
     /**
@@ -670,40 +632,82 @@ final class RoomContent {
     }
 
     /**
-     * Tracks a placed explosive hazard so its plate can be removed without a
-     * drop.
-     *
-     * <p>PD-88: the watch used to lapse 30 s after the stamp, long before a
-     * player reaches a room on a floor stamped all at once, so a triggered
-     * plate stayed behind and the blast dropped it as a free item. It now
-     * lasts an hour, and ends as soon as the hazard's chunk is unloaded (the
-     * floor was torn down) so it never loads a chunk to look.
+     * PD-124: a fake TNT mine placed by the Explosive affix. It arms when a
+     * player stands on the TNT block, ticks a short fuse with a hiss, explodes
+     * with damage and knockback but no block destruction, then re-arms after a
+     * cooldown so the hazard keeps working. If the TNT block is ever removed
+     * (fire arrow, glitched ignition) the original floor block is restored and
+     * the mine is discarded.
      */
-    private record PendingExplosive(int dimension, BlockPos tntPos, BlockPos platePos, long deadline) {
-        PendingExplosive(ServerLevel level, BlockPos tntPos, BlockPos platePos) {
-            this(level.dimension().hashCode(), tntPos, platePos,
-                    level.getServer().getTickCount() + 20L * 60 * 60);
+    private static final class AffixMine {
+        private final int dimension;
+        private final BlockPos tntPos;
+        private final BlockState originalFloor;
+        private final long deadline;
+        private State state = State.ARMED;
+        private int timer = 0;
+
+        private enum State { ARMED, FUSE, COOLDOWN }
+
+        AffixMine(ServerLevel level, BlockPos tntPos, BlockState originalFloor) {
+            this.dimension = level.dimension().hashCode();
+            this.tntPos = tntPos;
+            this.originalFloor = originalFloor;
+            this.deadline = level.getServer().getTickCount() + 20L * 60 * 60;
         }
 
         boolean tick(ServerLevel level, long now) {
             if (now > deadline) {
+                level.setBlock(tntPos, originalFloor, FLAGS);
                 return true;
             }
             if (level.dimension().hashCode() != dimension) {
                 return false;
             }
             if (!level.isLoaded(tntPos)) {
-                return true;
-            }
-            BlockState state = level.getBlockState(tntPos);
-            if (state.is(Blocks.TNT)) {
                 return false;
             }
-            BlockState plate = level.getBlockState(platePos);
-            if (plate.is(Blocks.STONE_PRESSURE_PLATE)) {
-                level.destroyBlock(platePos, false);
+            BlockState stateAtPos = level.getBlockState(tntPos);
+            if (!stateAtPos.is(Blocks.TNT)) {
+                // Block was removed; restore floor so the hole does not persist.
+                level.setBlock(tntPos, originalFloor, FLAGS);
+                return true;
             }
-            return true;
+            switch (state) {
+                case ARMED -> {
+                    if (playerStandingOn(level, tntPos)) {
+                        Vec3 center = Vec3.atCenterOf(tntPos);
+                        level.playSound(null, center.x(), center.y(), center.z(),
+                                SoundEvents.TNT_PRIMED, SoundSource.BLOCKS, 1.0f, 1.0f);
+                        state = State.FUSE;
+                        timer = MINE_FUSE_TICKS;
+                    }
+                }
+                case FUSE -> {
+                    timer--;
+                    if (timer <= 0) {
+                        Vec3 center = Vec3.atCenterOf(tntPos);
+                        level.explode(null, center.x(), center.y(), center.z(),
+                                4.0f, Level.ExplosionInteraction.NONE);
+                        state = State.COOLDOWN;
+                        timer = MINE_COOLDOWN_TICKS;
+                    }
+                }
+                case COOLDOWN -> {
+                    timer--;
+                    if (timer <= 0) {
+                        state = State.ARMED;
+                        timer = 0;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static boolean playerStandingOn(ServerLevel level, BlockPos pos) {
+            AABB box = new AABB(pos.getX(), pos.getY() + 1, pos.getZ(),
+                    pos.getX() + 1, pos.getY() + 3, pos.getZ() + 1);
+            return !level.getPlayers(p -> !p.isSpectator() && p.getBoundingBox().intersects(box)).isEmpty();
         }
     }
 }

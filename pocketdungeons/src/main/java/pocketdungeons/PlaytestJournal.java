@@ -392,6 +392,26 @@ final class PlaytestJournal {
         safely("ordeal", () -> record(player, "ordeal", Map.of("ordeal", ordeal, "seconds", seconds)));
     }
 
+    /** A diary entry was handed to Lemon: its band and how many she now holds. */
+    static void diaryHanded(ServerPlayer player, int band, int count) {
+        safely("diary_handed", () -> record(player, "diary_handed", Map.of("band", band, "count", count)));
+    }
+
+    /** Gear was locked in at the librarian: which item and the emerald price. */
+    static void lockIn(ServerPlayer player, String item, int cost) {
+        safely("lock_in", () -> record(player, "lock_in", Map.of("item", item, "cost", cost)));
+    }
+
+    /** A dead-end fountain was drunk: which boon it held. */
+    static void fountain(ServerPlayer player, String boon) {
+        safely("fountain", () -> record(player, "fountain", Map.of("boon", boon)));
+    }
+
+    /** Echo shards granted outside the free door and salvage: how many and from what. */
+    static void echoShards(ServerPlayer player, int amount, String source) {
+        safely("echo_shards", () -> record(player, "echo_shards", Map.of("amount", amount, "source", source)));
+    }
+
     /** One salvage at the bench: what went in and what came out (A3, the surplus sink). */
     static void salvage(ServerPlayer player, Map<String, ?> extras) {
         safely("salvage", () -> record(player, "salvage", extras));

@@ -82,6 +82,28 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
+    /** PD-108: plain mob armour is salvageable; trimmed armour is refused with a reason the player can read. */
+    @GameTest
+    public void plainDiamondLeggingsSalvageAndTrimmedAreExplained(GameTestHelper helper) {
+        ItemStack plain = new ItemStack(Items.DIAMOND_LEGGINGS);
+        helper.assertTrue(SalvageStation.classify(plain).takes(), "plain diamond leggings are taken");
+        SalvageStation.Verdict trimmed = SalvageStation.classify(trimmedLeggings(helper));
+        helper.assertTrue(!trimmed.takes() && trimmed.reason().contains("trimmed"),
+                "trimmed leggings are refused and the reason says why: " + trimmed);
+        helper.succeed();
+    }
+
+    private static ItemStack trimmedLeggings(GameTestHelper helper) {
+        var access = helper.getLevel().registryAccess();
+        var pattern = access.lookupOrThrow(net.minecraft.core.registries.Registries.TRIM_PATTERN)
+                .listElements().findFirst().orElseThrow();
+        var material = access.lookupOrThrow(net.minecraft.core.registries.Registries.TRIM_MATERIAL)
+                .listElements().findFirst().orElseThrow();
+        ItemStack stack = new ItemStack(Items.DIAMOND_LEGGINGS);
+        stack.set(DataComponents.TRIM, new net.minecraft.world.item.equipment.trim.ArmorTrim(material, pattern));
+        return stack;
+    }
+
     /** Below the unlock level nothing is taken and nothing is paid. */
     @GameTest
     public void aKeyBelowTheUnlockLevelSalvagesNothing(GameTestHelper helper) {
@@ -134,6 +156,32 @@ public final class SalvageGameTest {
         player.setShiftKeyDown(false);
         helper.assertTrue(SalvageStation.onUse(player, grindstone, hand, access, true),
                 "in the dungeon an empty hand opens the bench");
+        player.closeContainer();
+
+        cleanUp(server, player);
+        helper.succeed();
+    }
+
+    /**
+     * PD-101: a plain use opens the bench without touching the held stack.
+     * Depositing is a deliberate click inside the screen.
+     */
+    @GameTest
+    public void openingTheBenchLeavesTheHeldItemAlone(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        emptyInventory(player);
+        net.minecraft.world.level.block.state.BlockState grindstone =
+                net.minecraft.world.level.block.Blocks.GRINDSTONE.defaultBlockState();
+        net.minecraft.world.InteractionHand hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        DungeonLog.forServer(server).setKeystone(player.getUUID(), 5, Set.of());
+        player.setItemInHand(hand, new ItemStack(Items.TRIAL_KEY, 2));
+        helper.assertTrue(SalvageStation.onUse(player, grindstone, hand,
+                net.minecraft.world.inventory.ContainerLevelAccess.NULL, true),
+                "a plain use with a key in hand opens the bench");
+        ItemStack held = player.getItemInHand(hand);
+        helper.assertTrue(held.is(Items.TRIAL_KEY) && held.getCount() == 2,
+                "the held key stack is still in hand after opening");
         player.closeContainer();
 
         cleanUp(server, player);

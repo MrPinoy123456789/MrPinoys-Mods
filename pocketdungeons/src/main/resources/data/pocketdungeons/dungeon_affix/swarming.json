@@ -1,1 +1,1 @@
-{"version": 1, "label": "Swarming", "blurb": "Swarming: more of them, and more of them is more drops.", "order": 2, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"trial_count_multiplier": 1.5}}
+{"version": 1, "label": "Swarming", "short_name": "Swrm", "blurb": "Swarming: more of them, and more of them is more drops.", "order": 2, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"trial_count_multiplier": 1.5}}

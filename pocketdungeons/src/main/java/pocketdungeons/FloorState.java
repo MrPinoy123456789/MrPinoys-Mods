@@ -118,13 +118,6 @@ final class FloorState {
      */
     long expiresAtTick;
 
-    /**
-     * Whether this floor's trial spawners have been added to the interval's
-     * bounty tally, so leaving the floor and settling the interval on it do
-     * not count it twice.
-     */
-    boolean spawnersTallied;
-
     // ---- the choice of the next floor ------------------------------------------
 
     /** Which selector door (1, 2 or 3) the owner last right-clicked, or {@code 0}. */

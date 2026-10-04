@@ -249,7 +249,7 @@ private static RoomSpec risingLava() {
     /**
      * A stone pressure plate in the room centre and a trial spawner. Stand on
      * the plate for {@link HoldThePlateOrdeal#HOLD_SECONDS} seconds and the
-     * iron door at the exit opens; step off and the count resets. The spawner
+     * iron door at the exit opens; step off and the count pauses. The spawner
      * sits between the entrance and the plate so the decision is informed from
      * the doorway.
      *

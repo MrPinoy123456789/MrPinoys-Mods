@@ -98,6 +98,9 @@ final class Ordeals {
                     player.sendOverlayMessage(Component.literal(line).withStyle(ChatFormatting.GREEN));
                 }
                 PlaytestJournal.ordealResolved(player, kind.id, seconds);
+                if (Fuel.rollChance(player.getRandom(), PocketDungeonsConfig.echoShardOrdealChance())) {
+                    Fuel.grantFrom(player, 1, "ordeal");
+                }
             }
             PocketDungeonsMod.LOG.info("Ordeal {} at {} resolved", kind.id, origin.toShortString());
         }
@@ -138,15 +141,61 @@ final class Ordeals {
         ACTIVE.put(cellOrigin.immutable(), new Armed<>(kind, level, cellOrigin.immutable(), state));
     }
 
-    /** Drops the cell's Ordeal. Called from teardown. */
+    /**
+     * {@link #arm}, stored under {@code key} rather than the cell origin, for an
+     * Ordeal that is not the room's own and can share a cell with it: a rubble
+     * doorway ({@link RubbleOrdeal}) keys on its doorway, so the room's Ordeal
+     * in the same cell is left armed.
+     */
+    static <S> void armAt(Ordeal<S> kind, ServerLevel level, BlockPos cellOrigin, BlockPos key) {
+        S state = kind.arm(level, cellOrigin);
+        if (state == null) {
+            PocketDungeonsMod.LOG.warn("Ordeal {} at {} found nothing to arm", kind.id, key.toShortString());
+            ACTIVE.remove(key);
+            return;
+        }
+        ACTIVE.put(key.immutable(), new Armed<>(kind, level, cellOrigin.immutable(), state));
+    }
+
+    /** Drops every Ordeal armed in the cell, its own and any keyed elsewhere. Called from teardown. */
     static void clear(BlockPos cellOrigin) {
         ACTIVE.remove(cellOrigin);
+        ACTIVE.values().removeIf(armed -> armed.origin.equals(cellOrigin));
+    }
+
+    /**
+     * Calls {@code action} with the state of every unresolved {@code kind} armed
+     * in {@code level}, for a kind that is resolved from outside the tick (a
+     * blast reaching rubble). Returns whether any call returned true.
+     */
+    @SuppressWarnings("unchecked")
+    static <S> boolean anyUnresolved(Ordeal<S> kind, ServerLevel level, java.util.function.Predicate<S> action) {
+        boolean any = false;
+        for (Armed<?> armed : ACTIVE.values()) {
+            if (armed.kind == kind && armed.level == level && !armed.resolved
+                    && action.test((S) armed.state)) {
+                any = true;
+            }
+        }
+        return any;
     }
 
     /** Whether {@code kind} is armed in the cell and not yet resolved. */
     static boolean isActive(Ordeal<?> kind, BlockPos cellOrigin) {
         Armed<?> armed = ACTIVE.get(cellOrigin);
         return armed != null && armed.kind == kind && !armed.resolved;
+    }
+
+    /**
+     * PD-126: the objective line of an armed, unresolved Ordeal in this cell,
+     * or {@code null} if there is none.
+     */
+    static String objectiveAt(BlockPos cellOrigin) {
+        Armed<?> armed = ACTIVE.get(cellOrigin);
+        if (armed == null || armed.resolved) {
+            return null;
+        }
+        return armed.kind.objective;
     }
 
     /** Whether the cell's Ordeal has been resolved (and not torn down since). */

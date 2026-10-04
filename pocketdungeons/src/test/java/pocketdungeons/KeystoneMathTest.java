@@ -34,15 +34,18 @@ public class KeystoneMathTest {
     }
 
     private static void testLootTierBands() {
-        // 1-4 tier 1, 5-9 tier 2, 10+ tier 3. The boundaries are the whole point.
+        // 1-4 tier 1, 5-9 tier 2, 10-19 tier 3, 20+ tier 4. The boundaries are the whole point.
         check(KeystoneMath.lootTier(1), 1);
         check(KeystoneMath.lootTier(4), 1);
         check(KeystoneMath.lootTier(5), 2);
         check(KeystoneMath.lootTier(9), 2);
         check(KeystoneMath.lootTier(10), 3);
-        check(KeystoneMath.lootTier(25), 3);
+        check(KeystoneMath.lootTier(19), 3);
+        // 2026-10-01: netherite is its own tier, a long way past the first diamond set.
+        check(KeystoneMath.lootTier(20), 4);
+        check(KeystoneMath.lootTier(25), 4);
         // Past the cap the loot has stopped moving; only the payout still does.
-        check(KeystoneMath.lootTier(500), 3);
+        check(KeystoneMath.lootTier(500), 4);
     }
 
     private static void testDepletion() {

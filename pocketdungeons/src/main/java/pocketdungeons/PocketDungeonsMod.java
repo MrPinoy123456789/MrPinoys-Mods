@@ -46,6 +46,8 @@ public final class PocketDungeonsMod implements ModInitializer {
         Locks.register();
         OmenSources.register();
         DungeonDrops.register();
+        SpiderUnstick.register();
+        FloorStartTitle.register();
         RoomContent.register();
         // M68: a single reload listener owns the atomic build then commit of
         // all five content surfaces, replacing the per loader listeners
@@ -55,6 +57,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         PowerListener.register();
         DiaryReading.register();
         BlacksmithNPC.register();
+        LibrarianNPC.register();
         StoreNPC.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");

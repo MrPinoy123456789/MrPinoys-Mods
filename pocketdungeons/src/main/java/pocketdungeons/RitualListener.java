@@ -2,8 +2,11 @@ package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RespawnAnchorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
@@ -63,7 +65,7 @@ final class RitualListener {
             TrialContent.warmUp();
             Fuel.warmUp();
             RerollStation.warmUp();
-            GambleStation.warmUp();
+            RunStorage.warmUp();
             SalvageStation.warmUp();
             TrimListener.warmUp();
             CubeStation.warmUp();
@@ -114,19 +116,43 @@ final class RitualListener {
             }
         }
 
+        // PD-124: the Explosive affix uses fake TNT mines that trigger on
+        // contact. Flint and steel or fire charges cannot prime them; the mine
+        // itself handles ignition.
+        if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                && level.getBlockState(pos).is(Blocks.TNT)
+                && Instances.dungeonCellOriginAt(pos) != null) {
+            ItemStack held = serverPlayer.getItemInHand(hand);
+            if (held.is(Items.FLINT_AND_STEEL) || held.is(Items.FIRE_CHARGE)) {
+                serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
+                                "This TNT is part of the floor. Step on it and it goes off.")
+                        .withStyle(ChatFormatting.YELLOW)));
+                return InteractionResult.FAIL;
+            }
+        }
+
         // M48: the bag chest. A member of a non-visit instance who has not yet
         // chosen a bag right-clicks the ender chest at the safe room's centre
         // to open the bag picker, independently of every other member. This
         // claims the click before the ender-chest denial below, which would
-        // otherwise block it (the bag chest is an ender chest, deliberately,
-        // to read as distinct from loot chests). Position-based, the same way
+        // otherwise block it (the bag chest is a waxed oxidized copper chest,
+        // deliberately, to read as distinct from loot chests). Position-based, the same way
         // the selector doors, lever and engine are identified.
         InstanceRecord bagRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
         if (bagRecord != null && !bagRecord.visitInstance && bagRecord.roomCellOrigin != null
                 && pos.equals(Instances.bagChestPos(bagRecord.roomCellOrigin))
-                && level.getBlockState(pos).is(Blocks.ENDER_CHEST)
+                && level.getBlockState(pos).is(Instances.bagChestBlock())
                 && DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID()).isEmpty()) {
             DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
+        // Run storage (playtest 2026-10-02-1): the ender chest, gated behind the
+        // scenes, opens the player's own run storage in a run instead of their
+        // real ender chest. Ahead of the denial below and the room permission
+        // mask, since every member has their own storage in any room.
+        if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
+                level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -139,6 +165,7 @@ final class RitualListener {
                 && level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
             return InteractionResult.FAIL;
         }
+
 
         // M2 T2.2: the room's permission mask, ahead of everything else below --
         // a denied container open or a denied placement must never fall through
@@ -238,13 +265,6 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // M16: the gamble station. Unlike the reroll station above, there is
-        // nothing to check about what is held -- a gamble draw has no target
-        // item -- so the configured block is fully claimed the moment it
-        // matches, the same way a selector door claims its click.
-        if (GambleStation.onUse(serverPlayer, level.getBlockState(pos))) {
-            return InteractionResult.SUCCESS_SERVER;
-        }
 
         // M17: the Herobrine Cube. Two positive tests on the held item (a rare
         // reward to extract, or imbuable gear with no power yet), same shape as
@@ -254,40 +274,18 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // The dead-end fountain (playtest 2026-10-02-1): a full water cauldron on
+        // a chiseled pedestal. Any other cauldron falls through to vanilla.
+        if (level instanceof ServerLevel serverLevel && Fountain.onUse(serverPlayer, serverLevel, pos)) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // The salvage bench (playtest 2026-09-29, A3). PD-96: in the dungeon,
         // any use that is not a sneak opens it, so a player finds it; a sneak
         // is the vanilla grindstone, and the bench's Disenchant button hands
         // over to it. Outside the dungeon the grindstone is always vanilla.
         if (SalvageStation.onUse(serverPlayer, level.getBlockState(pos), hand,
                 net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos))) {
-            return InteractionResult.SUCCESS_SERVER;
-        }
-
-        // M19 19.6: the engine terminal, a respawn anchor on the wall beside
-        // the selector wall. Intercepted ahead of vanilla's own anchor
-        // behaviour (the Nether glowstone charge) and ahead of the door
-        // branches: the anchor is not a door, but it stands in the same room
-        // and answers to the same gesture.
-        if (Instances.engineTerminalAt(serverPlayer, pos)
-                && level.getBlockState(pos).is(Blocks.RESPAWN_ANCHOR)) {
-            ItemStack held = player.getItemInHand(hand);
-            if (Fuel.isFuel(held)) {
-                // Banked, not burned. The shard leaves the inventory and lands
-                // on the player's balance, which is the only thing a Greater
-                // door can spend; the anchor's own charge level is redrawn from
-                // that balance below purely so the block lights up as it fills.
-                Fuel.bank(serverPlayer, 1);
-                Chime.engineFed(serverPlayer);
-                TaskTracker.progress(serverPlayer, TaskTracker.Task.FEED_ENGINE, 1);
-            } else {
-                Chime.refused(serverPlayer);
-            }
-            setEngineCharge((ServerLevel) level, pos, Fuel.banked(serverPlayer));
-            InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
-            if (record != null) {
-                DungeonScreen.updateEngine((ServerLevel) level, record, serverPlayer);
-                DungeonScreen.updateTracker((ServerLevel) level, record);
-            }
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -356,9 +354,21 @@ final class RitualListener {
         if (inDungeon && Instances.roomOriginAt(pos) == null) {
             return InteractionResult.PASS;
         }
-        DialogKit.show(serverPlayer, DialogScreens.lodestoneMenu(serverPlayer, inDungeon));
-        Chime.menuOpens(serverPlayer);
+        openMenu(serverPlayer);
         return InteractionResult.SUCCESS_SERVER;
+    }
+
+    /**
+     * Opens the navigation menu for {@code player}: the in-dungeon menu inside
+     * the dungeon dimension, the lobby menu anywhere else. The room's wall
+     * lodestone opens it, and so does reaching for Lemon's journal. Every
+     * button it offers has a command of its own ({@code /dungeon exit},
+     * {@code /dungeon quit}), so opening it away from the room grants nothing new.
+     */
+    static void openMenu(ServerPlayer player) {
+        boolean inDungeon = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        DialogKit.show(player, DialogScreens.lodestoneMenu(player, inDungeon));
+        Chime.menuOpens(player);
     }
 
     /**
@@ -399,6 +409,7 @@ final class RitualListener {
             }
             if (RunLifecycle.commitDoor(player)) {
                 Chime.runStarts(player);
+                FloorStartTitle.show(player.level().getServer(), record);
                 return InteractionResult.SUCCESS_SERVER;
             }
             Chime.refused(player);
@@ -469,26 +480,9 @@ final class RitualListener {
         }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record, step));
         Chime.doorSelected(player, step);
-        TaskTracker.progress(player, TaskTracker.Task.SELECT_DOOR, 1);
         if (doorRefusal(player, step) != null) {
             Chime.doorLocked(player);
         }
-    }
-
-    /**
-     * Redraws the engine anchor's vanilla charge level from {@code banked}, so
-     * an empty engine is dark and a stocked one glows. Cosmetic only: nothing
-     * reads {@code CHARGE} back, and it saturates at the block's four charges
-     * long before a serious balance does. It is the block telling you at a
-     * glance that it has something in it, which the screen then quantifies.
-     */
-    private static void setEngineCharge(ServerLevel level, BlockPos pos, int banked) {
-        BlockState anchor = level.getBlockState(pos);
-        if (!anchor.is(Blocks.RESPAWN_ANCHOR)) {
-            return;
-        }
-        int charges = Math.clamp(banked, 0, RespawnAnchorBlock.MAX_CHARGES);
-        RoomBuilder.set(level, pos, anchor.setValue(RespawnAnchorBlock.CHARGE, charges));
     }
 
     /**
@@ -514,8 +508,8 @@ final class RitualListener {
         if (entry.keystoneLevel() < minLevel) {
             return "Door " + step + " needs level " + minLevel;
         }
-        if (Fuel.banked(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
-            return "Feed the engine first";
+        if (Fuel.carried(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
+            return "Needs " + PocketDungeonsConfig.fuelCostPerGreaterDoor() + " echo shards";
         }
         return null;
     }

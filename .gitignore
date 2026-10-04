@@ -17,3 +17,7 @@ run-data/
 Thumbs.db
 *.swp
 *.swo
+
+# Lemon remote mode: the Kinetic API key and the remote read cursor
+pocketdungeons/tools/server/kinetic.env
+pocketdungeons/tools/server/.remote/

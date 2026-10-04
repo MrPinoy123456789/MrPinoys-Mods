@@ -28,7 +28,7 @@ public class RoomFurnitureTest {
             testBulbsAndLever(wall);
             testDoorScreenBlocks(wall);
             testHomeControl(wall);
-            testEngineOnLeftWall(wall);
+            testHistoryPanelOnLeftWall(wall);
             testInteriorIsNeverFurniture(wall);
             testPreviewSideWindowIsClear(wall);
         }
@@ -110,24 +110,19 @@ public class RoomFurnitureTest {
     }
 
     /**
-     * The engine bay sits on the wall to the left of the selector wall: the
-     * anchor at Y=2, the screen row at Y=4 with an end block either side of it,
-     * and a bezel course at Y=3 and Y=5.
+     * The floor history board sits on the wall to the left of the selector
+     * wall, where the echo shard engine was: a panel along 4..11, rows 2..5.
      */
-    private static void testEngineOnLeftWall(DoorMask.Direction wall) {
-        DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
-        check(isFurniture(wallRing(engineWall, 7, 2), wall), "engine " + wall);
-        for (int along = 5; along <= 9; along++) {
-            check(isFurniture(wallRing(engineWall, along, 4), wall), "engine screen " + wall);
-            check(isFurniture(wallRing(engineWall, along, 3), wall), "engine bezel low " + wall);
-            check(isFurniture(wallRing(engineWall, along, 5), wall), "engine bezel high " + wall);
+    private static void testHistoryPanelOnLeftWall(DoorMask.Direction wall) {
+        DoorMask.Direction historyWall = RoomGeometry.leftOf(wall);
+        for (int along = 4; along <= 11; along++) {
+            for (int y = 2; y <= 5; y++) {
+                check(isFurniture(wallRing(historyWall, along, y), wall), "history panel " + along + "," + y + " " + wall);
+            }
         }
-        // The screen row reaches one further each way than the bezel does: those
-        // two are the crying obsidian end blocks.
-        check(isFurniture(wallRing(engineWall, 4, 4), wall), "engine end block " + wall);
-        check(isFurniture(wallRing(engineWall, 10, 4), wall), "engine end block " + wall);
-        check(!isFurniture(wallRing(engineWall, 4, 5), wall), "no bezel past the end " + wall);
-        check(!isFurniture(wallRing(engineWall, 11, 4), wall), "engine screen edge " + wall);
+        check(!isFurniture(wallRing(historyWall, 3, 3), wall), "panel edge " + wall);
+        check(!isFurniture(wallRing(historyWall, 12, 3), wall), "panel edge " + wall);
+        check(!isFurniture(wallRing(historyWall, 7, 1), wall), "below the panel " + wall);
     }
 
     /**

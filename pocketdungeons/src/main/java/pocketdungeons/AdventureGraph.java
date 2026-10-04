@@ -190,9 +190,8 @@ final class AdventureGraph {
         }
         List<Transition> expanded = weighted(pool);
         Collections.shuffle(expanded, new Random(seed(owner, currentTheme, depth)));
-        // M42.6: dedupe by theme before taking the top three, the same
-        // dedupe-then-shuffle convention BountyTracker.bountiesFor already
-        // uses, so one node cannot offer the same theme on two or three
+        // M42.6: dedupe by theme before taking the top three, so one node
+        // cannot offer the same theme on two or three
         // doors. Iterating the already-shuffled, weight-expanded list and
         // keeping first occurrences preserves the weighting bias (a
         // heavier-weight theme has more chances to appear early) while

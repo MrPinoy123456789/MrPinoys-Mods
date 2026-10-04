@@ -147,13 +147,31 @@ public final class PocketDungeonsConfig {
     private static double overclockedCooldownFactor = 0.4;
     /** Swarming scales a tier's total/simultaneous mob counts up by this. */
     private static double swarmingMobFactor = 1.5;
+    /** Share of generic (themeless) spawners that keep the broad mixed mob pool (PD-107). */
+    private static double chaoticSpawnerChance = 0.05;
+    /** Silenced: this many consumables used raise the omen by one. */
+    private static int silencedConsumablesPerOmen = 3;
+    /** Emeralds the librarian charges to lock in a piece of gear (adds Mending). */
+    private static int lockInEmeralds = 32;
+    /** Keystone level the librarian needs. */
+    private static int lockInUnlockLevel = 5;
+    /** Chance a dead-end cell holds a fountain boon. */
+    private static double fountainChance = 0.15;
+    /** Omen a cleansing fountain takes off the floor. */
+    private static int fountainOmenRelief = 2;
+    /** Echo shards granted when a full interval banks (guaranteed). */
+    private static int echoShardsPerInterval = 1;
+    /** Chance, per member, of one echo shard when a floor is cleared. */
+    private static double echoShardFloorChance = 0.5;
+    /** Chance, per player in the room, of one echo shard when an Ordeal resolves. */
+    private static double echoShardOrdealChance = 0.25;
     /** Silenced's trial spawners detect players at this range instead of 14. */
     private static int silencedPlayerRange = 6;
     /** Molten hazard blocks placed per cell. */
     private static int moltenHazardsPerCell = 4;
     /** Feral wolves spawned per non-encounter cell. Zero disables the affix's spawns. */
     private static int feralWolvesPerCell = 2;
-    /** Explosive hazard blocks (TNT + pressure plate) placed per cell. */
+    /** Explosive fake TNT mine blocks placed per cell. */
     private static int explosiveHazardsPerCell = 4;
     /** Fraction of eligible cells that get voided floor when VOIDED affix active. */
     private static double voidedCellChance = 0.3;
@@ -183,10 +201,12 @@ public final class PocketDungeonsConfig {
     /**
      * The currency doors 2/3 cost and door 1 pays out. Echo shards, not
      * diamonds: diegetically the keystone (a recovery compass) is crafted from
-     * echo shards, and nothing else in the mod's loot tables grants any, so
-     * door 1's guaranteed payout is the only source. That is deliberate (see
-     * "Fuel currency" in the M12 plan section): a Greater room dropping fuel
-     * of its own would let the premium tier fund itself.
+     * echo shards. No loot table grants any. Sources: door 1's guaranteed
+     * payout, and (playtest 2026-10-02-1, the player was short of them) one per
+     * completed interval, a chance per cleared floor and a chance per Ordeal;
+     * see {@link #echoShardsPerInterval()}, {@link #echoShardFloorChance()} and
+     * {@link #echoShardOrdealChance()}. A Greater room dropping fuel of its
+     * own would still let the premium tier fund itself, so none does.
      */
     private static String fuelItem = "minecraft:echo_shard";
     /** What a door 2/3 choice costs, spent atomically with the level upgrade. */
@@ -284,7 +304,12 @@ public final class PocketDungeonsConfig {
 
     // ---- gamble station (M16) ---------------------------------------------------
     /** The block a gamble station is; right-clicking it opens the slot/tier picker. */
-    private static String gambleBlock = "minecraft:waxed_oxidized_copper_chest";
+    /**
+     * The block that opens run storage (see {@link RunStorage}). It used to open
+     * the gamble station, a duplicate of the blacksmith, which was removed
+     * (playtest 2026-10-02-1).
+     */
+    private static String storageBlock = "minecraft:ender_chest";
     /** Emerald cost per tier step for an unweighted slot; a tier-N gamble costs this times N. */
     private static int gambleEmeraldsPerTier = 6;
     /**
@@ -571,6 +596,42 @@ public final class PocketDungeonsConfig {
         return swarmingMobFactor;
     }
 
+    public static int echoShardsPerInterval() {
+        return echoShardsPerInterval;
+    }
+
+    public static double echoShardFloorChance() {
+        return echoShardFloorChance;
+    }
+
+    public static double echoShardOrdealChance() {
+        return echoShardOrdealChance;
+    }
+
+    public static double fountainChance() {
+        return fountainChance;
+    }
+
+    public static int fountainOmenRelief() {
+        return fountainOmenRelief;
+    }
+
+    public static int lockInEmeralds() {
+        return lockInEmeralds;
+    }
+
+    public static int lockInUnlockLevel() {
+        return lockInUnlockLevel;
+    }
+
+    public static int silencedConsumablesPerOmen() {
+        return silencedConsumablesPerOmen;
+    }
+
+    public static double chaoticSpawnerChance() {
+        return chaoticSpawnerChance;
+    }
+
     public static int silencedPlayerRange() {
         return silencedPlayerRange;
     }
@@ -664,8 +725,8 @@ public final class PocketDungeonsConfig {
         return rerollUnlockLevel;
     }
 
-    public static String gambleBlock() {
-        return gambleBlock;
+    public static String storageBlock() {
+        return storageBlock;
     }
 
     public static int gambleEmeraldsPerTier() {
@@ -814,6 +875,15 @@ public final class PocketDungeonsConfig {
 
         overclockedCooldownFactor = 0.4;
         swarmingMobFactor = 1.5;
+        chaoticSpawnerChance = 0.05;
+        silencedConsumablesPerOmen = 3;
+        lockInEmeralds = 32;
+        lockInUnlockLevel = 5;
+        fountainChance = 0.15;
+        fountainOmenRelief = 2;
+        echoShardsPerInterval = 1;
+        echoShardFloorChance = 0.5;
+        echoShardOrdealChance = 0.25;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
         feralWolvesPerCell = 2;
@@ -843,7 +913,7 @@ public final class PocketDungeonsConfig {
         trimBonuses = defaultTrimBonuses();
         trimBonusDungeonOnly = false;
 
-        gambleBlock = "minecraft:waxed_oxidized_copper_chest";
+        storageBlock = "minecraft:ender_chest";
         gambleEmeraldsPerTier = 6;
         gambleSlotMultiplier = 1.5;
         gambleWeightedSlot = "weapon";
@@ -994,7 +1064,20 @@ public final class PocketDungeonsConfig {
                 v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
         swarmingMobFactor = readDouble(root, "swarmingMobFactor", 1.5,
                 v -> v >= 1, "must be >= 1");
+        chaoticSpawnerChance = readDouble(root, "chaoticSpawnerChance", 0.05,
+                v -> v >= 0 && v <= 1, "must be between 0 and 1");
         silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
+        silencedConsumablesPerOmen = readInt(root, "silencedConsumablesPerOmen", 3, v -> v >= 1, "must be >= 1");
+        fountainChance = readDouble(root, "fountainChance", 0.15, v -> v >= 0 && v <= 1,
+                "must be between 0 and 1");
+        fountainOmenRelief = readInt(root, "fountainOmenRelief", 2, v -> v >= 1, "must be >= 1");
+        lockInEmeralds = readInt(root, "lockInEmeralds", 32, v -> v >= 1 && v <= 64, "must be between 1 and 64");
+        lockInUnlockLevel = readInt(root, "lockInUnlockLevel", 5, v -> v >= 1, "must be >= 1");
+        echoShardsPerInterval = readInt(root, "echoShardsPerInterval", 1, v -> v >= 0, "must be >= 0");
+        echoShardFloorChance = readDouble(root, "echoShardFloorChance", 0.5, v -> v >= 0 && v <= 1,
+                "must be between 0 and 1");
+        echoShardOrdealChance = readDouble(root, "echoShardOrdealChance", 0.25, v -> v >= 0 && v <= 1,
+                "must be between 0 and 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
         feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
         explosiveHazardsPerCell = readInt(root, "explosiveHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
@@ -1027,7 +1110,15 @@ public final class PocketDungeonsConfig {
         trimBonuses = readTrimBonuses(root);
         trimBonusDungeonOnly = readBoolean(root, "trimBonusDungeonOnly", false);
 
-        gambleBlock = readString(root, "gambleBlock", "minecraft:waxed_oxidized_copper_chest", false);
+        storageBlock = readString(root, "storageBlock", "minecraft:ender_chest", false);
+        // A build between the gamble block's removal and the 2026-10-02 swap wrote
+        // the copper chest here. That block is the bag chest now, so the value would
+        // make every staging room's storage a second bag chest.
+        if ("minecraft:waxed_oxidized_copper_chest".equals(storageBlock)) {
+            PocketDungeonsMod.LOG.warn("storageBlock was the waxed oxidized copper chest, which is the bag "
+                    + "chest now; using minecraft:ender_chest for run storage instead.");
+            storageBlock = "minecraft:ender_chest";
+        }
         gambleEmeraldsPerTier = readInt(root, "gambleEmeraldsPerTier", 6, v -> v >= 0, "must be >= 0");
         gambleSlotMultiplier = readDouble(root, "gambleSlotMultiplier", 1.5, v -> v >= 1.0,
                 "must be >= 1.0");
@@ -1299,7 +1390,16 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("overclockedCooldownFactor", 0.4);
         root.addProperty("swarmingMobFactor", 1.5);
+        root.addProperty("chaoticSpawnerChance", 0.05);
         root.addProperty("silencedPlayerRange", 6);
+        root.addProperty("silencedConsumablesPerOmen", 3);
+        root.addProperty("fountainChance", 0.15);
+        root.addProperty("fountainOmenRelief", 2);
+        root.addProperty("lockInEmeralds", 32);
+        root.addProperty("lockInUnlockLevel", 5);
+        root.addProperty("echoShardsPerInterval", 1);
+        root.addProperty("echoShardFloorChance", 0.5);
+        root.addProperty("echoShardOrdealChance", 0.25);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);
         root.addProperty("explosiveHazardsPerCell", 4);
@@ -1337,7 +1437,7 @@ public final class PocketDungeonsConfig {
         root.add("trimBonuses", trimBonusesJson);
         root.addProperty("trimBonusDungeonOnly", false);
 
-        root.addProperty("gambleBlock", "minecraft:waxed_oxidized_copper_chest");
+        root.addProperty("storageBlock", "minecraft:ender_chest");
         root.addProperty("gambleEmeraldsPerTier", 6);
         root.addProperty("gambleSlotMultiplier", 1.5);
         root.addProperty("gambleWeightedSlot", "weapon");

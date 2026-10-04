@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -24,9 +25,14 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * M35 store anomaly: a shopkeeper villager that spawns in the store anomaly
@@ -49,6 +55,14 @@ import java.util.List;
  * via entity tags so it persists across chunk reloads. Each slot is one item
  * type with a price (in emeralds) and a stock count. Buying decrements the
  * stock; when it reaches zero the slot is empty for the rest of the run.
+ *
+ * <h2>Themed merchants</h2>
+ *
+ * <p>The merchant is chosen by the floor's theme ({@link MerchantThemes}) and
+ * prices its stock in that floor's mob drops, so surplus bones, string or
+ * blaze rods have somewhere to go. There is no salvage step: the drop itself
+ * is the currency. A theme without a merchant, and the odd item at any
+ * merchant, still sells for emeralds.
  *
  * <h2>No mob attraction</h2>
  *
@@ -102,7 +116,7 @@ final class StoreNPC {
      * inventory is rolled from the category pools and stored as an entity tag
      * so it survives chunk reloads.
      */
-    static void spawn(ServerLevel level, BlockPos cellOrigin, long seed) {
+    static void spawn(ServerLevel level, BlockPos cellOrigin, long seed, String theme) {
         BlockPos centre = cellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         // Find a safe floor position near the centre
         BlockPos spawnPos = centre;
@@ -128,12 +142,13 @@ final class StoreNPC {
         villager.addTag(STORE_TAG);
         villager.setPersistenceRequired();
         villager.setInvulnerable(true);
-        villager.setCustomName(Component.literal("Wandering Merchant"));
+        MerchantThemes.Merchant merchant = MerchantThemes.forTheme(theme);
+        villager.setCustomName(Component.literal(merchant.title()));
         villager.setCustomNameVisible(true);
 
         // Roll and store the inventory
         RandomSource rng = RandomSource.create(seed ^ cellOrigin.asLong());
-        List<ShopEntry> inventory = rollInventory(rng);
+        List<ShopEntry> inventory = rollInventory(rng, merchant);
         saveInventory(villager, inventory);
 
         level.addFreshEntity(villager);
@@ -148,7 +163,7 @@ final class StoreNPC {
         List<ShopEntry> inventory = loadInventory(villager);
 
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x5, player, false);
-        gui.setTitle(Component.literal("Wandering Merchant"));
+        gui.setTitle(villager.getName());
 
         // Top border
         for (int i = 0; i < 9; i++) {
@@ -190,11 +205,11 @@ final class StoreNPC {
      */
     private static GuiElementBuilder shopElement(ShopEntry entry, ServerPlayer player,
                                                   Villager villager, int slotIndex) {
-        GuiElementBuilder builder = new GuiElementBuilder(entry.item)
+        GuiElementBuilder builder = GuiElementBuilder.from(entry.stack())
                 .setName(Component.literal(entry.itemName)
                         .withStyle(ChatFormatting.WHITE));
         builder.setLore(List.of(
-                Component.literal("Price: " + entry.price + " emeralds")
+                Component.literal("Price: " + entry.price + " " + entry.currency.name())
                         .withStyle(ChatFormatting.GOLD)
                         .withStyle(s -> s.withItalic(false)),
                 Component.literal("In stock: " + entry.stock)
@@ -228,17 +243,20 @@ final class StoreNPC {
                     .withStyle(ChatFormatting.YELLOW));
             return;
         }
-        int emeralds = StationSupport.countItems(player, Items.EMERALD);
-        if (emeralds < current.price) {
-            player.sendSystemMessage(Component.literal("You need " + current.price + " emeralds.")
+        // Inventory only: a stack on the cursor is not spendable, so counting
+        // it would let a purchase go through with the payment half-taken.
+        Item coin = current.currency.item();
+        if (player.getInventory().countItem(coin) < current.price) {
+            player.sendSystemMessage(Component.literal("You need " + current.price + " "
+                            + current.currency.name() + ".")
                     .withStyle(ChatFormatting.YELLOW));
             return;
         }
 
         player.getInventory().clearOrCountMatchingItems(
-                stack -> stack.is(Items.EMERALD), current.price,
+                stack -> stack.is(coin), current.price,
                 new net.minecraft.world.SimpleContainer(0));
-        Payout.deliver(player, new ItemStack(current.item));
+        Payout.deliver(player, current.stack());
 
         current.stock--;
         saveInventory(villager, inventory);
@@ -260,34 +278,60 @@ final class StoreNPC {
     // ---- inventory persistence on the villager entity ----
 
     /**
-     * One shop entry: item, display name, emerald price, remaining stock.
-     * Mutable stock so buying can decrement it in place.
+     * One shop entry: item, display name, what it is priced in, the price in
+     * that currency, remaining stock. Mutable stock so buying can decrement it
+     * in place.
      */
     private static final class ShopEntry {
         final Item item;
+        /** The potion for a potion entry, else {@code null}. */
+        final Holder<Potion> potion;
         final String itemName;
+        final MerchantThemes.Currency currency;
         final int price;
         int stock;
 
-        ShopEntry(Item item, String itemName, int price, int stock) {
+        ShopEntry(Item item, Holder<Potion> potion, String itemName, MerchantThemes.Currency currency,
+                  int price, int stock) {
             this.item = item;
+            this.potion = potion;
             this.itemName = itemName;
+            this.currency = currency;
             this.price = price;
             this.stock = stock;
         }
+
+        /** One unit of what this entry sells. */
+        ItemStack stack() {
+            return potion == null ? new ItemStack(item) : PotionContents.createItemStack(item, potion);
+        }
     }
 
+    /**
+     * Writes the inventory to a single entity tag. The previous inventory tag
+     * is removed first: tags are a set, so adding the new string beside the
+     * old one left two inventories on the villager and the load found whichever
+     * came first, which is how a bought item could reappear.
+     */
     private static void saveInventory(Villager villager, List<ShopEntry> inventory) {
+        for (String tag : new ArrayList<>(villager.entityTags())) {
+            if (tag.startsWith(INVENTORY_TAG + ":")) {
+                villager.removeTag(tag);
+            }
+        }
         StringBuilder sb = new StringBuilder();
         for (ShopEntry entry : inventory) {
             if (sb.length() > 0) {
                 sb.append(";");
             }
-            Identifier id = BuiltInRegistries.ITEM.getKey(entry.item);
-            sb.append(id.toString()).append(",")
-                    .append(entry.itemName.replace(";", ",")).append(",")
+            String id = BuiltInRegistries.ITEM.getKey(entry.item)
+                    + (entry.potion == null ? "" : "#" + BuiltInRegistries.POTION.getKey(entry.potion.value()));
+            Identifier coin = BuiltInRegistries.ITEM.getKey(entry.currency.item());
+            sb.append(id).append(",")
+                    .append(coin).append(",")
                     .append(entry.price).append(",")
-                    .append(entry.stock);
+                    .append(entry.stock).append(",")
+                    .append(entry.itemName.replace(";", ","));
         }
         villager.addTag(INVENTORY_TAG + ":" + sb);
     }
@@ -301,26 +345,39 @@ final class StoreNPC {
         return List.of();
     }
 
+    /**
+     * Reads {@code item,currency,price,stock,name}. A four field entry is the
+     * older {@code item,name,price,stock} layout from before themed merchants,
+     * always priced in emeralds, so a store stamped by an earlier build still
+     * opens.
+     */
     private static List<ShopEntry> parseInventory(String data) {
         if (data.isEmpty()) {
             return List.of();
         }
         List<ShopEntry> entries = new ArrayList<>();
         for (String part : data.split(";")) {
-            String[] fields = part.split(",", 4);
-            if (fields.length != 4) {
-                continue;
-            }
+            String[] fields = part.split(",", 5);
             try {
-                Identifier id = Identifier.parse(fields[0]);
-                Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+                String[] idAndPotion = fields[0].split("#", 2);
+                Item item = BuiltInRegistries.ITEM.getOptional(Identifier.parse(idAndPotion[0])).orElse(null);
+                Holder<Potion> potion = idAndPotion.length == 2
+                        ? BuiltInRegistries.POTION.get(Identifier.parse(idAndPotion[1])).orElse(null) : null;
+                if (idAndPotion.length == 2 && potion == null) {
+                    continue;
+                }
                 if (item == null || item == Items.AIR) {
                     continue;
                 }
-                String name = fields[1];
-                int price = Integer.parseInt(fields[2]);
-                int stock = Integer.parseInt(fields[3]);
-                entries.add(new ShopEntry(item, name, price, stock));
+                if (fields.length == 5) {
+                    Item coin = BuiltInRegistries.ITEM.getOptional(Identifier.parse(fields[1]))
+                            .orElse(Items.EMERALD);
+                    entries.add(new ShopEntry(item, potion, fields[4], MerchantThemes.byItem(coin),
+                            Integer.parseInt(fields[2]), Integer.parseInt(fields[3])));
+                } else if (fields.length == 4) {
+                    entries.add(new ShopEntry(item, potion, fields[1], MerchantThemes.EMERALD,
+                            Integer.parseInt(fields[2]), Integer.parseInt(fields[3])));
+                }
             } catch (Exception ignored) {
             }
         }
@@ -329,46 +386,72 @@ final class StoreNPC {
 
     // ---- inventory rolling ----
 
+    /** A pool of items sold at one base price (in emeralds) and a stock range. */
+    private record Pool(List<PoolEntry> entries, int basePrice, int minStock, int maxStock) {}
+
     /**
-     * Rolls a randomized shop inventory from the category pools. Each
-     * category contributes one or two items, for a total of 7 slots.
-     * Prices and stock are seeded for reproducibility per run.
+     * Rolls a randomized inventory from the pool groups: common supplies 2 to
+     * 3 slots, utility 1 to 2, combat 1 to 2, rare 0 to 1, trimmed to the seven
+     * slots the GUI holds ({@link StorePricing#composition}). Within a group
+     * each slot draws a pool at random, then an item the store does not already
+     * sell, and never the merchant's own currency. Seeded, so a seed reproduces
+     * the same store.
      */
-    private static List<ShopEntry> rollInventory(RandomSource rng) {
+    private static List<ShopEntry> rollInventory(RandomSource rng, MerchantThemes.Merchant merchant) {
+        boolean[] rolls = {rng.nextBoolean(), rng.nextInt(5) < 2, rng.nextInt(5) < 2, rng.nextBoolean()};
+        int[] counts = StorePricing.composition(rolls);
+
+        Set<String> taken = new HashSet<>();
+        for (MerchantThemes.Currency currency : merchant.currencies()) {
+            taken.add(BuiltInRegistries.ITEM.getKey(currency.item()).toString());
+        }
         List<ShopEntry> entries = new ArrayList<>();
-
-        // Armour: one piece, mid-tier, 1 stock
-        entries.add(pick(ARMOUR_POOL, rng, 1, 1));
-        // Weapon: one piece, 1 stock
-        entries.add(pick(WEAPON_POOL, rng, 1, 1));
-        // Blocks: one type, 16-32 stock
-        entries.add(pick(BLOCK_POOL, rng, 4, rng.nextIntBetweenInclusive(16, 32)));
-        // Food: one type, 4-8 stock
-        entries.add(pick(FOOD_POOL, rng, 2, rng.nextIntBetweenInclusive(4, 8)));
-        // Utility: one item, 1-2 stock
-        entries.add(pick(UTILITY_POOL, rng, 3, rng.nextIntBetweenInclusive(1, 2)));
-        // Ore/valuable: one item, 1-4 stock
-        entries.add(pick(VALUABLE_POOL, rng, 5, rng.nextIntBetweenInclusive(1, 4)));
-        // Bonus: a random pick from all pools, 1 stock
-        List<PoolEntry> all = new ArrayList<>();
-        all.addAll(ARMOUR_POOL);
-        all.addAll(WEAPON_POOL);
-        all.addAll(BLOCK_POOL);
-        all.addAll(FOOD_POOL);
-        all.addAll(UTILITY_POOL);
-        all.addAll(VALUABLE_POOL);
-        entries.add(pick(all, rng, 3, 1));
-
+        fill(entries, COMMON, counts[0], rng, merchant, taken);
+        fill(entries, UTILITY, counts[1], rng, merchant, taken);
+        fill(entries, COMBAT, counts[2], rng, merchant, taken);
+        fill(entries, RARE, counts[3], rng, merchant, taken);
         return entries;
     }
 
-    private static ShopEntry pick(List<PoolEntry> pool, RandomSource rng, int basePrice, int stock) {
-        PoolEntry chosen = pool.get(rng.nextInt(pool.size()));
-        int price = Math.max(1, basePrice + chosen.priceMod);
-        return new ShopEntry(chosen.item, chosen.name, price, stock);
+    private static void fill(List<ShopEntry> out, List<Pool> group, int count, RandomSource rng,
+                             MerchantThemes.Merchant merchant, Set<String> taken) {
+        for (int i = 0; i < count; i++) {
+            // A few redraws: a small pool can be exhausted by earlier slots.
+            for (int attempt = 0; attempt < 8; attempt++) {
+                Pool pool = group.get(rng.nextInt(group.size()));
+                PoolEntry chosen = pool.entries().get(rng.nextInt(pool.entries().size()));
+                if (!taken.add(chosen.key())) {
+                    continue;
+                }
+                int emeraldPrice = Math.max(1, pool.basePrice() + chosen.priceMod);
+                MerchantThemes.Currency currency = pickCurrency(rng, merchant);
+                out.add(new ShopEntry(chosen.item, chosen.potion, chosen.name, currency,
+                        StorePricing.dropPrice(emeraldPrice, currency.perEmerald()),
+                        rng.nextIntBetweenInclusive(pool.minStock(), pool.maxStock())));
+                break;
+            }
+        }
     }
 
-    private record PoolEntry(Item item, String name, int priceMod) {}
+    /** One of the merchant's drops, or emeralds one time in five (always, for a merchant with no drops). */
+    private static MerchantThemes.Currency pickCurrency(RandomSource rng, MerchantThemes.Merchant merchant) {
+        List<MerchantThemes.Currency> drops = merchant.currencies();
+        if (drops.isEmpty() || rng.nextInt(5) == 0) {
+            return MerchantThemes.EMERALD;
+        }
+        return drops.get(rng.nextInt(drops.size()));
+    }
+
+    /** An item for sale; {@code potion} is set only for a potion, whose effect is not part of the item. */
+    private record PoolEntry(Item item, String name, int priceMod, Holder<Potion> potion) {
+        PoolEntry(Item item, String name, int priceMod) {
+            this(item, name, priceMod, null);
+        }
+
+        String key() {
+            return BuiltInRegistries.ITEM.getKey(item) + (potion == null ? "" : "#" + BuiltInRegistries.POTION.getKey(potion.value()));
+        }
+    }
 
     // ---- item pools ----
 
@@ -439,6 +522,29 @@ final class StoreNPC {
             new PoolEntry(Items.GLOWSTONE_DUST, "Glowstone Dust", 0),
             new PoolEntry(Items.NETHERITE_SCRAP, "Netherite Scrap", 8),
             new PoolEntry(Items.EXPERIENCE_BOTTLE, "Bottle o' Enchanting", 2));
+
+
+    private static final List<PoolEntry> POTION_POOL = List.of(
+            new PoolEntry(Items.POTION, "Potion of Healing", 0, Potions.HEALING),
+            new PoolEntry(Items.POTION, "Potion of Fire Resistance", 0, Potions.FIRE_RESISTANCE),
+            new PoolEntry(Items.POTION, "Potion of Swiftness", 0, Potions.SWIFTNESS),
+            new PoolEntry(Items.POTION, "Potion of Strength", 2, Potions.STRENGTH),
+            new PoolEntry(Items.POTION, "Potion of Regeneration", 1, Potions.REGENERATION),
+            new PoolEntry(Items.POTION, "Potion of Night Vision", 0, Potions.NIGHT_VISION),
+            new PoolEntry(Items.POTION, "Potion of Water Breathing", 0, Potions.WATER_BREATHING));
+
+    // ---- pool groups (declared after the pools they hold; static init runs in order) ----
+
+    private static final List<Pool> COMMON = List.of(
+            new Pool(FOOD_POOL, 2, 4, 8),
+            new Pool(BLOCK_POOL, 4, 16, 32),
+            new Pool(List.of(new PoolEntry(Items.ARROW, "Arrow", 0)), 2, 8, 16));
+    private static final List<Pool> UTILITY = List.of(new Pool(UTILITY_POOL, 3, 1, 2));
+    private static final List<Pool> COMBAT = List.of(
+            new Pool(ARMOUR_POOL, 1, 1, 1),
+            new Pool(WEAPON_POOL, 1, 1, 1),
+            new Pool(POTION_POOL, 3, 1, 2));
+    private static final List<Pool> RARE = List.of(new Pool(VALUABLE_POOL, 5, 1, 4));
 
     private static GuiElementBuilder border(Item icon) {
         return new GuiElementBuilder(icon)

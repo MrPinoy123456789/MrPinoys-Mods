@@ -25,13 +25,11 @@ import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.JigsawBlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -321,17 +319,6 @@ final class RoomTemplateGenerator {
             .setValue(CopperBulbBlock.LIT, true);
     /** The physical backdrop behind each screen's text_display. */
     private static final BlockState SCREEN_BLOCK = Blocks.CONCRETE.black().defaultBlockState();
-    /** The engine terminal: charges=0 by default; the engine handler raises it. */
-    private static final BlockState ENGINE_BLOCK = Blocks.RESPAWN_ANCHOR.defaultBlockState();
-    /**
-     * The engine screen's bezel. Polished blackstone stairs above and below,
-     * the lower course flipped so the two mirror each other and their solid
-     * halves hug the screen row, with a crying obsidian block capping each end.
-     * The screen used to be two bare rows of black concrete in a stone wall,
-     * which read as a hole rather than as a machine.
-     */
-    private static final BlockState FRAME = Blocks.POLISHED_BLACKSTONE_STAIRS.defaultBlockState();
-    private static final BlockState FRAME_END = Blocks.CRYING_OBSIDIAN.defaultBlockState();
     /** The commit lever base state; {@link #leverState} adds the wall-facing. */
     private static final BlockState LEVER_OFF = Blocks.LEVER.defaultBlockState()
             .setValue(LeverBlock.FACE, AttachFace.WALL);
@@ -402,20 +389,15 @@ final class RoomTemplateGenerator {
     private static final String HOME_SIGN_WORD = "GO HOME";
 
     /**
-     * The engine bay on the wall to the left of the selector wall, bottom up:
-     * the respawn anchor at Y=2, the flipped lower bezel course at Y=3, the
-     * screen row at Y=4 with a crying obsidian block at each end, and the upper
-     * bezel course at Y=5. Y=6 is the ceiling, so Y=5 is as high as the bay can
-     * reach and the screen is one row rather than the two it used to be; the
-     * text was never taller than a block at this scale anyway.
+     * The floor history board on the wall to the left of the selector wall
+     * (2026-10-02, replacing the echo shard engine): a black panel along 4..11,
+     * rows 2..5, behind {@link FloorHistory}'s text. Y=6 is the ceiling, so 5
+     * is the top row.
      */
-    private static final int ENGINE_ANCHOR_Y = 2;
-    private static final int ENGINE_FRAME_LOW_Y = 3;
-    private static final int ENGINE_SCREEN_Y = 4;
-    private static final int ENGINE_FRAME_HIGH_Y = 5;
-    private static final int ENGINE_ALONG_MIN = 5;
-    private static final int ENGINE_ALONG_MAX = 9;
-    private static final int ENGINE_ANCHOR_ALONG = 7;
+    static final int HISTORY_ALONG_MIN = 4;
+    static final int HISTORY_ALONG_MAX = 11;
+    static final int HISTORY_Y_MIN = 2;
+    static final int HISTORY_Y_MAX = 5;
 
     /**
      * The bulb sitting over selector door {@code step} (1, 2 or 3). Callers
@@ -562,6 +544,38 @@ final class RoomTemplateGenerator {
     }
 
     /**
+     * Where the run storage chest sits along its wall: clear of the doorway
+     * lane and the window band (6 to 9) and of the lodestone's corner (1).
+     */
+    static final int STORAGE_ALONG = 12;
+    static final int STORAGE_Y = 1;
+
+    /**
+     * The wall the run storage chest is set into: right of the selector wall,
+     * across the room from the floor history board. The selector wall, the
+     * history wall and the doorway back to the safe room take the other three.
+     */
+    static DoorMask.Direction storageWall(DoorMask.Direction selectorWall) {
+        return CellGeometry.opposite(RoomGeometry.leftOf(selectorWall));
+    }
+
+    /** The run storage chest's position in a staging room whose selector doors face {@code selectorWall}. */
+    static BlockPos runStoragePos(BlockPos o, DoorMask.Direction selectorWall) {
+        return wallRingPos(o, storageWall(selectorWall), STORAGE_ALONG, STORAGE_Y);
+    }
+
+    /**
+     * Playtest 2026-10-02-1: every staging room carries the run storage ender
+     * chest, so it is there for every member on every interval without anyone
+     * placing it. Set into the wall ring, facing into the room: the ring is
+     * shell, so the chest cannot be broken or blown up, and it takes no floor.
+     */
+    static void placeRunStorage(ServerLevel level, BlockPos o, DoorMask.Direction selectorWall) {
+        net.minecraft.core.Direction facing = Instances.mcDirection(storageWall(selectorWall)).getOpposite();
+        RoomBuilder.set(level, runStoragePos(o, selectorWall), RunStorage.stationState(facing));
+    }
+
+    /**
      * M19: stamps the room's physical door-selection furniture, relative to
      * {@code wall}, the wall the selector doors stand on: one copper bulb set
      * into the wall at Y=3 above each of the three selector doors, the commit
@@ -596,33 +610,22 @@ final class RoomTemplateGenerator {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
             }
         }
-        placeEngineBay(level, o, RoomGeometry.leftOf(wall));
+        placeHistoryPanel(level, o, RoomGeometry.leftOf(wall));
     }
 
-    /**
-     * The engine bay: the anchor, its framed screen row, and the bezel. See
-     * {@link #ENGINE_ANCHOR_Y} for the elevation of each course.
-     */
-    private static void placeEngineBay(ServerLevel level, BlockPos o, DoorMask.Direction engineWall) {
-        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y),
-                ENGINE_BLOCK);
-        for (int along = ENGINE_ALONG_MIN; along <= ENGINE_ALONG_MAX; along++) {
-            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_SCREEN_Y), SCREEN_BLOCK);
-            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_FRAME_HIGH_Y),
-                    frameState(engineWall, Half.BOTTOM));
-            RoomBuilder.set(level, wallRingPos(o, engineWall, along, ENGINE_FRAME_LOW_Y),
-                    frameState(engineWall, Half.TOP));
+    /** The floor history board's panel; its rows cover every block the old engine bay used. */
+    private static void placeHistoryPanel(ServerLevel level, BlockPos o, DoorMask.Direction historyWall) {
+        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
+            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
+                RoomBuilder.set(level, wallRingPos(o, historyWall, along, y), SCREEN_BLOCK);
+            }
         }
-        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ALONG_MIN - 1, ENGINE_SCREEN_Y),
-                FRAME_END);
-        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ALONG_MAX + 1, ENGINE_SCREEN_Y),
-                FRAME_END);
     }
 
     /**
      * Removes every M19 furniture block, restoring the room to its captured
      * shape: the lever and its sign were interior air, the bulbs, the door
-     * screen, the engine block and the engine screen sat in the wall ring, so
+     * screen and the floor history panel sat in the wall ring, so
      * each clears back to the block it displaced. Capture hygiene (trap 17 in
      * {@code DISCOVERIES.md}): none of it may bake into the owner's blob.
      *
@@ -640,12 +643,10 @@ final class RoomTemplateGenerator {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
             }
         }
-        DoorMask.Direction engineWall = RoomGeometry.leftOf(wall);
-        RoomBuilder.set(level, wallRingPos(o, engineWall, ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y),
-                RoomBuilder.WALL);
-        for (int y = ENGINE_FRAME_LOW_Y; y <= ENGINE_FRAME_HIGH_Y; y++) {
-            for (int along = ENGINE_ALONG_MIN - 1; along <= ENGINE_ALONG_MAX + 1; along++) {
-                RoomBuilder.set(level, wallRingPos(o, engineWall, along, y), RoomBuilder.WALL);
+        DoorMask.Direction historyWall = RoomGeometry.leftOf(wall);
+        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
+            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
+                RoomBuilder.set(level, wallRingPos(o, historyWall, along, y), RoomBuilder.WALL);
             }
         }
     }
@@ -760,12 +761,6 @@ final class RoomTemplateGenerator {
         return doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2);
     }
 
-    /** The engine block's position, for click detection ({@code Instances.engineTerminalAt}). */
-    static BlockPos enginePos(BlockPos o, DoorMask.Direction selectorWall) {
-        return wallRingPos(o, RoomGeometry.leftOf(selectorWall),
-                ENGINE_ANCHOR_ALONG, ENGINE_ANCHOR_Y);
-    }
-
     /** Position one block inside the room from {@code wall}, in the door row. */
     private static BlockPos doorPlanePos(BlockPos o, DoorMask.Direction wall, int along, int y) {
         return switch (wall) {
@@ -807,16 +802,6 @@ final class RoomTemplateGenerator {
      */
     private static BlockState signState(DoorMask.Direction wall) {
         return LEVER_SIGN.setValue(WallSignBlock.FACING, CellGeometry.facingIntoRoom(wall));
-    }
-
-    /**
-     * One bezel course, facing into the room from {@code wall}. {@code half}
-     * is what mirrors the two courses: BOTTOM above the screen, TOP below it,
-     * so each one's solid half meets the screen row and its step turns away
-     * from it.
-     */
-    private static BlockState frameState(DoorMask.Direction wall, Half half) {
-        return FRAME.setValue(StairBlock.FACING, CellGeometry.facingIntoRoom(wall)).setValue(StairBlock.HALF, half);
     }
 
     static BlockPos[] concat(BlockPos[] base, BlockPos... extra) {

@@ -50,7 +50,7 @@ public class ConnectorTest {
         }
     }
 
-    /** Every connector type is reachable: a wide enough sample hits all seven. */
+    /** Every rolled connector type is reachable, and the planner-only RUBBLE never is. */
     private static void testPickCoversEveryWeightBand() {
         Set<ConnectorType> seen = new java.util.HashSet<>();
         Random rng = new Random(7);
@@ -58,7 +58,7 @@ public class ConnectorTest {
             seen.add(ConnectorType.pick(rng));
         }
         for (ConnectorType type : ConnectorType.values()) {
-            check(seen.contains(type));
+            check(seen.contains(type) == type.rolled());
         }
     }
 

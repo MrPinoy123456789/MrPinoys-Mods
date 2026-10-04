@@ -56,6 +56,54 @@ public final class OrdealGameTest {
         });
     }
 
+    /**
+     * A rubble doorway: armed under its own key without displacing the room's
+     * Ordeal, a blast out of reach does nothing, and one within reach clears
+     * every rubble block on the next Ordeal tick.
+     * The explosion itself is not set off here: the gametest world is not the
+     * dungeon dimension, where {@code ServerExplosionMixin} asks
+     * {@link RubbleOrdeal#blast}. That call is what is exercised.
+     */
+    @GameTest(maxTicks = 60)
+    public void rubbleClearsOnlyWhenABlastReachesIt(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 0, 0));
+        ConnectorStamper.applyRubble(level, origin, DoorMask.Direction.NORTH);
+        BlockPos key = ConnectorGeometry.wallPos(origin, DoorMask.Direction.NORTH, RoomGeometry.DOOR_MIN, 1);
+        java.util.List<BlockPos> slot = ConnectorGeometry.rect(origin, DoorMask.Direction.NORTH,
+                RoomGeometry.DOOR_MIN, RoomGeometry.DOOR_MAX, 1, RoomGeometry.DOOR_HEIGHT);
+        for (BlockPos pos : slot) {
+            helper.assertTrue(RubbleOrdeal.isRubble(level.getBlockState(pos)), "the slot is rubble at " + pos);
+        }
+
+        // The room's own Ordeal shares the cell; rubble must not replace it.
+        // Rising Lava arms only with its lever in place.
+        BlockPos leverWall = helper.absolutePos(new BlockPos(1, 1, 2));
+        level.setBlock(leverWall, Blocks.STONE.defaultBlockState(), 3);
+        Ordeals.placeWallLever(level, leverWall.north(), Direction.NORTH);
+        BlockPos lava = helper.absolutePos(new BlockPos(5, 1, 5));
+        level.setBlock(lava, Blocks.LAVA.defaultBlockState(), 3);
+        Ordeals.arm(RisingLavaOrdeal.INSTANCE, level, origin);
+        Ordeals.armAt(RubbleOrdeal.KIND, level, origin, key);
+        helper.assertTrue(RubbleOrdeal.isArmedRubble(level, slot.get(0)), "the rubble is armed");
+        helper.assertTrue(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin),
+                "arming the rubble left the room's own Ordeal armed");
+
+        net.minecraft.world.phys.Vec3 far = net.minecraft.world.phys.Vec3.atCenterOf(key).add(0, 0, 12);
+        helper.assertFalse(RubbleOrdeal.blast(level, far, 4.0f), "a blast twelve blocks off misses");
+        net.minecraft.world.phys.Vec3 near = net.minecraft.world.phys.Vec3.atCenterOf(key).add(0, 0, 3);
+        helper.assertTrue(RubbleOrdeal.blast(level, near, 3.0f), "a creeper-sized blast three blocks off reaches");
+
+        helper.runAfterDelay(20, () -> {
+            for (BlockPos pos : slot) {
+                helper.assertTrue(level.getBlockState(pos).isAir(), "the rubble is gone at " + pos);
+            }
+            helper.assertFalse(RubbleOrdeal.isArmedRubble(level, slot.get(0)), "and no longer armed");
+            Ordeals.clear(origin);
+            helper.succeed();
+        });
+    }
+
     /** The lever and its lamp are fixtures while armed; nothing else is, and nothing is after teardown. */
     @GameTest
     public void leverAndLampAreFixtures(GameTestHelper helper) {

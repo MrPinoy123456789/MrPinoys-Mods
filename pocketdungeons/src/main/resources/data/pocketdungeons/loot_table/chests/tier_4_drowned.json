@@ -1,0 +1,806 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": {
+        "min": 1,
+        "max": 2
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_carrot",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 12
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:sea_lantern",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 8
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:oxidized_cut_copper",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 8
+            }
+          ],
+          "weight": 9
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:trident",
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.2
+            }
+          ],
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ],
+          "weight": 2
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:heart_of_the_sea",
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.05
+            }
+          ],
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "cubeReward": "warden_ward",
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Warden's Ward",
+                "italic": false,
+                "color": "light_purple"
+              },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Extract at the Herobrine Cube.",
+                  "italic": true,
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_helmet",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:flow",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:bolt",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:bolt",
+                  "material": "minecraft:emerald"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:ward",
+                  "material": "minecraft:netherite"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_chestplate",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:silence",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:sentry",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:eye",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:redstone"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_leggings",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:netherite"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:netherite"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:rib",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:wild",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:host",
+                  "material": "minecraft:emerald"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_boots",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:redstone"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:wayfinder",
+                  "material": "minecraft:gold"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:shaper",
+                  "material": "minecraft:iron"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:silence",
+                  "material": "minecraft:diamond"
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_components",
+              "conditions": [
+                {
+                  "condition": "minecraft:random_chance",
+                  "chance": 0.03
+                }
+              ],
+              "components": {
+                "minecraft:trim": {
+                  "pattern": "minecraft:coast",
+                  "material": "minecraft:redstone"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_sword",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_axe",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:crossbow",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 25,
+                "max": 35
+              },
+              "options": "#pocketdungeons:random_loot"
+            },
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "tier": 4,
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:sandstone",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "shellUnlock": "sandstone",
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Sandstone Shell",
+                "italic": false,
+                "color": "gold"
+              },
+              "target": "custom_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Unlock it from your room's menu.",
+                  "italic": true,
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:water_bucket",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:snowball",
+          "weight": 5,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 16
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:lead",
+          "weight": 4
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:shears",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_boots",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:oak_boat",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "pocketdungeons": {
+                    "bag": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:trial_key",
+          "weight": 3
+        }
+      ]
+    }
+  ]
+}

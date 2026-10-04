@@ -17,12 +17,25 @@ enum ConnectorType {
     DOOR_DOUBLE(10),
     IRON_DOOR(10),
     OPEN(10),
-    ARCH(5);
+    ARCH(5),
+    /**
+     * A doorway plugged with rubble that only a blast clears
+     * ({@link RubbleOrdeal}). Never rolled: weight 0 keeps the roll and every
+     * existing seed's connectors unchanged. The planner chooses rubble edges
+     * itself ({@link DungeonPlan#rubbleEdges}), only where an explosive is
+     * reachable before the door.
+     */
+    RUBBLE(0);
 
     private final int weight;
 
     ConnectorType(int weight) {
         this.weight = weight;
+    }
+
+    /** Whether {@link #pick} can return this type; false for the planner-only {@link #RUBBLE}. */
+    boolean rolled() {
+        return weight > 0;
     }
 
     private static final int TOTAL_WEIGHT;

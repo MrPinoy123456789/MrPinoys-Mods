@@ -21,6 +21,15 @@ import java.util.Set;
  * failed, the gate was closed, or no anomaly room matched the cell.
  * {@code LayoutStamper} and {@code RoomContent} read it to skip the run
  * theme's skinning on that one cell.
+ *
+ * <p>{@code rubbleEdges} are the doors the stamper plugs with rubble
+ * ({@link ConnectorType#RUBBLE}), at most one per plan and only where an
+ * {@code explosive} is reachable before the door ({@link RoomSelector}).
+ * Empty on almost every plan.
+ *
+ * <p>{@code sealedCells} are two-story cells whose way down the stamper seals
+ * with rubble ({@link RubbleOrdeal#FLOOR}), chosen where an {@code explosive}
+ * is reachable before the cell. A two-story cell not in it stamps open.
  */
 record DungeonPlan(
         long seed,
@@ -32,7 +41,17 @@ record DungeonPlan(
         PlanCell entrance,
         PlanCell terminal,
         List<PlanCell> criticalPath,
-        PlanCell anomalyCell) {
+        PlanCell anomalyCell,
+        Set<PlanEdge> rubbleEdges,
+        Set<PlanCell> sealedCells) {
+
+    /** A plan with no rubble doorways and no sealed floors. */
+    DungeonPlan(long seed, Set<PlanCell> cells, Map<PlanCell, String> roles, Map<PlanCell, Integer> depths,
+                Map<PlanCell, PlacedRoom> rooms, Set<PlanEdge> doors, PlanCell entrance, PlanCell terminal,
+                List<PlanCell> criticalPath, PlanCell anomalyCell) {
+        this(seed, cells, roles, depths, rooms, doors, entrance, terminal, criticalPath, anomalyCell,
+                Set.of(), Set.of());
+    }
 
     record PlacedRoom(String name, int rotation) {}
 }

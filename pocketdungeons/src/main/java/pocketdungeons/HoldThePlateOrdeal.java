@@ -33,9 +33,9 @@ import java.util.UUID;
  *       lever: the plate is already this room's action.</li>
  * </ul>
  *
- * <p>PD-67: drives Hold the Plate in code. Stand on the plate for
+ * <p>PD-67/PD-125: drives Hold the Plate in code. Stand on the plate for
  * {@link #HOLD_SECONDS} seconds and the exit's iron door opens; step off and
- * the count resets.
+ * the count pauses, so the player can dodge ranged attacks and step back on.
  *
  * <p>The room used to carry a hopper clock, a comparator and a repeater meant
  * to open the door, but the diodes faced the wrong way, the plate was wired to
@@ -57,9 +57,9 @@ import java.util.UUID;
  * spawner through {@link TrialSpawner#spawnMob}, so they are the room's own
  * mob table (equipment, ominous and all) but never join the spawner's tally:
  * the spawner still clears on its own terms, and clearing it first skips
- * nothing. Stepping off resets the count and the waves; {@link #ALIVE_CAP}
- * and {@link #SPAWN_CAP} keep a player who steps on and off from farming
- * them.
+ * nothing. Stepping off pauses the count and no new waves are raised;
+ * {@link #ALIVE_CAP} and {@link #SPAWN_CAP} keep a player who steps on and off
+ * from farming them.
  */
 final class HoldThePlateOrdeal extends Ordeal<HoldThePlateOrdeal.Plate> {
 
@@ -95,10 +95,6 @@ final class HoldThePlateOrdeal extends Ordeal<HoldThePlateOrdeal.Plate> {
                  int heldTicks, int wavesFired, int spawned, List<UUID> mobs) {
         Plate withHeld(int ticks) {
             return new Plate(level, plate, cellOrigin, spawners, ticks, wavesFired, spawned, mobs);
-        }
-
-        Plate reset() {
-            return new Plate(level, plate, cellOrigin, spawners, 0, 0, spawned, mobs);
         }
     }
 
@@ -151,7 +147,15 @@ final class HoldThePlateOrdeal extends Ordeal<HoldThePlateOrdeal.Plate> {
     Plate tickDanger(ServerLevel level, BlockPos cellOrigin, Plate plate) {
         List<ServerPlayer> on = playersOn(plate);
         if (on.isEmpty()) {
-            return plate.heldTicks() > 0 ? plate.reset() : plate;
+            if (plate.heldTicks() > 0) {
+                int left = (HOLD_TICKS - plate.heldTicks() + 19) / 20;
+                Component line = Component.literal("Hold paused: " + left + "s left. Step back on to finish.")
+                        .withStyle(ChatFormatting.GOLD);
+                for (ServerPlayer player : Ordeals.playersIn(level, plate.cellOrigin())) {
+                    player.sendOverlayMessage(line);
+                }
+            }
+            return plate;
         }
         int held = plate.heldTicks() + PERIOD;
         if (held >= HOLD_TICKS) {

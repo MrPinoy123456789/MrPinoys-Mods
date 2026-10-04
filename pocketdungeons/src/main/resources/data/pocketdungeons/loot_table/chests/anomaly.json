@@ -64,8 +64,7 @@
                     "shellUnlock": "sandstone",
                     "bag": 1
                   }
-                },
-                "minecraft:max_stack_size": 8
+                }
               }
             },
             {
@@ -103,8 +102,7 @@
                     "shellUnlock": "deepslate",
                     "bag": 1
                   }
-                },
-                "minecraft:max_stack_size": 8
+                }
               }
             },
             {

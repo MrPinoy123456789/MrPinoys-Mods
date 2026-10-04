@@ -89,15 +89,185 @@ operator rules reference, written once wave 2 settles) must state each of these.
 
 # Open research questions (ask about these at breaks)
 
-- A1. Do players read and use the omen bar? (partial). Retest: can they say what raised the omen?
-- A2. What makes a player go home, and when? (partial). Retest: does the go-home point move, and is the reason ever the omen or depth?
-- A3. Does the strict resource economy feel tense or tedious? (partial). Retest over three runs.
-- A4. Does the kit top-up feel fair and understood? (partial). Retest: noticed unprompted?
-- A5. Is the HOME lever and staging room readable without help? (partial). Retest with a fresh player if one is available.
-- A6. Do door choices feel meaningful? (partial)
-- A7. What pulls a player into another session? (partial)
-- A8. Where does a session drag, and where does it spike? (partial)
-- A9. Does the room (home) matter to the player? (partial). Retest: do they decorate?
+- A1. Do players read and use the omen bar? (partial). Retest: can they say what raised the omen?
+- A2. What makes a player go home, and when? (partial). Retest: does the go-home point move, and is the reason ever the omen or depth?
+- A3. Does the strict resource economy feel tense or tedious? (partial). Retest: does the surplus complaint go away, and do `salvage` journal events show it used every interval without emeralds piling up at the gamble?
+- A4. Does the kit top-up feel fair and understood? (partial). Retest: noticed unprompted?
+- A5. Is the HOME lever and staging room readable without help? (partial). Retest with a fresh player if one is available.
+- A6. Do door choices feel meaningful? (partial)
+- A7. What pulls a player into another session? (partial)
+- A8. Where does a session drag, and where does it spike? (partial)
+- A9. Does the room (home) matter to the player? (partial). Retest: do they decorate?
+
+# Live checks owed (this session's verification goals)
+
+Fixes that pass their tests but still need one look in real play. Whoever runs
+the next live session (the Lemon agent, or the `/playtest` interviewer) treats
+the `owed` rows as goals for that session, alongside the research questions in
+`AGENDA.md`. The knowledge pack (`tools/lemon/build-pack.mjs`) lists every
+`owed` row, so an agent on the MCP server sees them without reading the repo.
+
+How to work them:
+
+- **Never spend the player's time on a check they did not agree to.** Ask once,
+  at a natural break, whether they mind trying something for a minute. A no
+  is fine; the check stays owed.
+- **Never change the player's game state without asking** (inventory, keystone,
+  config). Room bias is allowed: it only steers what the next door plans, and
+  the bias command announces itself in chat.
+- **Discovery checks are watch only.** Do not tell the player the answer, or
+  the check is spoiled for good. Note what they do.
+- Record each attempt in the session notes with the time, what you saw and the
+  evidence (log line, `context` field, journal event), then update the row
+  here: `passed <date> (<notes file>)`, `failed <date>: <one line>`, or leave it
+  `owed` with a line saying what blocked it. A failure also goes in
+  `docs/reference/BUGS.md` under the bug's id.
+
+Commands below are `server cmd "<command>"` on the CLI, or the admin console
+tool on the MCP server (`mcp.mjs --admin`).
+
+### L1. PD-78 and PD-97: two-story rooms build
+
+- **Status:** owed
+- **Fixed:** 2026-09-30 (blaze_cellar) and 2026-10-01 (sump): both had a solid
+  pillar where the climb back up should be; both now have a ladder column. A
+  gametest now checks every multi-story room at every rotation.
+- **Do:** `dungeon admin bias blaze_cellar 20`, let the player open a door and
+  commit. Then `dungeon admin bias clear` and the same for `sump`. Ask the player
+  first; it costs them nothing but a door.
+- **Pass:** the door builds (no "The dungeon failed to build"), `context` shows
+  the room on the floor, and the player can climb the ladder from the lower
+  story back up. Ask them to try the ladder if they go down.
+- **Fail signs:** `IllegalStateException ... no climbable return path` in the
+  log, or the player stuck below.
+
+### L2. PD-93: an anomaly room builds
+
+- **Status:** owed
+- **Fixed:** 2026-10-01: the stamper read anomaly rooms from the wrong manifest,
+  so any door that rolled one failed to build.
+- **Do:** nothing to steer; about 8 percent of themed plans roll one. Watch
+  `context` for a room named `pocketdungeons:anomaly_...` on a preview or floor.
+- **Pass:** a door whose plan holds an anomaly room commits and builds.
+- **Fail signs:** `manifest has no room named pocketdungeons:anomaly_` in the log.
+- **If it never comes up:** say so in the notes; raising `anomalyRoomChance` in
+  the server config is the owner's call, not yours.
+
+### L4. PD-95: fresh stackable loot merges
+
+- **Status:** owed
+- **Fixed:** 2026-10-01: stackable rewards no longer carry the bag tag; old
+  tagged stacks lose it the next time the player enters.
+- **Do:** watch. If the player mentions stacks that will not merge, check
+  `context full=true` for the two stacks.
+- **Pass:** iron ingots, food, arrows and similar from chests or vaults land in
+  the same stack as the player's existing ones. Since 2026-10-02 there are no
+  stack caps (loot uses vanilla sizes), so blocks, torches and arrows also merge
+  with a plain stack of 64; a stack that will not merge is a failure, and an
+  old capped stack in the pack should be back to its vanilla size on entry.
+- **Fail signs:** a stackable item with `pocketdungeons:{bag:1}` custom data in
+  `context`.
+
+### L6. PD-79: Lemon answers in time
+
+- **Status:** owed (every session, until it holds). Failed 2026-10-02-2.md: at least 8 asks hit the 45 s fallback, but the cause was `wait` and the shared cursor hiding `lemon ask` lines (PD-118), not slow replies. A direct `tail -F latest.log` monitor fixed it (every later ask answered in 4 to 6 s). Retest after PD-118 is fixed.
+- **Fixed:** 2026-10-01: `lemon think` now really holds the question (it used to
+  be ignored, so the fallback fired at 45 seconds anyway), and `wait` no longer
+  skips a log line caught mid-write. Most past timeouts were the agent
+  investigating before answering: see `docs/LEMON_AGENT.md` section 4, step 4.
+- **Do:** for every `lemon ask`, call `lemon reply` or `lemon think` first, then
+  investigate. Write down the ask time, the time `wait` returned it and the
+  reply time.
+- **Pass:** no `lemon unanswered` line for a player question across a session.
+- **Fail signs:** `lemon unanswered` in the events. Note whether `wait` returned
+  the ask late (a harness bug) or you replied late.
+
+### L8. Torches drop nothing; foundry chests carry glass bottles
+
+- **Status:** owed
+- **Changed:** 2026-10-01 (owner decision): in the dungeon a broken torch of
+  any kind (wall, soul, copper; the player's own too) drops nothing, by hand or
+  by its support breaking. Basalt Foundry chests now also hold glass bottles,
+  so nether wart and magma cream from the same pool brew Fire Resistance.
+- **Do:** watch. If the player breaks a torch, note whether they comment. On a
+  basalt_foundry floor, note whether bottles turn up and whether they brew.
+- **Pass:** no torch item appears after a torch breaks (`context` inventory
+  count does not rise); a bottle shows up in foundry loot within a few chests.
+- **2026-10-01-2.md:** bottles confirmed in foundry loot ("Yes, I got them");
+  he asked for sand in the same pool. Torch breaking was not observed, so that
+  half stays owed.
+- **Ask after, not before:** how losing torches felt (fair cost, or annoying),
+  and whether Fire Resistance changed how they approach the foundry.
+
+### L9. 2026-10-01 fix batch
+
+- **Status:** owed (2026-10-02-1.md: fixes were in the running build but not specifically steered to; hold-the-plate worked well, no commit/build failures, but `kennel_crossing`, `blaze_cellar`, `rotation_lock` and the blacksmith duplication were not directly observed).
+- **Fixed:** 2026-10-01: PD-98 (blaze_cellar spawner found; kennel pen is grass so wolves spawn), PD-99 (rotation_lock redstone faced the wrong way), PD-100 (sensor omen line held 8 s), PD-101 (bench open leaves the held item alone), PD-103 (blacksmith scan covers the staging room).
+- **Do:** bias `kennel_crossing`, `blaze_cellar` and `rotation_lock` in turn (ask first). For the bench, right-click it holding a sword. Watch for a second blacksmith near the staging room.
+- **Pass:** wolves appear inside the kennel pen and the gate lets them out; blaze_cellar shows a spawner counter; rotation_lock opens on frame position 8; the sensor line stays readable; the held item stays in hand; one blacksmith only.
+
+### L11. 2026-10-02: rubble doorways and sealed two-story rooms
+
+- **Status:** owed (not encountered in 2026-10-02-1.md; player did not pick the Sapper's Bag or roll a creeper kennel).
+- **Changed:** 2026-10-02. With the Sapper's Bag, or after a creeper kennel, a
+  door can be plugged with rubble and the three two-story rooms' way down is
+  sealed with it. Any explosion within reach clears it and hurts nothing.
+- **Do:** with consent, the player picks the Sapper's Bag; then
+  `dungeon admin bias sump 20` (or `slime_pit`, `blaze_cellar`). Discovery is
+  watch only: do not say "use TNT" unless asked.
+- **Pass:** mining the rubble names what moves it; TNT or a creeper beside it
+  clears it with no damage and no broken blocks; the floor can be cleared
+  without opening a sealed room; once open, the ladder climbs back out.
+- **Fail signs:** a door that never clears after a blast, a player or block
+  hurt by the clearing blast, or a floor that will not complete while a seal
+  stands.
+
+### L12. 2026-10-02 fix batch (PD-105 to PD-112)
+
+- **Status:** owed
+- **Changed:** 2026-10-02: spawner mobs no longer carry trimmed vanilla armour and armour drops are rarer (PD-106); themeless rooms draw from narrow mob families, with a rare chaotic spawner (PD-107); the salvage bench says why it refuses gear (PD-108); spiders stuck high on a wall are set back on the floor (PD-110); the spawner gate says how many more to clear (PD-111); omen gains are audible and the sensor line plays a warden sound (PD-112). PD-105 (Lemon keeps her journal) and PD-109 (tripwire hall traps) could not be reproduced; see their BUGS entries.
+- **Do:** watch. For PD-109 bias `tripwire_hall` (ask first) and look at the room before entering: six hooks, three strings across, six dispensers. For PD-105 right-click Lemon with an empty hand and note whether the book moves.
+- **Pass:** a tier 3 room drops little or no trimmed armour; a themeless room spawns one family (undead, bones or spiders); the gate line names a count; the sculk line has a warden sound; no spider sits in a corner for long; the tripwire traps are present and fire; Lemon keeps the book.
+
+### L15. 2026-10-02: librarian lock in and run storage
+
+- **Status:** owed, 2026-10-02-2.md: not settled. Discovery failed: the player asked how to make a lectern and did not know the station picker hands it out. He then rejected the "Lock in" idea ("there's no lock in"): he wants the librarian to sell a Mending book. Run storage and the librarian itself were not seen.
+- **Changed:** 2026-10-02 (owner decisions): Mending no longer drops or rerolls onto gear. A lectern placed in the room spawns a librarian; right-clicking the librarian holding gear offers "Lock in" for 32 emeralds (`lockInEmeralds`), which adds Mending and a "Locked in" lore line. Locked gear is refused by the salvage bench and the reroll station. The gamble block no longer exists. Every staging room now has an ender chest set into the wall to the right of the selector doors (rebuilt with the room every interval); it, or any ender chest in the dungeon, opens Run Storage (27 private slots kept for the run) so it feels vanilla while gated behind the scenes. When the run closes the contents go into the dungeon pack, never the survival inventory, and a max-omen death rolls the storage back to the interval start like the pack; the bag chest at the safe room centre is now a waxed oxidized copper chest (swapped with the ender chest). The blacksmith is now the only way to gamble. The station picker lists Run Storage and the Lectern.
+- **Do:** with consent, give the player a lectern and emeralds (or watch for them to take one from the station picker at keystone level 5). Watch whether they find the librarian, understand the price, and whether locked gear surprises them at the bench. For storage, watch whether they notice the chest in the staging room wall without being told, whether they use it, and whether the items are in the dungeon pack on the next entry after the run closes.
+- **Pass:** a lectern spawns exactly one librarian; the trade preview shows Mending and the cost; the emeralds leave and the held piece keeps its enchantments plus Mending; the bench says "locked in, kept safe"; the staging room chest is there on every interval for every member; stored items are in the dungeon pack on the next entry and never in the survival inventory; no Mending in chest loot.
+- **Fail signs:** two librarians, the librarian turning into another profession while keeping the name, stored items lost on a purge, stored items in the survival inventory, the chest missing or facing into the wall, stashed loot surviving a max-omen death, Mending on a chest drop.
+
+### L16. 2026-10-02: diaries read in the book screen
+
+- **Status:** owed
+- **Changed:** 2026-10-02: the lodestone menu (and Lemon's menu) Diaries entries now open the vanilla book screen, with the pages in canonical order, instead of the dialog. The book is shown in the hand slot on the player's screen only, for the moment the screen opens; the server inventory is never touched (review F3).
+- **Do:** with consent, ask the player to open Diaries from the menu holding something recognisable. Watch for the held item flickering, being lost or turning into a book.
+- **Pass:** the book screen opens, closing it leaves the original item in hand.
+- **Fail signs:** the held item replaced or duplicated, a diary book left in the hotbar, no screen opens (the client reading the old slot before the book arrives).
+
+### L17. 2026-10-02: Lemon's diary archive
+
+- **Status:** owed
+- **Changed:** 2026-10-02: right-clicking Lemon holding a found diary book makes her keep it (the entry is recorded for good, she tells a tip, and holding every entry grants one extra echo shard per completed interval, `lemon_archive` in the `echo_shards` events). Books found before this change are not tagged; the Diaries menu entries still read in the book screen either way.
+- **Do:** with consent, once the player holds a diary, ask whether they would give it to Lemon (do not say how: watch). Note the tip and whether they find it useful.
+- **Pass:** the book leaves the hand, Lemon speaks a tip and the count, a duplicate is refused and kept.
+- **Fail signs:** the book is consumed without a line, or the click opens the menu instead.
+
+### L18. 2026-10-02: themed merchants
+
+- **Status:** owed, 2026-10-02-2.md: the player asked for a merchant ("I haven't seen a merchant yet"); with consent the run was steered with `dungeon admin bias the_store 20` but no Store showed before the wrap. Bias cleared. Retry with a bias held on door selection (`room_bias_hold`).
+- **Changed:** 2026-10-02 (another agent, see `docs/reference/THEMED_MERCHANTS.md`): the Store's merchant is chosen by the floor's theme and prices stock in that floor's mob drops (bones, string, blaze rods, magma cream, ender pearls and so on). Themes without a merchant keep the emerald shopkeeper. The four game tests pass; the live behaviour is unseen.
+- **Do:** bias a Store room on an ossuary or basalt_foundry floor (ask first). Watch whether the player brings the right drops and whether the prices read as fair.
+- **Pass:** the merchant is named for the theme, the shop shows drop prices, buying takes the drops, a saved shop survives a reload.
+- **Fail signs:** a purchase that takes the wrong item, a shop that sells its own currency, a villager that loses its stock on reload.
+
+### L19. 2026-10-02: placement notices
+
+- **Status:** owed
+- **Changed:** 2026-10-02 (owner request): placing a block anywhere in the dungeon outside a safe room (the staging room, a floor, a visit's copy of a room) shows a red action bar line, "This will not last. Only a safe room keeps what you build.", with the wrong tool note. Placing a block in a safe room shows a green line, "Saved with your safe room. It will be here when you come back." ("this safe room" for a guest), with a chime. The sound plays at most once a second; build rooms are silent.
+- **Do:** watch the first time the player places a block in the staging room or on a floor, and the first time they decorate the safe room. No setup needed.
+- **Pass:** red line and low note in the staging room and on floors; green line and chime in the safe room; a block placed in the safe room is still there after a run and a return; a row of blocks does not play a row of notes.
+- **Fail signs:** green in the staging room, red in the safe room, a green block that is gone on return, chat spam, no sound.
 
 # Rooms (id: roles, tier, depth, requirements)
 

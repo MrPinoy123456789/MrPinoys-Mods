@@ -120,9 +120,10 @@ final class Keystone {
      * render a dialog as often as it is called to settle a choice, and a
      * refusal has no business happening on every render.
      *
-     * <p>Door 2 keeps {@code OMINOUS} on its {@code EnumSet} as a marker
-     * rendered by {@link Offer#ominous()}. It is a seeded affix now (M10), not
-     * a door pick, but the rendering still wants to know a door promises it.
+     * <p>No door promises {@code OMINOUS} any more (2026-10-01): a floor turns
+     * ominous by a roll at commit time, weighted by the omen the party has
+     * banked ({@link Omen#ominousChance}). {@link Offer#ominous()} stays for an
+     * operator's fixed experimental offer.
      *
      * <p>M11: {@link AdventureGraph#pick} draws all three themes from
      * {@code currentTheme}'s transition set (or the entry pool, for a player
@@ -158,7 +159,7 @@ final class Keystone {
 
         return new Offer[] {
                 new Offer(KeystoneMath.upgrade(level, 1, max), Set.of(), 1, first, Tier.FREE),
-                new Offer(KeystoneMath.upgrade(level, 2, max), Set.of(AffixIds.OMINOUS),
+                new Offer(KeystoneMath.upgrade(level, 2, max), Set.of(),
                         2, second, Tier.GREATER),
                 doorThree,
         };
