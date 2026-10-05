@@ -810,7 +810,7 @@ public final class InventorySwap {
         keepForNextEntry(log, player.getUUID(), leftover);
         player.sendSystemMessage(Component.literal(
                         "Your bag is packed one last time. From here on the pack is yours to keep, "
-                                + "and the safe room tops it up.")
+                                + "and the bag chest holds a fresh kit after every trip home.")
                 .withStyle(ChatFormatting.AQUA));
     }
 

@@ -313,8 +313,8 @@ final class DungeonScreen {
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         boolean goodTime = record.interval.floorIndex >= floorsPerVisit;
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        boolean kitRefill = KitTopUp.fraction(false, now.band(), PocketDungeonsConfig.kitTopUpBandFractions())
-                * ZoneRules.of(record).kitTopUpScale() > 0.0;
+        // The bag chest refills on any trip home that banked a floor (KitChest).
+        boolean kitRefill = !record.interval.floorSteps.isEmpty();
         String text = IntervalBanking.homeScreen(now, floorsPerVisit, goodTime, kitRefill);
         int split = text.indexOf('\n');
         return Component.literal(text.substring(0, split))

@@ -28,7 +28,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * The safe-visit kit top-up: at each interval's settlement, every settling
+ * Superseded 2026-10-04 by {@link KitChest}: the bag chest is refilled with a
+ * fresh full kit instead of a band-scaled top-up into the pack. {@link #settle}
+ * is no longer called; {@link #itemId} is still used by the pack validator.
+ *
+ * <p>The safe-visit kit top-up: at each interval's settlement, every settling
  * member's bag kit is restored toward its baseline, by an amount the omen band
  * earned.
  *

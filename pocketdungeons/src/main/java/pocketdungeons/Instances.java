@@ -481,13 +481,11 @@ final class Instances {
 
         applyTrialOmen(player, record);
         OmenBar.sync(server, record);
-        // M48: a member who has not yet chosen a bag gets the bag chest on
-        // entry. Each member picks independently; the chest is a shared
-        // station, so this is a no-op once it is already standing.
+        // The bag chest is a permanent station (2026-10-04): make sure it stands.
         if (record.roomCellOrigin != null && !record.visitInstance) {
             ServerLevel dungeonLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
             if (dungeonLevel != null) {
-                placeBagChestIfBagless(dungeonLevel, server, player.getUUID(), record.roomCellOrigin);
+                placeBagChestForParty(dungeonLevel, server, record);
             }
         }
     }
@@ -822,47 +820,17 @@ final class Instances {
     }
 
     /**
-     * (M48) Places the bag chest if any member of this instance (owner
-     * included) has not yet chosen a bag. The chest is a shared station: each
-     * bagless member right-clicks it independently and picks their own bag.
-     * A no-op if the chest is already standing, so it is safe to call from
-     * every lobby-arming path.
+     * Places the bag chest in the safe room (playtest 2026-10-03-2, owner
+     * decision: it is a permanent station now). A player with no bag picks one
+     * there; a player with a bag opens their own kit in it ({@link KitChest}).
+     * A no-op if it is already standing, so it is safe to call from every
+     * lobby-arming path.
      */
     static void placeBagChestForParty(ServerLevel level, MinecraftServer server, InstanceRecord record) {
         if (record == null || record.roomCellOrigin == null || record.visitInstance) {
             return;
         }
-        DungeonLog log = DungeonLog.forServer(server);
-        boolean anyBagless = log.bagOf(record.owner).isEmpty();
-        if (!anyBagless) {
-            for (UUID member : record.members.keySet()) {
-                if (log.bagOf(member).isEmpty()) {
-                    anyBagless = true;
-                    break;
-                }
-            }
-        }
-        if (!anyBagless) {
-            return;
-        }
         BlockPos pos = bagChestPos(record.roomCellOrigin);
-        if (!level.getBlockState(pos).is(bagChestBlock())) {
-            RoomBuilder.set(level, pos, bagChestBlock().defaultBlockState());
-        }
-    }
-
-    /**
-     * (M48) Places the bag chest if this one player has not yet chosen a bag.
-     * Used from {@link #admit}, where the record exists but the party is still
-     * assembling, so the per-party check is not yet meaningful. A no-op if the
-     * chest is already standing.
-     */
-    private static void placeBagChestIfBagless(ServerLevel level, MinecraftServer server,
-                                               UUID player, BlockPos origin) {
-        if (player == null || !DungeonLog.forServer(server).bagOf(player).isEmpty()) {
-            return;
-        }
-        BlockPos pos = bagChestPos(origin);
         if (!level.getBlockState(pos).is(bagChestBlock())) {
             RoomBuilder.set(level, pos, bagChestBlock().defaultBlockState());
         }

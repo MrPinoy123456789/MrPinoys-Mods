@@ -353,6 +353,14 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, InventorySwap.OrphanRecord> orphans = new HashMap<>();
 
     /**
+     * Playtest 2026-10-03-2 (owner decision): what each player's view of the
+     * bag chest holds, the fresh kit {@link KitChest#refill} rolled at their
+     * last trip home. The same plain item list an orphan record is, so it
+     * reuses that type; it is overwritten on every refill.
+     */
+    private final Map<UUID, InventorySwap.OrphanRecord> kitChests = new HashMap<>();
+
+    /**
      * (M71) Per-player Cube recipe discovery state. A sidecar map for the
      * same reason {@link #taskProgress} and {@link #bounties} are ones: the
      * discovery state is read and written on the Cube interaction path, has
@@ -533,6 +541,16 @@ final class DungeonLog extends SavedData {
     /** One player's orphaned void inventory, keyed the same way {@link PlayerEntry} is. */
     private record PlayerOrphan(UUID player, InventorySwap.OrphanRecord orphan) {}
 
+    /** One player's bag chest contents ({@link KitChest}), the same shape as an orphan. */
+    private record PlayerKitChest(UUID player, InventorySwap.OrphanRecord items) {}
+
+    private static final Codec<PlayerKitChest> PLAYER_KIT_CHEST_CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerKitChest::player),
+            InventorySwap.OrphanRecord.CODEC.fieldOf("items").forGetter(PlayerKitChest::items)
+    ).apply(instance, PlayerKitChest::new));
+
     private static final Codec<PlayerOrphan> PLAYER_ORPHAN_CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
             Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
@@ -617,7 +635,12 @@ final class DungeonLog extends SavedData {
             // floor history loads unchanged, every player starting with none.
             PLAYER_FLOOR_HISTORY_CODEC.listOf().optionalFieldOf("floor_history", List.of())
                     .forGetter(log -> log.floorHistory.entrySet().stream()
-                            .map(e -> new PlayerFloorHistory(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerFloorHistory(e.getKey(), e.getValue())).toList()),
+            // 2026-10-04: optional so an older dungeon_log.dat loads with every
+            // bag chest empty until the player's next trip home refills it.
+            PLAYER_KIT_CHEST_CODEC.listOf().optionalFieldOf("kit_chests", List.of())
+                    .forGetter(log -> log.kitChests.entrySet().stream()
+                            .map(e -> new PlayerKitChest(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -625,7 +648,8 @@ final class DungeonLog extends SavedData {
                                           List<PlayerOrphan> orphans,
                                           List<PlayerRecipeDiscovery> recipeDiscoveries,
                                           List<PlayerRunRecords> runRecords,
-                                          List<PlayerFloorHistory> floorHistory) {
+                                          List<PlayerFloorHistory> floorHistory,
+                                          List<PlayerKitChest> kitChests) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -650,6 +674,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerFloorHistory h : floorHistory) {
             log.floorHistory.put(h.player(), new ArrayList<>(h.entries()));
+        }
+        for (PlayerKitChest k : kitChests) {
+            log.kitChests.put(k.player(), k.items());
         }
         return log;
     }
@@ -1067,6 +1094,24 @@ final class DungeonLog extends SavedData {
      * remove-rather-than-store-empty shape as {@link #setStash}, so the map
      * holds only players with items actually held for the next entry.
      */
+    /** What this player's view of the bag chest holds; empty slots included, never null. */
+    List<net.minecraft.world.item.ItemStack> kitChestOf(UUID player) {
+        return kitChests.getOrDefault(player, InventorySwap.OrphanRecord.NONE).items();
+    }
+
+    /** Replaces this player's bag chest contents; an all-empty list removes the record. */
+    void setKitChest(UUID player, List<net.minecraft.world.item.ItemStack> items) {
+        InventorySwap.OrphanRecord record = InventorySwap.OrphanRecord.of(items);
+        if (record.items().isEmpty()) {
+            if (kitChests.remove(player) == null) {
+                return;
+            }
+        } else {
+            kitChests.put(player, record);
+        }
+        setDirty();
+    }
+
     void setOrphan(UUID player, InventorySwap.OrphanRecord orphan) {
         if (orphan.items().isEmpty()) {
             if (orphans.remove(player) == null) {
@@ -1218,6 +1263,7 @@ final class DungeonLog extends SavedData {
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
+        setKitChest(player, List.of());
         setDirty();
     }
 }

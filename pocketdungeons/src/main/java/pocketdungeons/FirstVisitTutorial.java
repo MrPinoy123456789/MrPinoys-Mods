@@ -42,7 +42,7 @@ final class FirstVisitTutorial {
             List<String> lines() {
                 return List.of(
                         "Good pick. That chest held your bag, and your kit is in your pack now. Have a look through it.",
-                        "Come home safe and I top it back up, so you never start a run with an empty pack.");
+                        "Come home safe and the bag chest is filled with a fresh kit, so you never start a run with an empty pack.");
             }
         },
         DOOR_WALL("door_wall", Trigger.BAG_CHOSEN) {
@@ -71,7 +71,7 @@ final class FirstVisitTutorial {
         WAY_HOME("way_home", Trigger.HOME_ARRIVAL) {
             List<String> lines() {
                 return List.of("This is home. The lever at the end of a floor is the way here: it banks your key progress "
-                        + "and brings you back to your own room, kit topped up.",
+                        + "and brings you back to your own room, a fresh kit in the bag chest.",
                         "Build in here as you like. Everything you place is kept.");
             }
         };

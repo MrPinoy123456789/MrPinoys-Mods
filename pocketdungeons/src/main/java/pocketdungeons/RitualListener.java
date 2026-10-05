@@ -153,12 +153,7 @@ final class RitualListener {
             if (carried.isEmpty()) {
                 DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
             } else {
-                BagDefinition bag = Bags.byId(carried);
-                serverPlayer.sendSystemMessage(Component.literal("You already carry "
-                        + (bag == null ? "a bag" : bag.label)
-                        + ". It is yours until you reset your keystone; the chest is for anyone still without one.")
-                        .withStyle(ChatFormatting.YELLOW));
-                Chime.refused(serverPlayer);
+                KitChest.open(serverPlayer);
             }
             return InteractionResult.SUCCESS_SERVER;
         }

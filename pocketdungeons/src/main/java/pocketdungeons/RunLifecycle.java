@@ -1463,10 +1463,11 @@ final class RunLifecycle {
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 
-            // Audit wave 2c: the kit top-up, scaled by the band this
-            // settlement banked (a checkpoint exit's penalty included).
+            // 2026-10-04 (owner decision): a trip home that banked a floor
+            // refills the bag chest with a fresh full kit, overwriting what
+            // was left in it. This replaces the band-scaled KitTopUp.
             if (!interval.floorSteps.isEmpty()) {
-                KitTopUp.settle(server, record, memberPlayer, shared.band());
+                KitChest.refill(server, record, memberPlayer);
             }
 
             // M26: reads log fresh, after every keystone-level change.

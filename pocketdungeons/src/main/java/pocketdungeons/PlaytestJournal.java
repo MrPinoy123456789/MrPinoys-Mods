@@ -455,6 +455,17 @@ final class PlaytestJournal {
         return out;
     }
 
+    /** The bag chest was refilled with a fresh kit (2026-10-04): what it holds now, and what it overwrote. */
+    static void kitRefill(ServerPlayer player, InstanceRecord record, List<ItemStack> kit, List<ItemStack> overwritten) {
+        safely("kit_refill", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("bag", DungeonLog.forServer(player.level().getServer()).bagOf(player.getUUID()));
+            extras.put("kit", describe(kit));
+            extras.put("overwritten", describe(overwritten));
+            record(player, record, "kit_refill", extras);
+        });
+    }
+
     /** The safe room as the player left it: the stations placed and what the chests hold (playtest 2026-10-03, A9). */
     static void roomScan(ServerPlayer player, InstanceRecord record, RoomScan.Summary summary) {
         safely("room_scan", () -> {

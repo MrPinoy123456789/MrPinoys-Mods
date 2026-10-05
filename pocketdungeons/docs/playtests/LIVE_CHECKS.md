@@ -269,3 +269,11 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** watch floor 1 length and spawner count, chest contents, and a two-player vault. Ask whether the history board reads well.
 - **Pass:** floor 1 shows 2 spawners or fewer and runs well under 300 s; in a party of two, one key per spawner and one vault opening that ejects about twice a solo vault; the board text fits its backdrop.
 - **Fail signs:** history rows wider than the panel, two keys from one spawner, a vault the second player can still open, a party vault that pays like a solo one, floor 1 with 3 or more spawners.
+
+## L23. 2026-10-04: the bag chest is a kit station
+
+- **Status:** owed
+- **Changed:** 2026-10-04 (owner decision): the bag chest stands in the safe room for good. With no bag, clicking it picks one (the kit goes into the pack, as before). With a bag, it opens the player's own 27 slots, "Your Kit". Every trip home that banked a floor fills those slots with a fresh full kit, overwriting whatever was left; the old top-up into the pack is gone. Each party member has their own slots. Journal event `kit_refill`.
+- **Do:** after a trip home, have each player open the bag chest; leave something in it, go out and come home again.
+- **Pass:** a full fresh kit after each banked trip; leftovers replaced, not added to; two players see their own kits; the chest is there on every return.
+- **Fail signs:** an empty chest after a banked trip, leftovers stacking up, one player seeing the other's kit, the chest missing, the kit landing in the pack.
