@@ -12,6 +12,7 @@ Keep each entry to what a player needs, in the words Lemon would use.
   keystone step for that floor.
 - **Keystone:** banks per floor cleared, as the average of the cleared floors'
   door steps.
+- **Names:** players call the staging room between floors "the Doors"; use that name.
 - **Going home (banking):** every staging room between floors has a GO HOME
   lever. Home pays out reward chests, keystone progress and a kit refill.
   Leaving at a checkpoint banks one band worse.

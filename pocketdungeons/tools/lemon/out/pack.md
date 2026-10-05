@@ -33,6 +33,7 @@ Keep each entry to what a player needs, in the words Lemon would use.
   keystone step for that floor.
 - **Keystone:** banks per floor cleared, as the average of the cleared floors'
   door steps.
+- **Names:** players call the staging room between floors "the Doors"; use that name.
 - **Going home (banking):** every staging room between floors has a GO HOME
   lever. Home pays out reward chests, keystone progress and a kit refill.
   Leaving at a checkpoint banks one band worse.
@@ -296,9 +297,9 @@ tool on the MCP server (`mcp.mjs --admin`).
 ### L23. 2026-10-04: the bag chest is a kit station
 
 - **Status:** owed
-- **Changed:** 2026-10-04 (owner decision): the bag chest stands in the safe room for good. With no bag, clicking it picks one (the kit goes into the pack, as before). With a bag, it opens the player's own 27 slots, "Your Kit". Every trip home that banked a floor fills those slots with a fresh full kit, overwriting whatever was left; the old top-up into the pack is gone. Each party member has their own slots. Journal event `kit_refill`.
+- **Changed:** 2026-10-04 (owner decision): the bag chest stands in the safe room for good. With no bag, clicking it picks one (the kit goes into the pack, as before). With a bag, it opens the player's own 27 slots, "Your Kit". Every trip home that banked a floor fills those slots with a fresh full kit, overwriting whatever was left; the old top-up into the pack is gone. Each party member has their own slots. Journal event `kit_refill`. Fix 2026-10-04 (owner report): the chest is placed once, saves with the room and can be mined and set down anywhere in the safe room (not elsewhere); a new one appears only if the room has none and the owner is not carrying one. Death now reads "You come to at the Doors, with the feeling of a bad omen." (players call the staging room the Doors).
 - **Do:** after a trip home, have each player open the bag chest; leave something in it, go out and come home again.
-- **Pass:** a full fresh kit after each banked trip; leftovers replaced, not added to; two players see their own kits; the chest is there on every return.
+- **Pass:** a moved chest stays where it was put and still opens the kit, with no second chest at the centre; a full fresh kit after each banked trip; leftovers replaced, not added to; two players see their own kits; the chest is there on every return.
 - **Fail signs:** an empty chest after a banked trip, leftovers stacking up, one player seeing the other's kit, the chest missing, the kit landing in the pack.
 
 # Rooms (id: roles, tier, depth, requirements)

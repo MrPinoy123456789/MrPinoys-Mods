@@ -145,10 +145,20 @@ final class RitualListener {
         // PD-131: every click on the bag chest is answered. A member who
         // already carries a bag used to fall through to the container denial
         // and get nothing at all, which read as "I can see it but cannot use it".
+        // 2026-10-04: recognised by its block wherever it stands, so it can be
+        // moved, and placeable only inside the safe room, so it is never lost
+        // to a floor or to the Doors being rebuilt.
         InstanceRecord bagRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
-        if (bagRecord != null && !bagRecord.visitInstance && bagRecord.roomCellOrigin != null
-                && pos.equals(Instances.bagChestPos(bagRecord.roomCellOrigin))
-                && level.getBlockState(pos).is(Instances.bagChestBlock())) {
+        if (bagRecord != null && !bagRecord.adminBuild
+                && Instances.isBagChestItem(player.getItemInHand(hand))
+                && !Instances.inSafeRoom(bagRecord, hit.getBlockPos().relative(hit.getDirection()))
+                && !Instances.isBagChest(level.getBlockState(pos))) {
+            serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
+                    "The bag chest only stands in your safe room.").withStyle(ChatFormatting.YELLOW)));
+            return InteractionResult.FAIL;
+        }
+        if (bagRecord != null && !bagRecord.visitInstance
+                && Instances.isBagChest(level.getBlockState(pos))) {
             String carried = DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID());
             if (carried.isEmpty()) {
                 DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));

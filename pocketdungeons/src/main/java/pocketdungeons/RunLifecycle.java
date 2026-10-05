@@ -556,7 +556,7 @@ final class RunLifecycle {
             List<String> missing = missingStagingMembers(server, record);
             if (!missing.isEmpty()) {
                 player.sendSystemMessage(Component.literal(
-                        "Waiting in the staging room for: " + String.join(", ", missing))
+                        "Waiting at the Doors for: " + String.join(", ", missing))
                         .withStyle(ChatFormatting.YELLOW));
                 return false;
             }
@@ -735,18 +735,14 @@ final class RunLifecycle {
             // to hold off a teardown.
             return true;
         }
-        // M55: the safe room holds only the owner's blob and the bag chest.
-        // Selector doors, furniture and screens live in the staging room now,
-        // so capture hygiene no longer needs to clear and re-arm them here.
-        // The bag chest is still transient: clear it before capture so it
-        // never bakes into the blob, then re-arm it after.
-        Instances.clearBagChest(level, record.roomCellOrigin);
+        // M55: the safe room holds only the owner's blob. Selector doors,
+        // furniture and screens live in the staging room. The bag chest is
+        // part of the room since 2026-10-04 and saves with it, wherever the
+        // player has moved it.
         // The safe room is always stamped at rotation 0 (its ee and MM walls
         // are sealed by stampSafeRoom regardless of what the blob was saved
         // with), so the capture rotation is always 0.
-        boolean saved = RoomStore.capture(level, server, record.owner, record.roomCellOrigin, 0);
-        Instances.placeBagChestForParty(level, server, record);
-        return saved;
+        return RoomStore.capture(level, server, record.owner, record.roomCellOrigin, 0);
     }
 
     /**
@@ -1531,7 +1527,7 @@ final class RunLifecycle {
         }
         if (!record.inFloorLoop() || !betweenFloors(record)) {
             player.sendSystemMessage(Component.literal(
-                    "The way home opens between floors, from the staging room.")
+                    "The way home opens between floors, at the Doors.")
                     .withStyle(ChatFormatting.YELLOW));
             return false;
         }
@@ -1632,7 +1628,6 @@ final class RunLifecycle {
         BlockPos safeOrigin = record.roomCellOrigin;
 
         // Re-arm the bag chest at the new room.
-        Instances.clearBagChest(level, safeOrigin);
         Instances.placeBagChestForParty(level, server, record);
 
         clearTrialOmenFromMembers(server, record);
@@ -1759,7 +1754,6 @@ final class RunLifecycle {
                 FloorHistory.board(level.getServer(), record.owner));
 
         // Re-arm the bag chest at the safe room.
-        Instances.clearBagChest(level, safeOrigin);
         Instances.placeBagChestForParty(level, server, record);
 
         // Teleport every member into the safe room.

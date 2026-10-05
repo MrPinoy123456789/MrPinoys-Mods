@@ -806,6 +806,7 @@ final class Instances {
      * identify their own fixtures.
      */
     static BlockPos bagChestPos(BlockPos origin) {
+        // The default spot only, where a missing chest is placed (2026-10-04).
         return origin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
     }
 
@@ -820,34 +821,79 @@ final class Instances {
     }
 
     /**
-     * Places the bag chest in the safe room (playtest 2026-10-03-2, owner
-     * decision: it is a permanent station now). A player with no bag picks one
-     * there; a player with a bag opens their own kit in it ({@link KitChest}).
-     * A no-op if it is already standing, so it is safe to call from every
-     * lobby-arming path.
+     * Whether {@code state} is a bag chest: an oxidized copper chest, waxed or
+     * not (2026-10-04). Recognised by its block wherever it stands, so the
+     * player can mine it and set it down anywhere in their safe room and it is
+     * still the bag chest; mining may hand back either variant.
+     */
+    static boolean isBagChest(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(bagChestBlock()) || state.is(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.withDefaultNamespace("oxidized_copper_chest")));
+    }
+
+    /** Whether {@code stack} is a bag chest the player is carrying (see {@link #isBagChest}). */
+    static boolean isBagChestItem(net.minecraft.world.item.ItemStack stack) {
+        return stack.getItem() instanceof net.minecraft.world.item.BlockItem item
+                && isBagChest(item.getBlock().defaultBlockState());
+    }
+
+    /** Whether {@code pos} is inside {@code record}'s safe room cell. */
+    static boolean inSafeRoom(InstanceRecord record, BlockPos pos) {
+        return record != null && record.roomCellOrigin != null && inCellBounds(pos, record.roomCellOrigin);
+    }
+
+    /**
+     * Makes sure the safe room has its bag chest (2026-10-04, owner report:
+     * "one spawns in the middle of the room every time I enter"). The chest
+     * is part of the room now, saved with it and free to move, so one is
+     * placed only when the room has none and the owner is not carrying one:
+     * the first visit, or a chest that was lost. It goes at the centre, or
+     * the nearest open floor spot to it.
      */
     static void placeBagChestForParty(ServerLevel level, MinecraftServer server, InstanceRecord record) {
         if (record == null || record.roomCellOrigin == null || record.visitInstance) {
             return;
         }
-        BlockPos pos = bagChestPos(record.roomCellOrigin);
-        if (!level.getBlockState(pos).is(bagChestBlock())) {
-            RoomBuilder.set(level, pos, bagChestBlock().defaultBlockState());
+        BlockPos o = record.roomCellOrigin;
+        for (BlockPos pos : BlockPos.betweenClosed(o.offset(1, 1, 1),
+                o.offset(RoomGeometry.CELL - 2, RoomGeometry.CEILING_Y - 1, RoomGeometry.CELL - 2))) {
+            if (isBagChest(level.getBlockState(pos))) {
+                return;
+            }
+        }
+        ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
+        if (owner != null) {
+            for (int i = 0; i < owner.getInventory().getContainerSize(); i++) {
+                if (isBagChestItem(owner.getInventory().getItem(i))) {
+                    return;
+                }
+            }
+        }
+        BlockPos spot = openFloorNear(level, o);
+        if (spot != null) {
+            RoomBuilder.set(level, spot, bagChestBlock().defaultBlockState());
         }
     }
 
-    /**
-     * (M48) Clears the bag chest if it is standing. The chest is transient
-     * furniture, not part of the room blob: it must not bake into a
-     * {@link RoomStore#capture}, and it has no place in an active run, so this
-     * runs before capture in {@code RunLifecycle.saveRoom} and when a door is
-     * chosen in {@code generateBehindLobby}.
-     */
-    static void clearBagChest(ServerLevel level, BlockPos origin) {
-        BlockPos pos = bagChestPos(origin);
-        if (level.getBlockState(pos).is(bagChestBlock())) {
-            RoomBuilder.set(level, pos, RoomBuilder.AIR);
+    /** The open floor spot closest to the room's centre, or {@code null} if the room is full. */
+    private static BlockPos openFloorNear(ServerLevel level, BlockPos o) {
+        BlockPos centre = bagChestPos(o);
+        BlockPos best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+            for (int z = 1; z < RoomGeometry.CELL - 1; z++) {
+                BlockPos pos = o.offset(x, 1, z);
+                if (!level.getBlockState(pos).isAir() || !level.getBlockState(pos.above()).isAir()) {
+                    continue;
+                }
+                int d = Math.abs(pos.getX() - centre.getX()) + Math.abs(pos.getZ() - centre.getZ());
+                if (d < bestDistance) {
+                    best = pos.immutable();
+                    bestDistance = d;
+                }
+            }
         }
+        return best;
     }
 
     static net.minecraft.core.Direction mcDirection(DoorMask.Direction dir) {
@@ -1602,8 +1648,7 @@ final class Instances {
             }
         }
 
-        // M48: re-arm the bag chest for the fresh door choice.
-        clearBagChest(level, safeOrigin);
+        // The bag chest is part of the room; place one only if it is missing.
         placeBagChestForParty(level, server, record);
 
         // Clear trial omen from every member.
@@ -1831,13 +1876,18 @@ final class Instances {
         }
 
         player.sendSystemMessage(Component.literal(
-                "The dungeon throws you out. You keep everything you were carrying.")
-                .withStyle(ChatFormatting.RED));
+                stillLive
+                        // 2026-10-04 (owner report): the old line, "The dungeon throws
+                        // you out. You keep everything you were carrying.", read as
+                        // being ejected and said too much.
+                        ? "You come to at the Doors, with the feeling of a bad omen."
+                        : "You come to outside the dungeon.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
         // U8 Stage 1: dying inside costs nothing. The walk back is already
         // the cost; a penalty on top would double-charge it.
         RunLifecycle.returnKeystone(server, record, player.getUUID(), player, Keystones.Outcome.NO_CHANGE);
         if (stillLive) {
-            announce(server, record, player.getName().getString() + " was thrown out of the dungeon.",
+            announce(server, record, player.getName().getString() + " fell and came to at the Doors.",
                     player.getUUID());
             purgeIfAbandonedLobby(server, record);
         }

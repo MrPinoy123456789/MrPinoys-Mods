@@ -230,6 +230,45 @@ public final class PartyAccessGameTest {
         helper.succeed();
     }
 
+    /**
+     * 2026-10-04 (owner report): the bag chest is placed only when the room
+     * has none, works wherever it is moved to in the safe room, and cannot be
+     * set down outside it.
+     */
+    @GameTest(maxTicks = 20)
+    public void bagChestCanBeMovedAndStaysOne(GameTestHelper helper) {
+        ServerPlayer owner = stand(helper);
+        MinecraftServer server = owner.level().getServer();
+        BlockPos origin = helper.absolutePos(new BlockPos(-6, 0, -6));
+        InstanceRecord record = home(helper, server, 9975, owner, origin);
+        register(record, 9975, owner);
+        BlockPos moved = origin.offset(3, 1, 3);
+        try {
+            helper.getLevel().setBlockAndUpdate(moved, Instances.bagChestBlock().defaultBlockState());
+            Instances.placeBagChestForParty(helper.getLevel(), server, record);
+            helper.assertTrue(helper.getLevel().getBlockState(Instances.bagChestPos(origin)).isAir(),
+                    "a moved chest is not doubled at the centre");
+            helper.assertTrue(use(helper, owner, moved, Direction.UP) == InteractionResult.SUCCESS_SERVER,
+                    "the moved chest is still the bag chest");
+
+            owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Instances.bagChestBlock().asItem()));
+            BlockPos outside = origin.offset(RoomGeometry.CELL + 2, 0, 3);
+            helper.assertTrue(use(helper, owner, outside, Direction.UP) == InteractionResult.FAIL,
+                    "the bag chest cannot be placed outside the safe room");
+
+            helper.getLevel().setBlockAndUpdate(moved, Blocks.AIR.defaultBlockState());
+            owner.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            Instances.placeBagChestForParty(helper.getLevel(), server, record);
+            helper.assertTrue(Instances.isBagChest(helper.getLevel().getBlockState(Instances.bagChestPos(origin))),
+                    "a lost chest is replaced at the centre");
+        } finally {
+            helper.getLevel().setBlockAndUpdate(moved, Blocks.AIR.defaultBlockState());
+            helper.getLevel().setBlockAndUpdate(Instances.bagChestPos(origin), Blocks.AIR.defaultBlockState());
+            unregister(9975, owner);
+        }
+        helper.succeed();
+    }
+
     private static InteractionResult use(GameTestHelper helper, ServerPlayer player, BlockPos pos, Direction face) {
         BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(pos).relative(face, 0.5), face, pos, false);
         return UseBlockCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, hit);
