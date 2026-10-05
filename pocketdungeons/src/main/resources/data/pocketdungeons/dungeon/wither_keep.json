@@ -1,0 +1,120 @@
+{
+  "name": "The Wither's Keep",
+  "act": 4,
+  "kind": "capstone",
+  "mainTheme": "wither_keep",
+  "lootBand": {
+    "min": 3,
+    "max": 4
+  },
+  "nodePalette": [
+    "nether_quartz_ore",
+    "nether_gold_ore",
+    "ancient_debris",
+    "warped_stem",
+    "crimson_stem",
+    "warped_wart_block",
+    "nether_wart_block"
+  ],
+  "diary": "entry_22",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "basalt_foundry",
+      "blackstone"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "soul_gate",
+      "name": "The Soul Gate",
+      "layer": 1,
+      "light": "dim"
+    },
+    {
+      "id": "fortress_bridges",
+      "name": "The Fortress Bridges",
+      "layer": 2,
+      "light": "dim",
+      "roomBias": [
+        "collapsing_bridge",
+        "soul_sand_valley"
+      ]
+    },
+    {
+      "id": "warped_grove",
+      "name": "The Warped Grove",
+      "layer": 2,
+      "light": "dim",
+      "roomBias": [
+        "warped_forest",
+        "crimson_forest"
+      ]
+    },
+    {
+      "id": "skull_cellars",
+      "name": "The Skull Cellars",
+      "layer": 3,
+      "light": "dim",
+      "roomBias": [
+        "wither_loft",
+        "soul_sand_valley"
+      ]
+    },
+    {
+      "id": "blaze_spire",
+      "name": "The Blaze Spire",
+      "layer": 3,
+      "theme": "basalt_foundry",
+      "light": "dim",
+      "roomBias": [
+        "blaze_loft"
+      ]
+    },
+    {
+      "id": "withers_throne",
+      "name": "The Wither's Throne",
+      "layer": 4,
+      "final": true,
+      "light": "dim",
+      "roomBias": [
+        "wither_hall"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "soul_gate",
+      "to": "fortress_bridges"
+    },
+    {
+      "from": "soul_gate",
+      "to": "warped_grove"
+    },
+    {
+      "from": "fortress_bridges",
+      "to": "skull_cellars"
+    },
+    {
+      "from": "fortress_bridges",
+      "to": "blaze_spire",
+      "cost": 1
+    },
+    {
+      "from": "warped_grove",
+      "to": "skull_cellars"
+    },
+    {
+      "from": "warped_grove",
+      "to": "blaze_spire"
+    },
+    {
+      "from": "skull_cellars",
+      "to": "withers_throne"
+    },
+    {
+      "from": "blaze_spire",
+      "to": "withers_throne"
+    }
+  ]
+}

@@ -12,10 +12,21 @@ package pocketdungeons;
  * up is now the only path. What survives is the one piece every run still
  * needs regardless of party size: how good the loot is.
  */
-record DifficultyProfile(int pathLength, int keystoneLevel) {
+record DifficultyProfile(int pathLength, int keystoneLevel, int lootMin, int lootMax) {
 
+    /** A profile with no act loot band: the tier follows the keystone alone. */
     static DifficultyProfile of(int pathLength, int keystoneLevel) {
-        return new DifficultyProfile(pathLength, keystoneLevel);
+        return new DifficultyProfile(pathLength, keystoneLevel, 0, 0);
+    }
+
+    /**
+     * A profile whose loot tier is clamped into a dungeon's act band (design D10);
+     * a null {@code band} means none. Mob strength and affixes are untouched: they
+     * come from the keystone and the step, never from the band.
+     */
+    static DifficultyProfile of(int pathLength, int keystoneLevel, DungeonDef.LootBand band) {
+        return band == null ? of(pathLength, keystoneLevel)
+                : new DifficultyProfile(pathLength, keystoneLevel, band.min(), band.max());
     }
 
     /**
@@ -29,13 +40,15 @@ record DifficultyProfile(int pathLength, int keystoneLevel) {
      * curve, so nothing is left without a tier.
      */
     int lootTier() {
+        int tier;
         if (keystoneLevel > 0) {
-            return KeystoneMath.lootTier(keystoneLevel);
+            tier = KeystoneMath.lootTier(keystoneLevel);
+        } else if (pathLength <= 5) {
+            tier = 1;
+        } else {
+            tier = pathLength <= 7 ? 2 : 3;
         }
-        if (pathLength <= 5) {
-            return 1;
-        }
-        return pathLength <= 7 ? 2 : 3;
+        return lootMax > 0 ? Math.max(lootMin, Math.min(lootMax, tier)) : tier;
     }
 
     /**

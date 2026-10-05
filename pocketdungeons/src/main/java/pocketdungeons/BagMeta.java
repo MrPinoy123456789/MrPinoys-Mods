@@ -40,7 +40,9 @@ final class BagMeta {
             lootTable = defaultLootTable(id);
         }
         List<BagDefinition.KitItem> baseline = kitBaselineOr(obj, fileIdentity);
-        return new BagDefinition(id, label, blurb, order, headline, tags, lootTable, baseline);
+        JsonElement hiddenEl = obj.get("hidden");
+        boolean hidden = hiddenEl != null && !hiddenEl.isJsonNull() && hiddenEl.getAsBoolean();
+        return new BagDefinition(id, label, blurb, order, headline, tags, lootTable, baseline, hidden);
     }
 
     /**

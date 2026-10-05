@@ -1,0 +1,7 @@
+{
+  "name": "The Wither's Keep",
+  "processors": "pocketdungeons:theme_wither_keep",
+  "spawner_prefix": "wither_keep",
+  "loot_suffix": "basalt_foundry",
+  "room_theme": "wither_keep"
+}

@@ -1,0 +1,32 @@
+{
+  "template": "pocketdungeons:rooms/warden_hall",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "exit"
+  ],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "theme": [
+    "ancient_city"
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dark",
+  "biome": "ancient_city",
+  "dungeons": [
+    "ancient_city"
+  ],
+  "acts": [
+    2
+  ],
+  "graphRole": [
+    "capstone"
+  ]
+}

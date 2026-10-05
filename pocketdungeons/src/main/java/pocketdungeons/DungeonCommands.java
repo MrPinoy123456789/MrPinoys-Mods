@@ -108,6 +108,11 @@ final class DungeonCommands {
                                 return 0;
                             }))
 
+                    // The staging room's dungeon map, typed (also opened by clicking
+                    // the floor history board). Read only.
+                    .then(Commands.literal("map")
+                            .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
+
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
                             // replacement: before this there was no way to see a party at
@@ -128,6 +133,29 @@ final class DungeonCommands {
                             .then(Commands.literal("kickconfirm")
                                     .executes(ctx -> kickConfirm(
                                             ctx.getSource().getPlayerOrException())))
+                            // D15: who in the party may pick doors and pull HOME. Off by
+                            // default (any member may); the whitelist is the leader's own.
+                            .then(Commands.literal("decide")
+                                    .then(Commands.literal("whitelist")
+                                            .then(Commands.literal("on")
+                                                    .executes(ctx -> decideWhitelist(
+                                                            ctx.getSource().getPlayerOrException(), true)))
+                                            .then(Commands.literal("off")
+                                                    .executes(ctx -> decideWhitelist(
+                                                            ctx.getSource().getPlayerOrException(), false))))
+                                    .then(Commands.literal("add")
+                                            .then(Commands.argument("target", EntityArgument.player())
+                                                    .executes(ctx -> decideAdd(
+                                                            ctx.getSource().getPlayerOrException(),
+                                                            EntityArgument.getPlayer(ctx, "target")))))
+                                    .then(Commands.literal("remove")
+                                            .then(Commands.argument("target", EntityArgument.player())
+                                                    .executes(ctx -> decideRemove(
+                                                            ctx.getSource().getPlayerOrException(),
+                                                            EntityArgument.getPlayer(ctx, "target")))))
+                                    .then(Commands.literal("list")
+                                            .executes(ctx -> decideList(
+                                                    ctx.getSource().getPlayerOrException()))))
                             .then(Commands.argument("target", EntityArgument.player())
                                     .executes(ctx -> party(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "target")))))
@@ -706,9 +734,79 @@ final class DungeonCommands {
      * disagree with the first, and this mod already spent a session on two things
      * that each looked locally correct disagreeing about the same concept.
      */
+    /** {@code /dungeon map}: opens the dungeon map for a player standing in a staging room's run. */
+    private static int showMap(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || !record.inFloorLoop() || record.stagingCellOrigin == null) {
+            player.sendSystemMessage(Component.literal("The dungeon map is read in the Doors, between floors.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        DialogKit.show(player, DialogScreens.dungeonMap(player.level().getServer(), record));
+        return 1;
+    }
+
     private static int partyRoster(ServerPlayer leader) {
         DialogKit.show(leader, DialogScreens.partyRoster(leader.level().getServer(),
                 PartyService.partyCompanions(leader.getUUID())));
+        return 1;
+    }
+
+    /** {@code /dungeon party decide whitelist on|off}: the leader's setting (design D15). */
+    private static int decideWhitelist(ServerPlayer leader, boolean on) {
+        DungeonLog.forServer(leader.level().getServer()).setDecideWhitelist(leader.getUUID(), on);
+        leader.sendSystemMessage(Component.literal(on
+                ? "Only you and the players on your decide list can pick doors, choose branches and pull HOME."
+                : "Any party member can pick doors, choose branches and pull HOME.")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    private static int decideAdd(ServerPlayer leader, ServerPlayer target) {
+        if (target.getUUID().equals(leader.getUUID())) {
+            leader.sendSystemMessage(Component.literal("You always decide for your own party.")
+                    .withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+        boolean added = DungeonLog.forServer(leader.level().getServer())
+                .addDecider(leader.getUUID(), target.getUUID());
+        leader.sendSystemMessage(Component.literal(added
+                ? target.getName().getString() + " can now decide for your party."
+                : target.getName().getString() + " is already on your decide list.")
+                .withStyle(added ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+        return added ? 1 : 0;
+    }
+
+    private static int decideRemove(ServerPlayer leader, ServerPlayer target) {
+        boolean removed = DungeonLog.forServer(leader.level().getServer())
+                .removeDecider(leader.getUUID(), target.getUUID());
+        leader.sendSystemMessage(Component.literal(removed
+                ? target.getName().getString() + " is off your decide list."
+                : target.getName().getString() + " was not on your decide list.")
+                .withStyle(removed ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+        return removed ? 1 : 0;
+    }
+
+    private static int decideList(ServerPlayer leader) {
+        DungeonLog.Campaign campaign = DungeonLog.forServer(leader.level().getServer())
+                .get(leader.getUUID()).campaign();
+        StringBuilder sb = new StringBuilder("Decide whitelist is ")
+                .append(campaign.decideWhitelist() ? "on" : "off").append(". ");
+        if (campaign.decideList().isEmpty()) {
+            sb.append("The list is empty.");
+        } else {
+            sb.append("Listed: ");
+            boolean first = true;
+            for (java.util.UUID id : campaign.decideList()) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                ServerPlayer online = leader.level().getServer().getPlayerList().getPlayer(id);
+                sb.append(online != null ? online.getName().getString() : id.toString());
+            }
+        }
+        leader.sendSystemMessage(Component.literal(sb.toString()).withStyle(ChatFormatting.GRAY));
         return 1;
     }
 

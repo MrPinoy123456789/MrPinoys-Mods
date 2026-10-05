@@ -85,8 +85,23 @@ final class LayoutStamper {
      */
     static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                            int keystoneLevel, Set<String> affixes, UUID owner,
-                                           String theme, Set<BlockPos> standingCells) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme, standingCells);
+                                           String theme, Set<BlockPos> standingCells,
+                                           DungeonDef.LootBand lootBand) {
+        return stampBehindLobby(level, origin, plan, keystoneLevel, affixes, owner, theme,
+                standingCells, lootBand, NodeStamper.Context.NONE);
+    }
+
+    /**
+     * As the 9-argument {@link #stampBehindLobby}, with the floor's resource node
+     * palette and darkness ({@link NodeStamper.Context}). The registered node
+     * positions and soft gate positions ride on the returned layout.
+     */
+    static InstanceLayout stampBehindLobby(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                                           int keystoneLevel, Set<String> affixes, UUID owner,
+                                           String theme, Set<BlockPos> standingCells,
+                                           DungeonDef.LootBand lootBand, NodeStamper.Context nodeCtx) {
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme, standingCells,
+                lootBand, nodeCtx);
     }
 
     /**
@@ -103,11 +118,25 @@ final class LayoutStamper {
      *         force-loading
      */
     static PlanGeometry stampEntranceOnly(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                          int keystoneLevel, Set<String> affixes, String theme) {
+                                          int keystoneLevel, Set<String> affixes, String theme,
+                                          DungeonDef.LootBand lootBand) {
+        return stampEntranceOnly(level, origin, plan, keystoneLevel, affixes, theme, lootBand,
+                NodeStamper.Context.NONE, new HashSet<>());
+    }
+
+    /**
+     * As the 7-argument {@link #stampEntranceOnly}, applying the floor's light and
+     * node rules to the entrance cell and adding its node positions to
+     * {@code nodesOut} (the caller keeps them for the commit).
+     */
+    static PlanGeometry stampEntranceOnly(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                                          int keystoneLevel, Set<String> affixes, String theme,
+                                          DungeonDef.LootBand lootBand, NodeStamper.Context nodeCtx,
+                                          Set<BlockPos> nodesOut) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
-        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
+        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel, lootBand);
         PlanCell entranceCell = plan.entrance();
 
         Set<PlanCell> voidedCells = computeVoidedCells(plan, affixes);
@@ -136,7 +165,9 @@ final class LayoutStamper {
         RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
                 depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
-            OmenSources.arm(level, cellOrigin, entry.meta);
+            OmenSources.arm(level, cellOrigin, entry.meta, theme);
+        NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
+                plan.seed() ^ cellOrigin.asLong(), nodesOut);
 
         // Remove stray selector door blocks that may be baked into older
         // versions of entrance_hall.nbt. Selector doors belong only in the
@@ -169,13 +200,15 @@ final class LayoutStamper {
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<String> affixes, UUID owner,
                                         boolean entranceAlreadyStamped) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null, Set.of());
+        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null, Set.of(), null,
+                NodeStamper.Context.NONE);
     }
 
     private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                         int keystoneLevel, Set<String> affixes, UUID owner,
                                         boolean entranceAlreadyStamped, String theme,
-                                        Set<BlockPos> standingCells) {
+                                        Set<BlockPos> standingCells, DungeonDef.LootBand lootBand,
+                                        NodeStamper.Context nodeCtx) {
         StructureTemplateManager manager = level.getStructureManager();
         RoomManifest manifest = RoomManifest.current();
         // M61: the deepest any room in this layout reaches below its own cell
@@ -184,13 +217,17 @@ final class LayoutStamper {
         Map<PlanCell, Integer> spanYByCell = cellSpanY(plan, manifest);
         int storyFloorOffset = maxStoryOffset(spanYByCell);
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells(), storyFloorOffset);
-        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel);
+        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel, lootBand);
         PlanCell entranceCell = plan.entrance();
         // M10: every trial spawner this stamp places, for the spawner-clear
         // completion gate. Collected here rather than passed an InstanceRecord,
         // since one does not exist yet this early; it travels on the returned
         // layout instead, the way everything else about this run's shape does.
         Set<BlockPos> trialSpawners = new LinkedHashSet<>();
+        // Dungeon structure W4: the resource node positions every cell registers, and the
+        // soft mechanic gates the directional gate pass places.
+        Set<BlockPos> nodePositions = new LinkedHashSet<>();
+        Set<BlockPos> softGates = new LinkedHashSet<>();
         // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
         // in the first cleared encounter cell; carried on the layout so the
         // right-click handler can find it without scanning the world.
@@ -256,7 +293,7 @@ final class LayoutStamper {
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
                     isAnomalyCell && !"store".equals(entry.meta.content) ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
-            OmenSources.arm(level, cellOrigin, entry.meta);
+            OmenSources.arm(level, cellOrigin, entry.meta, theme);
             trialSpawners.addAll(spawnerAnchors);
             // A dead end that holds no fight (a vault, a chest, a wall) may hold a fountain.
             if (!isAnomalyCell && spawnerAnchors.isEmpty() && !cell.equals(plan.entrance())
@@ -264,6 +301,9 @@ final class LayoutStamper {
                     && plan.doors().stream().filter(edge -> edge.touches(cell)).count() == 1) {
                 Fountain.maybePlace(level, cellOrigin, plan.seed());
             }
+            // Dungeon structure W4: darkness, then the room's resource nodes (D17, D19).
+            NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
+                    plan.seed() ^ cellOrigin.asLong(), nodePositions);
             // A sealed two-story room: rubble over its way down, after the
             // return-path check above has read the room as built. The seal is
             // its own Ordeal, keyed under the cell so the room's stays armed.
@@ -301,7 +341,7 @@ final class LayoutStamper {
         Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
         applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots);
 
-        applyDirectionalGates(level, geometry, plan, manifest);
+        applyDirectionalGates(level, geometry, plan, manifest, softGates);
 
         BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell, standingCells);
 
@@ -324,7 +364,9 @@ final class LayoutStamper {
                 plan.rooms().get(plan.terminal()).rotation(),
                 Set.copyOf(trialSpawners),
                 pocket2Door,
-                Set.copyOf(ironDoorFarSideSlots));
+                Set.copyOf(ironDoorFarSideSlots),
+                Set.copyOf(nodePositions),
+                Set.copyOf(softGates));
     }
 
     /**
@@ -368,21 +410,28 @@ final class LayoutStamper {
      * jigsaw blocks survive and the room keeps its door in the manifest mask.
      */
     private static void applyDirectionalGates(ServerLevel level, PlanGeometry geometry,
-                                              DungeonPlan plan, RoomManifest manifest) {
+                                              DungeonPlan plan, RoomManifest manifest,
+                                              Set<BlockPos> softGates) {
         for (var entry : plan.rooms().entrySet()) {
             PlanCell cell = entry.getKey();
             String roomName = entry.getValue().name();
             DoorMask.Direction gateSide = exitSide(plan, cell);
             if (gateSide == null) {
+                // PD-147: a bridge in a cell with no deeper neighbour was never
+                // armed, so it kept the template's retracted state: planks gone.
+                // It stands, without a lever, like any other bridge.
+                if ("pocketdungeons:collapsing_bridge".equals(JsonPackSupport.qualify(roomName))) {
+                    Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, geometry.cellOrigin(cell));
+                }
                 continue;
             }
             BlockPos origin = geometry.cellOrigin(cell);
             // PD-66: plan room names are namespaced ("pocketdungeons:hold_the_plate"),
             // so the match qualifies the name first; a bare-name switch never fired.
             switch (JsonPackSupport.qualify(roomName)) {
-                case "pocketdungeons:infested_wall" -> placeInfestedGate(level, origin, gateSide);
+                case "pocketdungeons:infested_wall" -> placeInfestedGate(level, origin, gateSide, softGates);
                 case "pocketdungeons:elders_chamber" -> placeSealedGate(level, origin, gateSide,
-                        Blocks.GRAVEL.defaultBlockState());
+                        Blocks.GRAVEL.defaultBlockState(), softGates);
                 case "pocketdungeons:dont_look" -> placeDoorwayTopGate(level, origin, gateSide);
                 case "pocketdungeons:hold_the_plate" -> placeIronDoorGate(level, origin, gateSide);
                 case "pocketdungeons:rising_lava" -> armExitLeverOrdeal(level, origin, gateSide,
@@ -439,7 +488,7 @@ final class LayoutStamper {
      * decor's material mix.
      */
     private static void placeInfestedGate(ServerLevel level, BlockPos origin,
-                                          DoorMask.Direction wall) {
+                                          DoorMask.Direction wall, Set<BlockPos> softGates) {
         BlockState infested = Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
         BlockState normal = Blocks.STONE_BRICKS.defaultBlockState();
         int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
@@ -448,6 +497,7 @@ final class LayoutStamper {
             for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
                 BlockPos pos = interiorDoorPos(origin, wall, z, y);
                 level.setBlock(pos, y == 1 ? infested : normal, flags);
+                softGates.add(pos.immutable());
             }
         }
     }
@@ -457,12 +507,15 @@ final class LayoutStamper {
      * inside the wall on the exit side.
      */
     private static void placeSealedGate(ServerLevel level, BlockPos origin,
-                                        DoorMask.Direction wall, BlockState material) {
+                                        DoorMask.Direction wall, BlockState material,
+                                        Set<BlockPos> softGates) {
         int flags = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
                 | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
         for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
             for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                level.setBlock(interiorDoorPos(origin, wall, z, y), material, flags);
+                BlockPos pos = interiorDoorPos(origin, wall, z, y);
+                level.setBlock(pos, material, flags);
+                softGates.add(pos.immutable());
             }
         }
     }
@@ -608,7 +661,8 @@ final class LayoutStamper {
             // The roll is always taken, so a rubble edge leaves every other
             // edge's rng exactly where it was.
             ConnectorType rolled = ConnectorType.pick(rng);
-            ConnectorType type = plan.rubbleEdges().contains(edge) ? ConnectorType.RUBBLE : rolled;
+            ConnectorType type = plan.rubbleEdges().contains(edge) ? ConnectorType.RUBBLE : ConnectorStamper.effectiveType(rolled,
+                    entryAt(manifest, plan, edge.a()), entryAt(manifest, plan, edge.b()));
             // M45B: the window band rides this same per-edge pass. It is the
             // only place that knows an edge is open, knows both cells that
             // share it, and has already rolled the connector whose shape

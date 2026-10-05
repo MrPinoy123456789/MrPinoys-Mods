@@ -1,0 +1,7 @@
+{
+  "name": "Cow Pits",
+  "processors": "pocketdungeons:theme_cow_pits",
+  "spawner_prefix": "cow_pits",
+  "loot_suffix": "cow_pits",
+  "room_theme": "cow_pits"
+}

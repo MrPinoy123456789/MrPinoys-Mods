@@ -30,8 +30,10 @@ import java.util.Set;
  * <ul>
  *   <li>Food items are in a guaranteed pool (rolls = 1), not in a weighted
  *       pool. A player always gets food from a supply chest.</li>
- *   <li>Light items (torches) are in a guaranteed pool (rolls = 1). A player
- *       always gets light from a supply chest.</li>
+ *   <li>Light items (torches) are in their own pool (rolls = 1), apart from the
+ *       weighted treasure. Dungeon structure W4 (D21) put a random chance of about a
+ *       third on that pool, so light is something the player crafts more than finds:
+ *       the pool stays separate, it just no longer always pays.</li>
  *   <li>Treasure items (iron ingots, gold ingots, experience bottles) are NOT
  *       in the guaranteed pools. Treasure stays weighted, so tool scarcity and
  *       treasure rarity are preserved.</li>

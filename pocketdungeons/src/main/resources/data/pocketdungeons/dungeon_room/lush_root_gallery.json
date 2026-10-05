@@ -1,0 +1,62 @@
+{
+  "template": "pocketdungeons:rooms/lush_root_gallery",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "rootworks"
+  ],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "lush_cave",
+  "dungeons": [
+    "rootworks"
+  ],
+  "acts": [
+    1
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:azalea",
+      "from": [
+        2,
+        1,
+        6
+      ],
+      "to": [
+        3,
+        1,
+        6
+      ],
+      "count": 1
+    },
+    {
+      "block": "minecraft:azalea",
+      "from": [
+        10,
+        1,
+        8
+      ],
+      "to": [
+        11,
+        1,
+        8
+      ],
+      "count": 1
+    }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

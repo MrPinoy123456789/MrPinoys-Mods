@@ -94,6 +94,23 @@ public class DungeonLogTest {
         check(shells.get(player).unlockedShells(),
                 java.util.Set.of("sandstone"), "duplicate unlock is a no-op");
 
+        // Dungeon structure W2: dungeonsFinished round trips, the first finish reports true
+        // and a repeat is a no-op, a pre-W2 save loads with none, and the other fields survive.
+        DungeonLog finished = new DungeonLog();
+        check(finished.addDungeonFinished(player, "pocketdungeons:frostworks"), true, "first finish is reported");
+        check(finished.addDungeonFinished(player, "pocketdungeons:frostworks"), false, "a repeat finish is not the first");
+        finished.addDungeonFinished(player, "pocketdungeons:ossuary");
+        finished.addRoomCompletion(player);
+        com.google.gson.JsonElement finishedJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, finished).result().orElseThrow();
+        DungeonLog finishedDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, finishedJson).result().orElseThrow().getFirst();
+        check(finishedDecoded.get(player).dungeonsFinished(),
+                java.util.Set.of("pocketdungeons:frostworks", "pocketdungeons:ossuary"), "dungeonsFinished round trips");
+        check(finishedDecoded.get(player).roomCompletions(), 1, "dungeonsFinished leaves other fields alone");
+        check(new DungeonLog().get(player).dungeonsFinished(), java.util.Set.of(), "no finishes by default");
+        check(legacy.get(player).dungeonsFinished(), java.util.Set.of(), "pre-W2 save defaults dungeonsFinished to empty");
+
         // The prestige count resets with the room: setRoomCompletions zeroes it.
         DungeonLog prestige = new DungeonLog();
         prestige.addRoomCompletion(player);

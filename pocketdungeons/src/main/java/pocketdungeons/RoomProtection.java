@@ -47,7 +47,53 @@ final class RoomProtection {
 
     static void register() {
         PlayerBlockBreakEvents.BEFORE.register(RoomProtection::beforeBlockBreak);
+        PlayerBlockBreakEvents.AFTER.register(RoomProtection::afterBlockBreak);
         AttackBlockCallback.EVENT.register(RoomProtection::onAttackBlock);
+    }
+
+    /**
+     * Dungeon structure W4 (D20): soft mechanic blocks a room's puzzle expects the
+     * player to break, mined with the correct tool like a node: decorated pots (the
+     * pot rooms and the Infested Wall's pickaxe), cobwebs (the Thicket) and the
+     * infested blocks. The infested and gravel doorway plugs are not here: they are
+     * ordinary stone and gravel, so {@link LayoutStamper} registers their positions
+     * ({@link InstanceLayout#softBreakables}) instead.
+     */
+    static final net.minecraft.tags.TagKey<net.minecraft.world.level.block.Block> DUNGEON_BREAKABLE =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.BLOCK,
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                            PocketDungeonsMod.MOD_ID, "dungeon_breakable"));
+
+    /**
+     * The break rule's verdict for {@code player} breaking {@code pos} (holding
+     * {@code state}) inside a dungeon cell's interior. The shell is decided by the
+     * callers before this; creative bypasses it before this too.
+     */
+    static BreakRule.Verdict verdict(Player player, BlockPos pos, BlockState state) {
+        InstanceRecord record = Instances.dungeonRecordAt(pos);
+        boolean node = record != null && record.floor.nodes.contains(pos);
+        boolean soft = (record != null && record.floor.softBreakables.contains(pos))
+                || state.is(DUNGEON_BREAKABLE);
+        return BreakRule.decide(Ordeals.isFixture(pos),
+                DungeonTools.isPlayerPlaced(pos, player.getUUID()), node, soft,
+                DungeonTools.isCorrectTool(player.getMainHandItem(), state));
+    }
+
+    /** A mined node leaves the floor's node set and is counted for the journal. */
+    private static void afterBlockBreak(Level level, Player player, BlockPos pos, BlockState state,
+                                        BlockEntity blockEntity) {
+        if (!(player instanceof ServerPlayer serverPlayer) || serverPlayer.isCreative()) {
+            return;
+        }
+        InstanceRecord record = Instances.dungeonRecordAt(pos);
+        if (record == null) {
+            return;
+        }
+        record.floor.softBreakables.remove(pos);
+        if (record.floor.nodes.remove(pos)) {
+            record.floor.nodesMined++;
+            PlaytestJournal.countNodeMined(serverPlayer.getUUID());
+        }
     }
 
     /**
@@ -97,16 +143,20 @@ final class RoomProtection {
         if (isShell(pos, dungeonCellOrigin)) {
             return InteractionResult.PASS; // shell protection handles this
         }
-        if (Ordeals.isFixture(pos)) {
+        // Dungeon structure W4 (D20): only resource nodes, soft mechanic blocks and the
+        // player's own blocks break; the rest of a room is decoration. Player-placed
+        // blocks are exempt from the tool: the placer can break their own builds by
+        // hand. Other party members still need the correct tool.
+        BreakRule.Verdict verdict = verdict(serverPlayer, pos, state);
+        if (verdict.allowed()) {
+            return InteractionResult.PASS;
+        }
+        if (verdict == BreakRule.Verdict.REFUSE_FIXTURE) {
             return InteractionResult.FAIL; // an Ordeal's lever or lamp
         }
-        if (DungeonTools.isCorrectTool(serverPlayer.getMainHandItem(), state)) {
-            return InteractionResult.PASS;
-        }
-        // Player-placed blocks are exempt: the placer can break their own
-        // builds by hand. Other party members still need the correct tool.
-        if (DungeonTools.isPlayerPlaced(pos, serverPlayer.getUUID())) {
-            return InteractionResult.PASS;
+        if (verdict == BreakRule.Verdict.REFUSE_NOT_NODE) {
+            sendActionBar(serverPlayer, BreakRule.NOT_A_NODE_MESSAGE, ChatFormatting.GRAY, lastNotNodeTick);
+            return InteractionResult.FAIL;
         }
         // Wrong tool: cancel the mining start and give feedback.
         String message = DungeonTools.requiredToolMessage(state);
@@ -119,6 +169,8 @@ final class RoomProtection {
 
     /** Rate-limiting map for wrong-tool feedback: player UUID to last game tick sent. */
     private static final java.util.Map<UUID, Long> lastWrongToolTick = new java.util.HashMap<>();
+    /** Rate-limiting map for the "only resource nodes can be mined" line. */
+    private static final java.util.Map<UUID, Long> lastNotNodeTick = new java.util.HashMap<>();
     /** Rate-limiting map for iron-door reason feedback. */
     private static final java.util.Map<UUID, Long> lastDoorReasonTick = new java.util.HashMap<>();
 
@@ -184,20 +236,16 @@ final class RoomProtection {
                     DungeonTools.forgetPlayerPlacement(pos);
                     return true;
                 }
-                // An Ordeal's lever and lamp: breaking the lever would strand
-                // the room, breaking the lamp would lose its "done" signal.
-                if (Ordeals.isFixture(pos)) {
-                    return false;
-                }
-                if (DungeonTools.isPlayerPlaced(pos, player.getUUID())) {
-                    DungeonTools.forgetPlayerPlacement(pos);
-                    return true;
-                }
-                boolean correct = DungeonTools.isCorrectTool(player.getMainHandItem(), state);
-                if (correct) {
+                // Dungeon structure W4 (D20): an Ordeal's lever and lamp stay
+                // (breaking the lever would strand the room, the lamp would lose
+                // its "done" signal); the player's own blocks break; a resource
+                // node or a soft mechanic block breaks with the correct tool;
+                // everything else in the room is decoration and does not break.
+                BreakRule.Verdict verdict = verdict(player, pos, state);
+                if (verdict.allowed()) {
                     DungeonTools.forgetPlayerPlacement(pos);
                 }
-                return correct;
+                return verdict.allowed();
             }
             // PD-62: the far-side doorway threshold of an IRON_DOOR
             // connector is exempted from placement (RitualListener.onUseBlock)

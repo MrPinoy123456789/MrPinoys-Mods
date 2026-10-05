@@ -218,15 +218,70 @@ final class DialogScreens {
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
         String keeps = "Banks now: " + IntervalBanking.keyLine(now, floorsPerVisit);
+        boolean finished = record.interval.finished;
+        String dungeon = TripView.dungeonName(record);
+        String ends = record.interval.mineSealedAct > 0
+                ? EndlessMineRules.sealedMessage(record.interval.mineSealedAct) + " Ends this run and takes the party home."
+                : finished
+                ? "You cleared " + dungeon + ". Ends this run and takes the party home."
+                : dungeon.isEmpty() ? "Ends this run and takes the party home."
+                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish shard or vault.";
         return DialogKit.confirm("Go home?",
-                List.of(DialogKit.text(Component.literal("Ends this run and takes the party home.")
+                List.of(DialogKit.text(Component.literal(ends)
                                 .withStyle(ChatFormatting.YELLOW)),
                         DialogKit.text(keeps),
-                        DialogKit.text(Component.literal(
-                                "To keep going, right-click a door and pull DESCEND instead.")
+                        DialogKit.text(Component.literal(finished
+                                ? "The dungeon has no more doors."
+                                : "To keep going, right-click a door and pull the lever instead.")
                                 .withStyle(ChatFormatting.GRAY))),
                 DialogKit.command("Go Home", null, "/dungeon cashout"),
                 DialogKit.closeButton("Stay"));
+    }
+
+    // ---- the dungeon map (dungeon structure W2, design D6) --------------------
+
+    /**
+     * The staging room's dungeon map: the layers of the dungeon this trip is in, the
+     * node the party stands at, the final floor, each edge's shard cost and which
+     * floors each door can reach. Before the first door of a trip it lists the three
+     * dungeons on offer instead. Read only; opened by right-clicking the floor
+     * history board in the staging room, or {@code /dungeon map}. The lines come from
+     * {@link DungeonMapText}, so the shape is pinned by a plain test.
+     */
+    static Dialog dungeonMap(MinecraftServer server, InstanceRecord record) {
+        DungeonLog.Entry entry = DungeonLog.forServer(server).get(record.owner);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner,
+                Math.max(1, entry.keystoneLevel()));
+        List<TripDoors.Door> doors = new ArrayList<>();
+        for (Keystone.Offer offer : offers) {
+            if (offer.door() != null) {
+                doors.add(offer.door());
+            }
+        }
+        TripDoors.Door[] dealt = doors.toArray(new TripDoors.Door[0]);
+        DungeonDef def = TripView.def(record);
+        List<DungeonMapText.Line> lines = def == null
+                ? DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id))
+                : DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
+                        record.interval.finished);
+        List<DialogBody> body = new ArrayList<>();
+        for (DungeonMapText.Line line : lines) {
+            body.add(DialogKit.text(Component.literal(line.text()).withStyle(toneColour(line.tone()))));
+        }
+        return DialogKit.notice("Dungeon map", body, DialogKit.closeButton("Close"));
+    }
+
+    private static ChatFormatting toneColour(DungeonMapText.Tone tone) {
+        return switch (tone) {
+            case TITLE -> ChatFormatting.GOLD;
+            case HEADING -> ChatFormatting.AQUA;
+            case CURRENT -> ChatFormatting.GREEN;
+            case VISITED -> ChatFormatting.DARK_GREEN;
+            case FINAL -> ChatFormatting.LIGHT_PURPLE;
+            case SIDE -> ChatFormatting.YELLOW;
+            case NOTE -> ChatFormatting.GRAY;
+            case NORMAL -> ChatFormatting.WHITE;
+        };
     }
 
     // ---- section 3: party invite -------------------------------------------
@@ -767,7 +822,7 @@ final class DialogScreens {
         if (inDungeon) {
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             roomOwner = record != null && record.owner.equals(player.getUUID());
-            doorChosen = record != null && RunSession.isActive(record) && record.floor.chosenStep > 0;
+            doorChosen = record != null && RunSession.isActive(record) && record.floor.hasDoor();
         }
         return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner, doorChosen), player.getUUID(), inDungeon);
     }
@@ -1088,7 +1143,8 @@ final class DialogScreens {
      */
     static List<BagOption> bagOptions() {
         List<BagOption> out = new ArrayList<>();
-        for (BagDefinition bag : BagManifest.current().definitions()) {
+        // Dungeon structure W5 (D14): hidden bags are not offered.
+        for (BagDefinition bag : BagDefinition.offered(BagManifest.current().definitions())) {
             out.add(new BagOption(bag.label, bag.blurb, bag.id));
         }
         return out;

@@ -1,0 +1,33 @@
+{
+  "template": "pocketdungeons:rooms/mineshaft_crossing",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "mineshaft",
+    "deepslate"
+  ],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "mineshaft",
+  "dungeons": [
+    "mineshaft"
+  ],
+  "acts": [
+    1
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

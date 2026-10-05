@@ -186,6 +186,25 @@ final class Diaries {
         return byBand.get(band);
     }
 
+    /**
+     * The entry whose resource id is {@code id} ({@code pocketdungeons:entry_3}; a
+     * bare id reads in the {@code pocketdungeons} namespace), or {@code null} for a
+     * blank, unknown or unloaded id. A dungeon's {@code diary} field names one
+     * (design D11); null safe so a dungeon can name a page a later wave writes.
+     */
+    Entry byId(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        String wanted = JsonPackSupport.qualify(id.trim());
+        for (Entry entry : entries) {
+            if (entry.id().equals(wanted) || entry.id().equals(id.trim())) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
     List<String> rejections() {
         return rejections;
     }

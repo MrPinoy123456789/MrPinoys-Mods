@@ -77,6 +77,11 @@ final class BagDefinition {
     final Set<String> tags;
     final String lootTable;
     final List<KitItem> kitBaseline;
+    /**
+     * Dungeon structure W5 (D14): a hidden bag is not offered at the bag chest, but a
+     * player who already holds it keeps it working ({@link Bags#byId} still resolves it).
+     */
+    final boolean hidden;
 
     BagDefinition(String id, String label, String blurb, int order,
                   List<String> headline, Set<String> tags, String lootTable) {
@@ -86,6 +91,13 @@ final class BagDefinition {
     BagDefinition(String id, String label, String blurb, int order,
                   List<String> headline, Set<String> tags, String lootTable,
                   List<KitItem> kitBaseline) {
+        this(id, label, blurb, order, headline, tags, lootTable, kitBaseline, false);
+    }
+
+    BagDefinition(String id, String label, String blurb, int order,
+                  List<String> headline, Set<String> tags, String lootTable,
+                  List<KitItem> kitBaseline, boolean hidden) {
+        this.hidden = hidden;
         this.id = id;
         this.label = label;
         this.blurb = blurb;
@@ -94,5 +106,19 @@ final class BagDefinition {
         this.tags = tags == null ? Set.of() : Set.copyOf(tags);
         this.lootTable = lootTable;
         this.kitBaseline = kitBaseline == null ? List.of() : List.copyOf(kitBaseline);
+    }
+
+    /**
+     * The bags the chest offers: the given definitions minus the hidden ones, order kept.
+     * Pure, so a headless test can pin it.
+     */
+    static List<BagDefinition> offered(List<BagDefinition> all) {
+        List<BagDefinition> out = new java.util.ArrayList<>();
+        for (BagDefinition bag : all) {
+            if (!bag.hidden) {
+                out.add(bag);
+            }
+        }
+        return List.copyOf(out);
     }
 }

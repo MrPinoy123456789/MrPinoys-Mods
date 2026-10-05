@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * The keystone item: a <strong>remote</strong>, not a save file.
@@ -78,91 +79,150 @@ final class Keystone {
     }
 
     /**
-     * Which half of the ladder a door belongs to (M12). {@code FREE} is door 1:
-     * untimed cost, no depletion on failure, pays out fuel. {@code GREATER} is
-     * doors 2/3: costs fuel, keeps the clock and the depletion, and is refused
-     * below its door's {@link PocketDungeonsConfig#doorMinLevel(int)}.
+     * M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is
+     * active. {@code FREE} is every ordinary door. {@code GREATER} is unused since
+     * the dungeon structure waves: the Greater door tier, its level gates and its
+     * shard cost are gone (design D4, D5); a door's only price is its edge's
+     * {@link TripDoors.Door#cost()}. The constant stays so a stale reference
+     * still compiles.
      */
-    /** M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is active. */
     enum Tier { FREE, GREATER, EXPERIMENTAL }
 
     /**
-     * One of the three offers a completed run puts in front of a player.
+     * One of the three doors a staging room puts in front of a player.
      *
-     * <p>The affixes here are the <em>elective</em> ones only -- what the player
-     * opts into by walking through a particular door. Whatever the level's
-     * thresholds hand them on top is derived, never chosen and never stored
-     * (see {@link AffixMath}).
+     * <p>{@code step} is the keystone steps this door adds (the floor runs at
+     * keystone plus step; 0 for a resource dungeon floor), dealt by a seeded shuffle
+     * and independent of which door slot the offer sits in. {@code door} says which
+     * dungeon floor lies behind it and what it costs in echo shards; it is
+     * {@code null} for the operator's experimental offer and for an Endless Mine run,
+     * which stand outside any dungeon graph.
+     *
+     * <p>The affixes here are the signature affix of the floor behind the door
+     * (D16a) plus an experimental offer's own; whatever the level's thresholds hand
+     * them on top is derived, never chosen and never stored (see {@link AffixMath}).
      */
-    record Offer(int level, Set<String> affixes, int step, String theme, Tier tier) {
+    record Offer(int level, Set<String> affixes, int step, String theme, Tier tier, TripDoors.Door door) {
+
+        /** An offer outside any dungeon graph (experimental, Endless Mine). */
+        Offer(int level, Set<String> affixes, int step, String theme, Tier tier) {
+            this(level, affixes, step, theme, tier, null);
+        }
+
         boolean ominous() {
             return affixes.contains(AffixIds.OMINOUS);
         }
 
-        /**
-         * Free of the Greater-door gates. EXPERIMENTAL counts as free too: an
-         * operator testing a fixed offer should not have to bank fuel or hold
-         * a level first, the same way FREE always has.
-         */
+        /** Echo shards this door takes at the lever; 0 for a main path door. */
+        int cost() {
+            return door == null ? 0 : door.cost();
+        }
+
+        /** Whether this door costs no shards. Kept for older callers; doors have no level gate any more. */
         boolean free() {
-            return tier == Tier.FREE || tier == Tier.EXPERIMENTAL;
+            return cost() == 0;
+        }
+
+        /** The dungeon id behind this door, or an empty string outside a dungeon graph. */
+        String dungeonId() {
+            return door == null ? "" : door.dungeonId();
+        }
+
+        /** The node id behind this door, or an empty string outside a dungeon graph. */
+        String nodeId() {
+            return door == null ? "" : door.nodeId();
         }
     }
 
     /**
-     * The three offers for a run finished at {@code level}, in the order they are
-     * placed: {@code +1}, {@code +2}, {@code +3}.
+     * The three offers a staging room shows for {@code record}'s trip, one per
+     * door slot (slot 1 is the first door). The only place offers are built.
      *
-     * <p>M12: door 1 is {@link Tier#FREE}; doors 2 and 3 are {@link Tier#GREATER}.
-     * The tier only marks what a door <em>is</em>; the fuel spend and the
-     * level-gate refusal both happen at the point a door is actually chosen
-     * ({@link RunLifecycle#chooseOffer}), not here: this method is called to
-     * render a dialog as often as it is called to settle a choice, and a
-     * refusal has no business happening on every render.
+     * <ul>
+     *   <li>Before a trip's first door: three dungeons from the leader's unlocked
+     *       acts ({@link DungeonProgress#unlockedActs}), each at its entry floor
+     *       ({@link TripDoors#dealFirst}).</li>
+     *   <li>After that: the out edges of the node just cleared
+     *       ({@link TripDoors#dealNext}); a final node has none, so this returns an
+     *       empty array and the staging room offers only the way home.</li>
+     *   <li>In an Endless Mine (or when no dungeon is loaded): three plain doors
+     *       with dealt steps and the Mine theme.</li>
+     * </ul>
      *
-     * <p>No door promises {@code OMINOUS} any more (2026-10-01): a floor turns
-     * ominous by a roll at commit time, weighted by the omen the party has
-     * banked ({@link Omen#ominousChance}). {@link Offer#ominous()} stays for an
-     * operator's fixed experimental offer.
-     *
-     * <p>M11: {@link AdventureGraph#pick} draws all three themes from
-     * {@code currentTheme}'s transition set (or the entry pool, for a player
-     * with none yet).
+     * <p>Pure of side effects and stable for the same state, because it is called to
+     * render a screen as often as to settle a choice. The shard cost and the refusal
+     * for being short of shards happen where a door is actually chosen
+     * ({@link RunLifecycle#commitDoor}), not here. No door promises {@code OMINOUS}
+     * (a floor turns ominous by a roll at commit time, {@link Omen#ominousChance});
+     * {@link Offer#ominous()} stays for an operator's fixed experimental offer.
      */
-    static Offer[] offers(java.util.UUID owner, int level) {
-        return offers(owner, level, "", 0);
-    }
-
-    static Offer[] offers(java.util.UUID owner, int level, String currentTheme, int depth) {
+    static Offer[] offers(net.minecraft.server.MinecraftServer server, InstanceRecord record, UUID owner, int level) {
         int max = PocketDungeonsConfig.keystoneMaxLevel();
-        // A zone is only dealt once the key reaches its unlock level.
-        List<String> themes = AdventureGraphs.current().graph().pick(owner, currentTheme, depth,
-                theme -> ZoneRules.forTheme(theme).unlockLevel() <= level);
-        String first = themes.get(0).isEmpty() ? null : themes.get(0);
-        String second = themes.get(1).isEmpty() ? null : themes.get(1);
-        String third = themes.get(2).isEmpty() ? null : themes.get(2);
+        DungeonDefs dungeons = DungeonDefs.current();
+        TripDoors.Door[] doors;
+        boolean mine = record != null && record.interval.endlessMine;
+        if (mine || dungeons.size() == 0) {
+            doors = null;
+        } else if (record != null && !record.interval.dungeonId.isEmpty()
+                && dungeons.byId(record.interval.dungeonId) != null) {
+            DungeonDef def = dungeons.byId(record.interval.dungeonId);
+            doors = TripDoors.dealNext(owner, def, record.interval.nodeId, record.interval.path.size());
+        } else {
+            DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
+            java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
+            // Design section 11: an open act whose capstone is not cleared keeps its capstone on door 1
+            // or 2 of every first staging room, so the Endless Mine's door 3 never hides it.
+            doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts),
+                    entry.campaign().tripCounter(),
+                    TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished()));
+            // D13: once Act 1's capstone has opened Act 2, the Endless Mine replaces door 3 of the
+            // first staging room. It never appears later in a trip (a trip is one dungeon).
+            DungeonDef mineDef = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);
+            if (doors.length == TripDoors.DOOR_COUNT && mineDef != null && mineDef.entry() != null
+                    && EndlessMineRules.opensFor(acts)) {
+                doors[TripDoors.DOOR_COUNT - 1] = new TripDoors.Door(mineDef.id(), mineDef.entry().id(),
+                        doors[TripDoors.DOOR_COUNT - 1].step(), 0);
+            }
+        }
+
+        Offer[] offers;
+        if (doors == null) {
+            int[] steps = TripDoors.dealSteps(TripDoors.seed(owner, "", "plain",
+                    record == null ? 0 : record.interval.floorIndex, 4));
+            String theme = mine ? EndlessMineRules.MINE_THEME_ID : null;
+            offers = new Offer[TripDoors.DOOR_COUNT];
+            for (int i = 0; i < offers.length; i++) {
+                offers[i] = new Offer(KeystoneMath.upgrade(level, steps[i], max), Set.of(), steps[i], theme,
+                        Tier.FREE);
+            }
+        } else {
+            offers = new Offer[doors.length];
+            for (int i = 0; i < doors.length; i++) {
+                offers[i] = fromDoor(dungeons, doors[i], level, max);
+            }
+        }
 
         // M27 27.1: an operator's fixed offer stands in for door 3 while one is
         // active. The other two doors are unaffected, and no per-player daily
         // reward tracking rides on this yet.
         ExperimentalDungeon.Offer experimental = ExperimentalDungeon.current();
-        Offer doorThree;
-        if (experimental != null) {
+        if (experimental != null && offers.length == TripDoors.DOOR_COUNT) {
             int expLevel = experimental.lootLevel() != null
                     ? experimental.lootLevel() : KeystoneMath.upgrade(level, 3, max);
-            doorThree = new Offer(expLevel, experimental.affixes(), 3, experimental.theme(),
+            offers[2] = new Offer(expLevel, experimental.affixes(), 3, experimental.theme(),
                     Tier.EXPERIMENTAL);
-        } else {
-            doorThree = new Offer(KeystoneMath.upgrade(level, 3, max), Set.of(),
-                    3, third, Tier.GREATER);
         }
+        return offers;
+    }
 
-        return new Offer[] {
-                new Offer(KeystoneMath.upgrade(level, 1, max), Set.of(), 1, first, Tier.FREE),
-                new Offer(KeystoneMath.upgrade(level, 2, max), Set.of(),
-                        2, second, Tier.GREATER),
-                doorThree,
-        };
+    private static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
+        DungeonDef def = dungeons.byId(door.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(door.nodeId());
+        String theme = node == null ? null : node.overridesTheme() ? node.theme() : def.mainTheme();
+        Set<String> signature = node == null || node.signatureAffix().isEmpty()
+                ? Set.of() : Set.of(node.signatureAffix());
+        return new Offer(KeystoneMath.upgrade(level, door.step(), max), signature, door.step(), theme,
+                Tier.FREE, door);
     }
 
     // ---- minting ------------------------------------------------------------

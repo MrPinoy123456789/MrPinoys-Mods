@@ -61,7 +61,13 @@ final class DungeonLog extends SavedData {
      *                           the field and its codec entry stay so a pre-M11
      *                           save still loads, until a migration confirms no
      *                           live save carries the old data.
-     * @param currentTheme       (M11) the theme this player's last completed run
+     * @param currentTheme       superseded (dungeon structure W2): doors no longer
+     *                           read this; a trip's position lives on
+     *                           {@code IntervalState} and the doors are the current
+     *                           node's out edges ({@link TripDoors}). The field and its
+     *                           codec entry stay (CONVENTIONS.md), and
+     *                           {@link #recordTheme} still advances it, but nothing
+     *                           reads it for offers. Was: (M11) the theme this player's last completed run
      *                           was themed as, the node {@link Keystone#offers}
      *                           draws the next three door themes from via
      *                           {@link AdventureGraph#pick}. Empty for a player
@@ -70,7 +76,9 @@ final class DungeonLog extends SavedData {
      *                           the entry pool", the same shape
      *                           {@code ThemeOfferMath.pick} used before the graph
      *                           existed.
-     * @param depth              (M11) how many descent-kind themes deep from the
+     * @param depth              superseded (dungeon structure W2), same as
+     *                           {@code currentTheme}: no longer drives offers. Kept in
+     *                           the codec. Was: (M11) how many descent-kind themes deep from the
      *                           last entry/boss reset {@code currentTheme} is.
      *                           Feeds the graph pick's seed so a given
      *                           {@code (owner, currentTheme, depth)} is stable
@@ -160,6 +168,8 @@ final class DungeonLog extends SavedData {
      *                          being reapplied on entry, and gets one migration
      *                          grant on their next entry. Optional in the codec
      *                          with a default of {@code false}.
+     * @param campaign          (dungeon structure W3) acts unlocked, the trip counter and the
+     *                          party decide whitelist; see {@link Campaign}.
      */
     record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
@@ -168,7 +178,8 @@ final class DungeonLog extends SavedData {
                  boolean publicListed, String roomName, int fuel,
                  Set<String> unlockedShells, int roomCompletions,
                  List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen,
-                 String bag, int keyProgress, boolean kitGranted) {
+                 String bag, int keyProgress, boolean kitGranted, Set<String> dungeonsFinished,
+                 Campaign campaign) {
         Entry {
             recentThemes = List.copyOf(recentThemes);
             completedThemes = Map.copyOf(completedThemes);
@@ -183,6 +194,8 @@ final class DungeonLog extends SavedData {
             diaryBandsSeen = Set.copyOf(diaryBandsSeen);
             bag = bag == null ? "" : bag;
             keyProgress = Math.max(0, keyProgress);
+            dungeonsFinished = Set.copyOf(dungeonsFinished);
+            campaign = campaign == null ? Campaign.FRESH : campaign;
         }
 
         /*
@@ -199,91 +212,180 @@ final class DungeonLog extends SavedData {
         Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withKeystone(int keystoneLevel, String keystoneAffix) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withPendingOfferLevel(int pendingOfferLevel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withPublicListed(boolean publicListed) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withFuel(int fuel) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withRoomName(String roomName) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withExtractedPowers(Set<String> extractedPowers) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withUnlockedShells(Set<String> unlockedShells) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withRoomCompletions(int roomCompletions) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withKeyProgress(int keyProgress) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withKitGranted(boolean kitGranted) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
         }
 
         Entry withBag(String bag) {
             return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
                     pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted);
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
+        }
+
+        Entry withCampaign(Campaign campaign) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
+        }
+
+        Entry withDungeonsFinished(Set<String> dungeonsFinished) {
+            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
+                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign);
+        }
+    }
+
+    /**
+     * Dungeon structure W3: a player's campaign state, kept as one record so the
+     * {@link Entry} withers carry a single extra argument. Every field is optional in
+     * the codec with a safe default (CONVENTIONS.md), flat at the top level of the entry.
+     *
+     * @param actsUnlocked     the acts this player may be offered dungeons from. Always
+     *                         holds act 1. Read for the party leader (D15).
+     * @param actsMigrated     whether the one time migration for pre-acts saves has run
+     *                         ({@link ActProgress#migrate}): a save without the field
+     *                         loads as {@code false}, gets acts 2 and 3 at keystone 15
+     *                         and more, and is saved as {@code true} so it never repeats
+     * @param campaignComplete set when an act 5 capstone is cleared, until a later
+     *                         unlock exists for it (D9)
+     * @param tripCounter      trips this player has begun as leader; the salt of the
+     *                         first door's deal, so a quit before any clear does not
+     *                         re-deal the same three dungeons
+     * @param decideWhitelist  the leader setting: only the leader and {@code decideList}
+     *                         may preview and commit doors, choose branches and pull HOME
+     * @param decideList       the members the leader allows to decide while the whitelist is on
+     * @param deepestMineFloor the deepest Endless Mine floor this player has cleared (0 for none);
+     *                         shown on the floor history board
+     */
+    record Campaign(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
+                    int tripCounter, boolean decideWhitelist, Set<UUID> decideList, int deepestMineFloor) {
+        /** A player created after acts existed: act 1, nothing to migrate. */
+        static final Campaign FRESH = new Campaign(Set.of(), true, false, 0, false, Set.of(), 0);
+
+        /** The pre Mine depth shape, kept so older call sites read the same. */
+        Campaign(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
+                 int tripCounter, boolean decideWhitelist, Set<UUID> decideList) {
+            this(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList, 0);
+        }
+
+        Campaign {
+            actsUnlocked = Set.copyOf(ActProgress.migrate(actsUnlocked == null ? Set.of() : actsUnlocked, true, 0));
+            tripCounter = Math.max(0, tripCounter);
+            deepestMineFloor = Math.max(0, deepestMineFloor);
+            decideList = decideList == null ? Set.of() : Set.copyOf(decideList);
+        }
+
+        /** The decoded form of a save: runs the one time migration if it has not run. */
+        Campaign migratedFor(int keystoneLevel) {
+            if (actsMigrated) {
+                return this;
+            }
+            return new Campaign(ActProgress.migrate(actsUnlocked, false, keystoneLevel), true,
+                    campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+        }
+
+        Campaign withAct(int act) {
+            Set<Integer> acts = new HashSet<>(actsUnlocked);
+            acts.add(act);
+            return new Campaign(acts, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+        }
+
+        Campaign withCampaignComplete() {
+            return new Campaign(actsUnlocked, actsMigrated, true, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+        }
+
+        Campaign withTripCounter(int trips) {
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, trips, decideWhitelist, decideList, deepestMineFloor);
+        }
+
+        Campaign withDecideWhitelist(boolean on) {
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, on, decideList, deepestMineFloor);
+        }
+
+        Campaign withDeepestMineFloor(int floor) {
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist,
+                    decideList, floor);
+        }
+
+        Campaign withDecideList(Set<UUID> list) {
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist, list, deepestMineFloor);
         }
     }
 
@@ -293,7 +395,7 @@ final class DungeonLog extends SavedData {
     static final int MAX_RECENT_VISITORS = 10;
 
     static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0, Set.of(), 0, List.of(), Set.of(), "", 0, false);
+            false, "", 0, Set.of(), 0, List.of(), Set.of(), "", 0, false, Set.of(), Campaign.FRESH);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -354,9 +456,10 @@ final class DungeonLog extends SavedData {
 
     /**
      * Playtest 2026-10-03-2 (owner decision): what each player's view of the
-     * bag chest holds, the fresh kit {@link KitChest#refill} rolled at their
-     * last trip home. The same plain item list an orphan record is, so it
-     * reuses that type; it is overwritten on every refill.
+     * bag chest holds. Superseded by dungeon structure W5 (design D14): the refill
+     * that wrote it is gone, and the chest opens only while something is left here. The
+     * codec field is kept (migration rule). The same plain item list an orphan record is,
+     * so it reuses that type.
      */
     private final Map<UUID, InventorySwap.OrphanRecord> kitChests = new HashMap<>();
 
@@ -418,7 +521,11 @@ final class DungeonLog extends SavedData {
     private record PartB(int depth, Set<String> extractedPowers, boolean publicListed,
                          String roomName, int fuel, Set<String> unlockedShells, int roomCompletions,
                          List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen, String bag,
-                         int keyProgress, boolean kitGranted) {}
+                         int keyProgress, boolean kitGranted, Set<String> dungeonsFinished) {}
+
+    private record PartC(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
+                         int tripCounter, boolean decideWhitelist, Set<String> decideList,
+                         int deepestMineFloor) {}
 
     private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -476,28 +583,81 @@ final class DungeonLog extends SavedData {
             // Audit wave 2c: the kit is granted once. A save written before it
             // loads as not granted, which is what earns a bag holder their one
             // migration grant.
-            Codec.BOOL.optionalFieldOf("kit_granted", false).forGetter(PartB::kitGranted)
+            Codec.BOOL.optionalFieldOf("kit_granted", false).forGetter(PartB::kitGranted),
+            // Dungeon structure W2: the dungeons this player has finished (cleared a final
+            // floor of), by dungeon id, never truncated. A save written before it loads with
+            // none, so every dungeon's first finish still pays its diary page.
+            Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("dungeons_finished", Set.of()).forGetter(PartB::dungeonsFinished)
     ).apply(instance, PartB::new));
 
-    private static final Codec<Entry> ENTRY_CODEC = Codec.mapPair(PART_A_CODEC, PART_B_CODEC).xmap(
-            pair -> {
-                PartA a = pair.getFirst();
-                PartB b = pair.getSecond();
+    private static final com.mojang.serialization.MapCodec<PartC> PART_C_CODEC =
+            RecordCodecBuilder.mapCodec(instance -> instance.group(
+            // Dungeon structure W3: acts and the party decide whitelist. All optional, so a save
+            // written before it loads with act 1 and, through Campaign.migratedFor, the one time
+            // migration (acts_migrated absent means false).
+            Codec.INT.listOf().xmap(list -> (Set<Integer>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("acts_unlocked", Set.of()).forGetter(PartC::actsUnlocked),
+            Codec.BOOL.optionalFieldOf("acts_migrated", false).forGetter(PartC::actsMigrated),
+            Codec.BOOL.optionalFieldOf("campaign_complete", false).forGetter(PartC::campaignComplete),
+            Codec.INT.optionalFieldOf("trip_counter", 0).forGetter(PartC::tripCounter),
+            Codec.BOOL.optionalFieldOf("decide_whitelist", false).forGetter(PartC::decideWhitelist),
+            Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
+                    .optionalFieldOf("decide_list", Set.of()).forGetter(PartC::decideList),
+            // Dungeon structure W6: the deepest Endless Mine floor cleared. Optional, so an older
+            // save loads with none.
+            Codec.INT.optionalFieldOf("deepest_mine_floor", 0).forGetter(PartC::deepestMineFloor)
+    ).apply(instance, PartC::new));
+
+    private static Set<UUID> uuids(Set<String> raw) {
+        Set<UUID> out = new HashSet<>();
+        for (String s : raw) {
+            try {
+                out.add(UUID.fromString(s));
+            } catch (IllegalArgumentException ignored) {
+                // a malformed id in a hand edited save is dropped
+            }
+        }
+        return out;
+    }
+
+    private static Set<String> uuidStrings(Set<UUID> ids) {
+        Set<String> out = new HashSet<>();
+        for (UUID id : ids) {
+            out.add(id.toString());
+        }
+        return out;
+    }
+
+    private static final Codec<Entry> ENTRY_CODEC = Codec.mapPair(
+            Codec.mapPair(PART_A_CODEC, PART_B_CODEC), PART_C_CODEC).xmap(
+            outer -> {
+                PartA a = outer.getFirst().getFirst();
+                PartB b = outer.getFirst().getSecond();
+                PartC c = outer.getSecond();
                 return new Entry(a.runsCompleted(), a.bestPathLength(), a.bestKeystoneLevel(),
                         a.keystoneLevel(), a.keystoneAffix(), a.pendingOfferLevel(), a.recentThemes(),
                         a.completedThemes(), a.currentTheme(), b.depth(), b.extractedPowers(),
                         b.publicListed(), b.roomName(), b.fuel(), b.unlockedShells(),
                         b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen(), b.bag(),
-                        b.keyProgress(), b.kitGranted());
+                        b.keyProgress(), b.kitGranted(), b.dungeonsFinished(),
+                        new Campaign(c.actsUnlocked(), c.actsMigrated(), c.campaignComplete(),
+                                c.tripCounter(), c.decideWhitelist(), uuids(c.decideList()),
+                                c.deepestMineFloor())
+                                .migratedFor(a.keystoneLevel()));
             },
-            entry -> com.mojang.datafixers.util.Pair.of(
+            entry -> com.mojang.datafixers.util.Pair.of(com.mojang.datafixers.util.Pair.of(
                     new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),
                             entry.keystoneLevel(), entry.keystoneAffix(), entry.pendingOfferLevel(),
                             entry.recentThemes(), entry.completedThemes(), entry.currentTheme()),
                     new PartB(entry.depth(), entry.extractedPowers(), entry.publicListed(),
                             entry.roomName(), entry.fuel(), entry.unlockedShells(),
                             entry.roomCompletions(), entry.recentVisitors(), entry.diaryBandsSeen(),
-                            entry.bag(), entry.keyProgress(), entry.kitGranted()))
+                            entry.bag(), entry.keyProgress(), entry.kitGranted(), entry.dungeonsFinished())),
+                    new PartC(entry.campaign().actsUnlocked(), entry.campaign().actsMigrated(),
+                            entry.campaign().campaignComplete(), entry.campaign().tripCounter(),
+                            entry.campaign().decideWhitelist(), uuidStrings(entry.campaign().decideList()),
+                            entry.campaign().deepestMineFloor()))
     ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -1038,6 +1198,104 @@ final class DungeonLog extends SavedData {
         return next;
     }
 
+    /**
+     * Records that {@code player} finished {@code dungeonId} (cleared its final
+     * floor). Returns whether this was the first finish of that dungeon.
+     */
+    boolean addDungeonFinished(UUID player, String dungeonId) {
+        Entry previous = get(player);
+        if (previous.dungeonsFinished().contains(dungeonId)) {
+            return false;
+        }
+        Set<String> finished = new HashSet<>(previous.dungeonsFinished());
+        finished.add(dungeonId);
+        entries.put(player, previous.withDungeonsFinished(finished));
+        setDirty();
+        return true;
+    }
+
+    /** Whether {@code player} may be offered dungeons of {@code act}. */
+    boolean actUnlocked(UUID player, int act) {
+        return get(player).campaign().actsUnlocked().contains(act);
+    }
+
+    /** Opens {@code act} for {@code player}. Returns whether it was newly opened. */
+    boolean unlockAct(UUID player, int act) {
+        Entry previous = get(player);
+        if (act < DungeonDef.MIN_ACT || act > DungeonDef.MAX_ACT
+                || previous.campaign().actsUnlocked().contains(act)) {
+            return false;
+        }
+        entries.put(player, previous.withCampaign(previous.campaign().withAct(act)));
+        setDirty();
+        return true;
+    }
+
+    /** Records that {@code player} cleared the last capstone. Returns whether it was newly set. */
+    boolean markCampaignComplete(UUID player) {
+        Entry previous = get(player);
+        if (previous.campaign().campaignComplete()) {
+            return false;
+        }
+        entries.put(player, previous.withCampaign(previous.campaign().withCampaignComplete()));
+        setDirty();
+        return true;
+    }
+
+    /** Records a cleared Endless Mine floor; keeps the deepest. Returns whether it is a new best. */
+    boolean recordMineFloor(UUID player, int floor) {
+        Entry previous = get(player);
+        if (floor <= previous.campaign().deepestMineFloor()) {
+            return false;
+        }
+        entries.put(player, previous.withCampaign(previous.campaign().withDeepestMineFloor(floor)));
+        setDirty();
+        return true;
+    }
+
+    /** Counts a trip begun by {@code player} as leader and returns the new count. */
+    int beginTrip(UUID player) {
+        Entry previous = get(player);
+        int trips = previous.campaign().tripCounter() + 1;
+        entries.put(player, previous.withCampaign(previous.campaign().withTripCounter(trips)));
+        setDirty();
+        return trips;
+    }
+
+    /** Turns {@code leader}'s decide whitelist on or off. */
+    void setDecideWhitelist(UUID leader, boolean on) {
+        Entry previous = get(leader);
+        if (previous.campaign().decideWhitelist() == on) {
+            return;
+        }
+        entries.put(leader, previous.withCampaign(previous.campaign().withDecideWhitelist(on)));
+        setDirty();
+    }
+
+    /** Adds {@code member} to {@code leader}'s decide list. Returns whether it changed. */
+    boolean addDecider(UUID leader, UUID member) {
+        Entry previous = get(leader);
+        Set<UUID> list = new HashSet<>(previous.campaign().decideList());
+        if (!list.add(member)) {
+            return false;
+        }
+        entries.put(leader, previous.withCampaign(previous.campaign().withDecideList(list)));
+        setDirty();
+        return true;
+    }
+
+    /** Removes {@code member} from {@code leader}'s decide list. Returns whether it changed. */
+    boolean removeDecider(UUID leader, UUID member) {
+        Entry previous = get(leader);
+        Set<UUID> list = new HashSet<>(previous.campaign().decideList());
+        if (!list.remove(member)) {
+            return false;
+        }
+        entries.put(leader, previous.withCampaign(previous.campaign().withDecideList(list)));
+        setDirty();
+        return true;
+    }
+
     /** (M33) How far {@code player} has progressed on the task {@code taskId}, or {@code 0}. */
     int taskProgress(UUID player, String taskId) {
         return taskProgress.getOrDefault(player, Map.of()).getOrDefault(taskId, 0);
@@ -1259,7 +1517,8 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         Entry reset = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
                 previous.publicListed(), previous.roomName(), 0, previous.unlockedShells(),
-                0, previous.recentVisitors(), previous.diaryBandsSeen(), "", 0, false);
+                0, previous.recentVisitors(), previous.diaryBandsSeen(), "", 0, false,
+                previous.dungeonsFinished(), previous.campaign());
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);

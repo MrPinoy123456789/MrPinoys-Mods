@@ -1,0 +1,90 @@
+{
+  "name": "Ossuary",
+  "act": 1,
+  "kind": "story",
+  "mainTheme": "ossuary",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore",
+    "iron_ore",
+    "copper_ore"
+  ],
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "infestation"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "charnel_steps",
+      "name": "Charnel Steps",
+      "layer": 1
+    },
+    {
+      "id": "skull_galleries",
+      "name": "Skull Galleries",
+      "layer": 2,
+      "roomBias": [
+        "crypt_corner",
+        "ossuary_passage"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "bone_pits",
+      "name": "Bone Pits",
+      "layer": 2,
+      "roomBias": [
+        "ossuary_crypt"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "sealed_reliquary",
+      "name": "Sealed Reliquary",
+      "layer": 2,
+      "theme": "infestation",
+      "roomBias": [
+        "infested_wall"
+      ]
+    },
+    {
+      "id": "last_rest",
+      "name": "The Last Rest",
+      "layer": 3,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "charnel_steps",
+      "to": "skull_galleries"
+    },
+    {
+      "from": "charnel_steps",
+      "to": "bone_pits"
+    },
+    {
+      "from": "charnel_steps",
+      "to": "sealed_reliquary",
+      "cost": 1
+    },
+    {
+      "from": "skull_galleries",
+      "to": "last_rest"
+    },
+    {
+      "from": "bone_pits",
+      "to": "last_rest"
+    },
+    {
+      "from": "sealed_reliquary",
+      "to": "last_rest"
+    }
+  ],
+  "diary": "entry_11"
+}

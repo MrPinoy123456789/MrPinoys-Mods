@@ -97,8 +97,9 @@ final class OmenBar {
             title = OmenBarText.activeTitle(record.interval.omen, band, chests, record.floor.spawnersCleared, total,
                     DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()));
         } else {
-            title = OmenBarText.clearedTitle(record.interval.floorIndex, PocketDungeonsConfig.floorsPerSafeVisit(),
-                    record.interval.endlessMine, band, chests);
+            title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
+                    record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),
+                    band, chests);
         }
         repaintHeldLine(server, record, bar);
         bar.event.setName(Component.literal(title));

@@ -96,7 +96,10 @@ final class SpurSpecs {
         // The handler owns the cell so the corridor role dispatch does not
         // strip the reward chest.
         Situations.register("the_altar", (level, o, role, depth, profile, spawns, seed,
-                affixes, lootSuffix, theme, voidedFloor, content) -> { return null; });
+                affixes, lootSuffix, theme, voidedFloor, content) -> {
+            AltarOffering.arm(level, o);
+            return null;
+        });
     }
 
     // ---- shared helpers -----------------------------------------------------
@@ -254,8 +257,7 @@ final class SpurSpecs {
      * output so only a strong enough signal fires it. {@code provides:
      * ["trial_key"]}.
      *
-     * <p>The hopper faces down into a second hopper that pulls the food away, so
-     * the altar resets after each offering.
+     * <p>{@link AltarOffering} reads the offering hopper and pays the key once.
      */
     private static RoomSpec theAltar() {
         return new RoomSpec("the_altar", EnumSet.of(DOOR))
@@ -263,16 +265,17 @@ final class SpurSpecs {
                     // Stone brick pedestal; hopper on top receives the offering.
                     set(level, o, 8, 1, 8, RoomBuilder.WALL);
                     placeHopper(level, o, 8, 2, 8, Direction.DOWN);
-                    // Hopper below the pedestal pulls food away so the altar resets.
-                    placeHopper(level, o, 8, 1, 9, Direction.SOUTH);
-                    // Dropper behind the pedestal facing north (toward the player),
-                    // pre-loaded with the trial key payout.
+                    // A step in front of the pedestal. It was a second hopper, which sat
+                    // under the dropper's mouth and swallowed the key it paid (PD-143).
+                    set(level, o, 8, 1, 9, RoomBuilder.WALL);
+                    // Dropper behind the pedestal facing north (toward the player).
+                    // It starts empty: AltarOffering pays the key out of its mouth
+                    // for a food offering. Loaded at stamp it was free (PD-143).
                     set(level, o, 8, 2, 10, Blocks.DROPPER.defaultBlockState()
                             .setValue(DropperBlock.FACING, Direction.NORTH));
-                    BlockEntity dropper = level.getBlockEntity(o.offset(8, 2, 10));
-                    if (dropper instanceof DispenserBlockEntity d) {
-                        d.setItem(0, new ItemStack(Items.TRIAL_KEY));
-                        d.setChanged();
+                    // Support under the redstone parts at x 9, or they pop off as items.
+                    for (int z = 8; z <= 10; z++) {
+                        set(level, o, 9, 1, z, RoomBuilder.WALL);
                     }
                     // Comparator reads the offering hopper from the east, outputs
                     // south. A repeater thresholds the signal so only a stackable
@@ -295,6 +298,8 @@ final class SpurSpecs {
      */
     private static RoomSpec theStore() {
         return new RoomSpec("the_store", EnumSet.of(DOOR))
-                .decor((level, o) -> StoreShop.build(level, o, 0));
+                // The shop is built at stamp time by the store handler, turned to
+                // the door; baked here it stood in the doorway (PD-140).
+                ;
     }
 }

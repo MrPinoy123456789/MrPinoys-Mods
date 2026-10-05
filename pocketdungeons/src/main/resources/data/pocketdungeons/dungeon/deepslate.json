@@ -1,0 +1,140 @@
+{
+  "name": "Deepslate",
+  "act": 2,
+  "kind": "story",
+  "mainTheme": "deepslate",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "deepslate_iron_ore",
+    "deepslate_lapis_ore",
+    "deepslate_redstone_ore",
+    "deepslate_diamond_ore"
+  ],
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "ossuary",
+      "infestation"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "shaft_head",
+      "name": "Shaft Head",
+      "layer": 1
+    },
+    {
+      "id": "lantern_stairs",
+      "name": "Lantern Stairs",
+      "layer": 2
+    },
+    {
+      "id": "sculk_shallows",
+      "name": "Sculk Shallows",
+      "layer": 2,
+      "roomBias": [
+        "sensor_gallery"
+      ]
+    },
+    {
+      "id": "deep_quarry",
+      "name": "Deep Quarry",
+      "layer": 3
+    },
+    {
+      "id": "cracked_barracks",
+      "name": "Cracked Barracks",
+      "layer": 3,
+      "theme": "ossuary",
+      "roomBias": [
+        "ossuary_crypt"
+      ]
+    },
+    {
+      "id": "tuff_cellars",
+      "name": "Tuff Cellars",
+      "layer": 3,
+      "roomBias": [
+        "barred_vault"
+      ]
+    },
+    {
+      "id": "pale_gallery",
+      "name": "Pale Gallery",
+      "layer": 4,
+      "roomBias": [
+        "deep_dark_landing"
+      ]
+    },
+    {
+      "id": "collapsed_landing",
+      "name": "Collapsed Landing",
+      "layer": 4
+    },
+    {
+      "id": "silent_deep",
+      "name": "The Silent Deep",
+      "layer": 5,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "shaft_head",
+      "to": "lantern_stairs"
+    },
+    {
+      "from": "shaft_head",
+      "to": "sculk_shallows"
+    },
+    {
+      "from": "lantern_stairs",
+      "to": "deep_quarry"
+    },
+    {
+      "from": "lantern_stairs",
+      "to": "cracked_barracks"
+    },
+    {
+      "from": "sculk_shallows",
+      "to": "cracked_barracks"
+    },
+    {
+      "from": "sculk_shallows",
+      "to": "tuff_cellars"
+    },
+    {
+      "from": "deep_quarry",
+      "to": "pale_gallery"
+    },
+    {
+      "from": "cracked_barracks",
+      "to": "pale_gallery"
+    },
+    {
+      "from": "cracked_barracks",
+      "to": "collapsed_landing"
+    },
+    {
+      "from": "tuff_cellars",
+      "to": "collapsed_landing"
+    },
+    {
+      "from": "deep_quarry",
+      "to": "collapsed_landing",
+      "cost": 1
+    },
+    {
+      "from": "pale_gallery",
+      "to": "silent_deep"
+    },
+    {
+      "from": "collapsed_landing",
+      "to": "silent_deep"
+    }
+  ],
+  "diary": "entry_12"
+}

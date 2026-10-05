@@ -193,11 +193,14 @@ final class InstanceTeardown {
         // from a cell whose player has simply walked away.
         for (BlockPos cellOrigin : cellOrigins) {
             Locks.clear(cellOrigin);
+            AltarOffering.clear(cellOrigin);
             OmenSources.clear(cellOrigin);
             Ordeals.clear(cellOrigin);
         }
 
         ServerLevel level = dungeonLevel(server);
+        // Dungeon structure W7a: no capstone fight state or Warden outlives its instance.
+        CapstoneFights.teardown(level, slot, layout);
         if (level == null) {
             InstanceRegistry.usedSlots.remove(slot);
             PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", slot, reason);

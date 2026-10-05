@@ -4381,3 +4381,116 @@ teardown still apply unchanged.
 - No new 26.2 API surface was left unconfirmed; M78 reused only existing,
   already-verified API surfaces, so no new UNVERIFIED trap was added to
   `DISCOVERIES.md`.
+
+## Dungeon structure (waves W1 to W7b, verified in W8)
+
+Built on branch `dungeon-structure` from `docs/DUNGEON_STRUCTURE_DESIGN.md`
+(decisions D1 to D22) and `docs/plan-2026-10-05-dungeon-structure.md`. Not yet
+playtested; the live checks owed are L24 onward in `docs/playtests/LIVE_CHECKS.md`
+and section 51 of `docs/reference/LIVE_TEST_PASS.md`. The as-built notes per wave
+are sections 9 to 12 of the design document.
+
+### What changed in one paragraph
+
+A trip is now one dungeon, not a run of unrelated themed floors. The first
+staging room offers three dungeons from the leader's unlocked acts; every later
+staging room offers the out edges of the node just cleared. Each door is dealt a
+keystone step of +1, +2 or +3 (seeded, resource dungeons deal 0), a side edge
+costs echo shards paid by the member who commits it, and clearing the final node
+finishes the dungeon: one echo shard per member, a themed vault, the dungeon's
+diary page on a first finish, and the HOME lever as the only way on. Clearing a
+capstone opens the next act. Inside a dungeon cell only resource nodes, player
+placed blocks and a short list of soft mechanic blocks break.
+
+### Data types
+
+- `DungeonDef` / `DungeonDefs` (`data/pocketdungeons/dungeon/*.json`, 19 files):
+  id, name, act 1 to 5, kind (`story`, `resource`, `capstone`, `endless`),
+  mainTheme, lootBand (min, max tier), nodePalette, merchant, diary, deviation,
+  nodes (id, name, layer, theme override, signature affix, room bias, light,
+  final flag) and edges (from, to, cost). Validated by `PackValidator` (3 to 6
+  layers, at most 3 edges out, acyclic, one entry node, every non final node has
+  a free edge, borrowed themes from the same or an earlier act, one final node
+  for a capstone, 1 to 3 layers for a resource dungeon). Reloaded with the other
+  content by `ContentReload` (`DungeonDefs.publish`).
+- `DungeonRoomMeta` gained `nodes`, `light` (`lit`, `dim`, `dark`), `corridor`,
+  `biome`, `requiresLight`, `dungeons`, `acts`, `graphRole`, `borrowableBy`,
+  `maxPerDungeon`. `RoomEligibility` reads them; `RoomEligibility.narrowToCapstone`
+  makes the terminal cell of a capstone's final floor draw a `graphRole: capstone`
+  room.
+- `BagDefinition.hidden`: five kits are offered (Guard, Ranger, Mason, Sapper,
+  Shepherd); innkeeper, magician, pilgrim and plumber stay in the pack but are not
+  shown. A player who already holds one keeps it working.
+
+### Flow
+
+1. `Keystone.offers` builds the three offers. First door: `TripDoors.dealFirst`
+   over `TripDoors.eligibleFirst` (unlocked acts, never `endless`), with
+   `TripDoors.pendingCapstone` guaranteed on door 1 or 2. Later doors:
+   `TripDoors.dealNext` over the current node's edges, spare doors repeating a
+   branch. After act 2 opens, door 3 of the first staging room is the Endless Mine.
+2. `RunLifecycle.previewDoor` / `commitDoor` check `PartyDecide`, then the side
+   edge's shard cost against the committing member's own pack (`SideBranchPay`).
+   `Instances.commitDoor` stamps the floor with the node's theme override, room
+   bias and signature affix (`NodeStamper`), and records the trip on
+   `IntervalState` (`dungeonId`, `nodeId`, `path`, `finished`).
+3. `RunLifecycle.advanceFloor` banks the door's step, places the completion
+   chests at `LootBands.floorTier`, and on a final node sets `finished` and runs
+   `finishDungeon` (shard, vault, diary, `DungeonLog.addDungeonFinished`, and for a
+   capstone `DungeonProgress.onCapstoneCleared`, which opens act N+1 or sets
+   `campaignComplete` for act 5).
+4. HOME banks `sum of steps / 3` as before (`IntervalBanking`); going home early
+   banks steps and chests only. A max omen death fails the run through
+   `Instances.failRunOmen`; the record, and with it the trip, is discarded.
+5. Trip state is in memory only (`IntervalState`, replaced by
+   `InstanceRecord.beginInterval`); a restart forgives the trip.
+
+### New classes
+
+- Trip and acts: `TripDoors`, `TripView`, `DungeonMapText`, `ActProgress`,
+  `DungeonProgress`, `LootBands`, `PartyDecisions`, `PartyDecide`, `SideBranchPay`.
+- Nodes, break rule, light: `BreakRule`, `DungeonLight`, `NodeStamper`,
+  `RoomProtection` (updated), `RoomEligibility`.
+- Resource dungeons and the Mine: `ResourceBiomeSpecs`, `CowPits`,
+  `EndlessMineRules` (layers, seal, loot tier, deepest floor).
+- Capstones: `CapstoneFights` (gate for the pad, Warden summon, floor end),
+  `BroodWave`, `SculkOmen`, `CapstoneSpecs` (Spawner Dungeon, Ancient City),
+  `WitherFight`, `WitherRules`, `HerobrineFight`, `HerobrineRules`,
+  `CapstoneStart`, `NetherEndSpecs`, and `mixin/WitherBossMixin`.
+- Content generators: `tools/gen_resource_content.py`, `tools/gen_w7b_content.py`.
+
+### Persistence
+
+`DungeonLog.Campaign` (a third codec part, every key optional so an old save
+loads): `acts_unlocked`, `acts_migrated`, `campaign_complete`, `trip_counter`,
+`decide_whitelist`, `decide_list`, `deepest_mine_floor`. `DungeonLog.Entry` gained
+`dungeons_finished`. `currentTheme` and `depth` are marked superseded and their
+codec keys kept. A save with no `acts_unlocked` loads with act 1 open and, once, a
+keystone of 15 or more also opens acts 2 and 3 (`Campaign.migratedFor`).
+
+### Config keys
+
+- Added: `echoShardsPerFinish` (1), `finishVaultChests` (2), `capstoneStartOmen` (1,
+  0 to 4).
+- Retired (still read and saved so an old config loads, no longer used):
+  `echoShardsPerInterval`, `echoShardFloorChance` (default now 0), `fuelPerFreeRun`,
+  `greaterDoorMinLevel`, `door2MinLevel`, `fuelCostPerGreaterDoor` and the kit top
+  up key. A side branch's cost is authored on its edge, so there is no
+  `sideBranchShardCost` key.
+
+### Verification (W8)
+
+`clean compileJava test compileGametestJava`, every registered JavaExec test (now
+including `capstoneRulesTest` and `cowPitsTest` in `tasks.test`), `runGameTest`
+(168 required tests) and `dungeonIntegrationTest` pass. `dungeon admin validate` on
+a live local server reports no findings and the content load logs 0 rejected for
+19 dungeons, 19 themes, 85 rooms and 25 diary entries. W8 fixes: tier 3 spawner
+configs of the four W6 and W7b dungeons pointed at vanilla trial chamber equipment
+tables; the Cow Pits and Mineshaft chest tables capped stack size; the kennel
+gametest origin grid collided with the bridge test once there were more than 18
+themes; a content reload could leave a door preview planned for a node that the
+reload removed or renamed (`FloorState.previewDoorKey`).
+
+### Pending human checks
+
+See `docs/reference/LIVE_TEST_PASS.md` section 51.

@@ -1,0 +1,107 @@
+{
+  "name": "Ancient City",
+  "act": 2,
+  "kind": "capstone",
+  "mainTheme": "ancient_city",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "deepslate_coal_ore",
+    "deepslate_iron_ore",
+    "deepslate_diamond_ore",
+    "amethyst_cluster"
+  ],
+  "diary": "entry_17",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "deepslate"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "buried_gate",
+      "name": "The Buried Gate",
+      "layer": 1,
+      "light": "dim"
+    },
+    {
+      "id": "silent_avenue",
+      "name": "The Silent Avenue",
+      "layer": 2,
+      "light": "dark",
+      "roomBias": [
+        "sculk_causeway"
+      ]
+    },
+    {
+      "id": "echo_cloister",
+      "name": "Echo Cloister",
+      "layer": 2,
+      "light": "dark",
+      "roomBias": [
+        "sculk_nave"
+      ]
+    },
+    {
+      "id": "deepslate_barracks",
+      "name": "The Deepslate Barracks",
+      "layer": 3,
+      "light": "dark",
+      "theme": "deepslate"
+    },
+    {
+      "id": "sensor_hall",
+      "name": "The Sensor Hall",
+      "layer": 3,
+      "light": "dark",
+      "roomBias": [
+        "sensor_gallery",
+        "sculk_causeway",
+        "sculk_nave"
+      ]
+    },
+    {
+      "id": "wardens_rest",
+      "name": "The Warden's Rest",
+      "layer": 4,
+      "final": true,
+      "light": "dark",
+      "roomBias": [
+        "warden_hall"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "buried_gate",
+      "to": "silent_avenue"
+    },
+    {
+      "from": "buried_gate",
+      "to": "echo_cloister"
+    },
+    {
+      "from": "silent_avenue",
+      "to": "deepslate_barracks"
+    },
+    {
+      "from": "silent_avenue",
+      "to": "sensor_hall"
+    },
+    {
+      "from": "echo_cloister",
+      "to": "sensor_hall"
+    },
+    {
+      "from": "deepslate_barracks",
+      "to": "wardens_rest"
+    },
+    {
+      "from": "sensor_hall",
+      "to": "wardens_rest"
+    }
+  ]
+}

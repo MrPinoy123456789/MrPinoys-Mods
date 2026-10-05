@@ -60,6 +60,12 @@
                 "max": 2
               }
             }
+          ],
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.34
+            }
           ]
         },
         {
@@ -149,7 +155,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:oak_planks",
-          "weight": 10,
+          "weight": 14,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -260,7 +266,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
-          "weight": 2,
+          "weight": 5,
           "functions": [
             {
               "function": "minecraft:set_count",

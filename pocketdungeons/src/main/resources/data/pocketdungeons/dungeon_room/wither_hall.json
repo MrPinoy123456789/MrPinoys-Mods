@@ -1,0 +1,32 @@
+{
+  "template": "pocketdungeons:rooms/wither_hall",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "exit"
+  ],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "theme": [
+    "wither_keep"
+  ],
+  "light": "dim",
+  "biome": "nether_fortress",
+  "dungeons": [
+    "wither_keep"
+  ],
+  "acts": [
+    4
+  ],
+  "graphRole": [
+    "capstone"
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

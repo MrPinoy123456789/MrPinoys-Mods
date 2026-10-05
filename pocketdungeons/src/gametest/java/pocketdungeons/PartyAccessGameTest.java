@@ -197,40 +197,6 @@ public final class PartyAccessGameTest {
     }
 
     /**
-     * 2026-10-04 (owner decision): a trip home refills the bag chest with a
-     * fresh full kit, overwriting whatever was left in it, and a member with
-     * a bag opens their own slots there.
-     */
-    @GameTest(maxTicks = 20)
-    public void bagChestRefillOverwritesWithAFreshKit(GameTestHelper helper) {
-        ServerPlayer owner = stand(helper);
-        MinecraftServer server = owner.level().getServer();
-        BlockPos origin = helper.absolutePos(new BlockPos(-6, 0, -6));
-        InstanceRecord record = home(helper, server, 9974, owner, origin);
-        register(record, 9974, owner);
-        DungeonLog log = DungeonLog.forServer(server);
-        String guard = Bags.ids().stream().filter(id -> id.endsWith("guard")).findFirst().orElseThrow();
-        try {
-            log.setBag(owner.getUUID(), guard);
-            log.setKitChest(owner.getUUID(), List.of(new ItemStack(Items.DIRT, 5)));
-            List<ItemStack> kit = KitChest.refill(server, record, owner);
-            helper.assertTrue(!kit.isEmpty(), "the guard's kit rolled");
-            List<ItemStack> held = log.kitChestOf(owner.getUUID());
-            helper.assertTrue(held.stream().noneMatch(s -> s.is(Items.DIRT)), "the leftovers were overwritten");
-            helper.assertTrue(held.stream().anyMatch(s -> s.is(Items.STONE_SWORD)), "the chest holds the guard's sword");
-            Instances.placeBagChestForParty(helper.getLevel(), server, record);
-            helper.assertTrue(use(helper, owner, Instances.bagChestPos(origin), Direction.UP)
-                    == InteractionResult.SUCCESS_SERVER, "a member with a bag opens their kit");
-        } finally {
-            log.setBag(owner.getUUID(), "");
-            log.setKitChest(owner.getUUID(), List.of());
-            helper.getLevel().setBlockAndUpdate(Instances.bagChestPos(origin), Blocks.AIR.defaultBlockState());
-            unregister(9974, owner);
-        }
-        helper.succeed();
-    }
-
-    /**
      * 2026-10-04 (owner report): the bag chest is placed only when the room
      * has none, works wherever it is moved to in the safe room, and cannot be
      * set down outside it.

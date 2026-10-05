@@ -54,15 +54,23 @@ final class FloorHistory {
      * @param timestamp when it ended, epoch milliseconds
      * @param level     the keystone level of the run
      * @param theme     the zone's theme id
-     * @param floor     the floor's number in its interval, from 1
+     * @param floor     the floor's number in its trip, from 1
      * @param affixes   the floor's affix ids
      * @param seconds   from the commit to the end
      * @param outcome   {@link #CLEARED}, {@link #FAILED} or {@link #QUIT}
      * @param room      the room id it ended in, for a failure or a quit; empty otherwise
      * @param cause     what killed the player, for a failure; empty otherwise
+     * @param layers    how many layers the trip's dungeon has, so the final floor is known;
+     *                  0 outside a dungeon (an Endless Mine) and on entries saved before it
      */
     record Entry(long timestamp, int level, String theme, int floor, List<String> affixes,
-                 long seconds, String outcome, String room, String cause) {
+                 long seconds, String outcome, String room, String cause, int layers) {
+
+        /** An entry with no dungeon layer count. */
+        Entry(long timestamp, int level, String theme, int floor, List<String> affixes,
+              long seconds, String outcome, String room, String cause) {
+            this(timestamp, level, theme, floor, affixes, seconds, outcome, room, cause, 0);
+        }
 
         static final Codec<Entry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.LONG.fieldOf("t").forGetter(Entry::timestamp),
@@ -73,7 +81,8 @@ final class FloorHistory {
                 Codec.LONG.optionalFieldOf("seconds", 0L).forGetter(Entry::seconds),
                 Codec.STRING.optionalFieldOf("outcome", CLEARED).forGetter(Entry::outcome),
                 Codec.STRING.optionalFieldOf("room", "").forGetter(Entry::room),
-                Codec.STRING.optionalFieldOf("cause", "").forGetter(Entry::cause)
+                Codec.STRING.optionalFieldOf("cause", "").forGetter(Entry::cause),
+                Codec.INT.optionalFieldOf("layers", 0).forGetter(Entry::layers)
         ).apply(instance, Entry::new));
 
         Entry {
@@ -82,6 +91,7 @@ final class FloorHistory {
             outcome = outcome == null ? CLEARED : outcome;
             room = room == null ? "" : room;
             cause = cause == null ? "" : cause;
+            layers = Math.max(0, layers);
         }
     }
 
@@ -119,8 +129,10 @@ final class FloorHistory {
         long now = server.overworld().getGameTime();
         long seconds = record.floor.startedAtTick == 0 ? 0 : Math.max(0, (now - record.floor.startedAtTick) / 20);
         List<String> affixes = record.floor.affixes == null ? List.of() : new ArrayList<>(record.floor.affixes);
+        DungeonDef def = TripView.def(record);
         DungeonLog.forServer(server).addFloorHistory(player, new Entry(System.currentTimeMillis(),
-                record.layout.keystoneLevel(), record.floor.theme, floor, affixes, seconds, outcome, room, cause));
+                record.layout.keystoneLevel(), record.floor.theme, floor, affixes, seconds, outcome, room, cause,
+                def == null ? 0 : def.layers()));
     }
 
     /** Repaints the board in {@code record}'s staging room, if it has one. */
@@ -153,9 +165,14 @@ final class FloorHistory {
         List<Entry> entries = server == null || owner == null ? List.of()
                 : DungeonLog.forServer(server).floorHistoryOf(owner);
         MutableComponent body = Component.empty();
+        int deepest = server == null || owner == null ? 0
+                : DungeonLog.forServer(server).get(owner).campaign().deepestMineFloor();
         if (entries.isEmpty()) {
             body.append(Component.literal("No floors yet.\nEvery floor you clear or lose shows here.")
                     .withStyle(ChatFormatting.GRAY));
+            if (deepest > 0) {
+                body.append(Component.literal("\n" + deepestLine(deepest)).withStyle(ChatFormatting.AQUA));
+            }
             return new Board(heading, body);
         }
         for (int i = 0; i < Math.min(SHOWN, entries.size()); i++) {
@@ -164,17 +181,25 @@ final class FloorHistory {
             }
             body.append(line(entries.get(i)));
         }
+        if (deepest > 0) {
+            body.append(Component.literal("\n" + deepestLine(deepest)).withStyle(ChatFormatting.AQUA));
+        }
         return new Board(heading, body);
+    }
+
+    /** The board's Endless Mine record line: {@code "Deepest Mine floor: 7 (Deepslate)"}. */
+    static String deepestLine(int floor) {
+        return "Deepest Mine floor: " + floor + " ("
+                + EndlessMineRules.layerName(EndlessMineRules.layerOf(floor)) + ")";
     }
 
     /** One entry as padded cells: date, level, zone, progress, affixes, time, ending. */
     static Component line(Entry e) {
-        int perVisit = Math.max(1, PocketDungeonsConfig.floorsPerSafeVisit());
         MutableComponent line = Component.empty();
         cell(line, WHEN.format(Instant.ofEpochMilli(e.timestamp())), COLUMNS[0], ChatFormatting.GRAY);
         cell(line, "L" + e.level(), COLUMNS[1], ChatFormatting.WHITE);
         cell(line, DungeonScreen.themeName(e.theme()), COLUMNS[2], ChatFormatting.WHITE);
-        cell(line, progress(e.floor(), perVisit), COLUMNS[3], progressColour(e.floor(), perVisit));
+        cell(line, progress(e.floor(), e.layers()), COLUMNS[3], progressColour(e.floor(), e.layers()));
         cell(line, affixNames(e.affixes()), COLUMNS[4], ChatFormatting.LIGHT_PURPLE);
         cell(line, duration(e.seconds()), COLUMNS[5], ChatFormatting.WHITE);
         cell(line, endingShort(e), COLUMNS[6] - 1, switch (e.outcome()) {
@@ -199,17 +224,29 @@ final class FloorHistory {
         return t + " ".repeat(width - t.length());
     }
 
-    /** "1/3", "2/3", "4/3": the floor's place in its interval. */
-    static String progress(int floor, int perVisit) {
-        return floor + "/" + perVisit;
+    /**
+     * "2/5": the floor's place among the layers of its dungeon, or just "2" when the
+     * floor was not in a dungeon ({@code layers} 0). Narrow on purpose; the board's
+     * progress column is three wide. {@link #progressWords} spells it out.
+     */
+    static String progress(int floor, int layers) {
+        return layers > 0 ? floor + "/" + layers : String.valueOf(floor);
     }
 
-    /** Yellow short of the interval, green on its last floor, orange past it. */
-    static ChatFormatting progressColour(int floor, int perVisit) {
-        if (floor > perVisit) {
+    /** "Floor 2, final at layer 5", or "Floor 2" outside a dungeon. */
+    static String progressWords(int floor, int layers) {
+        return layers > 0 ? "Floor " + floor + ", final at layer " + layers : "Floor " + floor;
+    }
+
+    /** White with no dungeon, yellow short of the final layer, green on it, orange past it. */
+    static ChatFormatting progressColour(int floor, int layers) {
+        if (layers <= 0) {
+            return ChatFormatting.WHITE;
+        }
+        if (floor > layers) {
             return ChatFormatting.GOLD;
         }
-        return floor == perVisit ? ChatFormatting.GREEN : ChatFormatting.YELLOW;
+        return floor == layers ? ChatFormatting.GREEN : ChatFormatting.YELLOW;
     }
 
     /** "CLEARED", "FAILED Sump", "QUIT Thicket": the ending with its room, for the board's narrow column. */

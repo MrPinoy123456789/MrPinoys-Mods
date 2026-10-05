@@ -162,8 +162,12 @@ final class RitualListener {
             String carried = DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID());
             if (carried.isEmpty()) {
                 DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
-            } else {
+            } else if (KitChest.holdsLeftovers(serverPlayer)) {
                 KitChest.open(serverPlayer);
+            } else {
+                serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
+                        "Your kit was handed over when you chose your bag. Nothing refills it.")
+                        .withStyle(ChatFormatting.YELLOW)));
             }
             return InteractionResult.SUCCESS_SERVER;
         }
@@ -314,15 +318,26 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
+        // The floor history board in a staging room opens the dungeon map (D6).
+        if (Instances.isHistoryBoard(serverPlayer, pos)) {
+            InstanceRecord mapRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
+            if (mapRecord != null && serverPlayer.level().getServer() != null) {
+                DialogKit.show(serverPlayer, DialogScreens.dungeonMap(serverPlayer.level().getServer(), mapRecord));
+                Chime.menuOpens(serverPlayer);
+            }
+            return InteractionResult.SUCCESS_SERVER;
+        }
+
         // The HOME lever in a cleared floor's staging room: asks first, and
         // the confirm banks the interval and takes the party home (playtest
         // 2026-09-29, A5: a misclick ended a run). Claimed for any member so
-        // vanilla never flips it; goHome refuses anyone but the owner, so a
-        // member gets that refusal straight away rather than the dialog.
+        // vanilla never flips it; any member may take the party home (D15) unless
+        // the leader's decide whitelist is on, in which case goHome tells them so
+        // straight away rather than opening the dialog.
         if (Instances.isHomeLever(serverPlayer, pos)) {
             InstanceRecord homeRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
-            if (homeRecord != null && serverPlayer.getUUID().equals(homeRecord.owner)
-                    && serverPlayer.level().getServer() != null) {
+            if (homeRecord != null && serverPlayer.level().getServer() != null
+                    && PartyDecide.may(serverPlayer.level().getServer(), homeRecord, serverPlayer)) {
                 DialogKit.show(serverPlayer, DialogScreens.goHomeConfirm(
                         serverPlayer.level().getServer(), homeRecord));
                 Chime.menuOpens(serverPlayer);
@@ -411,6 +426,13 @@ final class RitualListener {
     private static InteractionResult pullLever(ServerPlayer player, Level level) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record != null && RunSession.canChooseDoor(record) && record.stagingCellOrigin != null) {
+            // D15: any member may pull unless the leader limited it to a list.
+            if (!PartyDecide.may(player.level().getServer(), record, player)) {
+                Chime.refused(player);
+                DungeonScreen.updateDoor((ServerLevel) level,
+                        record, DungeonScreen.refusalContent("The party leader decides the doors here"));
+                return InteractionResult.SUCCESS_SERVER;
+            }
             if (record.floor.selectedStep == 0) {
                 Chime.noSelection(player);
                 DungeonScreen.updateDoor((ServerLevel) level, record,
@@ -453,8 +475,12 @@ final class RitualListener {
      */
     private static void selectDoor(ServerPlayer player, int step) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)
-                || record.stagingCellOrigin == null) {
+        if (record == null || !RunSession.canChooseDoor(record) || record.stagingCellOrigin == null) {
+            return;
+        }
+        // D15: any member may choose, unless the leader limited it to a list.
+        if (!PartyDecide.mayOrRefuse(player.level().getServer(), record, player)) {
+            Chime.refused(player);
             return;
         }
         int previous = record.floor.selectedStep;
@@ -505,36 +531,64 @@ final class RitualListener {
         }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record, step));
         Chime.doorSelected(player, step);
+        sideBranchBalance(player, record, step);
         if (doorRefusal(player, step) != null) {
             Chime.doorLocked(player);
         }
     }
 
     /**
+     * Tells the player who picked a side branch door what it costs against their own pack
+     * (the wall is shared, so it cannot show a balance; dungeon structure W5).
+     */
+    private static void sideBranchBalance(ServerPlayer player, InstanceRecord record, int step) {
+        Keystone.Offer[] offers = Keystone.offers(player.level().getServer(), record, record.owner,
+                Math.max(1, DungeonLog.forServer(player.level().getServer()).get(record.owner).keystoneLevel()));
+        if (offers.length == 0) {
+            return;
+        }
+        int cost = offers[Math.min(step - 1, offers.length - 1)].cost();
+        if (cost > 0) {
+            int carried = Fuel.carried(player);
+            player.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
+                    SideBranchPay.balanceLine(cost, carried))
+                    .withStyle(SideBranchPay.affordable(cost, carried) ? ChatFormatting.GRAY : ChatFormatting.RED)));
+        }
+    }
+
+    /**
      * Why {@code player} cannot open selector door {@code step} yet, phrased
-     * for the door screen, or null if they can. The one place the premium-door
-     * gates are spelled out: {@link #pullLever} names the reason on the screen
-     * and {@link #selectDoor} sounds it on the preview click, so the two can
-     * never disagree about which doors are openable. A free door has no gate.
-     * {@code RunLifecycle.chooseOffer} re-checks all of this regardless; this
+     * for the door screen, or null if they can. The one place a door's price is
+     * spelled out: {@link #pullLever} names the reason on the screen and
+     * {@link #selectDoor} sounds it on the preview click, so the two can never
+     * disagree about which doors are openable. Only a side branch (an edge that
+     * costs echo shards) or a finished dungeon refuses; there are no level gates.
+     * {@code RunLifecycle.commitDoor} re-checks all of this regardless; this
      * is for the message and the cue, not for the rule.
      */
     private static String doorRefusal(ServerPlayer player, int step) {
-        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
-                .get(player.getUUID());
-        int offerLevel = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), offerLevel,
-                entry.currentTheme(), entry.depth());
-        Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-        if (offer.free()) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null) {
             return null;
         }
-        int minLevel = PocketDungeonsConfig.doorMinLevel(step);
-        if (entry.keystoneLevel() < minLevel) {
-            return "Door " + step + " needs level " + minLevel;
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer())
+                .get(record.owner);
+        int offerLevel = Math.max(1, entry.keystoneLevel());
+        Keystone.Offer[] offers = Keystone.offers(player.level().getServer(), record, record.owner, offerLevel);
+        if (record.interval.mineSealedAct > 0) {
+            return EndlessMineRules.sealedMessage(record.interval.mineSealedAct);
         }
-        if (Fuel.carried(player) < PocketDungeonsConfig.fuelCostPerGreaterDoor()) {
-            return "Needs " + PocketDungeonsConfig.fuelCostPerGreaterDoor() + " echo shards";
+        if (record.interval.finished || offers.length == 0) {
+            return "The dungeon is cleared. Pull the HOME lever.";
+        }
+        Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
+        int cost = offer.cost();
+        if (cost > 0) {
+            // The viewing player's own pack, never the owner's.
+            int carried = Fuel.carried(player);
+            if (!SideBranchPay.affordable(cost, carried)) {
+                return SideBranchPay.screenRefusal(cost, carried);
+            }
         }
         return null;
     }

@@ -7,6 +7,8 @@ import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 
 /**
  * Room metadata as declared in {@code data/pocketdungeons/dungeon_room/*.json}.
@@ -49,6 +51,52 @@ final class DungeonRoomMeta {
      * {@link PlanCell}; see spec 13.3 and the {@code spanY} invariant in 13.4.
      */
     final int spanY;
+
+    /**
+     * Dungeon structure W4 (D19, D20): the resource nodes this room holds, placed
+     * and registered at stamp time. Empty for every room that declares none.
+     */
+    final List<NodeSpec> nodes;
+
+    /** Dungeon structure W4 (D17): {@link #LIGHT_LIT}, {@link #LIGHT_DIM} or {@link #LIGHT_DARK}. Never null. */
+    final String light;
+
+    /** Dungeon structure W4 (D17): {@link #CORRIDOR_NARROW} or {@link #CORRIDOR_WIDE}. Never null. */
+    final String corridor;
+
+    /** Dungeon structure W4 (D18): a biome tag such as {@code lush_cave}, or null. */
+    final String biome;
+
+    /**
+     * Dungeon structure W4: a mechanic in this room needs a light level (wolves,
+     * a kennel, sculk readability), so the room is never stamped dark or dim.
+     */
+    final boolean requiresLight;
+
+    /**
+     * Dungeon structure W4: dungeon ids that may use this room as a main theme
+     * room. Empty when the file declares none; {@link #theme} then stands in
+     * (see {@link #usableByMainTheme}).
+     */
+    final List<String> dungeons;
+
+    /** Dungeon structure W4: acts (1 to 5) the room belongs to; empty means any act. */
+    final List<Integer> acts;
+
+    /** Dungeon structure W4: graph roles as written; {@link #GRAPH_ROLES} lists the valid ones. */
+    final List<String> graphRole;
+
+    /** Dungeon structure W4 (D6a): dungeon ids that may borrow this room as a deviation. */
+    final List<String> borrowableBy;
+
+    static final String LIGHT_LIT = "lit";
+    static final String LIGHT_DIM = "dim";
+    static final String LIGHT_DARK = "dark";
+    static final String CORRIDOR_NARROW = "narrow";
+    static final String CORRIDOR_WIDE = "wide";
+
+    /** The values {@link #graphRole} may hold. The parser keeps what is written; PackValidator reports a stranger. */
+    static final Set<String> GRAPH_ROLES = Set.of("entry", "any", "side_reward", "final", "capstone");
 
     /** The only value {@link #access} may take besides {@link #ACCESS_GATED}. */
     static final String ACCESS_OPEN = "open";
@@ -93,6 +141,19 @@ final class DungeonRoomMeta {
                     List<String> theme, String content, int tier, List<String> provides,
                     List<String> requires, String pressure, String access, String window,
                     int spanY) {
+        this(template, footprintX, footprintZ, roles, weight, minDepth, maxPerDungeon, processors,
+                theme, content, tier, provides, requires, pressure, access, window, spanY,
+                List.of(), LIGHT_LIT, CORRIDOR_WIDE, null, false, List.of(), List.of(), List.of(),
+                List.of());
+    }
+
+    DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
+                    int weight, int minDepth, int maxPerDungeon, String processors,
+                    List<String> theme, String content, int tier, List<String> provides,
+                    List<String> requires, String pressure, String access, String window,
+                    int spanY, List<NodeSpec> nodes, String light, String corridor, String biome,
+                    boolean requiresLight, List<String> dungeons, List<Integer> acts,
+                    List<String> graphRole, List<String> borrowableBy) {
         this.template = template;
         this.footprintX = footprintX;
         this.footprintZ = footprintZ;
@@ -110,6 +171,15 @@ final class DungeonRoomMeta {
         this.access = access;
         this.window = window;
         this.spanY = spanY;
+        this.nodes = nodes == null ? List.of() : List.copyOf(nodes);
+        this.light = light == null ? LIGHT_LIT : light;
+        this.corridor = corridor == null ? CORRIDOR_WIDE : corridor;
+        this.biome = biome;
+        this.requiresLight = requiresLight;
+        this.dungeons = dungeons == null ? List.of() : List.copyOf(dungeons);
+        this.acts = acts == null ? List.of() : List.copyOf(acts);
+        this.graphRole = graphRole == null ? List.of() : List.copyOf(graphRole);
+        this.borrowableBy = borrowableBy == null ? List.of() : List.copyOf(borrowableBy);
     }
 
     DungeonRoomMeta(String template, int footprintX, int footprintZ, List<String> roles,
@@ -165,9 +235,22 @@ final class DungeonRoomMeta {
         String access = parseAccess(obj.get("access"), template);
         String window = parseWindow(obj.get("window"), template);
         int spanY = parseSpanY(obj.get("spanY"), template);
+        List<NodeSpec> nodes = parseNodes(obj.get("nodes"), template);
+        String light = parseChoice(obj.get("light"), template, "light", LIGHT_LIT,
+                LIGHT_LIT, LIGHT_DIM, LIGHT_DARK);
+        String corridor = parseChoice(obj.get("corridor"), template, "corridor", CORRIDOR_WIDE,
+                CORRIDOR_NARROW, CORRIDOR_WIDE);
+        String biome = stringOrNull(obj.get("biome"));
+        boolean requiresLight = boolOr(obj.get("requiresLight"), false);
+        List<String> dungeons = parseTags(obj.get("dungeons"));
+        List<Integer> acts = parseActs(obj.get("acts"), template);
+        List<String> graphRole = parseTags(obj.get("graphRole"));
+        List<String> borrowableBy = parseTags(obj.get("borrowableBy"));
         return new DungeonRoomMeta(template, footprint[0], footprint[1], roles,
                 weight, minDepth, maxPerDungeon, processors, theme, content,
-                tier, provides, requires, pressure, access, window, spanY);
+                tier, provides, requires, pressure, access, window, spanY,
+                nodes, light, corridor, biome, requiresLight, dungeons, acts, graphRole,
+                borrowableBy);
     }
 
     private static String requiredString(JsonObject obj, String key) {
@@ -307,5 +390,215 @@ final class DungeonRoomMeta {
                     + RoomGeometry.MAX_SPAN_Y + ", not " + value);
         }
         return value;
+    }
+
+    // ---- dungeon structure W4 ---------------------------------------------------
+
+    /**
+     * Whether a dungeon whose main theme is {@code mainTheme} (and whose own id is
+     * {@code dungeonId}) may use this room as a main theme room. {@link #dungeons}
+     * wins when the file declares it; otherwise the older {@link #theme} list
+     * stands in, matched against the main theme; an empty list means any.
+     * Ids are compared qualified, so a bare name and its namespaced form agree.
+     */
+    boolean usableByMainTheme(String dungeonId, String mainTheme) {
+        if (!dungeons.isEmpty()) {
+            return containsQualified(dungeons, dungeonId);
+        }
+        return theme.isEmpty() || containsQualified(theme, mainTheme);
+    }
+
+    /** Whether this room's acts allow {@code act}; an empty list allows every act. */
+    boolean allowsAct(int act) {
+        return acts.isEmpty() || acts.contains(act);
+    }
+
+    private static boolean containsQualified(List<String> ids, String wanted) {
+        if (wanted == null) {
+            return false;
+        }
+        String target = DungeonDef.qualify(wanted);
+        for (String id : ids) {
+            if (DungeonDef.qualify(id).equals(target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * One entry of the {@code nodes} field: {@code block} placed at one cell
+     * ({@code at}) or across a box ({@code from} to {@code to}, inclusive), in
+     * the room's unrotated local coordinates (x, y, z from the cell floor corner).
+     * {@code count} is the number of positions of a box that become nodes
+     * ({@link #ALL} for every one); it is ignored for a single position.
+     */
+    record NodeSpec(String block, int[] from, int[] to, int count) {
+
+        /** {@code count} when every position of the box is a node. */
+        static final int ALL = -1;
+
+        NodeSpec {
+            if (block == null || block.isBlank()) {
+                throw new IllegalArgumentException("node block must not be blank");
+            }
+            block = block.indexOf(':') >= 0 ? block.trim() : "minecraft:" + block.trim();
+            if (from == null || to == null || from.length != 3 || to.length != 3) {
+                throw new IllegalArgumentException("node needs a position or a box");
+            }
+            for (int i = 0; i < 3; i++) {
+                if (from[i] > to[i]) {
+                    throw new IllegalArgumentException("node box 'from' must not exceed 'to'");
+                }
+            }
+            if (count != ALL && count < 1) {
+                throw new IllegalArgumentException("node count must be at least 1");
+            }
+            from = from.clone();
+            to = to.clone();
+        }
+
+        int volume() {
+            return (to[0] - from[0] + 1) * (to[1] - from[1] + 1) * (to[2] - from[2] + 1);
+        }
+
+        /**
+         * The local positions that become nodes: the whole box, or {@code count} of
+         * them chosen deterministically from {@code seed} (a seeded shuffle, so the
+         * same room and seed always give the same nodes).
+         */
+        List<int[]> positions(long seed) {
+            List<int[]> all = new ArrayList<>();
+            for (int x = from[0]; x <= to[0]; x++) {
+                for (int y = from[1]; y <= to[1]; y++) {
+                    for (int z = from[2]; z <= to[2]; z++) {
+                        all.add(new int[]{x, y, z});
+                    }
+                }
+            }
+            if (count == ALL || count >= all.size()) {
+                return all;
+            }
+            Collections.shuffle(all, new Random(seed));
+            return new ArrayList<>(all.subList(0, count));
+        }
+    }
+
+    /**
+     * Local coordinates ({@code x}, {@code z}) turned {@code quarterTurns} clockwise
+     * the way {@link TemplateStamper} places a template: {@code (x,z)} stays,
+     * {@code (15-z, x)}, {@code (15-x, 15-z)} or {@code (z, 15-x)}. Pure, so a
+     * test can pin it against the stamper's table.
+     */
+    static int[] rotateLocal(int x, int z, int quarterTurns) {
+        int last = RoomGeometry.CELL - 1;
+        return switch (((quarterTurns % 4) + 4) % 4) {
+            case 1 -> new int[]{last - z, x};
+            case 2 -> new int[]{last - x, last - z};
+            case 3 -> new int[]{z, last - x};
+            default -> new int[]{x, z};
+        };
+    }
+
+    /** The lowest local y a node may sit at: inside the lower story of a two story room. */
+    static final int NODE_MIN_Y = -RoomGeometry.STORY_HEIGHT * (RoomGeometry.MAX_SPAN_Y - 1) + 1;
+
+    /** The highest local y a node may sit at: the top wall row, just under the ceiling. */
+    static final int NODE_MAX_Y = RoomGeometry.WALL_HEIGHT;
+
+    private static List<NodeSpec> parseNodes(JsonElement el, String roomName) {
+        if (el == null || el.isJsonNull()) {
+            return List.of();
+        }
+        if (!el.isJsonArray()) {
+            throw new IllegalArgumentException("room " + roomName + ": nodes must be an array");
+        }
+        List<NodeSpec> out = new ArrayList<>();
+        for (JsonElement entry : el.getAsJsonArray()) {
+            if (!entry.isJsonObject()) {
+                throw new IllegalArgumentException("room " + roomName + ": every node must be an object");
+            }
+            JsonObject node = entry.getAsJsonObject();
+            try {
+                String block = requiredString(node, "block");
+                int[] from;
+                int[] to;
+                if (node.has("at")) {
+                    from = parseVec(node.get("at"), "at");
+                    to = from;
+                } else if (node.has("from") && node.has("to")) {
+                    from = parseVec(node.get("from"), "from");
+                    to = parseVec(node.get("to"), "to");
+                } else {
+                    throw new IllegalArgumentException("node needs \"at\" or both \"from\" and \"to\"");
+                }
+                int count = node.has("count") ? node.get("count").getAsInt() : NodeSpec.ALL;
+                NodeSpec spec = new NodeSpec(block, from, to, count);
+                checkInterior(spec);
+                out.add(spec);
+            } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException e) {
+                throw new IllegalArgumentException("room " + roomName + ": bad node: " + e.getMessage(), e);
+            }
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /** Nodes live in the interior: the shell is unbreakable, so a node there could never be mined. */
+    private static void checkInterior(NodeSpec spec) {
+        int last = RoomGeometry.CELL - 1;
+        if (spec.from[0] < 1 || spec.to[0] > last - 1 || spec.from[2] < 1 || spec.to[2] > last - 1) {
+            throw new IllegalArgumentException("node must lie inside the room (x and z 1 to " + (last - 1)
+                    + "), not in the wall ring");
+        }
+        if (spec.from[1] < NODE_MIN_Y || spec.to[1] > NODE_MAX_Y) {
+            throw new IllegalArgumentException("node y must be " + NODE_MIN_Y + " to " + NODE_MAX_Y);
+        }
+    }
+
+    private static int[] parseVec(JsonElement el, String field) {
+        if (el == null || !el.isJsonArray() || el.getAsJsonArray().size() != 3) {
+            throw new IllegalArgumentException("\"" + field + "\" must be a 3-element array [x,y,z]");
+        }
+        JsonArray arr = el.getAsJsonArray();
+        return new int[]{arr.get(0).getAsInt(), arr.get(1).getAsInt(), arr.get(2).getAsInt()};
+    }
+
+    /** A string field restricted to {@code allowed}; a typo throws with the room named, like {@code access}. */
+    private static String parseChoice(JsonElement el, String roomName, String field, String fallback,
+                                      String... allowed) {
+        String value = stringOrNull(el);
+        if (value == null) {
+            return fallback;
+        }
+        for (String ok : allowed) {
+            if (ok.equals(value)) {
+                return value;
+            }
+        }
+        throw new IllegalArgumentException("room " + roomName + ": " + field + " must be one of "
+                + String.join(", ", allowed) + ", not \"" + value + "\"");
+    }
+
+    private static boolean boolOr(JsonElement el, boolean fallback) {
+        if (el == null || !el.isJsonPrimitive()) {
+            return fallback;
+        }
+        return el.getAsBoolean();
+    }
+
+    private static List<Integer> parseActs(JsonElement el, String roomName) {
+        if (el == null || !el.isJsonArray()) {
+            return List.of();
+        }
+        List<Integer> acts = new ArrayList<>();
+        for (JsonElement e : el.getAsJsonArray()) {
+            int act = e.getAsInt();
+            if (act < DungeonDef.MIN_ACT || act > DungeonDef.MAX_ACT) {
+                throw new IllegalArgumentException("room " + roomName + ": acts must be "
+                        + DungeonDef.MIN_ACT + " to " + DungeonDef.MAX_ACT + ", not " + act);
+            }
+            acts.add(act);
+        }
+        return Collections.unmodifiableList(acts);
     }
 }

@@ -35,6 +35,9 @@ final class Payout {
         if (stack.isEmpty()) {
             return;
         }
+        // PD-146: a reward handed over directly never passed the item-entity
+        // or loot-table caps (a bought iron sword kept its vanilla 250).
+        DungeonTools.capInPlace(stack);
         player.getInventory().add(stack);
         if (!stack.isEmpty()) {
             int leftover = stack.getCount();

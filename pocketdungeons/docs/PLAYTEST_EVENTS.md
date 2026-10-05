@@ -58,14 +58,20 @@ at home before the first door.
 | `bag_chosen` | Class picked | `bag` |
 | `door_preview` | A door preview is stamped | `step`, `level`, `theme`, `affixes` (array) |
 | `door_commit` | A door is committed | `step`, `level`, `theme`, `affixes`, `fuel_spent`, `rooms` (array of room ids on the floor) |
+| `dungeon_chosen` | The first door of a trip is committed: the trip's dungeon is picked (dungeon structure W2) | `dungeon` (id), `act`, `kind` (`story`, `resource`, `capstone`), `entry` (node id), `step` |
+| `edge_taken` | A later door is committed: the party takes an edge of the dungeon graph | `dungeon`, `from` (node id), `to` (node id), `step` (the +1 to +3 dealt to that door, 0 in a resource dungeon), `cost` (echo shards, 0 for a main path edge) |
+| `node_entered` | A committed door opens a floor in a dungeon (written after `dungeon_chosen` or `edge_taken`) | `dungeon`, `node`, `name`, `layer`, `final`, `step`, `path_length` |
 | `room_entered` | First time any member enters a cell on this floor | `room` (room id), `cell` (`"x,z"`) |
 | `omen_rise` | Omen goes up | `source`: `dwell`, `sensor`, `shriek`, `bargain`, `headstart`; `amount`, `total`, `room` |
 | `rescue` | A killing blow is turned into a rescue | `cause` (damage type id), `room` |
-| `floor_complete` | This player is credited with the floor | `seconds`, `omen`, `spawners_cleared`, `spawners_total`, `rescues`, `blocks_placed`, `durability_used`, `chests` |
+| `floor_complete` | This player is credited with the floor | `seconds`, `omen`, `spawners_cleared`, `spawners_total`, `rescues`, `blocks_placed`, `nodes_mined` (resource nodes this player mined on the floor, dungeon structure W4), `nodes_total` (nodes the floor opened with), `durability_used`, `chests` |
+| `dungeon_finished` | The final floor of a dungeon is cleared, one line per member present (dungeon structure W2) | `dungeon`, `node`, `floors` (the trip's path length), `shards` (the finish shard, 0 for a resource dungeon), `vault_chests`, `first` (this player's first finish of it), `diary` (page id handed over, empty for none) |
+| `act_unlocked` | A capstone clear opened an act for a member present (dungeon structure W3); one line per member who gained it | `dungeon` (the capstone), `act` (the act opened, 0 when none), `campaign_complete` (true for an act 5 capstone) |
 | `bank` | Interval settled for this player | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `band`, `levels_gained`, `carry`, `chests`, `depth_bonus`, `key_level` |
-| `kit_refill` | The bag chest was refilled with a fresh full kit on a trip home that banked a floor (2026-10-04); replaces `kit_topup` | `bag`, `kit` and `overwritten` (each `items` and `gear`, as in `inventory_snapshot`) |
-| `kit_topup` | Kit top-up applied (superseded 2026-10-04 by `kit_refill`) | `band`, `granted` (object item id to count), `tools_replaced` (array) |
+| `kit_refill` | Superseded 2026-10-05 (dungeon structure W5, D14): no longer emitted, the refill is gone. Was: the bag chest refilled with a fresh full kit on a trip home | `bag`, `kit` and `overwritten` (each `items` and `gear`, as in `inventory_snapshot`) |
+| `kit_topup` | Kit top-up applied (superseded; no longer emitted) | `band`, `granted` (object item id to count), `tools_replaced` (array) |
 | `inventory_snapshot` | A floor clear, a bank, an exit or a checkpoint exit (playtest 2026-10-03-2) | `trigger`; `pack`, `run_storage`, `ender_chest`, `kept` (each `items`: item id to count, and `gear`: `item`, `left`, `max`, optional `tier`, `enchants`, `kit`); `survival_stashed` (stack count only) |
+| `shop_purchase` | A Store sale (2026-10-04, PD-142) | `item` (item id), `name` (the listing's name), `price`, `currency` (item id), `vendor` (the villager's name) |
 | `quit_floor` | `/dungeon quit` | `penalty` (levels) |
 | `ordeal` | An Ordeal room is resolved (its lever pulled, or its objective met), written for each player in the room | `ordeal` (`rising_lava`, `collapsing_bridge`, `thicket`, `ice_run`, `hold_the_plate`), `seconds` since the room was armed |
 | `salvage` | The Salvage button at the salvage bench pays out | `gear`, `keys`, `ominous_keys`, `mob_gear` (counts taken); `emeralds`, `fuel`, `xp` (paid) |

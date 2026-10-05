@@ -41,7 +41,7 @@ const keepalive = setInterval(async () => {
     llmPlayers.clear()
     return
   }
-  for (const p of llmPlayers) await pd(['lemon', 'mode', p, 'llm'], 15000).catch(() => {})
+  for (const p of llmPlayers) await pd(['lemon', 'mode', p, 'llm', '--quiet'], 15000).catch(() => {})
 }, LLM_REFRESH_MS)
 keepalive.unref() // never the reason this process stays alive
 

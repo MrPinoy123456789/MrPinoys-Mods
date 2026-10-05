@@ -1,15 +1,73 @@
 {
   "kind": "entry",
   "next": [
-    { "theme": "prismarine", "weight": 3 },
-    { "theme": "blackstone", "weight": 2 },
-    { "theme": "infestation", "weight": 2 },
-    { "theme": "rootworks", "weight": 1 },
-    { "theme": "frostworks", "weight": 1 },
-    { "theme": "copper_works", "weight": 1 },
-    { "theme": "ossuary", "weight": 1 },
-    { "theme": "basalt_foundry", "weight": 1 },
-    { "theme": "ender_archive", "weight": 1 },
-    { "theme": "endless_mine", "weight": 1 }
+    {
+      "theme": "prismarine",
+      "weight": 3
+    },
+    {
+      "theme": "blackstone",
+      "weight": 2
+    },
+    {
+      "theme": "infestation",
+      "weight": 2
+    },
+    {
+      "theme": "rootworks",
+      "weight": 1
+    },
+    {
+      "theme": "frostworks",
+      "weight": 1
+    },
+    {
+      "theme": "copper_works",
+      "weight": 1
+    },
+    {
+      "theme": "ossuary",
+      "weight": 1
+    },
+    {
+      "theme": "basalt_foundry",
+      "weight": 1
+    },
+    {
+      "theme": "ender_archive",
+      "weight": 1
+    },
+    {
+      "theme": "endless_mine",
+      "weight": 1
+    },
+    {
+      "theme": "mineshaft",
+      "weight": 1
+    },
+    {
+      "theme": "cow_pits",
+      "weight": 1
+    },
+    {
+      "theme": "spawner_dungeon",
+      "weight": 1
+    },
+    {
+      "theme": "ancient_city",
+      "weight": 1
+    },
+    {
+      "theme": "wither_keep",
+      "weight": 1
+    },
+    {
+      "theme": "the_end",
+      "weight": 1
+    },
+    {
+      "theme": "herobrine",
+      "weight": 1
+    }
   ]
 }

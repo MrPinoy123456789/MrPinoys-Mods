@@ -147,6 +147,9 @@ final class TrialContent {
         TraversalSpecs.registerHandlers();
         Ordeals.register();
         SituationSpecs.registerHandlers();
+        ResourceBiomeSpecs.registerHandlers();
+        CowPits.register();
+        CapstoneSpecs.registerHandlers();
     }
 
     // ---- encounter ----------------------------------------------------------
@@ -768,7 +771,7 @@ final class TrialContent {
             // Remaining chests (non-vault containers) become supply chests.
             for (BlockPos pos : RoomContent.containers(level, cellOrigin)) {
                 if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                    c.setLootTable(lootTable(LootTables.supplyTable(tier)));
+                    c.setLootTable(resolveLootTable(level, LootTables.supplyTable(tier), lootSuffix));
                     c.setLootTableSeed(seed ^ pos.asLong());
                 }
             }
@@ -807,7 +810,7 @@ final class TrialContent {
         for (int i = 1; i < containers.size(); i++) {
             BlockPos pos = containers.get(i);
             if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                c.setLootTable(lootTable(LootTables.supplyTable(tier)));
+                c.setLootTable(resolveLootTable(level, LootTables.supplyTable(tier), lootSuffix));
                 c.setLootTableSeed(seed ^ pos.asLong());
             }
         }
@@ -882,6 +885,62 @@ final class TrialContent {
                 placeLootChest(level, above, facing, table, seed);
             }
         }
+    }
+
+    /**
+     * Dungeon structure W2: the themed vault of a finished dungeon (design D11): up
+     * to {@code chests} extra loot chests at {@code tier}, standing beside the
+     * floor's completion chests. They go on top of the completion chests from the far
+     * end of the row (the depth bonus stacks from the near end), and a spot already
+     * taken falls back to the block in front of the chest. Only onto air, so a
+     * terminal room that built something over a spot keeps it.
+     *
+     * @return how many chests were placed
+     */
+    static int placeVaultChests(ServerLevel level, BlockPos origin, DoorMask.Direction entranceDir,
+                                int chests, int tier, boolean ominous, long seed, String lootSuffix,
+                                String lootTableOverride) {
+        if (chests <= 0) {
+            return 0;
+        }
+        ResourceKey<LootTable> table = resolveLootTable(level,
+                LootTables.tierTable(tier, ominous), lootSuffix, lootTableOverride);
+        BlockPos[] spots = completionSpots(entranceDir);
+        Direction facing = completionFacing(entranceDir);
+        int placed = 0;
+        for (int i = spots.length - 1; i >= 0 && placed < chests; i--) {
+            BlockPos base = origin.offset(spots[i]);
+            for (BlockPos candidate : new BlockPos[]{base.above(), base.relative(facing)}) {
+                if (placed < chests && level.getBlockState(candidate).isAir()) {
+                    placeLootChest(level, candidate, facing, table, seed ^ 0x7A17L);
+                    placed++;
+                    break;
+                }
+            }
+        }
+        return placed;
+    }
+
+    private static BlockPos[] completionSpots(DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
+            case NORTH -> new BlockPos[]{new BlockPos(4, 1, 12), new BlockPos(8, 1, 12),
+                    new BlockPos(12, 1, 12)};
+            case SOUTH -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(8, 1, 4),
+                    new BlockPos(12, 1, 4)};
+            case WEST -> new BlockPos[]{new BlockPos(12, 1, 4), new BlockPos(12, 1, 8),
+                    new BlockPos(12, 1, 12)};
+            case EAST -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(4, 1, 8),
+                    new BlockPos(4, 1, 12)};
+        };
+    }
+
+    private static Direction completionFacing(DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
+            case NORTH -> Direction.NORTH;
+            case SOUTH -> Direction.SOUTH;
+            case WEST -> Direction.WEST;
+            case EAST -> Direction.EAST;
+        };
     }
 
     private static void placeLootChest(ServerLevel level, BlockPos pos, Direction facing,

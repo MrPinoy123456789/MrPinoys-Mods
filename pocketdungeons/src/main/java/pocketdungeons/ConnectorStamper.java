@@ -65,6 +65,23 @@ final class ConnectorStamper {
     }
 
     /**
+     * The connector an edge actually gets. PD-144: a gated room stands its own
+     * iron door set one block inside its doorway, so a rolled IRON_DOOR on an
+     * edge that touches one stacked a second set (one open, one shut). That
+     * edge keeps the plain doorway.
+     */
+    static ConnectorType effectiveType(ConnectorType rolled, RoomManifest.Entry a, RoomManifest.Entry b) {
+        if (rolled == ConnectorType.IRON_DOOR && (isGated(a) || isGated(b))) {
+            return ConnectorType.DOOR_WIDE;
+        }
+        return rolled;
+    }
+
+    private static boolean isGated(RoomManifest.Entry entry) {
+        return entry != null && DungeonRoomMeta.ACCESS_GATED.equals(entry.meta.access);
+    }
+
+    /**
      * Applies {@code type} to one cell's side of a door edge. {@code fillNearColumn}
      * decides which door-slot column {@link ConnectorType#DOOR_SINGLE} keeps
      * solid; the caller rolls it once per edge and passes the same value to

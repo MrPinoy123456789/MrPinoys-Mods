@@ -1,0 +1,89 @@
+{
+  "template": "pocketdungeons:rooms/lush_clay_pool",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "theme": [
+    "rootworks"
+  ],
+  "light": "dim",
+  "biome": "lush_cave",
+  "dungeons": [
+    "rootworks"
+  ],
+  "acts": [
+    1
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:clay",
+      "from": [
+        5,
+        1,
+        5
+      ],
+      "to": [
+        6,
+        1,
+        6
+      ]
+    },
+    {
+      "block": "minecraft:clay",
+      "from": [
+        9,
+        1,
+        9
+      ],
+      "to": [
+        10,
+        1,
+        10
+      ]
+    },
+    {
+      "block": "minecraft:copper_ore",
+      "at": [
+        2,
+        1,
+        13
+      ]
+    },
+    {
+      "block": "minecraft:iron_ore",
+      "at": [
+        13,
+        1,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:azalea",
+      "from": [
+        11,
+        1,
+        5
+      ],
+      "to": [
+        12,
+        1,
+        5
+      ],
+      "count": 1
+    }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

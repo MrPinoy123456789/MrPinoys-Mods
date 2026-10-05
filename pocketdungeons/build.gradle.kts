@@ -295,6 +295,24 @@ for ((taskName, testClass) in mapOf(
     "dungeonThemeMetaTest" to "DungeonThemeMetaTest",
     "keystoneOfferTest" to "KeystoneOfferTest",
     "adventureGraphTest" to "AdventureGraphTest",
+    // Dungeon structure W1: the dungeon data type, its graph rules and the shipped dungeon files.
+    "dungeonDefTest" to "DungeonDefTest",
+    // Dungeon structure W2: the door deal (seeded steps, spare doors, resource zero, side costs) and the staging map text.
+    "tripDoorsTest" to "TripDoorsTest",
+    // Dungeon structure W3: act unlocks and migration, loot band clamp, party decide whitelist.
+    "actUnlockTest" to "ActUnlockTest",
+    // Dungeon structure W4: resource nodes, the break rule, the darkness pass and the chest table changes.
+    "resourceNodeTest" to "ResourceNodeTest",
+    // Dungeon structure W5: five kits with hidden bags, the side branch payer, structural palette blocks and room eligibility.
+    "kitHiddenBagTest" to "KitHiddenBagTest",
+    "sideBranchPayTest" to "SideBranchPayTest",
+    "nodePaletteTest" to "NodePaletteTest",
+    "roomEligibilityTest" to "RoomEligibilityTest",
+    // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
+    "capstoneRulesTest" to "CapstoneRulesTest",
+    // Dungeon structure W7b: the Wither's health and containment rules, Herobrine's phases and rescue trigger,
+    // the capstone start omen, and the shipped W7b rooms, legacy theme lists and diary pages.
+    "bossRulesTest" to "BossRulesTest",
     "dungeonLogTest" to "DungeonLogTest",
     "stationTutorialTest" to "StationTutorialTest",
     // Playtest 2026-10-03 (A5): the first-visit tour.
@@ -340,6 +358,8 @@ for ((taskName, testClass) in mapOf(
     "runMementoTest" to "RunMementoTest",
     // M78: Endless Mine ruleset (pure policy helpers).
     "endlessMineRulesTest" to "EndlessMineRulesTest",
+    // Dungeon structure W6: Cow Pits finite rule (cap, wheat lock, filtered loot).
+    "cowPitsTest" to "CowPitsTest",
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
     "zoneRulesTest" to "ZoneRulesTest",
@@ -368,6 +388,15 @@ tasks.test {
     dependsOn("dungeonThemeMetaTest")
     dependsOn("keystoneOfferTest")
     dependsOn("adventureGraphTest")
+    dependsOn("dungeonDefTest")
+    dependsOn("tripDoorsTest")
+    dependsOn("actUnlockTest")
+    dependsOn("resourceNodeTest")
+    dependsOn("kitHiddenBagTest")
+    dependsOn("sideBranchPayTest")
+    dependsOn("nodePaletteTest")
+    dependsOn("roomEligibilityTest")
+    dependsOn("bossRulesTest")
     dependsOn("dungeonLogTest")
     dependsOn("stationTutorialTest")
     dependsOn("firstVisitTutorialTest")
@@ -420,6 +449,8 @@ tasks.test {
     dependsOn("jarFileSystemWalkTest")
     dependsOn("runMementoTest")
     dependsOn("endlessMineRulesTest")
+    dependsOn("capstoneRulesTest")
+    dependsOn("cowPitsTest")
     dependsOn("configSaveTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")

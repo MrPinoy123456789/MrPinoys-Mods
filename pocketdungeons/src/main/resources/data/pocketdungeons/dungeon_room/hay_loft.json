@@ -1,0 +1,30 @@
+{
+  "template": "pocketdungeons:rooms/hay_loft",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": [
+    "cow_pits"
+  ],
+  "content": "hay_loft",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim",
+  "biome": "cow_pits",
+  "dungeons": [
+    "cow_pits"
+  ],
+  "acts": [
+    2
+  ]
+}

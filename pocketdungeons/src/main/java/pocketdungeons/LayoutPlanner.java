@@ -152,6 +152,21 @@ final class LayoutPlanner {
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme,
+                requiredEntranceDirection, bagTags, recipePlan, maxEncounters, null);
+    }
+
+    /**
+     * Dungeon structure W5: as above, with the floor's dungeon context so room selection reads
+     * the room metadata ({@link RoomEligibility}); {@code null} is the legacy theme-only filter.
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
+                        Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters,
+                        RoomEligibility.Floor floor) {
         String lastReason = "no attempts were made";
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
@@ -193,7 +208,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan, floor);
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()

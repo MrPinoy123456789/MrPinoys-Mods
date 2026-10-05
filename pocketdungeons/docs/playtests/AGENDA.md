@@ -41,6 +41,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   same reason (no real decision), or never feel pulled either way. Then the
   depth bonus or head start numbers need tuning.
 - **Status:** partial
+- **2026-10-04-1.md:** two banks (after 3 floors each), the second when the pack was at 0 free slots. The gain was not understood: "Did my keystone upgrade ... like it was supposed to?" then "I thought I was going to get more levels since I did multiple echo shard / more challenging floors" (medium). Full pack and the keystone result, not the omen, were the pull home.
 - **Evidence:** 2026-09-27-1.md: "I don't know what home offers so I never want to go"; went home for a full inventory and chest storage, always after floor 2, never reached the floor 3 head start (high on the current state: the payoff is invisible, not mistuned).
 - **Changed 2026-09-27:** the go-home screen lists what home pays (reward chests, key progress, kit refill) and the floor-end line names what each lever pays. Retest: does the go-home point move, and is the reason ever the omen or depth?
 - **2026-09-27-3.md:** moved from floor 2 to floor 3, at the green "TIME TO GO HOME" screen, but the player asked why it was time and what descending would do: a traffic light, not a weighed gamble. Descended again one minute after going home (medium).
@@ -58,6 +59,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   outside the loop to avoid it. Compare with blocks and durability spent per
   floor and the kit top-ups in the digest.
 - **Status:** partial
+- **2026-10-04-1.md:** food never ran short (13 to 63); the pack hit 0 free slots at the second door. He discards gear at almost no durability ("scrap for nothing"), surplus string and sticks. Clutter is the cost now, not scarcity (medium).
 - **Evidence:** 2026-09-27-1.md: wood is the bottleneck (about 4% oak log per tier 1 chest); ingots and diamonds unused for lack of sticks; early loot reads as useless; mob-dropped tools keep full durability (PD-69) (high).
 - **Changed 2026-09-27:** wood early, fewer bones and emeralds, trims later game, more and shorter-lived weapons and armour (owner decisions 2026-09-27 in `AUDIT_2026-09.md`). Retest over three runs.
 - **2026-09-27-3.md:** no wood complaint this session; proposed the Grove as a small capped wood source (its logs are all unbreakable wall). Only one interval played, so the three-run retest is still open (low).
@@ -76,6 +78,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   notice it and connect it to how the stretch went.
 - **Would change our mind:** players do not notice it, or think it is random.
 - **Status:** partial
+- **2026-10-04-1.md:** the kit chest refilled on both banks and replaced leftovers. "The kit is good for what it is" but he is thinking of dropping refills: 4 or 5 starting kits, nothing topped up (high; an owner decision, not a player confusion).
 - **Evidence:** 2026-09-27-1.md: not noticed until asked right after a go-home; the one restock seen was a spyglass the player called useless, delivered invisibly to the kept dungeon inventory (medium).
 - **Changed 2026-09-27:** the restock line says where the items went and flashes on the action bar. Retest: noticed unprompted?
 - **2026-09-27-3.md:** noticed unprompted, but as absent: "I don't think my bag refilled" after a top-up of 6 arrows and a spyglass. "Kit refilled" on the screen implies a full refill (medium).
@@ -101,6 +104,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** players always pick the same door, or cannot say
   why they picked one.
 - **Status:** partial
+- **2026-10-04-1.md:** "I like that I have to gamble my success on the run for more reward" (positive), but themes jump each floor and "the floors in a set seem kind of disconnected". Proposes a dungeon with one entry floor, then an acyclic graph of choice-gated floors (high).
 - **Evidence:** 2026-09-27-3.md: the free door on all four descents, committed 1 to 8 seconds after the preview; reason not asked yet (low). 2026-09-29-1.md: the free door again, committed 18 s after preview on a check-in run that was quit at once; reason still unasked (very low).
 - **2026-09-29-1.md:** asked directly: "I would take deeper doors, but my keystone level is too low I think so they're unavailable." Door 3 needs level 15 while he sat at keystone 1-3; the free door is forced, not chosen. His suggestions: hide unavailable doors so a newly unlocked door is itself the signal; put door 2 at level 7 or 8 (high).
 - **2026-09-29-2.md:** gating verified in game: at keystone ~4-5 the selector showed exactly one door ("it correctly showed 1"). He reached key 5 by session end, still under the door 2 gate of 7; no real door choice observed yet (medium).
@@ -116,6 +120,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** no clear pull (no goal they are chasing), or the
   pull is outside the mod entirely.
 - **Status:** partial
+- **2026-10-04-1.md:** pull is the risk gamble per run, plus resource dungeons: a Mineshaft or Cow Pits he would revisit "even if it doesn't reward keystone levels so that they can stockpile iron" (high).
 - **Evidence:** 2026-09-27-1.md: the imagined pull is a stocked home and feeling "kitted out" (tree farm, many chests) (low).
 - **2026-09-30-2.md:** the strongest pull remains economy and progression utility: salvage, merchant rooms, emerald sinks, workstation limits, and Lemon-granted generation perks were all proposed as reasons to keep collecting (medium).
 - **2026-10-02-2.md:** the pull he described is narrative: a campaign with a boss floor (Herobrine or Steve nearly kills the player, Alex rescues them, he escapes), after which the other modes become the search for him. Plus a vertical endless mode (endless mines as the inverse of regular floors, more Ordeals). Strongest A7 evidence so far (high).
@@ -126,6 +131,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** consistent low points in the same room types, zones
   or phases (the digest's per-floor seconds and check-ins point at them).
 - **Status:** partial
+- **2026-10-04-1.md:** floor 1 was the slowest floor twice (828 s and 731 s with 2 spawners) while later floors took 218 to 526 s. He also felt the story "progressing very quickly" through four themes in about 2 hours (medium).
 - **Evidence:** 2026-09-27-1.md: "doesn't feel like it's getting too risky"; only the pillager floor spiked; floor 2 took 4 to 6.5 min (low).
 - **2026-09-30-2.md:** good spikes came from surprise slimes, dungeon-wide endermen, darkness that made the player pause before moving, and varied ominous enemies and rooms. The level 7 ominous floors still did not feel much harder than the prior level (medium).
 - **2026-10-01-1.md:** basalt_foundry's identity produced the spike this time: fire damage was heavy enough to rescue twice and the player framed preparation as part of the theme. That is good pressure, but it ended in a run failure before any floor completed (medium).

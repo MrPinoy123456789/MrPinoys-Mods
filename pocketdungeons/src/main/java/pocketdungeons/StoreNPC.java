@@ -155,6 +155,9 @@ final class StoreNPC {
         villager.addTag(STORE_TAG);
         villager.setPersistenceRequired();
         villager.setInvulnerable(true);
+        // PD-141: a free villager wandered into the next room. The shopkeeper
+        // stands where it spawns and still turns to face a customer.
+        villager.setNoAi(true);
         MerchantThemes.Merchant merchant = MerchantThemes.forTheme(theme);
         villager.setCustomName(Component.literal(merchant.title()));
         villager.setCustomNameVisible(true);
@@ -182,6 +185,13 @@ final class StoreNPC {
         List<Integer> lines = new ArrayList<>();
 
         MerchantGui gui = new MerchantGui(player, false) {
+            /**
+             * PD-142: the vanilla way. The trading screen only offers the result
+             * when the inputs already match the offer, so the payment is the
+             * screen's to take and the item is the player's to pick up from the
+             * output slot. This only claims the stock and cleans the item of the
+             * listing's name and lore.
+             */
             @Override
             public boolean onTrade(MerchantOffer offer) {
                 int offerIndex = getOfferIndex(offer);
@@ -189,15 +199,15 @@ final class StoreNPC {
                     return false;
                 }
                 int line = lines.get(offerIndex);
-                Sale sale = sell(player, villager, line, this.merchantInventory);
+                Sale sale = claim(player, villager, line);
                 List<ShopEntry> after = loadInventory(villager);
                 ShopEntry now = line < after.size() ? after.get(line) : null;
                 switch (sale) {
                     case BOUGHT -> {
-                        player.sendSystemMessage(Component.literal("Bought " + now.itemName + ".")
-                                .withStyle(ChatFormatting.AQUA));
+                        cleanResult(this.merchantInventory.getItem(2));
                         merchant.getOffers().set(offerIndex, offerFor(now));
                         sendUpdate();
+                        return true;
                     }
                     case SOLD_OUT -> {
                         player.sendSystemMessage(Component.literal("Sold out.").withStyle(ChatFormatting.YELLOW));
@@ -206,10 +216,9 @@ final class StoreNPC {
                             sendUpdate();
                         }
                     }
-                    case SHORT -> player.sendSystemMessage(Component.literal("You need " + now.price + " "
-                            + now.currency.name() + ".").withStyle(ChatFormatting.YELLOW));
                     case GONE -> player.sendSystemMessage(Component.literal("That is no longer for sale.")
                             .withStyle(ChatFormatting.YELLOW));
+                    case SHORT -> { }
                 }
                 return false;
             }
@@ -301,7 +310,41 @@ final class StoreNPC {
         Payout.deliver(player, current.stack());
         current.stock--;
         saveInventory(villager, inventory);
+        PlaytestJournal.shopPurchase(player, current.item, current.itemName, current.price,
+                current.currency.item(), villager.getName().getString());
         return Sale.BOUGHT;
+    }
+
+    /**
+     * Claims one of line {@code line} for a trade the trading screen has already
+     * matched against the offer's price: the stock must still be there, and is
+     * saved one lower. The purchase is journaled. Package private for the game
+     * test.
+     */
+    static Sale claim(ServerPlayer player, Villager villager, int line) {
+        List<ShopEntry> inventory = loadInventory(villager);
+        if (line < 0 || line >= inventory.size()) {
+            return Sale.GONE;
+        }
+        ShopEntry current = inventory.get(line);
+        if (current.stock <= 0) {
+            return Sale.SOLD_OUT;
+        }
+        current.stock--;
+        saveInventory(villager, inventory);
+        PlaytestJournal.shopPurchase(player, current.item, current.itemName, current.price,
+                current.currency.item(), villager.getName().getString());
+        return Sale.BOUGHT;
+    }
+
+    /**
+     * Strips what the listing put on the result (a display name and the stock and
+     * price lore) so the player picks up the plain item, as in vanilla. Applied
+     * to the output slot's own stack, which is the one the take hands over.
+     */
+    static void cleanResult(ItemStack stack) {
+        stack.remove(DataComponents.CUSTOM_NAME);
+        stack.remove(DataComponents.LORE);
     }
 
     // ---- inventory persistence on the villager entity ----

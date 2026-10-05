@@ -10,5 +10,6 @@
   "provides": [],
   "requires": [],
   "access": "gated",
-  "window": "bars"
+  "window": "bars",
+  "nodes": [{"block": "minecraft:white_wool", "at": [2, 1, 2]}, {"block": "minecraft:white_wool", "at": [13, 1, 13]}]
 }

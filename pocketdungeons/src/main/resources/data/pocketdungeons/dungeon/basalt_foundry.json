@@ -1,0 +1,126 @@
+{
+  "name": "Basalt Foundry",
+  "act": 4,
+  "kind": "story",
+  "mainTheme": "basalt_foundry",
+  "lootBand": {
+    "min": 3,
+    "max": 4
+  },
+  "nodePalette": [
+    "nether_gold_ore",
+    "nether_quartz_ore",
+    "ancient_debris",
+    "warped_stem",
+    "crimson_stem",
+    "warped_wart_block",
+    "nether_wart_block"
+  ],
+  "diary": "entry_20",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "blackstone",
+      "prismarine"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "ashen_gate",
+      "name": "Ashen Gate",
+      "layer": 1
+    },
+    {
+      "id": "slag_channels",
+      "name": "Slag Channels",
+      "layer": 2,
+      "roomBias": [
+        "rising_lava"
+      ]
+    },
+    {
+      "id": "cinder_ramps",
+      "name": "Cinder Ramps",
+      "layer": 2,
+      "roomBias": [
+        "blaze_loft"
+      ]
+    },
+    {
+      "id": "crucible_row",
+      "name": "Crucible Row",
+      "layer": 3,
+      "roomBias": [
+        "basalt_foundry_crucible"
+      ]
+    },
+    {
+      "id": "gilded_annex",
+      "name": "Gilded Annex",
+      "layer": 3,
+      "theme": "blackstone"
+    },
+    {
+      "id": "great_crucible",
+      "name": "The Great Crucible",
+      "layer": 4,
+      "final": true
+    },
+    {
+      "id": "warped_grove",
+      "name": "The Warped Grove",
+      "layer": 3,
+      "roomBias": [
+        "warped_forest",
+        "crimson_forest"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "ashen_gate",
+      "to": "slag_channels"
+    },
+    {
+      "from": "ashen_gate",
+      "to": "cinder_ramps"
+    },
+    {
+      "from": "slag_channels",
+      "to": "crucible_row"
+    },
+    {
+      "from": "cinder_ramps",
+      "to": "crucible_row"
+    },
+    {
+      "from": "cinder_ramps",
+      "to": "gilded_annex"
+    },
+    {
+      "from": "slag_channels",
+      "to": "gilded_annex",
+      "cost": 1
+    },
+    {
+      "from": "crucible_row",
+      "to": "great_crucible"
+    },
+    {
+      "from": "gilded_annex",
+      "to": "great_crucible"
+    },
+    {
+      "from": "cinder_ramps",
+      "to": "warped_grove"
+    },
+    {
+      "from": "slag_channels",
+      "to": "warped_grove"
+    },
+    {
+      "from": "warped_grove",
+      "to": "great_crucible"
+    }
+  ]
+}

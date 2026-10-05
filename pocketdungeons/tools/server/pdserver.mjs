@@ -143,6 +143,14 @@ const announceTarget = action => console.log(`Remote: ${action} panel server ${r
 /** Runs one console command and resolves with its reply, on whichever server is configured. */
 const run = (command, timeoutMs) => (panel ? remoteCommand(command, timeoutMs) : rcon(command, timeoutMs))
 
+/**
+ * Sends one console command and does not wait for its reply. Remotely a reply costs a
+ * marker command after it, which the server logs as "Unknown or incomplete command"
+ * (PD-148), so anything repeated that nobody reads (the llm keepalive, a chat line) goes
+ * through here instead.
+ */
+const fire = command => (panel ? panel.command(command) : rcon(command, 5000))
+
 // A logged line's prefix: time, thread and level, then Fabric's "(logger)" (vanilla has ": " instead).
 const LOG_PREFIX = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\](?: \(([^)]+)\))?:? /
 
@@ -405,7 +413,7 @@ async function say() {
   const [target, ...words] = rest
   if (!target || !words.length) throw new Error('usage: say <player|@a> <text...>')
   const text = words.join(' ')
-  await run(`tellraw ${target} [{"text":"[Interviewer] ","color":"light_purple"},{"text":${JSON.stringify(text)},"color":"white"}]`)
+  await fire(`tellraw ${target} [{"text":"[Interviewer] ","color":"light_purple"},{"text":${JSON.stringify(text)},"color":"white"}]`)
   console.log(`said to ${target}: ${text}`)
 }
 
@@ -509,6 +517,7 @@ async function context() {
 }
 
 async function lemon() {
+  const quiet = flag('--quiet')
   const [action, player, ...words] = rest
   const text = words.join(' ')
   let command
@@ -517,6 +526,11 @@ async function lemon() {
   else if (action === 'quiet' && player) command = `dungeon lemon quiet ${player}`
   else if (action === 'mode' && player && (text === 'guide' || text === 'llm')) command = `dungeon lemon mode ${player} ${text}`
   else throw new Error('usage: lemon say|ask|reply <player> <text...> | lemon think <player> [text...] | lemon quiet <player> | lemon mode <player> <guide|llm>')
+  if (quiet) {
+    await fire(command)
+    console.log('sent')
+    return
+  }
   console.log((await run(command)) || '(no output)')
 }
 

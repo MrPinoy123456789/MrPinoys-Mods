@@ -42,7 +42,7 @@ final class FirstVisitTutorial {
             List<String> lines() {
                 return List.of(
                         "Good pick. That chest held your bag, and your kit is in your pack now. Have a look through it.",
-                        "Come home safe and the bag chest is filled with a fresh kit, so you never start a run with an empty pack.");
+                        "The kit is yours once and nothing refills it, so look after it. Resource dungeons are where you restock.");
             }
         },
         DOOR_WALL("door_wall", Trigger.BAG_CHOSEN) {
@@ -62,16 +62,16 @@ final class FirstVisitTutorial {
         },
         SET_OF_THREE("set_of_three", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
-                int floors = PocketDungeonsConfig.floorsPerSafeVisit();
-                return List.of("Floors come in a set of " + floors + ". Clear " + floors
-                        + " and going home is the sensible thing: it banks your key progress and refills your kit. "
-                        + "Go deeper and the omen starts higher.");
+                return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid an echo shard "
+                        + "and a vault. Go home sooner and you keep your key progress and the chests, but not the shard.",
+                        "Right-click the floor history board in the Doors to read the dungeon map: where you are, "
+                        + "the final floor, and which branches cost echo shards.");
             }
         },
         WAY_HOME("way_home", Trigger.HOME_ARRIVAL) {
             List<String> lines() {
                 return List.of("This is home. The lever at the end of a floor is the way here: it banks your key progress "
-                        + "and brings you back to your own room, a fresh kit in the bag chest.",
+                        + "and brings you back to your own room.",
                         "Build in here as you like. Everything you place is kept.");
             }
         };

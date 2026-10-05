@@ -252,6 +252,9 @@ final class RoomTemplateGenerator {
         specs.addAll(SpurSpecs.list());
         specs.addAll(StagingSpecs.list());
         specs.addAll(SituationSpecs.list());
+        specs.addAll(ResourceBiomeSpecs.list());
+        specs.addAll(CapstoneSpecs.list());
+        specs.addAll(NetherEndSpecs.list());
         return specs;
     }
 
@@ -611,6 +614,23 @@ final class RoomTemplateGenerator {
             }
         }
         placeHistoryPanel(level, o, RoomGeometry.leftOf(wall));
+    }
+
+    /**
+     * Whether {@code pos} is a block of the floor history board's panel in the
+     * staging room at {@code o} whose selector doors face {@code selectorWall}.
+     * Right-clicking it opens the dungeon map (dungeon structure W2).
+     */
+    static boolean isHistoryPanel(BlockPos o, DoorMask.Direction selectorWall, BlockPos pos) {
+        DoorMask.Direction historyWall = RoomGeometry.leftOf(selectorWall);
+        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
+            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
+                if (wallRingPos(o, historyWall, along, y).equals(pos)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** The floor history board's panel; its rows cover every block the old engine bay used. */

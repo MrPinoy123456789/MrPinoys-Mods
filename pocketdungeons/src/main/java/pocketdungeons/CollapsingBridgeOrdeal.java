@@ -51,6 +51,12 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
 
     static final CollapsingBridgeOrdeal INSTANCE = new CollapsingBridgeOrdeal();
 
+    /**
+     * PD-147: crimson, not oak. The bridge hangs over a lava floor, and lava
+     * lights oak; the first party through found it burnt through.
+     */
+    private static final BlockState PLANK = Blocks.CRIMSON_PLANKS.defaultBlockState();
+
     private static final int STAMP_FLAGS = net.minecraft.world.level.block.Block.UPDATE_CLIENTS
             | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS;
 
@@ -136,6 +142,12 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
             return null;
         }
         for (Segment seg : segments) {
+            // PD-147: an unpowered extended piston retracts on the next
+            // neighbour update (lava, a placed block), pulling its plank, so the
+            // bridge arrived part collapsed. A redstone block under each base
+            // keeps it extended; the collapse is code, not the piston.
+            level.setBlock(seg.pistonA().below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), STAMP_FLAGS);
+            level.setBlock(seg.pistonB().below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), STAMP_FLAGS);
             reextend(level, seg);
         }
         return new Bridge(List.copyOf(segments), Ordeals.findLever(level, cellOrigin));
@@ -251,8 +263,8 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
         level.setBlock(seg.headB(), Blocks.AIR.defaultBlockState(), STAMP_FLAGS);
         level.setBlock(seg.plankA(), Blocks.AIR.defaultBlockState(), STAMP_FLAGS);
         level.setBlock(seg.plankB(), Blocks.AIR.defaultBlockState(), STAMP_FLAGS);
-        level.setBlock(seg.headA(), Blocks.OAK_PLANKS.defaultBlockState(), STAMP_FLAGS);
-        level.setBlock(seg.headB(), Blocks.OAK_PLANKS.defaultBlockState(), STAMP_FLAGS);
+        level.setBlock(seg.headA(), PLANK, STAMP_FLAGS);
+        level.setBlock(seg.headB(), PLANK, STAMP_FLAGS);
         level.playSound(null, seg.plankA(), SoundEvents.PISTON_CONTRACT,
                 SoundSource.BLOCKS, 0.5f, 0.5f);
     }
@@ -268,8 +280,8 @@ final class CollapsingBridgeOrdeal extends Ordeal<CollapsingBridgeOrdeal.Bridge>
         level.setBlock(seg.headB(), Blocks.PISTON_HEAD.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, facingB)
                 .setValue(PistonHeadBlock.TYPE, PistonType.STICKY), STAMP_FLAGS);
-        level.setBlock(seg.plankA(), Blocks.OAK_PLANKS.defaultBlockState(), STAMP_FLAGS);
-        level.setBlock(seg.plankB(), Blocks.OAK_PLANKS.defaultBlockState(), STAMP_FLAGS);
+        level.setBlock(seg.plankA(), PLANK, STAMP_FLAGS);
+        level.setBlock(seg.plankB(), PLANK, STAMP_FLAGS);
         setPistonExtended(level, seg.pistonA(), true);
         setPistonExtended(level, seg.pistonB(), true);
         level.playSound(null, seg.plankA(), SoundEvents.PISTON_EXTEND,

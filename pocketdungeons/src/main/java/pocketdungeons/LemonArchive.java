@@ -94,7 +94,7 @@ final class LemonArchive {
         String tip = TIPS[(count - 1) % TIPS.length];
         String line = "Thank you. I will keep this safe. " + tip + " (" + count + "/" + total + " in my archive.)";
         if (count >= total) {
-            line += " That is all of them. I will put an extra echo shard aside for you each time you bank a full interval.";
+            line += " That is all of them. I will put an extra echo shard aside for you each time you finish a dungeon.";
         }
         Lemon.say(player, line);
         PlaytestJournal.diaryHanded(player, band, count);

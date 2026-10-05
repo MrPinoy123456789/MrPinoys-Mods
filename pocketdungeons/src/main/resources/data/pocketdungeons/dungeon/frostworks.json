@@ -1,0 +1,137 @@
+{
+  "name": "Frostworks",
+  "act": 2,
+  "kind": "story",
+  "mainTheme": "frostworks",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "iron_ore",
+    "deepslate_iron_ore",
+    "lapis_ore",
+    "diamond_ore"
+  ],
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "deepslate",
+      "copper_works"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "frozen_gate",
+      "name": "Frozen Gate",
+      "layer": 1
+    },
+    {
+      "id": "ice_kitchens",
+      "name": "Ice Kitchens",
+      "layer": 2
+    },
+    {
+      "id": "glaze_furnaces",
+      "name": "Glaze Furnaces",
+      "layer": 2,
+      "signatureAffix": "molten",
+      "roomBias": [
+        "frostworks_glaze"
+      ]
+    },
+    {
+      "id": "stray_barracks",
+      "name": "Stray Barracks",
+      "layer": 3,
+      "theme": "deepslate"
+    },
+    {
+      "id": "powder_snow_fields",
+      "name": "Powder Snow Fields",
+      "layer": 3,
+      "roomBias": [
+        "powder_snow_field"
+      ]
+    },
+    {
+      "id": "glaze_vault",
+      "name": "Glaze Vault",
+      "layer": 3,
+      "roomBias": [
+        "barred_vault"
+      ]
+    },
+    {
+      "id": "cold_storage",
+      "name": "Cold Storage",
+      "layer": 4
+    },
+    {
+      "id": "ice_run",
+      "name": "Ice Run",
+      "layer": 4,
+      "roomBias": [
+        "ice_run"
+      ]
+    },
+    {
+      "id": "big_freeze",
+      "name": "The Big Freeze",
+      "layer": 5,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "frozen_gate",
+      "to": "ice_kitchens"
+    },
+    {
+      "from": "frozen_gate",
+      "to": "glaze_furnaces"
+    },
+    {
+      "from": "ice_kitchens",
+      "to": "stray_barracks"
+    },
+    {
+      "from": "ice_kitchens",
+      "to": "powder_snow_fields"
+    },
+    {
+      "from": "glaze_furnaces",
+      "to": "powder_snow_fields"
+    },
+    {
+      "from": "glaze_furnaces",
+      "to": "glaze_vault",
+      "cost": 2
+    },
+    {
+      "from": "stray_barracks",
+      "to": "cold_storage"
+    },
+    {
+      "from": "powder_snow_fields",
+      "to": "cold_storage"
+    },
+    {
+      "from": "powder_snow_fields",
+      "to": "ice_run"
+    },
+    {
+      "from": "glaze_vault",
+      "to": "ice_run"
+    },
+    {
+      "from": "cold_storage",
+      "to": "big_freeze"
+    },
+    {
+      "from": "ice_run",
+      "to": "big_freeze"
+    }
+  ],
+  "diary": "entry_14"
+}

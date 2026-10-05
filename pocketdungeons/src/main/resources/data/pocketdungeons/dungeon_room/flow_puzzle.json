@@ -10,5 +10,6 @@
   "provides": ["blocks", "water"],
   "requires": [],
   "access": "gated",
-  "window": "bars"
+  "window": "bars",
+  "nodes": [{"block": "minecraft:gravel", "from": [8, 1, 10], "to": [9, 1, 10]}]
 }

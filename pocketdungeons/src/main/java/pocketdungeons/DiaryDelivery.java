@@ -71,6 +71,25 @@ final class DiaryDelivery {
         }
     }
 
+    /**
+     * Dungeon structure W2: hands over {@code diary} as a dungeon's first finish page
+     * (design D11), whatever the player's keystone band. Returns whether a book was
+     * handed over: false when the player already holds that entry's band (found by
+     * keystone level, or by an earlier finish), so nobody gets the same book twice.
+     */
+    static boolean deliverEntry(DungeonLog log, ServerPlayer player, Diaries.Entry diary) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        if (diary == null || entry.diaryBandsSeen().contains(diary.band())) {
+            return false;
+        }
+        Payout.deliver(player, book(diary));
+        log.addDiaryBand(player.getUUID(), diary.band());
+        player.sendSystemMessage(Component.literal("A page of Alex's diary waits in the vault: \""
+                + diary.title() + ".\"").withStyle(ChatFormatting.LIGHT_PURPLE));
+        DiaryReading.start(player, diary);
+        return true;
+    }
+
     private static ItemStack book(Diaries.Entry diary) {
         return book(diary, true);
     }

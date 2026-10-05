@@ -1,0 +1,13 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "ender_archive",
+      "weight": 2
+    },
+    {
+      "theme": "herobrine",
+      "weight": 1
+    }
+  ]
+}

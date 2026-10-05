@@ -1,0 +1,78 @@
+{
+  "name": "Mineshaft",
+  "act": 1,
+  "kind": "resource",
+  "mainTheme": "mineshaft",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore",
+    "copper_ore",
+    "iron_ore",
+    "gold_ore",
+    "deepslate_coal_ore",
+    "deepslate_copper_ore",
+    "deepslate_iron_ore",
+    "deepslate_gold_ore"
+  ],
+  "diary": "entry_8",
+  "nodes": [
+    {
+      "id": "mine_mouth",
+      "name": "Mine Mouth",
+      "layer": 1,
+      "light": "dim"
+    },
+    {
+      "id": "main_drift",
+      "name": "The Main Drift",
+      "layer": 2,
+      "light": "dim",
+      "roomBias": [
+        "mineshaft_tunnel",
+        "mineshaft_seam"
+      ]
+    },
+    {
+      "id": "side_gallery",
+      "name": "Side Gallery",
+      "layer": 2,
+      "light": "dim",
+      "roomBias": [
+        "mineshaft_crossing",
+        "mineshaft_seam"
+      ]
+    },
+    {
+      "id": "deep_face",
+      "name": "The Deep Face",
+      "layer": 3,
+      "final": true,
+      "light": "dim",
+      "roomBias": [
+        "mineshaft_collapse",
+        "mineshaft_seam"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "mine_mouth",
+      "to": "main_drift"
+    },
+    {
+      "from": "mine_mouth",
+      "to": "side_gallery"
+    },
+    {
+      "from": "main_drift",
+      "to": "deep_face"
+    },
+    {
+      "from": "side_gallery",
+      "to": "deep_face"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "The Spawner Dungeon",
+  "processors": "pocketdungeons:theme_spawner_dungeon",
+  "spawner_prefix": "mineshaft",
+  "room_theme": "spawner_dungeon"
+}

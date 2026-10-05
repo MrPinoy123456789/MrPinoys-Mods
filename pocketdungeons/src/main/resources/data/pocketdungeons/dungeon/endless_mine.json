@@ -1,0 +1,26 @@
+{
+  "name": "Endless Mine",
+  "act": 1,
+  "kind": "endless",
+  "mainTheme": "endless_mine",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore",
+    "iron_ore",
+    "copper_ore",
+    "deepslate_coal_ore",
+    "deepslate_iron_ore",
+    "deepslate_copper_ore"
+  ],
+  "nodes": [
+    {
+      "id": "working_face",
+      "name": "The Working Face",
+      "layer": 1
+    }
+  ],
+  "edges": []
+}

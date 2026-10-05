@@ -49,6 +49,7 @@ final class ContentSnapshot {
     private final RoomManifest anomalyRooms;
     private final ThemeManifest themes;
     private final AdventureGraphs adventure;
+    private final DungeonDefs dungeons;
     private final Diaries diaries;
     private final AffixManifest affixes;
     private final BagManifest bags;
@@ -58,7 +59,7 @@ final class ContentSnapshot {
     private final boolean valid;
 
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
-                            ThemeManifest themes, AdventureGraphs adventure, Diaries diaries,
+                            ThemeManifest themes, AdventureGraphs adventure, DungeonDefs dungeons, Diaries diaries,
                             AffixManifest affixes, BagManifest bags, RoleManifest roles,
                             CubeRecipeManifest recipes,
                             List<String> errors, boolean valid) {
@@ -66,6 +67,7 @@ final class ContentSnapshot {
         this.anomalyRooms = anomalyRooms;
         this.themes = themes;
         this.adventure = adventure;
+        this.dungeons = dungeons;
         this.diaries = diaries;
         this.affixes = affixes;
         this.bags = bags;
@@ -105,6 +107,7 @@ final class ContentSnapshot {
         ThemeManifest themes = ThemeManifest.parse(server, rm);
         AdventureGraphs adventure = AdventureGraphs.parse(server, rm,
                 themeId -> themes.byId(themeId) != null);
+        DungeonDefs dungeons = DungeonDefs.parse(server, rm, themeId -> themes.byId(themeId) != null);
         Diaries diaries = Diaries.parse(server, rm);
         AffixManifest affixes = AffixManifest.parse(server, rm);
         BagManifest bags = BagManifest.parse(server, rm);
@@ -176,7 +179,7 @@ final class ContentSnapshot {
                     + "(expected " + RecipeIds.BUILT_IN_ORDER + ", have " + recipes.ids() + ")");
         }
 
-        return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, diaries, affixes,
+        return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, dungeons, diaries, affixes,
                 bags, roles, recipes, errors, valid);
     }
 
@@ -194,6 +197,11 @@ final class ContentSnapshot {
 
     AdventureGraphs adventure() {
         return adventure;
+    }
+
+    /** The dungeon structure definitions this snapshot parsed (data/pocketdungeons/dungeon). */
+    DungeonDefs dungeons() {
+        return dungeons;
     }
 
     Diaries diaries() {
@@ -241,6 +249,7 @@ final class ContentSnapshot {
         all.addAll(anomalyRooms.rejections());
         all.addAll(themes.rejections());
         all.addAll(adventure.rejections());
+        all.addAll(dungeons.rejections());
         all.addAll(diaries.rejections());
         all.addAll(affixes.rejections());
         all.addAll(bags.rejections());

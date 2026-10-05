@@ -99,13 +99,24 @@ final class RoomSelector {
      */
     static Result resolveDetailed(DungeonShape shape, RoomManifest manifest, String theme,
                                   Set<String> bagTags, RunRecipePlan recipePlan) {
+        return resolveDetailed(shape, manifest, theme, bagTags, recipePlan, null);
+    }
+
+    /**
+     * Dungeon structure W5: the full form with the floor's dungeon context. A non-null
+     * {@code floor} makes room eligibility read the W4 metadata ({@link RoomEligibility}); a null
+     * one is exactly the legacy theme-only behaviour.
+     */
+    static Result resolveDetailed(DungeonShape shape, RoomManifest manifest, String theme,
+                                  Set<String> bagTags, RunRecipePlan recipePlan,
+                                  RoomEligibility.Floor floor) {
         Map<PlanCell, Integer> depths = depths(shape);
         List<PlanCell> order = bfsOrder(shape.cells(), depths);
 
         int maxTier = recipePlan == null ? Integer.MAX_VALUE : KeystoneMath.lootTier(recipePlan.offerLevel);
         Set<String> weighted = recipePlan == null ? Set.of() : Set.copyOf(recipePlan.weightedRooms);
         Pass pass = new Pass(shape, manifest, theme, depths, order,
-                bagTags == null ? Set.of() : bagTags, weighted, maxTier);
+                bagTags == null ? Set.of() : bagTags, weighted, maxTier, floor);
         Failure failure = pass.prepare();
         if (failure != null) {
             return new Result(null, failure);
@@ -123,7 +134,7 @@ final class RoomSelector {
         // replacement: the forced room's requires must be satisfied by the
         // available tags at that cell's depth.
         if (recipePlan != null) {
-            applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan);
+            applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan, floor);
         }
         // PD-93: a guarantee may have forced a themed room onto the anomaly
         // cell. That cell is no longer an anomaly, and calling it one would
@@ -415,12 +426,13 @@ final class RoomSelector {
                                               Map<PlanCell, DungeonPlan.PlacedRoom> placed,
                                               Map<PlanCell, Integer> depths,
                                               Set<String> bagTags,
-                                              RunRecipePlan recipePlan) {
+                                              RunRecipePlan recipePlan,
+                                              RoomEligibility.Floor floor) {
         // M71: guaranteed rooms are data-driven. Each group carries its
         // alternative room names; the tier gate was already checked at
         // resolve time, so every group here is tier-eligible for this offer.
         for (RecipeEffects.GuaranteedRoom g : recipePlan.guaranteedRooms) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags, g.names());
+            forceRoom(shape, manifest, theme, placed, depths, bagTags, g.names(), floor);
         }
     }
 
@@ -435,7 +447,8 @@ final class RoomSelector {
                                   Map<PlanCell, DungeonPlan.PlacedRoom> placed,
                                   Map<PlanCell, Integer> depths,
                                   Set<String> bagTags,
-                                  java.util.List<String> targetRoomNames) {
+                                  java.util.List<String> targetRoomNames,
+                                  RoomEligibility.Floor floor) {
         // M68: room names are now namespaced ids. Qualify the target names so
         // a legacy bare target ("infested_wall") matches the namespaced room
         // name ("pocketdungeons:infested_wall") the manifest now carries.
@@ -452,7 +465,7 @@ final class RoomSelector {
             if (role == null) {
                 continue;
             }
-            List<RoomManifest.Match> matches = manifest.queryAnyRotation(mask, role, theme);
+            List<RoomManifest.Match> matches = query(manifest, mask, role, theme, floor);
             for (RoomManifest.Match match : matches) {
                 if (!targetSet.contains(match.entry().name)) {
                     continue;
@@ -615,6 +628,27 @@ final class RoomSelector {
         return eligible.get(eligible.size() - 1);
     }
 
+    /**
+     * The manifest query for a cell, with the floor's room eligibility applied (dungeon structure
+     * W5). With no floor this is the legacy theme query. With a floor the theme filter is replaced
+     * by {@link RoomEligibility}, which still lets every room that matched the legacy theme match.
+     */
+    static List<RoomManifest.Match> query(RoomManifest manifest, int mask, String role, String theme,
+                                          RoomEligibility.Floor floor) {
+        if (floor == null) {
+            return manifest.queryAnyRotation(mask, role, theme);
+        }
+        List<RoomManifest.Match> out = new ArrayList<>();
+        for (RoomManifest.Match match : manifest.queryAnyRotation(mask, role, null)) {
+            if (RoomEligibility.eligible(RoomEligibility.RoomTags.of(match.entry().meta), floor)) {
+                out.add(match);
+            }
+        }
+        // W7a: the final floor of a capstone dungeon puts its boss room in the terminal cell.
+        return RoomEligibility.narrowToCapstone(out,
+                match -> RoomEligibility.RoomTags.of(match.entry().meta), floor, RoleIds.EXIT.equals(role));
+    }
+
     /** A match's declared weight times any playtest bias on its room ({@link PlaytestBias}). */
     private static int biasedWeight(RoomManifest.Match match) {
         return Math.max(1, match.entry().meta.weight) * PlaytestBias.of(match.entry().name);
@@ -717,6 +751,7 @@ final class RoomSelector {
         private final Set<String> bagTags;
         private final Set<String> weightedRooms;
         private final int maxTier;
+        private final RoomEligibility.Floor floor;
 
         private Set<PlanCell> onSpine = Set.of();
         private Map<PlanCell, Integer> branches = Map.of();
@@ -738,7 +773,8 @@ final class RoomSelector {
 
         Pass(DungeonShape shape, RoomManifest manifest, String theme,
              Map<PlanCell, Integer> depths, List<PlanCell> order, Set<String> bagTags,
-             Set<String> weightedRooms, int maxTier) {
+             Set<String> weightedRooms, int maxTier, RoomEligibility.Floor floor) {
+            this.floor = floor;
             this.shape = shape;
             this.manifest = manifest;
             this.theme = theme;
@@ -759,7 +795,7 @@ final class RoomSelector {
             List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
             onSpine = new HashSet<>(spine);
             branches = branchGroups(shape, onSpine);
-            gateCell = designateGateCell(shape, spine, manifest, theme, maxTier);
+            gateCell = designateGateCell(shape, spine, manifest, theme, maxTier, floor);
 
             for (PlanCell cell : order) {
                 int mask = requiredMask(shape, cell);
@@ -775,7 +811,7 @@ final class RoomSelector {
                 if (!isStructuralRole(role) && RoleManifest.current().byId(role) == null) {
                     return new Failure(cell, mask, "unknown role: " + role);
                 }
-                List<RoomManifest.Match> found = manifest.queryAnyRotation(mask, role, theme);
+                List<RoomManifest.Match> found = query(manifest, mask, role, theme, floor);
                 if (found.isEmpty()) {
                     return new Failure(cell, mask, role);
                 }
@@ -1069,7 +1105,8 @@ final class RoomSelector {
              * a manifest republish.
              */
             private int weightOf(RoomManifest.Match match) {
-                int base = biasedWeight(match);
+                int base = biasedWeight(match)
+                        * RoomEligibility.weightFactor(RoomEligibility.RoomTags.of(match.entry().meta), floor);
                 if (!weightedRooms.isEmpty()
                         && weightedRooms.contains(match.entry().name)) {
                     return base * 3;
@@ -1219,7 +1256,8 @@ final class RoomSelector {
      *         no gated rooms in it
      */
     private static PlanCell designateGateCell(DungeonShape shape, List<PlanCell> spine,
-                                              RoomManifest manifest, String theme, int maxTier) {
+                                              RoomManifest manifest, String theme, int maxTier,
+                                              RoomEligibility.Floor floor) {
         List<PlanCell> eligible = new ArrayList<>();
         for (PlanCell cell : spine) {
             if (cell.equals(shape.entrance()) || cell.equals(shape.terminal())) {
@@ -1229,8 +1267,7 @@ final class RoomSelector {
             if (role == null) {
                 continue;
             }
-            for (RoomManifest.Match match : manifest.queryAnyRotation(
-                    requiredMask(shape, cell), role, theme)) {
+            for (RoomManifest.Match match : query(manifest, requiredMask(shape, cell), role, theme, floor)) {
                 // PD-139: a gate above the floor's tier is no gate to offer;
                 // designating it forced a tier 2 or 3 room onto a keystone 1
                 // floor and logged a "Room tier gap" every plan.

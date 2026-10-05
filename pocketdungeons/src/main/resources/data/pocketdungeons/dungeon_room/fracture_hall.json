@@ -1,0 +1,32 @@
+{
+  "template": "pocketdungeons:rooms/fracture_hall",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "exit"
+  ],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "theme": [
+    "herobrine"
+  ],
+  "light": "dim",
+  "biome": "the_fracture",
+  "dungeons": [
+    "herobrine"
+  ],
+  "acts": [
+    5
+  ],
+  "graphRole": [
+    "capstone"
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

@@ -1,0 +1,63 @@
+{
+  "template": "pocketdungeons:rooms/lush_hollow",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "rootworks"
+  ],
+  "light": "dim",
+  "biome": "lush_cave",
+  "dungeons": [
+    "rootworks"
+  ],
+  "acts": [
+    1
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:oak_log",
+      "at": [
+        2,
+        1,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:oak_log",
+      "at": [
+        13,
+        1,
+        13
+      ]
+    },
+    {
+      "block": "minecraft:azalea",
+      "from": [
+        2,
+        1,
+        10
+      ],
+      "to": [
+        3,
+        1,
+        12
+      ],
+      "count": 2
+    }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

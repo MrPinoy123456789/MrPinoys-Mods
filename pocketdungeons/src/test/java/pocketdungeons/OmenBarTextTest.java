@@ -64,11 +64,18 @@ public class OmenBarTextTest {
     }
 
     private static void testClearedTitle() {
-        checkEquals(OmenBarText.clearedTitle(2, 3, false, 1, 2), "Floor 2 of 3 cleared | 2 reward chests, key progress");
-        checkEquals(OmenBarText.clearedTitle(3, 3, false, 0, 3), "Floor 3 of 3 cleared | 3 reward chests, key progress");
-        // Past the usual length the floor is deep, not "4 of 3".
-        checkEquals(OmenBarText.clearedTitle(4, 3, false, 1, 3), "Floor 4 cleared, deep | 3 reward chests, key progress");
-        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2, 2), "Mine floor 5 cleared | 2 reward chests, key progress");
+        // Dungeon structure W2: the trip length is the dungeon's, so the bar names the dungeon.
+        checkEquals(OmenBarText.clearedTitle(2, "Frostworks", false, false, false, 1, 2),
+                "Floor 2 of Frostworks cleared | 2 reward chests, key progress");
+        checkEquals(OmenBarText.clearedTitle(4, "Frostworks", false, false, true, 0, 3),
+                "Floor 4 of Frostworks cleared, final floor ahead | 3 reward chests, key progress");
+        checkEquals(OmenBarText.clearedTitle(5, "Frostworks", false, true, false, 1, 3),
+                "Frostworks cleared | 3 reward chests, key progress");
+        // No dungeon (a run outside the graph) just counts floors; never a trip length.
+        checkEquals(OmenBarText.clearedTitle(4, "", false, false, false, 1, 3),
+                "Floor 4 cleared | 3 reward chests, key progress");
+        checkEquals(OmenBarText.clearedTitle(5, "", true, false, false, 2, 2),
+                "Mine floor 5 cleared | 2 reward chests, key progress");
     }
 
     private static void testCompletionVerdict() {
@@ -78,10 +85,11 @@ public class OmenBarTextTest {
     }
 
     private static void testPreviewFloor() {
-        checkEquals(OmenBarText.previewFloor(1, 3, false), "FLOOR 1 OF 3");
-        checkEquals(OmenBarText.previewFloor(3, 3, false), "FLOOR 3 OF 3");
-        checkEquals(OmenBarText.previewFloor(4, 3, false), "FLOOR 4, DEEP");
-        checkEquals(OmenBarText.previewFloor(7, 3, true), "MINE FLOOR 7");
+        checkEquals(OmenBarText.previewFloor(1, "Frostworks", false, false), "FLOOR 1 OF FROSTWORKS");
+        checkEquals(OmenBarText.previewFloor(3, "Deepslate", false, false), "FLOOR 3 OF DEEPSLATE");
+        checkEquals(OmenBarText.previewFloor(5, "Frostworks", false, true), "FINAL FLOOR OF FROSTWORKS");
+        checkEquals(OmenBarText.previewFloor(4, "", false, false), "FLOOR 4");
+        checkEquals(OmenBarText.previewFloor(7, "Frostworks", true, false), "MINE FLOOR 7");
     }
 
     private static void testRiseLine() {

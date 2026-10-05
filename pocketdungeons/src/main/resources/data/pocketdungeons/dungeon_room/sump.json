@@ -11,5 +11,6 @@
   "requires": [],
   "access": "open",
   "window": "bars",
-  "spanY": 2
+  "spanY": 2,
+  "nodes": [{"block": "minecraft:stone", "at": [6, 1, 6]}, {"block": "minecraft:stone", "at": [10, 1, 10]}]
 }

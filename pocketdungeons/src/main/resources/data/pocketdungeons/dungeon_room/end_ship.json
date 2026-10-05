@@ -1,0 +1,31 @@
+{
+  "template": "pocketdungeons:rooms/end_ship",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": [
+    "the_end"
+  ],
+  "light": "lit",
+  "biome": "end_ship",
+  "dungeons": [
+    "the_end"
+  ],
+  "acts": [
+    5
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

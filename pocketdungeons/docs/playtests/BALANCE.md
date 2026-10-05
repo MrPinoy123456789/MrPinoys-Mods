@@ -89,3 +89,17 @@ playtest journal once it exists; blank means not recorded.
 | 2026-10-03 | frostworks | 1 (set 3) | 2 | 225 | 0 | 0 | 2 | 100 | 3 | n/a | none |
 
 - Player: floor 1 should be about 2 spawners; the starting kit runs out of food. A party of 2 gets 4x vault loot, "too much". Fewer chest logs, more planks.
+
+## Observations 2026-10-04-1
+
+| Date | Zone | Floor | Party | Seconds | Omen | Rescues | Blocks | Durability | Chests | Band at bank | Rating |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-04 | frostworks | 1 | 1 | 828 | 0 | 0 | 0 | 137 | 3 | n/a | none |
+| 2026-10-04 | infestation | 2 | 1 | 526 | 0 | 0 | 0 | 38 | 3 | n/a | none |
+| 2026-10-04 | prismarine | 3 | 1 | 218 | 0 | 0 | 0 | 285 | 3 | 0 | none |
+| 2026-10-04 | basalt_foundry | 1 (trip 2) | 1 | 731 | 0 | 0 | 20 | 52 | 3 | n/a | none |
+| 2026-10-04 | ender_archive | 2 (trip 2) | 1 | 464 | 0 | 0 | 1 | 129 | 3 | n/a | none |
+
+- Floor 1 had 2 spawners both times (`firstFloorMaxEncounters` holds) but was the slowest floor of its trip. The player chatted with Lemon through every floor, so the clock is inflated.
+- Trial keys in the pack: 2 to 7. Pack free slots fell to 0 at the second door. Food 13 to 63.
+- Player: bookshelves should drop 1 or 2 books, not 3; the mining efficiency trim is weak (wants durability); slimeballs as a random shop currency; the smithing table is overloaded (move reroll).

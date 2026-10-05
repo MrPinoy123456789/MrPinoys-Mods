@@ -13,5 +13,6 @@
   ],
   "weight": 2,
   "minDepth": 1,
-  "maxPerDungeon": 2
+  "maxPerDungeon": 2,
+  "light": "dim"
 }

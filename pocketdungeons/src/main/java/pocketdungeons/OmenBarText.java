@@ -70,24 +70,33 @@ final class OmenBarText {
     }
 
     /**
-     * The bar between floors: which floor of the interval was just cleared
-     * and the band it stands in. The interval length is the usual stopping
-     * point, not a wall, so a floor past it reads as deep rather than "4 of
-     * 3". A Mine interval has no usual length and counts floors alone.
+     * The bar between floors: which floor of the dungeon was just cleared and the
+     * band it stands in. {@code dungeon} is the dungeon's display name, empty outside
+     * a dungeon graph. A Mine trip has no usual length and counts floors alone.
      */
-    static String clearedTitle(int floorsCleared, int floorsPerSafeVisit, boolean mine, int band, int chests) {
-        return clearedHeadline(floorsCleared, floorsPerSafeVisit, mine) + " | " + outcome(band, chests);
+    static String clearedTitle(int floorsCleared, String dungeon, boolean mine, boolean finished,
+                               boolean finalAhead, int band, int chests) {
+        return clearedHeadline(floorsCleared, dungeon, mine, finished, finalAhead) + " | " + outcome(band, chests);
     }
 
-    /** The floor half of {@link #clearedTitle}, also the on-screen title a floor clear shows. */
-    static String clearedHeadline(int floorsCleared, int floorsPerSafeVisit, boolean mine) {
+    /**
+     * The floor half of {@link #clearedTitle}, also the on-screen title a floor clear
+     * shows: {@code "Floor 2 of Frostworks cleared"}, with {@code ", final floor
+     * ahead"} one floor from the end and {@code "Frostworks cleared"} on the final
+     * floor.
+     */
+    static String clearedHeadline(int floorsCleared, String dungeon, boolean mine, boolean finished,
+                                  boolean finalAhead) {
         if (mine) {
             return "Mine floor " + floorsCleared + " cleared";
         }
-        if (floorsCleared > Math.max(1, floorsPerSafeVisit)) {
-            return "Floor " + floorsCleared + " cleared, deep";
+        boolean named = dungeon != null && !dungeon.isBlank();
+        if (finished) {
+            return (named ? dungeon : "Dungeon") + " cleared";
         }
-        return "Floor " + floorsCleared + " of " + Math.max(1, floorsPerSafeVisit) + " cleared";
+        String head = named ? "Floor " + floorsCleared + " of " + dungeon + " cleared"
+                : "Floor " + floorsCleared + " cleared";
+        return finalAhead ? head + ", final floor ahead" : head;
     }
 
     /**
@@ -99,14 +108,20 @@ final class OmenBarText {
         return "The omen sits " + bandName(band) + ": " + outcome(band, chests) + " so far.";
     }
 
-    /** The door screen's floor line for the floor a door would open. */
-    static String previewFloor(int nextFloor, int floorsPerSafeVisit, boolean mine) {
+    /**
+     * The door screen's floor line for the floor a door would open:
+     * {@code "FLOOR 3 OF FROSTWORKS"}, or {@code "FINAL FLOOR OF FROSTWORKS"} when the
+     * door leads to the dungeon's last floor.
+     */
+    static String previewFloor(int nextFloor, String dungeon, boolean mine, boolean finalFloor) {
         if (mine) {
             return "MINE FLOOR " + nextFloor;
         }
-        return nextFloor > Math.max(1, floorsPerSafeVisit)
-                ? "FLOOR " + nextFloor + ", DEEP"
-                : "FLOOR " + nextFloor + " OF " + Math.max(1, floorsPerSafeVisit);
+        if (dungeon == null || dungeon.isBlank()) {
+            return "FLOOR " + nextFloor;
+        }
+        String name = dungeon.toUpperCase();
+        return finalFloor ? "FINAL FLOOR OF " + name : "FLOOR " + nextFloor + " OF " + name;
     }
 
     /** The action bar line when {@code source} raises the omen to {@code omen}. */

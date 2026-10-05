@@ -10,5 +10,6 @@
   "provides": [],
   "requires": [],
   "access": "open",
-  "window": "bars"
+  "window": "bars",
+  "requiresLight": true
 }

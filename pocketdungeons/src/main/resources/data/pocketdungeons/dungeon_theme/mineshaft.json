@@ -1,0 +1,7 @@
+{
+  "name": "Mineshaft",
+  "processors": "pocketdungeons:theme_mineshaft",
+  "spawner_prefix": "mineshaft",
+  "loot_suffix": "mineshaft",
+  "room_theme": "mineshaft"
+}

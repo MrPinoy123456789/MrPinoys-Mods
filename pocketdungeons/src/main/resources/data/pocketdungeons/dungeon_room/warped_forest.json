@@ -1,0 +1,144 @@
+{
+  "template": "pocketdungeons:rooms/warped_forest",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "basalt_foundry",
+    "blackstone",
+    "wither_keep"
+  ],
+  "light": "dim",
+  "biome": "warped_forest",
+  "dungeons": [
+    "basalt_foundry",
+    "blackstone",
+    "wither_keep"
+  ],
+  "acts": [
+    4
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:warped_stem",
+      "from": [
+        2,
+        1,
+        2
+      ],
+      "to": [
+        2,
+        4,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:warped_stem",
+      "from": [
+        13,
+        1,
+        2
+      ],
+      "to": [
+        13,
+        4,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:warped_stem",
+      "from": [
+        2,
+        1,
+        13
+      ],
+      "to": [
+        2,
+        4,
+        13
+      ]
+    },
+    {
+      "block": "minecraft:warped_stem",
+      "from": [
+        5,
+        1,
+        9
+      ],
+      "to": [
+        5,
+        4,
+        9
+      ]
+    },
+    {
+      "block": "minecraft:warped_stem",
+      "from": [
+        10,
+        1,
+        5
+      ],
+      "to": [
+        10,
+        4,
+        5
+      ]
+    },
+    {
+      "block": "minecraft:warped_wart_block",
+      "from": [
+        1,
+        4,
+        1
+      ],
+      "to": [
+        2,
+        5,
+        2
+      ],
+      "count": 5
+    },
+    {
+      "block": "minecraft:warped_wart_block",
+      "from": [
+        12,
+        4,
+        1
+      ],
+      "to": [
+        14,
+        5,
+        3
+      ],
+      "count": 5
+    },
+    {
+      "block": "minecraft:warped_wart_block",
+      "from": [
+        4,
+        4,
+        8
+      ],
+      "to": [
+        6,
+        5,
+        10
+      ],
+      "count": 5
+    }
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

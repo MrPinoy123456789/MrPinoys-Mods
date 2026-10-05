@@ -1,0 +1,110 @@
+{
+  "name": "Drowned Vault",
+  "act": 3,
+  "kind": "capstone",
+  "mainTheme": "drowned_vault",
+  "lootBand": {
+    "min": 3,
+    "max": 3
+  },
+  "nodePalette": [
+    "gold_ore",
+    "deepslate_gold_ore",
+    "diamond_ore",
+    "clay"
+  ],
+  "diary": "entry_19",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "prismarine"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "flooded_gate",
+      "name": "Flooded Gate",
+      "layer": 1
+    },
+    {
+      "id": "drowned_nave",
+      "name": "Drowned Nave",
+      "layer": 2,
+      "roomBias": [
+        "flooded_hall"
+      ]
+    },
+    {
+      "id": "silt_cisterns",
+      "name": "Silt Cisterns",
+      "layer": 2,
+      "roomBias": [
+        "sump"
+      ]
+    },
+    {
+      "id": "barnacled_vaults",
+      "name": "Barnacled Vaults",
+      "layer": 3,
+      "roomBias": [
+        "barred_vault"
+      ]
+    },
+    {
+      "id": "coral_ruins",
+      "name": "Coral Ruins",
+      "layer": 3,
+      "theme": "prismarine"
+    },
+    {
+      "id": "sunken_bridge",
+      "name": "The Sunken Bridge",
+      "layer": 4
+    },
+    {
+      "id": "wardens_deep",
+      "name": "The Warden's Deep",
+      "layer": 5,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "flooded_gate",
+      "to": "drowned_nave"
+    },
+    {
+      "from": "flooded_gate",
+      "to": "silt_cisterns"
+    },
+    {
+      "from": "drowned_nave",
+      "to": "barnacled_vaults"
+    },
+    {
+      "from": "silt_cisterns",
+      "to": "barnacled_vaults"
+    },
+    {
+      "from": "silt_cisterns",
+      "to": "coral_ruins"
+    },
+    {
+      "from": "drowned_nave",
+      "to": "coral_ruins",
+      "cost": 1
+    },
+    {
+      "from": "barnacled_vaults",
+      "to": "sunken_bridge"
+    },
+    {
+      "from": "coral_ruins",
+      "to": "sunken_bridge"
+    },
+    {
+      "from": "sunken_bridge",
+      "to": "wardens_deep"
+    }
+  ]
+}

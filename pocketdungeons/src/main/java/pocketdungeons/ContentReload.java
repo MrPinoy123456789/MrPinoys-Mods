@@ -117,6 +117,7 @@ final class ContentReload {
                 RoomManifest.publish(candidate.rooms(), candidate.anomalyRooms());
                 ThemeManifest.publish(candidate.themes());
                 AdventureGraphs.publish(candidate.adventure());
+                DungeonDefs.publish(candidate.dungeons());
                 Diaries.publish(candidate.diaries());
                 AffixManifest.publish(candidate.affixes());
                 BagManifest.publish(candidate.bags());
@@ -182,6 +183,12 @@ final class ContentReload {
                     stale = true;
                     break;
                 }
+            }
+            // W8: a preview planned for a dungeon node the reload removed or renamed is no longer a door.
+            if (!stale && !record.floor.previewDoorKey.isEmpty()) {
+                int cut = record.floor.previewDoorKey.indexOf('/');
+                DungeonDef def = cut < 0 ? null : snapshot.dungeons().byId(record.floor.previewDoorKey.substring(0, cut));
+                stale = def == null || def.node(record.floor.previewDoorKey.substring(cut + 1)) == null;
             }
             if (!stale && record.floor.theme != null && snapshot.themes().byId(record.floor.theme) == null) {
                 stale = true;

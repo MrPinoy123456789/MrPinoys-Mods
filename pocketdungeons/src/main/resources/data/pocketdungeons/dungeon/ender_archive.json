@@ -1,0 +1,98 @@
+{
+  "name": "Ender Archive",
+  "act": 5,
+  "kind": "story",
+  "mainTheme": "ender_archive",
+  "lootBand": {
+    "min": 4,
+    "max": 4
+  },
+  "nodePalette": [
+    "diamond_ore",
+    "deepslate_diamond_ore",
+    "ancient_debris"
+  ],
+  "diary": "entry_23",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "blackstone",
+      "basalt_foundry"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "void_door",
+      "name": "Void Door",
+      "layer": 1
+    },
+    {
+      "id": "shelf_labyrinth",
+      "name": "Shelf Labyrinth",
+      "layer": 2,
+      "roomBias": [
+        "rotation_lock"
+      ]
+    },
+    {
+      "id": "chorus_stacks",
+      "name": "Chorus Stacks",
+      "layer": 2
+    },
+    {
+      "id": "reading_rooms",
+      "name": "Reading Rooms",
+      "layer": 3,
+      "theme": "blackstone"
+    },
+    {
+      "id": "purpur_vault",
+      "name": "Purpur Vault",
+      "layer": 3,
+      "roomBias": [
+        "ender_archive_vault"
+      ]
+    },
+    {
+      "id": "last_index",
+      "name": "The Last Index",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "void_door",
+      "to": "shelf_labyrinth"
+    },
+    {
+      "from": "void_door",
+      "to": "chorus_stacks"
+    },
+    {
+      "from": "shelf_labyrinth",
+      "to": "purpur_vault"
+    },
+    {
+      "from": "chorus_stacks",
+      "to": "purpur_vault"
+    },
+    {
+      "from": "chorus_stacks",
+      "to": "reading_rooms"
+    },
+    {
+      "from": "shelf_labyrinth",
+      "to": "reading_rooms",
+      "cost": 1
+    },
+    {
+      "from": "purpur_vault",
+      "to": "last_index"
+    },
+    {
+      "from": "reading_rooms",
+      "to": "last_index"
+    }
+  ]
+}

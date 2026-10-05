@@ -115,12 +115,14 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.levels(2), "+2 levels");
         checkEquals(IntervalBanking.chests(1), "1 chest");
         // Plain words (playtest 2026-09-27, A2 and A5; 2026-10-02-1: no chest payout for going home).
-        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false, true),
-                "GO HOME AFTER 3 FLOORS\n+1 key level\nKit refilled");
-        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true, false),
-                "TIME TO GO HOME\n+3 key levels\nNo kit refill");
-        checkEquals(IntervalBanking.homeScreen(settle(List.of(1), 0, 0, 0), L, false, true),
-                "GO HOME AFTER 3 FLOORS\nKey 1/3 to a level\nKit refilled");
+        // Dungeon structure W5: no kit line on the screen (D14), so the refill words are gone.
+        // Dungeon structure W2: the title no longer states a trip length in floors.
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 1), 1, 0, 0), L, false),
+                "GO HOME\n+1 key level");
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(3, 3, 3), 12, 0, 0), L, true),
+                "DUNGEON CLEARED: GO HOME\n+3 key levels");
+        checkEquals(IntervalBanking.homeScreen(settle(List.of(1), 0, 0, 0), L, false),
+                "GO HOME\nKey 1/3 to a level");
         checkEquals(IntervalBanking.bankedLine(settle(List.of(3, 3, 3), 0, 0, 0), L, false),
                 "Home. You keep: +3 key levels (0 of 3 steps toward the next). The omen was calm.");
         String left = IntervalBanking.bankedLine(settle(List.of(3), 0, 0, IntervalBanking.LEAVE_PENALTY), L, true);

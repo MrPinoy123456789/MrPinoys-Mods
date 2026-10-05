@@ -1,0 +1,13 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "the_end",
+      "weight": 2
+    },
+    {
+      "theme": "ender_archive",
+      "weight": 1
+    }
+  ]
+}

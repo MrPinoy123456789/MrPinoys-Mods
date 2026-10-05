@@ -199,6 +199,20 @@ final class DungeonScreen {
      */
     static Component idleContent(ServerLevel level, UUID owner) {
         MutableComponent content;
+        InstanceRecord tripRecord = owner == null ? null : InstanceRegistry.byMember.get(owner);
+        if (tripRecord != null && tripRecord.interval.mineSealedAct > 0) {
+            return Component.literal("THE SHAFT IS SEALED").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\nClear " + ActProgress.label(tripRecord.interval.mineSealedAct)
+                            + " to dig deeper\nPull the HOME lever").withStyle(ChatFormatting.GRAY));
+        }
+        if (tripRecord != null && tripRecord.interval.finished) {
+            return Component.literal(TripView.dungeonName(tripRecord).toUpperCase()).withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\nCleared\nPull the HOME lever").withStyle(ChatFormatting.GREEN));
+        }
+        if (tripRecord != null && TripView.def(tripRecord) != null) {
+            return Component.literal(TripView.dungeonName(tripRecord).toUpperCase()).withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("\nRight-click a door to preview\nPull the lever to start"));
+        }
         if (level != null && owner != null
                 && DungeonLog.forServer(level.getServer()).get(owner).keystoneLevel() <= 1) {
             content = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD)
@@ -254,39 +268,46 @@ final class DungeonScreen {
     }
 
     /**
-     * Context 2: a door is selected: offered level and which floor of the
-     * interval it opens, theme, effective affixes, and for a Greater door the
-     * fuel it costs against the owner's balance.
+     * Context 2: a door is selected. The door's label: the floor behind it and where
+     * it sits in the dungeon, the keystone level it runs at, the step it adds, its
+     * affixes, the loot tier it pays and the echo shards it costs
+     * (the wall is shared, so it shows no balance). Later floors' steps are never shown (design D6).
      */
     static Component previewContent(ServerLevel level, InstanceRecord record, int step) {
         MinecraftServer server = level.getServer();
         UUID owner = record.owner;
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         int offerLevel = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(owner, offerLevel, entry.currentTheme(), entry.depth());
+        Keystone.Offer[] offers = Keystone.offers(server, record, owner, offerLevel);
+        if (offers.length == 0) {
+            return idleContent(level, owner);
+        }
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-        Set<String> effective = AffixMath.effective(owner, offer.level(), offer.affixes(),
-                AffixManifest.current().definitions());
+        Set<String> effective = NodeStamper.dealtAffixes(
+                AffixMath.effective(owner, offer.level(), offer.affixes(),
+                        AffixManifest.current().definitions()),
+                offer.dungeonId(), offer.nodeId());
         // A Mine recipe armed on the key shows once the preview has resolved it.
-        boolean mine = EndlessMineRules.isMine(record) || EndlessMineRules.isMine(record.floor.previewRecipePlan);
-        String floor = OmenBarText.previewFloor(record.interval.floorIndex + 1,
-                PocketDungeonsConfig.floorsPerSafeVisit(), mine);
+        boolean mine = EndlessMineRules.isMine(record) || EndlessMineRules.isMine(record.floor.previewRecipePlan)
+                || EndlessMineRules.isMineOffer(offer);
+        DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        String dungeonName = def == null ? "" : def.name();
+        String floor = OmenBarText.previewFloor(record.interval.floorIndex + 1, dungeonName, mine,
+                node != null && node.isFinal());
+        String name = node == null ? themeName(offer.theme()) : node.name();
         MutableComponent content = Component.literal("KEYSTONE " + offer.level() + " | " + floor + "\n"
-                + themeName(offer.theme()) + "\n").append(affixLine(effective));
+                + name + "\n").append(affixLine(effective));
         // What this door banks when its floor is cleared, beside what the
-        // interval's cleared floors already hold.
+        // trip's cleared floors already hold.
         content.append(Component.literal("\n" + IntervalBanking.doorLine(offer.step(),
                 IntervalBanking.stepSum(record.interval.floorSteps))).withStyle(ChatFormatting.AQUA));
-        if (!offer.free()) {
-            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
-            ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
-            if (ownerPlayer != null) {
-                int carried = Fuel.carried(ownerPlayer);
-                content.append(Component.literal("\nEcho shards " + cost + " of your " + carried)
-                        .withStyle(carried >= cost ? ChatFormatting.GRAY : ChatFormatting.RED));
-            } else {
-                content.append(Component.literal("\nEcho shards " + cost).withStyle(ChatFormatting.GRAY));
-            }
+        content.append(Component.literal("\nLoot tier " + lootTierOf(offer)).withStyle(ChatFormatting.GRAY));
+        int cost = offer.cost();
+        if (cost > 0) {
+            // The wall is shared by the whole party, so it never shows one player's balance
+            // (it used to show the owner's). Each player's own balance goes to them directly.
+            content.append(Component.literal("\n" + SideBranchPay.wallLine(cost)).withStyle(ChatFormatting.GRAY));
         }
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
@@ -303,6 +324,15 @@ final class DungeonScreen {
     }
 
     /**
+     * The completion loot tier a door's floor pays: the keystone's tier clamped into
+     * the dungeon's act band (D10), the same clamp the stamp and the chests use
+     * ({@link LootBands}). Only ever a label.
+     */
+    private static int lootTierOf(Keystone.Offer offer) {
+        return LootBands.offerTier(offer);
+    }
+
+    /**
      * The go-home screen: what the owner would bank by pulling the lever right
      * now (levels, the progress kept toward the next, chests and the band),
      * titled {@code HOME}, or {@code TIME TO GO HOME} in green once the
@@ -311,14 +341,12 @@ final class DungeonScreen {
      */
     static Component homeContent(MinecraftServer server, InstanceRecord record) {
         int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
-        boolean goodTime = record.interval.floorIndex >= floorsPerVisit;
+        boolean finished = record.interval.finished;
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        // The bag chest refills on any trip home that banked a floor (KitChest).
-        boolean kitRefill = !record.interval.floorSteps.isEmpty();
-        String text = IntervalBanking.homeScreen(now, floorsPerVisit, goodTime, kitRefill);
+        String text = IntervalBanking.homeScreen(now, floorsPerVisit, finished);
         int split = text.indexOf('\n');
         return Component.literal(text.substring(0, split))
-                .withStyle(goodTime ? ChatFormatting.GREEN : ChatFormatting.GOLD)
+                .withStyle(finished ? ChatFormatting.GREEN : ChatFormatting.GOLD)
                 .append(Component.literal(text.substring(split)).withStyle(ChatFormatting.WHITE));
     }
 

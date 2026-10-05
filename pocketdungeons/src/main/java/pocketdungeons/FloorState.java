@@ -47,8 +47,17 @@ final class FloorState {
      */
     int chosenStep;
 
-    /** Whether {@link #chosenStep} was door 1, the free tier: it pays fuel at the settlement. */
+    /**
+     * Unused since the dungeon structure waves: door 1 no longer pays a free door shard
+     * at the bank. Still set at commit so older readers (gametests) compile.
+     */
     boolean freeDoor;
+
+    /**
+     * Whether a door was committed for this floor. {@link #chosenStep} alone cannot say:
+     * a resource dungeon's floors are step 0 (design D12). Use {@link #hasDoor()}.
+     */
+    boolean doorTaken;
 
     /**
      * The recipe tags the commit resolved from its preview, as a compound of
@@ -58,6 +67,11 @@ final class FloorState {
 
     /** The situation (or room) names this floor's cells resolved to, for the compass recipe's study list. */
     final List<String> situations = new ArrayList<>();
+
+    /** Whether a door has opened this floor (a step of 1 or more, or any committed door). */
+    boolean hasDoor() {
+        return doorTaken || chosenStep > 0;
+    }
 
     // ---- progress on this floor ------------------------------------------------
 
@@ -144,4 +158,37 @@ final class FloorState {
 
     /** The door step (1, 2 or 3) of the current preview, or {@code 0}. */
     int previewOfferStep;
+
+    /**
+     * W8: {@code dungeonId/nodeId} of the door the current preview was planned for, or an empty string
+     * with no preview or a door outside the dungeon graph (the Mine, an experimental offer). A content
+     * reload can change what a door slot means; the commit and the reload check compare this key.
+     */
+    String previewDoorKey = "";
+
+    /**
+     * Dungeon structure W4: the resource node positions the stamped preview cell
+     * registered, carried into {@link #nodes} at commit. Empty with no preview.
+     */
+    final Set<BlockPos> previewNodes = new HashSet<>();
+
+    // ---- resource nodes (dungeon structure W4, D19 and D20) --------------------
+
+    /**
+     * The resource node positions still standing on this floor: the only blocks, with
+     * the player's own placements and the soft mechanic blocks, that may be broken
+     * inside a dungeon cell ({@link BreakRule}). Filled when the floor opens
+     * ({@link InstanceRecord#startFloor}); a position leaves the set when its block is
+     * mined. Dies with the floor, like {@link InstanceRecord#playerPlaced}.
+     */
+    final Set<BlockPos> nodes = new HashSet<>();
+
+    /** The stamped soft mechanic gate positions (an infested or gravel doorway plug); see {@link BreakRule}. */
+    final Set<BlockPos> softBreakables = new HashSet<>();
+
+    /** How many nodes the floor opened with, for the journal. */
+    int nodesTotal;
+
+    /** How many nodes have been mined on this floor, any member. */
+    int nodesMined;
 }

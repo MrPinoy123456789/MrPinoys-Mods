@@ -59,8 +59,10 @@ final class OmenSources {
         boolean spurFired;
         /** Rising-edge memory, parallel to the lists above. */
         final Map<BlockPos, Boolean> wasActive = new HashMap<>();
-        /** Pulses counted but not yet worth an omen: the formula is one per five. */
+        /** Pulses counted but not yet worth an omen: the formula is one per five ({@link SculkOmen}). */
         int pendingPulses;
+        /** Ancient City: every sculk block was armed and a sensor pulse is worth a whole omen. */
+        boolean ancientCity;
     }
 
     /** Per-player dwell, reset whenever they change cell. */
@@ -94,10 +96,23 @@ final class OmenSources {
      * omen and is not polled.
      */
     static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta) {
-        if (meta == null || !"omen".equals(meta.pressure)) {
+        arm(level, origin, meta, null);
+    }
+
+    /**
+     * Dungeon structure W7a: {@link #arm(ServerLevel, BlockPos, DungeonRoomMeta)} for a floor of
+     * {@code themeId}. On an Ancient City floor ({@link SculkOmen#armsAllSculk}) every sculk sensor
+     * and shrieker in the cell is armed whatever the room's {@code pressure} says, and a sensor pulse
+     * is worth a whole omen. Spur chests stay owned by rooms that declare {@code pressure: "omen"}.
+     */
+    static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta, String themeId) {
+        boolean ancient = SculkOmen.armsAllSculk(themeId);
+        boolean pressure = meta != null && "omen".equals(meta.pressure);
+        if (meta == null || (!pressure && !ancient)) {
             return;
         }
         Armed armed = new Armed();
+        armed.ancientCity = ancient;
         for (int x = 0; x < RoomGeometry.CELL; x++) {
             for (int z = 0; z < RoomGeometry.CELL; z++) {
                 for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
@@ -109,7 +124,7 @@ final class OmenSources {
                     } else if (state.is(Blocks.SCULK_SHRIEKER)) {
                         armed.shriekers.add(pos.immutable());
                         armed.wasActive.put(pos.immutable(), shrieking(state));
-                    } else if (state.is(Blocks.CHEST) && armed.spurChest == null
+                    } else if (pressure && state.is(Blocks.CHEST) && armed.spurChest == null
                             && isSpur(meta.content)) {
                         armed.spurChest = pos.immutable();
                         armed.spurKind = meta.content;
@@ -170,10 +185,10 @@ final class OmenSources {
                 armed.pendingPulses += pulses;
                 // The formula is +1 omen per 5 pulses, so bank the remainder
                 // rather than rounding every poll down to nothing.
-                int gained = Omen.sensorContribution(armed.pendingPulses);
+                int gained = SculkOmen.omenFromPulses(armed.pendingPulses, armed.ancientCity);
                 if (gained > 0) {
                     add(server, record, gained, Omen.Source.SENSOR, origin);
-                    armed.pendingPulses -= gained * 5;
+                    armed.pendingPulses = SculkOmen.remainingPulses(armed.pendingPulses, gained, armed.ancientCity);
                 }
             }
             for (BlockPos pos : armed.shriekers) {

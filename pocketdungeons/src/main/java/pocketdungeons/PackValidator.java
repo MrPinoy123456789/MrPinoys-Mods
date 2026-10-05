@@ -123,6 +123,22 @@ final class PackValidator {
         addParseFindings(snapshot, findings);
         addCoverageFindings(snapshot, findings);
         addAdventureReachabilityFindings(snapshot, findings);
+        List<String> themeIds = new ArrayList<>();
+        for (ThemeManifest.Entry theme : snapshot.themes().themes()) {
+            themeIds.add(theme.id());
+        }
+        findings.addAll(dungeonFindings(snapshot.dungeons().all(), themeIds,
+                affix -> snapshot.affixes().byId(affix) != null,
+                room -> snapshot.rooms().byName(room) != null));
+        java.util.Map<String, DungeonRoomMeta> roomMetas = new java.util.TreeMap<>();
+        for (RoomManifest.Entry room : snapshot.rooms().rooms()) {
+            roomMetas.put(room.name, room.meta);
+        }
+        Set<String> dungeonIds = new HashSet<>();
+        for (DungeonDef def : snapshot.dungeons().all()) {
+            dungeonIds.add(def.id());
+        }
+        findings.addAll(roomMetaFindings(roomMetas, dungeonIds, PackValidator::vanillaBlockExists));
         findings.addAll(zoneRuleFindings(snapshot.themes().themes(), snapshot.adventure().graph(),
                 PocketDungeonsConfig.keystoneMaxLevel()));
         addRecipeFindings(snapshot, findings);
@@ -212,6 +228,115 @@ final class PackValidator {
                         "theme has no adventure node; never offered as a door choice"));
             }
         }
+    }
+
+    /**
+     * Dungeon structure findings (data/pocketdungeons/dungeon). Structural rule
+     * breaks (3 to 6 layers, at most 3 edges out, acyclic, layer n to n+1, one
+     * entry on layer 1, a free edge out of every non-final node, main theme on
+     * entry and final nodes, borrowed themes from the same or an earlier act,
+     * one final node on a capstone, reachability) are the same rules the loader
+     * rejects a dungeon for, run here over the given dungeons so a pack author
+     * sees them with the dungeon id and node named. On top of that: a node
+     * theme, signature affix or room bias entry that does not exist, and a theme no dungeon uses
+     * as its main theme (never offered once dungeons drive the doors).
+     */
+    static List<Finding> dungeonFindings(java.util.Collection<DungeonDef> dungeons, List<String> themeIds,
+                                         java.util.function.Predicate<String> affixExists,
+                                         java.util.function.Predicate<String> roomExists) {
+        List<Finding> findings = new ArrayList<>();
+        java.util.Map<String, Integer> actOfTheme = DungeonDefs.actOfTheme(dungeons);
+        Set<String> themes = new HashSet<>(themeIds);
+        for (DungeonDef def : dungeons) {
+            for (String problem : def.problems(theme -> actOfTheme.getOrDefault(theme, 0))) {
+                findings.add(new Finding(def.id(), "dungeon", problem));
+            }
+            for (String block : def.nodePalette()) {
+                if (DungeonDef.isStructuralBlock(block)) {
+                    findings.add(new Finding(def.id(), "nodePalette",
+                            "structural block " + block + " would make walls mineable; a palette holds resource blocks only"));
+                }
+            }
+            if (!themes.contains(def.mainTheme())) {
+                findings.add(new Finding(def.id(), "mainTheme", "theme not found: " + def.mainTheme()));
+            }
+            for (DungeonDef.Node node : def.nodes()) {
+                if (node.overridesTheme() && !themes.contains(node.theme())) {
+                    findings.add(new Finding(def.id(), "nodes." + node.id() + ".theme",
+                            "theme not found: " + node.theme()));
+                }
+                for (String room : node.roomBias()) {
+                    if (!roomExists.test(room)) {
+                        findings.add(new Finding(def.id(), "nodes." + node.id() + ".roomBias",
+                                "room not found: " + room));
+                    }
+                }
+                if (!node.signatureAffix().isEmpty() && !affixExists.test(node.signatureAffix())) {
+                    findings.add(new Finding(def.id(), "nodes." + node.id() + ".signatureAffix",
+                            "affix not found: " + node.signatureAffix()));
+                }
+            }
+        }
+        for (String theme : themeIds) {
+            if (!actOfTheme.containsKey(theme)) {
+                findings.add(new Finding(theme, "dungeon",
+                        "theme is not the main theme of any dungeon"));
+            }
+        }
+        return findings;
+    }
+
+    /**
+     * Dungeon structure W4 room metadata findings (design section 7): a room that is
+     * {@code dark} and {@code requiresLight} (the darkness pass never darkens it, so
+     * the two disagree), a node whose block is not a vanilla block (the pack is
+     * server side only: no custom blocks), a {@code graphRole} word the planner does
+     * not know, and a {@code dungeons} or {@code borrowableBy} entry no dungeon
+     * answers to. {@code blockExists} answers for a full block id; {@code dungeonIds}
+     * are the loaded dungeons' namespaced ids.
+     */
+    static List<Finding> roomMetaFindings(java.util.Map<String, DungeonRoomMeta> rooms,
+                                          Set<String> dungeonIds,
+                                          java.util.function.Predicate<String> blockExists) {
+        List<Finding> findings = new ArrayList<>();
+        for (java.util.Map.Entry<String, DungeonRoomMeta> entry : rooms.entrySet()) {
+            String room = entry.getKey();
+            DungeonRoomMeta meta = entry.getValue();
+            if (DungeonRoomMeta.LIGHT_DARK.equals(meta.light) && meta.requiresLight) {
+                findings.add(new Finding(room, "light",
+                        "warning: light is dark but requiresLight is true; the room is never stamped dark"));
+            }
+            for (DungeonRoomMeta.NodeSpec node : meta.nodes) {
+                if (!node.block().startsWith("minecraft:")) {
+                    findings.add(new Finding(room, "nodes",
+                            "node block is not a vanilla block: " + node.block()));
+                } else if (!blockExists.test(node.block())) {
+                    findings.add(new Finding(room, "nodes", "node block does not exist: " + node.block()));
+                }
+            }
+            for (String role : meta.graphRole) {
+                if (!DungeonRoomMeta.GRAPH_ROLES.contains(role)) {
+                    findings.add(new Finding(room, "graphRole", "unknown graph role: " + role
+                            + " (entry, any, side_reward, final or capstone)"));
+                }
+            }
+            for (String id : meta.dungeons) {
+                if (!dungeonIds.contains(DungeonDef.qualify(id))) {
+                    findings.add(new Finding(room, "dungeons", "dungeon not found: " + id));
+                }
+            }
+            for (String id : meta.borrowableBy) {
+                if (!dungeonIds.contains(DungeonDef.qualify(id))) {
+                    findings.add(new Finding(room, "borrowableBy", "dungeon not found: " + id));
+                }
+            }
+        }
+        return findings;
+    }
+
+    private static boolean vanillaBlockExists(String id) {
+        net.minecraft.resources.Identifier parsed = net.minecraft.resources.Identifier.tryParse(id);
+        return parsed != null && net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(parsed);
     }
 
     /**

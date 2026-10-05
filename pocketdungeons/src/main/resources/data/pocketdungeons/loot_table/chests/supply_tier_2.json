@@ -120,7 +120,13 @@
           ]
         }
       ],
-      "rolls": 1
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.34
+        }
+      ]
     },
     {
       "entries": [
@@ -420,13 +426,13 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
-          "weight": 2,
+          "weight": 4,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": {
                 "min": 1,
-                "max": 1
+                "max": 2
               }
             }
           ]
@@ -594,6 +600,20 @@
                     "bag": 1
                   }
                 }
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:oak_planks",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 2,
+                "max": 4
               }
             }
           ]

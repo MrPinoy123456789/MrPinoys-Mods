@@ -1,0 +1,138 @@
+{
+  "name": "Blackstone",
+  "act": 4,
+  "kind": "story",
+  "mainTheme": "blackstone",
+  "lootBand": {
+    "min": 3,
+    "max": 4
+  },
+  "nodePalette": [
+    "gilded_blackstone",
+    "nether_gold_ore",
+    "ancient_debris",
+    "warped_stem",
+    "crimson_stem",
+    "warped_wart_block",
+    "nether_wart_block"
+  ],
+  "diary": "entry_21",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "basalt_foundry",
+      "deepslate"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "bastion_gate",
+      "name": "Bastion Gate",
+      "layer": 1
+    },
+    {
+      "id": "piglin_barracks",
+      "name": "Piglin Barracks",
+      "layer": 2
+    },
+    {
+      "id": "hoard_corridors",
+      "name": "Hoard Corridors",
+      "layer": 2,
+      "roomBias": [
+        "barred_vault"
+      ]
+    },
+    {
+      "id": "chain_bridge",
+      "name": "Bridge of Chains",
+      "layer": 3,
+      "roomBias": [
+        "collapsing_bridge"
+      ]
+    },
+    {
+      "id": "slag_vents",
+      "name": "Slag Vents",
+      "layer": 3,
+      "theme": "basalt_foundry",
+      "roomBias": [
+        "rising_lava"
+      ]
+    },
+    {
+      "id": "gilded_treasury",
+      "name": "Gilded Treasury",
+      "layer": 4,
+      "roomBias": [
+        "loot_vault"
+      ]
+    },
+    {
+      "id": "bastion_keep",
+      "name": "The Bastion Keep",
+      "layer": 5,
+      "final": true
+    },
+    {
+      "id": "crimson_grove",
+      "name": "The Crimson Grove",
+      "layer": 3,
+      "roomBias": [
+        "crimson_forest",
+        "warped_forest"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "bastion_gate",
+      "to": "piglin_barracks"
+    },
+    {
+      "from": "bastion_gate",
+      "to": "hoard_corridors"
+    },
+    {
+      "from": "piglin_barracks",
+      "to": "chain_bridge"
+    },
+    {
+      "from": "hoard_corridors",
+      "to": "chain_bridge"
+    },
+    {
+      "from": "hoard_corridors",
+      "to": "slag_vents"
+    },
+    {
+      "from": "piglin_barracks",
+      "to": "slag_vents",
+      "cost": 1
+    },
+    {
+      "from": "chain_bridge",
+      "to": "gilded_treasury"
+    },
+    {
+      "from": "slag_vents",
+      "to": "gilded_treasury"
+    },
+    {
+      "from": "gilded_treasury",
+      "to": "bastion_keep"
+    },
+    {
+      "from": "piglin_barracks",
+      "to": "crimson_grove"
+    },
+    {
+      "from": "hoard_corridors",
+      "to": "crimson_grove"
+    },
+    {
+      "from": "crimson_grove",
+      "to": "gilded_treasury"
+    }
+  ]
+}

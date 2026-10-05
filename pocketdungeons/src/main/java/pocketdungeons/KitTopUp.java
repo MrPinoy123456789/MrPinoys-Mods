@@ -28,9 +28,10 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Superseded 2026-10-04 by {@link KitChest}: the bag chest is refilled with a
- * fresh full kit instead of a band-scaled top-up into the pack. {@link #settle}
- * is no longer called; {@link #itemId} is still used by the pack validator.
+ * Superseded (2026-10-04 by the bag chest refill, then 2026-10-05 by dungeon structure
+ * W5, design D14: no kit refill of any kind). {@link #settle} is no longer called;
+ * {@link #itemId} is still used by the pack validator. The config keys it read
+ * ({@code kitTopUpBand*}, zone {@code kit_top_up_scale}) stay readable and are unused.
  *
  * <p>The safe-visit kit top-up: at each interval's settlement, every settling
  * member's bag kit is restored toward its baseline, by an amount the omen band
@@ -206,7 +207,7 @@ final class KitTopUp {
         if (plan.grants().isEmpty()) {
             return bandEarnedNone
                     ? "The omen ran high. The safe room restocks nothing this visit."
-                    : "The safe room had too little to spare this visit. A calmer interval restocks more.";
+                    : "The safe room had too little to spare this visit. A calmer trip restocks more.";
         }
         List<String> parts = new ArrayList<>();
         for (Grant grant : plan.grants()) {

@@ -31,7 +31,8 @@
       "pocketdungeons.FountainGameTest",
       "pocketdungeons.LockInGameTest",
       "pocketdungeons.ThemedMerchantGameTest",
-      "pocketdungeons.PartyAccessGameTest"
+      "pocketdungeons.PartyAccessGameTest",
+      "pocketdungeons.PlaytestFixGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

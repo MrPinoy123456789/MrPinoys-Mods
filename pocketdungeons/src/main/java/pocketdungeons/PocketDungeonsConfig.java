@@ -99,6 +99,7 @@ public final class PocketDungeonsConfig {
     // door steps bank one keystone level (IntervalBanking). Nothing forces
     // the party home.
     private static int floorsPerSafeVisit = 3;
+    // UNUSED since dungeon structure W5 (D14, no kit refill); still read and saved.
     // The share of a kit's missing stackable items a safe visit restores, by
     // the interval's omen band: calm, mid, high. Tools are replaced at the
     // calm band only, whatever these say (KitTopUp). Each in [0, 1], and no
@@ -165,10 +166,24 @@ public final class PocketDungeonsConfig {
     private static double fountainChance = 0.15;
     /** Omen a cleansing fountain takes off the floor. */
     private static int fountainOmenRelief = 2;
-    /** Echo shards granted when a full interval banks (guaranteed). */
+    /**
+     * UNUSED since the dungeon structure waves: a full interval no longer pays a shard
+     * at the bank; a finished dungeon does ({@link #echoShardsPerFinish()}). The key
+     * stays readable so an old config still loads.
+     */
     private static int echoShardsPerInterval = 1;
-    /** Chance, per member, of one echo shard when a floor is cleared. */
-    private static double echoShardFloorChance = 0.5;
+    /** Echo shards each member is paid when a story or capstone dungeon is finished (design D11). */
+    private static int echoShardsPerFinish = 1;
+    /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
+    private static int finishVaultChests = 2;
+    /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
+    private static int capstoneStartOmen = 1;
+    /**
+     * UNUSED since the dungeon structure waves: the per-floor echo shard roll was
+     * removed (a finished dungeon pays the shard instead). The key stays readable
+     * so an old config still loads; default 0.
+     */
+    private static double echoShardFloorChance = 0;
     /** Chance, per player in the room, of one echo shard when an Ordeal resolves. */
     private static double echoShardOrdealChance = 0.25;
     /** Silenced's trial spawners detect players at this range instead of 14. */
@@ -205,33 +220,32 @@ public final class PocketDungeonsConfig {
 
     // ---- two-tier doors and fuel (M12) ----------------------------------------
     /**
-     * The currency doors 2/3 cost and door 1 pays out. Echo shards, not
+     * The currency a side branch costs and a finished dungeon pays. Echo shards, not
      * diamonds: diegetically the keystone (a recovery compass) is crafted from
-     * echo shards. No loot table grants any. Sources: door 1's guaranteed
-     * payout, and (playtest 2026-10-02-1, the player was short of them) one per
-     * completed interval, a chance per cleared floor and a chance per Ordeal;
-     * see {@link #echoShardsPerInterval()}, {@link #echoShardFloorChance()} and
-     * {@link #echoShardOrdealChance()}. A Greater room dropping fuel of its
-     * own would still let the premium tier fund itself, so none does.
+     * echo shards. No loot table grants any. Sources (dungeon structure waves): one
+     * per member when a story or capstone dungeon is finished
+     * ({@link #echoShardsPerFinish()}) and a chance per Ordeal
+     * ({@link #echoShardOrdealChance()}); the per-floor roll and the per-interval and
+     * free door payouts are gone. Side branches spend them (design D5).
      */
     private static String fuelItem = "minecraft:echo_shard";
-    /** What a door 2/3 choice costs, spent atomically with the level upgrade. */
+    /**
+     * UNUSED since the dungeon structure waves (design D4, D5): Greater doors are gone,
+     * and a side branch's shard cost is authored on its edge in the dungeon file. The
+     * key stays readable so an old config still loads.
+     */
     private static int fuelCostPerGreaterDoor = 3;
-    /** What a completed door-1 run pays out, guaranteed, every time. */
+    /**
+     * UNUSED since the dungeon structure waves: door 1 no longer pays a free door
+     * shard at the bank. The key stays readable so an old config still loads.
+     */
     private static int fuelPerFreeRun = 1;
     /**
-     * The keystone level a door 2/3 offer requires before it can be taken.
-     * Applies to the <em>current</em> level being upgraded, not the offer's
-     * resulting level: the whole point is that a low key cannot reach the
-     * premium path at all, not that it reaches a worse version of it.
+     * UNUSED since the dungeon structure waves: no door has a keystone level gate any
+     * more (design D4). The key stays readable so an old config still loads.
      */
     private static int greaterDoorMinLevel = 15;
-    /**
-     * Door 2's own keystone level gate, below {@link #greaterDoorMinLevel}
-     * which now gates door 3 only (playtest 2026-09-29: at one shared gate of
-     * 15 a new player never saw a door choice at all; the player asked for
-     * door 2 at level 7 or 8).
-     */
+    /** UNUSED since the dungeon structure waves, same as {@link #greaterDoorMinLevel}. */
     private static int door2MinLevel = 7;
 
     // ---- Pocket2 sub-dungeon (M25) -------------------------------------------
@@ -607,8 +621,21 @@ public final class PocketDungeonsConfig {
         return swarmingMobFactor;
     }
 
+    /** Unused; see the field. */
     public static int echoShardsPerInterval() {
         return echoShardsPerInterval;
+    }
+
+    public static int echoShardsPerFinish() {
+        return echoShardsPerFinish;
+    }
+
+    public static int finishVaultChests() {
+        return finishVaultChests;
+    }
+
+    public static int capstoneStartOmen() {
+        return capstoneStartOmen;
     }
 
     public static double echoShardFloorChance() {
@@ -683,26 +710,30 @@ public final class PocketDungeonsConfig {
         return fuelItem;
     }
 
+    /** Unused since the dungeon structure waves; see the field. */
     public static int fuelCostPerGreaterDoor() {
         return fuelCostPerGreaterDoor;
     }
 
+    /** Unused since the dungeon structure waves; see the field. */
     public static int fuelPerFreeRun() {
         return fuelPerFreeRun;
     }
 
+    /** Unused since the dungeon structure waves; see the field. */
     public static int greaterDoorMinLevel() {
         return greaterDoorMinLevel;
     }
 
+    /** Unused since the dungeon structure waves; see the field. */
     public static int door2MinLevel() {
         return door2MinLevel;
     }
 
     /**
-     * The keystone level selector door {@code step} needs before a gated
-     * (non-free) offer behind it can be taken: door 2 has its own gate,
-     * door 3 keeps {@link #greaterDoorMinLevel}. Door 1 is never gated.
+     * Unused since the dungeon structure waves: no door has a level gate. Kept so a
+     * stale caller compiles; the old rule was door 2 at {@link #door2MinLevel}, door 3
+     * at {@link #greaterDoorMinLevel}, door 1 never gated.
      */
     public static int doorMinLevel(int step) {
         return switch (step) {
@@ -894,7 +925,10 @@ public final class PocketDungeonsConfig {
         fountainChance = 0.15;
         fountainOmenRelief = 2;
         echoShardsPerInterval = 1;
-        echoShardFloorChance = 0.5;
+        echoShardsPerFinish = 1;
+        finishVaultChests = 2;
+        capstoneStartOmen = 1;
+        echoShardFloorChance = 0;
         echoShardOrdealChance = 0.25;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
@@ -1088,7 +1122,10 @@ public final class PocketDungeonsConfig {
         lockInEmeralds = readInt(root, "lockInEmeralds", 32, v -> v >= 1 && v <= 64, "must be between 1 and 64");
         lockInUnlockLevel = readInt(root, "lockInUnlockLevel", 5, v -> v >= 1, "must be >= 1");
         echoShardsPerInterval = readInt(root, "echoShardsPerInterval", 1, v -> v >= 0, "must be >= 0");
-        echoShardFloorChance = readDouble(root, "echoShardFloorChance", 0.5, v -> v >= 0 && v <= 1,
+        echoShardsPerFinish = readInt(root, "echoShardsPerFinish", 1, v -> v >= 0, "must be >= 0");
+        finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
+        capstoneStartOmen = readInt(root, "capstoneStartOmen", 1, v -> v >= 0 && v <= 4, "must be between 0 and 4");
+        echoShardFloorChance = readDouble(root, "echoShardFloorChance", 0, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
         echoShardOrdealChance = readDouble(root, "echoShardOrdealChance", 0.25, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
@@ -1160,8 +1197,6 @@ public final class PocketDungeonsConfig {
         // level cap can be a legitimate server choice, so this warns rather
         // than refuses or clamps; the operator just needs to know what it
         // costs.
-        warnIfGateUnreachable("greaterDoorMinLevel", greaterDoorMinLevel, "Door 3");
-        warnIfGateUnreachable("door2MinLevel", door2MinLevel, "Door 2");
         warnIfGateUnreachable("rerollUnlockLevel", rerollUnlockLevel, "the reroll station");
         warnIfGateUnreachable("gambleUnlockLevel", gambleUnlockLevel, "the gamble station");
         warnIfGateUnreachable("salvageUnlockLevel", salvageUnlockLevel, "the salvage bench");
@@ -1413,7 +1448,10 @@ public final class PocketDungeonsConfig {
         root.addProperty("lockInEmeralds", 32);
         root.addProperty("lockInUnlockLevel", 5);
         root.addProperty("echoShardsPerInterval", 1);
-        root.addProperty("echoShardFloorChance", 0.5);
+        root.addProperty("echoShardsPerFinish", 1);
+        root.addProperty("finishVaultChests", 2);
+        root.addProperty("capstoneStartOmen", 1);
+        root.addProperty("echoShardFloorChance", 0);
         root.addProperty("echoShardOrdealChance", 0.25);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);

@@ -20,7 +20,7 @@ import java.util.List;
  *
  * <p>Carried progress always converts to levels; omen no longer reduces that.
  * Leaving at a checkpoint instead of going home settles one band worse
- * ({@link #LEAVE_PENALTY}). The band still colours the bar and the kit refill.
+ * ({@link #LEAVE_PENALTY}). The band still colours the bar.
  */
 final class IntervalBanking {
 
@@ -110,20 +110,20 @@ final class IntervalBanking {
 
     /**
      * The go-home screen: what pulling the lever would bank right now, for the
-     * owner. {@code goodTime} is true once the interval has run its usual
-     * length, the moment the screen and its bulb light up. {@code kitRefill}
-     * is whether the band restocks the kit at all.
+     * owner. {@code finished} is true once the dungeon's final floor is cleared, the
+     * moment the screen and its bulb light up. Dungeon structure W5 (D14): the screen no longer
+     * mentions a kit; nothing refills it.
      */
-    static String homeScreen(Settlement now, int floorsPerSafeVisit, boolean goodTime, boolean kitRefill) {
+    static String homeScreen(Settlement now, int floorsPerSafeVisit, boolean finished) {
         // Playtest 2026-09-27 (A2, A5): "banks +0 levels, 1/3 kept, calm" meant
         // nothing to the player, who then saw no reason to go home. The screen
-        // now says in plain words what going home pays.
+        // says in plain words what going home pays.
         // Playtest 2026-10-02-1: going home does not pay chests (a floor's own
-        // chests are claimed on that floor), so the sign no longer says it does;
-        // it says when going home is the sensible stop instead.
-        String title = goodTime ? "TIME TO GO HOME" : "GO HOME AFTER " + Math.max(1, floorsPerSafeVisit) + " FLOORS";
-        return title + "\n" + keyLine(now, floorsPerSafeVisit)
-                + "\n" + (kitRefill ? "Kit refilled" : "No kit refill");
+        // chests are claimed on that floor), so the sign no longer says it does.
+        // Dungeon structure W2: the trip length is the dungeon's, not a number of
+        // floors, so the title only says whether the dungeon is done.
+        String title = finished ? "DUNGEON CLEARED: GO HOME" : "GO HOME";
+        return title + "\n" + keyLine(now, floorsPerSafeVisit);
     }
 
     /** What the key gains, in words: whole levels, or steps toward the next. */

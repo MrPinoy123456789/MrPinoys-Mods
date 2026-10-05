@@ -1,0 +1,31 @@
+{
+  "template": "pocketdungeons:rooms/end_city_hall",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "the_end"
+  ],
+  "light": "lit",
+  "biome": "end_city",
+  "dungeons": [
+    "the_end"
+  ],
+  "acts": [
+    5
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

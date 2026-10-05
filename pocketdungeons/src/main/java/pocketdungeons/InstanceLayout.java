@@ -76,6 +76,14 @@ import java.util.Set;
  *                     it turns out to be the wrong block, or they want the
  *                     threshold empty again. Empty for every connector type
  *                     but {@code IRON_DOOR}.
+ * @param nodes        (dungeon structure W4, D19) the resource node positions this
+ *                     stamp registered: room metadata nodes, blocks of the dungeon's
+ *                     node palette the templates hold, found by {@link NodeStamper}.
+ *                     Empty for a layout with no dungeon behind it. The mutable copy
+ *                     the break rule reads and shrinks lives on {@link FloorState#nodes}
+ * @param softBreakables (W4, D20) the positions of soft mechanic gates the stamp
+ *                     placed (the infested wall's and the gravel plug's), which the
+ *                     player is meant to mine through even though they are not nodes
  */
 record InstanceLayout(
         BlockPos origin,
@@ -96,11 +104,27 @@ record InstanceLayout(
         int terminalRotation,
         Set<BlockPos> trialSpawners,
         BlockPos pocket2Door,
-        Set<BlockPos> ironDoorFarSideSlots) {
+        Set<BlockPos> ironDoorFarSideSlots,
+        Set<BlockPos> nodes,
+        Set<BlockPos> softBreakables) {
 
     InstanceLayout {
         trialSpawners = trialSpawners == null ? Set.of() : Set.copyOf(trialSpawners);
         ironDoorFarSideSlots = ironDoorFarSideSlots == null ? Set.of() : Set.copyOf(ironDoorFarSideSlots);
+        nodes = nodes == null ? Set.of() : Set.copyOf(nodes);
+        softBreakables = softBreakables == null ? Set.of() : Set.copyOf(softBreakables);
+    }
+
+    /** A layout with no registered nodes or soft gates (everything stamped before dungeon structure W4). */
+    InstanceLayout(BlockPos origin, PlanGeometry geometry, BlockPos entrance, float entranceYaw,
+                   BlockPos exitPad, AABB bounds, long seed, int pathLength, int roomCount,
+                   int lootTier, boolean procedural, Set<String> affixes, int keystoneLevel,
+                   BlockPos terminal, int entranceRotation, int terminalRotation,
+                   Set<BlockPos> trialSpawners, BlockPos pocket2Door,
+                   Set<BlockPos> ironDoorFarSideSlots) {
+        this(origin, geometry, entrance, entranceYaw, exitPad, bounds, seed, pathLength, roomCount,
+                lootTier, procedural, affixes, keystoneLevel, terminal, entranceRotation,
+                terminalRotation, trialSpawners, pocket2Door, ironDoorFarSideSlots, Set.of(), Set.of());
     }
 
     /**

@@ -51,7 +51,7 @@ public final class ThemedMerchantGameTest {
     public void aNetherFloorHostsANetherMerchantThatTakesBlazeRodsAndMagmaCream(GameTestHelper helper) {
         for (long seed = 1; seed <= 12; seed++) {
             Villager villager = spawnStore(helper, "basalt_foundry", seed);
-            helper.assertValueEqual(villager.getName().getString(), "Nether Merchant", "merchant for basalt foundry");
+            helper.assertValueEqual(villager.getName().getString(), "Blaze Trader", "merchant for basalt foundry");
             for (String currency : currencies(villager)) {
                 helper.assertTrue(currency.equals("minecraft:blaze_rod")
                                 || currency.equals("minecraft:magma_cream")
