@@ -109,12 +109,10 @@ final class SalvageStation {
         if (stack.is(TrialContent.keyStack(false).getItem())) {
             return take(Kind.KEY);
         }
-        // PD-135 (playtest 2026-10-03-2): chest loot carries the bag tag too
-        // (it keeps the piece in the dungeon inventory), so this refused every
-        // armour piece found in a chest, a leather cap included, as "part of
-        // your kit". The kit is the bag-tagged gear with no tier.
-        if (InventorySwap.isOurs(stack) && RerollStation.tierOf(stack) <= 0) {
-            return refuse("part of your kit, it goes home with you");
+        // Owner request (2026-10-03): kit can be scrapped like any other gear;
+        // the safe room tops the kit back up. Only the keystone is kept.
+        if (Keystone.isKeystone(stack)) {
+            return refuse("your keystone, it goes home with you");
         }
         if (LockInStation.isLocked(stack)) {
             return refuse("locked in, kept safe");
@@ -138,21 +136,52 @@ final class SalvageStation {
     }
 
     /**
-     * The raw material a piece of gear gives back (owner request, 2026-10-03),
-     * read from its id: leather, iron, gold, copper or diamond armour,
-     * weapons and tools. Chainmail, netherite, wood, stone, bows and shields
-     * give none: chainmail has no material, netherite would bypass the scrap
-     * economy, and the rest are not worth breaking down. {@code null} for none.
+     * What one piece of gear gives back when salvaged (owner request,
+     * 2026-10-03), by its material and how worn it is
+     * ({@link SalvageMath#band}):
+     * <ul>
+     *   <li>leather, iron, chainmail (as iron), gold, copper, diamond and
+     *       netherite (as scrap) armour, weapons and tools:
+     *       {@link SalvageMath#materials};</li>
+     *   <li>wooden tools: 1 plank in the high band, 2 sticks in the middle;</li>
+     *   <li>stone tools: 1 cobblestone in the high or middle band;</li>
+     *   <li>a shield: 1 plank in the high or middle band.</li>
+     * </ul>
+     * Under 25 percent, and for anything else (bows, flint and steel),
+     * nothing: {@link ItemStack#EMPTY}. Never nuggets.
      */
-    static Item materialOf(ItemStack stack) {
-        String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
-        if (!isArmourOrTool(path)) {
-            return null;
+    static ItemStack materialsBack(ItemStack stack) {
+        SalvageMath.Band band = SalvageMath.band(stack.getMaxDamage() - stack.getDamageValue(),
+                stack.getMaxDamage());
+        if (band == SalvageMath.Band.LOW) {
+            return ItemStack.EMPTY;
         }
+        String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
+        if (path.equals("shield")) {
+            return new ItemStack(Items.OAK_PLANKS);
+        }
+        if (!isArmourOrTool(path)) {
+            return ItemStack.EMPTY;
+        }
+        if (path.startsWith("wooden_")) {
+            return band == SalvageMath.Band.HIGH ? new ItemStack(Items.OAK_PLANKS) : new ItemStack(Items.STICK, 2);
+        }
+        if (path.startsWith("stone_")) {
+            return new ItemStack(Items.COBBLESTONE);
+        }
+        Item material = metalOf(path);
+        if (material == null) {
+            return ItemStack.EMPTY;
+        }
+        return new ItemStack(material, SalvageMath.materials(isLarge(stack), band));
+    }
+
+    /** The material of leather, metal and gem gear, read from its id; {@code null} for anything else. */
+    private static Item metalOf(String path) {
         if (path.startsWith("leather_")) {
             return Items.LEATHER;
         }
-        if (path.startsWith("iron_")) {
+        if (path.startsWith("iron_") || path.startsWith("chainmail_")) {
             return Items.IRON_INGOT;
         }
         if (path.startsWith("golden_")) {
@@ -163,6 +192,9 @@ final class SalvageStation {
         }
         if (path.startsWith("diamond_")) {
             return Items.DIAMOND;
+        }
+        if (path.startsWith("netherite_")) {
+            return Items.NETHERITE_SCRAP;
         }
         return null;
     }
@@ -185,12 +217,17 @@ final class SalvageStation {
         return path.endsWith("_chestplate") || path.endsWith("_leggings");
     }
 
-    /** Half of what the stack's enchantments are worth, in grindstone terms; see {@link SalvageMath#mobGearXp}. */
+    /** What the stack's enchantments are worth to a grindstone; see {@link SalvageMath#grindstoneHalf}. */
     private static int enchantCostSum(ItemStack stack) {
         int sum = 0;
-        for (var entry : stack.getEnchantments().entrySet()) {
+        ItemEnchantments enchantments = net.minecraft.world.item.enchantment.EnchantmentHelper
+                .getEnchantmentsForCrafting(stack);
+        for (var entry : enchantments.entrySet()) {
             Holder<Enchantment> enchantment = entry.getKey();
-            sum += enchantment.value().getMinCost(entry.getIntValue());
+            // As the grindstone: curses are not stripped, so they pay nothing.
+            if (!enchantment.is(net.minecraft.tags.EnchantmentTags.CURSE)) {
+                sum += enchantment.value().getMinCost(entry.getIntValue());
+            }
         }
         return sum;
     }
@@ -286,8 +323,22 @@ final class SalvageStation {
     }
 
     /** What the screen's contents would pay right now, and what stays. */
-    record Quote(int gear, int gearEmeralds, int keys, int ominousKeys, int mobGear, int xp,
+    /**
+     * {@code grindHalves} holds {@link SalvageMath#grindstoneHalf} for each
+     * enchanted piece, one entry per item; the XP is rolled from them at
+     * payout, the way the grindstone rolls it, and {@link #xpMin} and
+     * {@link #xpMax} are what the screen quotes.
+     */
+    record Quote(int gear, int keys, int ominousKeys, int mobGear, List<Integer> grindHalves,
                          int refused, String firstRefusal, Map<Item, Integer> materials) {
+        int xpMin() {
+            return grindHalves.stream().mapToInt(Integer::intValue).sum();
+        }
+
+        int xpMax() {
+            return grindHalves.stream().mapToInt(c -> 2 * c - 1).sum();
+        }
+
         int keyFuel() {
             return SalvageMath.keyFuel(keys, PocketDungeonsConfig.salvageKeysPerFuel());
         }
@@ -300,7 +351,7 @@ final class SalvageStation {
         int emeralds() {
             int keyEmeralds = PocketDungeonsConfig.salvageKeysPerFuel() > 0 ? 0
                     : SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds());
-            return gearEmeralds + keyEmeralds
+            return keyEmeralds
                     + SalvageMath.keyEmeralds(ominousKeys, PocketDungeonsConfig.salvageOminousKeyEmeralds());
         }
 
@@ -310,7 +361,8 @@ final class SalvageStation {
     }
 
     static Quote quote(SimpleContainer input) {
-        int gear = 0, gearEmeralds = 0, keys = 0, ominousKeys = 0, mobGear = 0, xp = 0, refused = 0;
+        int gear = 0, keys = 0, ominousKeys = 0, mobGear = 0, refused = 0;
+        List<Integer> grindHalves = new ArrayList<>();
         String firstRefusal = "";
         Map<Item, Integer> materials = new LinkedHashMap<>();
         for (int i = 0; i < INPUT_SLOTS; i++) {
@@ -321,17 +373,21 @@ final class SalvageStation {
             Verdict verdict = classify(stack);
             int count = stack.getCount();
             switch (verdict.kind()) {
-                case GEAR -> {
-                    gear += count;
-                    gearEmeralds += count * SalvageMath.gearEmeralds(RerollStation.tierOf(stack),
-                            PocketDungeonsConfig.salvageEmeraldsPerTier());
+                // Owner request (2026-10-03): gear, tagged or a mob drop, pays
+                // the grindstone's XP and its materials, never emeralds.
+                case GEAR, MOB_GEAR -> {
+                    if (verdict.kind() == Kind.GEAR) {
+                        gear += count;
+                    } else {
+                        mobGear += count;
+                    }
+                    int half = SalvageMath.grindstoneHalf(enchantCostSum(stack));
+                    for (int n = 0; n < count && half > 0; n++) {
+                        grindHalves.add(half);
+                    }
                 }
                 case KEY -> keys += count;
                 case OMINOUS_KEY -> ominousKeys += count;
-                case MOB_GEAR -> {
-                    mobGear += count;
-                    xp += count * SalvageMath.mobGearXp(enchantCostSum(stack));
-                }
                 case REFUSED -> {
                     refused += count;
                     if (firstRefusal.isEmpty()) {
@@ -345,15 +401,13 @@ final class SalvageStation {
             ItemStack stack = input.getItem(i);
             Kind kind = stack.isEmpty() ? Kind.REFUSED : classify(stack).kind();
             if (kind == Kind.GEAR || kind == Kind.MOB_GEAR) {
-                Item material = materialOf(stack);
-                int n = material == null ? 0 : stack.getCount() * SalvageMath.materials(isLarge(stack),
-                        stack.getMaxDamage() - stack.getDamageValue(), stack.getMaxDamage());
-                if (n > 0) {
-                    materials.merge(material, n, Integer::sum);
+                ItemStack back = materialsBack(stack);
+                if (!back.isEmpty()) {
+                    materials.merge(back.getItem(), back.getCount() * stack.getCount(), Integer::sum);
                 }
             }
         }
-        return new Quote(gear, gearEmeralds, keys, ominousKeys, mobGear, xp, refused, firstRefusal,
+        return new Quote(gear, keys, ominousKeys, mobGear, List.copyOf(grindHalves), refused, firstRefusal,
                 materials);
     }
 
@@ -361,8 +415,9 @@ final class SalvageStation {
                                 ContainerLevelAccess access) {
         Quote q = quote(input);
         List<Component> lore = new ArrayList<>();
-        if (q.gear() > 0) {
-            lore.add(line("Gear: " + q.gear() + " for " + q.gearEmeralds() + " emerald" + plural(q.gearEmeralds())));
+        if (q.gear() + q.mobGear() > 0) {
+            int pieces = q.gear() + q.mobGear();
+            lore.add(line("Gear: " + pieces + " piece" + plural(pieces) + " for " + xpText(q)));
         }
         if (q.keys() > 0) {
             int perFuel = PocketDungeonsConfig.salvageKeysPerFuel();
@@ -378,9 +433,6 @@ final class SalvageStation {
         if (q.ominousKeys() > 0) {
             int paid = SalvageMath.keyEmeralds(q.ominousKeys(), PocketDungeonsConfig.salvageOminousKeyEmeralds());
             lore.add(line("Ominous keys: " + q.ominousKeys() + " for " + paid + " emerald" + plural(paid)));
-        }
-        if (q.mobGear() > 0) {
-            lore.add(line("Mob gear: " + q.mobGear() + " for " + q.xp() + " XP"));
         }
         if (!q.materials().isEmpty()) {
             lore.add(line("Materials back: " + materialsText(q.materials())));
@@ -405,12 +457,12 @@ final class SalvageStation {
             button.setName(Component.literal("Put gear here to salvage").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Click gear in your pack to move it in."));
-            lore.add(line("It pays emeralds, fuel, XP and materials."));
+            lore.add(line("Gear pays XP and materials; keys pay fuel."));
         } else {
             button.setName(Component.literal("Nothing here can be salvaged").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Drop in gear or vault keys."));
-            lore.add(line("They pay emeralds, fuel, XP and materials."));
+            lore.add(line("Gear pays XP and materials; keys pay fuel."));
         }
         lore.add(Component.literal("Sneak and use the grindstone for the plain one.")
                 .withStyle(ChatFormatting.DARK_GRAY).withStyle(s -> s.withItalic(false)));
@@ -515,6 +567,14 @@ final class SalvageStation {
         return Component.literal(text).withStyle(ChatFormatting.WHITE).withStyle(s -> s.withItalic(false));
     }
 
+    /** The quoted XP: "no XP", "6 XP" or "6 to 11 XP", the grindstone's range. */
+    private static String xpText(Quote q) {
+        if (q.xpMax() <= 0) {
+            return "no XP";
+        }
+        return q.xpMin() == q.xpMax() ? q.xpMin() + " XP" : q.xpMin() + " to " + q.xpMax() + " XP";
+    }
+
     /** For example "2 Iron Ingot, 1 Leather". */
     private static String materialsText(Map<Item, Integer> materials) {
         List<String> parts = new ArrayList<>();
@@ -578,8 +638,12 @@ final class SalvageStation {
         if (fuel > 0) {
             Fuel.grant(player, fuel);
         }
-        if (q.xp() > 0) {
-            player.giveExperiencePoints(q.xp());
+        int xp = 0;
+        for (int half : q.grindHalves()) {
+            xp += half + player.getRandom().nextInt(half);
+        }
+        if (xp > 0) {
+            player.giveExperiencePoints(xp);
         }
         for (Map.Entry<Item, Integer> m : q.materials().entrySet()) {
             Payout.deliver(player, new ItemStack(m.getKey(), m.getValue()));
@@ -594,8 +658,8 @@ final class SalvageStation {
         if (fuel > 0) {
             parts.add(fuel + " fuel");
         }
-        if (q.xp() > 0) {
-            parts.add(q.xp() + " XP");
+        if (xp > 0) {
+            parts.add(xp + " XP");
         }
         if (!q.materials().isEmpty()) {
             parts.add(materialsText(q.materials()));
@@ -610,7 +674,7 @@ final class SalvageStation {
         extras.put("mob_gear", q.mobGear());
         extras.put("emeralds", emeralds);
         extras.put("fuel", fuel);
-        extras.put("xp", q.xp());
+        extras.put("xp", xp);
         Map<String, Integer> materialIds = new LinkedHashMap<>();
         for (Map.Entry<Item, Integer> m : q.materials().entrySet()) {
             materialIds.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(m.getKey()).toString(),

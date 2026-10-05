@@ -12,56 +12,63 @@ final class SalvageMath {
     private SalvageMath() {}
 
     /**
-     * Emeralds for one piece of tagged gear. Linear in tier like the gamble's
-     * cost, so the ratio between the two stays fixed at every tier. An
-     * unvalidated tier floors at 1, and a negative rate pays nothing.
+     * The fixed half of what a vanilla grindstone pays for stripping one
+     * item (owner request, 2026-10-03: scrapping pays the grindstone's XP and
+     * materials, never emeralds). The grindstone takes the sum of each
+     * non-curse enchantment's minimum cost, halves it rounding up to
+     * {@code c}, and pays {@code c} plus a random 0 to {@code c - 1}. An
+     * unenchanted item pays nothing.
+     *
+     * @param enchantCostSum the sum of each non-curse enchantment's minimum cost at its level
+     * @return {@code c}; the payout is {@code c + random(c)}, so {@code c} to {@code 2c - 1}
      */
-    static int gearEmeralds(int tier, int emeraldsPerTier) {
-        return Math.max(0, emeraldsPerTier) * Math.max(1, tier);
+    static int grindstoneHalf(int enchantCostSum) {
+        return enchantCostSum <= 0 ? 0 : (enchantCostSum + 1) / 2;
     }
 
-    /**
-     * XP for one piece of untagged gear (a mob drop): one point for the piece
-     * plus half of what its enchantments are worth, the way a grindstone pays
-     * for the enchantments it strips. Never emeralds: mobs drop these without
-     * limit, so emeralds here would let a mob farm print currency.
-     *
-     * @param enchantCostSum the sum of each enchantment's minimum cost at its level
-     */
-    static int mobGearXp(int enchantCostSum) {
-        return 1 + Math.max(0, enchantCostSum) / 2;
-    }
+    /** How worn a piece is, for {@link #materials}: 75 percent or more left, 25 to under 75, or less. */
+    enum Band { HIGH, MID, LOW }
 
     /**
-     * Materials back from one piece of gear (owner request, 2026-10-03): the
-     * raw material it is made of, by how much durability is left.
-     * Deliberately scarce, and never nuggets.
-     * <ul>
-     *   <li>A chestplate or leggings ({@code large}): 2 at 75 percent or
-     *       more, 1 from 25 to under 75 percent.</li>
-     *   <li>Anything else (helmet, boots, weapon, tool): 1 at 75 percent or
-     *       more.</li>
-     *   <li>Under 25 percent: nothing; the piece is worth only its XP or
-     *       emeralds.</li>
-     * </ul>
-     * {@code max} is the stack's own maximum, so the mod's reduced dungeon
-     * durability is what the percentage is taken against.
-     *
-     * @param left durability remaining
-     * @param max  the stack's maximum durability; 0 or less pays nothing
+     * The band for {@code left} of {@code max} durability. {@code max} is the
+     * stack's own maximum, so the mod's reduced dungeon durability is what the
+     * percentage is taken against. Integer comparisons, so 75 and 25 percent
+     * exactly land in the higher band.
      */
-    static int materials(boolean large, int left, int max) {
+    static Band band(int left, int max) {
         if (max <= 0 || left <= 0) {
-            return 0;
+            return Band.LOW;
         }
-        // Integer comparison: left / max >= 3 / 4 without rounding.
         if (left * 4L >= max * 3L) {
-            return large ? 2 : 1;
+            return Band.HIGH;
         }
-        if (large && left * 4L >= max) {
-            return 1;
-        }
-        return 0;
+        return left * 4L >= max ? Band.MID : Band.LOW;
+    }
+
+    /**
+     * Materials back from one piece of gear (owner request, 2026-10-03):
+     * the raw material it is made of, by how worn it is. Deliberately
+     * scarce, and never nuggets.
+     * <ul>
+     *   <li>A chestplate or leggings ({@code large}): 2 in the high band,
+     *       1 in the middle band.</li>
+     *   <li>Anything else (helmet, boots, weapon, tool): 1 in the high or
+     *       middle band.</li>
+     *   <li>The low band (under 25 percent): nothing; the piece is worth only
+     *       its XP or emeralds.</li>
+     * </ul>
+     */
+    static int materials(boolean large, Band band) {
+        return switch (band) {
+            case HIGH -> large ? 2 : 1;
+            case MID -> 1;
+            case LOW -> 0;
+        };
+    }
+
+    /** As {@link #materials(boolean, Band)}, from raw durability. */
+    static int materials(boolean large, int left, int max) {
+        return materials(large, band(left, max));
     }
 
     /** Emeralds for {@code keys} keys at {@code perKey} each; negatives pay nothing. */

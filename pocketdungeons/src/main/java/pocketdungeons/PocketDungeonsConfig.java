@@ -347,9 +347,10 @@ public final class PocketDungeonsConfig {
      */
     private static String salvageBlock = "minecraft:grindstone";
     /**
-     * Emeralds per tier for one piece of tagged gear. A tier-N gamble costs
-     * {@link #gambleEmeraldsPerTier} times N, so at 1 here scrapping back
-     * into the gamble is always 6 to 1 and never a loop that pays.
+     * Superseded 2026-10-03 (owner request): scrapped gear pays the
+     * grindstone's XP and its materials, never emeralds, so this is no longer
+     * read. Kept so existing pocketdungeons.json files still load. It was the
+     * emeralds per tier for one piece of tagged gear.
      */
     private static int salvageEmeraldsPerTier = 1;
     /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */

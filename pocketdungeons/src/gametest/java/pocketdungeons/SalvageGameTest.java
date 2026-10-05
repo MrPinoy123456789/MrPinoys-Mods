@@ -27,8 +27,9 @@ import java.util.Set;
 public final class SalvageGameTest {
 
     /**
-     * One screen of mixed surplus: tagged gear and keys pay emeralds, a mob
-     * drop pays XP, and everything the bench refuses is still in the screen
+     * One screen of mixed surplus: keys pay emeralds, gear pays the
+     * grindstone's XP and its materials but never emeralds (owner request,
+     * 2026-10-03), and everything the bench refuses is still in the screen
      * afterwards, untouched.
      */
     @GameTest
@@ -45,7 +46,11 @@ public final class SalvageGameTest {
         input.setItem(1, tagged(Items.IRON_HELMET, "tier", 1));
         input.setItem(2, new ItemStack(Items.TRIAL_KEY, 3));
         input.setItem(3, new ItemStack(Items.OMINOUS_TRIAL_KEY, 1));
-        input.setItem(4, new ItemStack(Items.BOW));
+        ItemStack bow = new ItemStack(Items.BOW);
+        bow.enchant(helper.getLevel().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.POWER), 2);
+        input.setItem(4, bow);
         ItemStack imbued = tagged(Items.DIAMOND_SWORD, "tier", 3);
         CustomData.update(DataComponents.CUSTOM_DATA, imbued,
                 tag -> tag.getCompound(PocketDungeonsMod.MOD_ID).orElseThrow()
@@ -56,9 +61,10 @@ public final class SalvageGameTest {
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "a screen with surplus in it salvages");
 
-        // 2 (tier-2 sword) + 1 (tier-1 helmet) + 3 keys + 3 (one ominous key).
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 9, "emeralds paid for gear and keys");
-        helper.assertTrue(player.totalExperience > xpBefore, "the mob-drop bow paid XP");
+        // 3 keys + 3 (one ominous key); the tagged sword and helmet pay no emeralds.
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 6, "emeralds paid for keys only");
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2, "a fresh iron sword and helmet give an ingot each");
+        helper.assertTrue(player.totalExperience > xpBefore, "the enchanted bow paid the grindstone's XP");
         for (int slot = 0; slot <= 4; slot++) {
             helper.assertTrue(input.getItem(slot).isEmpty(), "salvaged slot " + slot + " is empty");
         }
@@ -70,11 +76,12 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
-    /** What goes home with the player (bag loot, the keystone) is never scrap. */
+    /** Kit can be scrapped (owner request, 2026-10-03); the keystone never is. */
     @GameTest
-    public void bagLootIsNeverSalvaged(GameTestHelper helper) {
-        ItemStack bagSword = tagged(Items.IRON_SWORD, "bag", 1);
-        helper.assertTrue(!SalvageStation.classify(bagSword).takes(), "bag-tagged gear is refused");
+    public void kitSalvagesAndTheKeystoneDoesNot(GameTestHelper helper) {
+        ItemStack bagSword = tagged(Items.STONE_SWORD, "bag", 1);
+        helper.assertTrue(SalvageStation.classify(bagSword).takes(), "kit gear is taken");
+        helper.assertTrue(SalvageStation.materialsBack(bagSword).is(Items.COBBLESTONE), "a kit stone sword gives cobblestone");
         helper.assertTrue(SalvageStation.classify(new ItemStack(Items.BOW)).kind() == SalvageStation.Kind.MOB_GEAR,
                 "an untagged bow is mob gear");
         helper.assertTrue(!SalvageStation.classify(new ItemStack(Items.EMERALD)).takes(),
@@ -99,8 +106,8 @@ public final class SalvageGameTest {
         SalvageStation.Verdict verdict = SalvageStation.classify(cap);
         helper.assertTrue(verdict.kind() == SalvageStation.Kind.GEAR,
                 "a tier 1 chest leather cap is salvageable gear, got " + verdict);
-        helper.assertTrue(!SalvageStation.classify(tagged(Items.LEATHER_HELMET, "bag", 1)).takes(),
-                "a kit leather cap (bag, no tier) is still kept");
+        helper.assertTrue(SalvageStation.classify(tagged(Items.LEATHER_HELMET, "bag", 1)).takes(),
+                "a kit leather cap salvages too");
         helper.succeed();
     }
 
@@ -119,8 +126,10 @@ public final class SalvageGameTest {
      * Owner request (2026-10-03): salvage gives the gear's material back by
      * durability left, measured against the stack's own reduced maximum. An
      * iron chestplate capped at 64 with 54 left (84 percent) gives 2 ingots,
-     * iron leggings at 40 percent give 1, a leather helmet at 50 percent and
-     * an iron sword at 20 percent give nothing but their usual payout.
+     * iron leggings at 40 percent give 1, a leather helmet at 50 percent gives
+     * 1 leather, and an iron sword at 20 percent gives only its usual payout.
+     * Chainmail counts as iron, netherite gives scrap, wooden tools give a
+     * plank or two sticks, stone tools and shields give one block or plank.
      */
     @GameTest
     public void salvageGivesMaterialsByDurability(GameTestHelper helper) {
@@ -138,8 +147,22 @@ public final class SalvageGameTest {
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "the gear salvages");
         helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3, "2 ingots from the chestplate, 1 from the leggings");
-        helper.assertValueEqual(countIn(player, Items.LEATHER), 0, "a half-worn helmet gives no leather");
+        helper.assertValueEqual(countIn(player, Items.LEATHER), 1, "a half-worn helmet gives 1 leather");
         helper.assertValueEqual(countIn(player, Items.IRON_NUGGET), 0, "never nuggets");
+
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 40, 40))
+                .is(Items.IRON_INGOT), "chainmail gives iron");
+        ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50));
+        helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1, "worn netherite leggings give 1 scrap");
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_SWORD), 20, 20))
+                .is(Items.OAK_PLANKS), "a fresh wooden sword gives a plank");
+        ItemStack sticks = SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_PICKAXE), 20, 10));
+        helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2, "a half-worn wooden tool gives 2 sticks");
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.SHIELD), 100, 30))
+                .is(Items.OAK_PLANKS), "a shield gives a plank");
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5)).isEmpty(),
+                "a worn-out stone pickaxe gives nothing");
+        helper.assertTrue(SalvageStation.materialsBack(new ItemStack(Items.BOW)).isEmpty(), "a bow gives nothing");
 
         cleanUp(server, player);
         helper.succeed();
