@@ -37,13 +37,27 @@ final class OmenBarText {
         return outcome(band, Omen.baseRewardChests());
     }
 
+    /** The floor omen from which the next death ends the run. */
+    static final int WARN_OMEN = Omen.MAX_OMEN - 1;
+
+    /**
+     * PD-158: the bar's colour during a floor, by the floor's omen: 0 and 1
+     * green (0), 2 and 3 yellow (1), 4 red (2). Same indexes as the band
+     * colours between floors.
+     */
+    static int omenColourIndex(int omen) {
+        int clamped = Omen.clamp(omen);
+        return clamped <= 1 ? 0 : clamped < Omen.MAX_OMEN ? 1 : 2;
+    }
+
     /**
      * The bar during a floor: the spawner gate first, then the floor's omen
      * (hidden at 0), then the chests the floor would pay. The bar's colour
-     * and fill carry the band. The top band warns that one more death ends
-     * the run.
+     * ({@link #omenColourIndex}) and fill carry the floor's omen. A floor omen
+     * of {@link #WARN_OMEN} or more warns that one more death ends the run (a
+     * death adds 1 and {@link Omen#MAX_OMEN} ends it, PD-158).
      */
-    static String activeTitle(int floorOmen, int band, int chests, int spawnersCleared, int spawnersTotal,
+    static String activeTitle(int floorOmen, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
         // Playtest 2026-09-26 (A1): the title was too long to read, and the one
         // thing the player tracks is the spawner gate. It leads now; the omen
@@ -64,7 +78,7 @@ final class OmenBarText {
             title.append(" | Omen ").append(omen).append('/').append(Omen.MAX_OMEN);
         }
         title.append(" | Loot x").append(chests);
-        if (band >= 2) {
+        if (omen >= WARN_OMEN) {
             title.append(" | one more fall ends the run");
         }
         return title.toString();

@@ -53,14 +53,24 @@ public class OmenBarTextTest {
 
     private static void testActiveTitle() {
         // The spawner gate leads (playtest 2026-09-26, A1), counted as remaining.
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | Loot x2");
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 6, 8, 6), "Spawners done | Omen 2/4 | Loot x2");
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | Loot x2");
+        checkEquals(OmenBarText.activeTitle(2, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | Loot x2");
+        checkEquals(OmenBarText.activeTitle(2, 2, 6, 8, 6), "Spawners done | Omen 2/4 | Loot x2");
+        checkEquals(OmenBarText.activeTitle(2, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | Loot x2");
         // Omen 0 is hidden; a floor without spawners still shows done.
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Spawners done | Loot x3");
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Spawners done | Loot x3");
-        // The floor's omen is shown clamped; high band appends the death warning.
-        checkEquals(OmenBarText.activeTitle(9, 2, 1, 0, 0, 0), "Spawners done | Omen 4/4 | Loot x1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(0, 3, -1, -1, 0), "Spawners done | Loot x3");
+        checkEquals(OmenBarText.activeTitle(0, 3, 0, 0, 0), "Spawners done | Loot x3");
+        // The floor's omen is shown clamped; the death warning follows the floor omen (PD-158):
+        // a death adds 1 and 4 ends the run, so it shows from 3, not from band 2.
+        checkEquals(OmenBarText.activeTitle(9, 1, 0, 0, 0), "Spawners done | Omen 4/4 | Loot x1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(3, 1, 0, 0, 0), "Spawners done | Omen 3/4 | Loot x1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(2, 1, 0, 0, 0), "Spawners done | Omen 2/4 | Loot x1");
+        // The bar's colour during a floor follows the floor omen: 0 to 1 green, 2 to 3 yellow, 4 red.
+        int[] expected = {0, 0, 1, 1, 2};
+        for (int omen = 0; omen <= 4; omen++) {
+            checkEquals(String.valueOf(OmenBarText.omenColourIndex(omen)), String.valueOf(expected[omen]));
+        }
+        checkEquals(String.valueOf(OmenBarText.omenColourIndex(9)), "2");
+        checkEquals(String.valueOf(OmenBarText.omenColourIndex(-1)), "0");
     }
 
     private static void testClearedTitle() {
