@@ -1145,10 +1145,7 @@ final class Instances {
             }
         }
         // Dungeon structure W4: Feral is not dealt on a dark floor.
-        Set<String> baseAffixes = NodeStamper.dealtAffixes(
-                AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()),
-                offer.dungeonId(), offer.nodeId());
+        Set<String> baseAffixes = Keystone.dealtAffixes(record.owner, offer);
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
         long previewSeed = level.getRandom().nextLong();
         RunRecipePlan recipePlan = RunRecipePlan.resolve(previewSeed, offer.level(),
@@ -1457,10 +1454,7 @@ final class Instances {
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         boolean ominousRolled = false;
-        Set<String> affixes = NodeStamper.dealtAffixes(
-                AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()),
-                offer.dungeonId(), offer.nodeId());
+        Set<String> affixes = Keystone.dealtAffixes(record.owner, offer);
 
         // M66: apply recipe effects from the frozen preview plan, not from
         // re-read recipe tags. The preview resolved the affix set; commit

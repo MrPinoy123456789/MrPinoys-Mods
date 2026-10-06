@@ -165,6 +165,22 @@ final class AffixMath {
      *                    with {@code minLevel <= level} enter the seeded pool
      */
     static Set<String> seededFor(UUID owner, int level, List<AffixDefinition> definitions) {
+        return pick(owner, level, definitions, seed(owner, level));
+    }
+
+    /**
+     * The same draw as {@link #seededFor(UUID, int, List)} from a different seed:
+     * {@code salt} is mixed into {@link #seed}, so a door that repeats a floor can
+     * deal its own set of the same size. Stable for one {@code (owner, level, salt)}.
+     */
+    static Set<String> seededFor(UUID owner, int level, List<AffixDefinition> definitions, long salt) {
+        long mixed = seed(owner, level) + salt * 0x9E3779B97F4A7C15L;
+        mixed = (mixed ^ (mixed >>> 30)) * 0xBF58476D1CE4E5B9L;
+        mixed = (mixed ^ (mixed >>> 27)) * 0x94D049BB133111EBL;
+        return pick(owner, level, definitions, mixed ^ (mixed >>> 31));
+    }
+
+    private static Set<String> pick(UUID owner, int level, List<AffixDefinition> definitions, long seed) {
         Set<String> picked = new LinkedHashSet<>();
         int count = seededCount(level);
         if (count <= 0) {
@@ -178,7 +194,7 @@ final class AffixMath {
                 }
             }
         }
-        Collections.shuffle(pool, new Random(seed(owner, level)));
+        Collections.shuffle(pool, new Random(seed));
         for (int i = 0; i < Math.min(count, pool.size()); i++) {
             picked.add(pool.get(i).id);
         }

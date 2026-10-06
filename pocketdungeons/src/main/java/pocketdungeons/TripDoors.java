@@ -48,9 +48,19 @@ final class TripDoors {
     /**
      * One dealt door. {@code nodeId} is the floor behind it, {@code step} the
      * chart scrap steps it adds (1 to 3), {@code cost} the echo
-     * shards it takes. {@code dungeonId} is always set.
+     * shards it takes. {@code dungeonId} is always set. {@code variant} is how many
+     * earlier doors of the same deal lead to the same floor (0 for the first copy):
+     * {@link DoorAffixes} rerolls a copy's affixes by it so no two doors are twins.
+     * {@code pathLength} is the deal's seed input, kept on the door so the preview and
+     * the commit behind it draw the same affixes.
      */
-    record Door(String dungeonId, String nodeId, int step, int cost) {
+    record Door(String dungeonId, String nodeId, int step, int cost, int variant, int pathLength) {
+
+        /** A door that is the first copy of its floor (variant 0), with no path length. */
+        Door(String dungeonId, String nodeId, int step, int cost) {
+            this(dungeonId, nodeId, step, cost, 0, 0);
+        }
+
         boolean sideBranch() {
             return cost > 0;
         }
@@ -113,9 +123,9 @@ final class TripDoors {
         int[] steps = dealSteps(stepSeed);
         for (int slot = 0; slot < DOOR_COUNT; slot++) {
             DungeonDef def = chosen[slot];
-            doors[slot] = new Door(def.id(), def.entry().id(), steps[slot], 0);
+            doors[slot] = new Door(def.id(), def.entry().id(), steps[slot], 0, 0, salt);
         }
-        return doors;
+        return assignVariants(doors);
     }
 
     /** Puts {@code wanted} on door {@code slot} (0 or 1) unless it already stands on door 0 or 1. */
@@ -180,9 +190,29 @@ final class TripDoors {
         Door[] doors = new Door[DOOR_COUNT];
         for (int slot = 0; slot < DOOR_COUNT; slot++) {
             DungeonDef.Edge edge = shuffled.get(slot % shuffled.size());
-            doors[slot] = new Door(def.id(), edge.to(), steps[slot], edge.cost());
+            doors[slot] = new Door(def.id(), edge.to(), steps[slot], edge.cost(), 0, pathLength);
         }
-        return doors;
+        return assignVariants(doors);
+    }
+
+    /**
+     * Numbers the copies: door {@code i}'s variant is how many earlier doors lead to
+     * the same floor, so the first copy stays variant 0 (today's deal, unchanged).
+     */
+    static Door[] assignVariants(Door[] doors) {
+        Door[] out = new Door[doors.length];
+        for (int i = 0; i < doors.length; i++) {
+            int earlier = 0;
+            for (int j = 0; j < i; j++) {
+                if (doors[j].dungeonId().equals(doors[i].dungeonId())
+                        && doors[j].nodeId().equals(doors[i].nodeId())) {
+                    earlier++;
+                }
+            }
+            Door d = doors[i];
+            out[i] = new Door(d.dungeonId(), d.nodeId(), d.step(), d.cost(), earlier, d.pathLength());
+        }
+        return out;
     }
 
     /** A seeded shuffle of {@code 1, 2, 3}: the step each door slot is dealt. */

@@ -76,6 +76,7 @@ public class TripDoorsTest {
         testTwoEdgesFillThreeDoors();
         testSideBranchCost();
         testResourceStepsAreDealtLikeAnyOther();
+        testVariantsNumberTheCopies();
         testFinalNodeHasNoDoors();
         testFirstDoorsOfferUnlockedDungeons();
         testFirstDoorsRepeatWhenFewDungeons();
@@ -205,6 +206,26 @@ public class TripDoorsTest {
         }
         java.util.Arrays.sort(steps);
         return java.util.Arrays.equals(steps, new int[]{1, 2, 3});
+    }
+
+    /** A node with one edge deals three doors to the same floor: variants 0, 1 and 2, in slot order. */
+    private static void testVariantsNumberTheCopies() {
+        for (int path = 1; path <= 20; path++) {
+            TripDoors.Door[] doors = TripDoors.dealNext(OWNER, mine, "adit", path);
+            for (int slot = 0; slot < doors.length; slot++) {
+                check(doors[slot].variant() == slot, "one edge, copies numbered in order: " + doors[slot]);
+                check(doors[slot].pathLength() == path, "the door carries its path length");
+            }
+        }
+        // Two edges: the repeat of the first branch is variant 1, the other branch starts at 0.
+        for (int path = 1; path <= 20; path++) {
+            TripDoors.Door[] doors = TripDoors.dealNext(OWNER, frost, "gate", path);
+            java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+            for (TripDoors.Door door : doors) {
+                int before = seen.merge(door.nodeId(), 1, Integer::sum) - 1;
+                check(door.variant() == before, "variant counts earlier doors to the same floor: " + door);
+            }
+        }
     }
 
     private static void testFinalNodeHasNoDoors() {

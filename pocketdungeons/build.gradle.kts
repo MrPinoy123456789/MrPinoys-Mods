@@ -377,7 +377,9 @@ for ((taskName, testClass) in mapOf(
     // Playtest 2026-10-03: one staggered reveal for all big text.
     "staggeredTitleTest" to "StaggeredTitleTest",
     // PD-157: diary prose fitted onto written book pages.
-    "bookPagesTest" to "BookPagesTest"
+    "bookPagesTest" to "BookPagesTest",
+    // Design item 3: no two doors of a deal are twins.
+    "doorAffixesTest" to "DoorAffixesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -460,6 +462,7 @@ tasks.test {
     dependsOn("journalFormatTest")
     dependsOn("lemonSpeechTest")
     dependsOn("bookPagesTest")
+    dependsOn("doorAffixesTest")
     failOnNoDiscoveredTests = false
 }
 

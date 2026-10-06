@@ -284,10 +284,7 @@ final class DungeonScreen {
             return idleContent(level, owner);
         }
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-        Set<String> effective = NodeStamper.dealtAffixes(
-                AffixMath.effective(owner, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()),
-                offer.dungeonId(), offer.nodeId());
+        Set<String> effective = Keystone.dealtAffixes(owner, offer);
         // A Mine recipe armed on the key shows once the preview has resolved it.
         boolean mine = EndlessMineRules.isMine(record) || EndlessMineRules.isMine(record.floor.previewRecipePlan)
                 || EndlessMineRules.isMineOffer(offer);
@@ -375,12 +372,6 @@ final class DungeonScreen {
         } else if (node != null && DungeonDef.Node.LIGHT_DIM.equals(node.light())) {
             content.append(Component.literal("\nDim light").withStyle(ChatFormatting.GRAY));
         }
-        // PD-153: spare doors repeat a branch (D4); when the repeat is identical in
-        // every respect the door says so instead of posing as a different choice.
-        int twin = identicalDoor(offers, step - 1);
-        if (twin >= 0) {
-            content.append(Component.literal("\nSame as door " + (twin + 1)).withStyle(ChatFormatting.DARK_GRAY));
-        }
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             content.append(Component.literal("\nCAUTION: EXPERIMENTAL").withStyle(ChatFormatting.RED));
@@ -412,28 +403,6 @@ final class DungeonScreen {
             case 3 -> "rich";
             default -> "lavish";
         };
-    }
-
-    /**
-     * PD-153: the lowest door slot (0 based) whose offer is identical to
-     * {@code slot}'s, or -1 when none. Identity is everything the player can
-     * weigh: the floor behind the door, its step and its shard cost.
-     */
-    private static int identicalDoor(Keystone.Offer[] offers, int slot) {
-        Keystone.Offer mine = slot >= 0 && slot < offers.length ? offers[slot] : null;
-        if (mine == null || mine.door() == null) {
-            return -1;
-        }
-        for (int i = 0; i < slot; i++) {
-            Keystone.Offer other = offers[i];
-            TripDoors.Door a = mine.door();
-            TripDoors.Door b = other == null ? null : other.door();
-            if (b != null && a.dungeonId().equals(b.dungeonId()) && a.nodeId().equals(b.nodeId())
-                    && a.step() == b.step() && a.cost() == b.cost()) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /**

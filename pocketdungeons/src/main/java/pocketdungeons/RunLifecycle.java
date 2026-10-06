@@ -688,8 +688,7 @@ final class RunLifecycle {
             PlaytestJournal.tripDoor(server, record, firstDoorOfTrip, fromNode, offer.step(), doorCost);
         }
 
-        Set<String> granted = NodeStamper.dealtAffixes(AffixMath.effective(record.owner, offer.level(),
-                offer.affixes(), AffixManifest.current().definitions()), offer.dungeonId(), offer.nodeId());
+        Set<String> granted = Keystone.dealtAffixes(record.owner, offer);
         player.sendSystemMessage(Component.literal(
                 AffixMath.name(offer.level(), granted, AffixManifest.current().definitions())
                         + ". The door opens.")
