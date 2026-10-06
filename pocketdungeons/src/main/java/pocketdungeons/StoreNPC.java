@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import eu.pb4.sgui.api.elements.GuiElement;
+import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -218,8 +219,8 @@ final class StoreNPC {
                         SoundSource.NEUTRAL, 1.0f, 1.0f);
                 paint(gui, player, villager);
             };
-            gui.setSlot(first + i, new GuiElement(displayFor(entry, held(player, entry.currency.item())),
-                    buyOne));
+            gui.setSlot(first + i, GuiElementBuilder.from(displayFor(entry, held(player, entry.currency.item())))
+                    .setCallback(buyOne).build());
         }
     }
 

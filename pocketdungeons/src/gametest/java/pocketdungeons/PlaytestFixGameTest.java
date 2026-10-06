@@ -557,7 +557,7 @@ public final class PlaytestFixGameTest {
             player.getInventory().setItem(slot, new net.minecraft.world.item.ItemStack(
                     net.minecraft.world.item.Items.BONE, 64));
             player.getInventory().setItem(slot + 9, new net.minecraft.world.item.ItemStack(
-                    net.minecraft.world.item.Items.EMERALD, 64));
+                    net.minecraft.world.item.Items.ROTTEN_FLESH, 64));
         }
         String tag = villager.entityTags().stream().filter(t -> t.startsWith("pocketdungeons_store_inv:"))
                 .findFirst().orElseThrow();
@@ -569,8 +569,9 @@ public final class PlaytestFixGameTest {
         boolean clean = false;
         for (net.minecraft.world.item.ItemStack stack : player.getInventory().getNonEquipmentItems()) {
             if (!stack.isEmpty() && !stack.is(net.minecraft.world.item.Items.BONE)
-                    && !stack.is(net.minecraft.world.item.Items.EMERALD)) {
-                clean = !stack.has(net.minecraft.core.component.DataComponents.LORE)
+                    && !stack.is(net.minecraft.world.item.Items.ROTTEN_FLESH)) {
+                clean = stack.getOrDefault(net.minecraft.core.component.DataComponents.LORE,
+                        net.minecraft.world.item.component.ItemLore.EMPTY).lines().isEmpty()
                         && !stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
                 helper.assertTrue(clean, "a bought stack is the plain item: " + stack);
             }
