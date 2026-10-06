@@ -162,8 +162,9 @@ confirmed by the owner on 2026-10-05.
     magenta, a cyan pay line (`Resources:` for a resource dungeon's palette,
     `Rewards:` for scrap plus promises, either omitted when empty), and
     `Loot: word` in green beside `Cost:` in yellow (`free` or `N echo shards`).
-- **D12. Resource dungeons (Mineshaft, Cow Pits) pay only what you mine or
-  harvest.** Every floor deals 0 chart scrap, no shard, no vault, 1 to 3 floors,
+- **D12. Resource dungeons (Mineshaft, Cow Pits) pay chart scrap like any
+  floor, plus what you mine or harvest.** Revised 2026-10-06: no shard, no
+  vault, diary page on first finish. 1 to 3 floors,
   finite nodes, mobs and omen still live. Capped tool durability (pickaxes 12 to
   16 uses) is the limit: a trip spends durability for ore. Node tiers follow the
   act band.
@@ -295,6 +296,9 @@ final vault.
     tiers map to tool tiers (a wooden pickaxe cannot mine iron ore, by design).
 14. The Endless Mine's place in the act table: the history board's "deepest
     floor" needs a home in the UI.
+15. Floor level is compass plus step, so a solo player is never above a floor
+    and the too easy discount never bites solo. Authored fixed floor levels, or
+    a per-dungeon levelCap, would make it real. Deferred 2026-10-06.
 
 ## 6. Staged implementation outline (no code)
 

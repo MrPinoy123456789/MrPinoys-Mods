@@ -29,7 +29,8 @@ import java.util.UUID;
  *
  * <p>Steps are dealt separately from branches: a seeded shuffle gives the three
  * doors {@code +1}, {@code +2} and {@code +3} in some order (D4). A resource
- * dungeon (D12) deals every step as {@code 0}: no keystone progress. The seed
+ * dungeon (D12, revised 2026-10-06) deals them like any other: its floors pay chart
+ * scrap, plus whatever the player mines. The seed
  * comes from the owner, the dungeon, the node and the trip's path length, so an
  * open preview and the commit behind it see the same deal, and the deal does
  * not change between renders.
@@ -46,7 +47,7 @@ final class TripDoors {
 
     /**
      * One dealt door. {@code nodeId} is the floor behind it, {@code step} the
-     * keystone steps it adds (0 for a resource dungeon), {@code cost} the echo
+     * chart scrap steps it adds (1 to 3), {@code cost} the echo
      * shards it takes. {@code dungeonId} is always set.
      */
     record Door(String dungeonId, String nodeId, int step, int cost) {
@@ -109,13 +110,10 @@ final class TripDoors {
             guarantee(chosen, guaranteed, (int) Math.floorMod(seed(owner, "", "first", salt, 3), 2L));
         }
         Door[] doors = new Door[DOOR_COUNT];
-        // The steps go to the doors, but a resource dungeon behind a door makes
-        // that door's step 0 whatever it was dealt.
         int[] steps = dealSteps(stepSeed);
         for (int slot = 0; slot < DOOR_COUNT; slot++) {
             DungeonDef def = chosen[slot];
-            doors[slot] = new Door(def.id(), def.entry().id(),
-                    def.kind() == DungeonDef.Kind.RESOURCE ? 0 : steps[slot], 0);
+            doors[slot] = new Door(def.id(), def.entry().id(), steps[slot], 0);
         }
         return doors;
     }
@@ -179,11 +177,10 @@ final class TripDoors {
         List<DungeonDef.Edge> shuffled = new ArrayList<>(edges);
         Collections.shuffle(shuffled, new Random(base));
         int[] steps = dealSteps(base ^ 0x5DEECE66DL);
-        boolean resource = def.kind() == DungeonDef.Kind.RESOURCE;
         Door[] doors = new Door[DOOR_COUNT];
         for (int slot = 0; slot < DOOR_COUNT; slot++) {
             DungeonDef.Edge edge = shuffled.get(slot % shuffled.size());
-            doors[slot] = new Door(def.id(), edge.to(), resource ? 0 : steps[slot], edge.cost());
+            doors[slot] = new Door(def.id(), edge.to(), steps[slot], edge.cost());
         }
         return doors;
     }
