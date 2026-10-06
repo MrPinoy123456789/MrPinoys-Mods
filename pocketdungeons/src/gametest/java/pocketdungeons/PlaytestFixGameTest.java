@@ -535,12 +535,12 @@ public final class PlaytestFixGameTest {
     }
 
     /**
-     * PD-142: a sale through the trading screen only claims the stock and
-     * journals it; the screen hands the item over, so nothing lands in the
-     * pack by itself. A claimed result carries no listing name or lore.
+     * PD-159: a purchase hands over the plain item (no listing name or lore, so
+     * a bought log stacks with any other log), journals it, and stops at sold
+     * out.
      */
     @GameTest(maxTicks = 100)
-    public void aStorePurchaseIsClaimedJournaledAndCleanOfLore(GameTestHelper helper) {
+    public void aStorePurchaseIsDeliveredCleanAndJournaled(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
         StoreNPC.spawn(level, origin, 3L, "frostworks");
@@ -551,19 +551,31 @@ public final class PlaytestFixGameTest {
         helper.assertTrue(!found.isEmpty(), "a store villager stands in the test area");
         net.minecraft.world.entity.npc.villager.Villager villager = found.get(0);
         net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        int packBefore = player.getInventory().getNonEquipmentItems().stream()
-                .mapToInt(stack -> stack.isEmpty() ? 0 : 1).sum();
 
+        player.getInventory().clearContent();
+        for (int slot = 0; slot < 9; slot++) {
+            player.getInventory().setItem(slot, new net.minecraft.world.item.ItemStack(
+                    net.minecraft.world.item.Items.BONE, 64));
+            player.getInventory().setItem(slot + 9, new net.minecraft.world.item.ItemStack(
+                    net.minecraft.world.item.Items.EMERALD, 64));
+        }
         String tag = villager.entityTags().stream().filter(t -> t.startsWith("pocketdungeons_store_inv:"))
                 .findFirst().orElseThrow();
         int stock = Integer.parseInt(tag.substring("pocketdungeons_store_inv:".length()).split(";")[0].split(",", 5)[3]);
         for (int i = 0; i < stock; i++) {
-            helper.assertTrue(StoreNPC.claim(player, villager, 0) == StoreNPC.Sale.BOUGHT, "claim " + i);
+            helper.assertTrue(StoreNPC.buy(player, villager, 0) == StoreNPC.Sale.BOUGHT, "buy " + i);
         }
-        helper.assertTrue(StoreNPC.claim(player, villager, 0) == StoreNPC.Sale.SOLD_OUT, "a line bought out is sold out");
-        int packAfter = player.getInventory().getNonEquipmentItems().stream()
-                .mapToInt(stack -> stack.isEmpty() ? 0 : 1).sum();
-        helper.assertValueEqual(packAfter, packBefore, "a claim hands the pack nothing; the screen does");
+        helper.assertTrue(StoreNPC.buy(player, villager, 0) == StoreNPC.Sale.SOLD_OUT, "a line bought out is sold out");
+        boolean clean = false;
+        for (net.minecraft.world.item.ItemStack stack : player.getInventory().getNonEquipmentItems()) {
+            if (!stack.isEmpty() && !stack.is(net.minecraft.world.item.Items.BONE)
+                    && !stack.is(net.minecraft.world.item.Items.EMERALD)) {
+                clean = !stack.has(net.minecraft.core.component.DataComponents.LORE)
+                        && !stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+                helper.assertTrue(clean, "a bought stack is the plain item: " + stack);
+            }
+        }
+        helper.assertTrue(clean, "the purchases reached the pack");
 
         boolean journaled = false;
         for (com.google.gson.JsonObject line : PlaytestJournal.recent(player.getUUID(), 50)) {
@@ -574,14 +586,6 @@ public final class PlaytestFixGameTest {
         }
         helper.assertTrue(journaled, "a shop_purchase line names the vendor and the price");
 
-        StoreNPC.ShopEntry entry = new StoreNPC.ShopEntry(net.minecraft.world.item.Items.IRON_SWORD, null,
-                "Iron Sword", MerchantThemes.EMERALD, 5, 3);
-        net.minecraft.world.item.ItemStack result = StoreNPC.offerFor(entry).getResult();
-        helper.assertTrue(result.has(net.minecraft.core.component.DataComponents.LORE), "the listing carries lore");
-        StoreNPC.cleanResult(result);
-        helper.assertTrue(!result.has(net.minecraft.core.component.DataComponents.LORE)
-                        && !result.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME),
-                "a claimed result is the plain item");
         villager.discard();
         helper.succeed();
     }
