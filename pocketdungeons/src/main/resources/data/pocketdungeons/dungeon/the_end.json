@@ -62,6 +62,12 @@
       "layer": 3,
       "roomBias": [
         "end_ship"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
       ]
     },
     {

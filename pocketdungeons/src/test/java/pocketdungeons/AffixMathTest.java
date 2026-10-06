@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * Pure-JDK regression for {@link AffixMath}: parsing/joining, the level
  * thresholds, the seeded pick's stability, the depletion multiplier and the
- * keystone name. Same shape and discipline as {@code KeystoneMathTest}, no
+ * keystone name. Same shape and discipline as {@code CompassMathTest}, no
  * Minecraft classpath, run from {@code tasks.test}.
  *
  * <p>M69: the maths now take a stable-ordered {@link AffixDefinition} list as
@@ -153,15 +153,15 @@ public class AffixMathTest {
     }
 
     private static void testName() {
-        checkEquals(AffixMath.name(3, Set.of(), DEFS), "Baby Keystone [3]");
+        checkEquals(AffixMath.name(3, Set.of(), DEFS), "Baby Compass [3]");
         Set<String> mixed = new java.util.LinkedHashSet<>();
         mixed.add(AffixIds.SWARMING);
         mixed.add(AffixIds.OMINOUS);
         mixed.add(AffixIds.MOLTEN);
         checkEquals(AffixMath.name(16, mixed, DEFS),
-                "Menace Cooked Keystone [16] [Swarming, Molten]");
+                "Menace Cooked Compass [16] [Swarming, Molten]");
         checkEquals(AffixMath.name(60, Set.of(AffixIds.OMINOUS), DEFS),
-                "Cursed Cooked Keystone [60]");
+                "Cursed Cooked Compass [60]");
         // Intensifier bands.
         checkEquals(AffixMath.intensifier(1), "Baby");
         checkEquals(AffixMath.intensifier(5), "Baby");

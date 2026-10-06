@@ -72,7 +72,7 @@ final class RunLifecycle {
         ItemStack keystone = Keystone.findHeld(player);
         if (keystone == null) {
             player.sendSystemMessage(Component.literal(
-                    "You need a keystone to open a dungeon. ")
+                    "You need a compass to open a dungeon. ")
                     .withStyle(ChatFormatting.RED)
                     .append(Component.literal("[Get one]").withStyle(style -> style
                             .withColor(ChatFormatting.AQUA)
@@ -1145,14 +1145,14 @@ final class RunLifecycle {
             // The dungeon's final floor: only the way home is left.
             player.sendSystemMessage(Component.literal(
                     "You clear the last floor of " + TripView.dungeonName(record) + ". " + verdict
-                            + " The chests wait beyond the door"
-                            + (isRewardKind(TripView.def(record)) ? ", and the vault with them" : "")
-                            + ". Only the way home is open: pull the HOME lever to bank your key progress.")
+                            + " The barrel waits beyond the door"
+                            + (isRewardKind(TripView.def(record)) ? ", the vault's rolls in with it" : "")
+                            + ". Only the way home is open: pull the HOME lever to bank your charts.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. GO HOME banks your key progress;"
+                            + " The barrel waits beyond the door. GO HOME banks your charts;"
                             + " DESCEND for bonus chests and better loot."
                             + (TripView.finalAhead(record) ? " The final floor is ahead." : "")
                             + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
@@ -1226,6 +1226,7 @@ final class RunLifecycle {
         // The floor banks its door step toward the key when the interval
         // settles (IntervalBanking), whichever door the next floor takes.
         record.interval.floorSteps.add(record.floor.chosenStep);
+        record.interval.floorLevels.add(record.floor.chosenLevel);
         // Dungeon structure W2: clearing a node marked final finishes the dungeon. The
         // staging room then offers only the way home (Instances.hideLockedDoors reads
         // this flag when the doors are placed below).
@@ -1257,15 +1258,21 @@ final class RunLifecycle {
         int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
-        // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
-        // pad and in front of the sealed door, at the zone's loot tier.
+        // The reward corner on the far side of the terminal cell: one barrel
+        // holding every roll the floor earned (plus the finish vault's rolls),
+        // one copper chest holding the floor's promised rewards.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
-        TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
-                LootBands.floorTier(record, rules, floorsCleared),
+        int vaultRolls = finishedNow && isRewardKind(tripDef)
+                ? PocketDungeonsConfig.finishVaultChests() : 0;
+        int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
+                : tripDef.lootBand().max();
+        TrialContent.placeRewardContainers(level, terminalOrigin, entranceDir, chests,
+                LootBands.floorTier(record, rules, floorsCleared), vaultRolls, vaultTier,
                 record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                completionTheme == null ? null : completionTheme.meta().lootTable);
+                completionTheme == null ? null : completionTheme.meta().lootTable,
+                promisedItems(tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
         }
@@ -1323,18 +1330,35 @@ final class RunLifecycle {
      * the vault before it walks home. Going home early (any earlier staging room)
      * banks steps and chests only, with no shard, vault or page.
      */
+    /**
+     * The cleared node's authored {@code rewards}, as stacks for the copper
+     * chest. Unknown item ids are logged and skipped, a content typo never
+     * failing a floor's rewards.
+     */
+    private static List<ItemStack> promisedItems(DungeonDef def, InstanceRecord record) {
+        DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
+        List<ItemStack> promised = new ArrayList<>();
+        if (node == null) {
+            return promised;
+        }
+        for (DungeonDef.Node.Reward reward : node.rewards()) {
+            net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getValue(net.minecraft.resources.Identifier.parse(reward.item()));
+            if (item == null || item == net.minecraft.world.item.Items.AIR) {
+                PocketDungeonsMod.LOG.warn("promised reward {} on {}:{} is not an item",
+                        reward.item(), def.id(), node.id());
+                continue;
+            }
+            promised.add(new ItemStack(item, reward.count()));
+        }
+        return promised;
+    }
+
     private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                       DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
                                       ThemeManifest.Entry completionTheme) {
         boolean rewards = isRewardKind(def);
-        int vaultChests = 0;
-        if (rewards) {
-            vaultChests = TrialContent.placeVaultChests(level, terminalOrigin, entranceDir,
-                    PocketDungeonsConfig.finishVaultChests(), def.lootBand().max(),
-                    record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
-                    completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                    completionTheme == null ? null : completionTheme.meta().lootTable);
-        }
+        int vaultChests = rewards ? PocketDungeonsConfig.finishVaultChests() : 0;
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
@@ -1426,9 +1450,10 @@ final class RunLifecycle {
     static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
                                                     UUID member, int penalty) {
         int floors = record.interval.floorSteps.size();
-        return IntervalBanking.settle(record.interval.floorSteps, record.interval.bankedOmenSum(),
-                DungeonLog.forServer(server).get(member).keyProgress(),
-                PocketDungeonsConfig.floorsPerSafeVisit(), penalty, ZoneRules.of(record).bonusChests(floors));
+        return IntervalBanking.settle(record.interval.floorSteps, record.interval.floorLevels,
+                record.interval.bankedOmenSum(),
+                DungeonLog.forServer(server).get(member).keystoneLevel(),
+                penalty, ZoneRules.of(record).bonusChests(floors));
     }
 
     /**
@@ -1446,9 +1471,8 @@ final class RunLifecycle {
      * 2026-09-29: the player liked the floor-clear title as a channel and
      * asked for the same at the moment of going home.
      */
-    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled,
-                                      int floorsPerSafeVisit) {
-        showBigTitle(player, "HOME", IntervalBanking.keyLine(settled, floorsPerSafeVisit));
+    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled) {
+        showBigTitle(player, "HOME", IntervalBanking.takeHomeLine(settled).replace('\n', ' '));
     }
 
     /**
@@ -1500,11 +1524,10 @@ final class RunLifecycle {
             return;
         }
         IntervalState interval = record.interval;
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         int floors = interval.floorSteps.size();
         int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
-                interval.bankedOmenSum(), 0, floorsPerVisit, penalty, bonusChests);
+                interval.floorLevels, interval.bankedOmenSum(), 0, penalty, bonusChests);
 
         // Per-member settlement: keystone levels and carried progress,
         // free-door fuel, payout, prestige, diary.
@@ -1515,29 +1538,27 @@ final class RunLifecycle {
             if (memberPlayer == null) {
                 continue;
             }
-            // Each member banks from their own key and their own carried
-            // progress, so a member riding along at a lower level climbs
-            // from where they stand.
+            // Each member banks against their own compass level, so a member
+            // riding along at a lower level climbs from where they stand.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
                 IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
-                        interval.bankedOmenSum(), memberEntry.keyProgress(), floorsPerVisit, penalty,
-                        bonusChests);
+                        interval.floorLevels, interval.bankedOmenSum(), memberEntry.keystoneLevel(),
+                        penalty, bonusChests);
                 int keyLevel = memberEntry.keystoneLevel();
                 if (settled.levels() > 0) {
                     keyLevel = KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel);
                     Keystones.grantLevel(server, member, memberPlayer, keyLevel);
                     record.floor.keystoneReturned.add(member);
                 }
-                log.setKeyProgress(member, settled.progress());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
                         bonusChests, keyLevel);
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
                 memberPlayer.sendSystemMessage(Component.literal(
-                        IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
+                        IntervalBanking.bankedLine(settled, penalty > 0))
                         .withStyle(ChatFormatting.GOLD));
                 if ("home_lever".equals(trigger)) {
-                    showHomeTitle(memberPlayer, settled, floorsPerVisit);
+                    showHomeTitle(memberPlayer, settled);
                 }
             }
 
@@ -2034,7 +2055,7 @@ final class RunLifecycle {
         int cost = PocketDungeonsConfig.timedOutDepletion();
         returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
         owner.sendSystemMessage(Component.literal(
-                "You quit the door. Your keystone is downgraded by " + cost
+                "You quit the door. Your compass is downgraded by " + cost
                         + (cost == 1 ? " level." : " levels."))
                 .withStyle(ChatFormatting.YELLOW));
         Chime.doorQuit(owner);

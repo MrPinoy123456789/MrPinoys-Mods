@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -173,6 +174,12 @@ final class NodeStamper {
             if (id == null || !BuiltInRegistries.BLOCK.containsKey(id)) {
                 PocketDungeonsMod.LOG.warn("Room {} declares a node of unknown block {}; skipped",
                         meta.template, spec.block());
+                index++;
+                continue;
+            }
+            // PD-155: a group may not spawn at all; the roll is seeded per spec so
+            // a preview and the commit stamp the same pockets.
+            if (spec.chance() < 1 && new Random(seed * 31 + 7 + index).nextDouble() >= spec.chance()) {
                 index++;
                 continue;
             }

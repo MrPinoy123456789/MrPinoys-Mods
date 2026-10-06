@@ -27,8 +27,9 @@ final class OmenBarText {
      * colours the bar and the kit refill at home.
      */
     static String outcome(int band, int chests) {
-        // Playtest 2026-09-27: "key climbs" was jargon; say what it means.
-        return chests + (chests == 1 ? " reward chest, " : " reward chests, ") + "key progress";
+        // 2026-10-05: the chests are rolls into the reward barrel; chart scrap
+        // is what a floor banks. Say both plainly.
+        return (chests == 1 ? "1 loot roll, " : chests + " loot rolls, ") + "chart scrap";
     }
 
     /** {@link #outcome(int, int)} with the base chest count and no depth bonus. */
@@ -62,7 +63,7 @@ final class OmenBarText {
         if (omen > 0) {
             title.append(" | Omen ").append(omen).append('/').append(Omen.MAX_OMEN);
         }
-        title.append(" | ").append(chests).append(chests == 1 ? " chest" : " chests");
+        title.append(" | Loot x").append(chests);
         if (band >= 2) {
             title.append(" | one more fall ends the run");
         }
@@ -110,18 +111,19 @@ final class OmenBarText {
 
     /**
      * The door screen's floor line for the floor a door would open:
-     * {@code "FLOOR 3 OF FROSTWORKS"}, or {@code "FINAL FLOOR OF FROSTWORKS"} when the
-     * door leads to the dungeon's last floor.
+     * {@code "FROSTWORKS: FLOOR 3"} (PD-152, playtest 2026-10-05-1: the player reads it
+     * dungeon first, and the keystone level does not belong on it), or
+     * {@code "FROSTWORKS: FINAL FLOOR"} when the door leads to the dungeon's last floor.
      */
     static String previewFloor(int nextFloor, String dungeon, boolean mine, boolean finalFloor) {
         if (mine) {
             return "MINE FLOOR " + nextFloor;
         }
         if (dungeon == null || dungeon.isBlank()) {
-            return "FLOOR " + nextFloor;
+            return finalFloor ? "FINAL FLOOR" : "FLOOR " + nextFloor;
         }
         String name = dungeon.toUpperCase();
-        return finalFloor ? "FINAL FLOOR OF " + name : "FLOOR " + nextFloor + " OF " + name;
+        return name + (finalFloor ? ": FINAL FLOOR" : ": FLOOR " + nextFloor);
     }
 
     /** The action bar line when {@code source} raises the omen to {@code omen}. */

@@ -47,17 +47,13 @@ public class SideBranchPayTest {
 
     private static void testMessages() {
         String refusal = SideBranchPay.refusal(3, 1);
-        check(refusal.contains("needs 3") && refusal.contains("you carry 1") && refusal.contains("2 short"),
-                "the refusal names the need, the balance and the shortfall: " + refusal);
+        check(refusal.equals("Needs 3 echo shards. You have 1."),
+                "the refusal names the need and the balance: " + refusal);
         String screen = SideBranchPay.screenRefusal(1, 0);
-        check(screen.contains("1 echo shard") && screen.contains("1 short"),
+        check(screen.equals("1 echo shard short"),
                 "the screen refusal names the shortfall: " + screen);
-        String wall = SideBranchPay.wallLine(2);
-        check(wall.contains("2 echo shards") && wall.contains("whoever pulls the lever"),
-                "the wall names cost and payer: " + wall);
-        check(!wall.contains("your"), "the shared wall never says 'your' balance: " + wall);
-        check(SideBranchPay.balanceLine(1, 4).equals("Side branch: 1 echo shard. You carry 4."), "the personal line");
-        for (String line : new String[]{refusal, screen, wall, SideBranchPay.balanceLine(2, 0)}) {
+        check(SideBranchPay.balanceLine(1, 4).equals("1 echo shard. You carry 4."), "the personal line");
+        for (String line : new String[]{refusal, screen, SideBranchPay.balanceLine(2, 0)}) {
             check(!line.contains("--") && !line.contains(String.valueOf((char) 0x2014)),
                     "no dash punctuation: " + line);
         }

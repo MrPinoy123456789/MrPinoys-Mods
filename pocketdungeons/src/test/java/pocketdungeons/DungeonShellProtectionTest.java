@@ -128,11 +128,11 @@ public class DungeonShellProtectionTest {
     }
 
     /**
-     * Dungeon structure W4 (D20), which intentionally changes what "interior open"
-     * means: the interior is no longer shell, but only a registered resource node
-     * (or the player's own block, or a soft mechanic block) breaks. Everything else
-     * in the interior is decoration. The shell test above is unchanged; this pins
-     * the position lookup the break rule reads and the decision it feeds.
+     * Dungeon structure W4 (D20, revised 2026-10-05): the interior is no longer
+     * shell, and any interior block breaks with the correct tool (node, soft
+     * mechanic block or plain furnishing alike). The shell test above is
+     * unchanged; this pins the position lookup the break rule reads and the
+     * decision it feeds.
      */
     private static void testInteriorBreaksOnlyNodes() {
         InstanceRegistry.bySlot.clear();
@@ -163,8 +163,8 @@ public class DungeonShellProtectionTest {
                 "a node breaks with the right tool");
         check(!BreakRule.decide(false, false, at.floor.nodes.contains(node), false, false).allowed(),
                 "a node does not break with the wrong tool");
-        check(!BreakRule.decide(false, false, at.floor.nodes.contains(decoration), false, true).allowed(),
-                "decoration does not break even with the right tool");
+        check(BreakRule.decide(false, false, at.floor.nodes.contains(decoration), false, true).allowed(),
+                "interior decoration breaks with the right tool (D20 revised 2026-10-05)");
         check(BreakRule.decide(false, false, false, at.floor.softBreakables.contains(gate), true).allowed(),
                 "a soft gate breaks with its tool");
         check(BreakRule.decide(false, true, false, false, false).allowed(),

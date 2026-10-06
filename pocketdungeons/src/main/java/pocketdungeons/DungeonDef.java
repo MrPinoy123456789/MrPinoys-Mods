@@ -119,16 +119,41 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      * Feral affix is not dealt on it.
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
-                List<String> roomBias, int roomCount, boolean isFinal, String light) {
+                List<String> roomBias, int roomCount, boolean isFinal, String light,
+                List<Reward> rewards) {
 
         static final String LIGHT_LIT = "lit";
         static final String LIGHT_DIM = "dim";
         static final String LIGHT_DARK = "dark";
 
-        /** A node with the default light ({@code lit}). */
+        /** A node with the default light ({@code lit}) and no promised rewards. */
         Node(String id, String name, int layer, String theme, String signatureAffix,
              List<String> roomBias, int roomCount, boolean isFinal) {
-            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT);
+            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT,
+                    List.of());
+        }
+
+        /**
+         * One item a floor promises on its door and pays into the copper chest
+         * when it is cleared (2026-10-05 rework). {@code item} is a namespaced
+         * item id, {@code count} 1 or more.
+         */
+        record Reward(String item, int count) {
+            Reward {
+                if (item == null || item.isBlank()) {
+                    throw new IllegalArgumentException("reward item must not be blank");
+                }
+                if (count < 1) {
+                    throw new IllegalArgumentException("reward count must be >= 1: " + item);
+                }
+                item = item.trim();
+            }
+
+            /** {@code "echo shard"} style words for the board, from the item id's path. */
+            String displayName() {
+                String path = item.substring(item.indexOf(':') + 1);
+                return (count > 1 ? count + " " : "") + path.replace('_', ' ');
+            }
         }
 
         Node {
@@ -148,6 +173,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             theme = theme == null ? "" : theme;
             signatureAffix = signatureAffix == null ? "" : signatureAffix;
             roomBias = List.copyOf(roomBias);
+            rewards = rewards == null ? List.of() : List.copyOf(rewards);
             if (roomCount < 0) {
                 throw new IllegalArgumentException("node roomCount must be >= 1 when present: " + id);
             }
@@ -509,6 +535,14 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
             String theme = optionalString(node, "theme");
             String affix = optionalString(node, "signatureAffix");
+            List<Node.Reward> rewards = new ArrayList<>();
+            for (JsonElement rewardElement : optionalArray(node, "rewards")) {
+                JsonObject reward = rewardElement.getAsJsonObject();
+                String item = requiredString(reward, "item").trim();
+                rewards.add(new Node.Reward(
+                        item.indexOf(':') >= 0 ? item : "minecraft:" + item,
+                        reward.has("count") ? requiredInt(reward, "count") : 1));
+            }
             nodes.add(new Node(requiredString(node, "id"), requiredString(node, "name"),
                     requiredInt(node, "layer"),
                     theme.isEmpty() ? "" : qualify(theme),
@@ -517,7 +551,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     node.has("roomCount") ? requiredInt(node, "roomCount") : 0,
                     node.has("final") && node.get("final").getAsBoolean(),
                     node.has("light") && !node.get("light").isJsonNull()
-                            ? node.get("light").getAsString().trim() : Node.LIGHT_LIT));
+                            ? node.get("light").getAsString().trim() : Node.LIGHT_LIT,
+                    rewards));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {

@@ -51,6 +51,12 @@
       "theme": "rootworks",
       "roomBias": [
         "thicket"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
       ]
     },
     {

@@ -52,30 +52,23 @@ public final class BankAnywhereGameTest {
         ServerPlayer owner = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
-        int perLevel = PocketDungeonsConfig.floorsPerSafeVisit();
 
         InstanceRecord greater = clearedRecord(helper, server, 9991, owner, List.of(3), List.of(0));
         log.setKeystone(owner.getUUID(), 5, Set.of());
-        log.setKeyProgress(owner.getUUID(), 0);
         RunLifecycle.settleSafeVisit(server, greater);
-        IntervalBanking.Settlement expected = IntervalBanking.settle(List.of(3), 0, 0, perLevel, 0, 0);
-        if (log.get(owner.getUUID()).keystoneLevel() != 5 + expected.levels()
-                || log.get(owner.getUUID()).keyProgress() != expected.progress()) {
-            helper.fail("one Greater floor should bank " + expected + ", got level "
-                    + log.get(owner.getUUID()).keystoneLevel() + " and progress "
-                    + log.get(owner.getUUID()).keyProgress());
+        IntervalBanking.Settlement expected = IntervalBanking.settle(List.of(3), List.of(), 0, 5, 0, 0);
+        if (log.get(owner.getUUID()).keystoneLevel() != 5 + expected.levels()) {
+            helper.fail("one +3 floor should bank " + expected + ", got level "
+                    + log.get(owner.getUUID()).keystoneLevel());
             return;
         }
 
         InstanceRecord free = clearedRecord(helper, server, 9992, owner, List.of(1), List.of(0));
         log.setKeystone(owner.getUUID(), 5, Set.of());
-        log.setKeyProgress(owner.getUUID(), 0);
         RunLifecycle.settleSafeVisit(server, free);
-        if (perLevel > 1 && (log.get(owner.getUUID()).keystoneLevel() != 5
-                || log.get(owner.getUUID()).keyProgress() != 1)) {
-            helper.fail("one free floor should bank nothing yet and keep one step, got level "
-                    + log.get(owner.getUUID()).keystoneLevel() + " and progress "
-                    + log.get(owner.getUUID()).keyProgress());
+        if (log.get(owner.getUUID()).keystoneLevel() != 5) {
+            helper.fail("one scrap under a chart should bank nothing, got level "
+                    + log.get(owner.getUUID()).keystoneLevel());
             return;
         }
         helper.succeed();
@@ -93,25 +86,22 @@ public final class BankAnywhereGameTest {
         List<Integer> omens = List.of(0, 0, 0, ZoneRules.DEFAULT.baseOmen(4, perLevel));
         InstanceRecord record = clearedRecord(helper, server, 9993, owner, steps, omens);
         log.setKeystone(owner.getUUID(), 20, Set.of());
-        log.setKeyProgress(owner.getUUID(), 2);
 
         RunLifecycle.settleSafeVisit(server, record);
-        IntervalBanking.Settlement expected = IntervalBanking.settle(steps,
-                omens.stream().mapToInt(Integer::intValue).sum(), 2, perLevel, 0,
+        IntervalBanking.Settlement expected = IntervalBanking.settle(steps, List.of(),
+                omens.stream().mapToInt(Integer::intValue).sum(), 20, 0,
                 ZoneRules.DEFAULT.bonusChests(steps.size()));
         if (expected.band() != 0) {
             helper.fail("four floors with one omen should settle calm, got band " + expected.band());
             return;
         }
-        if (log.get(owner.getUUID()).keystoneLevel() != 20 + expected.levels()
-                || log.get(owner.getUUID()).keyProgress() != expected.progress()) {
-            helper.fail("four Greater floors and a carry of 2 should bank " + expected + ", got level "
-                    + log.get(owner.getUUID()).keystoneLevel() + " and progress "
-                    + log.get(owner.getUUID()).keyProgress());
+        if (log.get(owner.getUUID()).keystoneLevel() != 20 + expected.levels()) {
+            helper.fail("four +3 floors should bank " + expected + ", got level "
+                    + log.get(owner.getUUID()).keystoneLevel());
             return;
         }
-        if (perLevel == 3 && expected.levels() != 4) {
-            helper.fail("with the default interval, 12 steps and a carry of 2 make 4 levels, got " + expected);
+        if (expected.levels() != 2) {
+            helper.fail("12 scrap should bank 2 charts, got " + expected);
             return;
         }
         helper.succeed();
@@ -124,42 +114,38 @@ public final class BankAnywhereGameTest {
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
-        int perLevel = PocketDungeonsConfig.floorsPerSafeVisit();
         int slot = 9994;
         // A calm interval (one omen a floor over three floors); leaving makes it uneasy.
         List<Integer> steps = List.of(3, 3, 3);
         List<Integer> omens = List.of(1, 1, 1);
         InstanceRecord record = clearedRecord(helper, server, slot, owner, steps, omens);
+        // The floors ran at level 10, so the higher-level rider's scrap is discounted.
+        record.interval.floorLevels.addAll(List.of(10, 10, 10));
         record.members.put(rider.getUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
         log.setKeystone(owner.getUUID(), 10, Set.of());
-        log.setKeyProgress(owner.getUUID(), 0);
-        log.setKeystone(rider.getUUID(), 3, Set.of());
-        log.setKeyProgress(rider.getUUID(), 2);
+        log.setKeystone(rider.getUUID(), 14, Set.of());
         register(record, slot, owner, rider);
         try {
             if (!RunLifecycle.exit(owner, RunLifecycle.ExitReason.COMMAND)) {
                 helper.fail("the owner's exit between floors should succeed");
                 return;
             }
-            IntervalBanking.Settlement ownerExpected = IntervalBanking.settle(steps, 3, 0, perLevel,
-                    IntervalBanking.LEAVE_PENALTY, 0);
-            IntervalBanking.Settlement riderExpected = IntervalBanking.settle(steps, 3, 2, perLevel,
-                    IntervalBanking.LEAVE_PENALTY, 0);
+            IntervalBanking.Settlement ownerExpected = IntervalBanking.settle(steps,
+                    List.of(10, 10, 10), 3, 10, IntervalBanking.LEAVE_PENALTY, 0);
+            IntervalBanking.Settlement riderExpected = IntervalBanking.settle(steps,
+                    List.of(10, 10, 10), 3, 14, IntervalBanking.LEAVE_PENALTY, 0);
             if (ownerExpected.band() != 1) {
                 helper.fail("leaving a calm interval should settle uneasy, got band " + ownerExpected.band());
                 return;
             }
-            if (log.get(owner.getUUID()).keystoneLevel() != 10 + ownerExpected.levels()
-                    || log.get(owner.getUUID()).keyProgress() != ownerExpected.progress()) {
+            if (log.get(owner.getUUID()).keystoneLevel() != 10 + ownerExpected.levels()) {
                 helper.fail("the owner should bank " + ownerExpected + ", got level "
                         + log.get(owner.getUUID()).keystoneLevel());
                 return;
             }
-            if (log.get(rider.getUUID()).keystoneLevel() != 3 + riderExpected.levels()
-                    || log.get(rider.getUUID()).keyProgress() != riderExpected.progress()) {
-                helper.fail("the rider should bank from their own key and carry: " + riderExpected
-                        + ", got level " + log.get(rider.getUUID()).keystoneLevel() + " and progress "
-                        + log.get(rider.getUUID()).keyProgress());
+            if (log.get(rider.getUUID()).keystoneLevel() != 14 + riderExpected.levels()) {
+                helper.fail("the rider should bank at their own level: " + riderExpected
+                        + ", got level " + log.get(rider.getUUID()).keystoneLevel());
                 return;
             }
             if (InstanceRegistry.bySlot.get(slot) == record || InstanceRegistry.byMember.containsKey(rider.getUUID())) {
@@ -174,17 +160,14 @@ public final class BankAnywhereGameTest {
         int direSlot = 9995;
         InstanceRecord dire = clearedRecord(helper, server, direSlot, owner, List.of(3, 3, 3), List.of(3, 3, 3));
         log.setKeystone(owner.getUUID(), 10, Set.of());
-        log.setKeyProgress(owner.getUUID(), 1);
         register(dire, direSlot, owner);
         try {
             RunLifecycle.exit(owner, RunLifecycle.ExitReason.COMMAND);
             IntervalBanking.Settlement direExpected = IntervalBanking.settle(
-                    List.of(3, 3, 3), 9, 1, perLevel, IntervalBanking.LEAVE_PENALTY, 0);
-            if (log.get(owner.getUUID()).keystoneLevel() != 10 + direExpected.levels()
-                    || log.get(owner.getUUID()).keyProgress() != direExpected.progress()) {
+                    List.of(3, 3, 3), List.of(), 9, 10, IntervalBanking.LEAVE_PENALTY, 0);
+            if (log.get(owner.getUUID()).keystoneLevel() != 10 + direExpected.levels()) {
                 helper.fail("an uneasy interval left early is dire but still banks levels; expected "
-                        + direExpected + ", got level " + log.get(owner.getUUID()).keystoneLevel()
-                        + " and progress " + log.get(owner.getUUID()).keyProgress());
+                        + direExpected + ", got level " + log.get(owner.getUUID()).keystoneLevel());
                 return;
             }
         } finally {
@@ -254,13 +237,11 @@ public final class BankAnywhereGameTest {
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
-        int perLevel = PocketDungeonsConfig.floorsPerSafeVisit();
 
         int slot = 9997;
         InstanceRecord checkpoint = clearedRecord(helper, server, slot, owner, List.of(3, 3, 3), List.of(0, 0, 0));
         checkpoint.members.put(rider.getUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
         log.setKeystone(rider.getUUID(), 7, Set.of());
-        log.setKeyProgress(rider.getUUID(), 0);
         register(checkpoint, slot, owner, rider);
         try {
             RunLifecycle.dropMember(server, checkpoint, owner.getUUID(), owner, "member disconnected", true);
@@ -268,7 +249,7 @@ public final class BankAnywhereGameTest {
                 helper.fail("the run should end once the deadline passes");
                 return;
             }
-            IntervalBanking.Settlement expected = IntervalBanking.settle(List.of(3, 3, 3), 0, 0, perLevel,
+            IntervalBanking.Settlement expected = IntervalBanking.settle(List.of(3, 3, 3), List.of(), 0, 7,
                     IntervalBanking.LEAVE_PENALTY, 0);
             if (log.get(rider.getUUID()).keystoneLevel() != 7 + expected.levels()) {
                 helper.fail("the rider should bank one band worse at the checkpoint: " + expected

@@ -35,7 +35,7 @@ mines), `AGENDA.md` (A2, A3, A6, A7, A8), `AUDIT_2026-09.md` section 11,
 | Zone unlocks | `rules.unlock_level` exists, but no theme file sets it, so every zone is open at keystone 1. Deepslate (an entry) lists `ender_archive` and `basalt_foundry` as next. This is why the End came early. | `ZoneRules.unlockLevel`, theme files |
 | Doors and steps | Door 1 is +1 and free; door 2 is +2, needs keystone 7 and 3 shards; door 3 is +3, needs keystone 15 and 3 shards. The floor runs at keystone + step. | `Keystone.offers`, `KeystoneMath.upgrade`, `door2MinLevel`, `greaterDoorMinLevel`, `fuelCostPerGreaterDoor` |
 | What the level does | Mob scale (0.65 + 0.8% per level), loot tier (1 to 4 at tier 1, 5 to 9 tier 2, 10 to 19 tier 3 diamond, 20+ tier 4 netherite), seeded affix count (1 from level 5, 2 from 25, +1 per 20). The keystone is fixed for a whole trip; it only changes at a bank. | `DifficultyProfile`, `KeystoneMath.lootTier`, `AffixMath.seededCount` |
-| Banking | Sum of cleared floors' steps, divided by `floorsPerSafeVisit` (3), remainder carried. Shards spent and affixes faced do not count. | `IntervalBanking.settle` |
+| Banking | Sum of cleared floors' chart scrap, converted 5 to a chart at home; leftover scrap is lost. A floor beneath a member's compass pays less (scrap minus level gap, floored at 0). | `IntervalBanking.settle` |
 | Echo shards | 0.5 chance per member on every floor clear (still in code although the owner asked on 2026-10-02-2 to remove it), 1 per full trip at bank, 0.25 per Ordeal per player, 1 for a short trip ended on the free door. | `RunLifecycle` (floor roll near line 1221, bank near 1451), `Ordeals` |
 | Endless Mine | A Cube recipe (raw iron, keystone 5) forces the `endless_mine` theme for the trip: no final floor, loot tier +1 every 3 floors, materials role. | `cube_recipe/endless_mine.json`, `EndlessMineRules`, `ZONES_SPEC.md` section 3 |
 | Rooms | 61 rooms; 10 are bound to themes by a `theme` field, 51 are generic and reskinned by the theme's processors. A cell is 16x7x16. | `dungeon_room/*.json`, `RoomSelector` |
@@ -141,11 +141,29 @@ confirmed by the owner on 2026-10-05.
 
 - **D11. Finishing a dungeon pays the guaranteed echo shard plus a themed vault,
   and on first clear the dungeon's diary page.** This replaces "1 shard per full
-  trip", and the per-floor shard roll is removed. Banking stays sum of steps / 3,
-  so a longer dungeon banks more on its own. Going home early banks steps and
-  chests but no shard, no vault, no page.
+  trip", and the per-floor shard roll is removed. Going home early banks what
+  the floors paid but no shard, no vault, no page.
+  - **2026-10-05 rework: chart scrap, charts and the compass.** Player-facing,
+    the keystone is the **compass**. A door's step is dealt as **chart scrap**
+    (still 1 to 3, still sets the floor's level). Five scrap make one **chart**;
+    scrap only lives inside the dungeon, so going home converts what you carry
+    into whole charts and the remainder is lost (the go-home confirm says both
+    numbers). Each chart raised the compass one level, so banking slows to about
+    a chart per typical trip. A floor far beneath a member's compass pays them
+    less: `scrap - (member level - floor level)`, floored at 0, settled per
+    member. Carried progress between trips is gone.
+  - **Promised rewards.** A node may author `rewards` (item and count); the
+    door advertises them and a copper chest on the reward floor holds them.
+    The three completion chests are one barrel holding every roll (the finish
+    vault's rolls merge into it too). A cleared floor's reward corner is two
+    containers: barrel and copper chest.
+  - **The door board** is one layout for every door, main and side alike:
+    `DUNGEON: N floor(s) remaining` (yellow), the floor's name with affixes in
+    magenta, a cyan pay line (`Resources:` for a resource dungeon's palette,
+    `Rewards:` for scrap plus promises, either omitted when empty), and
+    `Loot: word` in green beside `Cost:` in yellow (`free` or `N echo shards`).
 - **D12. Resource dungeons (Mineshaft, Cow Pits) pay only what you mine or
-  harvest.** Every floor is +0 (no keystone), no shard, no vault, 1 to 3 floors,
+  harvest.** Every floor deals 0 chart scrap, no shard, no vault, 1 to 3 floors,
   finite nodes, mobs and omen still live. Capped tool durability (pickaxes 12 to
   16 uses) is the limit: a trip spends durability for ore. Node tiers follow the
   act band.
@@ -186,10 +204,11 @@ confirmed by the owner on 2026-10-05.
 - **D19. Mineable blocks become resource nodes, themed to the dungeon.** Lush
   caves: oak logs. Warped forest: warped stems. Mineshaft: iron, gold, copper,
   coal and diamond ore.
-- **D20. Only resource nodes and blocks the player placed can be broken.**
-  Everything else in a room is unbreakable decoration. This is what lets narrow
-  corridors and darkness hold, ends free cobblestone from walls and makes every
-  node a countable faucet.
+- **D20. The interior is mineable with the correct tool; the shell never is.**
+  Reverted 2026-10-05 (playtest 2026-10-05-1: the playtester rejected the
+  node-only rule). The cell shell is a separate, earlier protection, so
+  mineable interiors cannot tunnel between rooms. Ordeal fixtures stay
+  unbreakable; a player's own blocks break with any tool.
 - **D21. Fewer torches, more planks and coal** in loot and rooms, so light is
   something the player crafts and places.
 

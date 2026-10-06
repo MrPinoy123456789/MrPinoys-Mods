@@ -569,7 +569,7 @@ final class DungeonCommands {
 
         if (level > 0 && Keystone.findHeld(player) != null) {
             player.sendSystemMessage(Component.literal(
-                    "You already have a keystone [" + level + "]. Spend it before asking "
+                    "You already have a compass [" + level + "]. Spend it before asking "
                             + "for another.")
                     .withStyle(ChatFormatting.RED));
             return 0;
@@ -584,7 +584,7 @@ final class DungeonCommands {
                     AffixMath.parse(entry.keystoneAffix()),
                     AffixManifest.current().definitions())));
             player.sendSystemMessage(Component.literal(
-                    "A replacement keystone [" + level + "]. Your progress was never on the item.")
+                    "A replacement compass [" + level + "]. Your progress was never on the item.")
                     .withStyle(ChatFormatting.AQUA));
             return 1;
         }
@@ -592,7 +592,7 @@ final class DungeonCommands {
         log.setKeystone(player.getUUID(), 1, Set.of());
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
-                "Keystone [1]. Right-click a lodestone with it, or run /dungeon.")
+                "Compass [1]. Right-click a lodestone with it, or run /dungeon.")
                 .withStyle(ChatFormatting.AQUA));
         return 1;
     }
@@ -688,7 +688,7 @@ final class DungeonCommands {
         }
         InstanceTeardown.purge(server, record, "abandoned by owner");
         player.sendSystemMessage(Component.literal(
-                "Dungeon abandoned. Your keystone is back in hand; open a new run whenever you're ready.")
+                "Dungeon abandoned. Your compass is back in hand; open a new run whenever you're ready.")
                 .withStyle(ChatFormatting.AQUA));
         return 1;
     }
@@ -709,7 +709,7 @@ final class DungeonCommands {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
-                name + ": " + entry.runsCompleted() + " run(s) completed, best keystone ["
+                name + ": " + entry.runsCompleted() + " run(s) completed, best compass ["
                         + entry.bestKeystoneLevel() + "], longest dungeon cleared "
                         + entry.bestPathLength() + " rooms deep")
                 .withStyle(ChatFormatting.GOLD), false);
@@ -813,7 +813,7 @@ final class DungeonCommands {
     /** {@code /dungeon key info}: the held keystone plus this player's run statistics. */
     private static int keyInfo(ServerPlayer player) {
         if (Keystone.findHeld(player) == null) {
-            player.sendSystemMessage(Component.literal("You are not carrying a keystone.")
+            player.sendSystemMessage(Component.literal("You are not carrying a compass.")
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -1429,9 +1429,9 @@ final class DungeonCommands {
         int cleared = clearKeystones(target);
         source.sendSuccess(() -> Component.literal(
                 "Reset " + target.getName().getString() + "'s campaign"
-                        + (cleared > 0 ? " and cleared " + cleared + " keystone(s)." : ".")), true);
+                        + (cleared > 0 ? " and cleared " + cleared + " compass(es)." : ".")), true);
         if (target != source.getPlayer()) {
-            target.sendSystemMessage(Component.literal("Your keystone progress has been reset.")
+            target.sendSystemMessage(Component.literal("Your compass progress has been reset.")
                     .withStyle(ChatFormatting.YELLOW));
         }
         return 1;
@@ -1481,12 +1481,12 @@ final class DungeonCommands {
                 Set.of());
         Payout.deliver(player, Keystone.mint(1));
         player.sendSystemMessage(Component.literal(
-                "Keystone progress reset. Bag cleared. Keystone [1] in hand."
+                "Compass progress reset. Bag cleared. Compass [1] in hand."
                         + " Your unlocked shells and diary entries are preserved.")
                 .withStyle(ChatFormatting.AQUA));
         if (cleared > 0 || bagsCleared > 0) {
             player.sendSystemMessage(Component.literal(
-                    (cleared > 0 ? cleared + " old keystone(s)" : "")
+                    (cleared > 0 ? cleared + " old compass(es)" : "")
                             + (cleared > 0 && bagsCleared > 0 ? ", " : "")
                             + (bagsCleared > 0 ? bagsCleared + " bag item(s)" : "")
                             + " cleared.")

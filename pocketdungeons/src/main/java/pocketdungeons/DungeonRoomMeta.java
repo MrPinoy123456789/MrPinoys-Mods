@@ -432,11 +432,19 @@ final class DungeonRoomMeta {
      * the room's unrotated local coordinates (x, y, z from the cell floor corner).
      * {@code count} is the number of positions of a box that become nodes
      * ({@link #ALL} for every one); it is ignored for a single position.
+     * {@code chance} (PD-155, playtest 2026-10-05-1) is the seeded probability the
+     * group spawns at all, 1 when absent: the same room can come up rich or bare,
+     * which is what makes an ore room worth a second look.
      */
-    record NodeSpec(String block, int[] from, int[] to, int count) {
+    record NodeSpec(String block, int[] from, int[] to, int count, double chance) {
 
         /** {@code count} when every position of the box is a node. */
         static final int ALL = -1;
+
+        /** The pre-chance shape: every node appears. */
+        NodeSpec(String block, int[] from, int[] to, int count) {
+            this(block, from, to, count, 1.0);
+        }
 
         NodeSpec {
             if (block == null || block.isBlank()) {
@@ -453,6 +461,9 @@ final class DungeonRoomMeta {
             }
             if (count != ALL && count < 1) {
                 throw new IllegalArgumentException("node count must be at least 1");
+            }
+            if (!(chance > 0 && chance <= 1)) {
+                throw new IllegalArgumentException("node chance must be in (0, 1]");
             }
             from = from.clone();
             to = to.clone();
@@ -533,7 +544,8 @@ final class DungeonRoomMeta {
                     throw new IllegalArgumentException("node needs \"at\" or both \"from\" and \"to\"");
                 }
                 int count = node.has("count") ? node.get("count").getAsInt() : NodeSpec.ALL;
-                NodeSpec spec = new NodeSpec(block, from, to, count);
+                double chance = node.has("chance") ? node.get("chance").getAsDouble() : 1.0;
+                NodeSpec spec = new NodeSpec(block, from, to, count, chance);
                 checkInterior(spec);
                 out.add(spec);
             } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException e) {

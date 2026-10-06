@@ -280,7 +280,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L24. 2026-10-05: the dungeon feels connected (Stage 1 hypothesis 1, A6)
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** partial pass 2026-10-05 (`2026-10-05-1.md`): asked directly after one Mineshaft trip, "yes, it felt good"; he had already named a floor unprompted ("The Main Drift"). Caveat: one resource dungeon only, and floors 1 and 2 were all generic halls (PD-149), so the pass leans on the structure rather than themed rooms.
 - **Changed:** 2026-10-05: a trip is one dungeon. The first staging room offers three dungeons from the unlocked acts; later doors are the edges of the node just cleared; the floors share a main theme with at most one borrowed theme (`docs/DUNGEON_STRUCTURE_DESIGN.md` section 8).
 - **Do:** discovery check, watch only. Play a full dungeon with the owner or a new player and do not explain the structure. Afterwards ask him to name the dungeon and its floors, and note unprompted comments on place and theme. Journal events: `dungeon_chosen`, `node_entered`, `edge_taken`.
 - **Pass:** he names the dungeon and at least two floors, and says it feels like one place.
@@ -288,7 +288,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L25. 2026-10-05: finishing pulls (Stage 1 hypothesis 2, A7 and A2)
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** partial pass 2026-10-06 (`2026-10-06-1.md`): he finished the Mineshaft (3 floors, `dungeon_finished`, first clear) and the diary page arrived (entry 8, which he read and reported clipped, PD-157). Caveat: `dungeon_finished` journaled `shards:0`; under the new barrel model vault rolls merge so `vault_chests:0` is expected, but confirm the finish shard paid. Earlier: owed, 2026-10-05-1.md: inconclusive, quit on the final floor for real-life reasons.
 - **Changed:** 2026-10-05: clearing a final node pays one echo shard per member, a themed vault of two top tier chests and, on a first finish, a diary page. Going home early pays none of it.
 - **Do:** discovery check. Count floors per trip (it used to be three every time) and note why he went on or went home at each staging room. Journal events: `door_commit`, `bank`, `dungeon_finished`. Ask about the vault and the page only after he has seen them.
 - **Pass:** he plays past three floors to finish at least once, or names the vault or the page as the reason.
@@ -296,7 +296,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L26. 2026-10-05: dungeon length is right (Stage 1 hypothesis 3, A8)
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** pass 2026-10-06 (`2026-10-06-1.md`): full Mineshaft clear (3 floors) took about 30 minutes door to bank (entry ~04:58, `dungeon_finished` 05:28), floors at 364 s and 633 s bookends with chat inflation. No drag complaint. Earlier: owed, 2026-10-05-1.md.
 - **Changed:** 2026-10-05: 3 to 6 layers per dungeon (the Act 1 story dungeons have 3 to 4), one floor per layer; resource dungeons have 1 to 3.
 - **Do:** time a full dungeon from the first door to HOME with the journal (`node_entered` to `dungeon_finished`). Note seconds per floor (floor 1 was the slowest at 218 to 828 s) and where he slows or asks to stop.
 - **Pass:** a full Act 1 dungeon fits in about 45 minutes or less with no strong complaint of drag.
@@ -304,7 +304,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
 - **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
 - **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
@@ -312,7 +312,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L28. 2026-10-05: random steps and the doors screen
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** still owed 2026-10-06 (`2026-10-06-1.md`): the new one-layout board was seen and read (he asked what "Same as door 1" meant, then rejected duplicates outright, superseding PD-153: "if they are the same then they should have different affixes"). Door-choice weighing still not observed closely. Earlier: failed for resource dungeons 2026-10-05 (`2026-10-05-1.md`).
 - **Changed:** 2026-10-05: each door is dealt +1, +2 or +3 (seeded, the same for a preview and its commit); a resource dungeon deals 0. A door shows its floor name, step, loot tier and shard cost; later steps are never shown.
 - **Do:** at three staging rooms, ask which door he is picking and why; note whether he always takes +3.
 - **Pass:** the choice reads as meaningful, the door text is read, and the same door shows the same step on a second look.
@@ -320,7 +320,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L29. 2026-10-05: the dungeon map and the first doors
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** partial 2026-10-05 (`2026-10-05-1.md`): the Spawner Dungeon stood on a door 1 or 2 slot on the first trip (pass on the offer rule). The map/door screen was seen but read as too much text (PD-151); comprehension unconfirmed.
 - **Changed:** 2026-10-05: right-clicking the floor history board (or `/dungeon map`) shows the dungeon graph: current node, final node, edge costs, reachable nodes. Before a trip it lists the three dungeons on offer. The Spawner Dungeon stands on door 1 or 2 until cleared.
 - **Do:** open the board on a fresh trip and mid trip; start several trips as a player who has not cleared Act 1.
 - **Pass:** the map is read and understood; the Spawner Dungeon is on door 1 or 2 on every trip until cleared; after the clear the next act's capstone takes over.
@@ -328,7 +328,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L30. 2026-10-05: the break rule and dark rooms
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** rule reverted, delight confirmed 2026-10-06 (`2026-10-06-1.md`): interiors are mineable with the correct tool everywhere again (pre-ebc37e3 semantics, shell and fixtures still protected). On the seam room: "one of my favourites so far ... It feels like minecraft", and "the durability of the tools balances the abundance of cobblestone". Dark floors not specifically re-observed. Earlier: failed on design 2026-10-05.
 - **Changed:** 2026-10-05 (D17, D20, D21): inside a dungeon cell only resource nodes (with the right tool tier), player placed blocks and soft mechanic blocks break. Rooms can be `dim` or `dark`; torches are rarer in chests.
 - **Do:** try to dig a wall, floor and ceiling; mine a node with the wrong and the right tool; solve a room that expects digging (infested wall, thicket webs, flow puzzle); walk a dark node with and without a torch.
 - **Pass:** wall breaks refuse with one throttled action bar line; nodes break with the right tool; no room is impassable for lack of a break; a dark room is tense but playable and the kennel rooms stay lit.
@@ -336,7 +336,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
 - **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
 - **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
 - **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
@@ -344,7 +344,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L32. 2026-10-05: the Wither and the Herobrine fight
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: unreachable; Acts 4 and 5 stay locked until the earlier capstones are cleared and there is no admin command to unlock acts.
 - **Changed:** 2026-10-05: the Wither (Act 4) has 240 health plus 120 per extra member, is held inside its room and breaks no blocks. Herobrine (Act 5) is the Steve fight in phases (melee, summons, blink). The End (Act 5) is an ordinary story dungeon.
 - **Do:** fight the Wither solo and with two players and look at the room afterwards. Fight Steve through the phases.
 - **Pass:** the Wither cannot leave the room or carve the walls, the pad opens on its death and a nether star drops; Steve's phases show their titles and the fight is winnable but tense.
@@ -352,7 +352,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L33. 2026-10-05: Herobrine's rescue scene
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: unreachable with L32 (Act 5); no admin unlock exists and editing the save is off the table.
 - **Changed:** 2026-10-05 (D16): at low health Alex arrives, Steve speaks and teleports away, the party is healed and the floor completes; the campaign ends with "The search continues".
 - **Do:** trigger it each of the four ways: a member at 25 percent health, a member's killing blow, Steve at 10 percent health, Steve's killing blow.
 - **Pass:** nobody dies, the scene runs about 430 ticks, Alex has the slim Alex skin, the pad opens afterwards, and the diary page and the campaign line arrive.
@@ -360,7 +360,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L34. 2026-10-05: party decide whitelist
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: solo session, SirAegerus never joined.
 - **Changed:** 2026-10-05 (D15): any member may pull doors, choose branches and pull HOME by default. `/dungeon party decide whitelist on` limits it to the leader and the players added with `decide add`; `/dungeon quit` stays owner only.
 - **Do:** with two players, have the companion pull HOME with the whitelist off, then on, then after being added.
 - **Pass:** off: the companion can; on: refused with "The party leader has limited who decides here"; listed: allowed. Watch whether a companion ends a trip the leader wanted to continue.
@@ -368,7 +368,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
 - **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
 - **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
 - **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
@@ -376,7 +376,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L36. 2026-10-05: Endless Mine seal and the deepest floor
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** owed, 2026-10-05-1.md: not seen; the Mine only appears on door 3 once Act 2 is unlocked, and the Act 1 capstone was not cleared.
 - **Changed:** 2026-10-05 (D13): after Act 1's capstone the first staging room shows the Endless Mine on door 3; layers open by act; the deepest floor shows on the history board.
 - **Do:** with act 2 open, enter the Mine and go down to floors 6, 12 and 18 as the acts allow; read the sealed line and the history board.
 - **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
@@ -384,7 +384,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L37. 2026-10-05: an old save loads into the new structure
 
-- **Status:** owed, dungeon structure built, not yet played
+- **Status:** passed 2026-10-05 (`2026-10-05-1.md`): his pre-branch save (keystone 9) loaded with no decode errors, kept pack and history intact, and the first-trip offers were Act 1 only (Spawner Dungeon, Lush Caves, Mineshaft). The keystone-15 act-2/3 grant was not exercised (he is at 9).
 - **Changed:** 2026-10-05: `DungeonLog` gained campaign fields; `currentTheme` and `depth` are superseded; a pre-branch player starts with Act 1 and, if their keystone is 15 or more, also Acts 2 and 3 once. The kit is granted once with no top up.
 - **Do:** start the server on a copy of a pre-branch world; join as a keystone 15 or higher player and as a low one, one of whom had chosen a now hidden bag.
 - **Pass:** no stack trace on load; the high player sees Act 2 and 3 dungeons and the low one only Act 1; the hidden bag still gives its kit.

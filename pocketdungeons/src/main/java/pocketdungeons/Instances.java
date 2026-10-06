@@ -1082,7 +1082,8 @@ final class Instances {
         }
         return new RoomEligibility.Floor(def.id(), def.mainTheme(), roomTheme, def.act(),
                 def.kind() == DungeonDef.Kind.CAPSTONE, effectiveThemeId, borrowedFrom,
-                node.layer() == 1, node.isFinal(), offer.door().sideBranch());
+                node.layer() == 1, node.isFinal(), offer.door().sideBranch(),
+                def.kind() == DungeonDef.Kind.RESOURCE);
     }
 
     /**
@@ -1518,6 +1519,7 @@ final class Instances {
         next.affixes = affixes;
         next.theme = effectiveThemeId;
         next.chosenStep = offer.step();
+        next.chosenLevel = offer.level();
         next.doorTaken = true;
         next.freeDoor = offer.free();
         // M66: the recipe plan is consumed. The catalyst escrow is cleared

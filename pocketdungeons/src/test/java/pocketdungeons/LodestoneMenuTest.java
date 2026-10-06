@@ -24,7 +24,7 @@ public class LodestoneMenuTest {
         UUID player = UUID.fromString("00000000-0000-0000-0000-0000000000d4");
 
         // Overworld menu: Start Dungeon, Browse Lobbies, Visit a Friend,
-        // Manage Room, Stations, Inspect Keystone, Diaries.
+        // Manage Room, Stations, Inspect Compass, Diaries.
         List<DialogScreens.MenuOption> overworld = DialogScreens.menuOptions(false, false, false);
         check(overworld.size(), 8, "overworld menu has eight options");
         check(overworld.get(0).label(), "Start Dungeon", "overworld first is Start Dungeon");
@@ -42,15 +42,15 @@ public class LodestoneMenuTest {
         check(overworld.get(4).label(), "Stations", "overworld fifth is Stations");
         check(overworld.get(4).action(), DialogScreens.ACTION_STATIONS,
                 "Stations carries its action id");
-        check(overworld.get(5).label(), "Inspect Keystone", "overworld sixth is Inspect Keystone");
+        check(overworld.get(5).label(), "Inspect Compass", "overworld sixth is Inspect Compass");
         check(overworld.get(5).action(), DialogScreens.ACTION_INSPECT_KEYSTONE,
-                "Inspect Keystone carries its action id");
+                "Inspect Compass carries its action id");
         check(overworld.get(6).label(), "Diaries", "overworld seventh is Diaries");
         check(overworld.get(6).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
         // In-dungeon owner, no door chosen yet (lobby): Leave, Manage Room,
-        // Change Shell, Stations, Inspect Keystone, Diaries. No Quit Door,
+        // Change Shell, Stations, Inspect Compass, Diaries. No Quit Door,
         // because there is no door to quit.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true, false);
         check(owner.size(), 7, "in-dungeon owner menu (lobby) has seven options");
@@ -64,11 +64,11 @@ public class LodestoneMenuTest {
         check(owner.get(3).label(), "Stations", "the room's own owner sees Stations");
         check(owner.get(3).action(), DialogScreens.ACTION_STATIONS,
                 "Stations carries its action id");
-        check(owner.get(4).label(), "Inspect Keystone", "in-dungeon fifth is Inspect Keystone");
+        check(owner.get(4).label(), "Inspect Compass", "in-dungeon fifth is Inspect Compass");
         check(owner.get(5).label(), "Diaries", "in-dungeon owner sixth is Diaries");
-        check(owner.get(6).label(), "Reset Key", "in-dungeon owner last is Reset Key");
-        check(owner.get(6).action(), DialogScreens.ACTION_RESET_KEY, "Reset Key opens its confirm");
-        check(overworld.get(7).label(), "Reset Key", "overworld last is Reset Key");
+        check(owner.get(6).label(), "Reset Compass", "in-dungeon owner last is Reset Key");
+        check(owner.get(6).action(), DialogScreens.ACTION_RESET_KEY, "Reset Compass opens its confirm");
+        check(overworld.get(7).label(), "Reset Compass", "overworld last is Reset Key");
         check(owner.get(5).action(), DialogScreens.ACTION_DIARIES,
                 "Diaries carries its action id");
 
@@ -81,14 +81,14 @@ public class LodestoneMenuTest {
                 "Quit Door carries its action id");
         check(ownerRun.get(2).label(), "Manage Room", "mid-run third is Manage Room");
 
-        // In-dungeon visitor: Leave, Inspect Keystone, Diaries; no Manage Room, no Quit Door.
+        // In-dungeon visitor: Leave, Inspect Compass, Diaries; no Manage Room, no Quit Door.
         List<DialogScreens.MenuOption> visitor = DialogScreens.menuOptions(true, false, true);
         check(visitor.size(), 3, "in-dungeon visitor menu omits Manage Room and Quit Door");
         check(visitor.get(0).label(), "Leave", "visitor sees Leave");
-        check(visitor.get(1).label(), "Inspect Keystone", "visitor sees Inspect Keystone");
+        check(visitor.get(1).label(), "Inspect Compass", "visitor sees Inspect Compass");
         check(visitor.get(2).label(), "Diaries", "visitor sees Diaries");
         check(visitor.stream().noneMatch(o -> o.action().equals(DialogScreens.ACTION_RESET_KEY)), true,
-                "a visitor never sees Reset Key");
+                "a visitor never sees Reset Compass");
 
         // The dialog is a MultiActionDialog with one button per option, each
         // carrying the owner UUID so DialogRouter's owner check passes.

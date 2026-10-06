@@ -58,6 +58,12 @@
       "theme": "basalt_foundry",
       "roomBias": [
         "rising_lava"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
       ]
     },
     {

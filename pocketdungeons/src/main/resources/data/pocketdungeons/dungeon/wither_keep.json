@@ -69,6 +69,12 @@
       "light": "dim",
       "roomBias": [
         "blaze_loft"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
       ]
     },
     {

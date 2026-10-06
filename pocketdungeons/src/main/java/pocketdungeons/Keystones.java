@@ -86,7 +86,7 @@ final class Keystones {
                 Chime.keystoneDepleted(player);
             }
             player.sendSystemMessage(Component.literal(
-                    "Your keystone is depleted: [" + level + "] -> [" + returned + "].")
+                    "Your compass is depleted: [" + level + "] -> [" + returned + "].")
                     .withStyle(ChatFormatting.RED));
         }
     }

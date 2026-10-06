@@ -179,7 +179,7 @@ public class TripDoorsTest {
     private static void testResourceStepsAreZero() {
         for (int path = 1; path <= 30; path++) {
             for (TripDoors.Door door : TripDoors.dealNext(OWNER, mine, "adit", path)) {
-                check(door.step() == 0, "a resource dungeon deals no key progress: " + door);
+                check(door.step() == 0, "a resource dungeon deals no chart scrap: " + door);
             }
         }
         TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(mine), 0);
@@ -313,7 +313,7 @@ public class TripDoorsTest {
         check(text.contains("CHOOSE A DUNGEON"), "heading");
         check(text.contains("Frostworks") && text.contains("Mineshaft"), "both dungeons named");
         check(text.contains("ends at The Big Freeze"), "the final floor is named");
-        check(text.contains("+0 (no key progress)"), "the resource door says no key progress");
+        check(text.contains("+0 scrap"), "the resource door says no scrap");
     }
 
     /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3 (or 0 for resource). */

@@ -464,6 +464,15 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, InventorySwap.OrphanRecord> kitChests = new HashMap<>();
 
     /**
+     * PD-150: how many stacks each player's run storage returned to the pack
+     * while they were offline ({@link RunStorage#returnAll}). The items land in
+     * the orphan record either way; this count is only so the next dungeon entry
+     * can say it happened instead of leaving the chest looking wiped. Sidecar
+     * map for the same reason {@link #orphans} is one.
+     */
+    private final Map<UUID, Integer> storageReturns = new HashMap<>();
+
+    /**
      * (M71) Per-player Cube recipe discovery state. A sidecar map for the
      * same reason {@link #taskProgress} and {@link #bounties} are ones: the
      * discovery state is read and written on the Cube interaction path, has
@@ -704,6 +713,16 @@ final class DungeonLog extends SavedData {
     /** One player's bag chest contents ({@link KitChest}), the same shape as an orphan. */
     private record PlayerKitChest(UUID player, InventorySwap.OrphanRecord items) {}
 
+    /** One player's pending run-storage return count, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerStorageReturn(UUID player, int stacks) {}
+
+    private static final Codec<PlayerStorageReturn> PLAYER_STORAGE_RETURN_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerStorageReturn::player),
+            Codec.INT.fieldOf("stacks").forGetter(PlayerStorageReturn::stacks)
+    ).apply(instance, PlayerStorageReturn::new));
+
     private static final Codec<PlayerKitChest> PLAYER_KIT_CHEST_CODEC = RecordCodecBuilder.create(
             instance -> instance.group(
             Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
@@ -800,7 +819,13 @@ final class DungeonLog extends SavedData {
             // bag chest empty until the player's next trip home refills it.
             PLAYER_KIT_CHEST_CODEC.listOf().optionalFieldOf("kit_chests", List.of())
                     .forGetter(log -> log.kitChests.entrySet().stream()
-                            .map(e -> new PlayerKitChest(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerKitChest(e.getKey(), e.getValue())).toList()),
+            // PD-150: optional so a save written before it loads with no pending
+            // notices, which is the correct reading of "nobody was offline for a
+            // storage return" (an online player hears it at once anyway).
+            PLAYER_STORAGE_RETURN_CODEC.listOf().optionalFieldOf("storage_returns", List.of())
+                    .forGetter(log -> log.storageReturns.entrySet().stream()
+                            .map(e -> new PlayerStorageReturn(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -809,7 +834,8 @@ final class DungeonLog extends SavedData {
                                           List<PlayerRecipeDiscovery> recipeDiscoveries,
                                           List<PlayerRunRecords> runRecords,
                                           List<PlayerFloorHistory> floorHistory,
-                                          List<PlayerKitChest> kitChests) {
+                                          List<PlayerKitChest> kitChests,
+                                          List<PlayerStorageReturn> storageReturns) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -837,6 +863,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerKitChest k : kitChests) {
             log.kitChests.put(k.player(), k.items());
+        }
+        for (PlayerStorageReturn s : storageReturns) {
+            log.storageReturns.put(s.player(), s.stacks());
         }
         return log;
     }
@@ -1379,6 +1408,32 @@ final class DungeonLog extends SavedData {
             orphans.put(player, orphan);
         }
         setDirty();
+    }
+
+    /**
+     * PD-150: records that {@code stacks} stacks from {@code player}'s run storage
+     * went into the pack record while they were offline, so the next dungeon entry
+     * can say so. Stacks up across returns.
+     */
+    void noteStorageReturn(UUID player, int stacks) {
+        if (stacks <= 0) {
+            return;
+        }
+        storageReturns.merge(player, stacks, Integer::sum);
+        setDirty();
+    }
+
+    /**
+     * PD-150: the pending run-storage return count, cleared. 0 when nothing was
+     * returned while the player was away.
+     */
+    int takeStorageReturn(UUID player) {
+        Integer stacks = storageReturns.remove(player);
+        if (stacks == null) {
+            return 0;
+        }
+        setDirty();
+        return stacks;
     }
 
     /**

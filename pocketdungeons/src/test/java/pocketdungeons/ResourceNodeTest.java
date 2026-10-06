@@ -68,16 +68,16 @@ public class ResourceNodeTest {
                 "a node breaks with the right tool");
         eq(BreakRule.decide(false, false, false, true, true), BreakRule.Verdict.ALLOW_NODE,
                 "a soft mechanic block breaks with the right tool");
-        // The wrong tool still refuses a node, and says so apart from decoration.
+        // The wrong tool still refuses, whatever the interior block.
         eq(BreakRule.decide(false, false, true, false, false), BreakRule.Verdict.REFUSE_WRONG_TOOL,
                 "a node needs the tool tier");
         eq(BreakRule.decide(false, false, false, true, false), BreakRule.Verdict.REFUSE_WRONG_TOOL,
                 "a soft mechanic block needs its tool");
-        // Everything else is decoration, even with a perfect tool.
-        eq(BreakRule.decide(false, false, false, false, true), BreakRule.Verdict.REFUSE_NOT_NODE,
-                "decoration does not break, whatever the tool");
-        eq(BreakRule.decide(false, false, false, false, false), BreakRule.Verdict.REFUSE_NOT_NODE,
-                "decoration does not break by hand either");
+        eq(BreakRule.decide(false, false, false, false, false), BreakRule.Verdict.REFUSE_WRONG_TOOL,
+                "plain furnishing needs its tool");
+        // 2026-10-05 (D20 revised): furnishing breaks like a node, with the correct tool.
+        eq(BreakRule.decide(false, false, false, false, true), BreakRule.Verdict.ALLOW_NODE,
+                "interior furnishing breaks with the correct tool");
         // An Ordeal fixture never breaks, not even the placer's.
         eq(BreakRule.decide(true, false, true, true, true), BreakRule.Verdict.REFUSE_FIXTURE,
                 "an Ordeal fixture stays");
@@ -85,18 +85,14 @@ public class ResourceNodeTest {
                 "a fixture is not rescued by a stale placement record");
         check(BreakRule.Verdict.ALLOW_PLACED.allowed() && BreakRule.Verdict.ALLOW_NODE.allowed(),
                 "both allows are allowed");
-        check(!BreakRule.Verdict.REFUSE_NOT_NODE.allowed() && !BreakRule.Verdict.REFUSE_FIXTURE.allowed()
-                && !BreakRule.Verdict.REFUSE_WRONG_TOOL.allowed(), "no refusal is allowed");
+        check(!BreakRule.Verdict.REFUSE_FIXTURE.allowed() && !BreakRule.Verdict.REFUSE_WRONG_TOOL.allowed(),
+                "no refusal is allowed");
     }
 
     /** Placed beats node in the verdict (the placer needs no tool); fixture beats everything. */
     private static void testBreakDecisionOrder() {
         eq(BreakRule.decide(false, true, true, true, false), BreakRule.Verdict.ALLOW_PLACED,
                 "own block on a node position needs no tool");
-        check(BreakRule.NOT_A_NODE_MESSAGE.toLowerCase().contains("resource node"),
-                "the refusal line names resource nodes");
-        check(!BreakRule.NOT_A_NODE_MESSAGE.contains(EM_DASH) && !BreakRule.NOT_A_NODE_MESSAGE.contains(DOUBLE_HYPHEN),
-                "house punctuation rule");
     }
 
     // ---- light ---------------------------------------------------------------

@@ -5524,3 +5524,53 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 - The server console receives `pdmark-<id>` lines about every 40 s and logs "Unknown or incomplete command" for each (harness markers sent as commands).
 - The PD-139 "Block-attached entity at invalid position: BlockPos{x=9, y=65, z=1000710}" error fired again at 03:50:22, with no creative mode break this time (the player entered a room at 03:50:27, five seconds later; cause not found).
 **Status:** Partly fixed 2026-10-05. The context snapshot carries `last_bank` (the latest `bank` event, read back from the journal, so it survives the 20 event `recent` window). The `pdmark-...` console lines: a remote command costs a marker command after it, and the llm keepalive sent one every minute; keepalive and `say` now fire without a reply (`lemon ... --quiet`), so the lines stay only for commands whose reply is read. Not done: the "Block-attached entity at invalid position" error, cause still unknown. Unit test `JournalFormatTest` covers `last_bank`; the console change has no automated test.
+### PD-149: Resource dungeon floors can roll zero nodes (High)
+**Reported:** 2026-10-05-1, 00:05 to 00:26. Mineshaft floors 1 (mine_mouth) and 2 (main_drift) generated only generic halls (entrance_hall, hall_corner/tee/dead_end, the_altar, exit_hall) and `floor_complete` showed `nodes_total` 0 on both. The player asked "are there supposed to be resource nodes in this floor?". A resource dungeon pays only what you mine, so these floors paid nothing under D20.
+**Status:** Reopened 2026-10-06. The first live floor after the fix (Mineshaft floor 1, ~04:58) again rolled only generic halls with `nodes_total` 0, while floor 2 of the same trip did place `mineshaft_seam`. The 40-seed unit test passes, so the miss is in whatever differs live (eligible-cell check, placement order, or a resource flag not set on that floor).
+Original fix 2026-10-05: `RoomEligibility.weightFactor` now gives a room bound to the floor's dungeon or main theme (`dungeons`, or legacy `theme`) a x5 `DUNGEON_BOOST`, so a dungeon's own rooms carry its floors instead of losing the draw to generic halls; the boost stacks with the entry and side_reward boosts and does not apply to rooms only eligible through a borrowed theme or `borrowableBy`. On top of the preference, `RoomSelector.ensureResourceRooms` forces a resource-bearing room onto an eligible cell after the pass when a resource floor placed none: a declared-`nodes` room first, else any room bound to the dungeon (the Cow Pits pay cows, not ore), using the same solvability revalidation as a recipe guarantee. `Floor` carries a `resource` flag so the rule is scoped to D12 dungeons. Tests: `PlanSelectorTest.testResourceFloorGuaranteesANodeRoom` (40 seeds all land the ore room) and `RoomEligibilityTest.testDungeonBoost`.
+
+### PD-150: Run storage reads as wiped when the run closes offline (Medium)
+**Reported:** 2026-10-05-1, 00:05: "My run storage was reset, this happened last time as well. Maybe when the server goes down." Second report (first: 2026-10-04-1 at 04:16, then not reproduced).
+**Status:** Fixed 2026-10-05, live check owed. Mechanism confirmed, no data loss: `InstanceTeardown.purge` calls `RunStorage.returnAll`, which moves the contents into the dungeon pack via `InventorySwap.keepForNextEntry`, but the notice only reached an online player. `returnAll` now records the returned stack count for an offline member in a persisted `storage_returns` sidecar on `DungeonLog`, and `InventorySwap.enterVoid` sends "Your run storage went back into your dungeon pack while you were away." on the next dungeon entry, once, then clears it.
+
+### PD-151: Door screen text is too much and too technical (Low)
+**Reported:** 2026-10-05-1, 00:04 ("There's too much text on the screen above the selector doors") and 00:19 ("'Loot Tier 2' sounds too back endy, should say something that means more to the player, '+0 toward your key, +0 so far' is very verbose").
+**Status:** Fixed 2026-10-05, live check owed. The door screen drops the "KEYSTONE n" restatement and the step line reads "+3 toward your key (4 banked)" (`IntervalBanking.doorLine`), with a resource door saying "Pays what you mine" instead of "+0 toward your key, +0 so far". "Loot tier n" is a word now: modest, fair, rich or lavish (`DungeonScreen.lootWord`). Test: `IntervalBankingTest` wording lines.
+
+### PD-152: Floor-start title restates the keystone (Low)
+**Reported:** 2026-10-05-1, 00:16. "Keystone 9 Floor 2 of Mineshaft seems too verbose, Keystone shouldn't be mentioned since it's just restating the player's keystone level"; the wanted form is "Mineshaft: Floor 2".
+**Status:** Fixed 2026-10-05, live check owed. `OmenBarText.previewFloor` now reads "MINESHAFT: FLOOR 2" (and "MINESHAFT: FINAL FLOOR" / "MINE FLOOR n"), and the keystone level is gone from the door screen's first line. Test: `OmenBarTextTest.testPreviewFloor`.
+
+### PD-153: Spare doors are identical when steps are flat (Medium)
+**Reported:** 2026-10-05-1, 00:27: "All the doors seem to say 'The Deep Face' with no difference even in modifiers or anything." At main_drift the only edge is to deep_face, so the spare-doors rule (D4) filled all three doors with the same branch; with every step +0 in a resource dungeon the offers are exact copies. "It feels arbitrary."
+**Status:** Superseded 2026-10-06. The owner rejected the label after seeing it live: "if they are the same then they should have different affixes." The new rule is no truly identical doors: reroll affixes until the deal differs. Original fix 2026-10-05: a door whose offer is identical to an earlier door's in every respect the player can weigh (floor, step, shard cost) now says "Same as door n" in dark gray on its screen (`DungeonScreen.identicalDoor`), so the spare-door repeat reads as a repeat, not a bug. The doors stay physical and choosable; nothing about the deal changes.
+
+### PD-154: Dark floors arrive with no warning (Low)
+**Reported:** 2026-10-05-1, 00:20: "This dungeon is very dark, should be a very brief 1 line warning before I choose to go into this dark dungeon."
+**Status:** Fixed 2026-10-05, live check owed. The door screen reads the node's `light` and shows one line: "Dark floor: bring torches" in gold for a dark node, "Dim light" in gray for a dim one.
+
+### PD-155: Mineshaft ore rooms are too generous (Low, balance)
+**Reported:** 2026-10-05-1, 00:29 to 00:30: "too much ore inside, it should be more scarce and more random"; "maybe some iron, maybe some gold instead, maybe both, maybe a lot of iron"; "4 raw iron being consider medium-high amount".
+**Status:** Fixed 2026-10-05, live check owed. `NodeSpec` gained an optional `chance` (seeded probability the whole pocket spawns, default 1), and `mineshaft_seam` is scarcer and mixed: coal 3 always, iron 3 at 70% plus a second iron pocket 3 at 25% (the "maybe a lot of iron" case), copper 2 at 60%, deepslate gold 2 at 35%. A seam now ranges from a bare coal pocket to about 13 ore. Test: `DungeonRoomMetaTest` chance parsing and rejections.
+
+### PD-156: Vanilla warnings leak into MCP tool replies (Low, harness)
+**Reported:** 2026-10-05-1, ~00:29. A "Mismatch in destroy block pos" server log line appeared inside the `lemon_reply` tool result. `wait-filter` drops that line from the event stream (PD-139 note), but it still surfaces appended to an MCP reply, which is confusing to read.
+**Status:** Fixed 2026-10-05. `wait-filter.mjs` exports `isVanillaNoise`, and `remoteCommand` in `pdserver.mjs` drops those lines from the reply it reads out of latest.log (they were kept because command feedback is a non-event line and the noise was too). A mod warning and a real vanilla error still come through. Test: `wait-filter.test.mjs` noise cases.
+
+## 2026-10-06 (session 2026-10-06-1)
+
+### PD-157: Diary book pages clip text (Medium)
+**Reported:** 2026-10-06-1, ~05:33. Entry 8 "The First Pick" "seems like it gets cut off after the first page"; the player asked for the other entries checked.
+**Status:** Open. Cause found: each authored `pages[]` entry becomes one verbatim book page in `DiaryDelivery.book`, and a written-book page clips at about 14 rendered lines with no auto-pagination. Rough line estimates flag about a dozen authored pages across the set (entries 1, 2, 5, 6, 7, 8, 13, 15, 16 among them). Fix direction: paginate the prose into real book pages when building the item, keeping authored order; the shuffled found-copy can shuffle sub-pages or keep each authored page's splits together.
+
+### PD-158: Omen bar does not track interval omen (Medium)
+**Reported:** 2026-10-06-1, ~05:29. "My omen was 4/4 but the bar wasn't full, it didn't seem to progress properly with deaths and eating." The journal confirms interval omen reached 4 on that floor, so the bar's fill or denominator is not keyed to it.
+**Status:** Open. Check what `OmenBar` fills against versus `OmenBarText`'s printed numbers, and whether death/eating omen sources update the bar.
+
+### PD-159: Store left-click can take stock without delivering (High)
+**Reported:** 2026-10-06-1, ~05:21. "If I left click an item in the shop, I don't get the item sometimes and it runs out of stock." Same session, earlier: a bought oak log would not stack with plain logs and kept its store name/lore.
+**Status:** Open, likely cause located. `StoreNPC.sell` delivers `current.stack()` without `cleanResult`, so the listing's `CUSTOM_NAME`/`LORE` leak into the delivered stack (the `MerchantGui.onTrade` path cleans, `sell` does not). The left-click stock loss suggests stock is claimed on a path where the vanilla offer result never reaches the player.
+
+### PD-160: Iron door connector with no reachable opener (High)
+**Reported:** 2026-10-06-1, ~05:00. A `flooded_hall` room behind an iron door connector: the player could not break the door and could not place a redstone signal close enough.
+**Status:** Open. PD-55's attached-lever fix apparently does not cover this configuration; check `ConnectorStamper` lever placement for this layout and reconcile with PD-27.

@@ -37,7 +37,7 @@ final class DungeonMapText {
         List<Line> out = new ArrayList<>();
         out.add(new Line(def.name().toUpperCase(), Tone.TITLE));
         out.add(new Line("Act " + def.act() + ", " + def.layers() + " layers. "
-                + "You are here: >> <<. Visited: *. Side branches cost echo shards.", Tone.NOTE));
+                + "You are here: >> <<. Visited: *. Some doors cost echo shards.", Tone.NOTE));
 
         Set<String> ahead = TripDoors.reachableFrom(def, current);
         for (int layer = 1; layer <= def.layers(); layer++) {
@@ -145,9 +145,9 @@ final class DungeonMapText {
         return node == null ? 0 : node.layer();
     }
 
-    /** {@code "+2"}, or {@code "+0 (no key progress)"} for a resource dungeon floor. */
+    /** {@code "+2"}, or {@code "+0 scrap"} for a resource dungeon floor. */
     static String stepWord(int step) {
-        return step <= 0 ? "+0 (no key progress)" : "+" + step;
+        return step <= 0 ? "+0 scrap" : "+" + step + " scrap";
     }
 
     static String shards(int cost) {

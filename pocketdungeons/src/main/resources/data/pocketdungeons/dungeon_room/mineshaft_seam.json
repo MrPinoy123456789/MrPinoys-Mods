@@ -38,7 +38,7 @@
         3,
         5
       ],
-      "count": 5
+      "count": 3
     },
     {
       "block": "minecraft:iron_ore",
@@ -52,7 +52,23 @@
         3,
         5
       ],
-      "count": 4
+      "count": 3,
+      "chance": 0.7
+    },
+    {
+      "block": "minecraft:iron_ore",
+      "from": [
+        9,
+        1,
+        5
+      ],
+      "to": [
+        11,
+        3,
+        5
+      ],
+      "count": 3,
+      "chance": 0.25
     },
     {
       "block": "minecraft:copper_ore",
@@ -66,7 +82,8 @@
         3,
         9
       ],
-      "count": 4
+      "count": 2,
+      "chance": 0.6
     },
     {
       "block": "minecraft:deepslate_gold_ore",
@@ -80,7 +97,8 @@
         3,
         9
       ],
-      "count": 2
+      "count": 2,
+      "chance": 0.35
     }
   ],
   "tier": 1,

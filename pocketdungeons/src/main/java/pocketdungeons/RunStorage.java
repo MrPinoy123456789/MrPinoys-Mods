@@ -164,6 +164,11 @@ final class RunStorage {
                 player.sendSystemMessage(Component.literal(
                                 "Your run storage went back into your dungeon pack.")
                         .withStyle(ChatFormatting.GRAY));
+            } else {
+                // PD-150: an offline member hears nothing, and the chest reads as
+                // wiped on the next run (playtest 2026-10-05-1). The count rides in
+                // the saved log so the next dungeon entry can say it happened.
+                log.noteStorageReturn(entry.getKey(), entry.getValue().size());
             }
         }
     }

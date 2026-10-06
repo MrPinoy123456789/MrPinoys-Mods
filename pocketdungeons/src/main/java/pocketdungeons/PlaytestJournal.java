@@ -446,7 +446,7 @@ final class PlaytestJournal {
             extras.put("floors", floors);
             extras.put("band", settled.band());
             extras.put("levels_gained", settled.levels());
-            extras.put("carry", settled.progress());
+            extras.put("scrap_left", settled.scrapLeft());
             extras.put("chests", chests);
             extras.put("depth_bonus", depthBonus);
             extras.put("key_level", keyLevel);

@@ -42,7 +42,13 @@
       "id": "gear_loft",
       "name": "Gear Loft",
       "layer": 3,
-      "theme": "deepslate"
+      "theme": "deepslate",
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
     },
     {
       "id": "verdigris_foundry",

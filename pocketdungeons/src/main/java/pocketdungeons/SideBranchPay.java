@@ -31,26 +31,20 @@ final class SideBranchPay {
         return cost <= 0 ? 0 : Math.max(0, cost - Math.max(0, carried));
     }
 
-    /** What the shared door wall says about a side branch: the cost and who pays, no balance. */
-    static String wallLine(int cost) {
-        return "Side branch: " + shards(cost) + ", paid from the pack of whoever pulls the lever";
-    }
-
-    /** What the acting player is told about their own balance when they pick a side branch door. */
+    /** What the acting player is told about their own balance when they pick a costing door. */
     static String balanceLine(int cost, int carried) {
-        return "Side branch: " + shards(cost) + ". You carry " + carried + ".";
+        return shards(cost) + ". You carry " + carried + ".";
     }
 
     /** The refusal for a player who cannot cover the cost, naming the shortfall. */
     static String refusal(int cost, int carried) {
-        int missing = shortfall(cost, carried);
-        return "Not enough echo shards: this side branch needs " + cost + ", you carry " + carried
-                + " (" + missing + " short).";
+        return "Needs " + shards(cost) + ". You have " + carried + ".";
     }
 
     /** The short refusal for the door screen, naming the shortfall. */
     static String screenRefusal(int cost, int carried) {
-        return "Side branch: needs " + shards(cost) + ", you are " + shortfall(cost, carried) + " short";
+        return shortfall(cost, carried) + " echo shard"
+                + (shortfall(cost, carried) == 1 ? "" : "s") + " short";
     }
 
     private static String shards(int n) {

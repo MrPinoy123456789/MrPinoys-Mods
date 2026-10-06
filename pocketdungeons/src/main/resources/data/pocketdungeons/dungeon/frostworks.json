@@ -60,6 +60,12 @@
       "layer": 3,
       "roomBias": [
         "barred_vault"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 3
+        }
       ]
     },
     {

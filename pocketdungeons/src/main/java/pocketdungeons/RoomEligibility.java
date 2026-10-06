@@ -31,6 +31,15 @@ final class RoomEligibility {
     static final int ROLE_BOOST = 3;
 
     /**
+     * PD-149: the weight multiplier for a room bound to the floor's own dungeon or main theme
+     * ({@code dungeons}, or legacy {@code theme}, names it). A preference again, not a lock, but a
+     * stronger one than {@link #ROLE_BOOST}: themed rooms should carry a floor, with generic halls
+     * filling the cells they do not cover. Without it a resource dungeon could roll a whole floor
+     * of generic halls and pay nothing (playtest 2026-10-05-1).
+     */
+    static final int DUNGEON_BOOST = 5;
+
+    /**
      * The floor a room is chosen for.
      *
      * @param dungeonId           the floor dungeon's id
@@ -43,10 +52,22 @@ final class RoomEligibility {
      * @param entryNode           whether the floor is the dungeon's entry node
      * @param finalNode           whether the floor is a final node
      * @param sideEdge            whether the floor was reached by a side edge (a shard cost)
+     * @param resource            whether the dungeon is a resource dungeon (D12): its payout is the
+     *                            nodes it stamps, so a floor must carry at least one room that
+     *                            declares or is bound to it
      */
     record Floor(String dungeonId, String mainTheme, String roomTheme, int act, boolean capstone,
                  String floorTheme, String borrowedFromDungeon, boolean entryNode, boolean finalNode,
-                 boolean sideEdge) {
+                 boolean sideEdge, boolean resource) {
+
+        /** The pre-resource shape, kept so callers written before the flag read the same. */
+        Floor(String dungeonId, String mainTheme, String roomTheme, int act, boolean capstone,
+              String floorTheme, String borrowedFromDungeon, boolean entryNode, boolean finalNode,
+              boolean sideEdge) {
+            this(dungeonId, mainTheme, roomTheme, act, capstone, floorTheme, borrowedFromDungeon,
+                    entryNode, finalNode, sideEdge, false);
+        }
+
         boolean borrowed() {
             return borrowedFromDungeon != null && !borrowedFromDungeon.isEmpty();
         }
@@ -133,18 +154,38 @@ final class RoomEligibility {
         return bosses.isEmpty() ? candidates : bosses;
     }
 
-    /** 3 when an entry room is on the entry node or a side_reward room is on a side-edge floor, else 1. */
+    /**
+     * The draw weight multiplier for this room on this floor: {@link #DUNGEON_BOOST} when the room
+     * belongs to the floor's dungeon or main theme (PD-149), times {@link #ROLE_BOOST} when an
+     * entry room is on the entry node or a side_reward room is on a side-edge floor. 1 for a room
+     * with no particular claim.
+     */
     static int weightFactor(RoomTags room, Floor floor) {
         if (floor == null) {
             return 1;
         }
+        int factor = 1;
+        if (boundTo(room, floor)) {
+            factor *= DUNGEON_BOOST;
+        }
         if (floor.entryNode() && room.graphRole().contains("entry")) {
-            return ROLE_BOOST;
+            factor *= ROLE_BOOST;
         }
         if (floor.sideEdge() && room.graphRole().contains("side_reward")) {
-            return ROLE_BOOST;
+            factor *= ROLE_BOOST;
         }
-        return 1;
+        return factor;
+    }
+
+    /**
+     * Whether the room belongs to the floor's own dungeon or main theme: its {@code dungeons}
+     * (or legacy {@code theme}) names the dungeon id or the main theme. A room eligible only
+     * through a borrowed theme or {@code borrowableBy} does not count, so a deviating floor's
+     * borrowed rooms do not crowd out the dungeon's own.
+     */
+    static boolean boundTo(RoomTags room, Floor floor) {
+        List<String> names = room.dungeons().isEmpty() ? room.theme() : room.dungeons();
+        return containsAny(names, floor.dungeonId(), floor.mainTheme());
     }
 
     private static boolean containsAny(List<String> ids, String... wanted) {

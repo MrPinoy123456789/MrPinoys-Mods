@@ -87,6 +87,15 @@ operator rules reference, written once wave 2 settles) must state each of these.
 | 2026-09-27 | **Omen adds danger, not reward cuts** (owner, after playtest 2026-09-27-3): rising omen brings loot-less mob waves, tougher spawns and hazards; chests and keystone progress are no longer cut by band. Omen still drives the depth bonus and head start. |
 | 2026-09-27 | **Fail condition**: each death rescue adds omen; a death while omen is maxed fails the run: the player is sent home, unbanked floors pay nothing, and the dungeon inventory reverts to its snapshot from when the interval began (so spent resources return too). Keystone level and home are untouched. |
 | 2026-09-27 | **Quit costs 1 level** (was 2, via `timedOutDepletion`), and the quit confirmation states the exact cost first. Supersedes the free-door quit row above on the amount. |
+| 2026-10-05 | **Dungeon structure** (`docs/DUNGEON_STRUCTURE_DESIGN.md`, questionnaire with the owner): one trip is one dungeon. The first door picks a dungeon, a named graph of floors with one theme; going home banks and ends the attempt; the final floor ends it. "Set" and "interval" leave player text. `floorsPerSafeVisit` stays only as the banking divisor (3). |
+| 2026-10-05 | **Dungeon graph**: length varies by dungeon. A door is a branch to one next floor. Steps +1, +2, +3 are dealt to the doors at random (seeded) and cost nothing; the keystone 7 and 15 door gates and Greater doors are removed. Echo shards buy side branches (edges priced per dungeon, at least one free edge out of every floor). The staging room shows the whole dungeon map, with later steps hidden. |
+| 2026-10-05 | **Campaign**: five acts as Steve's playthrough in order (First Iron, The Deep, The Monument, The Nether, The End), each dungeon one of his memories. Clearing an act's capstone unlocks the next act; keystone never gates access. Act 5 ends with Herobrine escaping and Alex saving the player; the post-campaign modes are the search, and the lore's seal is a later endgame capstone. The act sets the loot band; keystone + step sets difficulty. |
+| 2026-10-05 | **Dungeon rewards**: finishing pays the guaranteed echo shard plus a themed vault, and on first clear the dungeon's diary page; this replaces the full-trip shard, and the per-floor shard roll is removed. Resource dungeons (Mineshaft, Cow Pits) pay only nodes (no keystone, shard or vault), limited by tool durability. The Endless Mine opens after Act 1, and each depth layer needs its act cleared. |
+| 2026-10-05 | **Kits and party**: five starting kits, granted once, no refills (supersedes the 2026-09-26 top-up rows). The party leader's progress sets which dungeons and branches are offered; any member can pull a door, choose a branch or go home, unless the leader turns on whitelist only (deciding limited to listed members). Every member present at a capstone clear unlocks the next act. |
+| 2026-10-05 | **Rooms**: narrower and darker rooms where it fits (still 4-way capable); biome rooms per dungeon (Lush Cave, Warped Forest); breakable blocks become themed resource nodes, and only nodes and the player's own placed blocks can be broken in a dungeon cell (supersedes "right tool for the job" on any interior block); fewer torches, more planks and coal. First playtest is the graph mechanics on existing themes, before new content. |
+| 2026-10-05 | **Dungeon structure, the proposals confirmed**: a dungeon has 3 to 6 layers, at most 3 edges out of a floor, and branches may rejoin; a floor with fewer than 3 edges out fills the spare doors with the same branch at the other steps. A floor may declare a signature affix, otherwise affixes are seeded as today; omen stays per trip and a capstone floor starts with omen; merchants are named for what they buy; the Store and Altar stay ordinary rooms in each dungeon's pool; run storage is unchanged. |
+| 2026-10-05 | **One main theme, with deviation**: every kind of dungeon (story, resource, capstone, endless) has one main theme, but its floors and rooms may come from other dungeons' themes as long as they still fit (a Mineshaft with a Lush Cave floor). |
+| 2026-10-05 | **Theme deviation guardrails**: a floor or room only borrows from a dungeon of the same act or an earlier one; the loot band, node tiers and merchant currency follow the dungeon's act and main theme, not the borrowed theme; the entry and final floors always use the main theme. |
 
 # Open research questions (ask about these at breaks)
 
@@ -244,21 +253,69 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** every station opens every time; blocks place; a bagless companion can always pick a bag after the leader did.
 - **Fail signs:** a station that refuses, a placement refused for a companion, the bag chest missing for a bagless member.
 
-### L22. 2026-10-03: balance batch
-
-- **Status:** owed (partial), 2026-10-04-1.md. Passed: floor 1 had 2 spawners twice; inventory_snapshot written at every floor clear and bank; salvage gave materials, no emeralds, XP only from the enchanted piece. Failed on the clock: floor 1 took 828 s and 731 s (player was chatting to Lemon, two puzzles slowed him). Not tested: party vault, one key per spawner, history board text. Earlier: owed
-- **Changed:** 2026-10-03: the first floor of an interval has at most 2 encounter cells (`firstFloorMaxEncounters`); chests carry fewer logs and more planks; a trial spawner ejects one key per party, and a vault opens once per party but pays one loot roll per member (owner rule; `PartyRewards`); the floor history rows are 20 percent bigger and the heading sits higher; a tamed spawner wolf counts as defeated; a chest leather cap salvages; Disenchant works with an empty bench; salvage gives the material back, measured against the reduced dungeon maximum: leather, iron and chainmail (iron), gold, copper, diamond and netherite (scrap) give 2 for a chestplate or leggings at 75 percent or more and 1 from 25 percent, other pieces 1 from 25 percent; wooden tools give a plank at 75 percent or more or 2 sticks from 25 percent; stone tools a cobblestone and shields a plank from 25 percent; kit can be scrapped (only the keystone is refused); scrapped gear pays no emeralds, only its materials and the XP a vanilla grindstone would give (none when unenchanted); the journal writes an inventory_snapshot (pack, run storage, ender chest, kept pack) at each floor clear, bank and exit.
-- **Do:** watch floor 1 length and spawner count, chest contents, and a two-player vault. Ask whether the history board reads well.
-- **Pass:** floor 1 shows 2 spawners or fewer and runs well under 300 s; in a party of two, one key per spawner and one vault opening that ejects about twice a solo vault; the board text fits its backdrop.
-- **Fail signs:** history rows wider than the panel, two keys from one spawner, a vault the second player can still open, a party vault that pays like a solo one, floor 1 with 3 or more spawners.
-
-### L23. 2026-10-04: the bag chest is a kit station
+### L23. 2026-10-04: the bag chest is a kit station (RETIRED 2026-10-05, dungeon structure W5)
 
 - **Status:** owed (partial), 2026-10-04-1.md: `kit_refill` fired on both banks (04:28:48, 05:37:50); the second overwrote an unused shield and stone sword (leftovers replaced, not stacked). Not seen: two players, the chest itself in play. The owner is now leaning toward removing refills (4 or 5 starting kits, no refill), so this row may be retired by an owner decision. Earlier: owed
 - **Changed:** 2026-10-04 (owner decision): the bag chest stands in the safe room for good. With no bag, clicking it picks one (the kit goes into the pack, as before). With a bag, it opens the player's own 27 slots, "Your Kit". Every trip home that banked a floor fills those slots with a fresh full kit, overwriting whatever was left; the old top-up into the pack is gone. Each party member has their own slots. Journal event `kit_refill`. Fix 2026-10-04 (owner report): the chest is placed once, saves with the room and can be mined and set down anywhere in the safe room (not elsewhere); a new one appears only if the room has none and the owner is not carrying one. Death now reads "You come to at the Doors, with the feeling of a bad omen." (players call the staging room the Doors).
 - **Do:** after a trip home, have each player open the bag chest; leave something in it, go out and come home again.
 - **Pass:** a moved chest stays where it was put and still opens the kit, with no second chest at the centre; a full fresh kit after each banked trip; leftovers replaced, not added to; two players see their own kits; the chest is there on every return.
 - **Fail signs:** an empty chest after a banked trip, leftovers stacking up, one player seeing the other's kit, the chest missing, the kit landing in the pack.
+
+### L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
+
+- **Status:** owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
+- **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
+- **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
+- **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
+- **Fail signs:** a branch is never affordable (raise income); every branch is always taken (raise the cost); the action bar balance line is missed.
+
+### L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
+
+- **Status:** owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
+- **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
+- **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
+- **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
+- **Fail signs:** the pad opens early or never opens; the Warden spawns twice or elsewhere; a brood that is trivial or unwinnable for two.
+
+### L32. 2026-10-05: the Wither and the Herobrine fight
+
+- **Status:** owed, 2026-10-05-1.md: unreachable; Acts 4 and 5 stay locked until the earlier capstones are cleared and there is no admin command to unlock acts.
+- **Changed:** 2026-10-05: the Wither (Act 4) has 240 health plus 120 per extra member, is held inside its room and breaks no blocks. Herobrine (Act 5) is the Steve fight in phases (melee, summons, blink). The End (Act 5) is an ordinary story dungeon.
+- **Do:** fight the Wither solo and with two players and look at the room afterwards. Fight Steve through the phases.
+- **Pass:** the Wither cannot leave the room or carve the walls, the pad opens on its death and a nether star drops; Steve's phases show their titles and the fight is winnable but tense.
+- **Fail signs:** a broken wall or a Wither in the next cell; a phase that never changes.
+
+### L33. 2026-10-05: Herobrine's rescue scene
+
+- **Status:** owed, 2026-10-05-1.md: unreachable with L32 (Act 5); no admin unlock exists and editing the save is off the table.
+- **Changed:** 2026-10-05 (D16): at low health Alex arrives, Steve speaks and teleports away, the party is healed and the floor completes; the campaign ends with "The search continues".
+- **Do:** trigger it each of the four ways: a member at 25 percent health, a member's killing blow, Steve at 10 percent health, Steve's killing blow.
+- **Pass:** nobody dies, the scene runs about 430 ticks, Alex has the slim Alex skin, the pad opens afterwards, and the diary page and the campaign line arrive.
+- **Fail signs:** a member dies during the scene; Alex or Steve left in the room after the floor ends; the pad never opens; the scene fires twice.
+
+### L34. 2026-10-05: party decide whitelist
+
+- **Status:** owed, 2026-10-05-1.md: solo session, SirAegerus never joined.
+- **Changed:** 2026-10-05 (D15): any member may pull doors, choose branches and pull HOME by default. `/dungeon party decide whitelist on` limits it to the leader and the players added with `decide add`; `/dungeon quit` stays owner only.
+- **Do:** with two players, have the companion pull HOME with the whitelist off, then on, then after being added.
+- **Pass:** off: the companion can; on: refused with "The party leader has limited who decides here"; listed: allowed. Watch whether a companion ends a trip the leader wanted to continue.
+- **Fail signs:** a refused leader; a companion who can still pull a lever with the whitelist on; the door screen not saying why.
+
+### L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
+
+- **Status:** owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
+- **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
+- **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
+- **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
+- **Fail signs:** an infinite cow loop; durability not a real cost so the resource dungeon is farmed; a shard or vault from a resource dungeon.
+
+### L36. 2026-10-05: Endless Mine seal and the deepest floor
+
+- **Status:** owed, 2026-10-05-1.md: not seen; the Mine only appears on door 3 once Act 2 is unlocked, and the Act 1 capstone was not cleared.
+- **Changed:** 2026-10-05 (D13): after Act 1's capstone the first staging room shows the Endless Mine on door 3; layers open by act; the deepest floor shows on the history board.
+- **Do:** with act 2 open, enter the Mine and go down to floors 6, 12 and 18 as the acts allow; read the sealed line and the history board.
+- **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
+- **Fail signs:** the Mine on door 3 before act 2; a shaft that lets you past a sealed layer; the Mine hiding the capstone door.
 
 # Rooms (id: roles, tier, depth, requirements)
 
@@ -269,20 +326,29 @@ tool on the MCP server (`mcp.mjs --admin`).
 - blaze_loft: corridor, tier 2, depth 1+
 - bogged_marsh: encounter, tier 2, depth 1+
 - breeze_arena: encounter, tier 2, depth 1+, access gated
+- brood_chamber: exit, tier 1, depth 0+
+- burrow_tunnel: encounter/loot/corridor, tier 1, depth 0+
 - chasm: corridor, tier 1, depth 0+
 - collapsing_bridge: corridor, tier 2, depth 2+, pressure local
 - copper_works_forge: encounter, depth 1+
+- cow_pens: corridor, tier 1, depth 0+
+- cow_yard: corridor, tier 1, depth 0+
 - creeper_kennel: encounter, tier 2, depth 1+
+- crimson_forest: encounter/loot/corridor, tier 2, depth 0+
 - crypt_corner: encounter, depth 1+
 - deep_dark_landing: corridor, tier 3, depth 2+, pressure omen
 - dont_look: corridor, tier 2, depth 1+
 - elders_chamber: corridor, tier 3, depth 2+, access gated
 - encounter_zombie: encounter, depth 0+
+- end_city_hall: encounter/loot/corridor, tier 2, depth 0+
+- end_island: encounter/loot/corridor, tier 2, depth 0+
+- end_ship: encounter/loot/corridor, tier 2, depth 0+
 - ender_archive_vault: loot, depth 1+
 - entrance_hall: entrance, depth 0+
 - exit_hall: exit, depth 0+
 - flooded_hall: corridor, tier 1, depth 0+, pressure local
 - flow_puzzle: corridor, tier 2, depth 0+, access gated
+- fracture_hall: exit, tier 1, depth 0+
 - frame_lock: corridor, tier 1, depth 0+, pressure omen, access gated
 - frostworks_glaze: corridor, depth 1+
 - gallery: corridor, tier 2, depth 0+
@@ -292,6 +358,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - hall_dead_end: encounter/loot/corridor, depth 0+
 - hall_straight: encounter/loot/corridor, depth 0+
 - hall_tee: encounter/loot/corridor, depth 0+
+- hay_loft: corridor, tier 1, depth 0+
 - hold_the_plate: corridor, tier 1, depth 1+, pressure local, access gated
 - ice_run: corridor, tier 2, depth 0+, pressure local
 - infested_wall: corridor, tier 2, depth 1+, access gated
@@ -299,9 +366,17 @@ tool on the MCP server (`mcp.mjs --admin`).
 - kennel_crossing: encounter, tier 2, depth 1+
 - ledge_archers: encounter, tier 1, depth 0+
 - loot_vault: loot, depth 0+
+- lush_clay_pool: encounter/loot/corridor, tier 1, depth 1+
+- lush_hollow: encounter/loot/corridor, tier 1, depth 0+
+- lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_collapse: encounter/loot/corridor, tier 1, depth 1+
+- mineshaft_crossing: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_seam: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_tunnel: encounter/loot/corridor, tier 1, depth 0+
 - mossy_tee: encounter/corridor, depth 2+
 - ominous_bargain: loot, tier 3, depth 3+, pressure omen
 - ossuary_crypt: encounter, depth 1+
+- ossuary_passage: encounter/loot/corridor, tier 1, depth 0+
 - pillar_cross: encounter/corridor, depth 2+
 - plate_pair: corridor, tier 1, depth 0+, needs mob, access gated
 - pot_room: corridor, tier 1, depth 0+, pressure omen
@@ -310,9 +385,12 @@ tool on the MCP server (`mcp.mjs --admin`).
 - rootworks_grove: corridor, depth 1+
 - ropewalk: corridor, tier 1, depth 0+
 - rotation_lock: corridor, tier 2, depth 0+, access gated
+- sculk_causeway: corridor, tier 2, depth 0+
+- sculk_nave: corridor, tier 2, depth 0+
 - sensor_gallery: encounter, tier 2, depth 1+, access gated
 - slime_pit: encounter, tier 1, depth 0+
 - sorting_floor: corridor, tier 2, depth 0+, access gated
+- soul_sand_valley: encounter/corridor, tier 2, depth 0+
 - spawner_den: encounter, depth 2+
 - sump: corridor, tier 2, depth 0+
 - the_altar: loot, tier 2, depth 2+, pressure omen
@@ -322,4 +400,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - thicket: corridor, tier 1, depth 0+, pressure local
 - treasure_alcove: loot, depth 1+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local
+- warden_hall: exit, tier 1, depth 0+
+- warped_forest: encounter/loot/corridor, tier 2, depth 0+
+- wither_hall: exit, tier 1, depth 0+
 - wither_loft: encounter, tier 3, depth 2+, access gated

@@ -25,6 +25,7 @@ public class PlanSelectorTest {
         testThemeFilter();
         testRubbleNeedsAnExplosiveBeforeIt();
         testTierGate();
+        testResourceFloorGuaranteesANodeRoom();
         System.out.println("PlanSelectorTest passed");
     }
 
@@ -218,6 +219,66 @@ public class PlanSelectorTest {
         if (loot == null || !"loot_tier1".equals(loot.name())) {
             throw new AssertionError("tier 1 cap should prefer the tier 1 room, got " + loot);
         }
+    }
+
+    /**
+     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor must place at
+     * least one room that stamps nodes. With a manifest whose only node room is
+     * outnumbered by generic halls, every seed still lands one.
+     */
+    private static void testResourceFloorGuaranteesANodeRoom() {
+        DungeonShape shape = straightShape(5);
+        RoomManifest manifest = makeResourceManifest();
+        RoomEligibility.Floor floor = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
+                false, "test_mine", "", false, false, false, true);
+        for (long seed = 0; seed < 40; seed++) {
+            DungeonShape seeded = new DungeonShape(seed, shape.cells(), shape.openEdges(),
+                    shape.entrance(), shape.terminal(), shape.criticalPath(), shape.roles());
+            DungeonPlan plan = RoomSelector.resolveDetailed(seeded, manifest, null, Set.of(), null, floor).plan();
+            if (plan == null) {
+                throw new AssertionError("resource floor " + seed + " did not resolve");
+            }
+            boolean oreRoom = false;
+            for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
+                if ("ore_room".equals(room.name())) {
+                    oreRoom = true;
+                }
+            }
+            if (!oreRoom) {
+                throw new AssertionError("resource floor " + seed + " placed no node room");
+            }
+        }
+        // A non-resource floor never forces the room in: the guarantee is scoped.
+        RoomEligibility.Floor story = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
+                false, "test_mine", "", false, false, false, false);
+        DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), null, story).plan();
+        if (plan == null) {
+            throw new AssertionError("story floor did not resolve");
+        }
+    }
+
+    /** A manifest of generic halls plus one node-bearing room bound to the test dungeon. */
+    private static RoomManifest makeResourceManifest() {
+        List<RoomManifest.Entry> entries = new ArrayList<>();
+        entries.add(new RoomManifest.Entry("entrance_hall",
+                meta("entrance_hall", List.of(RoleIds.ENTRANCE)), DoorMask.EAST));
+        for (int i = 0; i < 4; i++) {
+            entries.add(new RoomManifest.Entry("hall_" + i,
+                    meta("hall_" + i, List.of(RoleIds.ENCOUNTER, RoleIds.LOOT)),
+                    DoorMask.EAST | DoorMask.WEST));
+        }
+        entries.add(new RoomManifest.Entry("ore_room",
+                new DungeonRoomMeta("ore_room", 1, 1, List.of(RoleIds.ENCOUNTER, RoleIds.LOOT),
+                        1, 0, -1, null, List.of(), null, 1, List.of(), List.of(), null,
+                        DungeonRoomMeta.ACCESS_OPEN, DungeonRoomMeta.WINDOW_BARS, 1,
+                        List.of(new DungeonRoomMeta.NodeSpec("minecraft:coal_ore",
+                                new int[]{3, 1, 5}, new int[]{5, 3, 5}, 3)),
+                        "lit", "wide", null, false, List.of("test_mine"), List.of(), List.of(),
+                        List.of()),
+                DoorMask.EAST | DoorMask.WEST));
+        entries.add(new RoomManifest.Entry("exit_hall",
+                meta("exit_hall", List.of(RoleIds.EXIT)), DoorMask.WEST));
+        return RoomManifest.create(entries, List.of());
     }
 
     private static RoomManifest makeTieredManifest(int... tiers) {

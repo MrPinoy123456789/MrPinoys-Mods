@@ -32,6 +32,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-01-1.md:** omen bit again on a level 9 basalt_foundry run: three rescues, then `run_failed` at floor and interval omen 4. The failure now works in live play, but there is still no spontaneous evidence that the player watches the bar or understands the countdown before it ends (medium).
 - **2026-10-01-2.md:** the sculk sensor room finally connected omen to a cause in his head: he noticed the sensor text (though it flashed too fast to read, PD-100), solved the room by hoeing the sensors, and later guessed "is it my bad omen?" about fast enemies. He banked immediately after clearing a floor at max omen 4 (band 2), which may be the first omen-influenced exit. Omen is starting to be something he reasons about (medium).
 - **2026-10-02-1.md:** omen is now clearly read: player asked about Silence affix duration, asked for an omen-gain sound, and proposed Silence should give omen on consumable use rather than blocking it. The sculk-sensor line and spider-speed confusion show the bar is being used as an explanation, which is progress (high).
+- **2026-10-06-1.md:** he watches the bar closely enough to spot it lying: "My omen was 4/4 but the bar wasn't full, it didn't seem to progress properly with deaths and eating" (PD-158; journal confirms interval omen hit 4). Reads it, distrusts it now (high).
 
 ## A2. What makes a player go home, and when?
 - **Why:** bank-anywhere replaced the forced safe room. The depth bonus and the
@@ -42,6 +43,8 @@ mind** (the answer that would make us change the design), status, and evidence.
   depth bonus or head start numbers need tuning.
 - **Status:** partial
 - **2026-10-04-1.md:** two banks (after 3 floors each), the second when the pack was at 0 free slots. The gain was not understood: "Did my keystone upgrade ... like it was supposed to?" then "I thought I was going to get more levels since I did multiple echo shard / more challenging floors" (medium). Full pack and the keystone result, not the omen, were the pull home.
+- **2026-10-05-1.md:** he quit the Mineshaft on its final floor, but said "I had to go (unrelated to the test or game)". No finish observed, so the shard/vault/page pull (L25) is still unmeasured (low).
+- **2026-10-06-1.md:** first full dungeon finish observed (Mineshaft, 3 floors); he stayed to the end unprompted and the diary page landed. The chart-scrap leftovers warning was understood ("brining X Charts and losing Y" model holds). New wrinkle: a full resource clear paid 0 charts, and his verdict is resource floors should pay like normal floors (medium).
 - **Evidence:** 2026-09-27-1.md: "I don't know what home offers so I never want to go"; went home for a full inventory and chest storage, always after floor 2, never reached the floor 3 head start (high on the current state: the payoff is invisible, not mistuned).
 - **Changed 2026-09-27:** the go-home screen lists what home pays (reward chests, key progress, kit refill) and the floor-end line names what each lever pays. Retest: does the go-home point move, and is the reason ever the omen or depth?
 - **2026-09-27-3.md:** moved from floor 2 to floor 3, at the green "TIME TO GO HOME" screen, but the player asked why it was time and what descending would do: a traffic light, not a weighed gamble. Descended again one minute after going home (medium).
@@ -60,6 +63,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   floor and the kit top-ups in the digest.
 - **Status:** partial
 - **2026-10-04-1.md:** food never ran short (13 to 63); the pack hit 0 free slots at the second door. He discards gear at almost no durability ("scrap for nothing"), surplus string and sticks. Clutter is the cost now, not scarcity (medium).
+- **2026-10-05-1.md:** pack hit 0 free slots again by floor 3. His D20 verdict: keep resource nodes for ore randomization, but restore interior breakability "like in the previous iteration". He used run storage unprompted (arrows, shield, string). Mineshaft ore rooms are too generous; 4 raw iron is his medium-high anchor (high).
 - **Evidence:** 2026-09-27-1.md: wood is the bottleneck (about 4% oak log per tier 1 chest); ingots and diamonds unused for lack of sticks; early loot reads as useless; mob-dropped tools keep full durability (PD-69) (high).
 - **Changed 2026-09-27:** wood early, fewer bones and emeralds, trims later game, more and shorter-lived weapons and armour (owner decisions 2026-09-27 in `AUDIT_2026-09.md`). Retest over three runs.
 - **2026-09-27-3.md:** no wood complaint this session; proposed the Grove as a small capped wood source (its logs are all unbreakable wall). Only one interval played, so the three-run retest is still open (low).
@@ -105,6 +109,8 @@ mind** (the answer that would make us change the design), status, and evidence.
   why they picked one.
 - **Status:** partial
 - **2026-10-04-1.md:** "I like that I have to gamble my success on the run for more reward" (positive), but themes jump each floor and "the floors in a set seem kind of disconnected". Proposes a dungeon with one entry floor, then an acyclic graph of choice-gated floors (high).
+- **2026-10-05-1.md:** the structure landed: "yes, it felt good" for one-place feel, and he named The Main Drift unprompted. But inside a resource dungeon every door read +0/+0/L2 and spare doors are identical copies, so the choice "feels arbitrary" (PD-151, PD-153) (high).
+- **2026-10-06-1.md:** new unified board seen; he read it fine (asked what "Same as door 1" meant) then ruled: no identical doors, reroll affixes until they differ (PD-153 superseded). Cost now reads per door (`Cost: N echo shards` / `free`), scrap line as "+N chart scrap" style; layout pass (floor count on its own line, smaller text) still pending (high).
 - **Evidence:** 2026-09-27-3.md: the free door on all four descents, committed 1 to 8 seconds after the preview; reason not asked yet (low). 2026-09-29-1.md: the free door again, committed 18 s after preview on a check-in run that was quit at once; reason still unasked (very low).
 - **2026-09-29-1.md:** asked directly: "I would take deeper doors, but my keystone level is too low I think so they're unavailable." Door 3 needs level 15 while he sat at keystone 1-3; the free door is forced, not chosen. His suggestions: hide unavailable doors so a newly unlocked door is itself the signal; put door 2 at level 7 or 8 (high).
 - **2026-09-29-2.md:** gating verified in game: at keystone ~4-5 the selector showed exactly one door ("it correctly showed 1"). He reached key 5 by session end, still under the door 2 gate of 7; no real door choice observed yet (medium).
@@ -121,6 +127,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   pull is outside the mod entirely.
 - **Status:** partial
 - **2026-10-04-1.md:** pull is the risk gamble per run, plus resource dungeons: a Mineshaft or Cow Pits he would revisit "even if it doesn't reward keystone levels so that they can stockpile iron" (high).
+- **2026-10-05-1.md:** he picked the Mineshaft over the Spawner Dungeon capstone on the first trip, consistent with the resource-dungeon pull (low).
 - **Evidence:** 2026-09-27-1.md: the imagined pull is a stocked home and feeling "kitted out" (tree farm, many chests) (low).
 - **2026-09-30-2.md:** the strongest pull remains economy and progression utility: salvage, merchant rooms, emerald sinks, workstation limits, and Lemon-granted generation perks were all proposed as reasons to keep collecting (medium).
 - **2026-10-02-2.md:** the pull he described is narrative: a campaign with a boss floor (Herobrine or Steve nearly kills the player, Alex rescues them, he escapes), after which the other modes become the search for him. Plus a vertical endless mode (endless mines as the inverse of regular floors, more Ordeals). Strongest A7 evidence so far (high).
@@ -132,6 +139,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   or phases (the digest's per-floor seconds and check-ins point at them).
 - **Status:** partial
 - **2026-10-04-1.md:** floor 1 was the slowest floor twice (828 s and 731 s with 2 spawners) while later floors took 218 to 526 s. He also felt the story "progressing very quickly" through four themes in about 2 hours (medium).
+- **2026-10-05-1.md:** same pattern: floor 1 slowest again (443 s vs 343 s). Dark rooms read as surprising but not a stall; he wants a door warning (PD-154) (medium).
 - **Evidence:** 2026-09-27-1.md: "doesn't feel like it's getting too risky"; only the pillager floor spiked; floor 2 took 4 to 6.5 min (low).
 - **2026-09-30-2.md:** good spikes came from surprise slimes, dungeon-wide endermen, darkness that made the player pause before moving, and varied ominous enemies and rooms. The level 7 ominous floors still did not feel much harder than the prior level (medium).
 - **2026-10-01-1.md:** basalt_foundry's identity produced the spike this time: fire damage was heavy enough to rescue twice and the player framed preparation as part of the theme. That is good pressure, but it ended in a run failure before any floor completed (medium).
@@ -175,6 +183,9 @@ item when it recurs or the owner says it matters.
 - **Campaign arc and unlockable modes** (2026-10-02-2.md): structure the game as a campaign; finishing it unlocks other modes. His version: a boss floor against Herobrine or Steve, Alex rescues the player and he escapes, and the other modes are the search for him. Ties to A7 and to Alex diaries as meta progression. Candidate for promotion.
 - **3D maps and Ordeals as vertical gates** (2026-10-02-2.md): a procedural map with vertical movement gated by Ordeals; endless mines as the vertical inverse with more Ordeals. Needs a dimension height decision (`dimension_type/void.json` is y 0 to 256). Ties to "Flat rooms leave systems stranded".
 - **Stations should be crafted, not handed out** (2026-10-02-2.md): he would rather craft each station than take it from Lemon; reroll belongs to the enchanting table; Mending is a bought book. Ties to A3.
+- **Player-facing text is too technical** (2026-10-05-1.md): four complaints in 50 minutes: the door screen has too much text, "Loot Tier 2" is "back endy", "+0 toward your key, +0 so far" is verbose, and the floor title should be "Mineshaft: Floor 2". A wording pass across the new structure UI is warranted (PD-151, PD-152, PD-153). 2026-10-06-1.md continues it: the board is still "a little crowded" (wants the floor count on its own line, non-title text ~20% smaller), resource names too verbose ("gold ore", not "deepslate gold ore" and "gold ore"), and "Side branch: 1 echo shard" was rejected in favour of a per-door cost line.
+- **Mineable interiors are the game's feel** (2026-10-06-1.md): on a mineshaft seam room: "one of my favourites so far ... It feels like minecraft", with the designer-grade note "the durability of the tools balances the abundance of cobblestone". He proposed hiding ore inside interior walls ("a very cheap feature"). The reverted break rule is a keeper.
+- **Run storage wants to be a container, not a service** (2026-10-06-1.md): he traced the auto-return flow correctly, then asked for it as "an enderchest": a persistent player-managed inventory. Design direction decided by the owner.
 - **Interviewer reliability, again** (2026-10-02-2.md): at least 8 questions were hidden from the agent by the `wait` cursor (PD-118) and answered by the fallback; the owner noticed and said so. A direct log monitor worked. Keep the theme open until PD-118 is fixed and a session runs clean.
 
 ### Added 2026-10-03-2 (see docs/playtests/2026-10-03-2.md)

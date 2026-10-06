@@ -362,6 +362,12 @@ public class DungeonRoomMetaTest {
                 {"template": "t", "roles": ["corridor"],
                  "nodes": [{"block": "stone", "from": [1, 1, 1], "to": [2, 1, 1], "count": 9}]}
                 """).nodes.get(0).positions(1L).size(), 2, "count above the box is the box");
+        // PD-155: chance defaults to 1 and parses as written.
+        check(single.chance(), 1.0, "no chance means always");
+        check(parse("""
+                {"template": "t", "roles": ["corridor"],
+                 "nodes": [{"block": "stone", "at": [4, 1, 4], "chance": 0.4}]}
+                """).nodes.get(0).chance(), 0.4, "chance parses");
     }
 
     private static void testW4NodeRejections() {
@@ -376,6 +382,8 @@ public class DungeonRoomMetaTest {
                 "{\"block\": \"stone\", \"at\": [4, 6, 4]}",
                 "{\"block\": \"stone\", \"at\": [4, -9, 4]}",
                 "{\"block\": \"stone\", \"from\": [1, 1, 1], \"to\": [2, 1, 1], \"count\": 0}",
+                "{\"block\": \"stone\", \"at\": [4, 1, 4], \"chance\": 0}",
+                "{\"block\": \"stone\", \"at\": [4, 1, 4], \"chance\": 1.5}",
                 "{\"at\": [4, 1, 4]}",
                 "{\"block\": \" \", \"at\": [4, 1, 4]}"}) {
             boolean threw = false;

@@ -31,7 +31,7 @@ final class LemonArchive {
             "Alex wrote that the walls notice you lingering. Stay in one unsolved room too long and the omen climbs.",
             "Alex says the sculk counts your steps. Sensors that ping often raise the omen, so tread lightly near them.",
             "Alex found that a Silenced floor does not stop you eating; it just charges you omen for it. Eat at the Doors.",
-            "Alex kept going home after three floors. Banking early is not cowardice, it is how the key keeps climbing.",
+            "Alex kept going home after three floors. Banking early is not cowardice, it is how the compass keeps climbing.",
             "Alex mentions a spring in the quiet dead ends: a little water that mends, feeds, or washes the omen away. One drink only.",
             "Alex says Mending is not found, it is bought: the librarian by the lectern will lock a piece in for emeralds.",
             "Alex's last page says the dungeon moves its rooms when you are not looking. Do not trust the door you remember."

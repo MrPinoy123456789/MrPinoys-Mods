@@ -136,6 +136,7 @@ final class RoomSelector {
         if (recipePlan != null) {
             applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan, floor);
         }
+        ensureResourceRooms(shape, manifest, theme, placed, depths, bagTags, floor);
         // PD-93: a guarantee may have forced a themed room onto the anomaly
         // cell. That cell is no longer an anomaly, and calling it one would
         // send the stamper to the anomaly manifest for a room it does not hold.
@@ -432,30 +433,77 @@ final class RoomSelector {
         // alternative room names; the tier gate was already checked at
         // resolve time, so every group here is tier-eligible for this offer.
         for (RecipeEffects.GuaranteedRoom g : recipePlan.guaranteedRooms) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags, g.names(), floor);
+            // M68: room names are now namespaced ids. Qualify the target names so
+            // a legacy bare target ("infested_wall") matches the namespaced room
+            // name ("pocketdungeons:infested_wall") the manifest now carries.
+            Set<String> targetSet = new java.util.HashSet<>();
+            for (String target : g.names()) {
+                targetSet.add(JsonPackSupport.qualify(target));
+            }
+            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    match -> targetSet.contains(match.entry().name), floor);
         }
     }
 
     /**
-     * M66: forces one of the named rooms onto an eligible cell. Finds a
-     * non-entrance, non-terminal cell whose mask and role match one of the
-     * target rooms at some rotation, and whose {@code requires} is satisfied
-     * by the available tags at that depth. Replaces the cell's assigned room
-     * with the target room. If no eligible cell exists, does nothing.
+     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor pays only what is
+     * mined or harvested, so a floor of nothing but generic halls paid nothing at
+     * all (Mineshaft floors rolled `nodes_total` 0 twice in one trip). After the
+     * pass and the recipe guarantees, a resource floor that placed no
+     * resource-bearing room gets one forced onto an eligible cell, the same way a
+     * recipe guarantee lands. A room is resource-bearing when it declares
+     * {@code nodes} or is bound to the floor's dungeon by its metadata; the force
+     * tries a declared-nodes room first (a bound room with no nodes is a Cow Pits
+     * pen, which pays its own way). No eligible host leaves the plan untouched:
+     * the floor is dull, never broken.
      */
-    private static void forceRoom(DungeonShape shape, RoomManifest manifest, String theme,
+    private static void ensureResourceRooms(DungeonShape shape, RoomManifest manifest, String theme,
+                                            Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                            Map<PlanCell, Integer> depths,
+                                            Set<String> bagTags,
+                                            RoomEligibility.Floor floor) {
+        if (floor == null || !floor.resource()) {
+            return;
+        }
+        boolean hasNodes = false;
+        boolean hasBound = false;
+        for (DungeonPlan.PlacedRoom room : placed.values()) {
+            RoomManifest.Entry entry = manifest.byName(room.name());
+            if (entry == null) {
+                continue;
+            }
+            hasNodes |= !entry.meta.nodes.isEmpty();
+            hasBound |= RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor);
+        }
+        if (hasNodes) {
+            return;
+        }
+        // First choice: a room that stamps nodes itself. Second, when no node room
+        // fits: any room of the dungeon's own (the Cow Pits pay cows, not ore), so
+        // the floor at least reads and pays as the place it claims to be.
+        if (!forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                match -> !match.entry().meta.nodes.isEmpty(), floor) && !hasBound) {
+            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    match -> RoomEligibility.boundTo(
+                            RoomEligibility.RoomTags.of(match.entry().meta), floor), floor);
+        }
+    }
+
+    /**
+     * M66: forces a matching room onto an eligible cell. Finds a
+     * non-entrance, non-terminal cell whose mask and role match a wanted
+     * room at some rotation, and whose {@code requires} is satisfied
+     * by the available tags at that depth. Replaces the cell's assigned room
+     * with the matching room. If no eligible cell exists, does nothing.
+     *
+     * @return whether a room was forced
+     */
+    private static boolean forceRoom(DungeonShape shape, RoomManifest manifest, String theme,
                                   Map<PlanCell, DungeonPlan.PlacedRoom> placed,
                                   Map<PlanCell, Integer> depths,
                                   Set<String> bagTags,
-                                  java.util.List<String> targetRoomNames,
+                                  java.util.function.Predicate<RoomManifest.Match> wanted,
                                   RoomEligibility.Floor floor) {
-        // M68: room names are now namespaced ids. Qualify the target names so
-        // a legacy bare target ("infested_wall") matches the namespaced room
-        // name ("pocketdungeons:infested_wall") the manifest now carries.
-        Set<String> targetSet = new java.util.HashSet<>();
-        for (String target : targetRoomNames) {
-            targetSet.add(JsonPackSupport.qualify(target));
-        }
         for (PlanCell cell : shape.cells()) {
             if (cell.equals(shape.entrance()) || cell.equals(shape.terminal())) {
                 continue;
@@ -467,7 +515,7 @@ final class RoomSelector {
             }
             List<RoomManifest.Match> matches = query(manifest, mask, role, theme, floor);
             for (RoomManifest.Match match : matches) {
-                if (!targetSet.contains(match.entry().name)) {
+                if (!wanted.test(match)) {
                     continue;
                 }
                 // Check requires: the forced room's requires must be a subset
@@ -500,11 +548,12 @@ final class RoomSelector {
                     placed.put(cell, original);
                     continue;
                 }
-                return;
+                return true;
             }
         }
         // No eligible cell found. The guarantee is silently skipped; the plan
         // is still valid. This is rare and logged by the caller if needed.
+        return false;
     }
 
     /**

@@ -27,6 +27,7 @@ public class RoomEligibilityTest {
         testBorrowableBy();
         testGraphRoleGate();
         testWeightBoost();
+        testDungeonBoost();
         testSeededDeterminism();
         System.out.println("RoomEligibilityTest passed");
     }
@@ -136,6 +137,32 @@ public class RoomEligibilityTest {
         check(RoomEligibility.weightFactor(side, FROST_MID) == 1, "side_reward not boosted on a main edge floor");
         check(RoomEligibility.weightFactor(side, entryFloor) == 1, "side_reward not boosted on the entry node");
         check(RoomEligibility.weightFactor(entry, null) == 1, "no floor, no boost");
+    }
+
+    /**
+     * PD-149: a room bound to the floor's dungeon or main theme draws DUNGEON_BOOST,
+     * stacking multiplicatively with the role boost; a room reached only through a
+     * borrowed theme or borrowableBy does not get it.
+     */
+    private static void testDungeonBoost() {
+        RoomEligibility.RoomTags own = room(List.of(FROST), NONE, List.of(), NONE, NONE);
+        check(RoomEligibility.weightFactor(own, FROST_MID) == RoomEligibility.DUNGEON_BOOST,
+                "the dungeon's own room is boosted on its floor");
+        RoomEligibility.RoomTags legacyOwn = room(NONE, List.of("frostworks"), List.of(), NONE, NONE);
+        check(RoomEligibility.weightFactor(legacyOwn, FROST_MID) == RoomEligibility.DUNGEON_BOOST,
+                "a legacy theme match counts as bound");
+        RoomEligibility.RoomTags generic = room(NONE, NONE, List.of(), NONE, NONE);
+        check(RoomEligibility.weightFactor(generic, FROST_MID) == 1, "a generic hall is not boosted");
+        RoomEligibility.RoomTags lent = room(List.of(DEEP), NONE, List.of(), NONE, List.of(FROST));
+        check(RoomEligibility.weightFactor(lent, FROST_MID) == 1,
+                "a room only borrowed into the dungeon is not boosted");
+        RoomEligibility.Floor entryFloor = new RoomEligibility.Floor(FROST, FROST, "frostworks", 2, false, FROST, "",
+                true, false, false);
+        RoomEligibility.RoomTags ownEntry = room(List.of(FROST), NONE, List.of(), List.of("entry"), NONE);
+        check(RoomEligibility.weightFactor(ownEntry, entryFloor)
+                        == RoomEligibility.DUNGEON_BOOST * RoomEligibility.ROLE_BOOST,
+                "the boosts stack on a bound entry room");
+        check(RoomEligibility.weightFactor(own, null) == 1, "no floor, no boost");
     }
 
     /** The boost only changes weights, so a seeded weighted pick stays reproducible and shifts toward boosted rooms. */

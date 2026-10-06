@@ -143,20 +143,15 @@ final class RoomProtection {
         if (isShell(pos, dungeonCellOrigin)) {
             return InteractionResult.PASS; // shell protection handles this
         }
-        // Dungeon structure W4 (D20): only resource nodes, soft mechanic blocks and the
-        // player's own blocks break; the rest of a room is decoration. Player-placed
-        // blocks are exempt from the tool: the placer can break their own builds by
-        // hand. Other party members still need the correct tool.
+        // 2026-10-05 (D20 revised): the whole interior is mineable with the
+        // correct tool; player-placed blocks are exempt from the tool, so the
+        // placer can break their own builds by hand.
         BreakRule.Verdict verdict = verdict(serverPlayer, pos, state);
         if (verdict.allowed()) {
             return InteractionResult.PASS;
         }
         if (verdict == BreakRule.Verdict.REFUSE_FIXTURE) {
             return InteractionResult.FAIL; // an Ordeal's lever or lamp
-        }
-        if (verdict == BreakRule.Verdict.REFUSE_NOT_NODE) {
-            sendActionBar(serverPlayer, BreakRule.NOT_A_NODE_MESSAGE, ChatFormatting.GRAY, lastNotNodeTick);
-            return InteractionResult.FAIL;
         }
         // Wrong tool: cancel the mining start and give feedback.
         String message = DungeonTools.requiredToolMessage(state);
@@ -169,8 +164,6 @@ final class RoomProtection {
 
     /** Rate-limiting map for wrong-tool feedback: player UUID to last game tick sent. */
     private static final java.util.Map<UUID, Long> lastWrongToolTick = new java.util.HashMap<>();
-    /** Rate-limiting map for the "only resource nodes can be mined" line. */
-    private static final java.util.Map<UUID, Long> lastNotNodeTick = new java.util.HashMap<>();
     /** Rate-limiting map for iron-door reason feedback. */
     private static final java.util.Map<UUID, Long> lastDoorReasonTick = new java.util.HashMap<>();
 
@@ -236,11 +229,10 @@ final class RoomProtection {
                     DungeonTools.forgetPlayerPlacement(pos);
                     return true;
                 }
-                // Dungeon structure W4 (D20): an Ordeal's lever and lamp stay
+                // 2026-10-05 (D20 revised): an Ordeal's lever and lamp stay
                 // (breaking the lever would strand the room, the lamp would lose
-                // its "done" signal); the player's own blocks break; a resource
-                // node or a soft mechanic block breaks with the correct tool;
-                // everything else in the room is decoration and does not break.
+                // its "done" signal); the player's own blocks break; any other
+                // interior block breaks with the correct tool.
                 BreakRule.Verdict verdict = verdict(player, pos, state);
                 if (verdict.allowed()) {
                     DungeonTools.forgetPlayerPlacement(pos);

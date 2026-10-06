@@ -782,6 +782,14 @@ public final class InventorySwap {
                             "Your own gear is stored safely and comes back when you leave. This is your dungeon pack.")
                     .withStyle(ChatFormatting.GRAY));
         }
+        // PD-150: a run that closed while the player was away put their run
+        // storage here already; say so, or the chest reads as emptied.
+        int storageBack = log.takeStorageReturn(player.getUUID());
+        if (storageBack > 0) {
+            player.sendSystemMessage(Component.literal(
+                            "Your run storage went back into your dungeon pack while you were away.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
         int waiting = log.orphanOf(player.getUUID()).stackCount();
         if (waiting > 0) {
             player.sendSystemMessage(Component.literal(waiting

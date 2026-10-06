@@ -34,7 +34,7 @@ import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freemem, platform } from 'node:os'
-import { dedupeHeard, eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
+import { dedupeHeard, eventOf, isVanillaNoise, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 import { Kinetic, remoteConfig } from './kinetic.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -184,6 +184,7 @@ async function remoteCommand(command, timeoutMs = 15000) {
       // error) is still left out. Other mod lines logged in the same instant can remain.
       keep = (!m[1] || m[1] === 'Minecraft') && eventOf(line) === null
         && !body.startsWith('Unknown or incomplete command')
+        && !isVanillaNoise(line)
       if (keep) reply.push(body)
     }
     return reply.join('\n')

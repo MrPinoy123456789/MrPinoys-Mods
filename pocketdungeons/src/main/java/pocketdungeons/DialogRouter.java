@@ -561,7 +561,7 @@ public final class DialogRouter {
         // someone who has a bag says so (RitualListener).
         player.sendSystemMessage(Component.literal(
                 "You chose " + bag.label
-                        + ". It is yours until you reset your keystone.")
+                        + ". It is yours until you reset your compass.")
                 .withStyle(ChatFormatting.GOLD));
     }
 

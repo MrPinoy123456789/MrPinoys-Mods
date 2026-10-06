@@ -50,6 +50,12 @@
       "theme": "infestation",
       "roomBias": [
         "infested_wall"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
       ]
     },
     {

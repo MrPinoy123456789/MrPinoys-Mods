@@ -36,10 +36,18 @@ final class IntervalState {
     final List<Integer> floorOmens = new ArrayList<>();
 
     /**
-     * Each cleared floor's door step (1, 2 or 3), in order: what the floor
-     * banks toward the keystone at the settlement. See {@link IntervalBanking}.
+     * Each cleared floor's dealt chart scrap (1 to 3, 0 for a resource
+     * dungeon), in order: what the floor banks toward the compass at the
+     * settlement. See {@link IntervalBanking}.
      */
     final List<Integer> floorSteps = new ArrayList<>();
+
+    /**
+     * Each cleared floor's level, in order, parallel to {@link #floorSteps}:
+     * the level a member's scrap is discounted against
+     * ({@link IntervalBanking#effectiveScrap}).
+     */
+    final List<Integer> floorLevels = new ArrayList<>();
 
     /**
      * Snapshot of each member's dungeon inventory, used when a max-omen death fails

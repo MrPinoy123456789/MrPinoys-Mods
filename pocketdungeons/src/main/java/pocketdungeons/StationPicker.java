@@ -175,7 +175,7 @@ final class StationPicker {
                 }
             });
         } else {
-            lore.add(Component.literal("Unlocks at keystone level " + unlockLevel + ".")
+            lore.add(Component.literal("Unlocks at compass level " + unlockLevel + ".")
                     .withStyle(ChatFormatting.YELLOW));
             builder.setLore(lore);
         }

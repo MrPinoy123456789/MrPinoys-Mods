@@ -28,6 +28,7 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.phys.AABB;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -293,21 +294,92 @@ final class DungeonScreen {
         DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
         String dungeonName = def == null ? "" : def.name();
-        String floor = OmenBarText.previewFloor(record.interval.floorIndex + 1, dungeonName, mine,
-                node != null && node.isFinal());
+
+        // 2026-10-05 board rework: one layout for every door, four quiet lines.
+        // Line 1: the dungeon and how much of it is left after this floor.
+        String header;
+        if (def != null && node != null) {
+            int remaining = def.layers() - node.layer();
+            header = dungeonName.toUpperCase(java.util.Locale.ROOT) + ": "
+                    + (node.isFinal() ? "Final floor"
+                            : remaining + (remaining == 1 ? " floor remaining" : " floors remaining"));
+        } else {
+            header = OmenBarText.previewFloor(record.interval.floorIndex + 1, dungeonName, mine, false);
+        }
+        MutableComponent content = Component.literal(header).withStyle(ChatFormatting.YELLOW);
+
+        // Line 2: the floor's name, its affixes trailing in magenta.
         String name = node == null ? themeName(offer.theme()) : node.name();
-        MutableComponent content = Component.literal("KEYSTONE " + offer.level() + " | " + floor + "\n"
-                + name + "\n").append(affixLine(effective));
-        // What this door banks when its floor is cleared, beside what the
-        // trip's cleared floors already hold.
-        content.append(Component.literal("\n" + IntervalBanking.doorLine(offer.step(),
-                IntervalBanking.stepSum(record.interval.floorSteps))).withStyle(ChatFormatting.AQUA));
-        content.append(Component.literal("\nLoot tier " + lootTierOf(offer)).withStyle(ChatFormatting.GRAY));
+        content.append(Component.literal("\n" + name).withStyle(ChatFormatting.YELLOW));
+        List<AffixDefinition> affixDefs = AffixMath.ordered(effective, AffixManifest.current().definitions());
+        if (!affixDefs.isEmpty()) {
+            StringBuilder labels = new StringBuilder(" - ");
+            for (int i = 0; i < affixDefs.size(); i++) {
+                if (i > 0) {
+                    labels.append(", ");
+                }
+                labels.append(affixDefs.get(i).label);
+            }
+            content.append(Component.literal(labels.toString()).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+
+        // Line 3: what the floor pays, composed only of the parts it has.
+        // Resources are the dungeon's mineable palette (D12); rewards are the
+        // dealt chart scrap (after the too-easy discount, owner's view) plus
+        // the floor's authored promises and the finish's shard and vault.
+        List<String> sections = new ArrayList<>();
+        boolean resource = def != null && def.kind() == DungeonDef.Kind.RESOURCE;
+        if (resource && !def.nodePalette().isEmpty()) {
+            List<String> ores = new ArrayList<>();
+            for (String block : def.nodePalette()) {
+                ores.add(block.substring(block.indexOf(':') + 1).replace('_', ' '));
+            }
+            sections.add("Resources: " + String.join(", ", ores));
+        }
+        List<String> rewards = new ArrayList<>();
+        if (offer.step() > 0) {
+            int scrap = IntervalBanking.effectiveScrap(offer.step(), offer.level(), offerLevel);
+            rewards.add(scrap > 0 ? IntervalBanking.scrapText(scrap) : "no scrap, too easy");
+        }
+        if (node != null) {
+            for (DungeonDef.Node.Reward reward : node.rewards()) {
+                rewards.add(reward.displayName());
+            }
+            if (node.isFinal() && RunLifecycle.isRewardKind(def)) {
+                int shards = PocketDungeonsConfig.echoShardsPerFinish();
+                if (shards > 0) {
+                    rewards.add(shards + (shards == 1 ? " echo shard" : " echo shards"));
+                }
+                rewards.add("themed vault");
+            }
+        }
+        if (!rewards.isEmpty()) {
+            sections.add("Rewards: " + String.join(", ", rewards));
+        }
+        if (!sections.isEmpty()) {
+            content.append(Component.literal("\n" + String.join("   ", sections))
+                    .withStyle(ChatFormatting.AQUA));
+        }
+
+        // Line 4: the loot word and the door's price together.
+        content.append(Component.literal("\nLoot: " + lootWord(lootTierOf(offer)))
+                .withStyle(ChatFormatting.GREEN));
         int cost = offer.cost();
-        if (cost > 0) {
-            // The wall is shared by the whole party, so it never shows one player's balance
-            // (it used to show the owner's). Each player's own balance goes to them directly.
-            content.append(Component.literal("\n" + SideBranchPay.wallLine(cost)).withStyle(ChatFormatting.GRAY));
+        content.append(Component.literal("    Cost: " + (cost <= 0 ? "free"
+                : cost + (cost == 1 ? " echo shard" : " echo shards")))
+                .withStyle(ChatFormatting.YELLOW));
+
+        // PD-154: a dark floor was a surprise after the lever. One short line warns it.
+        if (node != null && DungeonDef.Node.LIGHT_DARK.equals(node.light())) {
+            content.append(Component.literal("\nDark floor: bring torches").withStyle(ChatFormatting.GOLD));
+        } else if (node != null && DungeonDef.Node.LIGHT_DIM.equals(node.light())) {
+            content.append(Component.literal("\nDim light").withStyle(ChatFormatting.GRAY));
+        }
+        // PD-153: spare doors repeat a branch (D4); when the repeat is identical in
+        // every respect the door says so instead of posing as a different choice.
+        int twin = identicalDoor(offers, step - 1);
+        if (twin >= 0) {
+            content.append(Component.literal("\nSame as door " + (twin + 1)).withStyle(ChatFormatting.DARK_GRAY));
         }
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
@@ -332,6 +404,38 @@ final class DungeonScreen {
         return LootBands.offerTier(offer);
     }
 
+    /** PD-151: the loot tier as a word a player can weigh, not a number from the data. */
+    private static String lootWord(int tier) {
+        return switch (Math.max(1, Math.min(4, tier))) {
+            case 1 -> "modest";
+            case 2 -> "fair";
+            case 3 -> "rich";
+            default -> "lavish";
+        };
+    }
+
+    /**
+     * PD-153: the lowest door slot (0 based) whose offer is identical to
+     * {@code slot}'s, or -1 when none. Identity is everything the player can
+     * weigh: the floor behind the door, its step and its shard cost.
+     */
+    private static int identicalDoor(Keystone.Offer[] offers, int slot) {
+        Keystone.Offer mine = slot >= 0 && slot < offers.length ? offers[slot] : null;
+        if (mine == null || mine.door() == null) {
+            return -1;
+        }
+        for (int i = 0; i < slot; i++) {
+            Keystone.Offer other = offers[i];
+            TripDoors.Door a = mine.door();
+            TripDoors.Door b = other == null ? null : other.door();
+            if (b != null && a.dungeonId().equals(b.dungeonId()) && a.nodeId().equals(b.nodeId())
+                    && a.step() == b.step() && a.cost() == b.cost()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /**
      * The go-home screen: what the owner would bank by pulling the lever right
      * now (levels, the progress kept toward the next, chests and the band),
@@ -340,10 +444,9 @@ final class DungeonScreen {
      * keys; the owner's numbers are the ones on the wall.
      */
     static Component homeContent(MinecraftServer server, InstanceRecord record) {
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         boolean finished = record.interval.finished;
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        String text = IntervalBanking.homeScreen(now, floorsPerVisit, finished);
+        String text = IntervalBanking.homeScreen(now, finished);
         int split = text.indexOf('\n');
         return Component.literal(text.substring(0, split))
                 .withStyle(finished ? ChatFormatting.GREEN : ChatFormatting.GOLD)
@@ -352,7 +455,7 @@ final class DungeonScreen {
 
     /** Context 3: a run is in progress: level, theme and affixes. */
     static Component runContent(ServerLevel level, InstanceRecord record) {
-        MutableComponent content = Component.literal("KEYSTONE " + record.layout.keystoneLevel() + "\n"
+        MutableComponent content = Component.literal("COMPASS " + record.layout.keystoneLevel() + "\n"
                 + themeName(record.floor.theme) + "\n").append(affixLine(record.floor.affixes));
         return content;
     }

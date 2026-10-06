@@ -54,7 +54,13 @@
       "id": "coral_ruins",
       "name": "Coral Ruins",
       "layer": 3,
-      "theme": "prismarine"
+      "theme": "prismarine",
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
     },
     {
       "id": "sunken_bridge",

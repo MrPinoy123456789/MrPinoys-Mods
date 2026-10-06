@@ -63,14 +63,14 @@ final class FirstVisitTutorial {
         SET_OF_THREE("set_of_three", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
                 return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid an echo shard "
-                        + "and a vault. Go home sooner and you keep your key progress and the chests, but not the shard.",
+                        + "and a vault. Go home sooner and you keep the charts and the chests, but not the shard.",
                         "Right-click the floor history board in the Doors to read the dungeon map: where you are, "
                         + "the final floor, and which branches cost echo shards.");
             }
         },
         WAY_HOME("way_home", Trigger.HOME_ARRIVAL) {
             List<String> lines() {
-                return List.of("This is home. The lever at the end of a floor is the way here: it banks your key progress "
+                return List.of("This is home. The lever at the end of a floor is the way here: it banks your charts "
                         + "and brings you back to your own room.",
                         "Build in here as you like. Everything you place is kept.");
             }

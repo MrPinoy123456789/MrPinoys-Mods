@@ -48,6 +48,13 @@ final class FloorState {
     int chosenStep;
 
     /**
+     * The level of the offer that opened this floor, recorded onto the
+     * interval's {@code floorLevels} when the floor is cleared: the level a
+     * member's scrap is discounted against.
+     */
+    int chosenLevel;
+
+    /**
      * Unused since the dungeon structure waves: door 1 no longer pays a free door shard
      * at the bank. Still set at commit so older readers (gametests) compile.
      */
@@ -175,9 +182,9 @@ final class FloorState {
     // ---- resource nodes (dungeon structure W4, D19 and D20) --------------------
 
     /**
-     * The resource node positions still standing on this floor: the only blocks, with
-     * the player's own placements and the soft mechanic blocks, that may be broken
-     * inside a dungeon cell ({@link BreakRule}). Filled when the floor opens
+     * The resource node positions still standing on this floor. No longer the
+     * boundary of what may be broken (the whole interior is, D20 revised); kept
+     * so a mined node is counted for the journal. Filled when the floor opens
      * ({@link InstanceRecord#startFloor}); a position leaves the set when its block is
      * mined. Dies with the floor, like {@link InstanceRecord#playerPlaced}.
      */

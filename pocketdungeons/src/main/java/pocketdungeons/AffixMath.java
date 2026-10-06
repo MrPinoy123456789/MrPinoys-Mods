@@ -358,9 +358,9 @@ final class AffixMath {
         String head = intensifier(level);
         List<AffixDefinition> ordered = ordered(affixes, all);
         if (ordered.isEmpty()) {
-            return head + " Keystone [" + level + "]";
+            return head + " Compass [" + level + "]";
         }
-        String title = head + " " + ordered.get(0).label + " Keystone [" + level + "]";
+        String title = head + " " + ordered.get(0).label + " Compass [" + level + "]";
         if (ordered.size() == 1) {
             return title;
         }

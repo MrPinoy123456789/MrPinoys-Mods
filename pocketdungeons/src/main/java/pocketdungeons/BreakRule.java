@@ -5,20 +5,18 @@ package pocketdungeons;
  * block" inside a dungeon cell, as a pure function so a test can pin it without a
  * server.
  *
- * <p>Only three kinds of block ever break inside a cell (the shell is decided
+ * <p>Everything inside a cell breaks with the correct tool (the shell is decided
  * before this is asked, and is never breakable):
  * <ul>
  *   <li>a block the player placed themselves (always, with any tool);</li>
- *   <li>a resource node (a position {@link NodeStamper} registered, or a block in
- *       the dungeon's {@code nodePalette}), with the correct tool as before;</li>
- *   <li>a soft mechanic block (an infested or gravel gate, a decorated pot, a
- *       cobweb: the {@code pocketdungeons:dungeon_breakable} tag or a registered
- *       gate position) that a room's puzzle expects the player to break, with the
- *       correct tool as before.</li>
+ *   <li>any interior block: a resource node, a soft mechanic block (the
+ *       {@code pocketdungeons:dungeon_breakable} tag or a registered gate
+ *       position) or plain furnishing, all with the correct tool as before.</li>
  * </ul>
- * Everything else is unbreakable decoration. An Ordeal's lever and lamp stay
- * unbreakable even when the player placed nothing near them. Creative players
- * bypass the whole rule; that is decided by the caller.
+ * An Ordeal's lever and lamp stay unbreakable even when the player placed
+ * nothing near them. Creative players bypass the whole rule; that is decided
+ * by the caller. Revised 2026-10-05 (playtest 2026-10-05-1): interior
+ * furnishings mineable again; the cell shell still walls the run in.
  */
 final class BreakRule {
 
@@ -28,13 +26,11 @@ final class BreakRule {
     enum Verdict {
         /** The player's own block: breaks with any tool. */
         ALLOW_PLACED,
-        /** A node or soft mechanic block and the held tool is right for it. */
+        /** An interior block and the held tool is right for it. */
         ALLOW_NODE,
         /** An Ordeal's lever or lamp. */
         REFUSE_FIXTURE,
-        /** Neither a node, a soft mechanic block nor the player's own: decoration. */
-        REFUSE_NOT_NODE,
-        /** A node or soft mechanic block, but the held tool is wrong. */
+        /** An interior block, but the held tool is wrong. */
         REFUSE_WRONG_TOOL;
 
         boolean allowed() {
@@ -58,13 +54,6 @@ final class BreakRule {
         if (playerPlaced) {
             return Verdict.ALLOW_PLACED;
         }
-        if (node || soft) {
-            return correctTool ? Verdict.ALLOW_NODE : Verdict.REFUSE_WRONG_TOOL;
-        }
-        return Verdict.REFUSE_NOT_NODE;
+        return correctTool ? Verdict.ALLOW_NODE : Verdict.REFUSE_WRONG_TOOL;
     }
-
-    /** The action bar line for a block that is decoration, not a node. */
-    static final String NOT_A_NODE_MESSAGE =
-            "Only resource nodes can be mined here. Place a block of your own to take it back.";
 }
