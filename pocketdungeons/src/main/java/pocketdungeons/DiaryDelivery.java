@@ -94,12 +94,19 @@ final class DiaryDelivery {
         return book(diary, true);
     }
 
-    /** The book for {@code diary}: pages shuffled for a found copy, canonical for reading through Lemon. */
+    /**
+     * The book for {@code diary}: pages shuffled for a found copy, canonical for
+     * reading through Lemon. PD-157: each authored page is fitted onto as many
+     * book pages as it needs ({@link BookPages#paginate}), since a book page
+     * clips what does not fit.
+     */
     static ItemStack book(Diaries.Entry diary, boolean shuffled) {
         ItemStack stack = new ItemStack(Items.WRITTEN_BOOK);
         List<Filterable<Component>> pages = new ArrayList<>();
-        for (String page : shuffled ? shuffledPages(diary) : diary.pages()) {
-            pages.add(Filterable.passThrough(Component.literal(page)));
+        for (List<String> authored : shuffled ? shuffledPages(diary) : bookPages(diary)) {
+            for (String page : authored) {
+                pages.add(Filterable.passThrough(Component.literal(page)));
+            }
         }
         WrittenBookContent content = new WrittenBookContent(
                 Filterable.passThrough("Entry " + diary.number() + ": " + diary.title()),
@@ -109,14 +116,25 @@ final class DiaryDelivery {
         return stack;
     }
 
+    /** Each authored page as the book pages it fills, in authored order. */
+    private static List<List<String>> bookPages(Diaries.Entry diary) {
+        List<List<String>> out = new ArrayList<>();
+        for (String page : diary.pages()) {
+            out.add(BookPages.paginate(page));
+        }
+        return out;
+    }
+
     /**
      * A fresh shuffle of {@code diary}'s pages every time this is called, so
      * two players finding the same entry do not necessarily meet its pages in
-     * the same jumbled order. {@link Diaries.Entry#pages} itself is never
-     * mutated -- this copies before shuffling.
+     * the same jumbled order. What moves is an authored page: the book pages it
+     * was split into stay together and in order (design 2026-10-06-1 item 8), so
+     * a sentence never stops on one page and resumes three pages later.
+     * {@link Diaries.Entry#pages} itself is never mutated.
      */
-    private static List<String> shuffledPages(Diaries.Entry diary) {
-        List<String> pages = new ArrayList<>(diary.pages());
+    private static List<List<String>> shuffledPages(Diaries.Entry diary) {
+        List<List<String>> pages = bookPages(diary);
         Collections.shuffle(pages, new Random());
         return pages;
     }
