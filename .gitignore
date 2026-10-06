@@ -3,6 +3,10 @@
 build/
 */build/
 
+# .NET / Valheim mod build outputs
+bin/
+obj/
+
 # Fabric run directories
 run/
 run-data/
