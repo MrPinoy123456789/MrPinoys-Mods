@@ -157,11 +157,20 @@ confirmed by the owner on 2026-10-05.
     The three completion chests are one barrel holding every roll (the finish
     vault's rolls merge into it too). A cleared floor's reward corner is two
     containers: barrel and copper chest.
-  - **The door board** is one layout for every door, main and side alike:
-    `DUNGEON: N floor(s) remaining` (yellow), the floor's name with affixes in
-    magenta, a cyan pay line (`Resources:` for a resource dungeon's palette,
-    `Rewards:` for scrap plus promises, either omitted when empty), and
-    `Loot: word` in green beside `Cost:` in yellow (`free` or `N echo shards`).
+  - **The door board** is one layout for every door, main and side alike, as
+    two displays (a title at scale 2.0, a body at 1.6; revised 2026-10-06, see
+    `design-2026-10-06-1.md` item 1). Title: `DUNGEON * floor N of M` (yellow;
+    the Endless Mine has no M). Body: the floor's name in white with its
+    affixes in magenta; a cyan line of what you get (scrap, or `too easy` in
+    gray, a resource dungeon's ore as plain words, the floor's promises, and on
+    the last floor the shard, the vault and the diary page while it is still
+    owed); `loot xN` in green, followed by `costs N echo shards` in yellow when
+    the door has a price. Dark, dim and experimental floors add a line. The
+    separator is a middle dot. No labels: colour does the grouping.
+  - **The GO HOME board** is the same split (title 1.0, body 0.8): `GO HOME`
+    (green once the dungeon is cleared), the scrap carried in cyan, and what it
+    comes to: `2 more for a chart` (gold), `1 chart` (green), `2 scrap lost`
+    (gray), or `no scrap yet`.
 - **D12. Resource dungeons (Mineshaft, Cow Pits) pay chart scrap like any
   floor, plus what you mine or harvest.** Revised 2026-10-06: no shard, no
   vault, diary page on first finish. 1 to 3 floors,

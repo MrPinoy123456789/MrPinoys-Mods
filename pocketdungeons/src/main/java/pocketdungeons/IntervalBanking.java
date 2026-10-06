@@ -116,9 +116,9 @@ final class IntervalBanking {
         return chests + (chests == 1 ? " chest" : " chests");
     }
 
-    /** {@code "3 chart scrap"}: the reward line's scrap part ("scrap" is a mass noun). */
+    /** {@code "3 scrap"}: the boards' scrap part ("scrap" is a mass noun). */
     static String scrapText(int scrap) {
-        return scrap + " chart scrap";
+        return scrap + " scrap";
     }
 
     /** {@code "2 charts"} or {@code "1 chart"}. */
@@ -126,17 +126,78 @@ final class IntervalBanking {
         return charts + (charts == 1 ? " chart" : " charts");
     }
 
-    /**
-     * The go-home screen and its confirm: what the lever carries home and
-     * what it cannot. {@code finished} is true once the dungeon's final floor
-     * is cleared, the moment the screen and its bulb light up.
-     */
-    static String homeScreen(Settlement now, boolean finished) {
-        String title = finished ? "DUNGEON CLEARED: GO HOME" : "GO HOME";
-        return title + "\n" + takeHomeLine(now);
+    /** How a part of the go-home board's outcome line is coloured. */
+    enum HomeTone {
+        /** The scrap total: cyan, like everything you take home. */
+        SCRAP,
+        /** The charts it makes: green. */
+        CHARTS,
+        /** What is still missing for a chart: gold. */
+        NEEDS,
+        /** What would be lost on the way out, or nothing carried: gray. */
+        LOST
     }
 
-    /** {@code "Take home: 2 charts"} plus {@code "3 scrap stays in the dungeon"} when it would. */
+    /** One coloured piece of the outcome line. */
+    record HomePart(String text, HomeTone tone) {}
+
+    /**
+     * The go-home board: always {@code GO HOME} (gold, or green once
+     * {@code finished}, the moment the dungeon's final floor is cleared), the
+     * scrap carried, and what it comes to. Structured rather than a newline
+     * string so the screen colours each part without splitting text.
+     *
+     * @param scrapLine {@code "7 scrap"}, or empty when nothing is carried
+     * @param outcome   the pieces of the second line, joined by {@code " \u00b7 "}
+     */
+    record HomeScreen(String title, boolean finished, String scrapLine, List<HomePart> outcome) {
+
+        /** The board as plain text: the scrap line (when any), then the outcome line. */
+        String body() {
+            StringBuilder out = new StringBuilder();
+            if (!scrapLine.isEmpty()) {
+                out.append(scrapLine).append('\n');
+            }
+            for (int i = 0; i < outcome.size(); i++) {
+                out.append(i == 0 ? "" : " \u00b7 ").append(outcome.get(i).text());
+            }
+            return out.toString();
+        }
+    }
+
+    /** The scrap a settlement carries: its whole charts at {@link #SCRAP_PER_CHART} each, plus the remainder. */
+    static int carried(Settlement s) {
+        return s.levels() * SCRAP_PER_CHART + s.scrapLeft();
+    }
+
+    /**
+     * The go-home board for what the lever would carry home right now.
+     * Carried 0 reads {@code no scrap yet}; 3 reads {@code 3 scrap} over
+     * {@code 2 more for a chart}; 5 reads {@code 1 chart}; 7 reads
+     * {@code 1 chart \u00b7 2 scrap lost}; 10 reads {@code 2 charts}.
+     */
+    static HomeScreen homeScreen(Settlement now, boolean finished) {
+        int carried = carried(now);
+        List<HomePart> outcome = new java.util.ArrayList<>();
+        if (carried <= 0) {
+            outcome.add(new HomePart("no scrap yet", HomeTone.LOST));
+            return new HomeScreen("GO HOME", finished, "", outcome);
+        }
+        if (now.levels() > 0) {
+            outcome.add(new HomePart(chartText(now.levels()), HomeTone.CHARTS));
+            if (now.scrapLeft() > 0) {
+                outcome.add(new HomePart(now.scrapLeft() + " scrap lost", HomeTone.LOST));
+            }
+        } else {
+            outcome.add(new HomePart((SCRAP_PER_CHART - now.scrapLeft()) + " more for a chart", HomeTone.NEEDS));
+        }
+        return new HomeScreen("GO HOME", finished, scrapText(carried), outcome);
+    }
+
+    /**
+     * {@code "Take home: 2 charts"} plus {@code "3 scrap stays in the dungeon"} when it would.
+     * Still the words of the HOME title and the dialog; the wall board uses {@link #homeScreen}.
+     */
     static String takeHomeLine(Settlement now) {
         String line = now.levels() > 0
                 ? "Take home: " + chartText(now.levels())
@@ -157,7 +218,7 @@ final class IntervalBanking {
                         + settled.levels() + (settled.levels() == 1 ? " level." : " levels.")
                 : "Not enough scrap for a chart.";
         String lost = settled.scrapLeft() > 0
-                ? " " + settled.scrapLeft() + " scrap stayed in the dungeon."
+                ? " " + settled.scrapLeft() + " scrap lost."
                 : "";
         return opening + charts + lost + " The omen was " + OmenBarText.bandName(settled.band()) + ".";
     }
