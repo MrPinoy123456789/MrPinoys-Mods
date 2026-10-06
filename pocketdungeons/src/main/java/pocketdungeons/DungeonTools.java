@@ -23,7 +23,7 @@ import java.util.UUID;
  * <tr><td>Stone, Copper</td><td>12</td></tr>
  * <tr><td>Iron</td><td>16</td></tr>
  * <tr><td>Diamond</td><td>32</td></tr>
- * <tr><td>Netherite</td><td>40</td></tr>
+ * <tr><td>Netherite</td><td>48</td></tr>
  * <tr><td>Unknown (modded)</td><td>12</td></tr>
  * </table>
  *
@@ -163,7 +163,7 @@ public final class DungeonTools {
                 case "stone", "copper" -> 12;
                 case "iron" -> 16;
                 case "diamond" -> 32;
-                case "netherite" -> 40;
+                case "netherite" -> 48;
                 default -> 12;
             };
         }
