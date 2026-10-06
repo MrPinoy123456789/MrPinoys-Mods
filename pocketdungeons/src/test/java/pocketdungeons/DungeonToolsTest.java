@@ -44,8 +44,8 @@ public class DungeonToolsTest {
                 "stone pickaxe cap is 12");
         check(DungeonTools.durabilityCap(Items.IRON_PICKAXE), 16,
                 "iron pickaxe cap is 16");
-        check(DungeonTools.durabilityCap(Items.DIAMOND_PICKAXE), 20,
-                "diamond pickaxe cap is 20");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_PICKAXE), 32,
+                "diamond pickaxe cap is 32");
         check(DungeonTools.durabilityCap(Items.STONE_AXE), 12,
                 "stone axe cap is 12");
         check(DungeonTools.durabilityCap(Items.STONE_SHOVEL), 12,
