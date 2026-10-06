@@ -6,6 +6,16 @@ build/
 # Fabric run directories
 run/
 run-data/
+run-*/
+
+# Server logs and crash reports
+logs/
+*.log
+*.log.gz
+crash-reports/
+
+# Built mod jars and binaries live in dist/, not in git
+dist/
 
 # IDE files
 .idea/
@@ -17,6 +27,7 @@ run-data/
 Thumbs.db
 *.swp
 *.swo
+nul
 
 # Lemon remote mode: the Kinetic API key and the remote read cursor
 pocketdungeons/tools/server/kinetic.env
