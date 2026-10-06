@@ -3722,7 +3722,7 @@ gear/currency only from vaults.
 **Severity:** Low-Medium (not a correctness bug: the lever's presence
 is itself a deliberate, documented fix for a real problem, PD-27, but
 it does defeat the intended obstacle every time)
-**Status:** Fixed
+**Status:** Fixed. Resolved 2026-10-06 by PD-160: the lever moved off the frame onto another wall of the same cell (shape 1 below), and the far side gained its own button.
 
 Reported from live play: "iron doors seem to all have the switches
 preattached when the switches should either be in chests or on other
@@ -5574,4 +5574,6 @@ Original fix 2026-10-05: `RoomEligibility.weightFactor` now gives a room bound t
 
 ### PD-160: Iron door connector with no reachable opener (High)
 **Reported:** 2026-10-06-1, ~05:00. A `flooded_hall` room behind an iron door connector: the player could not break the door and could not place a redstone signal close enough.
-**Status:** Open. PD-55's attached-lever fix apparently does not cover this configuration; check `ConnectorStamper` lever placement for this layout and reconcile with PD-27.
+**Status:** Fixed 2026-10-06, live check owed. The reported door was almost certainly not the connector: `TraversalSpecs.floodedHall` stamps its own containment iron doors in every open doorway, with a stone button on the inside only. A player arriving from outside had no opener, and the east door's inside button sat in a water column (the hall is water from x 2 to 14 at every height) and was washed off, since buttons are not waterloggable. Rule (owner approved): every iron door opens from the side you arrive on; no connector is locked by design, only `access: gated` rooms lock.
+Fix: (1) the containment doors are latches (`IronDoorLatch`, `InstanceLayout.latchDoors`): using the door from either side opens both leaves for 60 ticks, then they close. Plates and buttons in the neighbour's doorway slot are unreliable (the neighbour's connector or template can overwrite them, and water washes them off), so it is code, not redstone. (2) Connector doors (`ConnectorStamper.applyIronDoor`): the lever moves off the frame to a seeded spot on one of the near room's other three walls at y 2 (solid wall, plain air in front, outside every doorway lane; the frame position stays as the fallback), and `applyFarSideButton` puts a stone button in the far room beside the doorway. Neither touches the door, so `InstanceLayout.doorOpeners` maps each to its door and `IronDoorLatch` sets the leaves on use: a lever is a standing switch, a button opens the door for good. Doors are opened with `OPEN` alone, never `POWERED`, so a neighbour update cannot shut them. The PD-62 far-side placement exemption stays. (3) A shut door that is neither explains itself on use, throttled to once per 3 s: "The lever is in this room." for a connector door, "Opens when the room is solved." for a gated room's door.
+Tests: `IronDoorGameTest.floodedHallDoorsAreLatchesThatOpenAndClose` (every doorway door is a latch, no button in the water, opens on use, still open at 30 ticks, shut after 60) and `aConnectorDoorHasItsLeverOffTheFrameAndAButtonOnTheFarSide`. PD-55 is resolved by this: the lever is off the frame and the far side has its own opener.

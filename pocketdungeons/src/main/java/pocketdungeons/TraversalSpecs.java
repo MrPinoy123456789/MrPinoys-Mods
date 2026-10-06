@@ -7,10 +7,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 
@@ -238,11 +236,13 @@ final class TraversalSpecs {
     // ---- Flooded Hall handler -----------------------------------------------
 
     /**
-     * Places a closed iron door in each open doorway to contain the water, a
-     * stone button beside it to let the player through, and spawns two drowned
-     * from the template's spawn anchors. Audit 4.3: full-height water cannot be
-     * held by a kerb, so the doorway itself is sealed with a door the player
-     * opens on demand.
+     * Places a closed iron door in each open doorway to contain the water and
+     * spawns two drowned from the template's spawn anchors. Audit 4.3:
+     * full-height water cannot be held by a kerb, so the doorway itself is
+     * sealed with a door the player opens on demand. PD-160: each door is a
+     * latch ({@link IronDoorLatch}), opened by using it from either side; the
+     * stone button it used to carry sat in the water column and was washed off,
+     * and a player arriving from outside never had one.
      */
     private static BlockPos floodedHall(ServerLevel level, BlockPos cellOrigin, String role,
                                     int depth, DifficultyProfile profile, List<BlockPos> spawns,
@@ -269,9 +269,8 @@ final class TraversalSpecs {
     }
 
     /**
-     * A closed iron door pair in the doorway plane, a wall-block lintel at
-     * y=3, and a stone button one block inside the room beside the door. The
-     * button is adjacent to the door leaf and powers it when pressed.
+     * A closed iron door pair in the doorway plane and a wall-block lintel at
+     * y=3. No button: the door is a latch ({@link IronDoorLatch}).
      */
     private static void placeContainmentDoor(ServerLevel level, BlockPos o, Direction wall) {
         Direction facing = wall.getOpposite();
@@ -288,10 +287,27 @@ final class TraversalSpecs {
             RoomBuilder.set(level, wallPos(o, wall, i, 2), upper);
             RoomBuilder.set(level, wallPos(o, wall, i, 3), cap);
         }
-        BlockState button = Blocks.STONE_BUTTON.defaultBlockState()
-                .setValue(ButtonBlock.FACE, AttachFace.WALL)
-                .setValue(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING, facing);
-        RoomBuilder.set(level, insidePos(o, wall, DOOR_MIN - 1, 2), button);
+    }
+
+    /**
+     * PD-160: the lower halves of the containment doors a flooded hall stamped
+     * at {@code cellOrigin}, for the layout's latch set. Read back from the
+     * world rather than returned by the situation handler, which has no channel
+     * for them.
+     */
+    static List<BlockPos> latchDoorsAt(ServerLevel level, BlockPos cellOrigin) {
+        List<BlockPos> doors = new ArrayList<>();
+        for (Direction wall : new Direction[]{Direction.NORTH, Direction.SOUTH,
+                Direction.EAST, Direction.WEST}) {
+            for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {
+                BlockPos pos = wallPos(cellOrigin, wall, i, 1);
+                BlockState state = level.getBlockState(pos);
+                if (state.is(Blocks.IRON_DOOR) && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.LOWER) {
+                    doors.add(pos.immutable());
+                }
+            }
+        }
+        return doors;
     }
 
     /** A position on the wall ring at column {@code i}, height {@code y}. */
