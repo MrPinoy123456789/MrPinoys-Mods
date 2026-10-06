@@ -136,7 +136,7 @@ final class RoomSelector {
         if (recipePlan != null) {
             applyRecipeGuarantees(shape, manifest, theme, placed, depths, bagTags, recipePlan, floor);
         }
-        ensureResourceRooms(shape, manifest, theme, placed, depths, bagTags, floor);
+        boolean resourceShort = !ensureResourceRooms(shape, manifest, theme, placed, depths, bagTags, floor);
         // PD-93: a guarantee may have forced a themed room onto the anomaly
         // cell. That cell is no longer an anomaly, and calling it one would
         // send the stamper to the anomaly manifest for a room it does not hold.
@@ -174,7 +174,7 @@ final class RoomSelector {
                 anomalyCell,
                 rubble,
                 sealed);
-        return new Result(plan, null, Set.copyOf(fallbacks), pass.backtrackSteps());
+        return new Result(plan, null, Set.copyOf(fallbacks), pass.backtrackSteps(), resourceShort);
     }
 
     /**
@@ -456,37 +456,76 @@ final class RoomSelector {
      * tries a declared-nodes room first (a bound room with no nodes is a Cow Pits
      * pen, which pays its own way). No eligible host leaves the plan untouched:
      * the floor is dull, never broken.
+     *
+     * <p>Returns whether the floor pays as a resource floor. False tells
+     * {@link LayoutPlanner#plan} to try another layout: the reopened PD-149
+     * (playtest 2026-10-06-1) was a floor of corners, tees and dead ends, and
+     * every Mineshaft ore room is a two-door straight, so no cell could take one.
      */
-    private static void ensureResourceRooms(DungeonShape shape, RoomManifest manifest, String theme,
+    private static boolean ensureResourceRooms(DungeonShape shape, RoomManifest manifest, String theme,
                                             Map<PlanCell, DungeonPlan.PlacedRoom> placed,
                                             Map<PlanCell, Integer> depths,
                                             Set<String> bagTags,
                                             RoomEligibility.Floor floor) {
         if (floor == null || !floor.resource()) {
-            return;
+            return true;
         }
-        boolean hasNodes = false;
-        boolean hasBound = false;
-        for (DungeonPlan.PlacedRoom room : placed.values()) {
-            RoomManifest.Entry entry = manifest.byName(room.name());
-            if (entry == null) {
-                continue;
-            }
-            hasNodes |= !entry.meta.nodes.isEmpty();
-            hasBound |= RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor);
+        if (placedResource(manifest, placed, floor)) {
+            return true;
         }
-        if (hasNodes) {
-            return;
+        // First choice: a room that stamps nodes itself. Second, when the dungeon has
+        // no node room at all: any room of the dungeon's own (the Cow Pits pay cows,
+        // not ore), so the floor at least reads and pays as the place it claims to be.
+        if (forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                match -> !match.entry().meta.nodes.isEmpty(), floor)) {
+            return true;
         }
-        // First choice: a room that stamps nodes itself. Second, when no node room
-        // fits: any room of the dungeon's own (the Cow Pits pay cows, not ore), so
-        // the floor at least reads and pays as the place it claims to be.
-        if (!forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                match -> !match.entry().meta.nodes.isEmpty(), floor) && !hasBound) {
-            forceRoom(shape, manifest, theme, placed, depths, bagTags,
+        if (!hasNodeRoom(manifest, floor)) {
+            return boundPlaced(manifest, placed, floor) || forceRoom(shape, manifest, theme, placed, depths, bagTags,
                     match -> RoomEligibility.boundTo(
                             RoomEligibility.RoomTags.of(match.entry().meta), floor), floor);
         }
+        // PD-149: every node room may need a door shape this layout lacks (the
+        // Mineshaft's ore rooms are all two-door straights, and the live floor was
+        // corners, tees and dead ends). Say so, so the planner tries another layout.
+        return false;
+    }
+
+    /**
+     * Whether the plan already pays as a resource floor: a node room, or, for a
+     * dungeon that has no node rooms, one of its own rooms.
+     */
+    private static boolean placedResource(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                          RoomEligibility.Floor floor) {
+        for (DungeonPlan.PlacedRoom room : placed.values()) {
+            RoomManifest.Entry entry = manifest.byName(room.name());
+            if (entry != null && !entry.meta.nodes.isEmpty()) {
+                return true;
+            }
+        }
+        return !hasNodeRoom(manifest, floor) && boundPlaced(manifest, placed, floor);
+    }
+
+    private static boolean boundPlaced(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                       RoomEligibility.Floor floor) {
+        for (DungeonPlan.PlacedRoom room : placed.values()) {
+            RoomManifest.Entry entry = manifest.byName(room.name());
+            if (entry != null && RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether the manifest holds a node room bound to the floor's dungeon. */
+    private static boolean hasNodeRoom(RoomManifest manifest, RoomEligibility.Floor floor) {
+        for (RoomManifest.Entry entry : manifest.rooms()) {
+            if (!entry.meta.nodes.isEmpty()
+                    && RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1508,12 +1547,19 @@ final class RoomSelector {
      * @param backtrackSteps how many times the pass gave a cell back and took
      *                       the previous cell's next candidate. Zero means the
      *                       first greedy assignment was already satisfying.
+     * @param resourceShort  PD-149: a resource floor whose layout has no cell any of
+     *                       the dungeon's node rooms fits, so it pays no ore. The
+     *                       planner tries another layout before settling for it.
      */
     record Result(DungeonPlan plan, Failure failure, Set<PlanCell> fallbackCells,
-                  int backtrackSteps) {
+                  int backtrackSteps, boolean resourceShort) {
 
         Result(DungeonPlan plan, Failure failure) {
-            this(plan, failure, Set.of(), 0);
+            this(plan, failure, Set.of(), 0, false);
+        }
+
+        Result(DungeonPlan plan, Failure failure, Set<PlanCell> fallbackCells, int backtrackSteps) {
+            this(plan, failure, fallbackCells, backtrackSteps, false);
         }
     }
 

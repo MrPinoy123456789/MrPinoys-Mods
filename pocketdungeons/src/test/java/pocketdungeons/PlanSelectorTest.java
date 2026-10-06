@@ -248,6 +248,22 @@ public class PlanSelectorTest {
                 throw new AssertionError("resource floor " + seed + " placed no node room");
             }
         }
+        // PD-149 (reopened 2026-10-06-1): a floor of corners has no cell the
+        // straight ore room fits. The plan still resolves, but says it is short,
+        // so the planner tries another layout; a straight floor is not short.
+        RoomManifest withCorners = makeResourceManifest(true);
+        RoomSelector.Result bent = RoomSelector.resolveDetailed(stairShape(), withCorners, null, Set.of(), null,
+                floor);
+        if (bent.plan() == null) {
+            throw new AssertionError("a floor of corners did not resolve");
+        }
+        if (!bent.resourceShort()) {
+            throw new AssertionError("a floor no ore room fits must say it is short");
+        }
+        if (RoomSelector.resolveDetailed(shape, withCorners, null, Set.of(), null, floor).resourceShort()) {
+            throw new AssertionError("a straight floor that holds the ore room is not short");
+        }
+
         // A non-resource floor never forces the room in: the guarantee is scoped.
         RoomEligibility.Floor story = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
                 false, "test_mine", "", false, false, false, false);
@@ -259,7 +275,17 @@ public class PlanSelectorTest {
 
     /** A manifest of generic halls plus one node-bearing room bound to the test dungeon. */
     private static RoomManifest makeResourceManifest() {
+        return makeResourceManifest(false);
+    }
+
+    /** As above; {@code corners} adds a generic corner hall, so a bent floor resolves. */
+    private static RoomManifest makeResourceManifest(boolean corners) {
         List<RoomManifest.Entry> entries = new ArrayList<>();
+        if (corners) {
+            entries.add(new RoomManifest.Entry("hall_corner",
+                    meta("hall_corner", List.of(RoleIds.ENCOUNTER, RoleIds.LOOT)),
+                    DoorMask.NORTH | DoorMask.EAST));
+        }
         entries.add(new RoomManifest.Entry("entrance_hall",
                 meta("entrance_hall", List.of(RoleIds.ENTRANCE)), DoorMask.EAST));
         for (int i = 0; i < 4; i++) {
@@ -332,6 +358,23 @@ public class PlanSelectorTest {
         }
         return new DungeonShape(0, cells, edges, critical.get(0), critical.get(n - 1),
                 critical, roles);
+    }
+
+    /** Entrance, two corners, exit: a staircase with no straight cell. */
+    private static DungeonShape stairShape() {
+        PlanCell c0 = new PlanCell(0, 0);
+        PlanCell c1 = new PlanCell(1, 0);
+        PlanCell c2 = new PlanCell(1, 1);
+        PlanCell c3 = new PlanCell(2, 1);
+        List<PlanCell> critical = List.of(c0, c1, c2, c3);
+        Map<PlanCell, String> roles = new LinkedHashMap<>();
+        roles.put(c0, RoleIds.ENTRANCE);
+        roles.put(c1, RoleIds.ENCOUNTER);
+        roles.put(c2, RoleIds.LOOT);
+        roles.put(c3, RoleIds.EXIT);
+        Set<PlanEdge> edges = new LinkedHashSet<>(List.of(new PlanEdge(c0, c1), new PlanEdge(c1, c2),
+                new PlanEdge(c2, c3)));
+        return new DungeonShape(0, new LinkedHashSet<>(critical), edges, c0, c3, critical, roles);
     }
 
     private static DungeonShape tShape() {
