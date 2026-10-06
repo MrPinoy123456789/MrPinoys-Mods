@@ -28,6 +28,10 @@ import java.util.Set;
  *       floor's dungeon {@code nodePalette} counts as a node, so the ore and log
  *       decoration the templates already hold becomes mineable without a metadata
  *       edit.</li>
+ *   <li><strong>Hidden ore</strong> (design 2026-10-06-1 item 7): a dungeon with a
+ *       {@code hiddenOre} field buries a few pockets of ore in the room's solid rock,
+ *       registered as nodes like any other and never touching air
+ *       ({@link HiddenOrePlanner}).</li>
  * </ol>
  *
  * <p>The registered positions are returned to the caller, which carries them on the
@@ -49,14 +53,21 @@ final class NodeStamper {
      * What a floor tells every cell it stamps: the dungeon's node palette (full
      * block ids) and the floor node's minimum darkness.
      */
-    record Context(Set<String> palette, String nodeLight) {
+    record Context(Set<String> palette, String nodeLight, DungeonDef.HiddenOre hiddenOre,
+                   List<String> hiddenBlocks) {
 
         /** No dungeon behind the stamp (admin builds, Pocket2): declared nodes only, no darkening. */
         static final Context NONE = new Context(Set.of(), DungeonRoomMeta.LIGHT_LIT);
 
+        /** A context with no hidden ore. */
+        Context(Set<String> palette, String nodeLight) {
+            this(palette, nodeLight, null, List.of());
+        }
+
         Context {
             palette = Set.copyOf(palette);
             nodeLight = nodeLight == null ? DungeonRoomMeta.LIGHT_LIT : nodeLight;
+            hiddenBlocks = List.copyOf(hiddenBlocks);
         }
     }
 
@@ -76,7 +87,10 @@ final class NodeStamper {
         // make walls mineable, so it is never a node.
         return new Context(def.nodePalette().stream().filter(b -> !DungeonDef.isStructuralBlock(b))
                 .collect(java.util.stream.Collectors.toUnmodifiableSet()),
-                node == null ? DungeonRoomMeta.LIGHT_LIT : node.light());
+                node == null ? DungeonRoomMeta.LIGHT_LIT : node.light(),
+                def.hiddenOre(),
+                def.hiddenOre() == null ? List.of() : def.hiddenOre().blocksOr(def.nodePalette()).stream()
+                        .filter(b -> !DungeonDef.isStructuralBlock(b)).toList());
     }
 
     /**
@@ -92,6 +106,45 @@ final class NodeStamper {
                 DungeonLight.effective(meta.light, ctx.nodeLight(), meta.requiresLight));
         placeDeclaredNodes(level, cellOrigin, quarterTurns, meta, seed, nodesOut);
         scanPaletteNodes(level, cellOrigin, meta.spanY, ctx.palette(), nodesOut);
+        placeHiddenOre(level, cellOrigin, meta.spanY, ctx, seed, nodesOut);
+    }
+
+    /**
+     * Design 2026-10-06-1 item 7: buries the dungeon's hidden ore pockets in this cell's solid
+     * rock, after the declared and palette nodes, and registers every block as a node exactly
+     * as a declared node is. A single-story room only (the planner's heights are the ground
+     * floor's). Seeded by the cell's seed, so a preview and its commit bury the same pockets.
+     */
+    static void placeHiddenOre(ServerLevel level, BlockPos origin, int spanY, Context ctx, long seed,
+                               Set<BlockPos> nodesOut) {
+        DungeonDef.HiddenOre hidden = ctx.hiddenOre();
+        if (hidden == null || ctx.hiddenBlocks().isEmpty() || spanY > 1) {
+            return;
+        }
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        HiddenOrePlanner.Rock solid = (x, y, z) -> {
+            BlockState state = level.getBlockState(cursor.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z));
+            return state.isSolidRender() && !state.hasBlockEntity() && state.getFluidState().isEmpty();
+        };
+        HiddenOrePlanner.Rock free = (x, y, z) -> !nodesOut.contains(origin.offset(x, y, z));
+        long planSeed = seed * 0x9E3779B97F4A7C15L + 0x6869646465L;
+        List<List<int[]>> pockets = HiddenOrePlanner.plan(planSeed, hidden.pocketsMin(), hidden.pocketsMax(),
+                hidden.sizeMin(), hidden.sizeMax(), RoomGeometry.CELL, RoomGeometry.WALL_HEIGHT, solid, free);
+        for (int index = 0; index < pockets.size(); index++) {
+            String block = ctx.hiddenBlocks().get(new Random(planSeed + 17L * index + 3L)
+                    .nextInt(ctx.hiddenBlocks().size()));
+            Identifier id = Identifier.tryParse(block);
+            if (id == null || !BuiltInRegistries.BLOCK.containsKey(id)) {
+                PocketDungeonsMod.LOG.warn("hiddenOre names an unknown block {}; pocket skipped", block);
+                continue;
+            }
+            BlockState ore = BuiltInRegistries.BLOCK.getValue(id).defaultBlockState();
+            for (int[] at : pockets.get(index)) {
+                BlockPos pos = origin.offset(at[0], at[1], at[2]);
+                level.setBlock(pos, ore, FLAGS);
+                nodesOut.add(pos.immutable());
+            }
+        }
     }
 
     /**

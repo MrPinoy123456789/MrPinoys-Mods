@@ -381,7 +381,9 @@ for ((taskName, testClass) in mapOf(
     // Design item 3: no two doors of a deal are twins.
     "doorAffixesTest" to "DoorAffixesTest",
     // Design item 1: the door board words and the palette simplification.
-    "boardTextTest" to "BoardTextTest"
+    "boardTextTest" to "BoardTextTest",
+    // Design item 7: hidden ore pockets are buried, bounded and seeded.
+    "hiddenOrePlannerTest" to "HiddenOrePlannerTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -466,6 +468,7 @@ tasks.test {
     dependsOn("bookPagesTest")
     dependsOn("doorAffixesTest")
     dependsOn("boardTextTest")
+    dependsOn("hiddenOrePlannerTest")
     failOnNoDiscoveredTests = false
 }
 
