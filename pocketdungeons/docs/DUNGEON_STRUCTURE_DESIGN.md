@@ -202,8 +202,12 @@ confirmed by the owner on 2026-10-05.
   - Omen: per trip as today. A capstone floor starts with omen on it.
   - Themed merchants: named for what they buy (owner direction, 2026-10-04
     04:03), stock from the dungeon's mobs.
-  - Store and Altar stay ordinary rooms in each dungeon's pool. Run storage is
-    unchanged.
+  - Store and Altar stay ordinary rooms in each dungeon's pool. Run storage was
+    unchanged here; revised 2026-10-06 (`design-2026-10-06-1.md` item 5): it is
+    now Dungeon Storage, 27 slots per player saved in `DungeonLog`, never emptied
+    by a teardown or a logout (the auto-return and its offline notice are gone).
+    An omen death still rolls it back to the interval's start, closing an open
+    menu first. Whatever an old live run's storage still held moves into it.
 
 ### 3.6 Rooms, light and resources
 

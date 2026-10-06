@@ -2044,8 +2044,8 @@ final class Instances {
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
-        // Before the purge hands the storage back: it reverts with the pack.
-        RunStorage.rollBackToInterval(record);
+        // The storage reverts with the pack (any open menu is closed first).
+        RunStorage.rollBackToInterval(server, record);
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);

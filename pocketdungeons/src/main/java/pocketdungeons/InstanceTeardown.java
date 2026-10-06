@@ -138,8 +138,9 @@ final class InstanceTeardown {
             // never costs anything.
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
-        // Run storage comes home with its owner, after the eject above.
-        RunStorage.returnAll(server, record);
+        // Dungeon Storage belongs to its player and stays where it is. Only a live run that
+        // still holds the old per-run storage moves it into the new one.
+        RunStorage.migrateLegacy(server, record);
         OmenBar.close(record);
         if (record.untimed) {
             PocketDungeonsMod.LOG.info("UNTIMED dungeon in slot {} closed ({}), after {}s",

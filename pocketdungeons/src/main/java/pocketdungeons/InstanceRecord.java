@@ -63,7 +63,10 @@ final class InstanceRecord {
      */
     final java.util.Set<UUID> guests = new java.util.HashSet<>();
 
-    /** Each member's run storage (see {@link RunStorage}); in memory, returned when the run closes. */
+    /**
+     * The old per-run storage (see {@link RunStorage}), no longer filled: Dungeon Storage lives in
+     * {@link DungeonLog}. Read only to migrate whatever a live run still holds when it closes.
+     */
     final Map<UUID, net.minecraft.world.SimpleContainer> runStorage = new java.util.HashMap<>();
 
     /**

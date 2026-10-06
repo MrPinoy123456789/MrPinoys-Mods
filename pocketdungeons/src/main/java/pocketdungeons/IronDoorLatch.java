@@ -209,7 +209,6 @@ final class IronDoorLatch {
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
-            closeAt.clear();
             return;
         }
         tick(level);
