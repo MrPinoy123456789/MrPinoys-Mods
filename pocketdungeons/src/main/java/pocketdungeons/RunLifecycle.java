@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -1101,6 +1102,10 @@ final class RunLifecycle {
                 firstCompletion ? record.interval.floorIndex + 1 : record.interval.floorIndex);
 
         if (firstCompletion) {
+            // J1: the floor pays on the spot, before the physical advance:
+            // each member present gets the dealt step as scrap, or emeralds
+            // when their permanent chart level stands above the floor.
+            payFloorMembers(server, record);
             // M65: advanceFloor replaces completeDungeon. It does the
             // physical floor advance (increment floorIndex, bank omen,
             // place chests, stamp new staging room) and transitions the
@@ -1423,6 +1428,45 @@ final class RunLifecycle {
      * floors banked. The sum only resets when the interval ends
      * ({@link InstanceRecord#beginInterval}).
      */
+    /**
+     * J1: pays every member present for the floor just cleared. At or below the
+     * floor's level the dealt step lands as scrap on the member's log entry, and
+     * a new chart level cues the level up chime; a member whose permanent chart
+     * high already stands above the floor is paid emeralds instead. The journal
+     * gets a {@code floor_pay} event per member.
+     */
+    private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
+        DungeonLog log = DungeonLog.forServer(server);
+        int step = record.floor.chosenStep;
+        int floorLevel = record.floor.chosenLevel;
+        int rate = PocketDungeonsConfig.overlevelEmeraldsPerScrap();
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                continue;
+            }
+            FloorPay.Payout pay = FloorPay.of(step, floorLevel, log.get(member).highestCharts(), rate);
+            if (pay.scrap() > 0) {
+                boolean newChart = log.addScrap(member, pay.scrap());
+                if (newChart) {
+                    int chartLevel = ScrapMath.chartLevel(log.get(member).scrap());
+                    if (chartLevel > log.get(member).keystoneLevel()) {
+                        Keystones.grantLevel(server, member, memberPlayer, chartLevel);
+                    } else {
+                        Chime.keystoneLevelUp(memberPlayer);
+                    }
+                }
+            } else if (pay.emeralds() > 0) {
+                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, pay.emeralds()));
+            }
+            if (pay.scrap() > 0 || pay.emeralds() > 0) {
+                memberPlayer.sendSystemMessage(Component.literal(pay.line())
+                        .withStyle(ChatFormatting.AQUA));
+            }
+            PlaytestJournal.floorPay(memberPlayer, record, pay.scrap(), pay.emeralds());
+        }
+    }
+
     static int bankFloorOmen(InstanceRecord record) {
         record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
         record.interval.omen = 0;
@@ -1459,7 +1503,7 @@ final class RunLifecycle {
      * asked for the same at the moment of going home.
      */
     private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled) {
-        showBigTitle(player, "HOME", IntervalBanking.takeHomeLine(settled).replace('\n', ' '));
+        showBigTitle(player, "HOME", IntervalBanking.chests(settled.chests()));
     }
 
     /**
@@ -1519,30 +1563,26 @@ final class RunLifecycle {
         // Per-member settlement: keystone levels and carried progress,
         // free-door fuel, payout, prestige, diary.
         DungeonLog log = DungeonLog.forServer(server);
-        int maxLevel = PocketDungeonsConfig.keystoneMaxLevel();
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
                 continue;
             }
-            // Each member banks against their own compass level, so a member
-            // riding along at a lower level climbs from where they stand.
+            // J1: each floor paid its scrap at the clear, so going home
+            // converts nothing. The settlement still supplies the omen band
+            // and the chest count for the journal and the home title.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
-                IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
-                        interval.floorLevels, interval.bankedOmenSum(), memberEntry.keystoneLevel(),
-                        penalty, bonusChests);
-                int keyLevel = memberEntry.keystoneLevel();
-                if (settled.levels() > 0) {
-                    keyLevel = KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel);
-                    Keystones.grantLevel(server, member, memberPlayer, keyLevel);
-                    record.floor.keystoneReturned.add(member);
-                }
+                IntervalBanking.Settlement settled = new IntervalBanking.Settlement(
+                        shared.band(), 0, 0, shared.chests());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
-                        bonusChests, keyLevel);
+                        bonusChests, memberEntry.keystoneLevel());
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
                 memberPlayer.sendSystemMessage(Component.literal(
-                        IntervalBanking.bankedLine(settled, penalty > 0))
+                        (penalty > 0
+                                ? "You leave at the checkpoint, so the omen counts one band worse. "
+                                : "Home. ")
+                                + "The omen was " + OmenBarText.bandName(settled.band()) + ".")
                         .withStyle(ChatFormatting.GOLD));
                 if ("home_lever".equals(trigger)) {
                     showHomeTitle(memberPlayer, settled);

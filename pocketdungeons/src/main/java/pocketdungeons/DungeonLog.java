@@ -673,7 +673,9 @@ final class DungeonLog extends SavedData {
                                 c.tripCounter(), c.decideWhitelist(), uuids(c.decideList()),
                                 c.deepestMineFloor())
                                 .migratedFor(a.keystoneLevel()),
-                        b.scrap(), b.highestCharts());
+                        // J1: a pre-scrap save keeps its keystone as the permanent
+                        // high, which is exactly what "over-level" means now.
+                        b.scrap(), Math.max(b.highestCharts(), a.keystoneLevel()));
             },
             entry -> com.mojang.datafixers.util.Pair.of(com.mojang.datafixers.util.Pair.of(
                     new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),

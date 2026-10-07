@@ -437,6 +437,12 @@ final class PlaytestJournal {
         });
     }
 
+    /** A floor's pay to one member (J1): scrap earned, or emeralds when over-level. */
+    static void floorPay(ServerPlayer player, InstanceRecord record, int scrap, int emeralds) {
+        safely("floor_pay", () -> record(player, record, "floor_pay",
+                Map.of("scrap", scrap, "emeralds", emeralds)));
+    }
+
     /** The interval settled for this member. */
     static void bank(ServerPlayer player, InstanceRecord record, String trigger, int floors,
                      IntervalBanking.Settlement settled, int chests, int depthBonus, int keyLevel) {

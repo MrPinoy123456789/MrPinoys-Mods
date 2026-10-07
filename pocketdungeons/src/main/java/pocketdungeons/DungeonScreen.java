@@ -353,14 +353,17 @@ final class DungeonScreen {
         }
         lines.add(nameLine);
 
-        // What you get: only the parts the floor has.
+        // What you get: only the parts the floor has. J1: at or below the
+        // floor's level the step is scrap; above it, emeralds at the
+        // over-level rate (permanent charts, not the compass reading).
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
-            int scrap = IntervalBanking.effectiveScrap(offer.step(), offer.level(), offerLevel);
-            if (scrap > 0) {
-                addPart(gets, IntervalBanking.scrapText(scrap), ChatFormatting.AQUA);
-            } else {
-                addPart(gets, "too easy", ChatFormatting.GRAY);
+            FloorPay.Payout pay = FloorPay.of(offer.step(), offer.level(), entry.highestCharts(),
+                    PocketDungeonsConfig.overlevelEmeraldsPerScrap());
+            if (pay.scrap() > 0) {
+                addPart(gets, IntervalBanking.scrapText(pay.scrap()), ChatFormatting.AQUA);
+            } else if (pay.emeralds() > 0) {
+                addPart(gets, pay.emeralds() + " emeralds", ChatFormatting.AQUA);
             }
         }
         if (def != null && showsNodes(def, node)) {
