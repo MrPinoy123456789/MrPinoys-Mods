@@ -110,6 +110,10 @@ final class DungeonCommands {
 
                     // The staging room's dungeon map, typed (also opened by clicking
                     // the floor history board). Read only.
+                    // Re-deals the first staging room's dungeons (the owner, before a door is taken).
+                    .then(Commands.literal("reroll")
+                            .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
+
                     .then(Commands.literal("map")
                             .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
 
@@ -747,6 +751,47 @@ final class DungeonCommands {
      * that each looked locally correct disagreeing about the same concept.
      */
     /** {@code /dungeon map}: opens the dungeon map for a player standing in a staging room's run. */
+    /**
+     * {@code /dungeon reroll}: deals the first staging room's three dungeons
+     * again. Only the owner, only before the trip's first door is taken, and
+     * only for the dungeon choice (never a later floor's branches). An open
+     * preview is cleared first so the new deal starts clean.
+     */
+    private static int rerollDoors(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        String refusal = null;
+        if (record == null || record.stagingCellOrigin == null || !RunSession.canChooseDoor(record)) {
+            refusal = "The doors can be re-dealt in the first staging room, before you pick one.";
+        } else if (!player.getUUID().equals(record.owner)) {
+            refusal = "Only the owner of the trip can re-deal the doors.";
+        } else if (!record.interval.dungeonId.isEmpty() || record.interval.endlessMine
+                || record.interval.floorIndex > 0 || record.floor.doorTaken) {
+            refusal = "Only the first set of dungeons can be re-dealt, before a door is taken.";
+        }
+        if (refusal != null) {
+            player.sendSystemMessage(Component.literal(refusal).withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        net.minecraft.server.MinecraftServer server = player.level().getServer();
+        net.minecraft.server.level.ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return 0;
+        }
+        Instances.clearPreview(level, record, true);
+        record.floor.selectedStep = 0;
+        record.interval.doorReroll++;
+        DungeonScreen.refreshDoorScreens(server);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner,
+                Math.max(1, DungeonLog.forServer(server).get(record.owner).keystoneLevel()));
+        List<String> names = new ArrayList<>();
+        for (Keystone.Offer offer : offers) {
+            DungeonDef def = offer.door() == null ? null : DungeonDefs.current().byId(offer.door().dungeonId());
+            names.add(def == null ? "?" : def.name());
+        }
+        Instances.announce(server, record, "The doors shift: " + String.join(", ", names) + ".", null);
+        return 1;
+    }
+
     private static int showMap(ServerPlayer player) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.inFloorLoop() || record.stagingCellOrigin == null) {

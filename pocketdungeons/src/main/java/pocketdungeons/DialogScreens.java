@@ -282,6 +282,11 @@ final class DialogScreens {
         for (DungeonMapText.Line line : lines) {
             body.add(DialogKit.text(Component.literal(line.text()).withStyle(toneColour(line.tone()))));
         }
+        if (def == null && record.interval.floorIndex == 0 && !record.floor.doorTaken) {
+            return DialogKit.list("Dungeon map", body, List.of(DialogKit.command("Reroll dungeons",
+                    "Deal three different dungeons at the first doors (the owner, before a door is taken)",
+                    "dungeon reroll")), "Close");
+        }
         return DialogKit.notice("Dungeon map", body, DialogKit.closeButton("Close"));
     }
 

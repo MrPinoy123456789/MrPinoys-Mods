@@ -68,6 +68,13 @@ final class IntervalState {
      */
     String dungeonId = "";
 
+    /**
+     * How many times the owner re-dealt the first staging room's dungeons
+     * ({@code /dungeon reroll}); mixed into the deal's salt. Only the first
+     * deal of a trip reads it, and a new interval starts it at zero.
+     */
+    int doorReroll;
+
     /** The node the party last entered: its floor is in progress or cleared. Empty with no dungeon. */
     String nodeId = "";
 
