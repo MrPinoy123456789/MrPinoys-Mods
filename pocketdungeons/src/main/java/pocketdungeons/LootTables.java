@@ -54,7 +54,7 @@ final class LootTables {
     /** M25: the Pocket2 child's loose-chest table: shell tokens, fuel, valuables. */
     static final String POCKET2 = "chests/pocket2";
 
-    /** M35: the anomaly room's loose-chest table: echo shards, shell tokens, rare materials. */
+    /** M35: the anomaly room's loose-chest table: shell tokens, rare materials. */
     static final String ANOMALY = "chests/anomaly";
 
     /**

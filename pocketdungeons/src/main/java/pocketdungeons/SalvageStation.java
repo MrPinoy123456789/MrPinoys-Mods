@@ -32,7 +32,7 @@ import java.util.Map;
  * The salvage bench (playtest 2026-09-29, A3: "I'm accumulating too much gear
  * and vault keys"): a room station that turns the surplus into something the
  * other stations take. Tagged gear pays emeralds by tier, vault keys pay
- * emeralds (or fuel, when {@code salvageKeysPerFuel} is on), and untagged mob
+ * emeralds, and untagged mob
  * gear pays XP only. The rates and the reasoning behind them are in
  * {@code docs/reference/SALVAGE_PROPOSAL.md}; the arithmetic is
  * {@link SalvageMath}.
@@ -339,18 +339,12 @@ final class SalvageStation {
             return grindHalves.stream().mapToInt(c -> 2 * c - 1).sum();
         }
 
-        int keyFuel() {
-            return SalvageMath.keyFuel(keys, PocketDungeonsConfig.salvageKeysPerFuel());
-        }
-
         int keysTaken() {
-            int perFuel = PocketDungeonsConfig.salvageKeysPerFuel();
-            return perFuel > 0 ? SalvageMath.keysForFuel(keys, perFuel) : keys;
+            return keys;
         }
 
         int emeralds() {
-            int keyEmeralds = PocketDungeonsConfig.salvageKeysPerFuel() > 0 ? 0
-                    : SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds());
+            int keyEmeralds = SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds());
             return keyEmeralds
                     + SalvageMath.keyEmeralds(ominousKeys, PocketDungeonsConfig.salvageOminousKeyEmeralds());
         }
@@ -420,15 +414,8 @@ final class SalvageStation {
             lore.add(line("Gear: " + pieces + " piece" + plural(pieces) + " for " + xpText(q)));
         }
         if (q.keys() > 0) {
-            int perFuel = PocketDungeonsConfig.salvageKeysPerFuel();
-            if (perFuel > 0) {
-                int left = q.keys() - q.keysTaken();
-                lore.add(line("Vault keys: " + q.keysTaken() + " for " + q.keyFuel() + " fuel"
-                        + (left > 0 ? " (" + left + " short of the next, they stay)" : "")));
-            } else {
-                int paid = SalvageMath.keyEmeralds(q.keys(), PocketDungeonsConfig.salvageKeyEmeralds());
-                lore.add(line("Vault keys: " + q.keys() + " for " + paid + " emerald" + plural(paid)));
-            }
+            int paid = SalvageMath.keyEmeralds(q.keys(), PocketDungeonsConfig.salvageKeyEmeralds());
+            lore.add(line("Vault keys: " + q.keys() + " for " + paid + " emerald" + plural(paid)));
         }
         if (q.ominousKeys() > 0) {
             int paid = SalvageMath.keyEmeralds(q.ominousKeys(), PocketDungeonsConfig.salvageOminousKeyEmeralds());
@@ -457,12 +444,12 @@ final class SalvageStation {
             button.setName(Component.literal("Put gear here to salvage").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Click gear in your pack to move it in."));
-            lore.add(line("Gear pays XP and materials; keys pay fuel."));
+            lore.add(line("Gear pays XP and materials; keys pay emeralds."));
         } else {
             button.setName(Component.literal("Nothing here can be salvaged").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Drop in gear or vault keys."));
-            lore.add(line("Gear pays XP and materials; keys pay fuel."));
+            lore.add(line("Gear pays XP and materials; keys pay emeralds."));
         }
         lore.add(Component.literal("Sneak and use the grindstone for the plain one.")
                 .withStyle(ChatFormatting.DARK_GRAY).withStyle(s -> s.withItalic(false)));
@@ -602,7 +589,7 @@ final class SalvageStation {
      * Takes everything the bench accepts out of {@code input} and pays for it.
      * Re-sorts the live contents rather than trusting the last summary, and
      * re-checks the unlock level, the same staleness discipline the reroll
-     * station follows. Refused items and keys short of a whole fuel unit stay.
+     * station follows. Refused items stay.
      * Package private so {@code SalvageGameTest} can drive it without a screen.
      *
      * @return what was paid for, or {@code null} if nothing was
@@ -633,11 +620,7 @@ final class SalvageStation {
         }
 
         int emeralds = q.emeralds();
-        int fuel = q.keyFuel();
         deliverEmeralds(player, emeralds);
-        if (fuel > 0) {
-            Fuel.grant(player, fuel);
-        }
         int xp = 0;
         for (int half : q.grindHalves()) {
             xp += half + player.getRandom().nextInt(half);
@@ -655,9 +638,6 @@ final class SalvageStation {
         if (emeralds > 0) {
             parts.add(emeralds + " emerald" + plural(emeralds));
         }
-        if (fuel > 0) {
-            parts.add(fuel + " fuel");
-        }
         if (xp > 0) {
             parts.add(xp + " XP");
         }
@@ -673,7 +653,6 @@ final class SalvageStation {
         extras.put("ominous_keys", q.ominousKeys());
         extras.put("mob_gear", q.mobGear());
         extras.put("emeralds", emeralds);
-        extras.put("fuel", fuel);
         extras.put("xp", xp);
         Map<String, Integer> materialIds = new LinkedHashMap<>();
         for (Map.Entry<Item, Integer> m : q.materials().entrySet()) {

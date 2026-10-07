@@ -25,8 +25,8 @@ import java.util.stream.Collectors;
 /**
  * M14: a room station that rerolls one enchantment on a piece of gear at a
  * time, at a lapis cost that scales with the gear's tier. The gear-scale sink
- * that pairs with {@link Fuel}'s ladder-scale sink: the two answer different
- * halves of "what is the level-100 player working toward."
+ * that used to pair with Fuel's ladder-scale sink (Fuel is gone since J1): the
+ * two answered different halves of "what is the level-100 player working toward."
  *
  * <p><b>Positive test, not a vanilla override.</b> The configured block
  * defaults to a plain smithing table; the branch only fires when the held

@@ -13,8 +13,8 @@ import java.util.Set;
  * Lemon's archive (playtest 2026-10-02-1: "Alex's diaries should be something I give
  * to Lemon as some kind of meta progression"). Right-click Lemon holding a found
  * diary book and she keeps it for good: the entry is safe from a lost book, she
- * says a tip she learned from it, and holding every entry earns one extra echo
- * shard per completed interval.
+ * says a tip she learned from it, and holding every entry earns an
+ * emerald bonus once every page is handed over.
  *
  * <p>Stored without a new save field: a handed-over band {@code b} is recorded in
  * the player's existing diary band set as {@code b + HANDED}, which nothing else
@@ -94,7 +94,7 @@ final class LemonArchive {
         String tip = TIPS[(count - 1) % TIPS.length];
         String line = "Thank you. I will keep this safe. " + tip + " (" + count + "/" + total + " in my archive.)";
         if (count >= total) {
-            line += " That is all of them. I will put an extra echo shard aside for you each time you finish a dungeon.";
+            line += " That is all of them. I will put extra emeralds aside for you each time you finish a dungeon.";
         }
         Lemon.say(player, line);
         PlaytestJournal.diaryHanded(player, band, count);

@@ -166,28 +166,16 @@ public final class PocketDungeonsConfig {
     private static double fountainChance = 0.15;
     /** Omen a cleansing fountain takes off the floor. */
     private static int fountainOmenRelief = 2;
-    /**
-     * UNUSED since the dungeon structure waves: a full interval no longer pays a shard
-     * at the bank; a finished dungeon does ({@link #echoShardsPerFinish()}). The key
-     * stays readable so an old config still loads.
-     */
-    private static int echoShardsPerInterval = 1;
-    /** Echo shards each member is paid when a story or capstone dungeon is finished (design D11). */
-    private static int echoShardsPerFinish = 1;
+    /** Emeralds each member is paid when a dungeon is finished (J1: was the echo shard). */
+    private static int finishEmeralds = 8;
     /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
     private static int finishVaultChests = 2;
     /** Emeralds per scrap a member above the floor's level is paid instead of scrap (D27). */
     private static int overlevelEmeraldsPerScrap = 2;
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     private static int capstoneStartOmen = 1;
-    /**
-     * UNUSED since the dungeon structure waves: the per-floor echo shard roll was
-     * removed (a finished dungeon pays the shard instead). The key stays readable
-     * so an old config still loads; default 0.
-     */
-    private static double echoShardFloorChance = 0;
-    /** Chance, per player in the room, of one echo shard when an Ordeal resolves. */
-    private static double echoShardOrdealChance = 0.25;
+    /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
+    private static double ordealEmeraldChance = 0.25;
     /** Silenced's trial spawners detect players at this range instead of 14. */
     private static int silencedPlayerRange = 6;
     /** Molten hazard blocks placed per cell. */
@@ -221,34 +209,9 @@ public final class PocketDungeonsConfig {
     private static double spawnerClearThreshold = 0.75;
 
     // ---- two-tier doors and fuel (M12) ----------------------------------------
-    /**
-     * The currency a side branch costs and a finished dungeon pays. Echo shards, not
-     * diamonds: diegetically the keystone (a recovery compass) is crafted from
-     * echo shards. No loot table grants any. Sources (dungeon structure waves): one
-     * per member when a story or capstone dungeon is finished
-     * ({@link #echoShardsPerFinish()}) and a chance per Ordeal
-     * ({@link #echoShardOrdealChance()}); the per-floor roll and the per-interval and
-     * free door payouts are gone. Side branches spend them (design D5).
-     */
-    private static String fuelItem = "minecraft:echo_shard";
-    /**
-     * UNUSED since the dungeon structure waves (design D4, D5): Greater doors are gone,
-     * and a side branch's shard cost is authored on its edge in the dungeon file. The
-     * key stays readable so an old config still loads.
-     */
-    private static int fuelCostPerGreaterDoor = 3;
-    /**
-     * UNUSED since the dungeon structure waves: door 1 no longer pays a free door
-     * shard at the bank. The key stays readable so an old config still loads.
-     */
-    private static int fuelPerFreeRun = 1;
-    /**
-     * UNUSED since the dungeon structure waves: no door has a keystone level gate any
-     * more (design D4). The key stays readable so an old config still loads.
-     */
-    private static int greaterDoorMinLevel = 15;
-    /** UNUSED since the dungeon structure waves, same as {@link #greaterDoorMinLevel}. */
-    private static int door2MinLevel = 7;
+    // J1 retires the whole section: Fuel.java is gone, side branches cost scrap,
+    // and the finish and Ordeal pays are emeralds. The old keys load quietly
+    // through RETIRED_KEYS so an existing pocketdungeons.json still works.
 
     // ---- Pocket2 sub-dungeon (M25) -------------------------------------------
     /** How long a Pocket2 child stays open once entered, in seconds. */
@@ -373,13 +336,6 @@ public final class PocketDungeonsConfig {
     private static int salvageKeyEmeralds = 1;
     /** Emeralds per ominous vault key. */
     private static int salvageOminousKeyEmeralds = 3;
-    /**
-     * Vault keys per unit of engine fuel, instead of emeralds; 0 turns it
-     * off. Off by default (owner decision 2026-09-29): at about 3 spare keys
-     * an interval any rate here moves fuel income a lot, so it waits until
-     * door 2 use shows fuel is the bottleneck.
-     */
-    private static int salvageKeysPerFuel = 0;
     /** Keystone level the bench opens at. 1: the surplus starts in the first interval. */
     private static int salvageUnlockLevel = 1;
 
@@ -623,13 +579,8 @@ public final class PocketDungeonsConfig {
         return swarmingMobFactor;
     }
 
-    /** Unused; see the field. */
-    public static int echoShardsPerInterval() {
-        return echoShardsPerInterval;
-    }
-
-    public static int echoShardsPerFinish() {
-        return echoShardsPerFinish;
+    public static int finishEmeralds() {
+        return finishEmeralds;
     }
 
     public static int finishVaultChests() {
@@ -644,12 +595,8 @@ public final class PocketDungeonsConfig {
         return capstoneStartOmen;
     }
 
-    public static double echoShardFloorChance() {
-        return echoShardFloorChance;
-    }
-
-    public static double echoShardOrdealChance() {
-        return echoShardOrdealChance;
+    public static double ordealEmeraldChance() {
+        return ordealEmeraldChance;
     }
 
     public static double fountainChance() {
@@ -712,43 +659,6 @@ public final class PocketDungeonsConfig {
         return spawnerClearThreshold;
     }
 
-    public static String fuelItem() {
-        return fuelItem;
-    }
-
-    /** Unused since the dungeon structure waves; see the field. */
-    public static int fuelCostPerGreaterDoor() {
-        return fuelCostPerGreaterDoor;
-    }
-
-    /** Unused since the dungeon structure waves; see the field. */
-    public static int fuelPerFreeRun() {
-        return fuelPerFreeRun;
-    }
-
-    /** Unused since the dungeon structure waves; see the field. */
-    public static int greaterDoorMinLevel() {
-        return greaterDoorMinLevel;
-    }
-
-    /** Unused since the dungeon structure waves; see the field. */
-    public static int door2MinLevel() {
-        return door2MinLevel;
-    }
-
-    /**
-     * Unused since the dungeon structure waves: no door has a level gate. Kept so a
-     * stale caller compiles; the old rule was door 2 at {@link #door2MinLevel}, door 3
-     * at {@link #greaterDoorMinLevel}, door 1 never gated.
-     */
-    public static int doorMinLevel(int step) {
-        return switch (step) {
-            case 1 -> 0;
-            case 2 -> door2MinLevel;
-            default -> greaterDoorMinLevel;
-        };
-    }
-
     public static int pocket2TimerSeconds() {
         return pocket2TimerSeconds;
     }
@@ -809,9 +719,6 @@ public final class PocketDungeonsConfig {
         return salvageOminousKeyEmeralds;
     }
 
-    public static int salvageKeysPerFuel() {
-        return salvageKeysPerFuel;
-    }
 
     public static int salvageUnlockLevel() {
         return salvageUnlockLevel;
@@ -930,13 +837,11 @@ public final class PocketDungeonsConfig {
         lockInUnlockLevel = 5;
         fountainChance = 0.15;
         fountainOmenRelief = 2;
-        echoShardsPerInterval = 1;
-        echoShardsPerFinish = 1;
+        finishEmeralds = 8;
         finishVaultChests = 2;
         overlevelEmeraldsPerScrap = 2;
         capstoneStartOmen = 1;
-        echoShardFloorChance = 0;
-        echoShardOrdealChance = 0.25;
+        ordealEmeraldChance = 0.25;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
         feralWolvesPerCell = 2;
@@ -947,12 +852,6 @@ public final class PocketDungeonsConfig {
         mobScaleBase = 0.65;
         breezeHpMultiplier = 0.5;
         spawnerClearThreshold = 0.75;
-
-        fuelItem = "minecraft:echo_shard";
-        fuelCostPerGreaterDoor = 3;
-        fuelPerFreeRun = 1;
-        greaterDoorMinLevel = 15;
-        door2MinLevel = 7;
 
         pocket2TimerSeconds = 60;
         pocket2DoorChance = 0.2;
@@ -976,7 +875,6 @@ public final class PocketDungeonsConfig {
         salvageEmeraldsPerTier = 1;
         salvageKeyEmeralds = 1;
         salvageOminousKeyEmeralds = 3;
-        salvageKeysPerFuel = 0;
         salvageUnlockLevel = 1;
 
         cubeBlock = "minecraft:beacon";
@@ -990,19 +888,24 @@ public final class PocketDungeonsConfig {
 
     /**
      * Keys the mod once read and no longer does: the run clock and its chest
-     * scoring, retired once omen replaced them. A file that still carries
+     * scoring, and the Fuel currency keys J1 retired. A file that still carries
      * them loads normally; they are named once in the log and left out of
      * the next save.
      */
     private static final List<String> RETIRED_KEYS = List.of(
             "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds",
-            "threeChestPercent", "twoChestPercent", "lateCompletionDepletion");
+            "threeChestPercent", "twoChestPercent", "lateCompletionDepletion",
+            // J1: the Fuel (echo shard) currency is gone; scrap and emeralds took its places.
+            "fuelItem", "fuelCostPerGreaterDoor", "fuelPerFreeRun",
+            "greaterDoorMinLevel", "door2MinLevel", "echoShardsPerInterval",
+            "echoShardsPerFinish", "echoShardFloorChance", "echoShardOrdealChance",
+            "salvageKeysPerFuel");
 
     private static void apply(JsonObject root) {
         List<String> retired = RETIRED_KEYS.stream().filter(root::has).toList();
         if (!retired.isEmpty()) {
             PocketDungeonsMod.LOG.info("pocketdungeons.json still sets {}, which no longer do anything "
-                    + "(the run clock is gone); ignoring them", String.join(", ", retired));
+                    + "(retired keys); ignoring them", String.join(", ", retired));
         }
         // A cell is exactly one chunk only while the slot origin is chunk-aligned,
         // and every force-load and teardown calculation downstream leans on that.
@@ -1128,14 +1031,11 @@ public final class PocketDungeonsConfig {
         fountainOmenRelief = readInt(root, "fountainOmenRelief", 2, v -> v >= 1, "must be >= 1");
         lockInEmeralds = readInt(root, "lockInEmeralds", 32, v -> v >= 1 && v <= 64, "must be between 1 and 64");
         lockInUnlockLevel = readInt(root, "lockInUnlockLevel", 5, v -> v >= 1, "must be >= 1");
-        echoShardsPerInterval = readInt(root, "echoShardsPerInterval", 1, v -> v >= 0, "must be >= 0");
-        echoShardsPerFinish = readInt(root, "echoShardsPerFinish", 1, v -> v >= 0, "must be >= 0");
+        finishEmeralds = readInt(root, "finishEmeralds", 8, v -> v >= 0, "must be >= 0");
         finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
         overlevelEmeraldsPerScrap = readInt(root, "overlevelEmeraldsPerScrap", 2, v -> v >= 0, "must be >= 0");
         capstoneStartOmen = readInt(root, "capstoneStartOmen", 1, v -> v >= 0 && v <= 4, "must be between 0 and 4");
-        echoShardFloorChance = readDouble(root, "echoShardFloorChance", 0, v -> v >= 0 && v <= 1,
-                "must be between 0 and 1");
-        echoShardOrdealChance = readDouble(root, "echoShardOrdealChance", 0.25, v -> v >= 0 && v <= 1,
+        ordealEmeraldChance = readDouble(root, "ordealEmeraldChance", 0.25, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
         feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
@@ -1148,12 +1048,6 @@ public final class PocketDungeonsConfig {
         breezeHpMultiplier = readDouble(root, "breezeHpMultiplier", 0.5, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
         spawnerClearThreshold = readDouble(root, "spawnerClearThreshold", 0.75,
                 v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
-
-        fuelItem = readString(root, "fuelItem", "minecraft:echo_shard", false);
-        fuelCostPerGreaterDoor = readInt(root, "fuelCostPerGreaterDoor", 3, v -> v >= 0, "must be >= 0");
-        fuelPerFreeRun = readInt(root, "fuelPerFreeRun", 1, v -> v >= 0, "must be >= 0");
-        greaterDoorMinLevel = readInt(root, "greaterDoorMinLevel", 15, v -> v >= 1, "must be >= 1");
-        door2MinLevel = readInt(root, "door2MinLevel", 7, v -> v >= 1, "must be >= 1");
 
         pocket2TimerSeconds = readInt(root, "pocket2TimerSeconds", 60, v -> v >= 1, "must be >= 1");
         pocket2DoorChance = readDouble(root, "pocket2DoorChance", 0.2,
@@ -1188,7 +1082,6 @@ public final class PocketDungeonsConfig {
         salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
         salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
         salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
-        salvageKeysPerFuel = readInt(root, "salvageKeysPerFuel", 0, v -> v >= 0, "must be >= 0");
         salvageUnlockLevel = readInt(root, "salvageUnlockLevel", 1, v -> v >= 1, "must be >= 1");
 
         cubeBlock = readString(root, "cubeBlock", "minecraft:beacon", false);
@@ -1455,13 +1348,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("fountainOmenRelief", 2);
         root.addProperty("lockInEmeralds", 32);
         root.addProperty("lockInUnlockLevel", 5);
-        root.addProperty("echoShardsPerInterval", 1);
-        root.addProperty("echoShardsPerFinish", 1);
+        root.addProperty("finishEmeralds", 8);
         root.addProperty("finishVaultChests", 2);
         root.addProperty("overlevelEmeraldsPerScrap", 2);
         root.addProperty("capstoneStartOmen", 1);
-        root.addProperty("echoShardFloorChance", 0);
-        root.addProperty("echoShardOrdealChance", 0.25);
+        root.addProperty("ordealEmeraldChance", 0.25);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);
         root.addProperty("explosiveHazardsPerCell", 4);
@@ -1471,12 +1362,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("mobScaleBase", 0.65);
         root.addProperty("breezeHpMultiplier", 0.5);
         root.addProperty("spawnerClearThreshold", 0.75);
-
-        root.addProperty("fuelItem", "minecraft:echo_shard");
-        root.addProperty("fuelCostPerGreaterDoor", 3);
-        root.addProperty("fuelPerFreeRun", 1);
-        root.addProperty("greaterDoorMinLevel", 15);
-        root.addProperty("door2MinLevel", 7);
 
         root.addProperty("pocket2TimerSeconds", 60);
         root.addProperty("pocket2DoorChance", 0.2);
@@ -1509,7 +1394,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("salvageEmeraldsPerTier", 1);
         root.addProperty("salvageKeyEmeralds", 1);
         root.addProperty("salvageOminousKeyEmeralds", 3);
-        root.addProperty("salvageKeysPerFuel", 0);
         root.addProperty("salvageUnlockLevel", 1);
 
         root.addProperty("cubeBlock", "minecraft:beacon");

@@ -609,8 +609,8 @@ final class Instances {
             admit(server, record, companion);
         }
 
-        // The engine screen was summoned at stamp time without a viewer; now
-        // that the owner is standing here, show their actual fuel count.
+        // The history screen was summoned at stamp time without a viewer; now
+        // that the owner is standing here, refresh it for them.
         DungeonScreen.updateHistory(level, record);
 
         player.sendSystemMessage(Component.literal(

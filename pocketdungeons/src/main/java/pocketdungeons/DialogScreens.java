@@ -226,7 +226,7 @@ final class DialogScreens {
                 : finished
                 ? "You cleared " + dungeon + ". Ends this run and takes the party home."
                 : dungeon.isEmpty() ? "Ends this run and takes the party home."
-                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish shard or vault.";
+                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish emeralds or vault.";
         return DialogKit.confirm("Go home?",
                 List.of(DialogKit.text(Component.literal(ends)
                                 .withStyle(ChatFormatting.YELLOW)),
@@ -243,7 +243,7 @@ final class DialogScreens {
 
     /**
      * The staging room's dungeon map: the layers of the dungeon this trip is in, the
-     * node the party stands at, the final floor, each edge's shard cost and which
+     * node the party stands at, the final floor, each edge's scrap cost and which
      * floors each door can reach. Before the first door of a trip it lists the three
      * dungeons on offer instead. Read only; opened by right-clicking the floor
      * history board in the staging room, or {@code /dungeon map}. The lines come from

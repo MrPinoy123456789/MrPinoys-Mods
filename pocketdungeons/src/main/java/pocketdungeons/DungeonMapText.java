@@ -8,7 +8,7 @@ import java.util.function.Function;
 /**
  * The staging room's dungeon map as plain text lines (design D6): the layers of
  * the dungeon the trip is in, the node the party stands at, the final floor,
- * each edge's shard cost, and which floors each door can still reach. Pure
+ * each edge's scrap cost, and which floors each door can still reach. Pure
  * strings with a {@link Tone} per line; {@code DialogScreens} turns them into
  * a dialog. No Minecraft imports, so {@code DungeonMapTextTest} pins the shape.
  *

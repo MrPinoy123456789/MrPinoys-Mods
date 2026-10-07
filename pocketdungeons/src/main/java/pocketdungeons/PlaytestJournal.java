@@ -251,7 +251,7 @@ final class PlaytestJournal {
     /**
      * Dungeon structure W2: a door was committed inside a dungeon. Written for every
      * member present: {@code dungeon_chosen} on the first door of a trip,
-     * {@code edge_taken} (with the step dealt and the shard cost) on every later one,
+     * {@code edge_taken} (with the step dealt and the scrap cost) on every later one,
      * then {@code node_entered} for the floor now opening. The trip state on
      * {@code record.interval} is already updated.
      */
@@ -289,18 +289,18 @@ final class PlaytestJournal {
 
     /**
      * Dungeon structure W2: a final floor was cleared. One line per member present;
-     * {@code shards} and {@code vault_chests} are what the finish paid, {@code first}
+     * {@code emeralds} and {@code vault_chests} are what the finish paid, {@code first}
      * whether it was this player's first finish of the dungeon, {@code diary} the page
      * id handed over (empty for none).
      */
-    static void dungeonFinished(ServerPlayer player, InstanceRecord record, int shards, int vaultChests,
+    static void dungeonFinished(ServerPlayer player, InstanceRecord record, int emeralds, int vaultChests,
                                 boolean first, String diary) {
         safely("dungeon_finished", () -> {
             Map<String, Object> extras = new LinkedHashMap<>();
             extras.put("dungeon", record.interval.dungeonId);
             extras.put("node", record.interval.nodeId);
             extras.put("floors", record.interval.path.size());
-            extras.put("shards", shards);
+            extras.put("emeralds", emeralds);
             extras.put("vault_chests", vaultChests);
             extras.put("first", first);
             extras.put("diary", diary == null ? "" : diary);
@@ -596,9 +596,9 @@ final class PlaytestJournal {
         safely("fountain", () -> record(player, "fountain", Map.of("boon", boon)));
     }
 
-    /** Echo shards granted outside the free door and salvage: how many and from what. */
-    static void echoShards(ServerPlayer player, int amount, String source) {
-        safely("echo_shards", () -> record(player, "echo_shards", Map.of("amount", amount, "source", source)));
+    /** Emeralds granted as a dungeon reward (J1): how many and from what. */
+    static void emeralds(ServerPlayer player, int amount, String source) {
+        safely("emeralds", () -> record(player, "emeralds", Map.of("amount", amount, "source", source)));
     }
 
     /** One salvage at the bench: what went in and what came out (A3, the surplus sink). */

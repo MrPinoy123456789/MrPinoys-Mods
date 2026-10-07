@@ -90,7 +90,7 @@ final class Fountain {
     /** Whether a cell holds a fountain and which boon, from the plan seed and the cell alone. */
     static Boon roll(long seed, BlockPos cellOrigin, double chance) {
         RandomSource random = RandomSource.create(seed ^ (cellOrigin.asLong() * 0x9E3779B97F4A7C15L) ^ 0xF0F7A1DL);
-        if (!Fuel.rollChance(random, chance)) {
+        if (!Rolls.chance(random, chance)) {
             return null;
         }
         return Boon.values()[random.nextInt(Boon.values().length)];

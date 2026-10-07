@@ -1336,9 +1336,9 @@ final class RunLifecycle {
     }
 
     /**
-     * Finishing a dungeon (design D11, D12 revised), run once when the final node's floor is
+     * Finishing a dungeon (design D11, D12 revised, J1), run once when the final node's floor is
      * cleared: the dungeon is recorded as finished for each member present, and every
-     * dungeon pays its guaranteed echo shard per member, the themed
+     * dungeon pays its {@code finishEmeralds} per member, the themed
      * vault (extra completion chests at the dungeon's top loot tier) and, on a
      * member's first finish of it, the dungeon's diary page if it names one.
      *
@@ -1347,7 +1347,7 @@ final class RunLifecycle {
      * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
      * the return trip stay one code path, and the party can still loot the chests and
      * the vault before it walks home. Going home early (any earlier staging room)
-     * banks steps and chests only, with no shard, vault or page.
+     * banks chests only, with no emeralds, vault or page.
      */
     private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                       DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
@@ -1364,12 +1364,20 @@ final class RunLifecycle {
             if (def.kind() == DungeonDef.Kind.CAPSTONE) {
                 DungeonProgress.onCapstoneCleared(server, record, memberPlayer, def);
             }
-            int shards = PocketDungeonsConfig.echoShardsPerFinish();
+            // J1: the finish pays emeralds now; the echo shard is retired.
+            int emeralds = PocketDungeonsConfig.finishEmeralds();
             String diaryId = "";
-            Fuel.grantFrom(memberPlayer, shards, "dungeon_finish");
-            // Lemon's archive: all diaries handed over earns one more.
+            if (emeralds > 0) {
+                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, emeralds));
+                memberPlayer.sendSystemMessage(Component.literal(
+                        "+" + emeralds + " emeralds (dungeon finish)")
+                        .withStyle(ChatFormatting.AQUA));
+                PlaytestJournal.emeralds(memberPlayer, emeralds, "dungeon_finish");
+            }
+            // Lemon's archive: all diaries handed over earns a bonus.
             if (LemonArchive.complete(server, member)) {
-                Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
+                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, 8));
+                PlaytestJournal.emeralds(memberPlayer, 8, "lemon_archive");
             }
             // W6: every dungeon's first finish hands over its diary page (the page is
             // a memory, not a payout).
@@ -1379,7 +1387,7 @@ final class RunLifecycle {
                     diaryId = page.id();
                 }
             }
-            PlaytestJournal.dungeonFinished(memberPlayer, record, shards, vaultChests, first, diaryId);
+            PlaytestJournal.dungeonFinished(memberPlayer, record, emeralds, vaultChests, first, diaryId);
         }
     }
 
@@ -1588,9 +1596,9 @@ final class RunLifecycle {
                 }
             }
 
-            // Dungeon structure W2: no shard is paid at the bank. The guaranteed echo shard
-            // comes from finishing a dungeon (finishDungeon); going home early banks key
-            // steps and chests only (design D11).
+            // J1: nothing is paid at the bank. The finish emeralds come from
+            // finishing a dungeon (finishDungeon); going home early banks
+            // chests only (design D11).
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 

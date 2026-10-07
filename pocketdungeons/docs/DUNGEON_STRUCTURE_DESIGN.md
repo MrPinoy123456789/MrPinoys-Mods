@@ -36,10 +36,10 @@ mines), `AGENDA.md` (A2, A3, A6, A7, A8), `AUDIT_2026-09.md` section 11,
 | Theme per floor | Every door offers a different theme, drawn (weighted, deduped) from the current theme's `next` list. So every floor changes theme. This is the cause of "disconnected". | `AdventureGraph.pick`, `Keystone.offers`, `data/pocketdungeons/dungeon_adventure/*.json` |
 | Theme graph | 12 nodes. `deepslate` and `prismarine` are `entry`, `drowned_vault` is `boss` (Drowned Warden capstone, resets to an entry theme), the rest `descent`. `currentTheme` and `depth` persist in `DungeonLog` across trips and banks. | `AdventureGraph.Kind`, `DungeonLog.recordTheme` |
 | Zone unlocks | `rules.unlock_level` exists, but no theme file sets it, so every zone is open at keystone 1. Deepslate (an entry) lists `ender_archive` and `basalt_foundry` as next. This is why the End came early. | `ZoneRules.unlockLevel`, theme files |
-| Doors and steps | Door 1 is +1 and free; door 2 is +2, needs keystone 7 and 3 shards; door 3 is +3, needs keystone 15 and 3 shards. The floor runs at keystone + step. | `Keystone.offers`, `KeystoneMath.upgrade`, `door2MinLevel`, `greaterDoorMinLevel`, `fuelCostPerGreaterDoor` |
+| Doors and steps | Every door deals a step of +1, +2 or +3; main edges are free, side edges cost scrap. The floor runs at the node's authored level. | `Keystone.offers`, `TripDoors`, `FloorLevels` |
 | What the level does | Mob scale (0.65 + 0.8% per level), loot tier (1 to 4 at tier 1, 5 to 9 tier 2, 10 to 19 tier 3 diamond, 20+ tier 4 netherite), seeded affix count (1 from level 5, 2 from 25, +1 per 20). The keystone is fixed for a whole trip; it only changes at a bank. | `DifficultyProfile`, `KeystoneMath.lootTier`, `AffixMath.seededCount` |
 | Banking | A floor clear pays each member its dealt step in scrap, or emeralds when the member's permanent chart level already stands above the floor (`step * overlevelEmeraldsPerScrap`, default 2). | `FloorPay`, `ScrapMath` |
-| Echo shards | 0.5 chance per member on every floor clear (still in code although the owner asked on 2026-10-02-2 to remove it), 1 per full trip at bank, 0.25 per Ordeal per player, 1 for a short trip ended on the free door. | `RunLifecycle` (floor roll near line 1221, bank near 1451), `Ordeals` |
+| Echo shards | Retired as currency (J1): `Fuel` is deleted, the finish pays `finishEmeralds` (8), an Ordeal pays 2 emeralds at a 0.25 chance, the full archive pays 8 more per finish, and side branches are priced in scrap. Banked or held shards are ignored, with no migration. | `ScrapMath`, `Ordeals`, `RunLifecycle.finishDungeon` |
 | Endless Mine | A Cube recipe (raw iron, keystone 5) forces the `endless_mine` theme for the trip: no final floor, loot tier +1 every 3 floors, materials role. | `cube_recipe/endless_mine.json`, `EndlessMineRules`, `ZONES_SPEC.md` section 3 |
 | Rooms | 61 rooms; 10 are bound to themes by a `theme` field, 51 are generic and reskinned by the theme's processors. A cell is 16x7x16. | `dungeon_room/*.json`, `RoomSelector` |
 | Breaking blocks | Inside a dungeon cell, only the shell is protected. Any interior block breaks with the correct tool ("right tool for the job"), and a player can always break their own placed blocks. | `RoomProtection.beforeBlockBreak`, `DungeonTools.isCorrectTool` |
@@ -55,7 +55,7 @@ mines), `AGENDA.md` (A2, A3, A6, A7, A8), `AUDIT_2026-09.md` section 11,
 | Room | One cell on a floor, as today. | unchanged |
 | Act | A group of dungeons that stands for one stage of a vanilla playthrough, closed by a capstone. | new |
 | Capstone | The final dungeon of an act; clearing its final floor opens the next act. | the `boss` node kind |
-| Main path / side branch | An edge between floors that is free / costs echo shards. | Greater doors |
+| Main path / side branch | An edge between floors that is free / costs scrap. | Greater doors |
 | Resource node | A block a player may break: ore, log, harvestable. Everything else in a room is unbreakable. | "right tool for the job" on any block |
 
 "Set" and "interval" are retired from anything a player reads. `interval`
@@ -98,8 +98,8 @@ confirmed by the owner on 2026-10-05.
   pack validator rule). Greater doors, their tier and the free door's shard
   payout are removed. Steps are the risk; scrap is the route.
 - **D6. The staging room shows the whole dungeon map**: the graph, where you
-  are, the final floor, each edge's shard cost and what each branch can reach.
-  Each door shows floor name, step, affix, loot tier and shard cost. Steps of
+  are, the final floor, each edge's scrap cost and what each branch can reach.
+  Each door shows floor name, step, affix, loot tier and scrap cost. Steps of
   later floors are hidden until you get there (rolled on arrival). This also
   answers the 2026-10-02-1 ask for diagrams over text on the go-home screen.
 
@@ -150,15 +150,15 @@ confirmed by the owner on 2026-10-05.
   the floors paid but no emeralds, no vault, no page. Amended 2026-10-06
   (plan 2026-10-06-2 J1): echo shards retire as currency; the finish pays
   `finishEmeralds` (8).
-  - **2026-10-05 rework: chart scrap, charts and the compass.** Player-facing,
-    the keystone is the **compass**. A door's step is dealt as **chart scrap**
-    (still 1 to 3, still sets the floor's level). Five scrap make one **chart**;
-    scrap only lives inside the dungeon, so going home converts what you carry
-    into whole charts and the remainder is lost (the go-home confirm says both
-    numbers). Each chart raised the compass one level, so banking slows to about
-    a chart per typical trip. A floor far beneath a member's compass pays them
-    less: `scrap - (member level - floor level)`, floored at 0, settled per
-    member. Carried progress between trips is gone.
+  - **2026-10-05 rework, amended 2026-10-06 (J1): chart scrap, charts and the
+    compass.** Player-facing, the keystone is the **compass**. A door's step is
+    dealt as **chart scrap** (1 to 3). Five scrap make one **chart**, and scrap
+    is paid on the spot at each floor clear, per member: `FloorPay` pays the
+    step as scrap when the member's permanent chart high is at or below the
+    floor, else `step * overlevelEmeraldsPerScrap` emeralds. Scrap is also the
+    side-branch currency (D5), spent from the same pool; `highestCharts` is
+    permanent and never falls, so spending never re-opens cheap scrap. Going
+    home converts nothing: the pack and the earned scrap are simply kept.
   - **2026-10-06 rework: authored floor levels.** A dungeon declares
     `baseLevel` (the entry floor's level); a node's floor runs at
     `baseLevel + layer - 1` unless the node pins its own `level`. A node's
@@ -175,16 +175,17 @@ confirmed by the owner on 2026-10-05.
     two displays (a title at scale 2.0, a body at 1.6; revised 2026-10-06, see
     `design-2026-10-06-1.md` item 1). Title: `DUNGEON * floor N of M` (yellow;
     the Endless Mine has no M). Body: the floor's name in white with its
-    affixes in magenta; a cyan line of what you get (scrap, or `too easy` in
-    gray, a resource dungeon's ore as plain words, the floor's promises, and on
-    the last floor the shard, the vault and the diary page while it is still
-    owed); `loot xN` in green, followed by `costs N echo shards` in yellow when
+    affixes in magenta; a cyan line of what you get (the floor pay: scrap, or
+    `N emeralds` for a member above the floor's level, a resource floor's ore
+    as plain words, the floor's promises, and on the last floor the finish
+    emeralds, the vault and the diary page while it is still owed); `loot xN`
+    in green, followed by `costs N scrap` in yellow when
     the door has a price. Dark, dim and experimental floors add a line. The
     separator is a middle dot. No labels: colour does the grouping.
   - **The GO HOME board** is the same split (title 1.0, body 0.8): `GO HOME`
-    (green once the dungeon is cleared), the scrap carried in cyan, and what it
-    comes to: `2 more for a chart` (gold), `1 chart` (green), `2 scrap lost`
-    (gray), or `no scrap yet`.
+    (green once the dungeon is cleared), and what going home costs: nothing is
+    banked and nothing is forfeited but the unfinished finish rewards
+    (`Unfinished: vault, page`). The `Lives N` line is step 4's work.
 - **D12. A dungeon's resource nodes are flavour; the Mineshaft has the most.**
   Revised 2026-10-06 (plan 2026-10-06-2 G): the resource kind is retired. Every
   dungeon pays scrap, and its finish pays emeralds, the vault and the page.
@@ -332,23 +333,22 @@ final vault.
 
 ## 6. Staged implementation outline (no code)
 
-**Stage 0, before anything else.**
-- Remove the per-floor shard roll (`echoShardFloorChance` to 0), as already
-  asked on 2026-10-02-2.
+**Stage 0, before anything else.** (Done since: echo shards are fully retired
+under J1.)
 - Fix the "inaccessible rooms" first (PD-143, PD-144, PD-145, PD-140), since
   the audit and D20 both depend on rooms being passable.
 
 **Stage 1: mechanics on existing themes (the first playtest).**
 - A `dungeon` data type: id, name, act (unused yet), layers, nodes (name,
   room bias, optional signature affix, optional room count), edges (from, to,
-  shard cost). Replaces `dungeon_adventure` for door offers.
+  scrap cost). Replaces `dungeon_adventure` for door offers.
 - One dungeon per existing theme, 3 to 5 layers, nodes as named variants of
   the theme's room pool.
 - First door of a trip picks a dungeon; later doors are the current node's
-  edges. Random seeded steps; side-branch shard cost; at least one free edge
+  edges. Random seeded steps; side-branch scrap cost; at least one free edge
   (validator).
 - Staging room map (D6) and door labels.
-- Finish pays shard + vault (+ page if one exists). Bank stays sum / 3.
+- Finish pays emeralds + vault (+ page if one exists). The bank pays nothing.
 - Retire Greater doors, door gates, the free door's shard and the trip-length
   meaning of `floorsPerSafeVisit` in player text.
 - Journal events: dungeon chosen, node entered, edge taken (cost), step dealt,
@@ -442,7 +442,7 @@ The owner chose four hypotheses for the first playtest:
 | The dungeon feels connected | A6 | Unprompted comments on theme and place; whether he can name the dungeon and its floors after a trip | "Still feels random", or one theme over 5 floors feels samey (51 of 61 rooms are generic) |
 | Finishing pulls | A7, A2 | Floors per trip (today always 3), why he went on or went home, the finish vault and page comments | He still banks at 3 and never finishes: shorten dungeons or move the vault earlier |
 | Length is right | A8 | Floors per dungeon, seconds per floor (today 218 to 828 s, floor 1 slowest) | A full dungeon does not fit a sitting (more than about 45 minutes): shorter floors, not fewer layers |
-| Shards buy branches | A3, A6 | Shards held at each staging room, side branches taken, shards left unspent | Never affordable (raise income) or always taken (raise cost) |
+| Scrap buys branches | A3, A6 | Scrap held at each staging room, side branches taken, scrap left unspent | Never affordable (raise income) or always taken (raise cost) |
 
 Further risks to watch:
 
@@ -504,7 +504,7 @@ decoration (W6, W7), and the room selector reading `dungeons`, `acts`,
 
 - **Mineshaft** (act 1, resource, 3 layers, no diamond), **Cow Pits** (act 2, resource, 2 layers) and
   **Lush Caves** (the `rootworks` id, renamed for players). A resource dungeon may be 1 to 3 layers
-  (`DungeonDef.problems`); its first finish now hands over its diary page (no shard, no vault).
+  (`DungeonDef.problems`); its first finish hands over its diary page.
 - **Cow Pits finite rule**: adult cows only (`CowPits`, entity tag `pocketdungeons_cow`), wheat is refused
   by a use callback, any baby cow in the dungeon dimension is removed, and the Cow Pits loot tables
   (`*_cow_pits`, also the supply tables, which `TrialContent` now resolves with the theme suffix) are filtered
@@ -609,7 +609,7 @@ dungeons gained the four forest blocks in their `nodePalette`, a grove node bias
 ### The Wither (Act 4, `wither_keep`, 4 layers, loot band 3 to 4)
 
 Nodes: The Soul Gate, then The Fortress Bridges or The Warped Grove, then The Skull Cellars or The Blaze Spire
-(a Basalt Foundry floor, one shard side edge from the bridges), then The Wither's Throne (`wither_hall`,
+(a Basalt Foundry floor, one scrap side edge from the bridges), then The Wither's Throne (`wither_hall`,
 `graphRole: capstone`, an exit room with its own pad). Theme `wither_keep`: nether brick and soul soil
 processors, wither skeleton and blaze trial spawners, the Basalt Foundry loot tables.
 
@@ -634,7 +634,7 @@ processors, wither skeleton and blaze trial spawners, the Basalt Foundry loot ta
 ### The End (Act 5, `the_end`, 4 layers, loot band 4)
 
 A story dungeon. Nodes: The Outer Gate, The Outer Islands or The Chorus Orchard, then The End City, The
-Stronghold Stacks (an Ender Archive floor) or The End Ship (one shard side edge), then The Rim of the World.
+Stronghold Stacks (an Ender Archive floor) or The End Ship (one scrap side edge), then The Rim of the World.
 Rooms `end_island` (4 doors, chorus plants, an obsidian spire, diamond and debris nodes), `end_city_hall`
 (4 doors, purpur pillars with end rods) and `end_ship` (2 doors, a hull, a brewing stand and a dragon head).
 Trial spawners: endermen, shulkers, endermites. Diary entry 24.

@@ -76,17 +76,4 @@ final class SalvageMath {
         return Math.max(0, keys) * Math.max(0, perKey);
     }
 
-    /**
-     * Fuel for {@code keys} keys at {@code keysPerFuel} keys a unit, or 0 when
-     * the trade is off ({@code keysPerFuel <= 0}). Whole units only: the
-     * remainder is not bought, see {@link #keysForFuel}.
-     */
-    static int keyFuel(int keys, int keysPerFuel) {
-        return keysPerFuel <= 0 ? 0 : Math.max(0, keys) / keysPerFuel;
-    }
-
-    /** How many keys {@link #keyFuel} actually takes; the rest stay with the player. */
-    static int keysForFuel(int keys, int keysPerFuel) {
-        return keyFuel(keys, keysPerFuel) * Math.max(0, keysPerFuel);
-    }
 }

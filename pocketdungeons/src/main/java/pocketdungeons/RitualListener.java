@@ -63,7 +63,6 @@ final class RitualListener {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             Keystone.warmUp();
             TrialContent.warmUp();
-            Fuel.warmUp();
             RerollStation.warmUp();
             RunStorage.warmUp();
             SalvageStation.warmUp();
@@ -511,7 +510,7 @@ final class RitualListener {
                         RoomTemplateGenerator.bulbAlongForStep(step), false);
             }
             // Show why this door cannot be previewed. The doorRefusal
-            // method knows the exact reason (level gate or fuel gate).
+            // method knows the exact reason (a scrap cost or a finished run).
             // Without this, a player who right-clicks a greater door they
             // cannot afford gets no feedback at all: the bulb does not
             // light, the screen does not change, and they have no idea

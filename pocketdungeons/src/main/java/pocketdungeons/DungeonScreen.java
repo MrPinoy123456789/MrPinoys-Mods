@@ -376,9 +376,9 @@ final class DungeonScreen {
                 addPart(gets, reward.displayName(), ChatFormatting.AQUA);
             }
             if (node.isFinal()) {
-                int shards = PocketDungeonsConfig.echoShardsPerFinish();
-                if (shards > 0) {
-                    addPart(gets, BoardText.shardText(shards), ChatFormatting.AQUA);
+                int emeralds = PocketDungeonsConfig.finishEmeralds();
+                if (emeralds > 0) {
+                    addPart(gets, emeralds + " emeralds", ChatFormatting.AQUA);
                 }
                 addPart(gets, "vault", ChatFormatting.AQUA);
                 if (diaryOwed(def, entry)) {

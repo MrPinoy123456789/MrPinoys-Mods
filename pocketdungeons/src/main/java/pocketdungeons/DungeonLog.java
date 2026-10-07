@@ -111,12 +111,12 @@ final class DungeonLog extends SavedData {
      *                           the owner's player name instead. A label, not an
      *                           address: the directory routes on the owner UUID
      *                           carried in the button payload, never on this.
-     * @param fuel               superseded 2026-10-02: the echo shards this
-     *                           player had banked in the engine terminal. A
-     *                           Greater door now takes shards from the pack, so
-     *                           nothing banks any more; {@link Fuel#refundBanked}
-     *                           hands a leftover balance back as shards and
-     *                           zeroes it. The codec field stays (CONVENTIONS.md).
+     * @param fuel               superseded by J1 (2026-10-06): the echo shards
+     *                           this player had banked in the engine terminal.
+     *                           The Fuel currency is gone entirely; a leftover
+     *                           balance is simply ignored, per the owner's call
+     *                           that banked shards get no migration. The codec
+     *                           field stays (CONVENTIONS.md).
      * @param unlockedShells     (M24) every shell palette this player has
      *                           permanently unlocked, one entry per unlock name
      *                           (see {@code RoomBuilder.SHELL_PALETTES}),
@@ -1062,8 +1062,8 @@ final class DungeonLog extends SavedData {
 
     /**
      * Adds {@code amount} to this player's superseded fuel balance, or takes it
-     * away when negative; the balance never goes below zero. Only
-     * {@link Fuel#refundBanked} still calls this, to empty an old balance.
+     * away when negative; the balance never goes below zero. Only the reset
+     * campaign test still calls this, to prove a reset clears the old field.
      */
     void addFuel(UUID player, int amount) {
         if (amount == 0) {

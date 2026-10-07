@@ -36,10 +36,6 @@ final class BoardText {
         return "loot \u00d7" + chests;
     }
 
-    /** {@code "1 echo shard"} or {@code "2 echo shards"}. */
-    static String shardText(int shards) {
-        return shards + (shards == 1 ? " echo shard" : " echo shards");
-    }
 
     /** {@code "costs 2 scrap"}: the door's price, worded as a price so it cannot read as a gain. */
     static String costText(int scrap) {

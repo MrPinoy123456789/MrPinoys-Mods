@@ -19,8 +19,8 @@ import net.minecraft.world.phys.AABB;
  * M63 currency conservation: a station or a payout may refuse, but it may never
  * charge without delivering, deliver without charging, or deliver twice.
  *
- * <p>Same package rationale as {@link CustodyGameTest}: {@link Fuel},
- * {@link Payout}, {@link RerollStation} and {@link CubeStation} are all
+ * <p>Same package rationale as {@link CustodyGameTest}: {@link Payout},
+ * {@link RerollStation} and {@link CubeStation} are all
  * package-private, and sharing the package is cheaper than opening them.
  *
  * <h2>What is here and what is not</h2>
@@ -36,94 +36,6 @@ import net.minecraft.world.phys.AABB;
  */
 @SuppressWarnings("removal")
 public final class EconomyGameTest {
-
-    /**
-     * A Greater door pays from the pack (2026-10-02): what is taken leaves the
-     * inventory, and asking for more than is carried takes only what exists.
-     */
-    @GameTest
-    public void fuelIsTakenFromThePackWithoutMinting(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        Fuel.grant(player, 10);
-        helper.assertValueEqual(Fuel.carried(player), 10, "a grant of ten put ten shards in the pack");
-        helper.assertValueEqual(carriedFuel(player), 10, "and the slot count agrees");
-
-        helper.assertValueEqual(Fuel.take(player, 4), 4, "taking four took four");
-        helper.assertValueEqual(Fuel.carried(player), 6, "leaving six");
-
-        helper.assertValueEqual(Fuel.take(player, 10), 6, "asking for ten took only the six there were");
-        helper.assertValueEqual(Fuel.carried(player), 0, "and nothing is left or minted");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
-
-    /** A balance left in the retired engine bank comes back as shards, once. */
-    @GameTest
-    public void aBankedBalanceIsRefundedAsShards(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        log.addFuel(player.getUUID(), 5);
-        Fuel.refundBanked(player);
-        helper.assertValueEqual(Fuel.carried(player), 5, "the five banked shards are back in the pack");
-        helper.assertValueEqual(log.get(player.getUUID()).fuel(), 0, "and the balance is empty");
-
-        Fuel.refundBanked(player);
-        helper.assertValueEqual(Fuel.carried(player), 5, "a second refund hands back nothing more");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
-
-    /**
-     * PD-48, revised 2026-10-02: plain echo shards and this mod's old marked
-     * shards pay for a door; a shard another mod re-skinned with its own
-     * custom data does not, and is never taken.
-     */
-    @GameTest
-    public void plainShardsCountButAnotherModsShardDoesNot(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Item fuelItem = requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        player.getInventory().setItem(0, new ItemStack(fuelItem, 3));
-        ItemStack marked = new ItemStack(fuelItem, 2);
-        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, marked, tag -> {
-            net.minecraft.nbt.CompoundTag mine = new net.minecraft.nbt.CompoundTag();
-            mine.putBoolean("fuel", true);
-            tag.put(PocketDungeonsMod.MOD_ID, mine);
-        });
-        player.getInventory().setItem(1, marked);
-        ItemStack foreign = new ItemStack(fuelItem, 7);
-        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, foreign, tag -> {
-            net.minecraft.nbt.CompoundTag theirs = new net.minecraft.nbt.CompoundTag();
-            theirs.putBoolean("boss_stone", true);
-            tag.put("kamutotems", theirs);
-        });
-        player.getInventory().setItem(2, foreign);
-
-        helper.assertValueEqual(Fuel.carried(player), 5, "three plain and two marked shards count");
-        helper.assertValueEqual(Fuel.take(player, 10), 5, "only those five are taken");
-        helper.assertValueEqual(player.getInventory().getItem(2).getCount(), 7,
-                "the other mod's shards are untouched");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
 
     /**
      * A reward handed to a player with nowhere to put it lands on the floor,
@@ -242,26 +154,6 @@ public final class EconomyGameTest {
         return player;
     }
 
-    private static Item requireFuelItem(GameTestHelper helper) {
-        Item item = Fuel.item();
-        if (item == null) {
-            helper.fail("the configured fuel item did not resolve; the economy cannot be asserted on");
-        }
-        return item;
-    }
-
-    /** How many fuel units the player is carrying, by {@link Fuel#isFuel}'s own rule, slot by slot. */
-    private static int carriedFuel(ServerPlayer player) {
-        int total = 0;
-        for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
-            ItemStack stack = player.getInventory().getItem(slot);
-            if (Fuel.isFuel(stack)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
-    }
-
     private static int countIn(ServerPlayer player, Item item) {
         int total = 0;
         for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
@@ -298,13 +190,6 @@ public final class EconomyGameTest {
         return false;
     }
 
-    private static void clearFuel(DungeonLog log, ServerPlayer player) {
-        int banked = log.get(player.getUUID()).fuel();
-        if (banked != 0) {
-            log.addFuel(player.getUUID(), -banked);
-        }
-    }
-
     private static void emptyInventory(ServerPlayer player) {
         for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
             player.getInventory().setItem(slot, ItemStack.EMPTY);
@@ -313,7 +198,6 @@ public final class EconomyGameTest {
     }
 
     private static void cleanUp(MinecraftServer server, DungeonLog log, ServerPlayer player) {
-        clearFuel(log, player);
         emptyInventory(player);
         server.getPlayerList().remove(player);
     }

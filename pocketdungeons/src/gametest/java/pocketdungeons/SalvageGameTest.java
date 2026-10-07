@@ -20,8 +20,7 @@ import java.util.Set;
  * and what it leaves alone. Drives {@link SalvageStation#salvageContents}
  * directly, the screen's Salvage button minus the screen: nothing headless
  * clicks an SGUI chest (DISCOVERIES trap 10). The rates are the shipped
- * defaults (1 emerald per tier, 1 per key, 3 per ominous key, keys to fuel
- * off).
+ * defaults (1 emerald per tier, 1 per key, 3 per ominous key).
  */
 @SuppressWarnings("removal")
 public final class SalvageGameTest {

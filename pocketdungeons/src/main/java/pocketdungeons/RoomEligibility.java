@@ -51,7 +51,7 @@ final class RoomEligibility {
      * @param borrowedFromDungeon the dungeon that owns a borrowed floor theme, or empty when not borrowed
      * @param entryNode           whether the floor is the dungeon's entry node
      * @param finalNode           whether the floor is a final node
-     * @param sideEdge            whether the floor was reached by a side edge (a shard cost)
+     * @param sideEdge            whether the floor was reached by a side edge (a scrap cost)
      * @param minNodeRooms        how many node-bearing rooms the floor must place (the PD-149
      *                            guarantee as data, {@code DungeonDef.minNodeRooms}); 0 means none
      */
