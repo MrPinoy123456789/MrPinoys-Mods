@@ -223,6 +223,19 @@ public class DungeonLogTest {
         check(legacyRunsDecoded.runRecordsOf(player).isEmpty(), true,
                 "pre-M75 save defaults run records to empty");
 
+        // J1: the scrap pool and its permanent high.
+        DungeonLog scrapLog = new DungeonLog();
+        check(scrapLog.get(player).scrap(), 0, "no scrap before the first clear");
+        check(scrapLog.get(player).highestCharts(), 0, "no charts before the first clear");
+        check(scrapLog.addScrap(player, 4), false, "4 scrap earns no chart");
+        check(scrapLog.addScrap(player, 1), true, "the fifth scrap earns the first chart");
+        check(scrapLog.get(player).scrap(), 5, "the pool holds all 5 scrap");
+        check(scrapLog.get(player).highestCharts(), 1, "the high rose to 1");
+        check(scrapLog.spendScrap(player, 4), true, "spending inside the pool works");
+        check(scrapLog.spendScrap(player, 2), false, "spending past the pool refuses");
+        check(scrapLog.get(player).scrap(), 1, "spend drained the pool, not more");
+        check(scrapLog.get(player).highestCharts(), 1, "spending never lowers the high");
+
         System.out.println("DungeonLogTest passed");
     }
 
