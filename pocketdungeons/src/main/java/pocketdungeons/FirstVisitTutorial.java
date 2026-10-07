@@ -140,14 +140,16 @@ final class FirstVisitTutorial {
     }
 
     /**
-     * The party just arrived home: the way-home step when it is due, then
-     * {@link StationTutorial}'s nudge as the tail, so one tour covers both.
+     * The party just arrived home: the way-home step when it is due, the
+     * vendor's gear re-roll (J5a), then {@link StationTutorial}'s nudge as
+     * the tail, so one tour covers all of it.
      */
     static void homeArrival(MinecraftServer server, InstanceRecord record) {
         UUID leader = leaderOf(record);
         if (leader != null) {
             run(server, leader, Trigger.HOME_ARRIVAL, members(server, record));
         }
+        LibrarianNPC.restock(server, record);
         StationTutorial.nagMembers(server, record);
     }
 

@@ -321,14 +321,15 @@ for ((taskName, testClass) in mapOf(
     "roomScanTest" to "RoomScanTest",
     "floorHistoryTest" to "FloorHistoryTest",
     "rerollMathTest" to "RerollMathTest",
-    "gambleMathTest" to "GambleMathTest",
+    // Step 14 (J5a): the gamble station's math became the home vendor's.
+    "vendorMathTest" to "VendorMathTest",
+    "vendorStockTest" to "VendorStockTest",
     "salvageMathTest" to "SalvageMathTest",
     "storePricingTest" to "StorePricingTest",
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
     "connectorTest" to "ConnectorTest",
-    "cubeStationTest" to "CubeStationTest",
     "roomStoreTest" to "RoomStoreTest",
     "payoutTest" to "PayoutTest",
     // Situations round, registered here by M46B so no other milestone in the
@@ -420,12 +421,13 @@ tasks.test {
     dependsOn("floorHistoryTest")
     dependsOn("salvageMathTest")
     dependsOn("rerollMathTest")
-    dependsOn("gambleMathTest")
+    dependsOn("vendorMathTest")
+    dependsOn("vendorStockTest")
+    dependsOn("storePricingTest")
     dependsOn("powerEquipMathTest")
     dependsOn("pocket2Test")
     dependsOn("trialContentConfigIdTest")
     dependsOn("connectorTest")
-    dependsOn("cubeStationTest")
     dependsOn("roomStoreTest")
     dependsOn("payoutTest")
     dependsOn("doorMaskTest")

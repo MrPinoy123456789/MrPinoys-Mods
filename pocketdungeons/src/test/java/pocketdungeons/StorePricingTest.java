@@ -1,29 +1,46 @@
 package pocketdungeons;
 
 /**
- * Pure-JDK regression for the store's pricing and slot composition. Same shape
- * as {@code SalvageMathTest}: no Minecraft classpath, run from {@code tasks.test}.
+ * Pure-JDK regression for the store's buy bundles and slot composition.
+ * Same shape as {@code SalvageMathTest}: no Minecraft classpath, run from
+ * {@code tasks.test}.
  */
 public class StorePricingTest {
 
     public static void main(String[] args) {
-        testDropPrice();
+        testBuyBundle();
+        testNeverBuy();
         testCompositionBounds();
         testCompositionTrim();
         System.out.println("StorePricingTest passed");
     }
 
-    private static void testDropPrice() {
-        check(StorePricing.dropPrice(6, 1.0), 6);
-        // Bones are worth two per emerald's worth of goods; a pearl is worth two emeralds.
-        check(StorePricing.dropPrice(3, 2.0), 6);
-        check(StorePricing.dropPrice(4, 0.5), 2);
-        // Never free, however valuable the drop.
-        check(StorePricing.dropPrice(1, 0.25), 1);
-        check(StorePricing.dropPrice(0, 2.0), 1);
+    private static void testBuyBundle() {
+        // Two bones per emerald at full rate is a 2-for-1 offer.
+        check(StorePricing.buyBundle(2.0, 1.0)[0], 2);
+        check(StorePricing.buyBundle(2.0, 1.0)[1], 1);
+        // The home vendor pays half: four bones for one emerald.
+        check(StorePricing.buyBundle(2.0, VendorMath.BUY_RATE)[0], 4);
+        check(StorePricing.buyBundle(2.0, VendorMath.BUY_RATE)[1], 1);
+        // A drop worth more than an emerald flips the bundle: one drop for
+        // several emeralds, and the home vendor halves that too.
+        check(StorePricing.buyBundle(0.5, 1.0)[0], 1);
+        check(StorePricing.buyBundle(0.5, 1.0)[1], 2);
+        check(StorePricing.buyBundle(0.5, VendorMath.BUY_RATE)[0], 1);
+        check(StorePricing.buyBundle(0.5, VendorMath.BUY_RATE)[1], 1);
+        // Never free, however cheap or valuable the drop.
+        check(StorePricing.buyBundle(4.0, 1.0)[1], 1);
+        check(StorePricing.buyBundle(0.01, 1.0)[0], 1);
+        check(StorePricing.buyBundle(0.01, 1.0)[1] > 0, true);
     }
 
-    /** Every combination of the four rolls stays inside the spec's ranges and the GUI's seven slots. */
+    /** Gunpowder and sand make TNT; no merchant ever pays emeralds for them. */
+    private static void testNeverBuy() {
+        check(StorePricing.NEVER_BUY.contains("minecraft:gunpowder"), true);
+        check(StorePricing.NEVER_BUY.contains("minecraft:sand"), true);
+    }
+
+    /** Every combination of the four rolls stays inside the spec's ranges and the offer slots. */
     private static void testCompositionBounds() {
         for (int mask = 0; mask < 16; mask++) {
             boolean[] rolls = {(mask & 1) != 0, (mask & 2) != 0, (mask & 4) != 0, (mask & 8) != 0};

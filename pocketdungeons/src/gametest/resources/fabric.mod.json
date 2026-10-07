@@ -31,7 +31,7 @@
       "pocketdungeons.LootTagGameTest",
       "pocketdungeons.FloorHistoryGameTest",
       "pocketdungeons.FountainGameTest",
-      "pocketdungeons.LockInGameTest",
+
       "pocketdungeons.ThemedMerchantGameTest",
       "pocketdungeons.PartyAccessGameTest",
       "pocketdungeons.PlaytestFixGameTest",

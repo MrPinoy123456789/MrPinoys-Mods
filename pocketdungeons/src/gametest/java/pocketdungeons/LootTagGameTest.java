@@ -243,4 +243,22 @@ public final class LootTagGameTest {
         });
         return stack;
     }
+
+    /**
+     * Playtest 2026-10-02-1: Mending is the home vendor's 64 emerald book
+     * (J5a), never a random loot enchantment.
+     */
+    @GameTest
+    public void mendingIsNotInTheRandomLootTag(GameTestHelper helper) {
+        var registry = helper.getLevel().registryAccess().lookupOrThrow(
+                net.minecraft.core.registries.Registries.ENCHANTMENT);
+        net.minecraft.tags.TagKey<net.minecraft.world.item.enchantment.Enchantment> tag =
+                net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENCHANTMENT,
+                        Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "random_loot"));
+        helper.assertTrue(!registry.get(net.minecraft.world.item.enchantment.Enchantments.MENDING)
+                .orElseThrow().is(tag), "Mending is not a random loot enchantment");
+        helper.assertTrue(registry.get(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS)
+                .orElseThrow().is(tag), "ordinary enchantments still are");
+        helper.succeed();
+    }
 }

@@ -185,9 +185,9 @@ public final class SalvageGameTest {
         return stack;
     }
 
-    /** Below the unlock level nothing is taken and nothing is paid. */
+    /** J5: no unlock level, so a key salvages even at compass level 0. */
     @GameTest
-    public void aKeyBelowTheUnlockLevelSalvagesNothing(GameTestHelper helper) {
+    public void aKeySalvagesWithoutAnUnlockLevel(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
@@ -195,9 +195,10 @@ public final class SalvageGameTest {
 
         SimpleContainer input = new SimpleContainer(18);
         input.setItem(0, new ItemStack(Items.TRIAL_KEY, 2));
-        helper.assertTrue(SalvageStation.salvageContents(player, input) == null, "refused below the unlock level");
-        helper.assertValueEqual(input.getItem(0).getCount(), 2, "the keys are still there");
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "and nothing was paid");
+        helper.assertTrue(SalvageStation.salvageContents(player, input) != null,
+                "no level gate stands between a key and the bench");
+        helper.assertTrue(input.getItem(0).isEmpty(), "the keys were taken");
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 2, "and paid for");
 
         cleanUp(server, player);
         helper.succeed();
@@ -206,8 +207,8 @@ public final class SalvageGameTest {
     /**
      * PD-96: in the dungeon an empty hand opens the bench, so a player who
      * never held the right item still finds it. A sneak is the vanilla
-     * grindstone, and so is any use below the unlock level that holds nothing
-     * the bench takes, and any use at all outside the dungeon.
+     * grindstone, and so is any use at all outside the dungeon. J5 removed
+     * the unlock level, so the bench opens from level 0.
      */
     @GameTest
     public void anyUseOpensTheBenchAndASneakDoesNot(GameTestHelper helper) {
@@ -221,10 +222,10 @@ public final class SalvageGameTest {
                 net.minecraft.world.inventory.ContainerLevelAccess.NULL;
 
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
-        helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access, true),
-                "below the unlock level an empty hand gets the vanilla grindstone");
+        helper.assertTrue(SalvageStation.onUse(player, grindstone, hand, access, true),
+                "J5: no unlock level, so an empty hand opens the bench from level 0");
+        player.closeContainer();
 
-        DungeonLog.forServer(server).setKeystone(player.getUUID(), 5, Set.of());
         player.setItemInHand(hand, new ItemStack(Items.TRIAL_KEY));
         helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access),
                 "outside the dungeon even a vault key gets the vanilla grindstone");

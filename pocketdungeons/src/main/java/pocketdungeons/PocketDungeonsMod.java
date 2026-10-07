@@ -61,7 +61,6 @@ public final class PocketDungeonsMod implements ModInitializer {
         TrimListener.register();
         PowerListener.register();
         DiaryReading.register();
-        BlacksmithNPC.register();
         LibrarianNPC.register();
         StoreNPC.register();
         IronDoorLatch.register();

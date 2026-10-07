@@ -960,12 +960,12 @@ public final class HandlerGameTest {
     }
 
     /**
-     * PD-103: the blacksmith sweep's scan covers the staging room. A
-     * blacksmith past the doorway, outside the old 12 block box, is still
+     * PD-103: the librarian sweep's scan covers the staging room. A
+     * librarian past the doorway, outside the old 12 block box, is still
      * found, so the sweep anchors it instead of spawning a second one.
      */
     @GameTest(maxTicks = 100)
-    public void blacksmithSweepSeesIntoTheStagingRoom(GameTestHelper helper) {
+    public void librarianSweepSeesIntoTheStagingRoom(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos roomOrigin = new BlockPos(10240, 120, 10240);
         for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
@@ -977,14 +977,14 @@ public final class HandlerGameTest {
                             net.minecraft.world.entity.EntitySpawnReason.EVENT);
             villager.setPos(roomOrigin.getX() + RoomGeometry.CELL / 2.0 + 18, roomOrigin.getY() + 1,
                     roomOrigin.getZ() + RoomGeometry.CELL / 2.0);
-            villager.addTag(BlacksmithNPC.BLACKSMITH_TAG);
+            villager.addTag(LibrarianNPC.LIBRARIAN_TAG);
             level.addFreshEntity(villager);
-            boolean found = BlacksmithNPC.findAllBlacksmiths(level, roomOrigin).contains(villager);
+            boolean found = LibrarianNPC.findAllLibrarians(level, roomOrigin).contains(villager);
             villager.discard();
             for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
                 level.setChunkForced((roomOrigin.getX() + dx) >> 4, roomOrigin.getZ() >> 4, false);
             }
-            helper.assertTrue(found, "a blacksmith 18 blocks past the room centre, in the staging room, is found");
+            helper.assertTrue(found, "a librarian 18 blocks past the room centre, in the staging room, is found");
             helper.succeed();
         });
     }

@@ -622,11 +622,6 @@ final class Instances {
         player.sendSystemMessage(Component.literal(
                 "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
 
-        // M71: fire the discovery floor. Delivers a catalyst on the first
-        // eligible safe visit, so a new player has a dependable first
-        // experiment at the Cube without being handed a recipe list.
-        DiscoveryFloor.fire(server, player);
-
         return true;
     }
 

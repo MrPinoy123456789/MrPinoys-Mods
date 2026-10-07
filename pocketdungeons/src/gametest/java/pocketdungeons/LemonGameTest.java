@@ -358,4 +358,30 @@ public final class LemonGameTest {
                 "and lets it go when the think runs out");
         helper.succeed();
     }
+
+    /**
+     * Playtest 2026-10-02-1: Lemon keeps each diary the first time it is
+     * handed over; a second copy is acknowledged but stays in the hand.
+     */
+    @GameTest
+    public void lemonKeepsAHandedDiaryOnce(GameTestHelper helper) {
+        ServerPlayer player = standingPlayer(helper, helper.absolutePos(new BlockPos(1, 2, 1)));
+        Diaries.Entry entry = Diaries.current().entries().get(0);
+        try {
+            ItemStack book = DiaryDelivery.book(entry, true);
+            helper.assertTrue(LemonArchive.bandOf(book) == entry.band(), "the book carries its band");
+            helper.assertTrue(!LemonArchive.handOver(player, new ItemStack(Items.WRITTEN_BOOK)),
+                    "an untagged book is not a diary");
+            helper.assertTrue(LemonArchive.handOver(player, book), "Lemon takes a diary");
+            helper.assertTrue(book.isEmpty(), "the book left the hand");
+            ItemStack again = DiaryDelivery.book(entry, true);
+            helper.assertTrue(LemonArchive.handOver(player, again) && !again.isEmpty(),
+                    "a second copy is handled but kept by the player");
+            helper.assertValueEqual(LemonArchive.handedCount(DungeonLog.forServer(helper.getLevel().getServer())
+                    .get(player.getUUID()).diaryBandsSeen()), 1, "one entry in the archive");
+            helper.succeed();
+        } finally {
+            Lemon.forget(helper.getLevel().getServer(), player.getUUID());
+        }
+    }
 }

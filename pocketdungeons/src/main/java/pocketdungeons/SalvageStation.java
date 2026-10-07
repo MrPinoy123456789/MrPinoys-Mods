@@ -114,9 +114,6 @@ final class SalvageStation {
         if (Keystone.isKeystone(stack)) {
             return refuse("your compass, it goes home with you");
         }
-        if (LockInStation.isLocked(stack)) {
-            return refuse("locked in, kept safe");
-        }
         if (!CubeStation.powerOf(stack).isBlank()) {
             return refuse("imbued with a power, kept safe");
         }
@@ -236,9 +233,7 @@ final class SalvageStation {
      * Called from {@link RitualListener#onUseBlock} with the other stations.
      * Returns whether this click was handled; {@code false} means not our
      * block, not the dungeon, or a sneak, and the vanilla grindstone runs as
-     * usual. Below the unlock level the vanilla grindstone runs too, unless
-     * the hand holds something the bench takes, which earns the "needs level
-     * N" line.
+     * usual. There is no level gate (J5): a placed grindstone is the bench.
      */
     static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
                          ContainerLevelAccess access) {
@@ -252,25 +247,11 @@ final class SalvageStation {
         if (!inDungeon || !matchesStation(state) || player.isShiftKeyDown()) {
             return false;
         }
-        ItemStack held = player.getItemInHand(hand);
-        boolean takes = classify(held).takes();
-        if (keystoneLevel(player) < PocketDungeonsConfig.salvageUnlockLevel()) {
-            return takes && levelTooLow(player);
-        }
         // PD-101: opening never moves the held stack; depositing is a
         // deliberate click inside the screen.
         StationTutorial.used(player, StationTutorial.Step.SALVAGE);
         open(player, new Input(), access);
         return true;
-    }
-
-    private static int keystoneLevel(ServerPlayer player) {
-        return DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
-    }
-
-    private static boolean levelTooLow(ServerPlayer player) {
-        return StationSupport.levelTooLow(player, keystoneLevel(player),
-                PocketDungeonsConfig.salvageUnlockLevel(), "salvage bench");
     }
 
     // ---- the screen ----------------------------------------------------------------
@@ -585,17 +566,13 @@ final class SalvageStation {
 
     /**
      * Takes everything the bench accepts out of {@code input} and pays for it.
-     * Re-sorts the live contents rather than trusting the last summary, and
-     * re-checks the unlock level, the same staleness discipline the reroll
-     * station follows. Refused items stay.
+     * Re-sorts the live contents rather than trusting the last summary.
+     * Refused items stay.
      * Package private so {@code SalvageGameTest} can drive it without a screen.
      *
      * @return what was paid for, or {@code null} if nothing was
      */
     static Quote salvageContents(ServerPlayer player, SimpleContainer input) {
-        if (levelTooLow(player)) {
-            return null;
-        }
         Quote q = quote(input);
         if (!q.anything()) {
             return null;

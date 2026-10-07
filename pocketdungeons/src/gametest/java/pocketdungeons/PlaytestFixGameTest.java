@@ -552,43 +552,36 @@ public final class PlaytestFixGameTest {
         net.minecraft.world.entity.npc.villager.Villager villager = found.get(0);
         net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
 
-        player.getInventory().clearContent();
-        // The seeded stock and prices vary (up to 31 units at 20 apiece), so hold plenty of every currency.
-        net.minecraft.world.item.Item[] coins = {net.minecraft.world.item.Items.BONE,
-                net.minecraft.world.item.Items.ROTTEN_FLESH, net.minecraft.world.item.Items.EMERALD};
-        int[] slots = {10, 10, 4};
-        int next = 0;
-        for (int c = 0; c < coins.length; c++) {
-            for (int n = 0; n < slots[c]; n++) {
-                player.getInventory().setItem(next++, new net.minecraft.world.item.ItemStack(coins[c], 64));
+        // J4: the offers themselves carry the stock, priced in emeralds.
+        boolean sells = false;
+        for (net.minecraft.world.item.trading.MerchantOffer offer : villager.getOffers()) {
+            if (!offer.getBaseCostA().is(net.minecraft.world.item.Items.EMERALD)) {
+                continue;
             }
+            sells = true;
+            helper.assertTrue(offer.getMaxUses() >= 1, "a sell line carries its stock as maxUses");
+            net.minecraft.world.item.ItemStack sold = offer.getResult();
+            helper.assertTrue(sold.getOrDefault(net.minecraft.core.component.DataComponents.LORE,
+                            net.minecraft.world.item.component.ItemLore.EMPTY).lines().isEmpty()
+                            && !sold.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME),
+                    "a store item is the plain item: " + sold);
         }
-        String tag = villager.entityTags().stream().filter(t -> t.startsWith("pocketdungeons_store_inv:"))
+        helper.assertTrue(sells, "the merchant sells something for emeralds");
+
+        // The journal seam: a completed trade writes shop_purchase with the
+        // vendor name and the emerald price.
+        net.minecraft.world.item.trading.MerchantOffer sell = villager.getOffers().stream()
+                .filter(o -> o.getBaseCostA().is(net.minecraft.world.item.Items.EMERALD))
                 .findFirst().orElseThrow();
-        int stock = Integer.parseInt(tag.substring("pocketdungeons_store_inv:".length()).split(";")[0].split(",", 5)[3]);
-        for (int i = 0; i < stock; i++) {
-            StoreNPC.Sale got = StoreNPC.buy(player, villager, 0);
-            helper.assertTrue(got == StoreNPC.Sale.BOUGHT, "buy " + i + " gave " + got + " from " + tag);
-        }
-        helper.assertTrue(StoreNPC.buy(player, villager, 0) == StoreNPC.Sale.SOLD_OUT, "a line bought out is sold out");
-        boolean clean = false;
-        for (net.minecraft.world.item.ItemStack stack : player.getInventory().getNonEquipmentItems()) {
-            if (!stack.isEmpty() && !stack.is(net.minecraft.world.item.Items.BONE)
-                    && !stack.is(net.minecraft.world.item.Items.ROTTEN_FLESH)
-                    && !stack.is(net.minecraft.world.item.Items.EMERALD)) {
-                clean = stack.getOrDefault(net.minecraft.core.component.DataComponents.LORE,
-                        net.minecraft.world.item.component.ItemLore.EMPTY).lines().isEmpty()
-                        && !stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
-                helper.assertTrue(clean, "a bought stack is the plain item: " + stack);
-            }
-        }
-        helper.assertTrue(clean, "the purchases reached the pack");
+        villager.setTradingPlayer(player);
+        villager.notifyTrade(sell);
+        villager.setTradingPlayer(null);
 
         boolean journaled = false;
         for (com.google.gson.JsonObject line : PlaytestJournal.recent(player.getUUID(), 50)) {
             if (line.has("ev") && "shop_purchase".equals(line.get("ev").getAsString())) {
                 journaled = "Bone Collector".equals(line.get("vendor").getAsString())
-                        && line.get("price").getAsInt() > 0;
+                        && line.get("price").getAsInt() == sell.getBaseCostA().getCount();
             }
         }
         helper.assertTrue(journaled, "a shop_purchase line names the vendor and the price");

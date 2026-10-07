@@ -67,7 +67,6 @@ final class RitualListener {
             RunStorage.warmUp();
             SalvageStation.warmUp();
             TrimListener.warmUp();
-            CubeStation.warmUp();
             PowerListener.warmUp();
         });
     }
@@ -288,19 +287,11 @@ final class RitualListener {
         // M14: the reroll station. A positive test on the held item, same as
         // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by
-        // default a plain vanilla smithing table).
+        // default a plain vanilla enchanting table, since J5).
         if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-
-        // M17: the Herobrine Cube. Two positive tests on the held item (a rare
-        // reward to extract, or imbuable gear with no power yet), same shape as
-        // the reroll station above; anything else at the same block falls
-        // straight through to vanilla's own behaviour.
-        if (CubeStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
-            return InteractionResult.SUCCESS_SERVER;
-        }
 
         // The dead-end fountain (playtest 2026-10-02-1): a full water cauldron on
         // a chiseled pedestal. Any other cauldron falls through to vanilla.
@@ -618,7 +609,6 @@ final class RitualListener {
         BlockState state = level.getBlockState(pos);
         return state.getMenuProvider(level, pos) != null
                 || RerollStation.matchesStation(state)
-                || CubeStation.matchesStation(state)
                 || SalvageStation.matchesStation(state);
     }
 

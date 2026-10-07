@@ -82,8 +82,8 @@ final class LootTables {
     }
 
     /**
-     * The equipment slots M13's gear pool is keyed by, and therefore the slots
-     * M16's gamble can be asked to roll. {@code weapon} is one slot rather than
+     * The equipment slots M13's gear pool is keyed by. {@code weapon} is one
+     * slot rather than
      * one per weapon type: a player gambling for "a weapon" wants a weapon, and
      * splitting sword/axe/bow into three would triple the tables to say the
      * same thing.
@@ -105,6 +105,14 @@ final class LootTables {
         for (int tier = 1; tier <= MAX_TIER; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));
+            }
+        }
+        // J5a: the home vendor's merged armour tables and its tool tables only
+        // run to tier 3; the vendor never sells tier IV. Weapon tables are
+        // already in GEAR_SLOTS.
+        for (int tier = 1; tier <= 3; tier++) {
+            for (String category : List.of("armour", "tool")) {
+                all.add(gearTable(category, tier));
             }
         }
         return List.copyOf(all);

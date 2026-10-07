@@ -60,10 +60,6 @@ final class DialogScreens {
     static final String KEY_ENCHANT = "pd_enchant";
     static final String ACTION_REROLL = "reroll";
 
-    /** M17: which extracted power the Cube's imbue picker's button chose. */
-    static final String KEY_POWER = "pd_power";
-    static final String ACTION_IMBUE = "imbue";
-
     /** M20: which public room the lobby browser's button chose to visit. */
     static final String ACTION_VISIT_ROOM = "pd_visit_room";
     /**
@@ -109,8 +105,6 @@ final class DialogScreens {
     /** Reads one unlocked diary entry in the book screen (playtest 2026-10-02-1). */
     static final String ACTION_READ_DIARY = "read_diary";
     static final String KEY_DIARY = "pd_diary";
-    /** The lodestone menu's Stations option: opens the SGUI station picker (owner-only). */
-    static final String ACTION_STATIONS = "stations";
     /**
      * The Back buttons. This API has no history stack, so going back is the
      * parent screen rebuilt from live state, which means a round trip through
@@ -524,47 +518,6 @@ final class DialogScreens {
         return DialogKit.list("Reroll station", body, buttons, "Close");
     }
 
-    // ---- section 8: the gear gamble station (M16) ---------------------------
-    // The gamble station now uses SGUI's MerchantGui (villager trading screen)
-    // rather than a vanilla dialog. The villager UI fits emerald-as-currency
-    // naturally, and onTrade intercepts each trade to run the real random loot
-    // draw. See GambleStation for the implementation.
-
-    // ---- section 9: the Herobrine Cube's imbue picker (M17) -----------------
-
-    /**
-     * Every power the player has extracted, one "Imbue" button each. Tier B,
-     * like {@link #rerollPicker}: the button carries the power id so
-     * {@link CubeStation#handleImbue} can re-validate the held item, the
-     * player's live extracted-power set, and the material cost, since all
-     * three can change while the picker sits open.
-     */
-    static Dialog imbuePicker(UUID player, ItemStack held, Set<String> extractedPowers,
-                              Set<String> activePowers, String notice) {
-        List<DialogBody> body = new ArrayList<>();
-        if (notice != null) {
-            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
-        }
-        int cost = PocketDungeonsConfig.imbueCost();
-        body.add(DialogKit.text("Imbuing " + held.getHoverName().getString() + ". Costs "
-                + cost + " " + PocketDungeonsConfig.imbueMaterial() + "."));
-
-        List<ActionButton> buttons = new ArrayList<>();
-        for (String power : CubeStation.sortedUnlocked(extractedPowers, activePowers)) {
-            CompoundTag context = new CompoundTag();
-            context.putString(KEY_OWNER, player.toString());
-            context.putString(KEY_POWER, power);
-            buttons.add(DialogKit.button("Imbue " + power, null, DialogKit.submit(ACTION_IMBUE, context)));
-        }
-        if (buttons.isEmpty()) {
-            body.add(DialogKit.text(extractedPowers.isEmpty()
-                    ? "You have not extracted any powers yet."
-                    : "Every power you have unlocked is already active on your worn gear."));
-            return DialogKit.notice("Herobrine Cube", body);
-        }
-        return DialogKit.list("Herobrine Cube", body, buttons, "Close");
-    }
-
     // ---- section 10: the lobby directory (M20) ------------------------------
 
     /** One row of the lobby directory before rendering, kept pure for the headless test. */
@@ -768,10 +721,6 @@ final class DialogScreens {
                 // the room is stamped, and only its owner gets to reframe it.
                 options.add(new MenuOption("Change Shell", "Swap your room's frame",
                         ACTION_CHANGE_SHELL));
-                // Stations: owner-only, same gate as Change Shell. A party
-                // member visiting another player's room does not see this.
-                options.add(new MenuOption("Stations", "Take a station block for your room",
-                        ACTION_STATIONS));
             }
             options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
             options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
@@ -791,8 +740,6 @@ final class DialogScreens {
                 new MenuOption("Visit a Friend", "Rooms you have been invited to",
                         ACTION_BROWSE_FRIENDS),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
-                new MenuOption("Stations", "Take a station block for your room",
-                        ACTION_STATIONS),
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Diaries", null, ACTION_DIARIES),
                 resetKeyOption());

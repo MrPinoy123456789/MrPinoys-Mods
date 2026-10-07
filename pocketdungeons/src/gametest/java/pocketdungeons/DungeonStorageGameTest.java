@@ -15,6 +15,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -198,6 +199,26 @@ public final class DungeonStorageGameTest {
             log.setStorage(id, List.of());
             unregister(player);
         }
+        helper.succeed();
+    }
+
+    /**
+     * Playtest 2026-10-02-1: the run storage drains once. {@link RunStorage#drain}
+     * returns the containers while a caller empties the station; the storage
+     * keeps coming back empty rather than re-paying.
+     */
+    @GameTest
+    public void runStorageDrainsItsContentsOnce(GameTestHelper helper) {
+        InstanceRecord record = new InstanceRecord(0, new BlockPos(0, 0, 0), 0L, null, Set.of(),
+                UUID.randomUUID(), false);
+        UUID id = UUID.randomUUID();
+        SimpleContainer box = new SimpleContainer(RunStorage.SLOTS);
+        box.setItem(0, new ItemStack(Items.COBBLESTONE, 64));
+        box.setItem(5, new ItemStack(Items.TORCH, 3));
+        record.runStorage.put(id, box);
+        Map<UUID, List<ItemStack>> drained = RunStorage.drain(record);
+        helper.assertValueEqual(drained.get(id).size(), 2, "both stacks come out");
+        helper.assertTrue(RunStorage.drain(record).isEmpty(), "a second drain finds nothing");
         helper.succeed();
     }
 }

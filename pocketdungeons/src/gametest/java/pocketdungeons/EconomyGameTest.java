@@ -25,11 +25,10 @@ import net.minecraft.world.phys.AABB;
  *
  * <h2>What is here and what is not</h2>
  *
- * <p>{@link GambleStation}'s draw is deliberately absent. Its money-moving half
- * is {@code handleTrade}, a private callback reachable only through an SGUI
- * {@code MerchantGui} the player clicks, and DISCOVERIES trap 10 is explicit
- * that nothing headless right-clicks a screen. Asserting a fake call into it
- * would prove the assertion, not the station. It stays a
+ * <p>The trade screens are deliberately absent: merchant offers open as a
+ * vanilla {@code MerchantGui} the player clicks, and DISCOVERIES trap 10 is
+ * explicit that nothing headless right-clicks a screen. Asserting a fake call
+ * into the click path would prove the assertion, not the station. It stays a
  * {@code LIVE_TEST_PASS} row. What is covered here is the delivery primitive
  * every one of those paths ends in, {@link Payout#deliver}, which is where a
  * lost reward would actually be lost.
@@ -94,20 +93,15 @@ public final class EconomyGameTest {
         DungeonLog log = DungeonLog.forServer(server);
         emptyInventory(player);
 
-        // Materials both stations would charge, and an empty hand: the gear the
-        // picker was built over is gone.
+        // The material the station would charge, and an empty hand: the gear
+        // the picker was built over is gone.
         player.getInventory().setItem(1, new ItemStack(Items.LAPIS_LAZULI, 64));
-        player.getInventory().setItem(2, new ItemStack(Items.DIAMOND, 64));
         int lapisBefore = countIn(player, Items.LAPIS_LAZULI);
-        int diamondBefore = countIn(player, Items.DIAMOND);
 
         RerollStation.handleReroll(player, "minecraft:sharpness");
-        CubeStation.handleImbue(player, "pocketdungeons:some_power");
 
         helper.assertValueEqual(countIn(player, Items.LAPIS_LAZULI), lapisBefore,
                 "a stale reroll click spent no lapis");
-        helper.assertValueEqual(countIn(player, Items.DIAMOND), diamondBefore,
-                "a stale imbue click spent no material");
         helper.assertValueEqual(countNearby(server, player, Items.LAPIS_LAZULI), 0,
                 "and nothing was dropped on the floor instead of spent");
 

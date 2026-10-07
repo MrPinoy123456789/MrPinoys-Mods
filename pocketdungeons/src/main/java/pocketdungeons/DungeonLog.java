@@ -92,13 +92,10 @@ final class DungeonLog extends SavedData {
      *                           A power id names an {@link AdventureGraph.Node}
      *                           reward ({@link AdventureGraph.Node#reward}), so
      *                           it is stable across a reload as long as the node
-     *                           keeps the same reward id. Extraction is
-     *                           irreversible by default ({@code
-     *                           PocketDungeonsConfig.extractionReversible}), so
-     *                           this set only grows in the default
-     *                           configuration; a server that turns reversibility
-     *                           on is trusting whatever undo ritual removes an
-     *                           entry to do so deliberately.
+     *                           keeps the same reward id. Extraction was
+     *                           designed irreversible, so this set only
+     *                           grows; whatever undo ritual removes an entry
+     *                           is trusted to do so deliberately.
      * @param publicListed      (M20) whether this player's room appears in the
      *                           lobby directory ({@link DialogScreens#lobbyBrowser}).
      *                           Defaults to {@code false}: a room is listed only

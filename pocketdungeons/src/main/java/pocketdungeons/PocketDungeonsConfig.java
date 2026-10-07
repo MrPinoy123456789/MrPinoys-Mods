@@ -160,10 +160,6 @@ public final class PocketDungeonsConfig {
     private static double chaoticSpawnerChance = 0.05;
     /** Silenced: this many consumables used raise the omen by one. */
     private static int silencedConsumablesPerOmen = 3;
-    /** Emeralds the librarian charges to lock in a piece of gear (adds Mending). */
-    private static int lockInEmeralds = 32;
-    /** Keystone level the librarian needs. */
-    private static int lockInUnlockLevel = 5;
     /** Chance a dead-end cell holds a fountain boon. */
     private static double fountainChance = 0.15;
     /** Omen a cleansing fountain takes off the floor. */
@@ -223,20 +219,11 @@ public final class PocketDungeonsConfig {
     /** Chance per run that one critical-path cell is swapped for an anomaly room. */
     private static double anomalyRoomChance = 0.08;
 
-    // ---- gear reroll station (M14) --------------------------------------------
+    // ---- gear reroll station (M14, moved to the enchanting table by J5) ---------
     /** The block a reroll station is; right-clicking it with tiered gear opens the picker. */
-    private static String rerollBlock = "minecraft:smithing_table";
+    private static String rerollBlock = "minecraft:enchanting_table";
     /** Lapis cost per tier step; a tier-N reroll costs this times N. */
     private static int rerollLapisPerTier = 4;
-    /**
-     * Keystone level required before the station will open for a player. The
-     * fuel-gated-door precedent (M12) argues an ungated lapis sink stops
-     * sinking once lapis overflows; this is deliberately low (matches
-     * {@code AffixMath}'s first seeded-affix threshold) rather than gated
-     * behind Greater-door access, since the sink should be available well
-     * before a player has fuel to spend on doors 2/3.
-     */
-    private static int rerollUnlockLevel = 5;
 
     // ---- armor trims (M15) -----------------------------------------------------
     /**
@@ -287,36 +274,14 @@ public final class PocketDungeonsConfig {
         );
     }
 
-    // ---- gamble station (M16) ---------------------------------------------------
-    /** The block a gamble station is; right-clicking it opens the slot/tier picker. */
+    // ---- run storage ------------------------------------------------------------
     /**
      * The block that opens run storage (see {@link RunStorage}). It used to open
      * the gamble station, a duplicate of the blacksmith, which was removed
-     * (playtest 2026-10-02-1).
+     * (playtest 2026-10-02-1); the gamble itself went with the home vendor
+     * rework (J5a).
      */
     private static String storageBlock = "minecraft:ender_chest";
-    /** Emerald cost per tier step for an unweighted slot; a tier-N gamble costs this times N. */
-    private static int gambleEmeraldsPerTier = 6;
-    /**
-     * D3's own Kadala menu prices weapon pulls above armour pulls; this is the
-     * multiplier {@link #gambleWeightedSlot()}'s slot gets on top of the plain
-     * tier cost.
-     */
-    private static double gambleSlotMultiplier = 1.5;
-    /**
-     * Which of {@link LootTables#GEAR_SLOTS} is the weighted one. A slot name,
-     * not an index, so a reordering of {@code GEAR_SLOTS} cannot silently
-     * repoint the weighting at the wrong slot.
-     */
-    private static String gambleWeightedSlot = "weapon";
-    /**
-     * Keystone level required before the gamble station will open for a
-     * player. Matches the {@code rerollUnlockLevel} shape: the sink should
-     * be available before a player has fuel to spend on doors 2/3, but not
-     * from run 1, since the gamble needs a gear pool (M13) and emeralds to
-     * accumulate first.
-     */
-    private static int gambleUnlockLevel = 10;
 
     // ---- salvage bench (playtest 2026-09-29, docs/reference/SALVAGE_PROPOSAL.md) --
     /**
@@ -336,32 +301,12 @@ public final class PocketDungeonsConfig {
     private static int salvageKeyEmeralds = 1;
     /** Emeralds per ominous vault key. */
     private static int salvageOminousKeyEmeralds = 3;
-    /** Keystone level the bench opens at. 1: the surplus starts in the first interval. */
-    private static int salvageUnlockLevel = 1;
 
-    // ---- Herobrine Cube (M17) -----------------------------------------------
-    /**
-     * The block the Cube ritual is. Right-clicking it holding a rare item
-     * extracts; right-clicking it holding an ordinary weapon or armour piece
-     * opens the imbue picker. A configured block, not a mixin-intercepted
-     * crafting table: {@code Ingredient} (verified against the 26.2 jar) has no
-     * component-value predicate, so "any item, plus my chosen one of an
-     * open-ended power library" cannot be expressed as a datapack crafting
-     * recipe without one recipe per (item type x power) pair. A block-use
-     * ritual sidesteps that limit entirely and needs no second mixin; see
-     * {@code D3_PROGRESSION_PLAN.md}'s M17 section for the full reasoning.
-     */
-    private static String cubeBlock = "minecraft:beacon";
-    /**
-     * Keystone level required before the Cube station will open for a
-     * player. The Cube's extract source is rare adventure-node rewards
-     * (M11), which gate behind deeper keys; level 15 is the first station
-     * that needs real progression to be useful. Low-level extract recipes
-     * can be authored to give the Cube something to do before deep rare
-     * nodes, the same way the gear pool gives the gamble something to
-     * draw from.
-     */
-    private static int cubeUnlockLevel = 15;
+    // ---- Powers (M17) --------------------------------------------------------
+    // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
+    // imbueMaterial, imbueCost and extractionReversible knobs went with it; the
+    // custom_data.pocketdungeons.power marker on already-imbued gear still feeds
+    // PowerListener, which is what these two remaining settings serve.
     /**
      * One extracted power's equip-time attribute bonus, read by
      * {@code PowerListener} the same way {@link TrimBonusEntry} feeds
@@ -370,10 +315,6 @@ public final class PocketDungeonsConfig {
      * {@code custom_data.pocketdungeons.power} on an imbued item.
      */
     private static List<PowerBonusEntry> powerBonuses = defaultPowerBonuses();
-    /** The material an imbue ritual spends alongside the extracted-power token. Cheap and repeatable by design. */
-    private static String imbueMaterial = "minecraft:iron_ingot";
-    /** How much {@link #imbueMaterial} an imbue ritual costs. */
-    private static int imbueCost = 4;
     /**
      * How many extracted powers can be active on a player at once, across every
      * worn/held slot the Cube reads. A pool, not a per-piece allowance: three
@@ -381,15 +322,6 @@ public final class PocketDungeonsConfig {
      * "at most three per slot." D3's own count.
      */
     private static int equipCap = 3;
-    /**
-     * Whether an extraction can be undone. D3's own answer is no: a hard sink,
-     * the rare item gone for good in exchange for never needing another like
-     * it. {@code false} by default; an operator running a server where a
-     * mis-click destroys a genuinely rare drop forever may want {@code true}.
-     * There is no undo ritual yet either way (see {@code D3_PROGRESSION_PLAN.md}'s
-     * M17 section); this flag only gates whether one could exist.
-     */
-    private static boolean extractionReversible = false;
 
     /** The file {@link #load} last read, so {@link #setModuleOverride} can write it back. */
     private static volatile Path configFile;
@@ -610,14 +542,6 @@ public final class PocketDungeonsConfig {
     }
 
 
-    public static int lockInEmeralds() {
-        return lockInEmeralds;
-    }
-
-    public static int lockInUnlockLevel() {
-        return lockInUnlockLevel;
-    }
-
     public static int silencedConsumablesPerOmen() {
         return silencedConsumablesPerOmen;
     }
@@ -682,28 +606,8 @@ public final class PocketDungeonsConfig {
         return rerollLapisPerTier;
     }
 
-    public static int rerollUnlockLevel() {
-        return rerollUnlockLevel;
-    }
-
     public static String storageBlock() {
         return storageBlock;
-    }
-
-    public static int gambleEmeraldsPerTier() {
-        return gambleEmeraldsPerTier;
-    }
-
-    public static double gambleSlotMultiplier() {
-        return gambleSlotMultiplier;
-    }
-
-    public static String gambleWeightedSlot() {
-        return gambleWeightedSlot;
-    }
-
-    public static int gambleUnlockLevel() {
-        return gambleUnlockLevel;
     }
 
     public static String salvageBlock() {
@@ -722,37 +626,12 @@ public final class PocketDungeonsConfig {
         return salvageOminousKeyEmeralds;
     }
 
-
-    public static int salvageUnlockLevel() {
-        return salvageUnlockLevel;
-    }
-
-    public static String cubeBlock() {
-        return cubeBlock;
-    }
-
-    public static int cubeUnlockLevel() {
-        return cubeUnlockLevel;
-    }
-
     public static List<PowerBonusEntry> powerBonuses() {
         return powerBonuses;
     }
 
-    public static String imbueMaterial() {
-        return imbueMaterial;
-    }
-
-    public static int imbueCost() {
-        return imbueCost;
-    }
-
     public static int equipCap() {
         return equipCap;
-    }
-
-    public static boolean extractionReversible() {
-        return extractionReversible;
     }
 
     public static List<TrimBonusEntry> trimBonuses() {
@@ -837,8 +716,6 @@ public final class PocketDungeonsConfig {
         swarmingMobFactor = 1.5;
         chaoticSpawnerChance = 0.05;
         silencedConsumablesPerOmen = 3;
-        lockInEmeralds = 32;
-        lockInUnlockLevel = 5;
         fountainChance = 0.15;
         finishEmeralds = 8;
         finishVaultChests = 2;
@@ -860,32 +737,21 @@ public final class PocketDungeonsConfig {
 
         anomalyRoomChance = 0.08;
 
-        rerollBlock = "minecraft:smithing_table";
+        rerollBlock = "minecraft:enchanting_table";
         rerollLapisPerTier = 4;
-        rerollUnlockLevel = 5;
 
         trimBonuses = defaultTrimBonuses();
         trimBonusDungeonOnly = false;
 
         storageBlock = "minecraft:ender_chest";
-        gambleEmeraldsPerTier = 6;
-        gambleSlotMultiplier = 1.5;
-        gambleWeightedSlot = "weapon";
-        gambleUnlockLevel = 10;
 
         salvageBlock = "minecraft:grindstone";
         salvageEmeraldsPerTier = 1;
         salvageKeyEmeralds = 1;
         salvageOminousKeyEmeralds = 3;
-        salvageUnlockLevel = 1;
 
-        cubeBlock = "minecraft:beacon";
-        cubeUnlockLevel = 15;
         powerBonuses = defaultPowerBonuses();
-        imbueMaterial = "minecraft:iron_ingot";
-        imbueCost = 4;
         equipCap = 3;
-        extractionReversible = false;
 
         // L2 (D41): no content module overrides; every module sits at its manifest default.
         ContentModules.setOverrides(Map.of());
@@ -1053,8 +919,6 @@ public final class PocketDungeonsConfig {
         silencedConsumablesPerOmen = readInt(root, "silencedConsumablesPerOmen", 3, v -> v >= 1, "must be >= 1");
         fountainChance = readDouble(root, "fountainChance", 0.15, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
-        lockInEmeralds = readInt(root, "lockInEmeralds", 32, v -> v >= 1 && v <= 64, "must be between 1 and 64");
-        lockInUnlockLevel = readInt(root, "lockInUnlockLevel", 5, v -> v >= 1, "must be >= 1");
         finishEmeralds = readInt(root, "finishEmeralds", 8, v -> v >= 0, "must be >= 0");
         finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
         overlevelEmeraldsPerScrap = readInt(root, "overlevelEmeraldsPerScrap", 2, v -> v >= 0, "must be >= 0");
@@ -1079,9 +943,16 @@ public final class PocketDungeonsConfig {
         anomalyRoomChance = readDouble(root, "anomalyRoomChance", 0.08,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
 
-        rerollBlock = readString(root, "rerollBlock", "minecraft:smithing_table", false);
+        rerollBlock = readString(root, "rerollBlock", "minecraft:enchanting_table", false);
+        // J5 moved the reroll to the enchanting table and retired the smithing
+        // table as a station; a saved config that still names it is remapped
+        // rather than resurrecting the old station.
+        if ("minecraft:smithing_table".equals(rerollBlock)) {
+            PocketDungeonsMod.LOG.warn("rerollBlock was the smithing table, which is not a station "
+                    + "any more; using minecraft:enchanting_table for rerolls instead.");
+            rerollBlock = "minecraft:enchanting_table";
+        }
         rerollLapisPerTier = readInt(root, "rerollLapisPerTier", 4, v -> v >= 0, "must be >= 0");
-        rerollUnlockLevel = readInt(root, "rerollUnlockLevel", 5, v -> v >= 1, "must be >= 1");
 
         trimBonuses = readTrimBonuses(root);
         trimBonusDungeonOnly = readBoolean(root, "trimBonusDungeonOnly", false);
@@ -1095,45 +966,13 @@ public final class PocketDungeonsConfig {
                     + "chest now; using minecraft:ender_chest for run storage instead.");
             storageBlock = "minecraft:ender_chest";
         }
-        gambleEmeraldsPerTier = readInt(root, "gambleEmeraldsPerTier", 6, v -> v >= 0, "must be >= 0");
-        gambleSlotMultiplier = readDouble(root, "gambleSlotMultiplier", 1.5, v -> v >= 1.0,
-                "must be >= 1.0");
-        gambleWeightedSlot = readString(root, "gambleWeightedSlot", "weapon", false);
-        gambleUnlockLevel = readInt(root, "gambleUnlockLevel", 10, v -> v >= 1, "must be >= 1");
-
         salvageBlock = readString(root, "salvageBlock", "minecraft:grindstone", false);
         salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
         salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
         salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
-        salvageUnlockLevel = readInt(root, "salvageUnlockLevel", 1, v -> v >= 1, "must be >= 1");
 
-        cubeBlock = readString(root, "cubeBlock", "minecraft:beacon", false);
-        cubeUnlockLevel = readInt(root, "cubeUnlockLevel", 15, v -> v >= 1, "must be >= 1");
         powerBonuses = readPowerBonuses(root);
-        imbueMaterial = readString(root, "imbueMaterial", "minecraft:iron_ingot", false);
-        imbueCost = readInt(root, "imbueCost", 4, v -> v >= 0, "must be >= 0");
         equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
-        extractionReversible = readBoolean(root, "extractionReversible", false);
-
-        // PD-47: keystoneMaxLevel bounds every player's achievable level.
-        // Setting it below one of these four gates makes that feature
-        // permanently unreachable with no diagnostic otherwise. A low
-        // level cap can be a legitimate server choice, so this warns rather
-        // than refuses or clamps; the operator just needs to know what it
-        // costs.
-        warnIfGateUnreachable("rerollUnlockLevel", rerollUnlockLevel, "the reroll station");
-        warnIfGateUnreachable("gambleUnlockLevel", gambleUnlockLevel, "the gamble station");
-        warnIfGateUnreachable("salvageUnlockLevel", salvageUnlockLevel, "the salvage bench");
-        warnIfGateUnreachable("cubeUnlockLevel", cubeUnlockLevel, "the Herobrine Cube");
-    }
-
-    private static void warnIfGateUnreachable(String key, int gateLevel, String feature) {
-        if (gateLevel > keystoneMaxLevel) {
-            PocketDungeonsMod.LOG.warn(
-                    "pocketdungeons.json {} ({}) is above keystoneMaxLevel ({}); "
-                            + "{} can never be reached on this server",
-                    key, gateLevel, keystoneMaxLevel, feature);
-        }
     }
 
     private static List<PowerBonusEntry> readPowerBonuses(JsonObject root) {
@@ -1405,8 +1244,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("silencedPlayerRange", 6);
         root.addProperty("silencedConsumablesPerOmen", 3);
         root.addProperty("fountainChance", 0.15);
-        root.addProperty("lockInEmeralds", 32);
-        root.addProperty("lockInUnlockLevel", 5);
         root.addProperty("finishEmeralds", 8);
         root.addProperty("finishVaultChests", 2);
         root.addProperty("overlevelEmeraldsPerScrap", 2);
@@ -1426,9 +1263,8 @@ public final class PocketDungeonsConfig {
 
         root.addProperty("anomalyRoomChance", 0.08);
 
-        root.addProperty("rerollBlock", "minecraft:smithing_table");
+        root.addProperty("rerollBlock", "minecraft:enchanting_table");
         root.addProperty("rerollLapisPerTier", 4);
-        root.addProperty("rerollUnlockLevel", 5);
 
         JsonArray trimBonusesJson = new JsonArray();
         for (TrimBonusEntry entry : defaultTrimBonuses()) {
@@ -1443,19 +1279,12 @@ public final class PocketDungeonsConfig {
         root.addProperty("trimBonusDungeonOnly", false);
 
         root.addProperty("storageBlock", "minecraft:ender_chest");
-        root.addProperty("gambleEmeraldsPerTier", 6);
-        root.addProperty("gambleSlotMultiplier", 1.5);
-        root.addProperty("gambleWeightedSlot", "weapon");
-        root.addProperty("gambleUnlockLevel", 10);
 
         root.addProperty("salvageBlock", "minecraft:grindstone");
         root.addProperty("salvageEmeraldsPerTier", 1);
         root.addProperty("salvageKeyEmeralds", 1);
         root.addProperty("salvageOminousKeyEmeralds", 3);
-        root.addProperty("salvageUnlockLevel", 1);
 
-        root.addProperty("cubeBlock", "minecraft:beacon");
-        root.addProperty("cubeUnlockLevel", 15);
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {
             JsonObject entryJson = new JsonObject();
@@ -1467,10 +1296,7 @@ public final class PocketDungeonsConfig {
         }
         root.add("powerBonuses", powerBonusesJson);
         root.add("modules", new JsonObject());
-        root.addProperty("imbueMaterial", "minecraft:iron_ingot");
-        root.addProperty("imbueCost", 4);
         root.addProperty("equipCap", 3);
-        root.addProperty("extractionReversible", false);
         return root;
     }
 }

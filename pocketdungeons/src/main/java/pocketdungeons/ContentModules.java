@@ -254,12 +254,15 @@ public final class ContentModules {
     /**
      * Whether {@code itemId} may appear in merchant stock: {@code false}
      * when only disabled modules list it in {@code merchantStock},
-     * {@code true} when no module lists it or an enabled one does.
+     * {@code true} when no module lists it or an enabled one does. Manifests
+     * write bare item ids, so a namespaced {@code itemId} is reduced to its
+     * path before matching.
      */
     static boolean merchantItemEnabled(String itemId) {
+        String id = itemId.indexOf(':') >= 0 ? itemId.substring(itemId.indexOf(':') + 1) : itemId;
         boolean claimed = false;
         for (Module module : current.modules) {
-            if (module.merchantStock().contains(itemId)) {
+            if (module.merchantStock().contains(id)) {
                 if (enabled(module.id())) {
                     return true;
                 }

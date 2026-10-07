@@ -596,12 +596,7 @@ final class PlaytestJournal {
         safely("diary_handed", () -> record(player, "diary_handed", Map.of("band", band, "count", count)));
     }
 
-    /** Gear was locked in at the librarian: which item and the emerald price. */
-    static void lockIn(ServerPlayer player, String item, int cost) {
-        safely("lock_in", () -> record(player, "lock_in", Map.of("item", item, "cost", cost)));
-    }
-
-    /** A Store sale (PD-142): what was bought, what it cost, in which item, and from whom. */
+    /** A vendor trade the player bought (J4): the item out, the emeralds it cost, and from whom. */
     static void shopPurchase(ServerPlayer player, net.minecraft.world.item.Item item, String name, int price,
                              net.minecraft.world.item.Item currency, String vendor) {
         safely("shop_purchase", () -> record(player, "shop_purchase", Map.of(
@@ -609,6 +604,16 @@ final class PlaytestJournal {
                 "name", name,
                 "price", price,
                 "currency", net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(currency).toString(),
+                "vendor", vendor)));
+    }
+
+    /** A vendor trade the player sold into (J4): which drop, how many, the emeralds paid, and to whom. */
+    static void shopSale(ServerPlayer player, net.minecraft.world.item.Item item, int count, int emeralds,
+                         String vendor) {
+        safely("shop_sale", () -> record(player, "shop_sale", Map.of(
+                "item", net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),
+                "count", count,
+                "emeralds", emeralds,
                 "vendor", vendor)));
     }
 

@@ -75,8 +75,6 @@ public final class DialogRouter {
                     tag.getStringOr(DialogScreens.KEY_NAME, "").trim());
             case DialogScreens.ACTION_REROLL -> RerollStation.handleReroll(player,
                     tag.getStringOr(DialogScreens.KEY_ENCHANT, ""));
-            case DialogScreens.ACTION_IMBUE -> CubeStation.handleImbue(player,
-                    tag.getStringOr(DialogScreens.KEY_POWER, ""));
             case DialogScreens.ACTION_VISIT_ROOM -> visitRoom(player, server,
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             // M75: the private visit channel. Same routing service as the
@@ -108,7 +106,6 @@ public final class DialogRouter {
             case DialogScreens.ACTION_DIARIES -> diaries(player, server);
             case DialogScreens.ACTION_READ_DIARY -> readDiary(player, server,
                     tag.getIntOr(DialogScreens.KEY_DIARY, 0));
-            case DialogScreens.ACTION_STATIONS -> StationPicker.open(player);
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);
             case DialogScreens.ACTION_BACK_WHITELIST -> reshow(player, server, owner, null);
             // M48: the bag picker. A picker button carries a bag id and opens
