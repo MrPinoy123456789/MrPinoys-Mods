@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:bow",
+          "name": "minecraft:stone_axe",
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -27,22 +27,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:arrow",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 12
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:arrow",
+          "name": "minecraft:oak_log",
           "functions": [
             {
               "function": "minecraft:set_count",

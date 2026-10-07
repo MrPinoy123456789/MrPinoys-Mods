@@ -99,8 +99,9 @@ public class PipelineProofTest {
         Map<String, BagManifest.Entry> bags = new java.util.LinkedHashMap<>();
         Object[][] bagData = {
                 {BagIds.MASON, java.util.Set.of(SituationTags.BLOCKS), 0},
-                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 1},
-                {BagIds.SAPPER, java.util.Set.of(SituationTags.BLOCKS), 2},
+                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 9},
+                {BagIds.LUMBERJACK, java.util.Set.of(SituationTags.BLOCKS), 1},
+                {BagIds.SAPPER, java.util.Set.of(SituationTags.EXPLOSIVE), 2},
                 {BagIds.MAGICIAN, java.util.Set.of(SituationTags.PEARL, SituationTags.WIND_CHARGE), 3},
                 {BagIds.RANGER, java.util.Set.of(SituationTags.BOW), 4},
                 {BagIds.SHEPHERD, java.util.Set.of(SituationTags.LEAD, SituationTags.MOB), 5},

@@ -56,6 +56,37 @@ public final class ContentModuleGameTest {
         helper.succeed();
     }
 
+    /**
+     * L1 (D40): while the {@code extra_bags} module is off the five cut bags
+     * never reach the bag manifest, so the picker cannot offer them and a
+     * held one cannot roll. Enabling the module and reloading restores them.
+     * The reload is real: bags publish with the content snapshot, unlike the
+     * per-roll loot injection above.
+     */
+    @GameTest
+    public void extraBagsModuleGatesTheCutBags(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ContentReload.reload(server);
+        helper.assertTrue(ContentModules.module("extra_bags") != null,
+                "the bundled extra_bags module should load");
+        helper.assertTrue(!ContentModules.enabled("extra_bags"),
+                "extra_bags should default to off (manifest default)");
+        helper.assertTrue(Bags.byId(BagIds.LUMBERJACK) != null,
+                "the Lumberjack bag loads while extra_bags is off");
+        helper.assertTrue(Bags.byId(BagIds.MASON) == null,
+                "the Mason bag is gated out while extra_bags is off");
+        try {
+            PocketDungeonsConfig.setModuleOverride("extra_bags", true);
+            ContentReload.reload(server);
+            helper.assertTrue(Bags.byId(BagIds.MASON) != null,
+                    "the Mason bag loads once extra_bags is on");
+        } finally {
+            PocketDungeonsConfig.setModuleOverride("extra_bags", null);
+            ContentReload.reload(server);
+        }
+        helper.succeed();
+    }
+
     private static boolean rollContainsWart(MinecraftServer server, ServerLevel level) {
         ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE,
                 Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "chests/tier_2"));

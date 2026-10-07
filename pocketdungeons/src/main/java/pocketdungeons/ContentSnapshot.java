@@ -160,7 +160,7 @@ final class ContentSnapshot {
         // drops the pocketdungeons pack cannot silently remove Mason, the way
         // the room manifest cannot drop entrance and exit. A candidate that
         // fails this gate is not published.
-        if (!bags.hasBuiltInCoverage()) {
+        if (!bags.hasBuiltInCoverage(modules.disabledBags())) {
             valid = false;
             errors.add("required coverage failed: missing built-in bag definitions "
                     + "(expected " + BagIds.BUILT_IN_ORDER + ", have " + bags.ids() + ")");

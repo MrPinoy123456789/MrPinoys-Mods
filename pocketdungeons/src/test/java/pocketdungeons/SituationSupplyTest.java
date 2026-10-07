@@ -33,9 +33,10 @@ import java.util.Set;
  *       {@code requires}, where losing it costs an optional reward, and never
  *       in the {@code requires} of a cell on the entrance-to-staging path,
  *       where losing it would cost the route.</li>
- *   <li>A finite bag tool (Sapper's TNT) is not reusable masonry: the catalogue
- *       must carry a renewable {@code blocks} provider or a tool-free fallback
- *       so a spent tool may lose treasure but never the mandatory exit.</li>
+ *   <li>A finite bag tool (the Lumberjack's oak logs; L1, D40) is not
+ *       reusable masonry: the catalogue must carry a renewable {@code blocks}
+ *       provider or a tool-free fallback so a spent tool may lose treasure
+ *       but never the mandatory exit.</li>
  *   <li>The Shepherd's {@code mob} tag is conditional: a lead alone is not a
  *       guaranteed creature. Party size 2 grants {@code mob} unconditionally;
  *       a solo Shepherd's {@code mob} is the over-promise the audit flags.</li>
@@ -51,7 +52,7 @@ public class SituationSupplyTest {
         // reads the same tags the live server would load.
         publishSyntheticManifests();
         testBagSuppliesAreWhatTheCatalogueClaims();
-        testSappersTntIsNotReusableMasonry();
+        testLumberjacksLogsAreNotReusableMasonry();
         testShepherdsLeadsAreNotAGuaranteedCreature();
         testBothPlayersGetThroughPlatePair();
         testSpentOptionalToolMayLoseTreasureNeverTheExit();
@@ -71,11 +72,16 @@ public class SituationSupplyTest {
         // Pilgrim: bread and nothing else. The strictest seed.
         check(BagTags.seed("pilgrim", 1).isEmpty(), true,
                 "solo Pilgrim carries no tags");
-        // Sapper: TNT grants blocks, not redstone. Finite, not renewable.
-        check(BagTags.seed("sapper", 1).contains(SituationTags.BLOCKS), true,
-                "Sapper's TNT grants blocks");
+        // L1 (D40): Sapper's TNT grants explosive, not blocks; blocks moved to
+        // the Lumberjack's logs. Finite, not renewable.
+        check(BagTags.seed("sapper", 1).contains(SituationTags.EXPLOSIVE), true,
+                "Sapper's TNT grants explosive");
+        check(BagTags.seed("sapper", 1).contains(SituationTags.BLOCKS), false,
+                "Sapper no longer claims blocks; L1 moved them to the Lumberjack");
         check(BagTags.seed("sapper", 1).contains(SituationTags.REDSTONE), false,
                 "flint and steel powers nothing; Sapper does not claim redstone");
+        check(BagTags.seed("lumberjack", 1).contains(SituationTags.BLOCKS), true,
+                "Lumberjack's oak logs grant blocks");
         // Shepherd: leads and bones. The mob tag is the over-promise this test
         // examines below: a lead is not a creature.
         check(BagTags.seed("shepherd", 1).contains(SituationTags.LEAD), true,
@@ -90,23 +96,25 @@ public class SituationSupplyTest {
                 "Plumber carries lava");
     }
 
-    // ---- Sapper's TNT is not reusable masonry ----
+    // ---- the Lumberjack's logs are not reusable masonry ----
 
     /**
-     * The Sapper bag carries {@code blocks} (TNT). TNT is consumed in use: three
-     * sticks, three walls, then the bag is empty. Before E (D25) the boolean
-     * model said {@code blocks} was available at every depth from the bag, so
-     * two consecutive {@code blocks}-requiring rooms on the spine resolved
-     * without a fallback: solvable on paper, stuck in play. E closed the gap
-     * at the source: the bag never reaches the spine's seed, so the same
-     * floor falls back for a Sapper exactly as for a Pilgrim.
+     * The Lumberjack bag carries {@code blocks} (oak logs). The logs are
+     * consumed in use: eight placed, then the bag is empty. Before E (D25)
+     * the boolean model said {@code blocks} was available at every depth from
+     * the bag, so two consecutive {@code blocks}-requiring rooms on the spine
+     * resolved without a fallback: solvable on paper, stuck in play. E closed
+     * the gap at the source: the bag never reaches the spine's seed, so the
+     * same floor falls back for a Lumberjack exactly as for a Pilgrim. L1
+     * (D40) moved {@code blocks} from the Sapper's TNT to the Lumberjack; the
+     * finite-provider argument is unchanged.
      *
      * <p>What remains is asserted in
      * {@link #testFiniteToolRequiresRenewableProviderOrToolFreeFallback}: a
      * renewable {@code blocks} provider upstream still satisfies a spine gate,
      * for any bag.
      */
-    private static void testSappersTntIsNotReusableMasonry() {
+    private static void testLumberjacksLogsAreNotReusableMasonry() {
         DungeonShape shape = line(4, "corridor");
         PlanCell first = new PlanCell(1, 0);
         PlanCell second = new PlanCell(2, 0);
@@ -118,18 +126,19 @@ public class SituationSupplyTest {
                 List.of(SituationTags.BLOCKS)));
         RoomManifest manifest = RoomManifest.create(entries, List.of());
 
-        Set<String> sapper = BagTags.seed("sapper", 1);
-        RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null, sapper);
+        Set<String> lumberjack = BagTags.seed("lumberjack", 1);
+        RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null,
+                lumberjack);
 
         if (result.plan() == null) {
             throw new AssertionError("resolution failed at " + result.failure());
         }
         // The bag's blocks are invisible to the spine now, so both gates fall
-        // back for the Sapper just as they do for the Pilgrim.
+        // back for the Lumberjack just as they do for the Pilgrim.
         check(result.fallbackCells().contains(first), true,
-                "the Sapper's blocks do not reach the spine; the first gate must fall back");
+                "the Lumberjack's blocks do not reach the spine; the first gate must fall back");
         check(result.fallbackCells().contains(second), true,
-                "the Sapper's blocks do not reach the spine; the second gate must fall back");
+                "the Lumberjack's blocks do not reach the spine; the second gate must fall back");
     }
 
     // ---- Shepherd's leads are not a guaranteed creature ----
@@ -297,17 +306,17 @@ public class SituationSupplyTest {
     // ---- finite tool requires renewable provider or tool-free fallback ----
 
     /**
-     * The Sapper's TNT is finite, so the boolean model's claim that
+     * The Lumberjack's oak logs are finite, so the boolean model's claim that
      * {@code blocks} is always available is an over-promise. The mitigation is
      * that the catalogue carries a renewable {@code blocks} provider: a room
      * that {@code provides: [blocks]} without consuming a bag tool. With one
      * upstream, a {@code blocks}-requiring gate is solvable from the room's
-     * supply, not the bag's, and the spent TNT is irrelevant.
+     * supply, not the bag's, and the spent logs are irrelevant.
      *
      * <p>This fixture puts a renewable {@code blocks} provider at distance 1
      * and a {@code blocks}-requiring gate at distance 2, and resolves it for a
      * solo Pilgrim (no bag tool at all). The gate resolves from the room's
-     * supply, which is the honest path: the bag's TNT was never the provider.
+     * supply, which is the honest path: the bag's logs were never the provider.
      */
     private static void testFiniteToolRequiresRenewableProviderOrToolFreeFallback() {
         PlanCell entrance = new PlanCell(0, 0);
@@ -455,8 +464,9 @@ public class SituationSupplyTest {
         Map<String, BagManifest.Entry> bags = new LinkedHashMap<>();
         Object[][] bagData = {
                 {BagIds.MASON, java.util.Set.of(SituationTags.BLOCKS), 0},
-                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 1},
-                {BagIds.SAPPER, java.util.Set.of(SituationTags.BLOCKS), 2},
+                {BagIds.PLUMBER, java.util.Set.of(SituationTags.WATER, SituationTags.LAVA), 9},
+                {BagIds.LUMBERJACK, java.util.Set.of(SituationTags.BLOCKS), 1},
+                {BagIds.SAPPER, java.util.Set.of(SituationTags.EXPLOSIVE), 2},
                 {BagIds.MAGICIAN, java.util.Set.of(SituationTags.PEARL, SituationTags.WIND_CHARGE), 3},
                 {BagIds.RANGER, java.util.Set.of(SituationTags.BOW), 4},
                 {BagIds.SHEPHERD, java.util.Set.of(SituationTags.LEAD, SituationTags.MOB), 5},

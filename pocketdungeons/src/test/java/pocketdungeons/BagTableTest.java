@@ -28,7 +28,12 @@ import java.util.Set;
  * adding a ninth bag has no other guard rail. Parsing the shipped JSON here is
  * the cheapest place they will ever be checked, and it runs without a server.
  *
- * <p>The eight ids are written out below rather than read from {@link Bags}
+ * <p>L1 (D40): the bag chest offers five bags, and the other five belong to
+ * the {@code extra_bags} content module. Their tables still ship, so they are
+ * still checked against every rule; a module bag that violates them would be
+ * bad content waiting for a toggle.
+ *
+ * <p>The ids are written out below rather than read from {@link Bags}
  * deliberately. This test asserts that what ships matches the spec; taking the
  * list from the class under test would only assert that the code agrees with
  * itself, and a bag quietly dropped from both would pass.
@@ -38,9 +43,21 @@ import java.util.Set;
  */
 public class BagTableTest {
 
-    /** Spec 3.2's eight archetypes, in the order the spec table lists them. */
-    private static final List<String> BAG_IDS = List.of(
-            "mason", "plumber", "sapper", "magician", "ranger", "shepherd", "innkeeper", "pilgrim");
+    /** L1's five offered bags, in picker order. */
+    private static final List<String> OFFERED = List.of(
+            "lumberjack", "sapper", "ranger", "innkeeper", "guard");
+
+    /** The five module-gated bags; their tables ship for when extra_bags is on. */
+    private static final List<String> MODULE_BAGS = List.of(
+            "mason", "plumber", "magician", "shepherd", "pilgrim");
+
+    private static final List<String> BAG_IDS = new ArrayList<>(
+            OFFERED.size() + MODULE_BAGS.size());
+
+    static {
+        BAG_IDS.addAll(OFFERED);
+        BAG_IDS.addAll(MODULE_BAGS);
+    }
 
     private static final String RESOURCE_ROOT = "/data/pocketdungeons/loot_table/bags/";
     private static final String SOURCE_ROOT = "src/main/resources/data/pocketdungeons/loot_table/bags/";
@@ -72,7 +89,7 @@ public class BagTableTest {
     private static final Set<String> WEAPONS_OUTRIGHT = Set.of(
             "minecraft:trident", "minecraft:mace");
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         for (String bag : BAG_IDS) {
             JsonObject table = load(bag);
             List<String> items = itemsOf(bag, table);
@@ -83,6 +100,7 @@ public class BagTableTest {
             checkTagged(bag, table);
         }
         checkPilgrimIsBreadOnly();
+        checkOfferedAreTheFive();
         System.out.println("BagTableTest passed (" + BAG_IDS.size() + " bags)");
     }
 
@@ -193,12 +211,17 @@ public class BagTableTest {
                 + "includes food, because hunger is not the puzzle). Items: " + items);
     }
 
-    /** Spec 3.2 rule 2, first half: a bag never contains armour. */
+    /**
+     * Spec 3.2 rule 2, first half: a bag never contains armour. L1 (D40) names
+     * one exception: the Guard's shield is half of that bag's identity, so it
+     * is the only armour any bag may carry.
+     */
     private static void checkNoArmour(String bag, List<String> items) {
         for (String item : items) {
-            if (isArmour(item)) {
+            if (isArmour(item) && !("guard".equals(bag) && "minecraft:shield".equals(item))) {
                 throw new AssertionError("bag " + bag + " carries armour (" + item + "). Spec 3.2 "
-                        + "rule 2: combat is solved with the room, not the kit.");
+                        + "rule 2: combat is solved with the room, not the kit; L1's one exception "
+                        + "is the Guard's shield.");
             }
         }
     }
@@ -242,8 +265,9 @@ public class BagTableTest {
      */
     private static final Set<String> UNSTACKABLE = Set.of(
             "minecraft:bow", "minecraft:flint_and_steel", "minecraft:lava_bucket",
-            "minecraft:milk_bucket", "minecraft:spyglass", "minecraft:stone_pickaxe",
-            "minecraft:water_bucket");
+            "minecraft:milk_bucket", "minecraft:shield", "minecraft:spyglass",
+            "minecraft:stone_axe", "minecraft:stone_pickaxe", "minecraft:stone_sword",
+            "minecraft:water_bucket", "minecraft:wooden_sword");
 
     private static void checkTagged(String bag, JsonObject table) {
         for (JsonObject entry : entriesOf(table)) {
@@ -309,6 +333,52 @@ public class BagTableTest {
         }
         if (items.isEmpty()) {
             throw new AssertionError("bag pilgrim carries no bread at all");
+        }
+    }
+
+    /**
+     * L1 (D40): exactly five bags are offered at the chest, and the five cut
+     * bags are claimed by the {@code extra_bags} content module. The offered
+     * set is read from the shipped {@code dungeon_bag} files' {@code hidden}
+     * flag and the module manifest's {@code bags} list, so a bag that drifts
+     * onto the wrong side of the line fails here.
+     */
+    private static void checkOfferedAreTheFive() throws IOException {
+        Path bagDir = Path.of("src/main/resources/data/pocketdungeons/dungeon_bag");
+        Path moduleFile = Path.of(
+                "src/main/resources/data/pocketdungeons/content_module/extra_bags.json");
+        Set<String> moduleBags = new java.util.HashSet<>();
+        JsonObject manifest = JsonParser.parseString(
+                Files.readString(moduleFile, StandardCharsets.UTF_8)).getAsJsonObject();
+        for (JsonElement element : manifest.getAsJsonArray("bags")) {
+            moduleBags.add(element.getAsString());
+        }
+        for (String bag : BAG_IDS) {
+            Path file = bagDir.resolve(bag + ".json");
+            if (!Files.isRegularFile(file)) {
+                throw new AssertionError("bag " + bag + ": no dungeon_bag file at "
+                        + file.toAbsolutePath());
+            }
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            if (text.startsWith("﻿")) {
+                text = text.substring(1);
+            }
+            JsonObject obj = JsonParser.parseString(text).getAsJsonObject();
+            boolean hidden = obj.has("hidden") && obj.get("hidden").getAsBoolean();
+            boolean moduleClaimed = moduleBags.contains(bag);
+            if (OFFERED.contains(bag)) {
+                if (hidden) {
+                    throw new AssertionError("bag " + bag + " is offered under L1 but still "
+                            + "carries hidden: true");
+                }
+                if (moduleClaimed) {
+                    throw new AssertionError("bag " + bag + " is offered under L1 but extra_bags "
+                            + "claims it");
+                }
+            } else if (!moduleClaimed) {
+                throw new AssertionError("bag " + bag + " is not one of the five offered bags "
+                        + "but extra_bags does not claim it");
+            }
         }
     }
 }

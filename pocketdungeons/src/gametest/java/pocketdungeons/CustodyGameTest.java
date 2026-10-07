@@ -218,17 +218,20 @@ public final class CustodyGameTest {
      * <p>Before the grant-once rule, every entry with an empty orphan applied
      * the bag kit again, and the leave delivered the pack to the room's chests
      * and cleared the orphan, so walking in and out stocked the room with a
-     * fresh kit each time. Here a Mason who has never been granted under the
-     * new rule gets one kit on the first entry and nothing on the next five
-     * round trips; the per-item totals across every custody place stay put.
+     * fresh kit each time. Here a Lumberjack who has never been granted under
+     * the new rule gets one kit on the first entry and nothing on the next
+     * five round trips; the per-item totals across every custody place stay
+     * put. L1 (D40): the kit is Lumberjack's, since Mason moved to the
+     * extra_bags module.
      */
     @GameTest
     public void repeatedEnterAndLeaveGrantsNothing(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = standInALoadedChunk(helper);
         DungeonLog log = DungeonLog.forServer(server);
-        helper.assertTrue(Bags.byId("pocketdungeons:mason") != null, "the Mason bag is loaded");
-        log.setBag(player.getUUID(), "pocketdungeons:mason");
+        helper.assertTrue(Bags.byId("pocketdungeons:lumberjack") != null,
+                "the Lumberjack bag is loaded");
+        log.setBag(player.getUUID(), "pocketdungeons:lumberjack");
         emptyInventory(player);
         Haunts haunts = new Haunts(player);
 
@@ -237,9 +240,9 @@ public final class CustodyGameTest {
             cycle(player, true);
             helper.assertTrue(log.get(player.getUUID()).kitGranted(), "the migration grant is recorded");
             Map<Item, Integer> afterGrant = custodyTotals(server, player, haunts);
-            helper.assertValueEqual(afterGrant.getOrDefault(Items.COBBLESTONE, 0), 16,
-                    "the Mason kit arrived once: sixteen cobblestone");
-            helper.assertValueEqual(afterGrant.getOrDefault(Items.STONE_PICKAXE, 0), 1, "and one pickaxe");
+            helper.assertValueEqual(afterGrant.getOrDefault(Items.OAK_LOG, 0), 8,
+                    "the Lumberjack kit arrived once: eight oak logs");
+            helper.assertValueEqual(afterGrant.getOrDefault(Items.STONE_AXE, 0), 1, "and one axe");
 
             for (int round = 0; round < 5; round++) {
                 cycle(player, false);

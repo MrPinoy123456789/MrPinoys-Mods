@@ -172,14 +172,16 @@ final class BagManifest {
     }
 
     /**
-     * Whether every built-in bag id is present. The required coverage gate
-     * for bags: a pack that drops the {@code pocketdungeons} pack cannot
-     * silently remove Mason, the way the room manifest cannot drop entrance
-     * and exit. A candidate that fails this gate is not published.
+     * Whether every built-in bag id is present, minus the ids in
+     * {@code excused}: the required coverage gate for bags. A pack that drops
+     * the {@code pocketdungeons} pack cannot silently remove Mason, the way
+     * the room manifest cannot drop entrance and exit, but a bag id a
+     * disabled content module claims is absent on purpose (L2) and is passed
+     * in as excused. A candidate that fails this gate is not published.
      */
-    boolean hasBuiltInCoverage() {
+    boolean hasBuiltInCoverage(java.util.Set<String> excused) {
         for (String id : BagIds.BUILT_IN_ORDER) {
-            if (!byId.containsKey(id)) {
+            if (!byId.containsKey(id) && !excused.contains(id)) {
                 return false;
             }
         }
