@@ -473,7 +473,47 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L48. 2026-10-06: Dungeon Storage survives a logout and a teardown
 
 - **Status:** owed
-- **Changed:** 2026-10-06 (design item 5, `RunStorage`): the storage chest is a 27 slot container saved in `DungeonLog`; nothing moves it when a run ends.
-- **Do:** Put items in the staging room's ender chest (titled Dungeon Storage), log out and back in, finish or fail a run, start another and open it again. Then die at max omen after adding loot.
-- **Pass:** The items are still in their slots after the logout and the teardown and nothing went to the pack; a max omen death returns the storage to how it was when the interval began (earlier trips' items safe, this interval's stashed loot gone).
-- **Fail signs:** An empty storage after a run closes; a stored item in the pack instead; a duplicate after the death.
+- **Changed:** 2026-10-06 (design item 5 and J6, `RunStorage`): the storage chest is a 27 slot container saved in `DungeonLog`; any ender chest in a live instance's safe room or at the Doors opens it, and nothing moves it when a run ends.
+- **Do:** Put items in the staging room's ender chest (titled Dungeon Storage), log out and back in, finish or fail a run, start another and open it again. Try the same from an ender chest inside the safe room at the far end.
+- **Pass:** The items are still in their slots after the logout, the teardown and a max omen death; the safe room chest opens the same storage as the one at the Doors.
+- **Fail signs:** An empty storage after a run closes; a stored item in the pack instead; an ender chest in the dungeon opening the vanilla ender chest.
+
+## L49. 2026-10-06: five bags at the lectern
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (L1, `BagIds.CORE`): the bag picker offers Guard, Ranger, Sapper, Lumberjack and Innkeeper. Pilgrim, Shepherd, Mason, Magician and Plumber sit behind the `extra_bags` content module, off by default.
+- **Do:** Open the bag lectern on a fresh world and read the five blurbs. Kit out as each bag and check the kit matches the blurb.
+- **Pass:** Exactly five bags; Sapper's kit holds a stone pickaxe, Lumberjack's an axe and oak logs, Innkeeper's a Rolling Pin named item; no module, no cut bag appears.
+- **Fail signs:** Nine or ten bags; a missing kit item; Plumber in the list.
+
+## L50. 2026-10-06: the Store is a villager's trade screen
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (J4, `StoreNPC`, `MerchantThemes`): each themed merchant is a tagged villager with real `MerchantOffer`s. Leftover drops go in as bundles, the pool pays out in the merchant's currency.
+- **Do:** Trade at two different themed merchants; buy something and watch the journal.
+- **Pass:** The vanilla merchant screen opens, not a chest menu; offers are real trades; a completed trade writes a `shop_sale` journal row with the item.
+- **Fail signs:** A chest interface; an offer that cannot complete; trades that vanish after a floor.
+
+## L51. 2026-10-06: the stations that remain
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the anvil, Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
+- **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
+- **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
+- **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
+
+## L52. 2026-10-06: the librarian sells rolled gear
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
+- **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
+- **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
+- **Fail signs:** Vanilla librarian enchanted book trades; stock that never changes; tier IV before a capstone.
+
+## L53. 2026-10-06: keys settle on the clear line
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (J7, `DungeonDrops`, `RunLifecycle.redeemKeys`): mobs drop no gear in the dungeon, and trial keys never leave their floor. The salvage bench refuses keys; at a floor clear each unused key becomes emeralds.
+- **Do:** Kill dungeon mobs and check the drops; put a trial key in the salvage input; clear a floor holding a plain and an ominous trial key.
+- **Pass:** No weapons, armour or bows drop; the bench refuses the key; the clear line pays 1 emerald for the plain key and 3 for the ominous, and the keys are gone.
+- **Fail signs:** A mob dropping a bow; a key salvaging at the bench; a key still in hand after the clear.
