@@ -77,10 +77,22 @@ final class TripDoors {
      */
     static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                           int compass) {
+        return eligibleFirst(all, unlockedActs, compass, null, 0);
+    }
+
+    /**
+     * As {@link #eligibleFirst(Collection, Set, int)}, with the capstone rule: an
+     * act's capstone is only offered once the rest of the act is done
+     * ({@link ActProgress#capstoneReady}). {@code finished == null} skips that rule.
+     */
+    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                          int compass, Set<String> finished, int deepestMineFloor) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
-                    && def.entry() != null && def.unlockLevel() <= compass) {
+                    && def.entry() != null && def.unlockLevel() <= compass
+                    && (finished == null || def.kind() != DungeonDef.Kind.CAPSTONE
+                        || ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
                 out.add(def);
             }
         }
@@ -177,6 +189,17 @@ final class TripDoors {
      */
     static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                       Set<String> finishedDungeons, int compass) {
+        return pendingCapstone(all, unlockedActs, finishedDungeons, compass, false, 0);
+    }
+
+    /**
+     * As {@link #pendingCapstone(Collection, Set, Set, int)}; with
+     * {@code gated} an act's capstone is pending only once the rest of the
+     * act is done ({@link ActProgress#capstoneReady}).
+     */
+    static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                      Set<String> finishedDungeons, int compass, boolean gated,
+                                      int deepestMineFloor) {
         Set<String> finished = new LinkedHashSet<>();
         for (String id : finishedDungeons) {
             finished.add(DungeonDef.qualify(id));
@@ -185,7 +208,8 @@ final class TripDoors {
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.CAPSTONE || def.entry() == null
                     || !unlockedActs.contains(def.act()) || def.unlockLevel() > compass
-                    || finished.contains(DungeonDef.qualify(def.id()))) {
+                    || finished.contains(DungeonDef.qualify(def.id()))
+                    || (gated && !ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
                 continue;
             }
             if (best == null || def.act() < best.act()

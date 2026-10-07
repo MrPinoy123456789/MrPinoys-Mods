@@ -75,7 +75,8 @@ final class DungeonProgress {
             member.sendSystemMessage(Component.literal(label + ". Its dungeons now appear at the first door.")
                     .withStyle(ChatFormatting.GOLD));
             StaggeredTitle.show(server, id, Component.literal(label).withStyle(ChatFormatting.GOLD),
-                    java.util.List.of(), ChatFormatting.GRAY);
+                    java.util.List.of("Act " + act + " complete"), ChatFormatting.GRAY);
+            celebrate(member);
             PlaytestJournal.actUnlocked(member, record, dungeonId, next, false);
             opened = next;
         }
@@ -89,6 +90,10 @@ final class DungeonProgress {
             PlaytestJournal.actUnlocked(member, record, dungeonId, 0, true);
         }
 
+        if (opened == 0 && capstoneJustUnlocked(server, member, record, open, finished, depth, all,
+                announceRemaining, newFinish)) {
+            return opened;
+        }
         if (opened == 0) {
             milestoneTitle(server, id, record, finished, depth, all, newFinish, announceRemaining);
         }
@@ -136,5 +141,58 @@ final class DungeonProgress {
                 return;
             }
         }
+    }
+
+    /** Fanfare for an act milestone: the toast and chime, and totem sparkles around the player. */
+    private static void celebrate(ServerPlayer member) {
+        Chime.fanfare(member);
+        if (member.level() instanceof net.minecraft.server.level.ServerLevel level) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING,
+                    member.getX(), member.getY() + 1.0, member.getZ(), 60, 0.6, 0.8, 0.6, 0.4);
+        }
+    }
+
+    /**
+     * The rest of an open act was just finished, so its capstone is now
+     * unlocked: a title and the fanfare, once. "Just" means the state before
+     * this progress (without the dungeon just finished, one Mine floor
+     * shallower) had the capstone locked. Returns whether it fired.
+     */
+    private static boolean capstoneJustUnlocked(MinecraftServer server, ServerPlayer member,
+                                                InstanceRecord record, Set<Integer> open,
+                                                Set<String> finished, int depth, Collection<DungeonDef> all,
+                                                boolean finishCall, boolean newFinish) {
+        Set<String> before = new java.util.LinkedHashSet<>(finished);
+        if (finishCall && newFinish && record != null) {
+            before.remove(record.interval.dungeonId);
+            before.remove(DungeonDef.qualify(record.interval.dungeonId));
+            before.remove(record.interval.dungeonId.replaceFirst("^[^:]*:", ""));
+        }
+        int depthBefore = finishCall ? depth : depth - 1;
+        for (int act = DungeonDef.MIN_ACT; act <= DungeonDef.MAX_ACT; act++) {
+            DungeonDef capstone = null;
+            for (DungeonDef def : ActProgress.actDungeons(act, all)) {
+                if (def.kind() == DungeonDef.Kind.CAPSTONE) {
+                    capstone = def;
+                }
+            }
+            if (capstone == null || !open.contains(act)
+                    || finished.contains(DungeonDef.qualify(capstone.id()))
+                    || finished.contains(capstone.id())) {
+                continue;
+            }
+            if (ActProgress.capstoneReady(act, finished, depth, all)
+                    && !ActProgress.capstoneReady(act, before, depthBefore, all)) {
+                StaggeredTitle.show(server, member.getUUID(),
+                        Component.literal("Act " + act + " trials complete").withStyle(ChatFormatting.GOLD),
+                        java.util.List.of(capstone.name() + " is unlocked"), ChatFormatting.GRAY);
+                member.sendSystemMessage(Component.literal("The trials of Act " + act + " are done. "
+                        + capstone.name() + " now appears at the first door; clear it to open the next act.")
+                        .withStyle(ChatFormatting.GOLD));
+                celebrate(member);
+                return true;
+            }
+        }
+        return false;
     }
 }

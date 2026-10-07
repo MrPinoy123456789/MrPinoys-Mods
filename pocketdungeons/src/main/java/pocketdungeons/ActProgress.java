@@ -97,6 +97,27 @@ final class ActProgress {
     }
 
     /**
+     * Whether an act's capstone is unlocked for a member: every other dungeon
+     * of the act finished once and the Endless Mine at the act's depth target.
+     * (The capstone's own compass level is a separate gate, D23.) The capstone
+     * is the act's last trial; clearing it is what opens the next act.
+     */
+    static boolean capstoneReady(int act, Set<String> finished, int deepestMineFloor,
+                                 Collection<DungeonDef> all) {
+        Set<String> done = new LinkedHashSet<>();
+        for (String id : finished) {
+            done.add(DungeonDef.qualify(id));
+        }
+        for (DungeonDef def : actDungeons(act, all)) {
+            if (def.kind() != DungeonDef.Kind.CAPSTONE && !done.contains(DungeonDef.qualify(def.id()))) {
+                return false;
+            }
+        }
+        int target = mineTarget(act);
+        return target <= 0 || deepestMineFloor >= target;
+    }
+
+    /**
      * Whether {@code act} is complete for a member (D29): every dungeon of the
      * act finished and, for acts that have a Mine layer, the deepest cleared
      * Mine floor at {@link #mineTarget} or deeper. {@code finished} takes bare

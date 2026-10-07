@@ -175,6 +175,9 @@ final class DungeonMapText {
         for (DungeonDef def : dungeons) {
             if (done.contains(DungeonDef.qualify(def.id()))) {
                 out.add(new Line("    " + def.name() + " (done)", Tone.VISITED));
+            } else if (def.kind() == DungeonDef.Kind.CAPSTONE
+                    && !ActProgress.capstoneReady(act, finished, deepestMineFloor, all)) {
+                out.add(new Line("    " + def.name() + " · after the rest of the act", Tone.NOTE));
             } else if (def.unlockLevel() > compass) {
                 out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
             } else {

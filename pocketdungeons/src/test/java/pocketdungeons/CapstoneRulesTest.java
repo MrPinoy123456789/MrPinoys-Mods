@@ -45,6 +45,7 @@ public class CapstoneRulesTest {
         testWardenSummonRule();
         testWardenOnlyInAncientCity();
         testPendingCapstone();
+        testCapstoneWaitsForTheRestOfTheAct();
         testCapstoneGuaranteeStaysOffDoorThree();
         testNoGuaranteeWhenNothingPending();
         testRoomNarrowing();
@@ -133,6 +134,35 @@ public class CapstoneRulesTest {
     }
 
     // ---- the capstone offer rule -------------------------------------------------------
+
+    /**
+     * The capstone is the act's last trial: it is only offered once every other
+     * dungeon of the act is finished and the Mine has reached the act's target.
+     */
+    private static void testCapstoneWaitsForTheRestOfTheAct() {
+        DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
+        DungeonDef mineshaft = def("mineshaft", 1, "dungeon");
+        DungeonDef ossuary = def("ossuary", 1, "dungeon");
+        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary);
+        Set<Integer> act1 = Set.of(1);
+
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of(), 0).contains(spawner),
+                "nothing done: the capstone is not dealt");
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 4).contains(spawner),
+                "the Mine short of its target: still locked");
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft"), 5).contains(spawner),
+                "a dungeon unfinished: still locked");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(spawner),
+                "the rest of the act done and the Mine at 5: the capstone is dealt");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(mineshaft),
+                "ordinary dungeons stay dealt");
+        check(TripDoors.pendingCapstone(all, act1, Set.of(), 25, true, 0) == null,
+                "locked, so not pending either");
+        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, 5) == spawner,
+                "unlocked and pending");
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 5, all), "ready");
+        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 4, all), "Mine short, not ready");
+    }
 
     private static void testPendingCapstone() {
         DungeonDef spawner = def("spawner_dungeon", 1, "capstone");

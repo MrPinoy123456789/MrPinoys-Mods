@@ -110,6 +110,12 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 0.8f);
     }
 
+    /** An act was completed or its capstone unlocked: the challenge toast, then the level up chime. */
+    public static void fanfare(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE), 0.8f, 1.0f);
+        keystoneLevelUp(player);
+    }
+
     /** Scrap was earned at a floor clear: the XP orb pickup, soft. */
     public static void scrapEarned(ServerPlayer player) {
         play(player, Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP), 0.5f, 1.0f);
