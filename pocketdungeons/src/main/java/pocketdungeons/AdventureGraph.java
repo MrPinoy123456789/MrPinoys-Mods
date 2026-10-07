@@ -34,6 +34,16 @@ import java.util.UUID;
  * shallow nodes over deep ones. The brainstorm's "deeper is rarer" curve is
  * explicitly open tuning in {@code D3_PROGRESSION_PLAN.md}'s M11 section; this
  * milestone wires the plumbing depth needs without guessing the curve.
+ *
+ * <h2>Superseded for door offers (dungeon structure W2)</h2>
+ *
+ * <p>{@code data/pocketdungeons/dungeon_adventure} stays loaded, validated and
+ * readable (zone rules still ask it which themes are boss kind), but it no longer
+ * drives the doors. A trip is one dungeon of {@code data/pocketdungeons/dungeon}:
+ * the first door picks the dungeon and every later door is an out edge of the
+ * current node ({@link TripDoors}, {@link Keystone#offers}). {@link #pick} is not
+ * called for offers any more, and {@code DungeonLog.currentTheme} and
+ * {@code depth} no longer feed it.
  */
 final class AdventureGraph {
 

@@ -157,7 +157,7 @@ final class RunMemento {
                 .append(Component.literal("Theme: "
                         + (record.theme().isBlank() ? "unknown" : record.theme())))
                 .append(Component.literal("\n"))
-                .append(Component.literal("Keystone: " + Math.max(0, record.keystoneLevel())
+                .append(Component.literal("Compass: " + Math.max(0, record.keystoneLevel())
                         + " (tier " + Math.max(0, record.lootTier()) + ")"));
         if (!record.affixes().isEmpty()) {
             page1 = page1.append(Component.literal("\n"))
@@ -184,7 +184,7 @@ final class RunMemento {
     static List<Component> mementoLore(RunRecord record) {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Theme: " + (record.theme().isBlank() ? "unknown" : record.theme())));
-        lore.add(grey("Keystone: " + Math.max(0, record.keystoneLevel())
+        lore.add(grey("Compass: " + Math.max(0, record.keystoneLevel())
                 + " (tier " + Math.max(0, record.lootTier()) + ")"));
         if (!record.affixes().isEmpty()) {
             lore.add(grey("Affixes: " + String.join(", ", sorted(record.affixes()))));

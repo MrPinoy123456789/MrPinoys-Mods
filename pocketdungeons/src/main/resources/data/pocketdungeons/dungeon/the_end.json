@@ -1,0 +1,119 @@
+{
+  "name": "The End",
+  "act": 5,
+  "kind": "story",
+  "mainTheme": "the_end",
+  "lootBand": {
+    "min": 4,
+    "max": 4
+  },
+  "nodePalette": [
+    "deepslate_diamond_ore",
+    "ancient_debris"
+  ],
+  "diary": "entry_24",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "ender_archive",
+      "blackstone"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "outer_gate",
+      "name": "The Outer Gate",
+      "layer": 1,
+      "light": "dim"
+    },
+    {
+      "id": "outer_islands",
+      "name": "The Outer Islands",
+      "layer": 2,
+      "roomBias": [
+        "end_island"
+      ]
+    },
+    {
+      "id": "chorus_orchard",
+      "name": "The Chorus Orchard",
+      "layer": 2,
+      "roomBias": [
+        "end_island"
+      ]
+    },
+    {
+      "id": "end_city",
+      "name": "The End City",
+      "layer": 3,
+      "roomBias": [
+        "end_city_hall"
+      ]
+    },
+    {
+      "id": "stronghold_stacks",
+      "name": "The Stronghold Stacks",
+      "layer": 3,
+      "theme": "ender_archive"
+    },
+    {
+      "id": "end_ship",
+      "name": "The End Ship",
+      "layer": 3,
+      "roomBias": [
+        "end_ship"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "world_rim",
+      "name": "The Rim of the World",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "outer_gate",
+      "to": "outer_islands"
+    },
+    {
+      "from": "outer_gate",
+      "to": "chorus_orchard"
+    },
+    {
+      "from": "outer_islands",
+      "to": "end_city"
+    },
+    {
+      "from": "outer_islands",
+      "to": "end_ship",
+      "cost": 1
+    },
+    {
+      "from": "chorus_orchard",
+      "to": "end_city"
+    },
+    {
+      "from": "chorus_orchard",
+      "to": "stronghold_stacks"
+    },
+    {
+      "from": "end_city",
+      "to": "world_rim"
+    },
+    {
+      "from": "stronghold_stacks",
+      "to": "world_rim"
+    },
+    {
+      "from": "end_ship",
+      "to": "world_rim"
+    }
+  ]
+}

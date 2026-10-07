@@ -198,6 +198,14 @@ final class Instances {
                     || !entityLevel.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
                 return;
             }
+            // W7a: the Ancient City's Warden is a real vanilla Warden; it is never scaled.
+            if (mob.getType() == EntityTypes.WARDEN) {
+                return;
+            }
+            // W7b: the Wither and Steve set their own health and damage for the party.
+            if (mob.entityTags().contains(CapstoneFights.UNSCALED_TAG)) {
+                return;
+            }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
                 applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
@@ -921,15 +929,15 @@ final class Instances {
      * Which of the lobby's three fixed doors (1, 2 or 3) this world position
      * is, for <em>this player's own</em> lobby -- or null if the player is not
      * standing in one that can still choose a door ({@link RunSession#canChooseDoor}),
-     * the position is not a door, or the player is a party member riding along
-     * rather than the lobby's owner (only the owner's keystone is on the
-     * line). Positions are computed from the record's origin rather than read
+     * or the position is not a door. Any party member may use a door (design D15;
+     * the leader's decide whitelist is checked where the choice is made, so a
+     * refused member gets a message rather than a silent click). Positions are computed from the record's origin rather than read
      * back out of the template: the lobby is always stamped at rotation 0, so
      * there is no transform to account for.
      */
     static Integer selectorDoorStep(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record)) {
             return null;
         }
         BlockPos o = record.stagingCellOrigin;
@@ -975,48 +983,57 @@ final class Instances {
     /**
      * M19 19.3: whether {@code pos} is this player's own lobby's commit lever:
      * the lever block beside the third selector door on the room's dungeon
-     * wall. Only the owner may pull it, the same rule as the doors: their
-     * keystone is the one on the line.
+     * wall. Any member may pull it (D15) unless the leader's decide whitelist
+     * is on, which {@link RunLifecycle#commitDoor} enforces with a message.
      */
     static boolean isCommitLever(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)
-                || record.stagingCellOrigin == null) {
+        if (record == null || !RunSession.canChooseDoor(record) || record.stagingCellOrigin == null) {
             return false;
         }
         return RoomTemplateGenerator.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
-     * Takes a selector door back out when its keystone level gate
-     * ({@link PocketDungeonsConfig#doorMinLevel}) is above the owner's key,
-     * bulb and all, so the staging room shows only the doors they can reach.
-     * Playtest 2026-09-29 (A6): the player would rather see one door at level
-     * 1 and notice when a second one appears, which is itself the unlock
-     * signal. Door 1 always stands. The fuel gate never hides a door: the
-     * engine is fed in this same room, so a door short of fuel stays and the
-     * screen says what it needs. Run after every placement of the doors.
+     * Takes every selector door back out once the trip's dungeon is finished, bulb
+     * and all, so the staging room offers only the way home (the HOME lever).
+     * Before the dungeon structure waves this hid doors the owner's keystone level
+     * could not reach; the level gates are gone, so a staging room now always shows
+     * all three doors until the final floor is cleared. Run after every placement of
+     * the doors.
      */
     static void hideLockedDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall, UUID owner) {
         if (level == null || o == null || wall == null || owner == null) {
             return;
         }
-        DungeonLog.Entry entry = DungeonLog.forServer(level.getServer()).get(owner);
-        int keyLevel = Math.max(1, entry.keystoneLevel());
-        Keystone.Offer[] offers = Keystone.offers(owner, keyLevel, entry.currentTheme(), entry.depth());
-        for (int step = 2; step <= 3; step++) {
-            Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-            if (!offer.free() && keyLevel < PocketDungeonsConfig.doorMinLevel(step)) {
-                RoomTemplateGenerator.hideSelectorDoor(level, o, wall, step);
-            }
+        InstanceRecord record = InstanceRegistry.byMember.get(owner);
+        if (record == null || !record.interval.finished) {
+            return;
         }
+        for (int step = 1; step <= 3; step++) {
+            RoomTemplateGenerator.hideSelectorDoor(level, o, wall, step);
+        }
+    }
+
+    /**
+     * Whether {@code pos} is a block of the floor history board in the staging room
+     * of the run this player is in. A click on it opens the dungeon map. Any member
+     * may read it.
+     */
+    static boolean isHistoryBoard(ServerPlayer player, BlockPos pos) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record == null || record.stagingCellOrigin == null || record.visitInstance
+                || !record.inFloorLoop()) {
+            return false;
+        }
+        return RoomTemplateGenerator.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
     }
 
     /**
      * Whether {@code pos} is the go-home lever in the staging room of the run
      * this player is in. Any member's click is claimed, so vanilla never
-     * flips the lever, and {@code RunLifecycle.goHome} answers a non-owner
-     * with the refusal rather than silence.
+     * flips the lever, and {@code RunLifecycle.goHome} answers a member the
+     * leader's decide whitelist bars with the refusal rather than silence.
      */
     static boolean isHomeLever(ServerPlayer player, BlockPos pos) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -1024,6 +1041,49 @@ final class Instances {
             return false;
         }
         return RoomTemplateGenerator.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+    }
+
+    /**
+     * The room names the node behind {@code offer} leans toward (the node's
+     * {@code roomBias}), or an empty list outside a dungeon graph.
+     */
+    static List<String> nodeRoomBias(Keystone.Offer offer) {
+        if (offer == null || offer.door() == null) {
+            return List.of();
+        }
+        DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        return node == null ? List.of() : node.roomBias();
+    }
+
+    /**
+     * Dungeon structure W5: the floor behind {@code offer} as the room selector sees it, or
+     * {@code null} outside a dungeon graph (an experimental or Endless Mine offer keeps the legacy
+     * theme-only room filter).
+     */
+    static RoomEligibility.Floor roomFloorOf(Keystone.Offer offer, String effectiveThemeId, String roomTheme) {
+        if (offer == null || offer.door() == null) {
+            return null;
+        }
+        DungeonDefs defs = DungeonDefs.current();
+        DungeonDef def = defs == null ? null : defs.byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        if (def == null || node == null) {
+            return null;
+        }
+        String borrowedFrom = "";
+        if (node.overridesTheme() && !DungeonDef.qualify(node.theme()).equals(DungeonDef.qualify(def.mainTheme()))) {
+            for (DungeonDef other : defs.all()) {
+                if (DungeonDef.qualify(other.mainTheme()).equals(DungeonDef.qualify(node.theme()))) {
+                    borrowedFrom = other.id();
+                    break;
+                }
+            }
+        }
+        return new RoomEligibility.Floor(def.id(), def.mainTheme(), roomTheme, def.act(),
+                def.kind() == DungeonDef.Kind.CAPSTONE, effectiveThemeId, borrowedFrom,
+                node.layer() == 1, node.isFinal(), offer.door().sideBranch(),
+                def.kind() == DungeonDef.Kind.RESOURCE);
     }
 
     /**
@@ -1084,8 +1144,8 @@ final class Instances {
                 recipeTags = CubeRecipe.recipesOf(keystone);
             }
         }
-        Set<String> baseAffixes = AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                AffixManifest.current().definitions());
+        // Dungeon structure W4: Feral is not dealt on a dark floor.
+        Set<String> baseAffixes = Keystone.dealtAffixes(record.owner, offer);
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
         long previewSeed = level.getRandom().nextLong();
         RunRecipePlan recipePlan = RunRecipePlan.resolve(previewSeed, offer.level(),
@@ -1112,6 +1172,8 @@ final class Instances {
         // commit, so a later floor's preview would otherwise lose the Mine
         // look; record.interval.endlessMine carries the flag forward instead.
         String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record, recipePlan);
+        final boolean mineFloor = EndlessMineRules.isMine(recipePlan) || EndlessMineRules.isMine(record)
+                || EndlessMineRules.isMineOffer(offer);
         if (!effectiveThemeId.equals(offer.theme())) {
             theme = ThemeManifest.current().byId(effectiveThemeId);
         }
@@ -1121,6 +1183,7 @@ final class Instances {
         // and the recipe revision matches, reuse the frozen plan.
         if (record.floor.previewCellOrigin != null
                 && record.floor.previewOfferStep == step
+                && record.floor.previewDoorKey.equals(doorKey(offer))
                 && record.floor.previewRecipePlan != null
                 && record.floor.previewRecipePlan.matchesRevision(recipePlan.revision)
                 && record.floor.previewRecipePlan.offerLevel == offer.level()) {
@@ -1145,15 +1208,24 @@ final class Instances {
         long lastSeed = 0;
         int lastAttempts = 0;
         String lastReason = null;
+        // Dungeon structure W2: the node's room bias nudges the same weighted pick
+        // Lemon's playtest bias does (PlaytestBias), for this plan only.
+        List<String> nodeBias = nodeRoomBias(offer);
+        // An Endless Mine floor keeps the legacy theme-only room filter.
+        final RoomEligibility.Floor roomFloor = mineFloor
+                ? null
+                : roomFloorOf(offer, effectiveThemeId, theme == null ? null : theme.meta().roomTheme);
         for (int round = 0; round < 4 && plan == null; round++) {
             long seed = level.getRandom().nextLong();
-            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
+            final String roomTheme = theme == null ? null : theme.meta().roomTheme;
+            LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(nodeBias, () -> LayoutPlanner.plan(
                     seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                     minPath, maxPath,
                     PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                    PocketDungeonsConfig.maxGridSpan(), theme == null ? null : theme.meta().roomTheme,
+                    PocketDungeonsConfig.maxGridSpan(), roomTheme,
                     dungeonDoor, bagTags, recipePlan,
-                    record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0);
+                    record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0,
+                    roomFloor));
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();
             lastAttempts = outcome.attemptsUsed();
@@ -1184,9 +1256,13 @@ final class Instances {
 
         // M66: use the recipe plan's effective affixes (ominous, feral added).
         Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
+        // Dungeon structure W4: the entrance cell's light and resource nodes, kept for the commit.
+        NodeStamper.Context nodeCtx = NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(),
+                mineFloor);
+        record.floor.previewNodes.clear();
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
-                    effectiveThemeId);
+                    effectiveThemeId, LootBands.forFloor(record, offer, mineFloor), nodeCtx, record.floor.previewNodes);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Preview stamp failed for door {}", step, e);
             clearCells(level, record, List.of(entranceOrigin));
@@ -1199,8 +1275,9 @@ final class Instances {
         record.floor.previewCellOrigin = entranceOrigin;
         record.floor.previewRecipePlan = recipePlan;
         record.floor.previewOfferStep = step;
+        record.floor.previewDoorKey = doorKey(offer);
         RunSession.transition(record, RunSession.Phase.PREVIEW);
-        PlaytestJournal.doorPreview(server, record, step, offer.level(), effectiveThemeId, affixes);
+        PlaytestJournal.doorPreview(server, record, offer.step(), offer.level(), effectiveThemeId, affixes);
         return true;
     }
 
@@ -1274,6 +1351,7 @@ final class Instances {
         hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
         record.floor.previewPlan = null;
         record.floor.previewCellOrigin = null;
+        record.floor.previewNodes.clear();
         // M66: clear the recipe plan and, on a true cancel, restore the
         // escrowed catalyst. A switch keeps the escrow and tags armed.
         if (record.floor.previewRecipePlan != null) {
@@ -1283,6 +1361,7 @@ final class Instances {
             record.floor.previewRecipePlan = null;
         }
         record.floor.previewOfferStep = 0;
+        record.floor.previewDoorKey = "";
         // M65: return to the phase that preceded the preview. If the safe
         // room is loaded and floorIndex is 0, that is HOME; otherwise the
         // party is between floors and the phase is FLOOR_CLEARED.
@@ -1350,6 +1429,15 @@ final class Instances {
         if (plan == null || record.floor.previewCellOrigin == null) {
             return false;
         }
+        // W8: a content reload can re-deal the doors under an open preview. The floor the party saw
+        // belongs to another dungeon node than this door now names, so the preview is dropped.
+        if (!record.floor.previewDoorKey.equals(doorKey(offer))) {
+            PocketDungeonsMod.LOG.warn("Refusing door commit in slot {}: the preview was for {} but the door is now {}",
+                    record.slot, record.floor.previewDoorKey, doorKey(offer));
+            clearPreview(level, record, false);
+            return false;
+        }
+        Set<BlockPos> previewNodes = new java.util.HashSet<>(record.floor.previewNodes);
 
         // M78: the Mine theme forced at preview is carried into commit, and
         // the run is flagged Mine for the rest of its floors. The flag lives
@@ -1357,7 +1445,8 @@ final class Instances {
         // cleared.
         String effectiveThemeId = EndlessMineRules.effectiveTheme(offer.theme(), record,
                 record.floor.previewRecipePlan);
-        boolean openingMine = EndlessMineRules.isMine(record.floor.previewRecipePlan);
+        boolean openingMine = EndlessMineRules.isMine(record.floor.previewRecipePlan)
+                || EndlessMineRules.isMineOffer(offer);
 
         // M2/M3: clear the previous dungeon before generating the next one.
         // PD-13: its force-load tickets go with its cells.
@@ -1365,8 +1454,7 @@ final class Instances {
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         boolean ominousRolled = false;
-        Set<String> affixes = AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                AffixManifest.current().definitions());
+        Set<String> affixes = Keystone.dealtAffixes(record.owner, offer);
 
         // M66: apply recipe effects from the frozen preview plan, not from
         // re-read recipe tags. The preview resolved the affix set; commit
@@ -1403,7 +1491,9 @@ final class Instances {
             // envelope leaves the entrance's staging side alone instead of
             // bricking the staging room's wall with bedrock.
             layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
-                    null, effectiveThemeId, Set.of(record.stagingCellOrigin));
+                    null, effectiveThemeId, Set.of(record.stagingCellOrigin),
+                    LootBands.forFloor(record, offer, openingMine || record.interval.endlessMine),
+                    NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(), openingMine || record.interval.endlessMine));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Commit stamp failed behind the staging room at {}",
                     record.stagingCellOrigin.toShortString(), e);
@@ -1422,7 +1512,9 @@ final class Instances {
         FloorState next = new FloorState();
         next.affixes = affixes;
         next.theme = effectiveThemeId;
-        next.chosenStep = step;
+        next.chosenStep = offer.step();
+        next.chosenLevel = offer.level();
+        next.doorTaken = true;
         next.freeDoor = offer.free();
         // M66: the recipe plan is consumed. The catalyst escrow is cleared
         // (the catalyst is permanently spent on successful commit). Store
@@ -1446,11 +1538,20 @@ final class Instances {
                 next.situations.add(room.name());
             }
         }
+        // Dungeon structure W4: the entrance cell stamped at preview registered its nodes then.
+        next.nodes.addAll(previewNodes);
         record.startFloor(layout, next);
         // M78: a Mine recipe flags the interval Mine on the first commit and
         // the flag persists for the rest of the interval.
         if (openingMine) {
             record.interval.endlessMine = true;
+        }
+        // Dungeon structure W2: the trip now stands at the node behind this door.
+        // An Endless Mine and an operator's experimental offer stay outside the graph.
+        if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
+            record.interval.dungeonId = offer.dungeonId();
+            record.interval.nodeId = offer.nodeId();
+            record.interval.path.add(offer.nodeId());
         }
         RunSession.transition(record, RunSession.Phase.ACTIVE);
 
@@ -1479,8 +1580,26 @@ final class Instances {
             }
         }
 
+        // Dungeon structure W7b (design D16a): a capstone dungeon's final floor starts with omen on it.
+        if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
+            int capstoneOmen = CapstoneStart.amount(DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId(),
+                    PocketDungeonsConfig.capstoneStartOmen());
+            if (capstoneOmen > 0) {
+                int before = record.interval.omen;
+                record.interval.omen = CapstoneStart.raise(before, capstoneOmen);
+                if (record.interval.omen > before) {
+                    OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
+                            record.interval.omen - before, null);
+                }
+            }
+        }
+
         // M11: a zone whose capstone is the boss gets its one proof encounter.
-        if (ZoneRules.bossCapstone(effectiveThemeId)) {
+        // Dungeon structure W2: inside a dungeon the capstone boss waits on the final
+        // floor only, not on every floor of a multi floor capstone dungeon.
+        if (ZoneRules.bossCapstone(effectiveThemeId)
+                && (offer.door() == null || TripDoors.isFinal(
+                        DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId()))) {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
@@ -1509,6 +1628,11 @@ final class Instances {
             }
         }
         return true;
+    }
+
+    /** {@code dungeonId/nodeId} of the dungeon door behind {@code offer}, or an empty string outside the graph. */
+    static String doorKey(Keystone.Offer offer) {
+        return offer == null || offer.door() == null ? "" : offer.dungeonId() + "/" + offer.nodeId();
     }
 
     /**
@@ -1920,8 +2044,8 @@ final class Instances {
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
-        // Before the purge hands the storage back: it reverts with the pack.
-        RunStorage.rollBackToInterval(record);
+        // The storage reverts with the pack (any open menu is closed first).
+        RunStorage.rollBackToInterval(server, record);
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);
@@ -2465,6 +2589,8 @@ final class Instances {
             // interval the rest of onTick uses.
             if (record.isKeystoneRun() && record.floor.completed.isEmpty()) {
                 watchSpawnerClears(server, record);
+                // Dungeon structure W7a: the Spawner Dungeon's brood and the Ancient City's Warden.
+                CapstoneFights.tick(server, record);
             }
             // Repainted every watch tick, and every member who is in the
             // dungeon dimension is put back on it: whichever way they came in

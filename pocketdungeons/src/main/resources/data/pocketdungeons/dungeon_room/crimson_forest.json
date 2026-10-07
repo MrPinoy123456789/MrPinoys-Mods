@@ -1,0 +1,131 @@
+{
+  "template": "pocketdungeons:rooms/crimson_forest",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "basalt_foundry",
+    "blackstone",
+    "wither_keep"
+  ],
+  "light": "dim",
+  "biome": "crimson_forest",
+  "dungeons": [
+    "basalt_foundry",
+    "blackstone",
+    "wither_keep"
+  ],
+  "acts": [
+    4
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:crimson_stem",
+      "from": [
+        2,
+        1,
+        2
+      ],
+      "to": [
+        2,
+        4,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:crimson_stem",
+      "from": [
+        13,
+        1,
+        13
+      ],
+      "to": [
+        13,
+        4,
+        13
+      ]
+    },
+    {
+      "block": "minecraft:crimson_stem",
+      "from": [
+        2,
+        1,
+        13
+      ],
+      "to": [
+        2,
+        4,
+        13
+      ]
+    },
+    {
+      "block": "minecraft:crimson_stem",
+      "from": [
+        11,
+        1,
+        2
+      ],
+      "to": [
+        11,
+        4,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:nether_wart_block",
+      "from": [
+        1,
+        4,
+        1
+      ],
+      "to": [
+        2,
+        5,
+        2
+      ],
+      "count": 5
+    },
+    {
+      "block": "minecraft:nether_wart_block",
+      "from": [
+        10,
+        4,
+        1
+      ],
+      "to": [
+        12,
+        5,
+        3
+      ],
+      "count": 5
+    },
+    {
+      "block": "minecraft:nether_wart_block",
+      "from": [
+        1,
+        4,
+        12
+      ],
+      "to": [
+        3,
+        5,
+        14
+      ],
+      "count": 5
+    }
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

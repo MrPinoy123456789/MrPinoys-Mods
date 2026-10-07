@@ -126,7 +126,7 @@ blocks for free.
 |---|---|---|---|---|
 | 1 to 5 | Upper workings | stone, oak supports, rails | zombies, skeletons, spiders | coal, iron, copper |
 | 6 to 11 | Deepslate | deepslate, tuff, dripstone | cave spiders, silverfish, creepers | iron, gold, lapis, redstone |
-| 12 to 17 | Deep dark | sculk, deepslate tiles | sculk sensors and shriekers (omen), wardens are **never** spawned | diamond, echo shard, amethyst |
+| 12 to 17 | Deep dark | sculk, deepslate tiles | sculk sensors and shriekers (omen), wardens are **never** spawned here (the one Warden the mod spawns is the Ancient City capstone's, see `DUNGEON_STRUCTURE_DESIGN.md` section 11) | diamond, echo shard, amethyst |
 | 18+ | Magma core | basalt, blackstone, magma | magma cubes, blazes, lava | gold, ancient debris (rare), netherite scrap (very rare) |
 
 A layer transition floor marks each boundary: a set piece that tells the player

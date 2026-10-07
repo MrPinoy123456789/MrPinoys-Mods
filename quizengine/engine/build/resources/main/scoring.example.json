@@ -1,9 +1,0 @@
-{
-  "participation": 1,
-  "triviaCorrect": 5,
-  "writerBase": 10,
-  "perVote": 3,
-  "voterBase": 2,
-  "voterPool": 12,
-  "quorumOptions": 2
-}

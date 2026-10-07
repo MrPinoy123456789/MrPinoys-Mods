@@ -130,7 +130,7 @@ final class GambleStation {
 
         if (maxTier < 1 || LootTables.GEAR_SLOTS.isEmpty()) {
             // No trades at all: keystone level too low for even tier 1.
-            player.sendSystemMessage(Component.literal("Your keystone does not clear tier 1 yet.")
+            player.sendSystemMessage(Component.literal("Your compass does not clear tier 1 yet.")
                     .withStyle(ChatFormatting.YELLOW));
             return false;
         }
@@ -166,7 +166,7 @@ final class GambleStation {
         int level = DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
         int maxTier = KeystoneMath.lootTier(Math.max(1, level));
         if (tier > maxTier) {
-            player.sendSystemMessage(Component.literal("Your keystone no longer clears that tier.")
+            player.sendSystemMessage(Component.literal("Your compass no longer clears that tier.")
                     .withStyle(ChatFormatting.YELLOW));
             return false;
         }

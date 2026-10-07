@@ -31,7 +31,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -147,6 +151,9 @@ final class TrialContent {
         TraversalSpecs.registerHandlers();
         Ordeals.register();
         SituationSpecs.registerHandlers();
+        ResourceBiomeSpecs.registerHandlers();
+        CowPits.register();
+        CapstoneSpecs.registerHandlers();
     }
 
     // ---- encounter ----------------------------------------------------------
@@ -768,7 +775,7 @@ final class TrialContent {
             // Remaining chests (non-vault containers) become supply chests.
             for (BlockPos pos : RoomContent.containers(level, cellOrigin)) {
                 if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                    c.setLootTable(lootTable(LootTables.supplyTable(tier)));
+                    c.setLootTable(resolveLootTable(level, LootTables.supplyTable(tier), lootSuffix));
                     c.setLootTableSeed(seed ^ pos.asLong());
                 }
             }
@@ -807,7 +814,7 @@ final class TrialContent {
         for (int i = 1; i < containers.size(); i++) {
             BlockPos pos = containers.get(i);
             if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-                c.setLootTable(lootTable(LootTables.supplyTable(tier)));
+                c.setLootTable(resolveLootTable(level, LootTables.supplyTable(tier), lootSuffix));
                 c.setLootTableSeed(seed ^ pos.asLong());
             }
         }
@@ -830,25 +837,140 @@ final class TrialContent {
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix) {
-        placeCompletionChests(level, origin, entranceDir, chests, tier, ominous, seed, lootSuffix, null);
+        placeRewardContainers(level, origin, entranceDir, chests, tier, 0, 0, ominous, seed,
+                lootSuffix, null, List.of());
     }
 
     /**
      * M68: placeCompletionChests with an optional namespaced loot table
-     * override. A count above three (a zone's depth bonus) stands the extra
-     * chests on top of the first ones.
+     * override. Kept for older callers; the barrel alone is placed.
      */
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix,
                                         String lootTableOverride) {
-        ResourceKey<LootTable> table = resolveLootTable(level,
-                LootTables.tierTable(tier, ominous), lootSuffix, lootTableOverride);
+        placeRewardContainers(level, origin, entranceDir, chests, tier, 0, 0, ominous, seed,
+                lootSuffix, lootTableOverride, List.of());
+    }
 
-        // Three chests on the far side of the terminal cell, beyond the 2x2
-        // lodestone pad and in front of the sealed door. Spots are mirrored by
-        // the entrance direction so they always face the player walking in.
-        BlockPos[] spots = switch (entranceDir) {
+    /**
+     * The reward corner of a cleared floor's terminal cell (2026-10-05 rework):
+     * two containers, nothing more. A barrel holds every loot roll the floor
+     * earned (the old three chests' rolls, and a finished dungeon's vault
+     * rolls, all merged into it), and a copper chest beside it holds the
+     * floor's promised rewards, the items its door advertised. Spots are
+     * mirrored by the entrance direction so they always face the player
+     * walking in; the other authored spots are cleared to air.
+     *
+     * <p>The barrel's rolls are drawn now, not lazily on open, because one
+     * container must hold several chests' worth: merging the stacks keeps
+     * overflow rare, and any that still does not fit drops at the barrel's
+     * feet rather than voiding.
+     */
+    static void placeRewardContainers(ServerLevel level, BlockPos origin,
+                                        DoorMask.Direction entranceDir, int rolls,
+                                        int tier, int vaultRolls, int vaultTier,
+                                        boolean ominous, long seed, String lootSuffix,
+                                        String lootTableOverride, List<ItemStack> promised) {
+        BlockPos[] spots = completionSpots(entranceDir);
+        Direction facing = completionFacing(entranceDir);
+        BlockPos barrelPos = origin.offset(spots[1]);
+        BlockPos copperPos = origin.offset(spots[0]);
+        // The third authored spot is always cleared.
+        level.setBlock(origin.offset(spots[2]), Blocks.AIR.defaultBlockState(), FLAGS);
+
+        level.setBlock(barrelPos, Blocks.BARREL.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.BarrelBlock.FACING, facing), FLAGS);
+        List<ItemStack> rolled = new ArrayList<>();
+        if (level.getServer() != null) {
+            LootParams.Builder params = new LootParams.Builder(level)
+                    .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(barrelPos));
+            if (rolls > 0) {
+                ResourceKey<LootTable> table = resolveLootTable(level,
+                        LootTables.tierTable(tier, ominous), lootSuffix, lootTableOverride);
+                LootTable loot = level.getServer().reloadableRegistries().getLootTable(table);
+                for (int i = 0; i < rolls; i++) {
+                    rolled.addAll(loot.getRandomItems(params.create(LootContextParamSets.CHEST),
+                            level.getRandom().nextLong() ^ seed ^ (long) i));
+                }
+            }
+            // The finished dungeon's vault pays at the band's top tier (D11).
+            if (vaultRolls > 0) {
+                LootTable vault = level.getServer().reloadableRegistries()
+                        .getLootTable(resolveLootTable(level, LootTables.tierTable(vaultTier, ominous),
+                                lootSuffix, lootTableOverride));
+                for (int i = 0; i < vaultRolls; i++) {
+                    rolled.addAll(vault.getRandomItems(params.create(LootContextParamSets.CHEST),
+                            level.getRandom().nextLong() ^ seed ^ 0x7A17L ^ (long) i));
+                }
+            }
+        }
+        List<ItemStack> merged = new ArrayList<>();
+        for (ItemStack stack : rolled) {
+            boolean joined = false;
+            for (ItemStack kept : merged) {
+                if (ItemStack.isSameItemSameComponents(kept, stack)
+                        && kept.getCount() + stack.getCount() <= kept.getMaxStackSize()) {
+                    kept.grow(stack.getCount());
+                    joined = true;
+                    break;
+                }
+            }
+            if (!joined) {
+                merged.add(stack);
+            }
+        }
+        if (level.getBlockEntity(barrelPos) instanceof net.minecraft.world.Container container) {
+            for (ItemStack stack : merged) {
+                boolean placed = false;
+                for (int slot = 0; slot < container.getContainerSize(); slot++) {
+                    ItemStack in = container.getItem(slot);
+                    if (in.isEmpty()) {
+                        container.setItem(slot, stack.copy());
+                        placed = true;
+                        break;
+                    } else if (ItemStack.isSameItemSameComponents(in, stack)
+                            && in.getCount() + stack.getCount() <= in.getMaxStackSize()) {
+                        in.grow(stack.getCount());
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    net.minecraft.world.entity.item.ItemEntity drop =
+                            new net.minecraft.world.entity.item.ItemEntity(level,
+                                    barrelPos.getX() + 0.5, barrelPos.getY() + 1.0,
+                                    barrelPos.getZ() + 0.5, stack.copy());
+                    level.addFreshEntity(drop);
+                }
+            }
+        }
+
+        level.setBlock(copperPos, copperChestBlock().defaultBlockState()
+                .setValue(ChestBlock.FACING, facing), FLAGS);
+        if (!promised.isEmpty()
+                && level.getBlockEntity(copperPos) instanceof net.minecraft.world.Container container) {
+            for (ItemStack stack : promised) {
+                for (int slot = 0; slot < container.getContainerSize() && !stack.isEmpty(); slot++) {
+                    ItemStack in = container.getItem(slot);
+                    if (in.isEmpty()) {
+                        container.setItem(slot, stack.copy());
+                        stack.setCount(0);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /** The promised-reward chest: a plain copper chest (the bag chest's oxidized cousin). */
+    private static net.minecraft.world.level.block.Block copperChestBlock() {
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.withDefaultNamespace("copper_chest"));
+    }
+
+    private static BlockPos[] completionSpots(DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
             case NORTH -> new BlockPos[]{new BlockPos(4, 1, 12), new BlockPos(8, 1, 12),
                     new BlockPos(12, 1, 12)};
             case SOUTH -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(8, 1, 4),
@@ -858,30 +980,15 @@ final class TrialContent {
             case EAST -> new BlockPos[]{new BlockPos(4, 1, 4), new BlockPos(4, 1, 8),
                     new BlockPos(4, 1, 12)};
         };
-        Direction facing = switch (entranceDir) {
+    }
+
+    private static Direction completionFacing(DoorMask.Direction entranceDir) {
+        return switch (entranceDir) {
             case NORTH -> Direction.NORTH;
             case SOUTH -> Direction.SOUTH;
             case WEST -> Direction.WEST;
             case EAST -> Direction.EAST;
         };
-        for (int i = 0; i < spots.length; i++) {
-            BlockPos pos = origin.offset(spots[i]);
-            if (i < chests) {
-                placeLootChest(level, pos, facing, table, seed);
-            } else {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
-            }
-        }
-        // A zone's depth bonus can pay more chests than there are spots: the
-        // extras stand on top of the first ones. A chest does not block the
-        // lid of the chest below it, so both still open. Only onto air, so a
-        // terminal room that built something over a spot keeps it.
-        for (int i = 0; i < Math.min(spots.length, chests - spots.length); i++) {
-            BlockPos above = origin.offset(spots[i]).above();
-            if (level.getBlockState(above).isAir()) {
-                placeLootChest(level, above, facing, table, seed);
-            }
-        }
     }
 
     private static void placeLootChest(ServerLevel level, BlockPos pos, Direction facing,

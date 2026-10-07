@@ -10,5 +10,6 @@
   "provides": ["blocks"],
   "requires": [],
   "access": "open",
-  "window": "bars"
+  "window": "bars",
+  "nodes": [{"block": "minecraft:dirt", "from": [5, 1, 10], "to": [6, 1, 10]}]
 }

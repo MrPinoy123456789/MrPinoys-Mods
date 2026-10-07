@@ -1,0 +1,43 @@
+{
+  "name": "Cow Pits",
+  "act": 2,
+  "kind": "resource",
+  "mainTheme": "cow_pits",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "oak_log"
+  ],
+  "diary": "entry_15",
+  "nodes": [
+    {
+      "id": "pen_gate",
+      "name": "Pen Gate",
+      "layer": 1,
+      "light": "dim",
+      "roomBias": [
+        "cow_pens"
+      ]
+    },
+    {
+      "id": "the_big_barn",
+      "name": "The Big Barn",
+      "layer": 2,
+      "final": true,
+      "light": "dim",
+      "roomBias": [
+        "cow_pens",
+        "hay_loft",
+        "cow_yard"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "pen_gate",
+      "to": "the_big_barn"
+    }
+  ]
+}

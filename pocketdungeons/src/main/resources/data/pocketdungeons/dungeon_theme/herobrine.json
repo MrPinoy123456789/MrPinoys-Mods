@@ -1,0 +1,7 @@
+{
+  "name": "Herobrine",
+  "processors": "pocketdungeons:theme_herobrine",
+  "spawner_prefix": "herobrine",
+  "loot_suffix": "ender_archive",
+  "room_theme": "herobrine"
+}

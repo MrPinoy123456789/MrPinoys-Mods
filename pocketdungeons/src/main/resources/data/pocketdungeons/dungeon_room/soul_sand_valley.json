@@ -1,0 +1,56 @@
+{
+  "template": "pocketdungeons:rooms/soul_sand_valley",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "corridor"
+  ],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "wither_keep"
+  ],
+  "light": "dim",
+  "biome": "soul_sand_valley",
+  "dungeons": [
+    "wither_keep"
+  ],
+  "acts": [
+    4
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:nether_quartz_ore",
+      "at": [
+        11,
+        1,
+        3
+      ]
+    },
+    {
+      "block": "minecraft:nether_quartz_ore",
+      "at": [
+        12,
+        2,
+        3
+      ]
+    },
+    {
+      "block": "minecraft:nether_quartz_ore",
+      "at": [
+        13,
+        1,
+        3
+      ]
+    }
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

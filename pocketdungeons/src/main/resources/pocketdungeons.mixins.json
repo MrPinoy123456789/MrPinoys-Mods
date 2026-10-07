@@ -8,6 +8,7 @@
     "CraftedDurabilityMixin",
     "BlockItemPlaceMixin",
     "ServerExplosionMixin",
+    "WitherBossMixin",
     "ServerCommonPacketListenerAccessor",
     "TextDisplayAccessor",
     "DisplayAccessor",

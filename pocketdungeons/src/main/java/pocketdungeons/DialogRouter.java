@@ -509,7 +509,8 @@ public final class DialogRouter {
             DialogKit.show(player, DialogScreens.bagPicker(player));
             return;
         }
-        if (Bags.byId(bagId) == null) {
+        BagDefinition picked = Bags.byId(bagId);
+        if (picked == null || picked.hidden) {
             Chime.refused(player);
             return;
         }
@@ -529,7 +530,7 @@ public final class DialogRouter {
     private static void confirmBag(ServerPlayer player, MinecraftServer server, String bagId) {
         BagDefinition bag = Bags.byId(bagId);
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (bag == null || record == null || record.visitInstance || record.roomCellOrigin == null
+        if (bag == null || bag.hidden || record == null || record.visitInstance || record.roomCellOrigin == null
                 || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
             Chime.refused(player);
             return;
@@ -549,7 +550,7 @@ public final class DialogRouter {
         List<ItemStack> leftover = Bags.apply(player, bagId);
         if (leftover != null) {
             // The kit is granted once, here. Entering and leaving never hand
-            // it out again; safe visits top it up (KitTopUp).
+            // it out again, and nothing refills it (design D14).
             log.setKitGranted(player.getUUID(), true);
             InventorySwap.keepForNextEntry(log, player.getUUID(), leftover);
         }
@@ -560,7 +561,7 @@ public final class DialogRouter {
         // someone who has a bag says so (RitualListener).
         player.sendSystemMessage(Component.literal(
                 "You chose " + bag.label
-                        + ". It is yours until you reset your keystone.")
+                        + ". It is yours until you reset your compass.")
                 .withStyle(ChatFormatting.GOLD));
     }
 

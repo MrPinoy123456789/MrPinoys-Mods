@@ -50,6 +50,8 @@ final class PlayerContext {
                     int spawnersCleared, int spawnersNeeded, int spawnersTotal,
                     List<ToolView> tools, int blocks, int food, int freeSlots, boolean nearFull,
                     Lemon.View lemon, List<JsonObject> recent,
+                    /** The player's latest {@code bank} event, or null if there is none (PD-148). */
+                    JsonObject lastBank,
                     /** The last {@link RoomScan} of the player's safe room, or null before their first exit. */
                     JsonObject safeRoom) {}
 
@@ -59,7 +61,9 @@ final class PlayerContext {
     /**
      * The snapshot as JSON. Top-level keys, in order: {@code t player name phase
      * slot floor zone keystone run_level party dimension room room_cell rooms omen spawners
-     * inventory lemon recent}, then {@code safe_room} once the player has left home
+     * inventory lemon recent}, then {@code last_bank} once the player has banked (their
+     * latest {@code bank} event, which the 20 recent events can scroll past), then
+     * {@code safe_room} once the player has left home
      * at least once (the last {@link RoomScan}; the plain {@code room} key is the
      * dungeon room they stand in).
      */
@@ -140,6 +144,9 @@ final class PlayerContext {
             recent.add(event);
         }
         o.add("recent", recent);
+        if (s.lastBank() != null) {
+            o.add("last_bank", s.lastBank());
+        }
         if (s.safeRoom() != null) {
             o.add("safe_room", s.safeRoom());
         }
@@ -228,6 +235,7 @@ final class PlayerContext {
                 cleared, DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()), total,
                 tools, blocks, food, free, free <= NEAR_FULL_SLOTS, Lemon.view(player),
                 PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS),
+                PlaytestJournal.lastBank(player.getUUID()),
                 RoomScan.latest(player.getUUID()) == null ? null : RoomScan.toJson(RoomScan.latest(player.getUUID())));
     }
 

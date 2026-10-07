@@ -63,7 +63,10 @@ final class InstanceRecord {
      */
     final java.util.Set<UUID> guests = new java.util.HashSet<>();
 
-    /** Each member's run storage (see {@link RunStorage}); in memory, returned when the run closes. */
+    /**
+     * The old per-run storage (see {@link RunStorage}), no longer filled: Dungeon Storage lives in
+     * {@link DungeonLog}. Read only to migrate whatever a live run still holds when it closes.
+     */
     final Map<UUID, net.minecraft.world.SimpleContainer> runStorage = new java.util.HashMap<>();
 
     /**
@@ -263,6 +266,21 @@ final class InstanceRecord {
         this.adminBuild = adminBuild;
         this.parentSlot = parentSlot;
         this.returnPos = returnPos;
+        adoptLayoutNodes();
+    }
+
+    /**
+     * Dungeon structure W4: copies the layout's registered node and soft gate
+     * positions into the floor state the break rule reads, and counts them.
+     * Positions already on the floor (the preview cell's, added by the commit) stay.
+     */
+    private void adoptLayoutNodes() {
+        if (layout == null) {
+            return;
+        }
+        floor.nodes.addAll(layout.nodes());
+        floor.softBreakables.addAll(layout.softBreakables());
+        floor.nodesTotal = floor.nodes.size();
     }
 
     /**
@@ -275,6 +293,7 @@ final class InstanceRecord {
         this.layout = layout;
         this.floor = next;
         this.homecoming = null;
+        adoptLayoutNodes();
     }
 
     /**

@@ -18,8 +18,9 @@ import java.util.UUID;
  * <p>During a floor it reads the floor's omen, the band the interval would
  * settle in right now, and the spawner gate. Between floors it names the floor
  * just cleared and the band. At home it is hidden. Colour follows the band
- * (green, yellow, red) and the fill is the interval's omen against the next
- * band up, so a player can see the next step coming.
+ * (green, yellow, red) and, between floors, the fill is the interval's omen against the next
+ * band up, so a player can see the next step coming. During a floor the bar is the floor's
+ * own omen: full at 4/4, green to yellow to red.
  *
  * <p>Membership of the bar is reconciled on every watch tick
  * ({@link #sync}), so every route into the dungeon is covered without each
@@ -94,16 +95,24 @@ final class OmenBar {
         String title;
         if (active) {
             int total = record.floor.spawnersTotal;
-            title = OmenBarText.activeTitle(record.interval.omen, band, chests, record.floor.spawnersCleared, total,
+            title = OmenBarText.activeTitle(record.interval.omen, chests, record.floor.spawnersCleared, total,
                     DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()));
         } else {
-            title = OmenBarText.clearedTitle(record.interval.floorIndex, PocketDungeonsConfig.floorsPerSafeVisit(),
-                    record.interval.endlessMine, band, chests);
+            title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
+                    record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),
+                    band, chests);
         }
         repaintHeldLine(server, record, bar);
         bar.event.setName(Component.literal(title));
-        bar.event.setColor(colour(band));
-        bar.event.setProgress(Omen.bandProgress(sum, floorCount));
+        if (active) {
+            // PD-158: during a floor the bar is the floor's omen (the title prints it as
+            // n/4), so it fills and colours by that; the band is what going home banks.
+            bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen)));
+            bar.event.setProgress(Omen.clamp(record.interval.omen) / (float) Omen.MAX_OMEN);
+        } else {
+            bar.event.setColor(colour(band));
+            bar.event.setProgress(Omen.bandProgress(sum, floorCount));
+        }
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);

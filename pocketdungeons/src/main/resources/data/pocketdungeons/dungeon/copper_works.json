@@ -1,0 +1,104 @@
+{
+  "name": "Copper Works",
+  "act": 2,
+  "kind": "story",
+  "mainTheme": "copper_works",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "copper_ore",
+    "deepslate_copper_ore",
+    "iron_ore"
+  ],
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "deepslate",
+      "ossuary"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "oxidized_gate",
+      "name": "Oxidized Gate",
+      "layer": 1
+    },
+    {
+      "id": "boiler_hall",
+      "name": "Boiler Hall",
+      "layer": 2,
+      "roomBias": [
+        "copper_works_forge"
+      ]
+    },
+    {
+      "id": "pipe_galleries",
+      "name": "Pipe Galleries",
+      "layer": 2
+    },
+    {
+      "id": "gear_loft",
+      "name": "Gear Loft",
+      "layer": 3,
+      "theme": "deepslate",
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "verdigris_foundry",
+      "name": "Verdigris Foundry",
+      "layer": 3,
+      "roomBias": [
+        "copper_works_forge"
+      ]
+    },
+    {
+      "id": "master_furnace",
+      "name": "The Master Furnace",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "oxidized_gate",
+      "to": "boiler_hall"
+    },
+    {
+      "from": "oxidized_gate",
+      "to": "pipe_galleries"
+    },
+    {
+      "from": "boiler_hall",
+      "to": "verdigris_foundry"
+    },
+    {
+      "from": "pipe_galleries",
+      "to": "verdigris_foundry"
+    },
+    {
+      "from": "pipe_galleries",
+      "to": "gear_loft"
+    },
+    {
+      "from": "boiler_hall",
+      "to": "gear_loft",
+      "cost": 1
+    },
+    {
+      "from": "verdigris_foundry",
+      "to": "master_furnace"
+    },
+    {
+      "from": "gear_loft",
+      "to": "master_furnace"
+    }
+  ],
+  "diary": "entry_13"
+}

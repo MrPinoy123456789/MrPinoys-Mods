@@ -597,7 +597,7 @@ public class InventorySwapTest {
             check(newest.contains("--- BEGIN LOST+FOUND METADATA ---"), "the metadata block is there");
             check(newest.contains("--- END LOST+FOUND CONTENT ---"), "and so is the content block");
             check(newest.contains("uuid: " + player), "the uuid is in the file");
-            check(newest.contains("keystone level: 14"), "and the keystone level");
+            check(newest.contains("compass level: 14"), "and the compass level");
 
             String oldest = Files.readString(files.get(0));
             check(!oldest.contains("entry 0"), "the oldest writes were deleted");

@@ -36,10 +36,18 @@ final class IntervalState {
     final List<Integer> floorOmens = new ArrayList<>();
 
     /**
-     * Each cleared floor's door step (1, 2 or 3), in order: what the floor
-     * banks toward the keystone at the settlement. See {@link IntervalBanking}.
+     * Each cleared floor's dealt chart scrap (1 to 3, 0 for a resource
+     * dungeon), in order: what the floor banks toward the compass at the
+     * settlement. See {@link IntervalBanking}.
      */
     final List<Integer> floorSteps = new ArrayList<>();
+
+    /**
+     * Each cleared floor's level, in order, parallel to {@link #floorSteps}:
+     * the level a member's scrap is discounted against
+     * ({@link IntervalBanking#effectiveScrap}).
+     */
+    final List<Integer> floorLevels = new ArrayList<>();
 
     /**
      * Snapshot of each member's dungeon inventory, used when a max-omen death fails
@@ -59,12 +67,46 @@ final class IntervalState {
      */
     final Map<UUID, List<ItemStack>> storageSnapshot = new HashMap<>();
 
+    // ---- the dungeon trip (dungeon structure W2) -----------------------------------------
+    //
+    // One trip is one dungeon (design D1). The interval is the trip, so this state is
+    // replaced with the interval by InstanceRecord#beginInterval: a bank, a quit and a
+    // fail all clear it with no reset list. In memory only, like the rest of the record:
+    // a restart forgives the trip. There is no saved position inside a dungeon.
+
+    /**
+     * The dungeon id this trip is playing ({@code pocketdungeons:frostworks}), or an
+     * empty string before the first door of the trip is committed, and for an
+     * Endless Mine or an operator's experimental offer, which run outside any dungeon
+     * graph.
+     */
+    String dungeonId = "";
+
+    /** The node the party last entered: its floor is in progress or cleared. Empty with no dungeon. */
+    String nodeId = "";
+
+    /** The node ids the trip has taken, in order; the current node is last. */
+    final List<String> path = new ArrayList<>();
+
+    /**
+     * Whether the dungeon's final floor has been cleared. The staging room then
+     * offers only the way home (the HOME lever); see {@code RunLifecycle#finishDungeon}.
+     */
+    boolean finished;
+
     /**
      * Whether this interval is an Endless Mine. Set on the first commit whose
      * recipe opens the Mine and held for the rest of the interval, after the
      * recipe tags themselves are spent. See {@link EndlessMineRules}.
      */
     boolean endlessMine;
+
+    /**
+     * The act that must be cleared before the next Endless Mine floor may be entered, or 0 when
+     * the shaft is open (D13). While non zero {@link #finished} is also set, so the staging room
+     * offers only the HOME lever.
+     */
+    int mineSealedAct;
 
     /**
      * Whether this interval's safe visit has already been settled (keystone,

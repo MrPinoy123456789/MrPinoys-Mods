@@ -1,0 +1,13 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "basalt_foundry",
+      "weight": 2
+    },
+    {
+      "theme": "blackstone",
+      "weight": 1
+    }
+  ]
+}

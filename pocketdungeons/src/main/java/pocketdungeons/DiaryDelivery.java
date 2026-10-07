@@ -71,16 +71,42 @@ final class DiaryDelivery {
         }
     }
 
+    /**
+     * Dungeon structure W2: hands over {@code diary} as a dungeon's first finish page
+     * (design D11), whatever the player's keystone band. Returns whether a book was
+     * handed over: false when the player already holds that entry's band (found by
+     * keystone level, or by an earlier finish), so nobody gets the same book twice.
+     */
+    static boolean deliverEntry(DungeonLog log, ServerPlayer player, Diaries.Entry diary) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        if (diary == null || entry.diaryBandsSeen().contains(diary.band())) {
+            return false;
+        }
+        Payout.deliver(player, book(diary));
+        log.addDiaryBand(player.getUUID(), diary.band());
+        player.sendSystemMessage(Component.literal("A page of Alex's diary waits in the vault: \""
+                + diary.title() + ".\"").withStyle(ChatFormatting.LIGHT_PURPLE));
+        DiaryReading.start(player, diary);
+        return true;
+    }
+
     private static ItemStack book(Diaries.Entry diary) {
         return book(diary, true);
     }
 
-    /** The book for {@code diary}: pages shuffled for a found copy, canonical for reading through Lemon. */
+    /**
+     * The book for {@code diary}: pages shuffled for a found copy, canonical for
+     * reading through Lemon. PD-157: each authored page is fitted onto as many
+     * book pages as it needs ({@link BookPages#paginate}), since a book page
+     * clips what does not fit.
+     */
     static ItemStack book(Diaries.Entry diary, boolean shuffled) {
         ItemStack stack = new ItemStack(Items.WRITTEN_BOOK);
         List<Filterable<Component>> pages = new ArrayList<>();
-        for (String page : shuffled ? shuffledPages(diary) : diary.pages()) {
-            pages.add(Filterable.passThrough(Component.literal(page)));
+        for (List<String> authored : shuffled ? shuffledPages(diary) : bookPages(diary)) {
+            for (String page : authored) {
+                pages.add(Filterable.passThrough(Component.literal(page)));
+            }
         }
         WrittenBookContent content = new WrittenBookContent(
                 Filterable.passThrough("Entry " + diary.number() + ": " + diary.title()),
@@ -90,14 +116,25 @@ final class DiaryDelivery {
         return stack;
     }
 
+    /** Each authored page as the book pages it fills, in authored order. */
+    private static List<List<String>> bookPages(Diaries.Entry diary) {
+        List<List<String>> out = new ArrayList<>();
+        for (String page : diary.pages()) {
+            out.add(BookPages.paginate(page));
+        }
+        return out;
+    }
+
     /**
      * A fresh shuffle of {@code diary}'s pages every time this is called, so
      * two players finding the same entry do not necessarily meet its pages in
-     * the same jumbled order. {@link Diaries.Entry#pages} itself is never
-     * mutated -- this copies before shuffling.
+     * the same jumbled order. What moves is an authored page: the book pages it
+     * was split into stay together and in order (design 2026-10-06-1 item 8), so
+     * a sentence never stops on one page and resumes three pages later.
+     * {@link Diaries.Entry#pages} itself is never mutated.
      */
-    private static List<String> shuffledPages(Diaries.Entry diary) {
-        List<String> pages = new ArrayList<>(diary.pages());
+    private static List<List<String>> shuffledPages(Diaries.Entry diary) {
+        List<List<String>> pages = bookPages(diary);
         Collections.shuffle(pages, new Random());
         return pages;
     }

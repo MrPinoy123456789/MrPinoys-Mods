@@ -184,7 +184,7 @@ final class RunSession {
     static boolean awaitingFirstDoor(InstanceRecord record) {
         return record.inFloorLoop()
                 && (record.phase == Phase.HOME || record.phase == Phase.PREVIEW)
-                && record.floor.chosenStep == 0;
+                && !record.floor.hasDoor();
     }
 
     // ---- internal --------------------------------------------------------

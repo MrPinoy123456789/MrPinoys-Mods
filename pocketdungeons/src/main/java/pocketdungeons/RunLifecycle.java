@@ -72,7 +72,7 @@ final class RunLifecycle {
         ItemStack keystone = Keystone.findHeld(player);
         if (keystone == null) {
             player.sendSystemMessage(Component.literal(
-                    "You need a keystone to open a dungeon. ")
+                    "You need a compass to open a dungeon. ")
                     .withStyle(ChatFormatting.RED)
                     .append(Component.literal("[Get one]").withStyle(style -> style
                             .withColor(ChatFormatting.AQUA)
@@ -428,14 +428,22 @@ final class RunLifecycle {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record)) {
+            return false;
+        }
+        // D15: any member may preview unless the leader's decide whitelist is on.
+        if (!PartyDecide.mayOrRefuse(server, record, player)) {
             return false;
         }
 
+        // The leader's keystone and acts set the doors (D15), whoever stands at them.
         DungeonLog log = DungeonLog.forServer(server);
-        DungeonLog.Entry entry = log.get(player.getUUID());
-        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
-                entry.currentTheme(), entry.depth());
+        DungeonLog.Entry entry = log.get(record.owner);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner, entry.keystoneLevel());
+        if (record.interval.finished || step > offers.length) {
+            // The final floor is cleared (only the way home is left), or this slot has no door.
+            return false;
+        }
         Keystone.Offer offer = offers[step - 1];
 
         // PD-90: Lemon is setting up a playtest bias for this player; the
@@ -460,23 +468,13 @@ final class RunLifecycle {
             return false;
         }
 
-        // The Greater tier's refusals are checked at the door screen level
-        // (doorRefusal) before this is called, but re-check here for safety.
-        if (!offer.free()) {
-            int minLevel = PocketDungeonsConfig.doorMinLevel(step);
-            if (entry.keystoneLevel() < minLevel) {
-                // A level-gated door is not placed in the staging room
-                // (Instances.hideLockedDoors), so only the typed
-                // /dungeon choose reaches this; say why.
-                player.sendSystemMessage(Component.literal(
-                        "Door " + step + " needs keystone level " + minLevel + " or higher; yours is ["
-                                + entry.keystoneLevel() + "].")
-                        .withStyle(ChatFormatting.RED));
-                return false;
-            }
-            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
+        // A side branch costs echo shards (design D5). The door screen names the
+        // shortfall (RitualListener.doorRefusal); re-check here for safety.
+        int previewCost = offer.cost();
+        if (previewCost > 0) {
             Fuel.refundBanked(player);
-            if (Fuel.carried(player) < cost) {
+            // The member who right-clicks the door is the one who would pay.
+            if (!SideBranchPay.affordable(previewCost, Fuel.carried(player))) {
                 return false;
             }
         }
@@ -521,9 +519,13 @@ final class RunLifecycle {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !RunSession.canChooseDoor(record) || !player.getUUID().equals(record.owner)) {
+        if (record == null || !RunSession.canChooseDoor(record)) {
             player.sendSystemMessage(Component.literal("There is no door here for you to choose.")
                     .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        // D15: any member may commit unless the leader's decide whitelist is on.
+        if (!PartyDecide.mayOrRefuse(server, record, player)) {
             return false;
         }
         if (record.floor.selectedStep == 0 || record.floor.previewPlan == null) {
@@ -563,33 +565,32 @@ final class RunLifecycle {
         }
 
         DungeonLog log = DungeonLog.forServer(server);
-        DungeonLog.Entry entry = log.get(player.getUUID());
-        Keystone.Offer[] offers = Keystone.offers(player.getUUID(), entry.keystoneLevel(),
-                entry.currentTheme(), entry.depth());
+        DungeonLog.Entry entry = log.get(record.owner);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner, entry.keystoneLevel());
+        if (record.interval.finished || step > offers.length) {
+            player.sendSystemMessage(Component.literal("There is no door there. Pull the HOME lever.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
         Keystone.Offer offer = offers[step - 1];
 
-        // M12: re-check the Greater tier refusals at commit time, since the
-        // player's state may have changed since the preview.
-        if (!offer.free()) {
-            int minLevel = PocketDungeonsConfig.doorMinLevel(step);
-            if (entry.keystoneLevel() < minLevel) {
-                player.sendSystemMessage(Component.literal(
-                        "Door " + step + " needs keystone level " + minLevel + " or higher; yours is ["
-                                + entry.keystoneLevel() + "].")
-                        .withStyle(ChatFormatting.RED));
-                return false;
-            }
-            int cost = PocketDungeonsConfig.fuelCostPerGreaterDoor();
+        // Re-check the side branch's shard cost at commit time, since the
+        // player's pack may have changed since the preview. The member who commits
+        // (the one pulling the lever) pays from their own pack, never the owner's
+        // (dungeon structure W5, SideBranchPay).
+        int doorCost = offer.cost();
+        if (doorCost > 0) {
             Fuel.refundBanked(player);
             int carried = Fuel.carried(player);
-            if (carried < cost) {
-                player.sendSystemMessage(Component.literal(
-                        "Not enough echo shards: door " + step + " needs " + cost + ", you carry "
-                                + carried + ".")
+            if (!SideBranchPay.affordable(doorCost, carried)) {
+                player.sendSystemMessage(Component.literal(SideBranchPay.refusal(doorCost, carried))
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
         }
+        // Where the trip stood before this door, for the journal's edge event.
+        boolean firstDoorOfTrip = record.interval.dungeonId.isEmpty();
+        String fromNode = record.interval.nodeId;
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
@@ -668,8 +669,8 @@ final class RunLifecycle {
 
         // The spend happens only once the commit has actually succeeded,
         // straight from the pack; the gate above checked it was there.
-        if (!offer.free()) {
-            Fuel.take(player, PocketDungeonsConfig.fuelCostPerGreaterDoor());
+        if (doorCost > 0) {
+            Fuel.take(player, doorCost);
         }
 
         // PD-121: retake the interval snapshot at the first door commit, after
@@ -677,11 +678,17 @@ final class RunLifecycle {
         // fail reverts to what the player actually carried into the first floor.
         InventorySwap.snapshotAtFirstCommit(server, record);
 
-        PlaytestJournal.doorCommit(server, record, step,
-                offer.free() ? 0 : PocketDungeonsConfig.fuelCostPerGreaterDoor());
+        // A trip has begun (the first door of a dungeon): count it for the leader, which
+        // changes the first door's deal for their next trip even if this one is quit early.
+        if (firstDoorOfTrip && !record.interval.dungeonId.isEmpty() && record.owner != null) {
+            log.beginTrip(record.owner);
+        }
+        PlaytestJournal.doorCommit(server, record, offer.step(), doorCost);
+        if (!record.interval.dungeonId.isEmpty()) {
+            PlaytestJournal.tripDoor(server, record, firstDoorOfTrip, fromNode, offer.step(), doorCost);
+        }
 
-        Set<String> granted = AffixMath.effective(player.getUUID(), offer.level(),
-                offer.affixes(), AffixManifest.current().definitions());
+        Set<String> granted = Keystone.dealtAffixes(record.owner, offer);
         player.sendSystemMessage(Component.literal(
                 AffixMath.name(offer.level(), granted, AffixManifest.current().definitions())
                         + ". The door opens.")
@@ -986,7 +993,7 @@ final class RunLifecycle {
         }
         settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "checkpoint_exit");
         Instances.announce(server, record, owner.getName().getString()
-                + " leaves at the checkpoint. The run ends, and the interval banks one band worse.",
+                + " leaves at the checkpoint. The run ends, and the trip banks one band worse.",
                 owner.getUUID());
         InstanceTeardown.purge(server, record, "owner left at a checkpoint", owner.getUUID());
         return true;
@@ -1074,6 +1081,13 @@ final class RunLifecycle {
                         .withStyle(ChatFormatting.YELLOW));
                 return;
             }
+            // Dungeon structure W7a: the Spawner Dungeon's brood gates the pad the same way (the
+            // spawners, then the final wave). The Ancient City never gates its pad.
+            String broodRefusal = CapstoneFights.padRefusal(server, record);
+            if (broodRefusal != null) {
+                player.sendSystemMessage(Component.literal(broodRefusal).withStyle(ChatFormatting.YELLOW));
+                return;
+            }
         }
 
         boolean firstCompletion = record.floor.completed.isEmpty();
@@ -1120,37 +1134,36 @@ final class RunLifecycle {
             // sees the depth reached and the escalating loot tier before
             // choosing a door deeper or going home. The spatial movement
             // stays silent, the same as the ordinary loop.
-            int tier = rules.lootTier(
-                    DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel()).lootTier(),
-                    floorsCleared);
+            int tier = LootBands.floorTier(record, rules, floorsCleared);
             player.sendSystemMessage(Component.literal(
-                    EndlessMineRules.mineCheckpointMessage(floorsCleared, tier) + " " + verdict)
+                    EndlessMineRules.mineCheckpointMessage(floorsCleared, tier) + " " + verdict
+                            + (record.interval.mineSealedAct > 0
+                                    ? " " + EndlessMineRules.sealedMessage(record.interval.mineSealedAct) : ""))
                     .withStyle(ChatFormatting.AQUA));
-        } else if (floorsCleared >= floorsPerVisit) {
-            // The usual length is run: going home is the sensible default now,
-            // never a wall. The HOME screen and its bulb say the same.
-            // Playtest 2026-09-27 (A2): "banks what you carry" read as item
-            // storage, so the choice is spelled out as what each lever pays.
+        } else if (record.interval.finished) {
+            // The dungeon's final floor: only the way home is left.
             player.sendSystemMessage(Component.literal(
-                    "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. A good time to go home: GO HOME banks your"
-                            + " key progress and refills your kit"
-                            + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
-                                    ? ". DESCEND pays bonus chests, but every floor deeper starts with the"
-                                            + " omen already risen."
-                                    : "."))
+                    "You clear the last floor of " + TripView.dungeonName(record) + ". " + verdict
+                            + " The barrel waits beyond the door"
+                            + (isRewardKind(TripView.def(record)) ? ", the vault's rolls in with it" : "")
+                            + ". Only the way home is open: pull the HOME lever to bank your charts.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
             player.sendSystemMessage(Component.literal(
                     "You reach the end of this floor. " + verdict
-                            + " The chests wait beyond the door. GO HOME banks your key progress and"
-                            + " refills your kit; DESCEND for bonus chests and better loot.")
+                            + " The barrel waits beyond the door. GO HOME banks your charts;"
+                            + " DESCEND for bonus chests and better loot."
+                            + (TripView.finalAhead(record) ? " The final floor is ahead." : "")
+                            + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
+                                    ? " Every floor deeper starts with the omen already risen."
+                                    : ""))
                     .withStyle(ChatFormatting.AQUA));
         }
         // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
         // the decision point, so a floor clear also gets a title.
-        showFloorClearedTitle(player, OmenBarText.clearedHeadline(floorsCleared, floorsPerVisit,
-                EndlessMineRules.isMine(record)));
+        showFloorClearedTitle(player, OmenBarText.clearedHeadline(floorsCleared, TripView.dungeonName(record),
+                EndlessMineRules.isMine(record), record.interval.finished, TripView.finalAhead(record)),
+                record.interval.finished ? "GO HOME" : "GO HOME or DESCEND");
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
@@ -1201,6 +1214,10 @@ final class RunLifecycle {
         DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminalOrigin);
         DoorMask.Direction farWall = CellGeometry.opposite(entranceDir);
 
+        // Dungeon structure W7a: the floor ended, so the Ancient City's Warden (and any brood
+        // stragglers) go with it.
+        CapstoneFights.floorEnded(level, record);
+
         // The staging room about to be stamped is for the next floor, or the
         // way home: every checkpoint offers both, and nothing forces either.
         record.interval.floorIndex++;
@@ -1208,35 +1225,56 @@ final class RunLifecycle {
         // The floor banks its door step toward the key when the interval
         // settles (IntervalBanking), whichever door the next floor takes.
         record.interval.floorSteps.add(record.floor.chosenStep);
+        record.interval.floorLevels.add(record.floor.chosenLevel);
+        // Dungeon structure W2: clearing a node marked final finishes the dungeon. The
+        // staging room then offers only the way home (Instances.hideLockedDoors reads
+        // this flag when the doors are placed below).
+        DungeonDef tripDef = TripView.def(record);
+        boolean finishedNow = tripDef != null && TripView.onFinal(record);
+        if (finishedNow) {
+            record.interval.finished = true;
+        }
+        // D13: record the deepest Mine floor, and seal the shaft at a layer boundary the
+        // leader's unlocked acts do not reach (the staging room then offers only HOME).
+        if (EndlessMineRules.isMine(record)) {
+            DungeonLog mineLog = DungeonLog.forServer(server);
+            for (UUID member : record.members.keySet()) {
+                mineLog.recordMineFloor(member, floorsCleared);
+            }
+            int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
+                    DungeonProgress.unlockedActs(server, record.owner));
+            if (sealed > 0) {
+                record.interval.finished = true;
+                record.interval.mineSealedAct = sealed;
+            }
+        }
 
         // Omen no longer reduces chests or key progress; it adds danger. The
         // base reward is always three chests, plus the zone's depth bonus on
         // deeper floors. The band still colours the bar and the kit refill.
         ZoneRules rules = ZoneRules.of(record);
         int band = bankFloorOmen(record);
-        // Playtest 2026-10-02-1: a chance, per member, of an echo shard on any floor.
-        for (UUID member : record.members.keySet()) {
-            ServerPlayer shardPlayer = server.getPlayerList().getPlayer(member);
-            if (shardPlayer != null && Fuel.rollChance(shardPlayer.getRandom(),
-                    PocketDungeonsConfig.echoShardFloorChance())) {
-                Fuel.grantFrom(shardPlayer, 1, "floor");
-            }
-        }
         int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
-        // Chests on the far side of the terminal cell, beyond the 2x2 lodestone
-        // pad and in front of the sealed door, at the zone's loot tier.
+        // The reward corner on the far side of the terminal cell: one barrel
+        // holding every roll the floor earned (plus the finish vault's rolls),
+        // one copper chest holding the floor's promised rewards.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
-        TrialContent.placeCompletionChests(level, terminalOrigin, entranceDir, chests,
-                rules.lootTier(
-                        DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel())
-                                .lootTier(),
-                        floorsCleared),
+        int vaultRolls = finishedNow && isRewardKind(tripDef)
+                ? PocketDungeonsConfig.finishVaultChests() : 0;
+        int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
+                : tripDef.lootBand().max();
+        TrialContent.placeRewardContainers(level, terminalOrigin, entranceDir, chests,
+                LootBands.floorTier(record, rules, floorsCleared), vaultRolls, vaultTier,
                 record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                completionTheme == null ? null : completionTheme.meta().lootTable);
+                completionTheme == null ? null : completionTheme.meta().lootTable,
+                promisedItems(tripDef, record));
+        if (finishedNow) {
+            finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
+        }
 
         // Sealed door in the far wall, behind the chests.
         CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
@@ -1261,13 +1299,96 @@ final class RunLifecycle {
         // The way home, beside the doors: the HOME lever and the screen that
         // says what it would bank, lit once the interval has run its usual
         // length.
-        RoomTemplateGenerator.placeHomeControl(level, newStagingOrigin, farWall,
-                floorsCleared >= PocketDungeonsConfig.floorsPerSafeVisit());
+        RoomTemplateGenerator.placeHomeControl(level, newStagingOrigin, farWall, record.interval.finished);
         DungeonScreen.summonHome(level, newStagingOrigin, farWall, DungeonScreen.homeContent(server, record));
 
         // M65: transition to FLOOR_CLEARED. The party is now in the
         // staging room, choosing the next door or the way home.
         RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+    }
+
+    /**
+     * Whether finishing {@code def} pays rewards: story and capstone dungeons do; a
+     * resource dungeon pays only what is mined or harvested (design D11, D12).
+     */
+    static boolean isRewardKind(DungeonDef def) {
+        return def != null && (def.kind() == DungeonDef.Kind.STORY || def.kind() == DungeonDef.Kind.CAPSTONE);
+    }
+
+    /**
+     * Finishing a dungeon (design D11), run once when the final node's floor is
+     * cleared: the dungeon is recorded as finished for each member present, and a
+     * story or capstone dungeon pays its guaranteed echo shard per member, the themed
+     * vault (extra completion chests at the dungeon's top loot tier) and, on a
+     * member's first finish of it, the dungeon's diary page if it names one.
+     *
+     * <p>The trip then settles as a bank through the ordinary HOME lever: the staging
+     * room offers nothing else ({@code record.interval.finished}). That is the
+     * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
+     * the return trip stay one code path, and the party can still loot the chests and
+     * the vault before it walks home. Going home early (any earlier staging room)
+     * banks steps and chests only, with no shard, vault or page.
+     */
+    /**
+     * The cleared node's authored {@code rewards}, as stacks for the copper
+     * chest. Unknown item ids are logged and skipped, a content typo never
+     * failing a floor's rewards.
+     */
+    private static List<ItemStack> promisedItems(DungeonDef def, InstanceRecord record) {
+        DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
+        List<ItemStack> promised = new ArrayList<>();
+        if (node == null) {
+            return promised;
+        }
+        for (DungeonDef.Node.Reward reward : node.rewards()) {
+            net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getValue(net.minecraft.resources.Identifier.parse(reward.item()));
+            if (item == null || item == net.minecraft.world.item.Items.AIR) {
+                PocketDungeonsMod.LOG.warn("promised reward {} on {}:{} is not an item",
+                        reward.item(), def.id(), node.id());
+                continue;
+            }
+            promised.add(new ItemStack(item, reward.count()));
+        }
+        return promised;
+    }
+
+    private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                                      DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
+                                      ThemeManifest.Entry completionTheme) {
+        boolean rewards = isRewardKind(def);
+        int vaultChests = rewards ? PocketDungeonsConfig.finishVaultChests() : 0;
+        DungeonLog log = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                continue;
+            }
+            boolean first = log.addDungeonFinished(member, def.id());
+            // D8, D16: every member present at a capstone clear opens the next act.
+            if (def.kind() == DungeonDef.Kind.CAPSTONE) {
+                DungeonProgress.onCapstoneCleared(server, record, memberPlayer, def);
+            }
+            int shards = 0;
+            String diaryId = "";
+            if (rewards) {
+                shards = PocketDungeonsConfig.echoShardsPerFinish();
+                Fuel.grantFrom(memberPlayer, shards, "dungeon_finish");
+                // Lemon's archive: all diaries handed over earns one more.
+                if (LemonArchive.complete(server, member)) {
+                    Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
+                }
+            }
+            // W6: every dungeon's first finish hands over its diary page, a resource dungeon
+            // included (the page is a memory, not a payout).
+            if (first && !def.diary().isBlank()) {
+                Diaries.Entry page = Diaries.current().byId(def.diary());
+                if (page != null && DiaryDelivery.deliverEntry(log, memberPlayer, page)) {
+                    diaryId = page.id();
+                }
+            }
+            PlaytestJournal.dungeonFinished(memberPlayer, record, shards, vaultChests, first, diaryId);
+        }
     }
 
     /**
@@ -1328,9 +1449,10 @@ final class RunLifecycle {
     static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
                                                     UUID member, int penalty) {
         int floors = record.interval.floorSteps.size();
-        return IntervalBanking.settle(record.interval.floorSteps, record.interval.bankedOmenSum(),
-                DungeonLog.forServer(server).get(member).keyProgress(),
-                PocketDungeonsConfig.floorsPerSafeVisit(), penalty, ZoneRules.of(record).bonusChests(floors));
+        return IntervalBanking.settle(record.interval.floorSteps, record.interval.floorLevels,
+                record.interval.bankedOmenSum(),
+                DungeonLog.forServer(server).get(member).keystoneLevel(),
+                penalty, ZoneRules.of(record).bonusChests(floors));
     }
 
     /**
@@ -1338,8 +1460,8 @@ final class RunLifecycle {
      * small. Playtest 2026-09-27: the count on the omen bar went unnoticed at
      * the moment of choosing between home and the next floor.
      */
-    private static void showFloorClearedTitle(ServerPlayer player, String headline) {
-        showBigTitle(player, headline, "GO HOME or DESCEND");
+    private static void showFloorClearedTitle(ServerPlayer player, String headline, String subtitle) {
+        showBigTitle(player, headline, subtitle);
     }
 
     /**
@@ -1348,9 +1470,8 @@ final class RunLifecycle {
      * 2026-09-29: the player liked the floor-clear title as a channel and
      * asked for the same at the moment of going home.
      */
-    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled,
-                                      int floorsPerSafeVisit) {
-        showBigTitle(player, "HOME", IntervalBanking.keyLine(settled, floorsPerSafeVisit));
+    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled) {
+        showBigTitle(player, "HOME", IntervalBanking.takeHomeLine(settled).replace('\n', ' '));
     }
 
     /**
@@ -1402,11 +1523,10 @@ final class RunLifecycle {
             return;
         }
         IntervalState interval = record.interval;
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         int floors = interval.floorSteps.size();
         int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
-                interval.bankedOmenSum(), 0, floorsPerVisit, penalty, bonusChests);
+                interval.floorLevels, interval.bankedOmenSum(), 0, penalty, bonusChests);
 
         // Per-member settlement: keystone levels and carried progress,
         // free-door fuel, payout, prestige, diary.
@@ -1417,54 +1537,38 @@ final class RunLifecycle {
             if (memberPlayer == null) {
                 continue;
             }
-            // Each member banks from their own key and their own carried
-            // progress, so a member riding along at a lower level climbs
-            // from where they stand.
+            // Each member banks against their own compass level, so a member
+            // riding along at a lower level climbs from where they stand.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
                 IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
-                        interval.bankedOmenSum(), memberEntry.keyProgress(), floorsPerVisit, penalty,
-                        bonusChests);
+                        interval.floorLevels, interval.bankedOmenSum(), memberEntry.keystoneLevel(),
+                        penalty, bonusChests);
                 int keyLevel = memberEntry.keystoneLevel();
                 if (settled.levels() > 0) {
                     keyLevel = KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel);
                     Keystones.grantLevel(server, member, memberPlayer, keyLevel);
                     record.floor.keystoneReturned.add(member);
                 }
-                log.setKeyProgress(member, settled.progress());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
                         bonusChests, keyLevel);
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
                 memberPlayer.sendSystemMessage(Component.literal(
-                        IntervalBanking.bankedLine(settled, floorsPerVisit, penalty > 0))
+                        IntervalBanking.bankedLine(settled, penalty > 0))
                         .withStyle(ChatFormatting.GOLD));
                 if ("home_lever".equals(trigger)) {
-                    showHomeTitle(memberPlayer, settled, floorsPerVisit);
+                    showHomeTitle(memberPlayer, settled);
                 }
             }
 
-            // M12: door 1's second job, when the interval's last floor was the
-            // free door. Guaranteed, regardless of omen band.
-            // Playtest 2026-10-02-1: a full interval pays one shard whichever
-            // door it ended on; a partial one keeps the old free door payout.
-            if (floors >= floorsPerVisit) {
-                Fuel.grantFrom(memberPlayer, PocketDungeonsConfig.echoShardsPerInterval(), "interval");
-                // Lemon's archive: all diaries handed over earns one more.
-                if (LemonArchive.complete(server, member)) {
-                    Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
-                }
-            } else if (record.floor.freeDoor) {
-                Fuel.grantFrom(memberPlayer, PocketDungeonsConfig.fuelPerFreeRun(), "free_door");
-            }
+            // Dungeon structure W2: no shard is paid at the bank. The guaranteed echo shard
+            // comes from finishing a dungeon (finishDungeon); going home early banks key
+            // steps and chests only (design D11).
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 
-            // 2026-10-04 (owner decision): a trip home that banked a floor
-            // refills the bag chest with a fresh full kit, overwriting what
-            // was left in it. This replaces the band-scaled KitTopUp.
-            if (!interval.floorSteps.isEmpty()) {
-                KitChest.refill(server, record, memberPlayer);
-            }
+            // Dungeon structure W5 (design D14): no kit refill at the bank. The kit is granted
+            // once; resource dungeons are the restock.
 
             // M26: reads log fresh, after every keystone-level change.
             DiaryDelivery.deliverIfEligible(log, memberPlayer);
@@ -1496,7 +1600,7 @@ final class RunLifecycle {
                         RunMemento.nextDiscoveryId(),
                         record.floor.theme == null ? "" : record.floor.theme,
                         record.layout.keystoneLevel(),
-                        KeystoneMath.lootTier(record.layout.keystoneLevel()),
+                        LootBands.clamp(LootBands.of(record), KeystoneMath.lootTier(record.layout.keystoneLevel())),
                         record.floor.affixes,
                         System.currentTimeMillis(),
                         EndlessMineRules.cashOutDepth(record)));
@@ -1531,9 +1635,8 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.YELLOW));
             return false;
         }
-        if (!player.getUUID().equals(record.owner)) {
-            player.sendSystemMessage(Component.literal("Only the party leader can take the party home.")
-                    .withStyle(ChatFormatting.RED));
+        // D15: any member may pull HOME unless the leader's decide whitelist is on.
+        if (!PartyDecide.mayOrRefuse(server, record, player)) {
             return false;
         }
         boolean mine = EndlessMineRules.isMine(record);
@@ -1575,7 +1678,7 @@ final class RunLifecycle {
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !RunSession.require(record, RunSession.Phase.FLOOR_CLEARED)
-                || !player.getUUID().equals(record.owner)) {
+                || !PartyDecide.may(server, record, player)) {
             return false;
         }
         // M65: transition to SAFE_RETURN for the duration of the return.
@@ -1951,7 +2054,7 @@ final class RunLifecycle {
         int cost = PocketDungeonsConfig.timedOutDepletion();
         returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
         owner.sendSystemMessage(Component.literal(
-                "You quit the door. Your keystone is downgraded by " + cost
+                "You quit the door. Your compass is downgraded by " + cost
                         + (cost == 1 ? " level." : " levels."))
                 .withStyle(ChatFormatting.YELLOW));
         Chime.doorQuit(owner);

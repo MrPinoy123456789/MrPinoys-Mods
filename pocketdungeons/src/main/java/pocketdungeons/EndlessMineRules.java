@@ -66,6 +66,91 @@ final class EndlessMineRules {
         return isMine(record) ? Math.max(0, record.interval.floorIndex) : 0;
     }
 
+    // ---- depth layers (design D13, ZONES_SPEC 3.5) ----------------------------------
+
+    /** The mine dungeon's id: the door offered at the first staging room once act 2 is open. */
+    static final String MINE_DUNGEON_ID = "pocketdungeons:endless_mine";
+
+    /** The act a player must have cleared into (unlocked) to open the Endless Mine at all. */
+    static final int OPENING_ACT = 2;
+
+    /** Layer names, by layer number 1 to 4. */
+    private static final String[] LAYER_NAMES = {"Upper workings", "Deepslate", "Deep dark", "Magma core"};
+
+    /** Last floor of each of the first three layers: 5, 11 and 17. Layer 4 runs on from 18. */
+    private static final int[] LAYER_LAST_FLOOR = {5, 11, 17};
+
+    /** Whether the Endless Mine is open to a player with these acts unlocked. */
+    static boolean opensFor(java.util.Set<Integer> unlockedActs) {
+        return unlockedActs != null && unlockedActs.contains(OPENING_ACT);
+    }
+
+    /** Whether {@code offer} opens a Mine from the first staging room. */
+    static boolean isMineOffer(Keystone.Offer offer) {
+        return offer != null && MINE_DUNGEON_ID.equals(offer.dungeonId());
+    }
+
+    /** The depth layer (1 to 4) of Mine floor number {@code floor} (from 1). */
+    static int layerOf(int floor) {
+        for (int i = 0; i < LAYER_LAST_FLOOR.length; i++) {
+            if (floor <= LAYER_LAST_FLOOR[i]) {
+                return i + 1;
+            }
+        }
+        return 4;
+    }
+
+    /** The act a player needs for layer {@code layer}: upper workings 1, deepslate 2, deep dark 3, magma core 4. */
+    static int actForLayer(int layer) {
+        return Math.max(1, Math.min(4, layer));
+    }
+
+    static String layerName(int layer) {
+        return LAYER_NAMES[Math.max(1, Math.min(4, layer)) - 1];
+    }
+
+    /**
+     * The act that must still be cleared before Mine floor {@code floor} may be entered, or 0 when
+     * the player's unlocked acts allow it. A layer boundary caps the depth: the staging room then
+     * offers only HOME.
+     */
+    static int sealedAct(int floor, java.util.Set<Integer> unlockedActs) {
+        int need = actForLayer(layerOf(floor));
+        return unlockedActs != null && unlockedActs.contains(need) ? 0 : need;
+    }
+
+    /** The staging room line for a sealed shaft. */
+    static String sealedMessage(int act) {
+        return "The shaft below is sealed until " + ActProgress.label(act) + " is cleared. Only the HOME lever is open.";
+    }
+
+    /** The loot band of a layer: the band of the act that opens it (Act 1 tiers 1 to 2, 2 to 3, 3, 3 to 4). */
+    static DungeonDef.LootBand layerBand(int layer) {
+        return switch (actForLayer(layer)) {
+            case 1 -> new DungeonDef.LootBand(1, 2);
+            case 2 -> new DungeonDef.LootBand(2, 3);
+            case 3 -> new DungeonDef.LootBand(3, 3);
+            default -> new DungeonDef.LootBand(3, 4);
+        };
+    }
+
+    /** First floor of {@code layer}. */
+    static int layerStart(int layer) {
+        return layer <= 1 ? 1 : LAYER_LAST_FLOOR[Math.min(layer, 4) - 2] + 1;
+    }
+
+    /** Loot tier of Mine floor {@code floor}: the layer band's minimum, plus one every 3 floors into the layer, capped by the band. */
+    static int lootTier(int floor) {
+        int layer = layerOf(floor);
+        DungeonDef.LootBand band = layerBand(layer);
+        return band.clamp(band.min() + Math.max(0, floor - layerStart(layer)) / 3);
+    }
+
+    /** Whether {@code floor} is the first floor of a layer past the first (a layer transition). */
+    static boolean isTransition(int floor) {
+        return floor > 1 && layerStart(layerOf(floor)) == floor;
+    }
+
     // ---- commitment surface text (pure strings; callers wrap in Component) ----
 
     /**

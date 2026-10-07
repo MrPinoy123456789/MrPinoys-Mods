@@ -22,8 +22,12 @@ import java.util.Map;
  */
 final class MerchantThemes {
 
-    /** A drop a merchant accepts, and how many of it one emerald is worth. */
-    record Currency(Item item, String name, double perEmerald) {}
+    /**
+     * A drop a merchant accepts, how many of it one emerald is worth, and what a
+     * merchant who buys it is called ({@code buyer}): the vendor is named for
+     * what he takes, not for the floor he stands on (PD-142).
+     */
+    record Currency(Item item, String name, double perEmerald, String buyer) {}
 
     /**
      * @param title      the villager's name and the GUI title
@@ -31,29 +35,34 @@ final class MerchantThemes {
      */
     record Merchant(String title, List<Currency> currencies) {}
 
-    static final Currency EMERALD = new Currency(Items.EMERALD, "emeralds", 1.0);
+    static final Currency EMERALD = new Currency(Items.EMERALD, "emeralds", 1.0, "Wandering Merchant");
 
     static final Merchant WANDERING = new Merchant("Wandering Merchant", List.of());
 
-    private static final Currency BONE = new Currency(Items.BONE, "bones", 2.0);
-    private static final Currency ROTTEN_FLESH = new Currency(Items.ROTTEN_FLESH, "rotten flesh", 4.0);
-    private static final Currency STRING = new Currency(Items.STRING, "string", 3.0);
-    private static final Currency SPIDER_EYE = new Currency(Items.SPIDER_EYE, "spider eyes", 2.0);
-    private static final Currency GUNPOWDER = new Currency(Items.GUNPOWDER, "gunpowder", 2.0);
-    private static final Currency BLAZE_ROD = new Currency(Items.BLAZE_ROD, "blaze rods", 1.0);
-    private static final Currency MAGMA_CREAM = new Currency(Items.MAGMA_CREAM, "magma cream", 1.0);
-    private static final Currency ENDER_PEARL = new Currency(Items.ENDER_PEARL, "ender pearls", 0.5);
+    private static final Currency BONE = new Currency(Items.BONE, "bones", 2.0, "Bone Collector");
+    private static final Currency ROTTEN_FLESH = new Currency(Items.ROTTEN_FLESH, "rotten flesh", 4.0, "Flesh Buyer");
+    private static final Currency STRING = new Currency(Items.STRING, "string", 3.0, "Web Trader");
+    private static final Currency SPIDER_EYE = new Currency(Items.SPIDER_EYE, "spider eyes", 2.0, "Eye Dealer");
+    private static final Currency GUNPOWDER = new Currency(Items.GUNPOWDER, "gunpowder", 2.0, "Powder Dealer");
+    private static final Currency BLAZE_ROD = new Currency(Items.BLAZE_ROD, "blaze rods", 1.0, "Blaze Trader");
+    private static final Currency MAGMA_CREAM = new Currency(Items.MAGMA_CREAM, "magma cream", 1.0, "Cream Dealer");
+    private static final Currency ENDER_PEARL = new Currency(Items.ENDER_PEARL, "ender pearls", 0.5, "Pearl Broker");
+
+    /** A merchant for {@code currencies}, named for the first thing he buys. */
+    private static Merchant buying(Currency... currencies) {
+        return new Merchant(currencies[0].buyer(), List.of(currencies));
+    }
 
     private static final Map<String, Merchant> BY_THEME = Map.of(
-            "ossuary", new Merchant("Bone Collector", List.of(BONE)),
-            "deepslate", new Merchant("Bone Collector", List.of(BONE, ROTTEN_FLESH)),
-            "endless_mine", new Merchant("Bone Collector", List.of(BONE, ROTTEN_FLESH)),
-            "frostworks", new Merchant("Frost Peddler", List.of(BONE, ROTTEN_FLESH)),
-            "basalt_foundry", new Merchant("Nether Merchant", List.of(BLAZE_ROD, MAGMA_CREAM)),
-            "copper_works", new Merchant("Scrap Dealer", List.of(GUNPOWDER, ROTTEN_FLESH)),
-            "ender_archive", new Merchant("Archivist", List.of(ENDER_PEARL)),
-            "infestation", new Merchant("Web Trader", List.of(STRING, SPIDER_EYE)),
-            "rootworks", new Merchant("Root Herbalist", List.of(STRING, SPIDER_EYE)));
+            "ossuary", buying(BONE),
+            "deepslate", buying(BONE, ROTTEN_FLESH),
+            "endless_mine", buying(BONE, ROTTEN_FLESH),
+            "frostworks", buying(BONE, ROTTEN_FLESH),
+            "basalt_foundry", buying(BLAZE_ROD, MAGMA_CREAM),
+            "copper_works", buying(GUNPOWDER, ROTTEN_FLESH),
+            "ender_archive", buying(ENDER_PEARL),
+            "infestation", buying(STRING, SPIDER_EYE),
+            "rootworks", buying(STRING, SPIDER_EYE));
 
     private MerchantThemes() {}
 

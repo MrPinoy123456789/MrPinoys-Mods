@@ -138,8 +138,9 @@ final class InstanceTeardown {
             // never costs anything.
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
-        // Run storage comes home with its owner, after the eject above.
-        RunStorage.returnAll(server, record);
+        // Dungeon Storage belongs to its player and stays where it is. Only a live run that
+        // still holds the old per-run storage moves it into the new one.
+        RunStorage.migrateLegacy(server, record);
         OmenBar.close(record);
         if (record.untimed) {
             PocketDungeonsMod.LOG.info("UNTIMED dungeon in slot {} closed ({}), after {}s",
@@ -193,11 +194,14 @@ final class InstanceTeardown {
         // from a cell whose player has simply walked away.
         for (BlockPos cellOrigin : cellOrigins) {
             Locks.clear(cellOrigin);
+            AltarOffering.clear(cellOrigin);
             OmenSources.clear(cellOrigin);
             Ordeals.clear(cellOrigin);
         }
 
         ServerLevel level = dungeonLevel(server);
+        // Dungeon structure W7a: no capstone fight state or Warden outlives its instance.
+        CapstoneFights.teardown(level, slot, layout);
         if (level == null) {
             InstanceRegistry.usedSlots.remove(slot);
             PocketDungeonsMod.LOG.info("Closed dungeon slot {} ({})", slot, reason);

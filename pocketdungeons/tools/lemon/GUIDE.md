@@ -14,11 +14,11 @@ Keep each entry to what a player needs, in the words Lemon would use.
   door steps.
 - **Names:** players call the staging room between floors "the Doors"; use that name.
 - **Going home (banking):** every staging room between floors has a GO HOME
-  lever. Home pays out reward chests, keystone progress and a kit refill.
+  lever. Home pays out reward chests, keystone progress; the kit is granted once, at the bag chest.
   Leaving at a checkpoint banks one band worse.
-- **Kit refill:** tops up at each home visit, scaled by omen band (low full, mid
-  partial, high none), never above the starting amount. Items go to the kept
-  dungeon inventory.
+- **Kit:** one of five (Guard, Ranger, Mason, Sapper, Shepherd), granted once when
+  the player picks a bag at the bag chest. There is no refill at home or anywhere
+  else; resource dungeons are the restock.
 - **Omen:** rises as the floor goes on and with each death rescue. It adds
   danger (mob waves, tougher spawns, hazards), not reward cuts.
 - **Failing:** a death while omen is maxed fails the run: you go home, unbanked

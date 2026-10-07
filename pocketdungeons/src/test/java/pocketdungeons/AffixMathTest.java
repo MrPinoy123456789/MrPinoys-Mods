@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * Pure-JDK regression for {@link AffixMath}: parsing/joining, the level
  * thresholds, the seeded pick's stability, the depletion multiplier and the
- * keystone name. Same shape and discipline as {@code KeystoneMathTest}, no
+ * keystone name. Same shape and discipline as {@code CompassMathTest}, no
  * Minecraft classpath, run from {@code tasks.test}.
  *
  * <p>M69: the maths now take a stable-ordered {@link AffixDefinition} list as
@@ -25,6 +25,7 @@ public class AffixMathTest {
         testJoinRoundTrip();
         testSeededCountThresholds();
         testSeededForStability();
+        testSaltedSeededFor();
         testDepletionMultiplier();
         testName();
         testThirdPartyId();
@@ -141,6 +142,27 @@ public class AffixMathTest {
         }
     }
 
+    /** The salted overload: stable per salt, the same size, and not always the unsalted pick. */
+    private static void testSaltedSeededFor() {
+        UUID owner = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        Set<String> plain = AffixMath.seededFor(owner, 60, DEFS);
+        boolean differs = false;
+        for (long salt = 1; salt <= 40; salt++) {
+            Set<String> first = AffixMath.seededFor(owner, 60, DEFS, salt);
+            check(first.size(), plain.size());
+            for (int i = 0; i < 20; i++) {
+                if (!first.equals(AffixMath.seededFor(owner, 60, DEFS, salt))) {
+                    throw new AssertionError("salted pick drifted for salt " + salt);
+                }
+            }
+            differs |= !first.equals(plain);
+        }
+        if (!differs) {
+            throw new AssertionError("no salt from 1 to 40 changed the pick");
+        }
+        check(AffixMath.seededFor(owner, 3, DEFS, 7L).size(), 0);
+    }
+
     private static void testDepletionMultiplier() {
         check(AffixMath.depletionMultiplier(Set.of(), DEFS), 1);
         check(AffixMath.depletionMultiplier(Set.of(AffixIds.OMINOUS), DEFS), 1);
@@ -153,15 +175,15 @@ public class AffixMathTest {
     }
 
     private static void testName() {
-        checkEquals(AffixMath.name(3, Set.of(), DEFS), "Baby Keystone [3]");
+        checkEquals(AffixMath.name(3, Set.of(), DEFS), "Baby Compass [3]");
         Set<String> mixed = new java.util.LinkedHashSet<>();
         mixed.add(AffixIds.SWARMING);
         mixed.add(AffixIds.OMINOUS);
         mixed.add(AffixIds.MOLTEN);
         checkEquals(AffixMath.name(16, mixed, DEFS),
-                "Menace Cooked Keystone [16] [Swarming, Molten]");
+                "Menace Cooked Compass [16] [Swarming, Molten]");
         checkEquals(AffixMath.name(60, Set.of(AffixIds.OMINOUS), DEFS),
-                "Cursed Cooked Keystone [60]");
+                "Cursed Cooked Compass [60]");
         // Intensifier bands.
         checkEquals(AffixMath.intensifier(1), "Baby");
         checkEquals(AffixMath.intensifier(5), "Baby");
@@ -216,7 +238,8 @@ public class AffixMathTest {
      * so the seeding and naming assertions stay meaningful against the real
      * definitions the manifest loads.
      */
-    private static List<AffixDefinition> buildBuiltInFixture() {
+    /** The built-in definitions as a fixture; shared with {@code DoorAffixesTest}. */
+    static List<AffixDefinition> buildBuiltInFixture() {
         List<AffixDefinition> defs = new ArrayList<>();
         defs.add(new AffixDefinition(AffixIds.OMINOUS, "Cooked",
                 "Cooked: the whole run runs ominous, and pays out ominous.",

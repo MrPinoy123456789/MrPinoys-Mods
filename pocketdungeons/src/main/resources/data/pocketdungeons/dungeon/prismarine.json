@@ -1,0 +1,104 @@
+{
+  "name": "Prismarine",
+  "act": 3,
+  "kind": "story",
+  "mainTheme": "prismarine",
+  "lootBand": {
+    "min": 3,
+    "max": 3
+  },
+  "nodePalette": [
+    "gold_ore",
+    "lapis_ore",
+    "diamond_ore"
+  ],
+  "diary": "entry_18",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "copper_works",
+      "frostworks"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "tidewater_steps",
+      "name": "Tidewater Steps",
+      "layer": 1
+    },
+    {
+      "id": "kelp_tunnels",
+      "name": "Kelp Tunnels",
+      "layer": 2,
+      "roomBias": [
+        "flooded_hall"
+      ]
+    },
+    {
+      "id": "guardian_galleries",
+      "name": "Guardian Galleries",
+      "layer": 2
+    },
+    {
+      "id": "rusted_pumps",
+      "name": "Rusted Pumps",
+      "layer": 3,
+      "theme": "copper_works",
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "sunken_archives",
+      "name": "Sunken Archives",
+      "layer": 3,
+      "roomBias": [
+        "sump"
+      ]
+    },
+    {
+      "id": "monument_heart",
+      "name": "Heart of the Monument",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "tidewater_steps",
+      "to": "kelp_tunnels"
+    },
+    {
+      "from": "tidewater_steps",
+      "to": "guardian_galleries"
+    },
+    {
+      "from": "kelp_tunnels",
+      "to": "sunken_archives"
+    },
+    {
+      "from": "guardian_galleries",
+      "to": "sunken_archives"
+    },
+    {
+      "from": "guardian_galleries",
+      "to": "rusted_pumps"
+    },
+    {
+      "from": "kelp_tunnels",
+      "to": "rusted_pumps",
+      "cost": 1
+    },
+    {
+      "from": "sunken_archives",
+      "to": "monument_heart"
+    },
+    {
+      "from": "rusted_pumps",
+      "to": "monument_heart"
+    }
+  ]
+}

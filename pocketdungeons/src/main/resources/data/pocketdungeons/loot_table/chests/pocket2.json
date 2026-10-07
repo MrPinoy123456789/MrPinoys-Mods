@@ -25,6 +25,12 @@
               "function": "minecraft:set_count",
               "count": 8
             }
+          ],
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.34
+            }
           ]
         },
         {

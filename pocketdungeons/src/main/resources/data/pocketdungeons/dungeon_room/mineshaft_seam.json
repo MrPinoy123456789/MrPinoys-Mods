@@ -1,0 +1,109 @@
+{
+  "template": "pocketdungeons:rooms/mineshaft_seam",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 3,
+  "theme": [
+    "mineshaft",
+    "deepslate"
+  ],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "mineshaft",
+  "dungeons": [
+    "mineshaft"
+  ],
+  "acts": [
+    1
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:coal_ore",
+      "from": [
+        3,
+        1,
+        5
+      ],
+      "to": [
+        5,
+        3,
+        5
+      ],
+      "count": 3
+    },
+    {
+      "block": "minecraft:iron_ore",
+      "from": [
+        9,
+        1,
+        5
+      ],
+      "to": [
+        11,
+        3,
+        5
+      ],
+      "count": 3,
+      "chance": 0.7
+    },
+    {
+      "block": "minecraft:iron_ore",
+      "from": [
+        9,
+        1,
+        5
+      ],
+      "to": [
+        11,
+        3,
+        5
+      ],
+      "count": 3,
+      "chance": 0.25
+    },
+    {
+      "block": "minecraft:copper_ore",
+      "from": [
+        3,
+        1,
+        9
+      ],
+      "to": [
+        5,
+        3,
+        9
+      ],
+      "count": 2,
+      "chance": 0.6
+    },
+    {
+      "block": "minecraft:deepslate_gold_ore",
+      "from": [
+        9,
+        1,
+        9
+      ],
+      "to": [
+        11,
+        3,
+        9
+      ],
+      "count": 2,
+      "chance": 0.35
+    }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

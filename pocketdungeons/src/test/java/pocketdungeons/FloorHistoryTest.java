@@ -24,6 +24,7 @@ public class FloorHistoryTest {
         testNewestFirstAndCapped();
         testRoundTrip();
         testWording();
+        testDungeonProgress();
         testLegacySidecarsSurvive();
         System.out.println("FloorHistoryTest passed");
     }
@@ -61,6 +62,23 @@ public class FloorHistoryTest {
                 "a failure names the room and the cause");
         check(FloorHistory.ending(entry(1, FloorHistory.QUIT)), "QUIT in Sump", "a quit names the room");
         check(FloorHistory.ending(entry(1, FloorHistory.CLEARED)), "CLEARED", "a clear needs no room");
+    }
+
+    /** W3: the progress cell is the floor within its dungeon, not within a safe visit interval. */
+    private static void testDungeonProgress() {
+        check(FloorHistory.progress(2, 5), "2/5", "floor 2 of a five layer dungeon");
+        check(FloorHistory.progress(5, 5), "5/5", "the final layer");
+        check(FloorHistory.progress(2, 0), "2", "outside a dungeon there is only the floor");
+        check(FloorHistory.progressWords(2, 5), "Floor 2, final at layer 5", "the spelled out form");
+        check(FloorHistory.progressWords(2, 0), "Floor 2", "the spelled out form outside a dungeon");
+        check(FloorHistory.progressColour(2, 5), net.minecraft.ChatFormatting.YELLOW, "short of the final is yellow");
+        check(FloorHistory.progressColour(5, 5), net.minecraft.ChatFormatting.GREEN, "the final layer is green");
+        check(FloorHistory.progressColour(2, 0), net.minecraft.ChatFormatting.WHITE, "no dungeon is white");
+        // The layer count round trips, and an entry saved before it loads as no dungeon.
+        DungeonLog log = new DungeonLog();
+        log.addFloorHistory(PLAYER, new FloorHistory.Entry(1, 9, "t", 2, List.of(), 5, FloorHistory.CLEARED, "", "", 4));
+        check(roundTrip(log).floorHistoryOf(PLAYER).get(0).layers(), 4, "layers round trips");
+        check(entry(1, FloorHistory.CLEARED).layers(), 0, "the short constructor means no dungeon");
     }
 
     /** Task progress still round trips, and a save's bounty states load and save unchanged. */

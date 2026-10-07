@@ -10,5 +10,6 @@
   "provides": ["water", "blocks"],
   "requires": [],
   "access": "gated",
-  "window": "bars"
+  "window": "bars",
+  "nodes": [{"block": "minecraft:stone", "at": [6, 1, 6]}, {"block": "minecraft:stone", "at": [10, 1, 12]}]
 }

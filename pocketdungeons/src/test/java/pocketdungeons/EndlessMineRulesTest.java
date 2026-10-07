@@ -35,6 +35,10 @@ public class EndlessMineRulesTest {
         testCashOutDepth();
         testCommitmentSurfaceStrings();
         testRecipeFlagAccumulates();
+        testDepthLayers();
+        testLayerGating();
+        testLootTierClimbs();
+        testDeepestFloorRecord();
 
         System.out.println("EndlessMineRulesTest passed");
     }
@@ -131,6 +135,78 @@ public class EndlessMineRulesTest {
         InstanceRecord plain = newRecord();
         check(EndlessMineRules.effectiveTheme("pocketdungeons:deepslate", plain, plan).equals(MINE),
                 "a Mine preview plan forces the Mine theme before the record is flagged");
+    }
+
+    /** D13 / ZONES_SPEC 3.5: floors 1 to 5, 6 to 11, 12 to 17, 18 and on. */
+    private static void testDepthLayers() {
+        int[][] edges = {{1, 1}, {5, 1}, {6, 2}, {11, 2}, {12, 3}, {17, 3}, {18, 4}, {40, 4}};
+        for (int[] edge : edges) {
+            check(EndlessMineRules.layerOf(edge[0]) == edge[1], "floor " + edge[0] + " is layer " + edge[1]);
+        }
+        check(EndlessMineRules.layerName(1).equals("Upper workings") && EndlessMineRules.layerName(4).equals("Magma core"),
+                "layer names");
+        check(EndlessMineRules.isTransition(6) && EndlessMineRules.isTransition(12) && EndlessMineRules.isTransition(18),
+                "layer boundaries are transitions");
+        check(!EndlessMineRules.isTransition(1) && !EndlessMineRules.isTransition(7), "other floors are not");
+        check(EndlessMineRules.actForLayer(1) == 1 && EndlessMineRules.actForLayer(2) == 2
+                && EndlessMineRules.actForLayer(3) == 3 && EndlessMineRules.actForLayer(4) == 4, "a layer needs its act");
+    }
+
+    /** The mine opens with act 2; each layer needs its act, and the sealed line names it. */
+    private static void testLayerGating() {
+        check(!EndlessMineRules.opensFor(Set.of(1)), "act 1 alone does not open the Mine");
+        check(EndlessMineRules.opensFor(Set.of(1, 2)), "act 2 opens the Mine");
+        check(!EndlessMineRules.opensFor(null), "null acts do not");
+        Set<Integer> two = Set.of(1, 2);
+        for (int floor = 1; floor <= 11; floor++) {
+            check(EndlessMineRules.sealedAct(floor, two) == 0, "floor " + floor + " is open with act 2");
+        }
+        check(EndlessMineRules.sealedAct(12, two) == 3, "the deep dark is sealed until act 3");
+        check(EndlessMineRules.sealedAct(12, Set.of(1, 2, 3)) == 0, "act 3 opens the deep dark");
+        check(EndlessMineRules.sealedAct(18, Set.of(1, 2, 3)) == 4, "the magma core needs act 4");
+        check(EndlessMineRules.sealedAct(18, Set.of(1, 2, 3, 4)) == 0, "act 4 opens it");
+        check(EndlessMineRules.sealedAct(6, Set.of(1)) == 2, "deepslate needs act 2");
+        String line = EndlessMineRules.sealedMessage(3);
+        check(line.contains("Act 3") && line.contains("sealed") && line.contains("HOME"), "the sealed line: " + line);
+        check(line.indexOf((char) 8212) < 0 && !line.contains(" -- "), "house punctuation");
+    }
+
+    /** The loot tier climbs every 3 floors inside the layer's band. */
+    private static void testLootTierClimbs() {
+        int[] expected = {1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4};
+        for (int floor = 1; floor <= expected.length; floor++) {
+            check(EndlessMineRules.lootTier(floor) == expected[floor - 1],
+                    "floor " + floor + " tier " + EndlessMineRules.lootTier(floor) + " expected " + expected[floor - 1]);
+        }
+        check(EndlessMineRules.lootTier(200) == 4, "never past the top band");
+        for (int layer = 1; layer <= 4; layer++) {
+            DungeonDef.LootBand band = EndlessMineRules.layerBand(layer);
+            for (int floor = EndlessMineRules.layerStart(layer); floor < EndlessMineRules.layerStart(layer) + 10 && EndlessMineRules.layerOf(floor) == layer; floor++) {
+                int tier = EndlessMineRules.lootTier(floor);
+                check(tier >= band.min() && tier <= band.max(), "floor " + floor + " stays in its layer band");
+            }
+        }
+    }
+
+    /** The deepest floor is kept, never lowered, and survives a reset. */
+    private static void testDeepestFloorRecord() {
+        DungeonLog log = new DungeonLog();
+        check(log.get(OWNER).campaign().deepestMineFloor() == 0, "no floor yet");
+        check(log.recordMineFloor(OWNER, 4), "first record is a new best");
+        check(!log.recordMineFloor(OWNER, 3), "a shallower floor is not");
+        check(!log.recordMineFloor(OWNER, 4), "nor an equal one");
+        check(log.recordMineFloor(OWNER, 9), "a deeper one is");
+        check(log.get(OWNER).campaign().deepestMineFloor() == 9, "the deepest is kept");
+        log.unlockAct(OWNER, 2);
+        check(log.get(OWNER).campaign().deepestMineFloor() == 9, "other campaign changes keep it");
+        log.resetCampaign(OWNER);
+        check(log.get(OWNER).campaign().deepestMineFloor() == 9, "a keystone reset keeps it");
+        check(FloorHistory.deepestLine(9).equals("Deepest Mine floor: 9 (Deepslate)"), FloorHistory.deepestLine(9));
+        Keystone.Offer plain = new Keystone.Offer(1, Set.of(), 1, null, Keystone.Tier.FREE,
+                new TripDoors.Door("pocketdungeons:frostworks", "frozen_gate", 1, 0));
+        Keystone.Offer mine = new Keystone.Offer(1, Set.of(), 1, MINE, Keystone.Tier.FREE,
+                new TripDoors.Door(EndlessMineRules.MINE_DUNGEON_ID, "working_face", 1, 0));
+        check(!EndlessMineRules.isMineOffer(plain) && EndlessMineRules.isMineOffer(mine), "the mine door is recognised");
     }
 
     private static void check(boolean condition, String what) {

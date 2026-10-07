@@ -1,0 +1,82 @@
+{
+  "name": "Herobrine",
+  "act": 5,
+  "kind": "capstone",
+  "mainTheme": "herobrine",
+  "lootBand": {
+    "min": 4,
+    "max": 4
+  },
+  "nodePalette": [
+    "deepslate_diamond_ore",
+    "ancient_debris"
+  ],
+  "diary": "entry_25",
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "ender_archive",
+      "basalt_foundry"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "last_stair",
+      "name": "The Last Stair",
+      "layer": 1,
+      "light": "dim"
+    },
+    {
+      "id": "remembered_bastion",
+      "name": "The Remembered Bastion",
+      "layer": 2,
+      "theme": "blackstone",
+      "light": "dim"
+    },
+    {
+      "id": "remembered_stronghold",
+      "name": "The Remembered Stronghold",
+      "layer": 2,
+      "theme": "ender_archive",
+      "light": "dim"
+    },
+    {
+      "id": "the_seam",
+      "name": "The Seam",
+      "layer": 3,
+      "light": "dim"
+    },
+    {
+      "id": "the_fracture",
+      "name": "The Fracture",
+      "layer": 4,
+      "final": true,
+      "light": "dim",
+      "roomBias": [
+        "fracture_hall"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "last_stair",
+      "to": "remembered_bastion"
+    },
+    {
+      "from": "last_stair",
+      "to": "remembered_stronghold"
+    },
+    {
+      "from": "remembered_bastion",
+      "to": "the_seam"
+    },
+    {
+      "from": "remembered_stronghold",
+      "to": "the_seam"
+    },
+    {
+      "from": "the_seam",
+      "to": "the_fracture"
+    }
+  ]
+}

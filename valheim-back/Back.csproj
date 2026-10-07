@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <AssemblyName>MrPinoys_Back</AssemblyName>
+    <RootNamespace>MrPinoys.Back</RootNamespace>
+    <Version>0.1.0</Version>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin</OutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <!-- Point this at any Valheim install (client or dedicated server) of the same version. -->
+    <ValheimManaged Condition="'$(ValheimManaged)' == ''">A:\Steam\steamapps\common\Valheim\valheim_Data\Managed</ValheimManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="BepInEx.Analyzers" Version="1.0.8" PrivateAssets="all" />
+    <PackageReference Include="HarmonyX" Version="2.10.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="assembly_valheim" Private="false">
+      <HintPath>$(ValheimManaged)\assembly_valheim.dll</HintPath>
+    </Reference>
+    <Reference Include="assembly_utils" Private="false">
+      <HintPath>$(ValheimManaged)\assembly_utils.dll</HintPath>
+    </Reference>
+    <Reference Include="Splatform" Private="false">
+      <HintPath>$(ValheimManaged)\Splatform.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine" Private="false">
+      <HintPath>$(ValheimManaged)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Private="false">
+      <HintPath>$(ValheimManaged)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

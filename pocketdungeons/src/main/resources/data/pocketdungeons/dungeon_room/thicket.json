@@ -11,5 +11,6 @@
   "requires": [],
   "pressure": "local",
   "access": "open",
-  "window": "bars"
+  "window": "bars",
+  "light": "dim"
 }

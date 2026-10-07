@@ -1,0 +1,6 @@
+{
+  "name": "Ancient City",
+  "processors": "pocketdungeons:theme_ancient_city",
+  "spawner_prefix": "crypt",
+  "room_theme": "ancient_city"
+}

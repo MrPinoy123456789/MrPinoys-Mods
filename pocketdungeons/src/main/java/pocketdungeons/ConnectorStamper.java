@@ -65,6 +65,23 @@ final class ConnectorStamper {
     }
 
     /**
+     * The connector an edge actually gets. PD-144: a gated room stands its own
+     * iron door set one block inside its doorway, so a rolled IRON_DOOR on an
+     * edge that touches one stacked a second set (one open, one shut). That
+     * edge keeps the plain doorway.
+     */
+    static ConnectorType effectiveType(ConnectorType rolled, RoomManifest.Entry a, RoomManifest.Entry b) {
+        if (rolled == ConnectorType.IRON_DOOR && (isGated(a) || isGated(b))) {
+            return ConnectorType.DOOR_WIDE;
+        }
+        return rolled;
+    }
+
+    private static boolean isGated(RoomManifest.Entry entry) {
+        return entry != null && DungeonRoomMeta.ACCESS_GATED.equals(entry.meta.access);
+    }
+
+    /**
      * Applies {@code type} to one cell's side of a door edge. {@code fillNearColumn}
      * decides which door-slot column {@link ConnectorType#DOOR_SINGLE} keeps
      * solid; the caller rolls it once per edge and passes the same value to
@@ -93,7 +110,8 @@ final class ConnectorStamper {
 
     /**
      * Two iron doors side by side, closed and unpowered by default, with a
-     * lever on the frame that always opens them (PD-27): nothing else in the
+     * lever that always opens them (PD-27; PD-160 moved it off the frame onto
+     * another wall of the room, see {@link #leverSpot}): nothing else in the
      * mod places a redstone source, and this connector can land on the
      * critical path, so a run with no lever would have no way through. The
      * door slot is 3 tall but a door is only 2, so the top row is capped with
@@ -109,9 +127,10 @@ final class ConnectorStamper {
      * so they meet in the middle instead of both defaulting to
      * {@code LEFT}.
      */
-    private static void applyIronDoor(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
+    static IronDoor applyIronDoor(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction wall) {
         Direction facing = Instances.mcDirection(CellGeometry.opposite(wall));
         BlockState cap = wallBlockAt(level, cellOrigin, wall);
+        List<BlockPos> lowers = new java.util.ArrayList<>();
         for (int i = DOOR_MIN; i <= DOOR_MAX; i++) {
             DoorHingeSide hinge = i == DOOR_MIN ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
             BlockState lower = Blocks.IRON_DOOR.defaultBlockState()
@@ -119,15 +138,79 @@ final class ConnectorStamper {
                     .setValue(DoorBlock.HINGE, hinge)
                     .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER);
             BlockState upper = lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER);
-            level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 1), lower, STAMP_FLAGS);
+            BlockPos lowerPos = ConnectorGeometry.wallPos(cellOrigin, wall, i, 1);
+            level.setBlock(lowerPos, lower, STAMP_FLAGS);
             level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 2), upper, STAMP_FLAGS);
             level.setBlock(ConnectorGeometry.wallPos(cellOrigin, wall, i, 3), cap, STAMP_FLAGS);
+            lowers.add(lowerPos.immutable());
         }
 
-        BlockState lever = Blocks.LEVER.defaultBlockState()
+        LeverSpot chosen = leverSpot(level, cellOrigin, wall);
+        BlockPos spot = chosen == null ? leverPos(cellOrigin, wall, DOOR_MIN - 1, 1) : chosen.pos();
+        level.setBlock(spot, Blocks.LEVER.defaultBlockState()
                 .setValue(LeverBlock.FACE, AttachFace.WALL)
-                .setValue(LeverBlock.FACING, facing);
-        level.setBlock(leverPos(cellOrigin, wall, DOOR_MIN - 1, 1), lever, STAMP_FLAGS);
+                .setValue(LeverBlock.FACING, chosen == null ? facing : chosen.facing()), STAMP_FLAGS);
+        return new IronDoor(spot.immutable(), List.copyOf(lowers));
+    }
+
+    /** What {@link #applyIronDoor} stamped: where the lever went and the door's two lower halves. */
+    record IronDoor(BlockPos lever, List<BlockPos> lowers) {}
+
+    /**
+     * PD-160: where a connector door's lever goes, or {@code null} to keep the
+     * frame position. A lever on the frame is the first thing a player standing
+     * in the doorway sees, which made it too easy to find and (on a backtrack)
+     * too easy to be on the wrong side of; it now stands on one of the near
+     * room's other three walls, so reading the room finds it. The spot is
+     * seeded by the cell origin so a re-stamp lands it in the same place.
+     * Candidates are solid wall at y 2 with plain air in front (not water, not
+     * lava) and outside every doorway lane.
+     */
+    private static LeverSpot leverSpot(ServerLevel level, BlockPos cellOrigin, DoorMask.Direction doorWall) {
+        List<LeverSpot> spots = new java.util.ArrayList<>();
+        for (DoorMask.Direction other : DoorMask.Direction.values()) {
+            if (other == doorWall) {
+                continue;
+            }
+            Direction inward = Instances.mcDirection(CellGeometry.opposite(other));
+            for (int i = 2; i <= CELL - 3; i++) {
+                if (i >= DOOR_MIN - 1 && i <= DOOR_MAX + 1) {
+                    continue;
+                }
+                BlockPos wallBlock = ConnectorGeometry.wallPos(cellOrigin, other, i, 2);
+                BlockPos front = leverPos(cellOrigin, other, i, 2);
+                if (level.getBlockState(wallBlock).isFaceSturdy(level, wallBlock, inward)
+                        && level.getBlockState(front).isAir()) {
+                    spots.add(new LeverSpot(front, inward));
+                }
+            }
+        }
+        if (spots.isEmpty()) {
+            return null;
+        }
+        return spots.get(new java.util.Random(cellOrigin.asLong() * 31L + 17L).nextInt(spots.size()));
+    }
+
+    /** A lever position and the way it faces (into the room). */
+    private record LeverSpot(BlockPos pos, Direction facing) {}
+
+    /**
+     * PD-160: a stone button for the far side of a connector door, one block
+     * inside {@code farOrigin}'s room beside the doorway on {@code farWall}, at
+     * y 2, or {@code null} if the frame there is not solid or the spot is not
+     * air. {@link IronDoorLatch} makes it open the door.
+     */
+    static BlockPos applyFarSideButton(ServerLevel level, BlockPos farOrigin, DoorMask.Direction farWall) {
+        Direction inward = Instances.mcDirection(CellGeometry.opposite(farWall));
+        BlockPos frame = ConnectorGeometry.wallPos(farOrigin, farWall, DOOR_MIN - 1, 2);
+        BlockPos spot = leverPos(farOrigin, farWall, DOOR_MIN - 1, 2);
+        if (!level.getBlockState(frame).isFaceSturdy(level, frame, inward) || !level.getBlockState(spot).isAir()) {
+            return null;
+        }
+        level.setBlock(spot, Blocks.STONE_BUTTON.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.ButtonBlock.FACE, AttachFace.WALL)
+                .setValue(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING, inward), STAMP_FLAGS);
+        return spot.immutable();
     }
 
     /**

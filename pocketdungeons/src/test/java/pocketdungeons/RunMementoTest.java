@@ -67,7 +67,7 @@ public class RunMementoTest {
         String joined = lore.stream().map(net.minecraft.network.chat.Component::getString)
                 .reduce("", (a, b) -> a + b + "|");
         check(joined.contains("cave"), "lore names the theme");
-        check(joined.contains("Keystone: 5"), "lore names the keystone level");
+        check(joined.contains("Compass: 5"), "lore names the compass level");
         check(joined.contains("ominous"), "lore names the affixes");
     }
 

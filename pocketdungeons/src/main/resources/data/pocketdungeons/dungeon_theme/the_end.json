@@ -1,0 +1,7 @@
+{
+  "name": "The End",
+  "processors": "pocketdungeons:theme_the_end",
+  "spawner_prefix": "the_end",
+  "loot_suffix": "ender_archive",
+  "room_theme": "the_end"
+}

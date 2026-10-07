@@ -97,14 +97,14 @@ final class StationPicker {
                 player));
 
         gui.setSlot(SLOT_STORAGE, stationElement(
-                "Run Storage",
+                "Dungeon Storage",
                 resolveItem(PocketDungeonsConfig.storageBlock()),
                 true,
                 0,
                 List.of(
-                        "Twenty-seven slots of your own, for this run only.",
+                        "Twenty-seven slots of your own, kept between runs.",
                         "Place it in the dungeon, right-click to open it. It is not your real ender chest.",
-                        "Everything inside comes home with you when the run closes."),
+                        "What is inside stays there until you take it out."),
                 player));
 
         gui.setSlot(SLOT_LECTERN, stationElement(
@@ -175,7 +175,7 @@ final class StationPicker {
                 }
             });
         } else {
-            lore.add(Component.literal("Unlocks at keystone level " + unlockLevel + ".")
+            lore.add(Component.literal("Unlocks at compass level " + unlockLevel + ".")
                     .withStyle(ChatFormatting.YELLOW));
             builder.setLore(lore);
         }

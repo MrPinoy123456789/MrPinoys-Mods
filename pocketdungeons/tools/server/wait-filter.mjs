@@ -19,6 +19,19 @@ const NOISE = /oshi|SystemReport/
 // different blocks; it came in bursts of 33 in one session and is never the mod's.
 const VANILLA_WARN_NOISE = /Can't keep up!|moved too quickly|moved wrongly|Ambiguity between arguments|Mismatch in destroy block pos/
 
+/**
+ * PD-156: whether a raw log line is a routine vanilla warning. `remoteCommand`
+ * replies keep non-event lines (command feedback is never an event), which let
+ * these warnings through into MCP tool results even though the event stream
+ * drops them. A mod line (named logger) is never noise here.
+ */
+export function isVanillaNoise(line) {
+  const p = line.match(PREFIX)
+  if (!p || (p[4] && p[4] !== 'Minecraft')) return false // a mod's own line is never this noise
+  const body = line.slice(p[0].length)
+  return VANILLA_WARN_NOISE.test(body)
+}
+
 /** Turns a raw log line into a compact event line, or null if it is not one agents care about. */
 export function eventOf(line) {
   // Untimestamped lines are stack-trace continuations; the timestamped line above them is enough.

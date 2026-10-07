@@ -195,7 +195,7 @@ final class DialogScreens {
      */
     static Dialog quitDoorConfirm() {
         int cost = PocketDungeonsConfig.timedOutDepletion();
-        String costLine = cost == 1 ? "Costs 1 keystone level." : "Costs " + cost + " keystone levels.";
+        String costLine = cost == 1 ? "Costs 1 compass level." : "Costs " + cost + " compass levels.";
         return DialogKit.confirm("Quit the dungeon?",
                 List.of(DialogKit.text(Component.literal(costLine)
                                 .withStyle(ChatFormatting.YELLOW)),
@@ -215,18 +215,72 @@ final class DialogScreens {
      * ({@code /dungeon cashout}), so this is tier A like {@link #quitDoorConfirm}.
      */
     static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        String keeps = "Banks now: " + IntervalBanking.keyLine(now, floorsPerVisit);
+        String keeps = IntervalBanking.takeHomeLine(now).replace('\n', ' ');
+        boolean finished = record.interval.finished;
+        String dungeon = TripView.dungeonName(record);
+        String ends = record.interval.mineSealedAct > 0
+                ? EndlessMineRules.sealedMessage(record.interval.mineSealedAct) + " Ends this run and takes the party home."
+                : finished
+                ? "You cleared " + dungeon + ". Ends this run and takes the party home."
+                : dungeon.isEmpty() ? "Ends this run and takes the party home."
+                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish shard or vault.";
         return DialogKit.confirm("Go home?",
-                List.of(DialogKit.text(Component.literal("Ends this run and takes the party home.")
+                List.of(DialogKit.text(Component.literal(ends)
                                 .withStyle(ChatFormatting.YELLOW)),
                         DialogKit.text(keeps),
-                        DialogKit.text(Component.literal(
-                                "To keep going, right-click a door and pull DESCEND instead.")
+                        DialogKit.text(Component.literal(finished
+                                ? "The dungeon has no more doors."
+                                : "To keep going, right-click a door and pull the lever instead.")
                                 .withStyle(ChatFormatting.GRAY))),
                 DialogKit.command("Go Home", null, "/dungeon cashout"),
                 DialogKit.closeButton("Stay"));
+    }
+
+    // ---- the dungeon map (dungeon structure W2, design D6) --------------------
+
+    /**
+     * The staging room's dungeon map: the layers of the dungeon this trip is in, the
+     * node the party stands at, the final floor, each edge's shard cost and which
+     * floors each door can reach. Before the first door of a trip it lists the three
+     * dungeons on offer instead. Read only; opened by right-clicking the floor
+     * history board in the staging room, or {@code /dungeon map}. The lines come from
+     * {@link DungeonMapText}, so the shape is pinned by a plain test.
+     */
+    static Dialog dungeonMap(MinecraftServer server, InstanceRecord record) {
+        DungeonLog.Entry entry = DungeonLog.forServer(server).get(record.owner);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner,
+                Math.max(1, entry.keystoneLevel()));
+        List<TripDoors.Door> doors = new ArrayList<>();
+        for (Keystone.Offer offer : offers) {
+            if (offer.door() != null) {
+                doors.add(offer.door());
+            }
+        }
+        TripDoors.Door[] dealt = doors.toArray(new TripDoors.Door[0]);
+        DungeonDef def = TripView.def(record);
+        List<DungeonMapText.Line> lines = def == null
+                ? DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id))
+                : DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
+                        record.interval.finished);
+        List<DialogBody> body = new ArrayList<>();
+        for (DungeonMapText.Line line : lines) {
+            body.add(DialogKit.text(Component.literal(line.text()).withStyle(toneColour(line.tone()))));
+        }
+        return DialogKit.notice("Dungeon map", body, DialogKit.closeButton("Close"));
+    }
+
+    private static ChatFormatting toneColour(DungeonMapText.Tone tone) {
+        return switch (tone) {
+            case TITLE -> ChatFormatting.GOLD;
+            case HEADING -> ChatFormatting.AQUA;
+            case CURRENT -> ChatFormatting.GREEN;
+            case VISITED -> ChatFormatting.DARK_GREEN;
+            case FINAL -> ChatFormatting.LIGHT_PURPLE;
+            case SIDE -> ChatFormatting.YELLOW;
+            case NOTE -> ChatFormatting.GRAY;
+            case NORMAL -> ChatFormatting.WHITE;
+        };
     }
 
     // ---- section 3: party invite -------------------------------------------
@@ -283,11 +337,11 @@ final class DialogScreens {
         } else {
             body.add(DialogKit.text(entry.runsCompleted() + " run"
                     + (entry.runsCompleted() == 1 ? "" : "s") + " completed."));
-            body.add(DialogKit.text("Best keystone [" + entry.bestKeystoneLevel() + "]."));
+            body.add(DialogKit.text("Best compass [" + entry.bestKeystoneLevel() + "]."));
             body.add(DialogKit.text("Longest dungeon cleared " + entry.bestPathLength()
                     + " rooms deep."));
         }
-        return DialogKit.notice("Your keystone", body, exit);
+        return DialogKit.notice("Your compass", body, exit);
     }
 
     /**
@@ -683,7 +737,7 @@ final class DialogScreens {
             options.add(new MenuOption("Leave", "Exit the dungeon", ACTION_LEAVE_DUNGEON));
             if (roomOwner && doorChosen) {
                 options.add(new MenuOption("Quit Door",
-                        "Fail the dungeon, downgrade your keystone, pick a new door",
+                        "Fail the dungeon, downgrade your compass, pick a new door",
                         ACTION_QUIT_DUNGEON));
             }
             if (roomOwner) {
@@ -698,7 +752,7 @@ final class DialogScreens {
                 options.add(new MenuOption("Stations", "Take a station block for your room",
                         ACTION_STATIONS));
             }
-            options.add(new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE));
+            options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
             options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
             // The key is the room owner's; a visitor has no say over it.
             if (roomOwner) {
@@ -707,7 +761,7 @@ final class DialogScreens {
             return options;
         }
         return List.of(
-                new MenuOption("Start Dungeon", "Requires a keystone in your inventory",
+                new MenuOption("Start Dungeon", "Requires a compass in your inventory",
                         ACTION_START_DUNGEON),
                 new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
                 // M75: the private visit channel. Lists rooms whose owner has
@@ -718,7 +772,7 @@ final class DialogScreens {
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
                 new MenuOption("Stations", "Take a station block for your room",
                         ACTION_STATIONS),
-                new MenuOption("Inspect Keystone", null, ACTION_INSPECT_KEYSTONE),
+                new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Diaries", null, ACTION_DIARIES),
                 resetKeyOption());
     }
@@ -728,7 +782,7 @@ final class DialogScreens {
      * feature to let me reset the run myself"). Last in the menu, behind a confirm.
      */
     private static MenuOption resetKeyOption() {
-        return new MenuOption("Reset Key", "Start again from keystone 1, with a confirm first",
+        return new MenuOption("Reset Compass", "Start again from compass 1, with a confirm first",
                 ACTION_RESET_KEY);
     }
 
@@ -740,15 +794,15 @@ final class DialogScreens {
      * {@link #quitDoorConfirm}.
      */
     static Dialog resetKeyConfirm() {
-        return DialogKit.confirm("Reset your key?",
-                List.of(DialogKit.text(Component.literal("This starts you over from keystone 1.")
+        return DialogKit.confirm("Reset your compass?",
+                List.of(DialogKit.text(Component.literal("This starts you over from compass 1.")
                                 .withStyle(ChatFormatting.YELLOW)),
-                        DialogKit.text("Your keystone progress, bag and any run in progress are cleared. "
-                                + "A fresh keystone [1] is put in your hand."),
+                        DialogKit.text("Your compass progress, bag and any run in progress are cleared. "
+                                + "A fresh compass [1] is put in your hand."),
                         DialogKit.text(Component.literal(
                                 "Your shells, diary entries and room settings are kept.")
                                 .withStyle(ChatFormatting.GRAY))),
-                DialogKit.command("Reset Key", null, "/dungeon resetkey"),
+                DialogKit.command("Reset Compass", null, "/dungeon resetkey"),
                 DialogKit.closeButton("Cancel"));
     }
 
@@ -767,7 +821,7 @@ final class DialogScreens {
         if (inDungeon) {
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             roomOwner = record != null && record.owner.equals(player.getUUID());
-            doorChosen = record != null && RunSession.isActive(record) && record.floor.chosenStep > 0;
+            doorChosen = record != null && RunSession.isActive(record) && record.floor.hasDoor();
         }
         return lodestoneMenuDialog(menuOptions(inDungeon, roomOwner, doorChosen), player.getUUID(), inDungeon);
     }
@@ -780,7 +834,7 @@ final class DialogScreens {
     static Dialog lodestoneMenuDialog(List<MenuOption> options, UUID owner, boolean inDungeon) {
         List<DialogBody> body = new ArrayList<>();
         body.add(DialogKit.text(inDungeon
-                ? "Leave the dungeon, manage your room, or inspect your keystone."
+                ? "Leave the dungeon, manage your room, or inspect your compass."
                 : "Start a dungeon, visit a lobby, or manage your room."));
         List<ActionButton> buttons = new ArrayList<>();
         for (MenuOption option : options) {
@@ -801,11 +855,11 @@ final class DialogScreens {
      * holding none, so the button needs no permission and cannot be farmed.
      */
     static Dialog noKeystone(UUID owner) {
-        return DialogKit.list("No keystone",
-                List.of(DialogKit.text("You are not carrying a keystone."),
+        return DialogKit.list("No compass",
+                List.of(DialogKit.text("You are not carrying a compass."),
                         DialogKit.text("Your first one is free, and a lost one is replaced "
                                 + "at the level you had earned.")),
-                List.of(DialogKit.command("Get a keystone", "Runs /dungeon key", "/dungeon key")),
+                List.of(DialogKit.command("Get a compass", "Runs /dungeon key", "/dungeon key")),
                 backToMenuButton(owner));
     }
 
@@ -1088,7 +1142,8 @@ final class DialogScreens {
      */
     static List<BagOption> bagOptions() {
         List<BagOption> out = new ArrayList<>();
-        for (BagDefinition bag : BagManifest.current().definitions()) {
+        // Dungeon structure W5 (D14): hidden bags are not offered.
+        for (BagDefinition bag : BagDefinition.offered(BagManifest.current().definitions())) {
             out.add(new BagOption(bag.label, bag.blurb, bag.id));
         }
         return out;
@@ -1112,7 +1167,7 @@ final class DialogScreens {
      */
     static Dialog bagPickerDialog(List<BagOption> options, UUID owner) {
         List<DialogBody> body = new ArrayList<>();
-        body.add(DialogKit.text("Your bag is your class. You keep it until you reset your keystone."));
+        body.add(DialogKit.text("Your bag is your class. You keep it until you reset your compass."));
         body.add(DialogKit.text(Component.literal("Choose carefully: you cannot change it mid-run.")
                 .withStyle(ChatFormatting.GRAY)));
         List<ActionButton> buttons = new ArrayList<>();
@@ -1151,7 +1206,7 @@ final class DialogScreens {
         body.add(DialogKit.text(name));
         body.add(DialogKit.text(blurb));
         body.add(DialogKit.text(Component.literal(
-                "This is permanent until you reset your keystone.").withStyle(ChatFormatting.GRAY)));
+                "This is permanent until you reset your compass.").withStyle(ChatFormatting.GRAY)));
         CompoundTag confirm = new CompoundTag();
         confirm.putString(KEY_OWNER, owner.toString());
         confirm.putString(KEY_BAG_ID, bagId);

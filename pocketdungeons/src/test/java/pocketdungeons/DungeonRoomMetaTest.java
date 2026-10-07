@@ -32,6 +32,12 @@ public class DungeonRoomMetaTest {
         testAccessRejectsUnknownValue();
         testWindowRoundTrip();
         testWindowRejectsUnknownValue();
+        testW4Defaults();
+        testW4FieldsRoundTrip();
+        testW4NodeForms();
+        testW4NodeRejections();
+        testW4ChoiceRejections();
+        testW4ThemeStandsInForDungeons();
         System.out.println("DungeonRoomMetaTest passed");
     }
 
@@ -261,6 +267,188 @@ public class DungeonRoomMetaTest {
             }
         }
         check(threw, true, "bad window value throws");
+    }
+
+    // ---- dungeon structure W4 --------------------------------------------------
+
+    /** Every room shipped before W4 omits the new fields; each must read as the old behaviour. */
+    private static void testW4Defaults() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/hall_straight",
+                  "roles": ["corridor"]
+                }
+                """);
+        check(meta.nodes.isEmpty(), true, "no nodes");
+        check(meta.light, "lit", "light defaults lit");
+        check(meta.corridor, "wide", "corridor defaults wide");
+        check(meta.biome, null, "no biome");
+        check(meta.requiresLight, false, "requiresLight defaults false");
+        check(meta.dungeons.isEmpty(), true, "no dungeons");
+        check(meta.acts.isEmpty(), true, "no acts");
+        check(meta.graphRole.isEmpty(), true, "no graph role");
+        check(meta.borrowableBy.isEmpty(), true, "no borrowers");
+        // The legacy constructors read the same.
+        DungeonRoomMeta legacy = new DungeonRoomMeta("t", 1, 1, java.util.List.of(RoleIds.CORRIDOR), 1, 0, -1, null);
+        check(legacy.light, "lit", "legacy light");
+        check(legacy.corridor, "wide", "legacy corridor");
+        check(legacy.nodes.isEmpty(), true, "legacy nodes");
+    }
+
+    private static void testW4FieldsRoundTrip() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/mine_seam",
+                  "roles": ["corridor"],
+                  "light": "dim",
+                  "corridor": "narrow",
+                  "biome": "mineshaft",
+                  "requiresLight": true,
+                  "dungeons": ["mineshaft", "pocketdungeons:rootworks"],
+                  "acts": [1, 2],
+                  "graphRole": ["entry", "side_reward"],
+                  "borrowableBy": ["infestation"]
+                }
+                """);
+        check(meta.light, "dim", "light");
+        check(meta.corridor, "narrow", "corridor");
+        check(meta.biome, "mineshaft", "biome");
+        check(meta.requiresLight, true, "requiresLight");
+        check(meta.dungeons, java.util.List.of("mineshaft", "pocketdungeons:rootworks"), "dungeons");
+        check(meta.acts, java.util.List.of(1, 2), "acts");
+        check(meta.graphRole, java.util.List.of("entry", "side_reward"), "graphRole");
+        check(meta.borrowableBy, java.util.List.of("infestation"), "borrowableBy");
+        check(meta.allowsAct(2), true, "act 2 allowed");
+        check(meta.allowsAct(3), false, "act 3 not allowed");
+        check(parse("{\"template\": \"t\", \"roles\": [\"corridor\"]}").allowsAct(5), true, "no acts allows any");
+        // light dark is parsed as written; the validator reports the dark plus requiresLight pair.
+        check(parse("{\"template\": \"t\", \"roles\": [\"corridor\"], \"light\": \"dark\", \"requiresLight\": true}")
+                .light, "dark", "dark parses");
+    }
+
+    private static void testW4NodeForms() {
+        DungeonRoomMeta meta = parse("""
+                {
+                  "template": "pocketdungeons:rooms/seam",
+                  "roles": ["corridor"],
+                  "nodes": [
+                    {"block": "minecraft:iron_ore", "at": [3, 1, 4]},
+                    {"block": "coal_ore", "from": [5, 1, 5], "to": [7, 2, 6]},
+                    {"block": "minecraft:oak_log", "from": [1, 1, 1], "to": [4, 1, 4], "count": 3}
+                  ]
+                }
+                """);
+        check(meta.nodes.size(), 3, "three nodes");
+        DungeonRoomMeta.NodeSpec single = meta.nodes.get(0);
+        check(single.block(), "minecraft:iron_ore", "block kept");
+        check(single.positions(0L).size(), 1, "a single position");
+        check(java.util.Arrays.equals(single.positions(0L).get(0), new int[]{3, 1, 4}), true, "at position");
+        check(meta.nodes.get(1).block(), "minecraft:coal_ore", "bare block id is qualified");
+        check(meta.nodes.get(1).positions(0L).size(), 12, "a 3 by 2 by 2 box has 12 positions");
+        DungeonRoomMeta.NodeSpec counted = meta.nodes.get(2);
+        check(counted.volume(), 16, "volume of a 4 by 1 by 4 box");
+        check(counted.positions(7L).size(), 3, "count picks three");
+        // Deterministic: the same seed picks the same three, a different seed may not.
+        check(java.util.Arrays.deepEquals(counted.positions(7L).toArray(), counted.positions(7L).toArray()), true,
+                "same seed, same nodes");
+        java.util.Set<String> distinct = new java.util.HashSet<>();
+        for (int[] p : counted.positions(7L)) {
+            distinct.add(p[0] + "," + p[1] + "," + p[2]);
+            check(p[0] >= 1 && p[0] <= 4 && p[2] >= 1 && p[2] <= 4 && p[1] == 1, true, "inside the box");
+        }
+        check(distinct.size(), 3, "three distinct positions");
+        // A count larger than the box is the whole box.
+        check(parse("""
+                {"template": "t", "roles": ["corridor"],
+                 "nodes": [{"block": "stone", "from": [1, 1, 1], "to": [2, 1, 1], "count": 9}]}
+                """).nodes.get(0).positions(1L).size(), 2, "count above the box is the box");
+        // PD-155: chance defaults to 1 and parses as written.
+        check(single.chance(), 1.0, "no chance means always");
+        check(parse("""
+                {"template": "t", "roles": ["corridor"],
+                 "nodes": [{"block": "stone", "at": [4, 1, 4], "chance": 0.4}]}
+                """).nodes.get(0).chance(), 0.4, "chance parses");
+    }
+
+    private static void testW4NodeRejections() {
+        for (String bad : new String[]{
+                "{\"block\": \"stone\"}",
+                "{\"block\": \"stone\", \"at\": [1, 1]}",
+                "{\"block\": \"stone\", \"from\": [1, 1, 1]}",
+                "{\"block\": \"stone\", \"from\": [5, 1, 1], \"to\": [1, 1, 1]}",
+                "{\"block\": \"stone\", \"at\": [0, 1, 4]}",
+                "{\"block\": \"stone\", \"at\": [15, 1, 4]}",
+                "{\"block\": \"stone\", \"at\": [4, 1, 0]}",
+                "{\"block\": \"stone\", \"at\": [4, 6, 4]}",
+                "{\"block\": \"stone\", \"at\": [4, -9, 4]}",
+                "{\"block\": \"stone\", \"from\": [1, 1, 1], \"to\": [2, 1, 1], \"count\": 0}",
+                "{\"block\": \"stone\", \"at\": [4, 1, 4], \"chance\": 0}",
+                "{\"block\": \"stone\", \"at\": [4, 1, 4], \"chance\": 1.5}",
+                "{\"at\": [4, 1, 4]}",
+                "{\"block\": \" \", \"at\": [4, 1, 4]}"}) {
+            boolean threw = false;
+            try {
+                parse("{\"template\": \"pocketdungeons:rooms/seam\", \"roles\": [\"corridor\"], \"nodes\": [" + bad + "]}");
+            } catch (IllegalArgumentException e) {
+                threw = true;
+                if (!e.getMessage().contains("seam")) {
+                    throw new AssertionError("a bad node names the room: " + e.getMessage());
+                }
+            }
+            check(threw, true, "bad node rejected: " + bad);
+        }
+        // A lower story position is fine for a two story room; nodes must be an array.
+        check(parse("""
+                {"template": "t", "roles": ["corridor"], "spanY": 2,
+                 "nodes": [{"block": "stone", "at": [4, -5, 4]}]}
+                """).nodes.size(), 1, "lower story node accepted");
+        boolean threw = false;
+        try {
+            parse("{\"template\": \"t\", \"roles\": [\"corridor\"], \"nodes\": {}}");
+        } catch (IllegalArgumentException e) {
+            threw = true;
+        }
+        check(threw, true, "nodes must be an array");
+    }
+
+    private static void testW4ChoiceRejections() {
+        for (String body : new String[]{"\"light\": \"pitch\"", "\"corridor\": \"tight\"", "\"acts\": [0]",
+                "\"acts\": [6]"}) {
+            boolean threw = false;
+            try {
+                parse("{\"template\": \"pocketdungeons:rooms/hall_straight\", \"roles\": [\"corridor\"], " + body + "}");
+            } catch (IllegalArgumentException e) {
+                threw = true;
+                if (!e.getMessage().contains("hall_straight")) {
+                    throw new AssertionError("rejection names the room: " + e.getMessage());
+                }
+            }
+            check(threw, true, "rejected: " + body);
+        }
+        // graphRole is kept as written; PackValidator reports a stranger.
+        check(parse("{\"template\": \"t\", \"roles\": [\"corridor\"], \"graphRole\": [\"boss\"]}").graphRole,
+                java.util.List.of("boss"), "graphRole kept as written");
+    }
+
+    /** theme keeps working: with no dungeons field it stands in, matched against the main theme. */
+    private static void testW4ThemeStandsInForDungeons() {
+        DungeonRoomMeta themed = parse("""
+                {"template": "t", "roles": ["corridor"], "theme": ["rootworks"]}
+                """);
+        check(themed.theme, java.util.List.of("rootworks"), "theme still parses");
+        check(themed.usableByMainTheme("pocketdungeons:rootworks", "pocketdungeons:rootworks"), true,
+                "bare theme matches the qualified main theme");
+        check(themed.usableByMainTheme("pocketdungeons:ossuary", "pocketdungeons:ossuary"), false,
+                "another main theme does not match");
+        DungeonRoomMeta any = parse("{\"template\": \"t\", \"roles\": [\"corridor\"]}");
+        check(any.usableByMainTheme("pocketdungeons:ossuary", "pocketdungeons:ossuary"), true, "no theme or dungeons means any");
+        DungeonRoomMeta dungeons = parse("""
+                {"template": "t", "roles": ["corridor"], "theme": ["ossuary"], "dungeons": ["rootworks"]}
+                """);
+        check(dungeons.usableByMainTheme("pocketdungeons:rootworks", "pocketdungeons:rootworks"), true,
+                "dungeons wins over theme");
+        check(dungeons.usableByMainTheme("pocketdungeons:ossuary", "pocketdungeons:ossuary"), false,
+                "theme is ignored once dungeons is declared");
     }
 
     private static String parseWindow(String value) {

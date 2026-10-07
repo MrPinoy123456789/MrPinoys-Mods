@@ -1,0 +1,116 @@
+{
+  "name": "Lush Caves",
+  "act": 1,
+  "kind": "story",
+  "mainTheme": "rootworks",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "oak_log",
+    "clay",
+    "copper_ore",
+    "iron_ore"
+  ],
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "infestation",
+      "ossuary"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "root_gate",
+      "name": "Moss Gate",
+      "layer": 1
+    },
+    {
+      "id": "tangled_hollow",
+      "name": "Glow Berry Hollow",
+      "layer": 2,
+      "roomBias": [
+        "lush_hollow",
+        "thicket"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "mossy_burrow",
+      "name": "Clay Burrow",
+      "layer": 2,
+      "roomBias": [
+        "lush_root_gallery",
+        "mossy_tee"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "heartwood",
+      "name": "The Heartwood",
+      "layer": 3,
+      "roomBias": [
+        "lush_clay_pool",
+        "rootworks_grove"
+      ]
+    },
+    {
+      "id": "sapping_den",
+      "name": "Sapping Den",
+      "layer": 3,
+      "theme": "infestation",
+      "roomBias": [
+        "infested_wall"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "great_taproot",
+      "name": "The Great Drip Cavern",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "root_gate",
+      "to": "tangled_hollow"
+    },
+    {
+      "from": "root_gate",
+      "to": "mossy_burrow"
+    },
+    {
+      "from": "tangled_hollow",
+      "to": "heartwood"
+    },
+    {
+      "from": "mossy_burrow",
+      "to": "heartwood"
+    },
+    {
+      "from": "mossy_burrow",
+      "to": "sapping_den"
+    },
+    {
+      "from": "tangled_hollow",
+      "to": "sapping_den",
+      "cost": 1
+    },
+    {
+      "from": "heartwood",
+      "to": "great_taproot"
+    },
+    {
+      "from": "sapping_den",
+      "to": "great_taproot"
+    }
+  ],
+  "diary": "entry_9"
+}

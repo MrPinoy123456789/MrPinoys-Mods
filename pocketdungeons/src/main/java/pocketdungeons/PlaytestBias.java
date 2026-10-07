@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,12 +63,55 @@ final class PlaytestBias {
 
     private PlaytestBias() {}
 
-    /** The weight multiplier for {@code roomName}, 1 when no bias is set. */
+    /** How strongly a dungeon node's room bias leans (a dungeon structure W2 node, not a playtest bias). */
+    static final int NODE_MULTIPLIER = 6;
+
+    /**
+     * Room names a dungeon node leans toward while one floor is being planned.
+     * Scoped to the planning call on the server thread by {@link #withNodeBias};
+     * never persisted, never counted in {@link #generation}.
+     */
+    private static final ThreadLocal<Set<String>> NODE_BIAS = new ThreadLocal<>();
+
+    /** The weight multiplier for {@code roomName}: the playtest bias times any node bias, 1 when neither is set. */
     static int of(String roomName) {
-        if (MULTIPLIERS.isEmpty() || roomName == null) {
+        if (roomName == null) {
             return 1;
         }
-        return MULTIPLIERS.getOrDefault(roomName, 1);
+        int multiplier = MULTIPLIERS.isEmpty() ? 1 : MULTIPLIERS.getOrDefault(roomName, 1);
+        Set<String> node = NODE_BIAS.get();
+        if (node != null && node.contains(roomName)) {
+            multiplier *= NODE_MULTIPLIER;
+        }
+        return multiplier;
+    }
+
+    /**
+     * Runs {@code body} (a floor plan) with {@code rooms} leaning {@link #NODE_MULTIPLIER}
+     * times heavier in {@link RoomSelector}'s weighted pick, the same nudge a
+     * playtest bias gives, so a dungeon node's {@code roomBias} reuses that path. A
+     * bare room name is read in the {@code pocketdungeons} namespace. An empty list
+     * runs {@code body} unchanged.
+     */
+    static <T> T withNodeBias(java.util.Collection<String> rooms, java.util.function.Supplier<T> body) {
+        if (rooms == null || rooms.isEmpty()) {
+            return body.get();
+        }
+        Set<String> qualified = new java.util.HashSet<>();
+        for (String room : rooms) {
+            qualified.add(qualify(room));
+        }
+        Set<String> previous = NODE_BIAS.get();
+        NODE_BIAS.set(qualified);
+        try {
+            return body.get();
+        } finally {
+            if (previous == null) {
+                NODE_BIAS.remove();
+            } else {
+                NODE_BIAS.set(previous);
+            }
+        }
     }
 
     /**

@@ -1,0 +1,110 @@
+{
+  "name": "Infestation",
+  "act": 1,
+  "kind": "story",
+  "mainTheme": "infestation",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore",
+    "iron_ore",
+    "copper_ore"
+  ],
+  "deviation": {
+    "chance": 0.2,
+    "themes": [
+      "rootworks",
+      "ossuary"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "burrow_mouth",
+      "name": "Burrow Mouth",
+      "layer": 1
+    },
+    {
+      "id": "chewed_corridors",
+      "name": "Chewed Corridors",
+      "layer": 2,
+      "roomBias": [
+        "infested_wall",
+        "burrow_tunnel"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "silverfish_nests",
+      "name": "Silverfish Nests",
+      "layer": 2,
+      "roomBias": [
+        "slime_pit"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "hollow_walls",
+      "name": "Hollow Walls",
+      "layer": 3,
+      "theme": "rootworks",
+      "roomBias": [
+        "thicket"
+      ],
+      "rewards": [
+        {
+          "item": "echo_shard",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "stone_larder",
+      "name": "Stone Larder",
+      "layer": 3
+    },
+    {
+      "id": "queens_nest",
+      "name": "The Queen's Nest",
+      "layer": 4,
+      "final": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "burrow_mouth",
+      "to": "chewed_corridors"
+    },
+    {
+      "from": "burrow_mouth",
+      "to": "silverfish_nests"
+    },
+    {
+      "from": "chewed_corridors",
+      "to": "hollow_walls"
+    },
+    {
+      "from": "chewed_corridors",
+      "to": "stone_larder"
+    },
+    {
+      "from": "silverfish_nests",
+      "to": "stone_larder"
+    },
+    {
+      "from": "silverfish_nests",
+      "to": "hollow_walls",
+      "cost": 1
+    },
+    {
+      "from": "hollow_walls",
+      "to": "queens_nest"
+    },
+    {
+      "from": "stone_larder",
+      "to": "queens_nest"
+    }
+  ],
+  "diary": "entry_10"
+}

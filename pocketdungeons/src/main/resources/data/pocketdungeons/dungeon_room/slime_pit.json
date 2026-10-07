@@ -11,5 +11,6 @@
   "requires": [],
   "access": "open",
   "window": "bars",
-  "spanY": 2
+  "spanY": 2,
+  "light": "dim"
 }

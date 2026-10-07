@@ -1,0 +1,32 @@
+{
+  "template": "pocketdungeons:rooms/burrow_tunnel",
+  "footprint": [
+    1,
+    1
+  ],
+  "weight": 3,
+  "maxPerDungeon": -1,
+  "theme": [
+    "infestation"
+  ],
+  "biome": "infestation",
+  "dungeons": [
+    "infestation"
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "minDepth": 0,
+  "corridor": "narrow",
+  "light": "dim",
+  "acts": [
+    1
+  ]
+}

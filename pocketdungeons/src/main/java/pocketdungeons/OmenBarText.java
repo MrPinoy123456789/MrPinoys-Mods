@@ -27,8 +27,9 @@ final class OmenBarText {
      * colours the bar and the kit refill at home.
      */
     static String outcome(int band, int chests) {
-        // Playtest 2026-09-27: "key climbs" was jargon; say what it means.
-        return chests + (chests == 1 ? " reward chest, " : " reward chests, ") + "key progress";
+        // 2026-10-05: the chests are rolls into the reward barrel; chart scrap
+        // is what a floor banks. Say both plainly.
+        return (chests == 1 ? "1 loot roll, " : chests + " loot rolls, ") + "chart scrap";
     }
 
     /** {@link #outcome(int, int)} with the base chest count and no depth bonus. */
@@ -36,13 +37,27 @@ final class OmenBarText {
         return outcome(band, Omen.baseRewardChests());
     }
 
+    /** The floor omen from which the next death ends the run. */
+    static final int WARN_OMEN = Omen.MAX_OMEN - 1;
+
+    /**
+     * PD-158: the bar's colour during a floor, by the floor's omen: 0 and 1
+     * green (0), 2 and 3 yellow (1), 4 red (2). Same indexes as the band
+     * colours between floors.
+     */
+    static int omenColourIndex(int omen) {
+        int clamped = Omen.clamp(omen);
+        return clamped <= 1 ? 0 : clamped < Omen.MAX_OMEN ? 1 : 2;
+    }
+
     /**
      * The bar during a floor: the spawner gate first, then the floor's omen
      * (hidden at 0), then the chests the floor would pay. The bar's colour
-     * and fill carry the band. The top band warns that one more death ends
-     * the run.
+     * ({@link #omenColourIndex}) and fill carry the floor's omen. A floor omen
+     * of {@link #WARN_OMEN} or more warns that one more death ends the run (a
+     * death adds 1 and {@link Omen#MAX_OMEN} ends it, PD-158).
      */
-    static String activeTitle(int floorOmen, int band, int chests, int spawnersCleared, int spawnersTotal,
+    static String activeTitle(int floorOmen, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
         // Playtest 2026-09-26 (A1): the title was too long to read, and the one
         // thing the player tracks is the spawner gate. It leads now; the omen
@@ -62,32 +77,41 @@ final class OmenBarText {
         if (omen > 0) {
             title.append(" | Omen ").append(omen).append('/').append(Omen.MAX_OMEN);
         }
-        title.append(" | ").append(chests).append(chests == 1 ? " chest" : " chests");
-        if (band >= 2) {
+        title.append(" | Loot x").append(chests);
+        if (omen >= WARN_OMEN) {
             title.append(" | one more fall ends the run");
         }
         return title.toString();
     }
 
     /**
-     * The bar between floors: which floor of the interval was just cleared
-     * and the band it stands in. The interval length is the usual stopping
-     * point, not a wall, so a floor past it reads as deep rather than "4 of
-     * 3". A Mine interval has no usual length and counts floors alone.
+     * The bar between floors: which floor of the dungeon was just cleared and the
+     * band it stands in. {@code dungeon} is the dungeon's display name, empty outside
+     * a dungeon graph. A Mine trip has no usual length and counts floors alone.
      */
-    static String clearedTitle(int floorsCleared, int floorsPerSafeVisit, boolean mine, int band, int chests) {
-        return clearedHeadline(floorsCleared, floorsPerSafeVisit, mine) + " | " + outcome(band, chests);
+    static String clearedTitle(int floorsCleared, String dungeon, boolean mine, boolean finished,
+                               boolean finalAhead, int band, int chests) {
+        return clearedHeadline(floorsCleared, dungeon, mine, finished, finalAhead) + " | " + outcome(band, chests);
     }
 
-    /** The floor half of {@link #clearedTitle}, also the on-screen title a floor clear shows. */
-    static String clearedHeadline(int floorsCleared, int floorsPerSafeVisit, boolean mine) {
+    /**
+     * The floor half of {@link #clearedTitle}, also the on-screen title a floor clear
+     * shows: {@code "Floor 2 of Frostworks cleared"}, with {@code ", final floor
+     * ahead"} one floor from the end and {@code "Frostworks cleared"} on the final
+     * floor.
+     */
+    static String clearedHeadline(int floorsCleared, String dungeon, boolean mine, boolean finished,
+                                  boolean finalAhead) {
         if (mine) {
             return "Mine floor " + floorsCleared + " cleared";
         }
-        if (floorsCleared > Math.max(1, floorsPerSafeVisit)) {
-            return "Floor " + floorsCleared + " cleared, deep";
+        boolean named = dungeon != null && !dungeon.isBlank();
+        if (finished) {
+            return (named ? dungeon : "Dungeon") + " cleared";
         }
-        return "Floor " + floorsCleared + " of " + Math.max(1, floorsPerSafeVisit) + " cleared";
+        String head = named ? "Floor " + floorsCleared + " of " + dungeon + " cleared"
+                : "Floor " + floorsCleared + " cleared";
+        return finalAhead ? head + ", final floor ahead" : head;
     }
 
     /**
@@ -99,14 +123,21 @@ final class OmenBarText {
         return "The omen sits " + bandName(band) + ": " + outcome(band, chests) + " so far.";
     }
 
-    /** The door screen's floor line for the floor a door would open. */
-    static String previewFloor(int nextFloor, int floorsPerSafeVisit, boolean mine) {
+    /**
+     * The door screen's floor line for the floor a door would open:
+     * {@code "FROSTWORKS: FLOOR 3"} (PD-152, playtest 2026-10-05-1: the player reads it
+     * dungeon first, and the keystone level does not belong on it), or
+     * {@code "FROSTWORKS: FINAL FLOOR"} when the door leads to the dungeon's last floor.
+     */
+    static String previewFloor(int nextFloor, String dungeon, boolean mine, boolean finalFloor) {
         if (mine) {
             return "MINE FLOOR " + nextFloor;
         }
-        return nextFloor > Math.max(1, floorsPerSafeVisit)
-                ? "FLOOR " + nextFloor + ", DEEP"
-                : "FLOOR " + nextFloor + " OF " + Math.max(1, floorsPerSafeVisit);
+        if (dungeon == null || dungeon.isBlank()) {
+            return finalFloor ? "FINAL FLOOR" : "FLOOR " + nextFloor;
+        }
+        String name = dungeon.toUpperCase();
+        return name + (finalFloor ? ": FINAL FLOOR" : ": FLOOR " + nextFloor);
     }
 
     /** The action bar line when {@code source} raises the omen to {@code omen}. */

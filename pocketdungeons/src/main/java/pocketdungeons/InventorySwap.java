@@ -809,8 +809,8 @@ public final class InventorySwap {
         log.setKitGranted(player.getUUID(), true);
         keepForNextEntry(log, player.getUUID(), leftover);
         player.sendSystemMessage(Component.literal(
-                        "Your bag is packed one last time. From here on the pack is yours to keep, "
-                                + "and the bag chest holds a fresh kit after every trip home.")
+                        "Your bag is packed once, now. From here on the pack is yours to keep, "
+                                + "and nothing refills it.")
                 .withStyle(ChatFormatting.AQUA));
     }
 

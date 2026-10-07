@@ -152,7 +152,25 @@ final class LayoutPlanner {
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters) {
+        return plan(seed, manifest, attemptBudget, minPath, maxPath,
+                branchProbability, loopProbability, maxGridSpan, theme,
+                requiredEntranceDirection, bagTags, recipePlan, maxEncounters, null);
+    }
+
+    /**
+     * Dungeon structure W5: as above, with the floor's dungeon context so room selection reads
+     * the room metadata ({@link RoomEligibility}); {@code null} is the legacy theme-only filter.
+     */
+    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
+                        int minPath, int maxPath,
+                        double branchProbability, double loopProbability,
+                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
+                        Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters,
+                        RoomEligibility.Floor floor) {
         String lastReason = "no attempts were made";
+        // PD-149: a resource floor whose layout fits none of its ore rooms is a valid
+        // plan, but a poor one. Keep the first as a last resort and try further seeds.
+        Outcome resourceShort = null;
 
         for (int attempt = 0; attempt < attemptBudget; attempt++) {
             long attemptSeed = seed + attempt;
@@ -193,7 +211,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan, floor);
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()
@@ -209,9 +227,19 @@ final class LayoutPlanner {
                 continue;
             }
 
+            if (result.resourceShort()) {
+                if (resourceShort == null) {
+                    resourceShort = new Outcome(result.plan(), attempt + 1, attemptSeed, null);
+                }
+                lastReason = "resource floor layout fits none of its node rooms";
+                continue;
+            }
             return new Outcome(result.plan(), attempt + 1, attemptSeed, null);
         }
 
+        if (resourceShort != null) {
+            return resourceShort;
+        }
         return new Outcome(null, attemptBudget, seed + attemptBudget - 1, lastReason);
     }
 

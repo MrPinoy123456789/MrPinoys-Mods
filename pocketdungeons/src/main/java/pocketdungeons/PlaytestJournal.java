@@ -79,6 +79,7 @@ final class PlaytestJournal {
         long floorStart;
         int rescues;
         int blocksPlaced;
+        int nodesMined;
         long damageAtStart;
     }
 
@@ -248,6 +249,81 @@ final class PlaytestJournal {
     }
 
     /**
+     * Dungeon structure W2: a door was committed inside a dungeon. Written for every
+     * member present: {@code dungeon_chosen} on the first door of a trip,
+     * {@code edge_taken} (with the step dealt and the shard cost) on every later one,
+     * then {@code node_entered} for the floor now opening. The trip state on
+     * {@code record.interval} is already updated.
+     */
+    static void tripDoor(MinecraftServer s, InstanceRecord record, boolean firstDoor, String fromNode,
+                         int step, int cost) {
+        safely("trip_door", () -> {
+            DungeonDef def = DungeonDefs.current().byId(record.interval.dungeonId);
+            DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("dungeon", record.interval.dungeonId);
+            if (firstDoor) {
+                extras.put("act", def == null ? 0 : def.act());
+                extras.put("kind", def == null ? "" : def.kind().name().toLowerCase());
+                extras.put("entry", record.interval.nodeId);
+                extras.put("step", step);
+                forMembers(s, record, "dungeon_chosen", extras);
+            } else {
+                extras.put("from", fromNode);
+                extras.put("to", record.interval.nodeId);
+                extras.put("step", step);
+                extras.put("cost", cost);
+                forMembers(s, record, "edge_taken", extras);
+            }
+            Map<String, Object> entered = new LinkedHashMap<>();
+            entered.put("dungeon", record.interval.dungeonId);
+            entered.put("node", record.interval.nodeId);
+            entered.put("name", node == null ? "" : node.name());
+            entered.put("layer", node == null ? 0 : node.layer());
+            entered.put("final", node != null && node.isFinal());
+            entered.put("step", step);
+            entered.put("path_length", record.interval.path.size());
+            forMembers(s, record, "node_entered", entered);
+        });
+    }
+
+    /**
+     * Dungeon structure W2: a final floor was cleared. One line per member present;
+     * {@code shards} and {@code vault_chests} are what the finish paid, {@code first}
+     * whether it was this player's first finish of the dungeon, {@code diary} the page
+     * id handed over (empty for none).
+     */
+    static void dungeonFinished(ServerPlayer player, InstanceRecord record, int shards, int vaultChests,
+                                boolean first, String diary) {
+        safely("dungeon_finished", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("dungeon", record.interval.dungeonId);
+            extras.put("node", record.interval.nodeId);
+            extras.put("floors", record.interval.path.size());
+            extras.put("shards", shards);
+            extras.put("vault_chests", vaultChests);
+            extras.put("first", first);
+            extras.put("diary", diary == null ? "" : diary);
+            record(player, record, "dungeon_finished", extras);
+        });
+    }
+
+    /**
+     * Dungeon structure W3: a capstone clear opened an act for {@code player}
+     * ({@code act} 0 with {@code campaignComplete} for an act 5 capstone).
+     */
+    static void actUnlocked(ServerPlayer player, InstanceRecord record, String dungeon, int act,
+                            boolean campaignComplete) {
+        safely("act_unlocked", () -> {
+            Map<String, Object> extras = new LinkedHashMap<>();
+            extras.put("dungeon", dungeon);
+            extras.put("act", act);
+            extras.put("campaign_complete", campaignComplete);
+            record(player, record, "act_unlocked", extras);
+        });
+    }
+
+    /**
      * The watcher's per-member check: the first time any member stands in a
      * plan room of this floor, that member gets a {@code room_entered} line.
      */
@@ -327,6 +403,18 @@ final class PlaytestJournal {
         });
     }
 
+    /** One resource node mined (dungeon structure W4), for the floor tally. */
+    static void countNodeMined(UUID player) {
+        safely("node_mined", () -> {
+            MinecraftServer s = server;
+            InstanceRecord record = InstanceRegistry.byMember.get(player);
+            ServerPlayer online = s == null ? null : s.getPlayerList().getPlayer(player);
+            if (record != null && online != null) {
+                tally(online, record).nodesMined++;
+            }
+        });
+    }
+
     /** This player was credited with the floor. Call after the floor has advanced. */
     static void floorComplete(ServerPlayer player, InstanceRecord record, int spawnersCleared, int spawnersTotal) {
         safely("floor_complete", () -> {
@@ -341,6 +429,8 @@ final class PlaytestJournal {
             extras.put("spawners_total", spawnersTotal);
             extras.put("rescues", tally.rescues);
             extras.put("blocks_placed", tally.blocksPlaced);
+            extras.put("nodes_mined", tally.nodesMined);
+            extras.put("nodes_total", record.floor.nodesTotal);
             extras.put("durability_used", Math.max(0L, inventoryDamage(player) - tally.damageAtStart));
             extras.put("chests", Math.max(0, record.floor.rewardChests));
             record(player, record, "floor_complete", extras);
@@ -356,7 +446,7 @@ final class PlaytestJournal {
             extras.put("floors", floors);
             extras.put("band", settled.band());
             extras.put("levels_gained", settled.levels());
-            extras.put("carry", settled.progress());
+            extras.put("scrap_left", settled.scrapLeft());
             extras.put("chests", chests);
             extras.put("depth_bonus", depthBonus);
             extras.put("key_level", keyLevel);
@@ -403,9 +493,8 @@ final class PlaytestJournal {
                 pack.add(inventory.getItem(i));
             }
             extras.put("pack", describe(pack));
-            net.minecraft.world.SimpleContainer storage = record == null ? null
-                    : record.runStorage.get(player.getUUID());
-            extras.put("run_storage", describe(storage == null ? List.of() : storage.getItems()));
+            extras.put("run_storage", describe(DungeonLog.forServer(player.level().getServer())
+                    .storageOf(player.getUUID())));
             extras.put("ender_chest", describe(player.getEnderChestInventory().getItems()));
             DungeonLog log = DungeonLog.forServer(player.level().getServer());
             extras.put("kept", describe(log.orphanOf(player.getUUID()).items()));
@@ -455,17 +544,6 @@ final class PlaytestJournal {
         return out;
     }
 
-    /** The bag chest was refilled with a fresh kit (2026-10-04): what it holds now, and what it overwrote. */
-    static void kitRefill(ServerPlayer player, InstanceRecord record, List<ItemStack> kit, List<ItemStack> overwritten) {
-        safely("kit_refill", () -> {
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("bag", DungeonLog.forServer(player.level().getServer()).bagOf(player.getUUID()));
-            extras.put("kit", describe(kit));
-            extras.put("overwritten", describe(overwritten));
-            record(player, record, "kit_refill", extras);
-        });
-    }
-
     /** The safe room as the player left it: the stations placed and what the chests hold (playtest 2026-10-03, A9). */
     static void roomScan(ServerPlayer player, InstanceRecord record, RoomScan.Summary summary) {
         safely("room_scan", () -> {
@@ -494,6 +572,17 @@ final class PlaytestJournal {
     /** Gear was locked in at the librarian: which item and the emerald price. */
     static void lockIn(ServerPlayer player, String item, int cost) {
         safely("lock_in", () -> record(player, "lock_in", Map.of("item", item, "cost", cost)));
+    }
+
+    /** A Store sale (PD-142): what was bought, what it cost, in which item, and from whom. */
+    static void shopPurchase(ServerPlayer player, net.minecraft.world.item.Item item, String name, int price,
+                             net.minecraft.world.item.Item currency, String vendor) {
+        safely("shop_purchase", () -> record(player, "shop_purchase", Map.of(
+                "item", net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),
+                "name", name,
+                "price", price,
+                "currency", net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(currency).toString(),
+                "vendor", vendor)));
     }
 
     /** A dead-end fountain was drunk: which boon it held. */
@@ -663,6 +752,37 @@ final class PlaytestJournal {
             PocketDungeonsMod.LOG.warn("Playtest journal: could not read back events for {} ({})", player, e.toString());
             return List.of();
         }
+    }
+
+    /**
+     * The player's latest {@code bank} event from today's file and yesterday's, or
+     * {@code null}. {@link #recent} holds only the last few events, so a bank row
+     * scrolls out before an operator can answer a question about it (PD-148).
+     */
+    static JsonObject lastBank(UUID player) {
+        MinecraftServer s = server;
+        if (s == null) {
+            return null;
+        }
+        try {
+            LocalDate today = LocalDate.now();
+            for (LocalDate day : List.of(today, today.minusDays(1))) {
+                Path file = root(s).resolve(day.toString()).resolve(player + ".jsonl");
+                if (!Files.isRegularFile(file)) {
+                    continue;
+                }
+                List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+                for (int i = lines.size() - 1; i >= 0; i--) {
+                    JsonObject event = JournalFormat.parse(lines.get(i));
+                    if (event != null && event.has("ev") && "bank".equals(event.get("ev").getAsString())) {
+                        return event;
+                    }
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            PocketDungeonsMod.LOG.warn("Playtest journal: could not read back the last bank for {} ({})", player, e.toString());
+        }
+        return null;
     }
 
     // ---- writing -----------------------------------------------------------------

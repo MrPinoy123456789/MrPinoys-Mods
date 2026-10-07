@@ -205,7 +205,7 @@ private static RoomSpec risingLava() {
                     // piston heads at z=6,9 (extended). Pillars at z=5,6,9,10
                     // from y=0 to the ceiling block the player from standing on
                     // pistons or retracted planks.
-                    BlockState planks = Blocks.OAK_PLANKS.defaultBlockState();
+                    BlockState planks = Blocks.CRIMSON_PLANKS.defaultBlockState();
                     BlockState pillar = RoomBuilder.WALL;
                     BlockState pistonSouth = Blocks.STICKY_PISTON.defaultBlockState()
                             .setValue(PistonBaseBlock.FACING, Direction.SOUTH)

@@ -68,6 +68,18 @@ final class ClassicSpawners {
     }
 
     /**
+     * Dungeon structure W7a: configures the one classic spawner at {@code pos} to spawn {@code type},
+     * with the same anti-farm tuning as {@link #configure}. The Spawner Dungeon's boss room gives each
+     * of its spawners a different mob.
+     */
+    static void configureAt(ServerLevel level, BlockPos pos, EntityType<?> type) {
+        if (level.getBlockState(pos).is(Blocks.SPAWNER)
+                && level.getBlockEntity(pos) instanceof SpawnerBlockEntity spawner) {
+            apply(level, pos, spawner, type, PLAYER_RANGE);
+        }
+    }
+
+    /**
      * Turns the spawner at {@code pos} off for good: its required player range
      * drops to 0, so it never activates, and its flame stops turning (the
      * client's own cue). A spawner already broken is skipped.

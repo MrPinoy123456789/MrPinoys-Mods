@@ -14,7 +14,6 @@ import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -66,7 +65,7 @@ final class SituationSpecs {
         // item in the return chest" is the same question, asked by a Lock.
         Situations.register("sorting_floor", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
-            Locks.arm(level, o, Locks.Kind.ITEM_ANY, null);
+            Locks.arm(level, o, Locks.Kind.ITEM_KEY, Items.STICK);
             return null;
         });
         // Combat rooms: place a trial spawner with a situation-specific config.
@@ -262,38 +261,42 @@ final class SituationSpecs {
                     // Iron door on the east wall.
                     placeIronDoor(level, o);
 
-                    // Water source at (2, 1, 8) flowing east.
-                    RoomBuilder.set(level, o.offset(2, 1, 8), water);
-
-                    // Channel walls: fences along z 7 and z 9 from x 2 to x 8
-                    // to keep the water in the channel until the split.
-                    for (int x = 2; x <= 8; x++) {
-                        RoomBuilder.set(level, o.offset(x, 1, 7), fence);
-                        RoomBuilder.set(level, o.offset(x, 1, 9), fence);
+                    // PD-144: the channel is placed as water sources only and every
+                    // open side is fenced afterwards, so nothing spills past it. The
+                    // source starts at x 4 so the doorway lane (x 0..3, z 7..8) keeps
+                    // one open column. Source at (4, 1, 8) running east to the split.
+                    java.util.List<BlockPos> channel = new ArrayList<>();
+                    for (int x = 4; x <= 8; x++) {
+                        channel.add(o.offset(x, 1, 8));
                     }
-
-                    // North branch (dead end): channel from (8, 1, 8) north
-                    // to (8, 1, 4), walled by fences at z 7 and z 9.
+                    // North branch (dead end): (8, 1, 4) to (8, 1, 7).
                     for (int z = 4; z <= 7; z++) {
-                        RoomBuilder.set(level, o.offset(8, 1, z), water);
+                        channel.add(o.offset(8, 1, z));
                     }
-                    RoomBuilder.set(level, o.offset(8, 1, 3), fence);
-
-                    // South branch: channel from (8, 1, 8) south to the
-                    // filter hopper at (13, 1, 10). Walled by fences.
+                    // South branch: (8, 1, 9) and (8, 1, 10), then east to the
+                    // filter hopper at (13, 1, 10).
                     for (int z = 9; z <= 10; z++) {
-                        RoomBuilder.set(level, o.offset(8, 1, z), water);
+                        channel.add(o.offset(8, 1, z));
                     }
                     for (int x = 9; x <= 12; x++) {
-                        RoomBuilder.set(level, o.offset(x, 1, 10), water);
-                        RoomBuilder.set(level, o.offset(x, 1, 9), fence);
-                        RoomBuilder.set(level, o.offset(x, 1, 11), fence);
+                        channel.add(o.offset(x, 1, 10));
+                    }
+                    for (BlockPos pos : channel) {
+                        RoomBuilder.set(level, pos, water);
+                    }
+                    for (BlockPos pos : channel) {
+                        for (Direction side : Direction.Plane.HORIZONTAL) {
+                            BlockPos next = pos.relative(side);
+                            if (level.getBlockState(next).isAir()) {
+                                RoomBuilder.set(level, next, fence);
+                            }
+                        }
                     }
 
-                    // Filter hopper at (13, 1, 10) pointing east.
+                    // Filter hopper at (13, 1, 10) pointing east. It starts empty:
+                    // a hopper pre-loaded with sticks fed the return chest at stamp
+                    // and the lock read the room as already solved.
                     placeHopper(level, o.offset(13, 1, 10), Direction.EAST);
-                    fillFilterHopper(level, o.offset(13, 1, 10),
-                            new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK));
 
                     // Return chest past the door at (14, 1, 10).
                     placeReturnChest(level, o.offset(14, 1, 10));
@@ -301,9 +304,9 @@ final class SituationSpecs {
                     // No comparator: the Lock armed in registerHandlers reads
                     // the chest and opens the door (PD-133).
 
-                    // Key item (stick) on a pedestal at (4, 2, 8).
-                    placeSolid(level, o.offset(4, 1, 8));
-                    placePot(level, o.offset(4, 2, 8),
+                    // Key item (stick) on a pedestal at (3, 2, 4).
+                    placeSolid(level, o.offset(3, 1, 4));
+                    placePot(level, o.offset(3, 2, 4),
                             new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK, 1));
 
                     // Two loose stone blocks for water diversion.
@@ -439,6 +442,14 @@ final class SituationSpecs {
                             RoomBuilder.set(level, o.offset(x, 0, z), grass);
                         }
                     }
+
+                    // PD-145: a wolf also needs light above 8 where it spawns, and
+                    // the pen sat at light 6 under the ceiling lamps, so on any
+                    // theme the spawner produced nothing. Two light blocks over
+                    // the pen (invisible, nothing to break or carry off) fix it.
+                    BlockState light = Blocks.LIGHT.defaultBlockState();
+                    RoomBuilder.set(level, o.offset(7, 3, 7), light);
+                    RoomBuilder.set(level, o.offset(8, 3, 9), light);
 
                     // Bypass path: cobblestone wall at z 13 from x 1 to x 14,
                     // one block high. The player jumps over it at any point
@@ -578,17 +589,4 @@ final class SituationSpecs {
         }
     }
 
-    /**
-     * Pre-fills 4 of a hopper's 5 slots with 64 of {@code item}, leaving slot
-     * 4 empty. This makes the hopper a vanilla item filter.
-     */
-    private static void fillFilterHopper(ServerLevel level, BlockPos pos, ItemStack item) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof HopperBlockEntity hopper) {
-            for (int i = 0; i < 4; i++) {
-                hopper.setItem(i, new ItemStack(item.getItem(), 64));
-            }
-            hopper.setChanged();
-        }
-    }
 }

@@ -123,7 +123,7 @@ final class LostAndFound {
             out.append(cause).append('\n');
             out.append("player: ").append(name).append('\n');
             out.append("uuid: ").append(player).append('\n');
-            out.append("keystone level: ").append(keystoneLevel).append('\n');
+            out.append("compass level: ").append(keystoneLevel).append('\n');
             out.append("--- END LOST+FOUND METADATA ---\n\n");
             out.append("--- BEGIN LOST+FOUND CONTENT ---\n");
             for (String line : slotLines) {

@@ -1,0 +1,33 @@
+{
+  "template": "pocketdungeons:rooms/brood_chamber",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "exit"
+  ],
+  "weight": 1,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "theme": [
+    "spawner_dungeon"
+  ],
+  "content": "brood_chamber",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "lit",
+  "biome": "spawner_dungeon",
+  "dungeons": [
+    "spawner_dungeon"
+  ],
+  "acts": [
+    1
+  ],
+  "graphRole": [
+    "capstone"
+  ]
+}

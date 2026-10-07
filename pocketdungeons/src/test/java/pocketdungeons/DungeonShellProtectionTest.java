@@ -24,6 +24,7 @@ public class DungeonShellProtectionTest {
         testRoomCellIsSkipped();
         testProtectionLiftsAfterCompletion();
         testAdminBuildSingleCell();
+        testInteriorBreaksOnlyNodes();
         InstanceRegistry.bySlot.clear();
         System.out.println("DungeonShellProtectionTest passed");
     }
@@ -124,6 +125,55 @@ public class DungeonShellProtectionTest {
         record.floor.completed.add(UUID.randomUUID());
         check(Instances.dungeonRecordAt(origin.offset(5, 2, 5)) == record,
                 "shell protection stays up after completion");
+    }
+
+    /**
+     * Dungeon structure W4 (D20, revised 2026-10-05): the interior is no longer
+     * shell, and any interior block breaks with the correct tool (node, soft
+     * mechanic block or plain furnishing alike). The shell test above is
+     * unchanged; this pins the position lookup the break rule reads and the
+     * decision it feeds.
+     */
+    private static void testInteriorBreaksOnlyNodes() {
+        InstanceRegistry.bySlot.clear();
+        BlockPos origin = new BlockPos(1000, 64, 2000);
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
+        BlockPos node = origin.offset(5, 1, 5);
+        BlockPos gate = origin.offset(14, 1, 7);
+        BlockPos decoration = origin.offset(8, 2, 8);
+        BlockPos shellNode = origin.offset(0, 2, 8); // never registered: a node cannot sit in the shell
+        InstanceLayout layout = new InstanceLayout(origin, geometry, origin, 0.0f, origin,
+                geometry.bounds(), 0L, 1, 1, 1, true, Set.of(), 0, origin, 0, 0, Set.of(), null, Set.of(),
+                Set.of(node), Set.of(gate));
+        InstanceRecord record = new InstanceRecord(96, origin, 0L, layout, Set.of(), null, false);
+        InstanceRegistry.bySlot.put(96, record);
+
+        BlockPos cellOrigin = Instances.dungeonCellOriginAt(node);
+        check(cellOrigin != null, "the node is inside a dungeon cell");
+        check(!RoomProtection.isShell(node, cellOrigin), "the node is interior, not shell");
+        check(RoomProtection.isShell(shellNode, cellOrigin), "the wall is shell");
+
+        InstanceRecord at = Instances.dungeonRecordAt(node);
+        check(at != null && at.floor.nodes.contains(node), "the record knows the node");
+        check(!at.floor.nodes.contains(decoration), "decoration is not a node");
+        check(at.floor.softBreakables.contains(gate), "the gate is a soft breakable");
+
+        // The decision the break handler makes with those lookups.
+        check(BreakRule.decide(false, false, at.floor.nodes.contains(node), false, true).allowed(),
+                "a node breaks with the right tool");
+        check(!BreakRule.decide(false, false, at.floor.nodes.contains(node), false, false).allowed(),
+                "a node does not break with the wrong tool");
+        check(BreakRule.decide(false, false, at.floor.nodes.contains(decoration), false, true).allowed(),
+                "interior decoration breaks with the right tool (D20 revised 2026-10-05)");
+        check(BreakRule.decide(false, false, false, at.floor.softBreakables.contains(gate), true).allowed(),
+                "a soft gate breaks with its tool");
+        check(BreakRule.decide(false, true, false, false, false).allowed(),
+                "the player's own block breaks by hand");
+        check(!BreakRule.decide(true, true, true, true, true).allowed(), "an Ordeal fixture never breaks");
+
+        // Mining a node takes it out of the set, so a later block there is just a block.
+        at.floor.nodes.remove(node);
+        check(!at.floor.nodes.contains(node), "a mined node is gone");
     }
 
     /** {@code /dungeon admin build} (M31 constraint): same lookup, no room cell to skip. */

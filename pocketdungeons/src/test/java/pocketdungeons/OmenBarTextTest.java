@@ -22,12 +22,12 @@ public class OmenBarTextTest {
     }
 
     private static void testOutcome() {
-        checkEquals(OmenBarText.outcome(0), "3 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(1), "3 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(2), "3 reward chests, key progress");
+        checkEquals(OmenBarText.outcome(0), "3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.outcome(1), "3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.outcome(2), "3 loot rolls, chart scrap");
         // The depth bonus rides on the chest count.
-        checkEquals(OmenBarText.outcome(1, 3), "3 reward chests, key progress");
-        checkEquals(OmenBarText.outcome(2, 1), "1 reward chest, key progress");
+        checkEquals(OmenBarText.outcome(1, 3), "3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.outcome(2, 1), "1 loot roll, chart scrap");
     }
 
     private static void testBandCeilingAndProgress() {
@@ -53,35 +53,55 @@ public class OmenBarTextTest {
 
     private static void testActiveTitle() {
         // The spawner gate leads (playtest 2026-09-26, A1), counted as remaining.
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | 2 chests");
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 6, 8, 6), "Spawners done | Omen 2/4 | 2 chests");
-        checkEquals(OmenBarText.activeTitle(2, 1, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | 2 chests");
+        checkEquals(OmenBarText.activeTitle(2, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | Loot x2");
+        checkEquals(OmenBarText.activeTitle(2, 2, 6, 8, 6), "Spawners done | Omen 2/4 | Loot x2");
+        checkEquals(OmenBarText.activeTitle(2, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | Loot x2");
         // Omen 0 is hidden; a floor without spawners still shows done.
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, -1, -1, 0), "Spawners done | 3 chests");
-        checkEquals(OmenBarText.activeTitle(0, 0, 3, 0, 0, 0), "Spawners done | 3 chests");
-        // The floor's omen is shown clamped; high band appends the death warning.
-        checkEquals(OmenBarText.activeTitle(9, 2, 1, 0, 0, 0), "Spawners done | Omen 4/4 | 1 chest | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(0, 3, -1, -1, 0), "Spawners done | Loot x3");
+        checkEquals(OmenBarText.activeTitle(0, 3, 0, 0, 0), "Spawners done | Loot x3");
+        // The floor's omen is shown clamped; the death warning follows the floor omen (PD-158):
+        // a death adds 1 and 4 ends the run, so it shows from 3, not from band 2.
+        checkEquals(OmenBarText.activeTitle(9, 1, 0, 0, 0), "Spawners done | Omen 4/4 | Loot x1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(3, 1, 0, 0, 0), "Spawners done | Omen 3/4 | Loot x1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(2, 1, 0, 0, 0), "Spawners done | Omen 2/4 | Loot x1");
+        // The bar's colour during a floor follows the floor omen: 0 to 1 green, 2 to 3 yellow, 4 red.
+        int[] expected = {0, 0, 1, 1, 2};
+        for (int omen = 0; omen <= 4; omen++) {
+            checkEquals(String.valueOf(OmenBarText.omenColourIndex(omen)), String.valueOf(expected[omen]));
+        }
+        checkEquals(String.valueOf(OmenBarText.omenColourIndex(9)), "2");
+        checkEquals(String.valueOf(OmenBarText.omenColourIndex(-1)), "0");
     }
 
     private static void testClearedTitle() {
-        checkEquals(OmenBarText.clearedTitle(2, 3, false, 1, 2), "Floor 2 of 3 cleared | 2 reward chests, key progress");
-        checkEquals(OmenBarText.clearedTitle(3, 3, false, 0, 3), "Floor 3 of 3 cleared | 3 reward chests, key progress");
-        // Past the usual length the floor is deep, not "4 of 3".
-        checkEquals(OmenBarText.clearedTitle(4, 3, false, 1, 3), "Floor 4 cleared, deep | 3 reward chests, key progress");
-        checkEquals(OmenBarText.clearedTitle(5, 3, true, 2, 2), "Mine floor 5 cleared | 2 reward chests, key progress");
+        // Dungeon structure W2: the trip length is the dungeon's, so the bar names the dungeon.
+        checkEquals(OmenBarText.clearedTitle(2, "Frostworks", false, false, false, 1, 2),
+                "Floor 2 of Frostworks cleared | 2 loot rolls, chart scrap");
+        checkEquals(OmenBarText.clearedTitle(4, "Frostworks", false, false, true, 0, 3),
+                "Floor 4 of Frostworks cleared, final floor ahead | 3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.clearedTitle(5, "Frostworks", false, true, false, 1, 3),
+                "Frostworks cleared | 3 loot rolls, chart scrap");
+        // No dungeon (a run outside the graph) just counts floors; never a trip length.
+        checkEquals(OmenBarText.clearedTitle(4, "", false, false, false, 1, 3),
+                "Floor 4 cleared | 3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.clearedTitle(5, "", true, false, false, 2, 2),
+                "Mine floor 5 cleared | 2 loot rolls, chart scrap");
     }
 
     private static void testCompletionVerdict() {
-        checkEquals(OmenBarText.completionVerdict(0, 3), "The omen sits calm: 3 reward chests, key progress so far.");
-        checkEquals(OmenBarText.completionVerdict(1, 2), "The omen sits uneasy: 2 reward chests, key progress so far.");
-        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 reward chest, key progress so far.");
+        checkEquals(OmenBarText.completionVerdict(0, 3), "The omen sits calm: 3 loot rolls, chart scrap so far.");
+        checkEquals(OmenBarText.completionVerdict(1, 2), "The omen sits uneasy: 2 loot rolls, chart scrap so far.");
+        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 loot roll, chart scrap so far.");
     }
 
     private static void testPreviewFloor() {
-        checkEquals(OmenBarText.previewFloor(1, 3, false), "FLOOR 1 OF 3");
-        checkEquals(OmenBarText.previewFloor(3, 3, false), "FLOOR 3 OF 3");
-        checkEquals(OmenBarText.previewFloor(4, 3, false), "FLOOR 4, DEEP");
-        checkEquals(OmenBarText.previewFloor(7, 3, true), "MINE FLOOR 7");
+        // PD-152 (playtest 2026-10-05-1): dungeon first, no keystone level.
+        checkEquals(OmenBarText.previewFloor(1, "Frostworks", false, false), "FROSTWORKS: FLOOR 1");
+        checkEquals(OmenBarText.previewFloor(3, "Deepslate", false, false), "DEEPSLATE: FLOOR 3");
+        checkEquals(OmenBarText.previewFloor(5, "Frostworks", false, true), "FROSTWORKS: FINAL FLOOR");
+        checkEquals(OmenBarText.previewFloor(4, "", false, false), "FLOOR 4");
+        checkEquals(OmenBarText.previewFloor(4, "", false, true), "FINAL FLOOR");
+        checkEquals(OmenBarText.previewFloor(7, "Frostworks", true, false), "MINE FLOOR 7");
     }
 
     private static void testRiseLine() {

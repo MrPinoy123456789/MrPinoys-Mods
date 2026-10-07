@@ -112,7 +112,7 @@ final class SalvageStation {
         // Owner request (2026-10-03): kit can be scrapped like any other gear;
         // the safe room tops the kit back up. Only the keystone is kept.
         if (Keystone.isKeystone(stack)) {
-            return refuse("your keystone, it goes home with you");
+            return refuse("your compass, it goes home with you");
         }
         if (LockInStation.isLocked(stack)) {
             return refuse("locked in, kept safe");

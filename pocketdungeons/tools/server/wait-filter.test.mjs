@@ -4,7 +4,7 @@
 // strings in Lemon.java and marked "format".
 
 import assert from 'node:assert/strict'
-import { dedupeHeard, eventOf, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
+import { dedupeHeard, eventOf, isVanillaNoise, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 
 const P = 'MrPinoy123456789'
 const INFO = '[Server thread/INFO]'
@@ -89,6 +89,13 @@ assert.equal(wholeLines(Buffer.from('caf\u00e9 \u2713\r\n')).bytes, Buffer.byteL
 
 // PD-139: vanilla's dig mismatch is noise, not an error event.
 assert.equal(eventOf(`[04:01:25] [Server thread/WARN]: Mismatch in destroy block pos: BlockPos{x=6, y=64, z=88} BlockPos{x=19, y=65, z=99}`), null)
+// PD-156: the same warning must not ride inside a remote command reply either, while a
+// mod warning and a genuine vanilla error still count.
+assert.equal(isVanillaNoise(`[04:01:25] [Server thread/WARN]: Mismatch in destroy block pos: BlockPos{x=6, y=64, z=88} BlockPos{x=19, y=65, z=99}`), true)
+assert.equal(isVanillaNoise(`[12:00:00] [Server thread/WARN]: Can't keep up! Is the server overloaded?`), true)
+assert.equal(isVanillaNoise(`[12:00:00] [Server thread/WARN] (PocketDungeons): Room blaze_cellar failed its return path check`), false)
+assert.equal(isVanillaNoise(`[12:00:00] [Server thread/WARN]: Room blaze_cellar failed its return path check`), false)
+assert.equal(isVanillaNoise(`[12:00:00] [Server thread/INFO]: There are 1 of a max of 20 players online: ${P}`), false)
 // PD-138: party talk the journals took in, and the tour's lines, both wake.
 assert.equal(wakesWait(eventOf(`[12:00:00] ${INFO}: Lemon heard <${P}> lets go left`)), true) // format
 assert.equal(wakesWait(eventOf(`[12:00:00] ${INFO}: Lemon tour <${P}> Next to it is the board.`)), true) // format

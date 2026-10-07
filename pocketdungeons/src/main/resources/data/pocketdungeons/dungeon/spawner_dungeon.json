@@ -1,0 +1,71 @@
+{
+  "name": "The Spawner Dungeon",
+  "act": 1,
+  "kind": "capstone",
+  "mainTheme": "spawner_dungeon",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore",
+    "iron_ore"
+  ],
+  "diary": "entry_16",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "ossuary",
+      "infestation"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "cobbled_stair",
+      "name": "The Cobbled Stair",
+      "layer": 1
+    },
+    {
+      "id": "mossy_halls",
+      "name": "The Mossy Halls",
+      "layer": 2,
+      "roomBias": [
+        "spawner_den",
+        "mossy_tee"
+      ]
+    },
+    {
+      "id": "bone_gallery",
+      "name": "The Bone Gallery",
+      "layer": 2,
+      "theme": "ossuary"
+    },
+    {
+      "id": "brood_chamber",
+      "name": "The Brood Chamber",
+      "layer": 3,
+      "final": true,
+      "roomBias": [
+        "brood_chamber"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "cobbled_stair",
+      "to": "mossy_halls"
+    },
+    {
+      "from": "cobbled_stair",
+      "to": "bone_gallery"
+    },
+    {
+      "from": "mossy_halls",
+      "to": "brood_chamber"
+    },
+    {
+      "from": "bone_gallery",
+      "to": "brood_chamber"
+    }
+  ]
+}

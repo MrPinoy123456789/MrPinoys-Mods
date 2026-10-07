@@ -44,7 +44,9 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomProtection.register();
         RoomTemplateGenerator.register();
         Locks.register();
+        AltarOffering.register();
         OmenSources.register();
+        CapstoneFights.register();
         DungeonDrops.register();
         SpiderUnstick.register();
         PartyRewards.register();
@@ -61,6 +63,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         BlacksmithNPC.register();
         LibrarianNPC.register();
         StoreNPC.register();
+        IronDoorLatch.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");
     }

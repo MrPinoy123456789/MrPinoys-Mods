@@ -1,0 +1,30 @@
+{
+  "template": "pocketdungeons:rooms/cow_pens",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "corridor"
+  ],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "cow_pits"
+  ],
+  "content": "cow_pens",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim",
+  "biome": "cow_pits",
+  "dungeons": [
+    "cow_pits"
+  ],
+  "acts": [
+    2
+  ]
+}

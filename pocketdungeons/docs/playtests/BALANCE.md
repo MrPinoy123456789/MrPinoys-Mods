@@ -89,3 +89,31 @@ playtest journal once it exists; blank means not recorded.
 | 2026-10-03 | frostworks | 1 (set 3) | 2 | 225 | 0 | 0 | 2 | 100 | 3 | n/a | none |
 
 - Player: floor 1 should be about 2 spawners; the starting kit runs out of food. A party of 2 gets 4x vault loot, "too much". Fewer chest logs, more planks.
+
+## Observations 2026-10-04-1
+
+| Date | Zone | Floor | Party | Seconds | Omen | Rescues | Blocks | Durability | Chests | Band at bank | Rating |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-04 | frostworks | 1 | 1 | 828 | 0 | 0 | 0 | 137 | 3 | n/a | none |
+| 2026-10-04 | infestation | 2 | 1 | 526 | 0 | 0 | 0 | 38 | 3 | n/a | none |
+| 2026-10-04 | prismarine | 3 | 1 | 218 | 0 | 0 | 0 | 285 | 3 | 0 | none |
+| 2026-10-04 | basalt_foundry | 1 (trip 2) | 1 | 731 | 0 | 0 | 20 | 52 | 3 | n/a | none |
+| 2026-10-04 | ender_archive | 2 (trip 2) | 1 | 464 | 0 | 0 | 1 | 129 | 3 | n/a | none |
+
+- Floor 1 had 2 spawners both times (`firstFloorMaxEncounters` holds) but was the slowest floor of its trip. The player chatted with Lemon through every floor, so the clock is inflated.
+- Trial keys in the pack: 2 to 7. Pack free slots fell to 0 at the second door. Food 13 to 63.
+- Player: bookshelves should drop 1 or 2 books, not 3; the mining efficiency trim is weak (wants durability); slimeballs as a random shop currency; the smithing table is overloaded (move reroll).
+| 2026-10-05 | mineshaft (Mine Mouth) | 1 | 1 | 443 | 1 | 1 | 0 | 64 | 3 | n/a | none |
+| 2026-10-05 | mineshaft (The Main Drift) | 2 | 1 | 343 | 0 | 0 | 8 | 0 | 3 | quit | none |
+
+- Resource dungeon, step 0, Feral affix. nodes_mined 0/0 on both floors: no resource nodes generated (PD-149). Floor 3 (The Deep Face) quit at ~10 min for non-game reasons.
+- Echo shards held: 6 (carry-over; resource dungeons pay none). Pack free slots: 13 after floor 1, 2 after floor 2, 0 on floor 3.
+| 2026-10-06 | infestation | 1 | 1 | n/a | n/a | n/a | n/a | n/a | 3 | 1 chart banked | none |
+| 2026-10-06 | infestation | 2 | 1 | n/a | n/a | n/a | n/a | n/a | 3 | banked (5 scrap) | none |
+| 2026-10-06 | mineshaft | 1 | 1 | 364 | 1 | 0 | 3 | 83 | 3 | resource (0 charts) | none |
+| 2026-10-06 | mineshaft | 2 | 1 | ~480 | n/a | 1 | n/a | n/a | 3 | resource | seam room delight |
+| 2026-10-06 | mineshaft (Deep Face) | 3 (final) | 1 | 633 | 4 | 2 | 13 | 0 | 3 | finished, 0 charts | entry_8 diary |
+
+- Full Mineshaft clear paid 0 charts under the no-scrap-on-resource rule; owner decided resource floors should pay like normal floors.
+- Mineshaft floor 1 again generated with nodes_total 0 (PD-149 reopened). Floor 2 placed mineshaft_seam; floor 3 mined 5/8 nodes.
+- Player noted diamond pick durability (max 20) feels too low with interiors mineable.

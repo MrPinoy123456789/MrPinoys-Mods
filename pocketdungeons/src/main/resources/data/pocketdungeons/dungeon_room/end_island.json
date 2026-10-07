@@ -1,0 +1,59 @@
+{
+  "template": "pocketdungeons:rooms/end_island",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "encounter",
+    "loot",
+    "corridor"
+  ],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": [
+    "the_end",
+    "herobrine"
+  ],
+  "light": "dim",
+  "biome": "end_highlands",
+  "dungeons": [
+    "the_end",
+    "herobrine"
+  ],
+  "acts": [
+    5
+  ],
+  "nodes": [
+    {
+      "block": "minecraft:deepslate_diamond_ore",
+      "at": [
+        12,
+        2,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:ancient_debris",
+      "at": [
+        3,
+        2,
+        2
+      ]
+    },
+    {
+      "block": "minecraft:deepslate_diamond_ore",
+      "at": [
+        2,
+        1,
+        13
+      ]
+    }
+  ],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}
