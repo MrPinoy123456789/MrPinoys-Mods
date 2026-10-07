@@ -222,21 +222,22 @@ public class PlanSelectorTest {
     }
 
     /**
-     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor must place at
-     * least one room that stamps nodes. With a manifest whose only node room is
-     * outnumbered by generic halls, every seed still lands one.
+     * PD-149 (playtest 2026-10-05-1), as data: a floor whose dungeon sets
+     * {@code minNodeRooms} must place that many node rooms. With a manifest
+     * whose only node room is outnumbered by generic halls, every seed still
+     * lands one.
      */
     private static void testResourceFloorGuaranteesANodeRoom() {
         DungeonShape shape = straightShape(5);
         RoomManifest manifest = makeResourceManifest();
         RoomEligibility.Floor floor = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
-                false, "test_mine", "", false, false, false, true);
+                false, "test_mine", "", false, false, false, 1);
         for (long seed = 0; seed < 40; seed++) {
             DungeonShape seeded = new DungeonShape(seed, shape.cells(), shape.openEdges(),
                     shape.entrance(), shape.terminal(), shape.criticalPath(), shape.roles());
             DungeonPlan plan = RoomSelector.resolveDetailed(seeded, manifest, null, Set.of(), null, floor).plan();
             if (plan == null) {
-                throw new AssertionError("resource floor " + seed + " did not resolve");
+                throw new AssertionError("node floor " + seed + " did not resolve");
             }
             boolean oreRoom = false;
             for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
@@ -245,7 +246,7 @@ public class PlanSelectorTest {
                 }
             }
             if (!oreRoom) {
-                throw new AssertionError("resource floor " + seed + " placed no node room");
+                throw new AssertionError("node floor " + seed + " placed no node room");
             }
         }
         // PD-149 (reopened 2026-10-06-1): a floor of corners has no cell the
@@ -264,9 +265,26 @@ public class PlanSelectorTest {
             throw new AssertionError("a straight floor that holds the ore room is not short");
         }
 
-        // A non-resource floor never forces the room in: the guarantee is scoped.
+        // The number is a count, not a flag: two asked for means two forced in.
+        RoomEligibility.Floor twoNodes = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
+                false, "test_mine", "", false, false, false, 2);
+        DungeonPlan doubled = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), null, twoNodes).plan();
+        if (doubled == null) {
+            throw new AssertionError("a two node room floor did not resolve");
+        }
+        int oreRooms = 0;
+        for (DungeonPlan.PlacedRoom room : doubled.rooms().values()) {
+            if ("ore_room".equals(room.name())) {
+                oreRooms++;
+            }
+        }
+        if (oreRooms < 2) {
+            throw new AssertionError("minNodeRooms 2 placed " + oreRooms + " node rooms");
+        }
+
+        // A floor asking for no node rooms never forces one in: the guarantee is scoped.
         RoomEligibility.Floor story = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
-                false, "test_mine", "", false, false, false, false);
+                false, "test_mine", "", false, false, false, 0);
         DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), null, story).plan();
         if (plan == null) {
             throw new AssertionError("story floor did not resolve");

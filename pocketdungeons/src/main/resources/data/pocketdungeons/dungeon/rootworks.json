@@ -1,7 +1,7 @@
 {
   "name": "Lush Caves",
   "act": 1,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "rootworks",
   "lootBand": {
     "min": 1,

@@ -1,7 +1,7 @@
 {
   "name": "Prismarine",
   "act": 3,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "prismarine",
   "lootBand": {
     "min": 3,

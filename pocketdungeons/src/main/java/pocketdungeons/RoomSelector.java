@@ -446,18 +446,18 @@ final class RoomSelector {
     }
 
     /**
-     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor pays only what is
-     * mined or harvested, so a floor of nothing but generic halls paid nothing at
-     * all (Mineshaft floors rolled `nodes_total` 0 twice in one trip). After the
-     * pass and the recipe guarantees, a resource floor that placed no
-     * resource-bearing room gets one forced onto an eligible cell, the same way a
-     * recipe guarantee lands. A room is resource-bearing when it declares
-     * {@code nodes} or is bound to the floor's dungeon by its metadata; the force
-     * tries a declared-nodes room first (a bound room with no nodes is a Cow Pits
-     * pen, which pays its own way). No eligible host leaves the plan untouched:
-     * the floor is dull, never broken.
+     * PD-149 (playtest 2026-10-05-1), as data (D12 revised 2026-10-06): a floor
+     * whose dungeon asks for {@code minNodeRooms} node-bearing rooms must place
+     * that many, so a floor of nothing but generic halls pays nothing at all
+     * (Mineshaft floors rolled `nodes_total` 0 twice in one trip). After the
+     * pass and the recipe guarantees, a floor short of its number gets
+     * resource-bearing rooms forced onto eligible cells, the same way a recipe
+     * guarantee lands. A room is resource-bearing when it declares
+     * {@code nodes} or, for a dungeon with no node room at all, is bound to the
+     * floor's dungeon by its metadata (a Cow Pits pen pays cows, not ore).
+     * No eligible host leaves the plan untouched: the floor is dull, never broken.
      *
-     * <p>Returns whether the floor pays as a resource floor. False tells
+     * <p>Returns whether the floor met its number. False tells
      * {@link LayoutPlanner#plan} to try another layout: the reopened PD-149
      * (playtest 2026-10-06-1) was a floor of corners, tees and dead ends, and
      * every Mineshaft ore room is a two-door straight, so no cell could take one.
@@ -467,54 +467,48 @@ final class RoomSelector {
                                             Map<PlanCell, Integer> depths,
                                             Set<String> bagTags,
                                             RoomEligibility.Floor floor) {
-        if (floor == null || !floor.resource()) {
-            return true;
-        }
-        if (placedResource(manifest, placed, floor)) {
-            return true;
-        }
-        // First choice: a room that stamps nodes itself. Second, when the dungeon has
-        // no node room at all: any room of the dungeon's own (the Cow Pits pay cows,
-        // not ore), so the floor at least reads and pays as the place it claims to be.
-        if (forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                match -> !match.entry().meta.nodes.isEmpty(), floor)) {
-            return true;
-        }
-        if (!hasNodeRoom(manifest, floor)) {
-            return boundPlaced(manifest, placed, floor) || forceRoom(shape, manifest, theme, placed, depths, bagTags,
+        int wanted = floor == null ? 0 : floor.minNodeRooms();
+        while (wanted > 0 && payingRooms(manifest, placed, floor) < wanted) {
+            // First choice: a room that stamps nodes itself. Second, when the dungeon has
+            // no node room at all: any room of the dungeon's own, so the floor at least
+            // reads and pays as the place it claims to be.
+            if (forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    match -> !match.entry().meta.nodes.isEmpty(), floor)) {
+                continue;
+            }
+            if (!hasNodeRoom(manifest, floor) && forceRoom(shape, manifest, theme, placed, depths, bagTags,
                     match -> RoomEligibility.boundTo(
-                            RoomEligibility.RoomTags.of(match.entry().meta), floor), floor);
+                            RoomEligibility.RoomTags.of(match.entry().meta), floor), floor)) {
+                continue;
+            }
+            // PD-149: every node room may need a door shape this layout lacks (the
+            // Mineshaft's ore rooms are all two-door straights, and the live floor was
+            // corners, tees and dead ends). Say so, so the planner tries another layout.
+            return false;
         }
-        // PD-149: every node room may need a door shape this layout lacks (the
-        // Mineshaft's ore rooms are all two-door straights, and the live floor was
-        // corners, tees and dead ends). Say so, so the planner tries another layout.
-        return false;
+        return true;
     }
 
     /**
-     * Whether the plan already pays as a resource floor: a node room, or, for a
-     * dungeon that has no node rooms, one of its own rooms.
+     * How many placed rooms pay as a resource floor: rooms that stamp nodes, or,
+     * for a dungeon that has no node rooms, its own rooms.
      */
-    private static boolean placedResource(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
-                                          RoomEligibility.Floor floor) {
+    private static int payingRooms(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                   RoomEligibility.Floor floor) {
+        int nodes = 0;
+        int bound = 0;
         for (DungeonPlan.PlacedRoom room : placed.values()) {
             RoomManifest.Entry entry = manifest.byName(room.name());
-            if (entry != null && !entry.meta.nodes.isEmpty()) {
-                return true;
+            if (entry == null) {
+                continue;
+            }
+            if (!entry.meta.nodes.isEmpty()) {
+                nodes++;
+            } else if (RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
+                bound++;
             }
         }
-        return !hasNodeRoom(manifest, floor) && boundPlaced(manifest, placed, floor);
-    }
-
-    private static boolean boundPlaced(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
-                                       RoomEligibility.Floor floor) {
-        for (DungeonPlan.PlacedRoom room : placed.values()) {
-            RoomManifest.Entry entry = manifest.byName(room.name());
-            if (entry != null && RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
-                return true;
-            }
-        }
-        return false;
+        return nodes > 0 || hasNodeRoom(manifest, floor) ? nodes : bound;
     }
 
     /** Whether the manifest holds a node room bound to the floor's dungeon. */
@@ -1547,8 +1541,8 @@ final class RoomSelector {
      * @param backtrackSteps how many times the pass gave a cell back and took
      *                       the previous cell's next candidate. Zero means the
      *                       first greedy assignment was already satisfying.
-     * @param resourceShort  PD-149: a resource floor whose layout has no cell any of
-     *                       the dungeon's node rooms fits, so it pays no ore. The
+     * @param resourceShort  PD-149: a floor whose layout cannot place the
+     *                       {@code minNodeRooms} node rooms its dungeon asks for. The
      *                       planner tries another layout before settling for it.
      */
     record Result(DungeonPlan plan, Failure failure, Set<PlanCell> fallbackCells,

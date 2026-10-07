@@ -1,7 +1,7 @@
 {
   "name": "Copper Works",
   "act": 2,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "copper_works",
   "lootBand": {
     "min": 2,

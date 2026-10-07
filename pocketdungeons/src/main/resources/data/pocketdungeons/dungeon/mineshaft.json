@@ -1,7 +1,8 @@
 {
   "name": "Mineshaft",
   "act": 1,
-  "kind": "resource",
+  "kind": "dungeon",
+  "minNodeRooms": 1,
   "mainTheme": "mineshaft",
   "lootBand": {
     "min": 1,

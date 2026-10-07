@@ -168,7 +168,7 @@ final class LayoutPlanner {
                         Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters,
                         RoomEligibility.Floor floor) {
         String lastReason = "no attempts were made";
-        // PD-149: a resource floor whose layout fits none of its ore rooms is a valid
+        // PD-149: a floor whose layout fits none of its promised node rooms is a valid
         // plan, but a poor one. Keep the first as a last resort and try further seeds.
         Outcome resourceShort = null;
 
@@ -231,7 +231,7 @@ final class LayoutPlanner {
                 if (resourceShort == null) {
                     resourceShort = new Outcome(result.plan(), attempt + 1, attemptSeed, null);
                 }
-                lastReason = "resource floor layout fits none of its node rooms";
+                lastReason = "floor layout fits fewer node rooms than minNodeRooms asks";
                 continue;
             }
             return new Outcome(result.plan(), attempt + 1, attemptSeed, null);

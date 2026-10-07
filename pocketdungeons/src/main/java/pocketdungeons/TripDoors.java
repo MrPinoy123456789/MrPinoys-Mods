@@ -28,9 +28,9 @@ import java.util.UUID;
  * </ul>
  *
  * <p>Steps are dealt separately from branches: a seeded shuffle gives the three
- * doors {@code +1}, {@code +2} and {@code +3} in some order (D4). A resource
- * dungeon (D12, revised 2026-10-06) deals them like any other: its floors pay chart
- * scrap, plus whatever the player mines. The seed
+ * doors {@code +1}, {@code +2} and {@code +3} in some order (D4). Every dungeon
+ * deals them alike (D12 revised 2026-10-06): a miner's floors pay chart scrap
+ * plus whatever the player mines. The seed
  * comes from the owner, the dungeon, the node and the trip's path length, so an
  * open preview and the commit behind it see the same deal, and the deal does
  * not change between renders.
@@ -69,7 +69,7 @@ final class TripDoors {
     // ---- who may be offered ---------------------------------------------------------
 
     /**
-     * The dungeons a trip may start in: story, resource and capstone kinds (never
+     * The dungeons a trip may start in: ordinary and capstone kinds (never
      * endless, which is its own mode, D13) of an unlocked act, with one entry
      * node. Sorted by id so the deal is independent of load order.
      */

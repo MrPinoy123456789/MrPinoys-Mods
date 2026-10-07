@@ -1,7 +1,8 @@
 {
   "name": "Cow Pits",
   "act": 2,
-  "kind": "resource",
+  "kind": "dungeon",
+  "minNodeRooms": 1,
   "mainTheme": "cow_pits",
   "lootBand": {
     "min": 2,

@@ -14,8 +14,8 @@ import java.util.UUID;
 /**
  * Pure-JDK regression for the dungeon trip door deal ({@link TripDoors}) and the
  * staging map text ({@link DungeonMapText}): seeded stability, steps as a shuffle
- * of 1 to 3, the spare doors repeating a branch, resource dungeons dealing every
- * step as 0, side edge costs, the first door offering dungeons of unlocked acts,
+ * of 1 to 3, the spare doors repeating a branch, every kind of dungeon dealing
+ * the same steps, side edge costs, the first door offering dungeons of unlocked acts,
  * and the shipped dungeons dealing a full staging room at every non-final node.
  */
 public class TripDoorsTest {
@@ -26,7 +26,7 @@ public class TripDoorsTest {
 
     /** Frostworks shaped: a fork, a one edge node, a two edge node with a side branch, a final. */
     private static final String FROST = """
-            {"name": "Frostworks", "act": 2, "kind": "story", "mainTheme": "frostworks",
+            {"name": "Frostworks", "act": 2, "kind": "dungeon", "mainTheme": "frostworks",
              "lootBand": {"min": 2, "max": 3},
              "nodes": [
                {"id": "gate", "name": "Frozen Gate", "layer": 1},
@@ -51,7 +51,7 @@ public class TripDoorsTest {
             """;
 
     private static final String MINE = """
-            {"name": "Mineshaft", "act": 1, "kind": "resource", "mainTheme": "rootworks",
+            {"name": "Mineshaft", "act": 1, "kind": "dungeon", "mainTheme": "rootworks",
              "lootBand": {"min": 1, "max": 1},
              "nodes": [
                {"id": "adit", "name": "The Adit", "layer": 1},
@@ -121,7 +121,7 @@ public class TripDoorsTest {
 
     /** One out edge: all three doors lead to it, at the three steps. */
     private static void testSpareDoorsRepeatABranch() {
-        DungeonDef oneEdge = DungeonDef.fromJson(T + "line", JsonParser.parseString(MINE.replace("resource", "story"))
+        DungeonDef oneEdge = DungeonDef.fromJson(T + "line", JsonParser.parseString(MINE)
                 .getAsJsonObject());
         TripDoors.Door[] doors = TripDoors.dealNext(OWNER, oneEdge, "adit", 1);
         check(doors.length == 3, "three doors");
@@ -144,7 +144,7 @@ public class TripDoorsTest {
         }
         // Three edges never repeat.
         DungeonDef three = DungeonDef.fromJson(T + "three", JsonParser.parseString("""
-                {"name": "Three", "act": 1, "kind": "story", "mainTheme": "rootworks",
+                {"name": "Three", "act": 1, "kind": "dungeon", "mainTheme": "rootworks",
                  "lootBand": {"min": 1, "max": 1},
                  "nodes": [{"id": "a", "name": "A", "layer": 1}, {"id": "b", "name": "B", "layer": 2},
                            {"id": "c", "name": "C", "layer": 2}, {"id": "d", "name": "D", "layer": 2},
@@ -180,12 +180,12 @@ public class TripDoorsTest {
     private static void testResourceStepsAreDealtLikeAnyOther() {
         for (int path = 1; path <= 30; path++) {
             TripDoors.Door[] doors = TripDoors.dealNext(OWNER, mine, "adit", path);
-            check(shuffleOfOneTwoThree(doors), "a resource dungeon deals a shuffle of 1, 2, 3: "
+            check(shuffleOfOneTwoThree(doors), "a node dungeon deals a shuffle of 1, 2, 3: "
                     + java.util.Arrays.toString(doors));
         }
         for (int salt = 0; salt < 20; salt++) {
             TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(mine), salt);
-            check(shuffleOfOneTwoThree(first), "entering a resource dungeon deals a shuffle of 1, 2, 3 too");
+            check(shuffleOfOneTwoThree(first), "entering a node dungeon deals a shuffle of 1, 2, 3 too");
             for (TripDoors.Door door : first) {
                 check(door.dungeonId().equals(T + "mineshaft") && door.nodeId().equals("adit"),
                         "the entry door is the dungeon's entry: " + door);
@@ -246,7 +246,7 @@ public class TripDoorsTest {
         List<DungeonDef> all = List.of(frost, mine, endless);
         List<DungeonDef> act1 = TripDoors.eligibleFirst(all, Set.of(1));
         check(act1.size() == 1 && act1.get(0).id().equals(T + "mineshaft"),
-                "act 1 offers the resource dungeon, never endless: " + act1);
+                "act 1 offers the mineshaft, never endless: " + act1);
         List<DungeonDef> both = TripDoors.eligibleFirst(all, Set.of(1, 2));
         check(both.size() == 2 && both.get(0).id().compareTo(both.get(1).id()) < 0, "sorted by id, endless excluded");
         check(TripDoors.eligibleFirst(all, Set.of()).isEmpty(), "no unlocked act, no dungeon");
@@ -340,10 +340,10 @@ public class TripDoorsTest {
         check(text.contains("CHOOSE A DUNGEON"), "heading");
         check(text.contains("Frostworks") && text.contains("Mineshaft"), "both dungeons named");
         check(text.contains("ends at The Big Freeze"), "the final floor is named");
-        check(!text.contains("+0 scrap"), "no door is dealt zero scrap, the resource door included");
+        check(!text.contains("+0 scrap"), "no door is dealt zero scrap");
     }
 
-    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3, resource dungeons included. */
+    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3. */
     private static void testShippedDungeonsDealFullRooms() throws Exception {
         String[] names = {"rootworks", "infestation", "ossuary", "deepslate", "copper_works", "frostworks",
                 "prismarine", "drowned_vault", "basalt_foundry", "blackstone", "ender_archive"};

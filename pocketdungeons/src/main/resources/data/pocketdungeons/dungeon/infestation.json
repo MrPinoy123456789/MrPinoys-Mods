@@ -1,7 +1,7 @@
 {
   "name": "Infestation",
   "act": 1,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "infestation",
   "lootBand": {
     "min": 1,

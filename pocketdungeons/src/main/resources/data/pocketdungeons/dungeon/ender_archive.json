@@ -1,7 +1,7 @@
 {
   "name": "Ender Archive",
   "act": 5,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "ender_archive",
   "lootBand": {
     "min": 4,

@@ -1,7 +1,7 @@
 {
   "name": "Deepslate",
   "act": 2,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "deepslate",
   "lootBand": {
     "min": 2,

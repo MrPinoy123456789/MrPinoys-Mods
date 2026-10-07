@@ -1,7 +1,7 @@
 {
   "name": "Ossuary",
   "act": 1,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "ossuary",
   "lootBand": {
     "min": 1,

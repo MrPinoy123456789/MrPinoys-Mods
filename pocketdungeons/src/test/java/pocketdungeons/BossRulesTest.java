@@ -172,7 +172,7 @@ public class BossRulesTest {
 
     private static void testCapstoneStart() {
         DungeonDef capstone = def("c", "capstone");
-        DungeonDef story = def("s", "story");
+        DungeonDef story = def("s", "dungeon");
         check(CapstoneStart.amount(capstone, "end", 1) == 1, "a capstone's final floor starts with 1 omen");
         check(CapstoneStart.amount(capstone, "mid", 1) == 0, "a capstone's other floors start clean");
         check(CapstoneStart.amount(capstone, "gate", 1) == 0, "the entry floor starts clean");

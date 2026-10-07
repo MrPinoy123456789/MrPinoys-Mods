@@ -309,7 +309,7 @@ final class DungeonScreen {
      * loot x3 . costs 1 echo shard        loot green, price yellow
      * </pre>
      * (the real separator is {@link BoardText#SEP}). The cyan line is the owner's
-     * scrap (after the too easy discount), a resource dungeon's ore, the floor's
+     * scrap (after the too easy discount), a node dungeon's ore, the floor's
      * promises and, on the last floor, the finish: shards, vault, and the diary page
      * while it is still owed. Later floors' steps are never shown (design D6).
      */
@@ -363,7 +363,7 @@ final class DungeonScreen {
                 addPart(gets, "too easy", ChatFormatting.GRAY);
             }
         }
-        if (def != null && def.kind() == DungeonDef.Kind.RESOURCE) {
+        if (def != null && showsNodes(def, node)) {
             for (String word : BoardText.paletteWords(def.nodePalette())) {
                 addPart(gets, word, ChatFormatting.AQUA);
             }
@@ -373,13 +373,11 @@ final class DungeonScreen {
                 addPart(gets, reward.displayName(), ChatFormatting.AQUA);
             }
             if (node.isFinal()) {
-                if (RunLifecycle.isRewardKind(def)) {
-                    int shards = PocketDungeonsConfig.echoShardsPerFinish();
-                    if (shards > 0) {
-                        addPart(gets, BoardText.shardText(shards), ChatFormatting.AQUA);
-                    }
-                    addPart(gets, "vault", ChatFormatting.AQUA);
+                int shards = PocketDungeonsConfig.echoShardsPerFinish();
+                if (shards > 0) {
+                    addPart(gets, BoardText.shardText(shards), ChatFormatting.AQUA);
                 }
+                addPart(gets, "vault", ChatFormatting.AQUA);
                 if (diaryOwed(def, entry)) {
                     addPart(gets, "diary page", ChatFormatting.AQUA);
                 }
@@ -435,6 +433,27 @@ final class DungeonScreen {
             out.append(lines.get(i));
         }
         return out;
+    }
+
+    /**
+     * Whether the floor's board lists what can be mined (D12 revised): the
+     * dungeon declares a {@code nodePalette}, or this node biases toward a room
+     * that stamps nodes, so a Deepslate floor with ore says so too.
+     */
+    private static boolean showsNodes(DungeonDef def, DungeonDef.Node node) {
+        if (!def.nodePalette().isEmpty()) {
+            return true;
+        }
+        if (node == null) {
+            return false;
+        }
+        for (String bias : node.roomBias()) {
+            RoomManifest.Entry room = RoomManifest.current().byName(bias);
+            if (room != null && !room.meta.nodes.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether finishing {@code def} would still hand {@code entry}'s owner its diary page. */

@@ -1083,7 +1083,7 @@ final class Instances {
         return new RoomEligibility.Floor(def.id(), def.mainTheme(), roomTheme, def.act(),
                 def.kind() == DungeonDef.Kind.CAPSTONE, effectiveThemeId, borrowedFrom,
                 node.layer() == 1, node.isFinal(), offer.door().sideBranch(),
-                def.kind() == DungeonDef.Kind.RESOURCE);
+                def.minNodeRooms(node));
     }
 
     /**

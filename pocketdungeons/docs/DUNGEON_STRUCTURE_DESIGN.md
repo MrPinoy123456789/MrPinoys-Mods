@@ -102,7 +102,7 @@ confirmed by the owner on 2026-10-05.
   answers the 2026-10-02-1 ask for diagrams over text on the go-home screen.
 
 - **D6a. One main theme; floors and rooms may deviate a bit.** Every kind of
-  dungeon (story, resource, capstone, endless) has one main theme, but a floor
+  dungeon (dungeon, capstone, endless) has one main theme, but a floor
   or a room may come from another dungeon's theme as long as it still fits:
   a Mineshaft with a Lush Cave floor or a flooded drift, a Frostworks dungeon
   with a Deepslate barracks floor. The main theme sets the dungeon's name,
@@ -122,8 +122,8 @@ confirmed by the owner on 2026-10-05.
 
 | Act | Steve's memory | Dungeons | Capstone |
 |---|---|---|---|
-| 1 First Iron | his first caves | Mineshaft (new, resource), Rootworks (to become Lush Caves), Infestation, Ossuary | The Spawner Dungeon: a vanilla cobblestone spawner crypt at scale, cave spider and skeleton brood |
-| 2 The Deep | diamonds, trial chambers | Deepslate, Copper Works, Frostworks, Cow Pits (new, resource) | Ancient City: a stealth floor where every sculk raises omen; the Warden is a threat you must not wake |
+| 1 First Iron | his first caves | Mineshaft (new), Rootworks (to become Lush Caves), Infestation, Ossuary | The Spawner Dungeon: a vanilla cobblestone spawner crypt at scale, cave spider and skeleton brood |
+| 2 The Deep | diamonds, trial chambers | Deepslate, Copper Works, Frostworks, Cow Pits (new) | Ancient City: a stealth floor where every sculk raises omen; the Warden is a threat you must not wake |
 | 3 The Monument | diamond gear, the sea | Prismarine, Drowned Vault | Drowned Warden (exists) |
 | 4 The Nether | the portal, fortresses, bastions | Basalt Foundry, Blackstone | The Wither (`wither_loft` exists as a room) |
 | 5 The End | the stronghold, the Dragon | Ender Archive, then the End (new) | Steve/Herobrine |
@@ -174,12 +174,14 @@ confirmed by the owner on 2026-10-05.
     (green once the dungeon is cleared), the scrap carried in cyan, and what it
     comes to: `2 more for a chart` (gold), `1 chart` (green), `2 scrap lost`
     (gray), or `no scrap yet`.
-- **D12. Resource dungeons (Mineshaft, Cow Pits) pay chart scrap like any
-  floor, plus what you mine or harvest.** Revised 2026-10-06: no shard, no
-  vault, diary page on first finish. 1 to 3 floors,
-  finite nodes, mobs and omen still live. Capped tool durability (pickaxes 12 to
-  16 uses) is the limit: a trip spends durability for ore. Node tiers follow the
-  act band.
+- **D12. A dungeon's resource nodes are flavour; the Mineshaft has the most.**
+  Revised 2026-10-06 (plan 2026-10-06-2 G): the resource kind is retired. Every
+  dungeon pays scrap, and its finish pays emeralds, the vault and the page.
+  A dungeon that leans on its nodes declares `minNodeRooms` (a per floor count,
+  a node may override it): the Mineshaft sets 1, the Cow Pits sets 1 for its
+  pens. 2 to 6 floors, finite nodes, mobs and omen still live. Capped tool
+  durability (pickaxes 12 to 16 uses) is the limit: a trip spends durability
+  for ore. Node tiers follow the act band.
 - **D13. The Endless Mine opens after Act 1, and each depth layer needs its
   act.** Depth layers per `ZONES_SPEC.md` 3.5; the shaft past Deepslate stays
   sealed until Act 2 is cleared, the magma core until Act 4. Banks like any
@@ -401,7 +403,8 @@ New or changed theme / dungeon fields:
 | Field | Purpose |
 |---|---|
 | `act` | 1 to 5, the act the dungeon belongs to |
-| `kind` | `story`, `resource`, `capstone`, `endless` |
+| `kind` | `dungeon`, `capstone`, `endless` (legacy `story` and `resource` parse as `dungeon`) |
+| `minNodeRooms` | node rooms a floor must place, default 0; a node may override (D12) |
 | `lootBand` | min and max loot tier for the act (D10) |
 | `layers`, `nodes`, `edges` | the graph (section 6, Stage 1) |
 | `nodePalette` | the resource node blocks the dungeon uses (D19) |

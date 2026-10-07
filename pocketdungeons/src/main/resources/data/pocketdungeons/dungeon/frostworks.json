@@ -1,7 +1,7 @@
 {
   "name": "Frostworks",
   "act": 2,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "frostworks",
   "lootBand": {
     "min": 2,

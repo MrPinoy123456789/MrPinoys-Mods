@@ -1,7 +1,7 @@
 {
   "name": "The End",
   "act": 5,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "the_end",
   "lootBand": {
     "min": 4,

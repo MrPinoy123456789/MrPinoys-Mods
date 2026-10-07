@@ -136,7 +136,7 @@ public class CapstoneRulesTest {
         DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
         DungeonDef city = def("ancient_city", 2, "capstone");
         DungeonDef vault = def("drowned_vault", 3, "capstone");
-        DungeonDef story = def("frostworks", 2, "story");
+        DungeonDef story = def("frostworks", 2, "dungeon");
         List<DungeonDef> all = List.of(vault, story, city, spawner);
 
         check(TripDoors.pendingCapstone(all, Set.of(1), Set.of()) == spawner, "act 1 open: the spawner dungeon");
@@ -162,7 +162,7 @@ public class CapstoneRulesTest {
         List<DungeonDef> pool = new ArrayList<>();
         pool.add(spawner);
         for (int i = 0; i < 6; i++) {
-            pool.add(def("story" + i, 1, "story"));
+            pool.add(def("dungeon" + i, 1, "dungeon"));
         }
         Set<Integer> slotsUsed = new HashSet<>();
         for (int salt = 0; salt < 300; salt++) {
@@ -198,11 +198,11 @@ public class CapstoneRulesTest {
     }
 
     private static void testNoGuaranteeWhenNothingPending() {
-        List<DungeonDef> pool = List.of(def("a", 1, "story"), def("b", 1, "story"), def("c", 1, "story"),
-                def("d", 1, "story"));
+        List<DungeonDef> pool = List.of(def("a", 1, "dungeon"), def("b", 1, "dungeon"), def("c", 1, "dungeon"),
+                def("d", 1, "dungeon"));
         for (int salt = 0; salt < 20; salt++) {
             check(sameDoors(TripDoors.dealFirst(OWNER, pool, salt), TripDoors.dealFirst(OWNER, pool, salt, null)),
-                    "no capstone pending: the deal is the plain one");
+                    "no capstone pending: the deal is the story one");
         }
         // A guaranteed dungeon that is not in the eligible pool is ignored.
         DungeonDef outsider = def("outsider", 1, "capstone");
@@ -213,10 +213,10 @@ public class CapstoneRulesTest {
     // ---- the boss room choice ----------------------------------------------------------
 
     private static void testRoomNarrowing() {
-        RoomEligibility.RoomTags plain = new RoomEligibility.RoomTags(List.of(), List.of(), List.of(), List.of(), List.of());
+        RoomEligibility.RoomTags story = new RoomEligibility.RoomTags(List.of(), List.of(), List.of(), List.of(), List.of());
         RoomEligibility.RoomTags boss = new RoomEligibility.RoomTags(List.of("spawner_dungeon"), List.of(), List.of(1),
                 List.of("capstone"), List.of());
-        List<RoomEligibility.RoomTags> candidates = List.of(plain, boss);
+        List<RoomEligibility.RoomTags> candidates = List.of(story, boss);
         RoomEligibility.Floor capstoneFinal = new RoomEligibility.Floor("spawner_dungeon", "spawner_dungeon",
                 "spawner_dungeon", 1, true, "spawner_dungeon", "", false, true, false);
         RoomEligibility.Floor capstoneMid = new RoomEligibility.Floor("spawner_dungeon", "spawner_dungeon",
@@ -232,8 +232,8 @@ public class CapstoneRulesTest {
                 "a capstone dungeon's earlier floors are untouched");
         check(RoomEligibility.narrowToCapstone(candidates, t -> t, storyFinal, true).size() == 2,
                 "a story dungeon's final floor is untouched");
-        check(RoomEligibility.narrowToCapstone(List.of(plain), t -> t, capstoneFinal, true).equals(List.of(plain)),
-                "a capstone with no boss room (the Drowned Vault) keeps the plain exit hall");
+        check(RoomEligibility.narrowToCapstone(List.of(story), t -> t, capstoneFinal, true).equals(List.of(story)),
+                "a capstone with no boss room (the Drowned Vault) keeps the story exit hall");
         check(RoomEligibility.narrowToCapstone(candidates, t -> t, null, true).size() == 2, "no floor, no narrowing");
 
         // The boss rooms themselves only match their own dungeon.

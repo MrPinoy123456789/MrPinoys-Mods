@@ -1,7 +1,7 @@
 {
   "name": "Blackstone",
   "act": 4,
-  "kind": "story",
+  "kind": "dungeon",
   "mainTheme": "blackstone",
   "lootBand": {
     "min": 3,

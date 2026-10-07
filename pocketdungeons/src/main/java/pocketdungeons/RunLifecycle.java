@@ -1145,7 +1145,7 @@ final class RunLifecycle {
             player.sendSystemMessage(Component.literal(
                     "You clear the last floor of " + TripView.dungeonName(record) + ". " + verdict
                             + " The barrel waits beyond the door"
-                            + (isRewardKind(TripView.def(record)) ? ", the vault's rolls in with it" : "")
+                            + (TripView.def(record) != null ? ", the vault's rolls in with it" : "")
                             + ". Only the way home is open: pull the HOME lever to bank your charts.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
@@ -1262,7 +1262,7 @@ final class RunLifecycle {
         // one copper chest holding the floor's promised rewards.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
-        int vaultRolls = finishedNow && isRewardKind(tripDef)
+        int vaultRolls = finishedNow && tripDef != null
                 ? PocketDungeonsConfig.finishVaultChests() : 0;
         int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
                 : tripDef.lootBand().max();
@@ -1308,28 +1308,6 @@ final class RunLifecycle {
     }
 
     /**
-     * Whether finishing {@code def} pays rewards: story and capstone dungeons do; a
-     * resource dungeon pays only what is mined or harvested (design D11, D12).
-     */
-    static boolean isRewardKind(DungeonDef def) {
-        return def != null && (def.kind() == DungeonDef.Kind.STORY || def.kind() == DungeonDef.Kind.CAPSTONE);
-    }
-
-    /**
-     * Finishing a dungeon (design D11), run once when the final node's floor is
-     * cleared: the dungeon is recorded as finished for each member present, and a
-     * story or capstone dungeon pays its guaranteed echo shard per member, the themed
-     * vault (extra completion chests at the dungeon's top loot tier) and, on a
-     * member's first finish of it, the dungeon's diary page if it names one.
-     *
-     * <p>The trip then settles as a bank through the ordinary HOME lever: the staging
-     * room offers nothing else ({@code record.interval.finished}). That is the
-     * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
-     * the return trip stay one code path, and the party can still loot the chests and
-     * the vault before it walks home. Going home early (any earlier staging room)
-     * banks steps and chests only, with no shard, vault or page.
-     */
-    /**
      * The cleared node's authored {@code rewards}, as stacks for the copper
      * chest. Unknown item ids are logged and skipped, a content typo never
      * failing a floor's rewards.
@@ -1353,11 +1331,24 @@ final class RunLifecycle {
         return promised;
     }
 
+    /**
+     * Finishing a dungeon (design D11, D12 revised), run once when the final node's floor is
+     * cleared: the dungeon is recorded as finished for each member present, and every
+     * dungeon pays its guaranteed echo shard per member, the themed
+     * vault (extra completion chests at the dungeon's top loot tier) and, on a
+     * member's first finish of it, the dungeon's diary page if it names one.
+     *
+     * <p>The trip then settles as a bank through the ordinary HOME lever: the staging
+     * room offers nothing else ({@code record.interval.finished}). That is the
+     * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
+     * the return trip stay one code path, and the party can still loot the chests and
+     * the vault before it walks home. Going home early (any earlier staging room)
+     * banks steps and chests only, with no shard, vault or page.
+     */
     private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                       DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
                                       ThemeManifest.Entry completionTheme) {
-        boolean rewards = isRewardKind(def);
-        int vaultChests = rewards ? PocketDungeonsConfig.finishVaultChests() : 0;
+        int vaultChests = PocketDungeonsConfig.finishVaultChests();
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
@@ -1369,18 +1360,15 @@ final class RunLifecycle {
             if (def.kind() == DungeonDef.Kind.CAPSTONE) {
                 DungeonProgress.onCapstoneCleared(server, record, memberPlayer, def);
             }
-            int shards = 0;
+            int shards = PocketDungeonsConfig.echoShardsPerFinish();
             String diaryId = "";
-            if (rewards) {
-                shards = PocketDungeonsConfig.echoShardsPerFinish();
-                Fuel.grantFrom(memberPlayer, shards, "dungeon_finish");
-                // Lemon's archive: all diaries handed over earns one more.
-                if (LemonArchive.complete(server, member)) {
-                    Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
-                }
+            Fuel.grantFrom(memberPlayer, shards, "dungeon_finish");
+            // Lemon's archive: all diaries handed over earns one more.
+            if (LemonArchive.complete(server, member)) {
+                Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
             }
-            // W6: every dungeon's first finish hands over its diary page, a resource dungeon
-            // included (the page is a memory, not a payout).
+            // W6: every dungeon's first finish hands over its diary page (the page is
+            // a memory, not a payout).
             if (first && !def.diary().isBlank()) {
                 Diaries.Entry page = Diaries.current().byId(def.diary());
                 if (page != null && DiaryDelivery.deliverEntry(log, memberPlayer, page)) {
@@ -1568,7 +1556,7 @@ final class RunLifecycle {
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 
             // Dungeon structure W5 (design D14): no kit refill at the bank. The kit is granted
-            // once; resource dungeons are the restock.
+            // once; the Mineshaft and the other node dungeons are the restock.
 
             // M26: reads log fresh, after every keystone-level change.
             DiaryDelivery.deliverIfEligible(log, memberPlayer);
