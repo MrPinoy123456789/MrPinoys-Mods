@@ -99,7 +99,8 @@ public class NodePaletteTest {
                     }
                     check(block.endsWith("_ore") || block.endsWith("_log") || block.endsWith("_stem")
                                     || block.endsWith("_wart_block") || block.equals("ancient_debris") || block.equals("gilded_blackstone")
-                                    || block.equals("clay") || block.equals("amethyst_cluster"),
+                                    || block.equals("clay") || block.equals("amethyst_cluster")
+                                    || block.equals("sand") || block.equals("red_sand"),
                             name + " palette entry is not a known resource shape: " + block);
                 }
             }

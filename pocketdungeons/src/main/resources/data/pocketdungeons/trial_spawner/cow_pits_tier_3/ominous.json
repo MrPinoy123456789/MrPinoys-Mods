@@ -12,7 +12,7 @@
           "id": "minecraft:zombie"
         },
         "equipment": {
-          "loot_table": "pocketdungeons:equipment/tier_3_melee",
+          "loot_table": "minecraft:equipment/trial_chamber_melee",
           "slot_drop_chances": 0.0
         }
       },
@@ -24,7 +24,7 @@
           "id": "minecraft:skeleton"
         },
         "equipment": {
-          "loot_table": "pocketdungeons:equipment/tier_3_ranged",
+          "loot_table": "minecraft:equipment/trial_chamber_ranged",
           "slot_drop_chances": 0.0
         }
       },

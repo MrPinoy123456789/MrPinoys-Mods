@@ -37,6 +37,14 @@
         }
       },
       "weight": 3
+    },
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:creeper"
+        }
+      },
+      "weight": 1
     }
   ],
   "loot_tables_to_eject": [

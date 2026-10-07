@@ -55,9 +55,11 @@ def load(path):
 
 MINESHAFT = {
     'roster': {
-        1: [('zombie', 5, 'melee'), ('cave_spider', 3, None)],
-        2: [('zombie', 4, 'melee'), ('skeleton', 4, 'ranged'), ('cave_spider', 3, None)],
-        3: [('skeleton', 4, 'ranged'), ('cave_spider', 5, None), ('zombie', 3, 'melee')],
+        1: [('zombie', 5, 'melee'), ('cave_spider', 3, None), ('creeper', 1, None)],
+        2: [('zombie', 4, 'melee'), ('skeleton', 4, 'ranged'), ('cave_spider', 3, None),
+            ('creeper', 1, None)],
+        3: [('skeleton', 4, 'ranged'), ('cave_spider', 5, None), ('zombie', 3, 'melee'),
+            ('creeper', 1, None)],
     },
     'pool_items': [
         g.item_entry('coal', 6, (2, 5)),

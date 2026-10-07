@@ -14,6 +14,7 @@
     "copper_ore",
     "iron_ore",
     "gold_ore",
+    "sand",
     "deepslate_coal_ore",
     "deepslate_copper_ore",
     "deepslate_iron_ore",
@@ -33,7 +34,8 @@
       "iron_ore",
       "copper_ore",
       "copper_ore",
-      "gold_ore"
+      "gold_ore",
+      "sand"
     ]
   },
   "nodes": [
