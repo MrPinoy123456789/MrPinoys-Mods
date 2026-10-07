@@ -25,6 +25,7 @@ public class AffixMathTest {
         testJoinRoundTrip();
         testSeededCountThresholds();
         testSeededForStability();
+        testSaltedSeededFor();
         testDepletionMultiplier();
         testName();
         testThirdPartyId();
@@ -141,6 +142,27 @@ public class AffixMathTest {
         }
     }
 
+    /** The salted overload: stable per salt, the same size, and not always the unsalted pick. */
+    private static void testSaltedSeededFor() {
+        UUID owner = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        Set<String> plain = AffixMath.seededFor(owner, 60, DEFS);
+        boolean differs = false;
+        for (long salt = 1; salt <= 40; salt++) {
+            Set<String> first = AffixMath.seededFor(owner, 60, DEFS, salt);
+            check(first.size(), plain.size());
+            for (int i = 0; i < 20; i++) {
+                if (!first.equals(AffixMath.seededFor(owner, 60, DEFS, salt))) {
+                    throw new AssertionError("salted pick drifted for salt " + salt);
+                }
+            }
+            differs |= !first.equals(plain);
+        }
+        if (!differs) {
+            throw new AssertionError("no salt from 1 to 40 changed the pick");
+        }
+        check(AffixMath.seededFor(owner, 3, DEFS, 7L).size(), 0);
+    }
+
     private static void testDepletionMultiplier() {
         check(AffixMath.depletionMultiplier(Set.of(), DEFS), 1);
         check(AffixMath.depletionMultiplier(Set.of(AffixIds.OMINOUS), DEFS), 1);
@@ -216,7 +238,8 @@ public class AffixMathTest {
      * so the seeding and naming assertions stay meaningful against the real
      * definitions the manifest loads.
      */
-    private static List<AffixDefinition> buildBuiltInFixture() {
+    /** The built-in definitions as a fixture; shared with {@code DoorAffixesTest}. */
+    static List<AffixDefinition> buildBuiltInFixture() {
         List<AffixDefinition> defs = new ArrayList<>();
         defs.add(new AffixDefinition(AffixIds.OMINOUS, "Cooked",
                 "Cooked: the whole run runs ominous, and pays out ominous.",

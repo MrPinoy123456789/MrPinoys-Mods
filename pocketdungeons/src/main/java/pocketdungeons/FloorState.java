@@ -62,7 +62,7 @@ final class FloorState {
 
     /**
      * Whether a door was committed for this floor. {@link #chosenStep} alone cannot say:
-     * a resource dungeon's floors are step 0 (design D12). Use {@link #hasDoor()}.
+     * a floor can be entered with no step (an Endless Mine floor, say). Use {@link #hasDoor()}.
      */
     boolean doorTaken;
 

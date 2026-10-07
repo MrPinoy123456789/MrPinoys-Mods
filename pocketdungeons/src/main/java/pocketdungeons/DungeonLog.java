@@ -464,13 +464,13 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, InventorySwap.OrphanRecord> kitChests = new HashMap<>();
 
     /**
-     * PD-150: how many stacks each player's run storage returned to the pack
-     * while they were offline ({@link RunStorage#returnAll}). The items land in
-     * the orphan record either way; this count is only so the next dungeon entry
-     * can say it happened instead of leaving the chest looking wiped. Sidecar
-     * map for the same reason {@link #orphans} is one.
+     * Each player's Dungeon Storage (design 2026-10-06-1 item 5): 27 slots that belong to
+     * the player, not the run, and survive floors, trips, runs, logouts and restarts.
+     * The same plain item list an orphan record is, empty slots kept so the layout the
+     * player made comes back. The PD-150 {@code storage_returns} sidecar this replaces is
+     * still read from an old save and never written.
      */
-    private final Map<UUID, Integer> storageReturns = new HashMap<>();
+    private final Map<UUID, InventorySwap.OrphanRecord> dungeonStorage = new HashMap<>();
 
     /**
      * (M71) Per-player Cube recipe discovery state. A sidecar map for the
@@ -713,7 +713,17 @@ final class DungeonLog extends SavedData {
     /** One player's bag chest contents ({@link KitChest}), the same shape as an orphan. */
     private record PlayerKitChest(UUID player, InventorySwap.OrphanRecord items) {}
 
-    /** One player's pending run-storage return count, keyed the same way {@link PlayerEntry} is. */
+    /** One player's Dungeon Storage, the same shape as a bag chest. */
+    private record PlayerDungeonStorage(UUID player, InventorySwap.OrphanRecord items) {}
+
+    private static final Codec<PlayerDungeonStorage> PLAYER_DUNGEON_STORAGE_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerDungeonStorage::player),
+            InventorySwap.OrphanRecord.CODEC.fieldOf("items").forGetter(PlayerDungeonStorage::items)
+    ).apply(instance, PlayerDungeonStorage::new));
+
+    /** Retired (PD-150): read from an old save so it still loads, never written. */
     private record PlayerStorageReturn(UUID player, int stacks) {}
 
     private static final Codec<PlayerStorageReturn> PLAYER_STORAGE_RETURN_CODEC =
@@ -820,12 +830,14 @@ final class DungeonLog extends SavedData {
             PLAYER_KIT_CHEST_CODEC.listOf().optionalFieldOf("kit_chests", List.of())
                     .forGetter(log -> log.kitChests.entrySet().stream()
                             .map(e -> new PlayerKitChest(e.getKey(), e.getValue())).toList()),
-            // PD-150: optional so a save written before it loads with no pending
-            // notices, which is the correct reading of "nobody was offline for a
-            // storage return" (an online player hears it at once anyway).
+            // PD-150, retired: still decoded so an old save loads, written as nothing.
             PLAYER_STORAGE_RETURN_CODEC.listOf().optionalFieldOf("storage_returns", List.of())
-                    .forGetter(log -> log.storageReturns.entrySet().stream()
-                            .map(e -> new PlayerStorageReturn(e.getKey(), e.getValue())).toList())
+                    .forGetter(log -> List.of()),
+            // Design 2026-10-06-1 item 5: optional so a save written before it loads with
+            // every storage empty.
+            PLAYER_DUNGEON_STORAGE_CODEC.listOf().optionalFieldOf("dungeon_storage", List.of())
+                    .forGetter(log -> log.dungeonStorage.entrySet().stream()
+                            .map(e -> new PlayerDungeonStorage(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -835,7 +847,8 @@ final class DungeonLog extends SavedData {
                                           List<PlayerRunRecords> runRecords,
                                           List<PlayerFloorHistory> floorHistory,
                                           List<PlayerKitChest> kitChests,
-                                          List<PlayerStorageReturn> storageReturns) {
+                                          List<PlayerStorageReturn> retiredStorageReturns,
+                                          List<PlayerDungeonStorage> dungeonStorage) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -864,8 +877,8 @@ final class DungeonLog extends SavedData {
         for (PlayerKitChest k : kitChests) {
             log.kitChests.put(k.player(), k.items());
         }
-        for (PlayerStorageReturn s : storageReturns) {
-            log.storageReturns.put(s.player(), s.stacks());
+        for (PlayerDungeonStorage s : dungeonStorage) {
+            log.dungeonStorage.put(s.player(), s.items());
         }
         return log;
     }
@@ -1410,30 +1423,26 @@ final class DungeonLog extends SavedData {
         setDirty();
     }
 
-    /**
-     * PD-150: records that {@code stacks} stacks from {@code player}'s run storage
-     * went into the pack record while they were offline, so the next dungeon entry
-     * can say so. Stacks up across returns.
-     */
-    void noteStorageReturn(UUID player, int stacks) {
-        if (stacks <= 0) {
-            return;
-        }
-        storageReturns.merge(player, stacks, Integer::sum);
-        setDirty();
+    /** This player's Dungeon Storage, empty slots included; empty when nothing is stored. Never null. */
+    List<net.minecraft.world.item.ItemStack> storageOf(UUID player) {
+        return dungeonStorage.getOrDefault(player, InventorySwap.OrphanRecord.NONE).items();
     }
 
     /**
-     * PD-150: the pending run-storage return count, cleared. 0 when nothing was
-     * returned while the player was away.
+     * Replaces this player's Dungeon Storage with a copy of {@code items}; an all-empty list
+     * removes the record, so the map holds only players with something stored.
      */
-    int takeStorageReturn(UUID player) {
-        Integer stacks = storageReturns.remove(player);
-        if (stacks == null) {
-            return 0;
+    void setStorage(UUID player, List<net.minecraft.world.item.ItemStack> items) {
+        InventorySwap.OrphanRecord record = InventorySwap.OrphanRecord.of(
+                items.stream().map(net.minecraft.world.item.ItemStack::copy).toList());
+        if (record.items().isEmpty()) {
+            if (dungeonStorage.remove(player) == null) {
+                return;
+            }
+        } else {
+            dungeonStorage.put(player, record);
         }
         setDirty();
-        return stacks;
     }
 
     /**

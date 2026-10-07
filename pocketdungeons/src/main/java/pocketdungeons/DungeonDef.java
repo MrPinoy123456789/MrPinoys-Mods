@@ -31,10 +31,19 @@ import java.util.function.ToIntFunction;
  * @param merchant    the themed merchant id, or an empty string for none
  * @param diary       the diary page a first clear grants, or an empty string for none
  * @param deviation   how a floor may borrow another theme (D6a), or null
+ * @param hiddenOre   ore pockets buried in the solid rock of every room the dungeon stamps
+ *                    (design 2026-10-06-1 item 7), or null for none
  */
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
-                  List<Node> nodes, List<Edge> edges) {
+                  List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre) {
+
+    /** A dungeon with no hidden ore. */
+    DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
+               List<String> nodePalette, String merchant, String diary, Deviation deviation,
+               List<Node> nodes, List<Edge> edges) {
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges, null);
+    }
 
     /** What a dungeon is for. */
     enum Kind {
@@ -105,6 +114,60 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 throw new IllegalArgumentException("deviation chance must be between 0 and 1: " + chance);
             }
             themes = List.copyOf(themes);
+        }
+    }
+
+    /**
+     * Ore buried in a room's solid rock, found by digging (design 2026-10-06-1 item 7). Each
+     * room gets {@code pocketsMin} to {@code pocketsMax} pockets, each {@code sizeMin} to
+     * {@code sizeMax} blocks of one of {@code blocks} (the dungeon's non-structural
+     * {@code nodePalette} when none are declared); a block listed twice is twice as likely.
+     * {@link HiddenOrePlanner} picks where.
+     */
+    record HiddenOre(int pocketsMin, int pocketsMax, int sizeMin, int sizeMax, List<String> blocks) {
+
+        static final int MAX_POCKETS = 6;
+        static final int MAX_SIZE = 6;
+
+        HiddenOre {
+            blocks = List.copyOf(blocks);
+        }
+
+        /** The blocks a pocket may be made of: the declared ones, else the non-structural palette. */
+        List<String> blocksOr(List<String> palette) {
+            if (!blocks.isEmpty()) {
+                return blocks;
+            }
+            List<String> out = new ArrayList<>();
+            for (String block : palette) {
+                if (!isStructuralBlock(block)) {
+                    out.add(block);
+                }
+            }
+            return out;
+        }
+
+        /** What is wrong with this declaration, as readable reasons. */
+        List<String> problems(List<String> palette) {
+            List<String> out = new ArrayList<>();
+            if (pocketsMin < 0 || pocketsMax < pocketsMin || pocketsMax > MAX_POCKETS) {
+                out.add("hiddenOre pockets must satisfy 0 <= pocketsMin <= pocketsMax <= " + MAX_POCKETS + ": "
+                        + pocketsMin + " to " + pocketsMax);
+            }
+            if (sizeMin < 1 || sizeMax < sizeMin || sizeMax > MAX_SIZE) {
+                out.add("hiddenOre size must satisfy 1 <= sizeMin <= sizeMax <= " + MAX_SIZE + ": "
+                        + sizeMin + " to " + sizeMax);
+            }
+            List<String> usable = blocksOr(palette);
+            if (usable.isEmpty()) {
+                out.add("hiddenOre has no blocks (declare blocks, or give the dungeon a nodePalette)");
+            }
+            for (String block : usable) {
+                if (isStructuralBlock(block)) {
+                    out.add("hiddenOre block " + block + " is a structural block, which would make walls mineable");
+                }
+            }
+            return out;
         }
     }
 
@@ -414,6 +477,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
         }
 
+        if (hiddenOre != null) {
+            out.addAll(hiddenOre.problems(nodePalette));
+        }
+
         Node entry = entry();
         if (entry != null) {
             Set<String> fromEntry = reach(entry.id(), false);
@@ -526,6 +593,21 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             deviation = new Deviation(chance, themes);
         }
 
+        HiddenOre hiddenOre = null;
+        if (obj.has("hiddenOre") && obj.get("hiddenOre").isJsonObject()) {
+            JsonObject hidden = obj.getAsJsonObject("hiddenOre");
+            List<String> blocks = new ArrayList<>();
+            for (JsonElement element : optionalArray(hidden, "blocks")) {
+                blocks.add(blockId(element.getAsString()));
+            }
+            hiddenOre = new HiddenOre(
+                    hidden.has("pocketsMin") ? requiredInt(hidden, "pocketsMin") : 0,
+                    hidden.has("pocketsMax") ? requiredInt(hidden, "pocketsMax") : 2,
+                    hidden.has("sizeMin") ? requiredInt(hidden, "sizeMin") : 1,
+                    hidden.has("sizeMax") ? requiredInt(hidden, "sizeMax") : 3,
+                    blocks);
+        }
+
         List<Node> nodes = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "nodes")) {
             JsonObject node = element.getAsJsonObject();
@@ -561,7 +643,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     edge.has("cost") ? requiredInt(edge, "cost") : 0));
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
-                deviation, nodes, edges);
+                deviation, nodes, edges, hiddenOre);
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */

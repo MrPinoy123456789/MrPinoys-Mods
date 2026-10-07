@@ -75,7 +75,8 @@ public class TripDoorsTest {
         testSpareDoorsRepeatABranch();
         testTwoEdgesFillThreeDoors();
         testSideBranchCost();
-        testResourceStepsAreZero();
+        testResourceStepsAreDealtLikeAnyOther();
+        testVariantsNumberTheCopies();
         testFinalNodeHasNoDoors();
         testFirstDoorsOfferUnlockedDungeons();
         testFirstDoorsRepeatWhenFewDungeons();
@@ -176,27 +177,53 @@ public class TripDoorsTest {
         }
     }
 
-    private static void testResourceStepsAreZero() {
+    private static void testResourceStepsAreDealtLikeAnyOther() {
         for (int path = 1; path <= 30; path++) {
-            for (TripDoors.Door door : TripDoors.dealNext(OWNER, mine, "adit", path)) {
-                check(door.step() == 0, "a resource dungeon deals no chart scrap: " + door);
+            TripDoors.Door[] doors = TripDoors.dealNext(OWNER, mine, "adit", path);
+            check(shuffleOfOneTwoThree(doors), "a resource dungeon deals a shuffle of 1, 2, 3: "
+                    + java.util.Arrays.toString(doors));
+        }
+        for (int salt = 0; salt < 20; salt++) {
+            TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(mine), salt);
+            check(shuffleOfOneTwoThree(first), "entering a resource dungeon deals a shuffle of 1, 2, 3 too");
+            for (TripDoors.Door door : first) {
+                check(door.dungeonId().equals(T + "mineshaft") && door.nodeId().equals("adit"),
+                        "the entry door is the dungeon's entry: " + door);
             }
         }
-        TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(mine), 0);
-        for (TripDoors.Door door : first) {
-            check(door.step() == 0 && door.dungeonId().equals(T + "mineshaft") && door.nodeId().equals("adit"),
-                    "entering a resource dungeon is step 0 too: " + door);
-        }
-        // Mixed first doors: only the resource door is zero.
         List<DungeonDef> pool = List.of(mine, frost, DungeonDef.fromJson(T + "other",
                 JsonParser.parseString(FROST.replace("Frostworks", "Other")).getAsJsonObject()));
         for (int salt = 0; salt < 20; salt++) {
-            for (TripDoors.Door door : TripDoors.dealFirst(OWNER, pool, salt)) {
-                if (door.dungeonId().equals(T + "mineshaft")) {
-                    check(door.step() == 0, "resource door is 0");
-                } else {
-                    check(door.step() >= 1 && door.step() <= 3, "story door is dealt a step");
-                }
+            check(shuffleOfOneTwoThree(TripDoors.dealFirst(OWNER, pool, salt)),
+                    "mixed first doors deal a shuffle of 1, 2, 3 whatever stands behind them");
+        }
+    }
+
+    private static boolean shuffleOfOneTwoThree(TripDoors.Door[] doors) {
+        int[] steps = new int[doors.length];
+        for (int i = 0; i < doors.length; i++) {
+            steps[i] = doors[i].step();
+        }
+        java.util.Arrays.sort(steps);
+        return java.util.Arrays.equals(steps, new int[]{1, 2, 3});
+    }
+
+    /** A node with one edge deals three doors to the same floor: variants 0, 1 and 2, in slot order. */
+    private static void testVariantsNumberTheCopies() {
+        for (int path = 1; path <= 20; path++) {
+            TripDoors.Door[] doors = TripDoors.dealNext(OWNER, mine, "adit", path);
+            for (int slot = 0; slot < doors.length; slot++) {
+                check(doors[slot].variant() == slot, "one edge, copies numbered in order: " + doors[slot]);
+                check(doors[slot].pathLength() == path, "the door carries its path length");
+            }
+        }
+        // Two edges: the repeat of the first branch is variant 1, the other branch starts at 0.
+        for (int path = 1; path <= 20; path++) {
+            TripDoors.Door[] doors = TripDoors.dealNext(OWNER, frost, "gate", path);
+            java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+            for (TripDoors.Door door : doors) {
+                int before = seen.merge(door.nodeId(), 1, Integer::sum) - 1;
+                check(door.variant() == before, "variant counts earlier doors to the same floor: " + door);
             }
         }
     }
@@ -313,10 +340,10 @@ public class TripDoorsTest {
         check(text.contains("CHOOSE A DUNGEON"), "heading");
         check(text.contains("Frostworks") && text.contains("Mineshaft"), "both dungeons named");
         check(text.contains("ends at The Big Freeze"), "the final floor is named");
-        check(text.contains("+0 scrap"), "the resource door says no scrap");
+        check(!text.contains("+0 scrap"), "no door is dealt zero scrap, the resource door included");
     }
 
-    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3 (or 0 for resource). */
+    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3, resource dungeons included. */
     private static void testShippedDungeonsDealFullRooms() throws Exception {
         String[] names = {"rootworks", "infestation", "ossuary", "deepslate", "copper_works", "frostworks",
                 "prismarine", "drowned_vault", "basalt_foundry", "blackstone", "ender_archive"};
@@ -342,7 +369,7 @@ public class TripDoorsTest {
                     steps.add(door.step());
                     free |= door.cost() == 0;
                 }
-                check(steps.equals(Set.of(1, 2, 3)) || steps.equals(Set.of(0)), name + " " + node.id() + ": steps " + steps);
+                check(steps.equals(Set.of(1, 2, 3)), name + " " + node.id() + ": steps " + steps);
                 check(free, name + " " + node.id() + ": at least one free door (a main edge always exists)");
             }
             // The entry is reachable from the first deal of a one dungeon pool.

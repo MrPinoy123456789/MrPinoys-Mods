@@ -215,6 +215,21 @@ final class Keystone {
         return offers;
     }
 
+    /**
+     * The affixes the door behind {@code offer} deals {@code owner}: the level's seeded
+     * set plus the node's signature, rerolled for a door that repeats a floor
+     * ({@link DoorAffixes}), without Feral on a dark node. The one place the preview,
+     * the commit and the confirmation line all read, so they agree.
+     */
+    static Set<String> dealtAffixes(UUID owner, Offer offer) {
+        String dungeonId = offer.dungeonId();
+        String nodeId = offer.nodeId();
+        TripDoors.Door door = offer.door();
+        return DoorAffixes.deal(owner, offer.level(), offer.affixes(), AffixManifest.current().definitions(),
+                dungeonId, nodeId, door == null ? 0 : door.variant(), door == null ? 0 : door.pathLength(),
+                set -> NodeStamper.dealtAffixes(set, dungeonId, nodeId));
+    }
+
     private static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
         DungeonDef def = dungeons.byId(door.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(door.nodeId());

@@ -56,8 +56,8 @@ final class FirstVisitTutorial {
         },
         ENDER_CHEST("ender_chest", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
-                return List.of("Back in the safe room there is an ender chest set into the wall. It is your run storage: "
-                        + "27 extra slots that stay with the run, so you can leave spare things there.");
+                return List.of("Back in the safe room there is an ender chest set into the wall. It is your Dungeon Storage: "
+                        + "27 extra slots that stay yours between runs, so you can leave spare things there.");
             }
         },
         SET_OF_THREE("set_of_three", Trigger.FLOOR_CLEARED) {

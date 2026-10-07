@@ -1145,10 +1145,7 @@ final class Instances {
             }
         }
         // Dungeon structure W4: Feral is not dealt on a dark floor.
-        Set<String> baseAffixes = NodeStamper.dealtAffixes(
-                AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()),
-                offer.dungeonId(), offer.nodeId());
+        Set<String> baseAffixes = Keystone.dealtAffixes(record.owner, offer);
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
         long previewSeed = level.getRandom().nextLong();
         RunRecipePlan recipePlan = RunRecipePlan.resolve(previewSeed, offer.level(),
@@ -1457,10 +1454,7 @@ final class Instances {
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         boolean ominousRolled = false;
-        Set<String> affixes = NodeStamper.dealtAffixes(
-                AffixMath.effective(record.owner, offer.level(), offer.affixes(),
-                        AffixManifest.current().definitions()),
-                offer.dungeonId(), offer.nodeId());
+        Set<String> affixes = Keystone.dealtAffixes(record.owner, offer);
 
         // M66: apply recipe effects from the frozen preview plan, not from
         // re-read recipe tags. The preview resolved the affix set; commit
@@ -2050,8 +2044,8 @@ final class Instances {
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
-        // Before the purge hands the storage back: it reverts with the pack.
-        RunStorage.rollBackToInterval(record);
+        // The storage reverts with the pack (any open menu is closed first).
+        RunStorage.rollBackToInterval(server, record);
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);

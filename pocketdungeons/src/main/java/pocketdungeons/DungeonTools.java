@@ -22,8 +22,8 @@ import java.util.UUID;
  * <tr><td>Wooden, Golden</td><td>8</td></tr>
  * <tr><td>Stone, Copper</td><td>12</td></tr>
  * <tr><td>Iron</td><td>16</td></tr>
- * <tr><td>Diamond</td><td>20</td></tr>
- * <tr><td>Netherite</td><td>24</td></tr>
+ * <tr><td>Diamond</td><td>32</td></tr>
+ * <tr><td>Netherite</td><td>48</td></tr>
  * <tr><td>Unknown (modded)</td><td>12</td></tr>
  * </table>
  *
@@ -146,8 +146,8 @@ public final class DungeonTools {
      * <tr><td>Wooden, Golden, Leather</td><td>24</td><td>32</td></tr>
      * <tr><td>Stone, Copper, Chainmail</td><td>40</td><td>48</td></tr>
      * <tr><td>Iron, Turtle</td><td>64</td><td>64</td></tr>
-     * <tr><td>Diamond</td><td>96</td><td>96</td></tr>
-     * <tr><td>Netherite</td><td>128</td><td>128</td></tr>
+     * <tr><td>Diamond</td><td>128</td><td>144</td></tr>
+     * <tr><td>Netherite</td><td>192</td><td>192</td></tr>
      * </table>
      * Bow, crossbow and shield 64; trident and mace 96. Shears, flint and
      * steel and other utility items stay vanilla.
@@ -162,8 +162,8 @@ public final class DungeonTools {
                 case "wooden", "golden" -> 8;
                 case "stone", "copper" -> 12;
                 case "iron" -> 16;
-                case "diamond" -> 20;
-                case "netherite" -> 24;
+                case "diamond" -> 32;
+                case "netherite" -> 48;
                 default -> 12;
             };
         }
@@ -172,8 +172,8 @@ public final class DungeonTools {
                 case "wooden", "golden" -> 24;
                 case "stone", "copper" -> 40;
                 case "iron" -> 64;
-                case "diamond" -> 96;
-                case "netherite" -> 128;
+                case "diamond" -> 128;
+                case "netherite" -> 192;
                 default -> 48;
             };
         }
@@ -183,8 +183,8 @@ public final class DungeonTools {
                 case "leather", "golden" -> 32;
                 case "chainmail", "copper" -> 48;
                 case "iron", "turtle" -> 64;
-                case "diamond" -> 96;
-                case "netherite" -> 128;
+                case "diamond" -> 144;
+                case "netherite" -> 192;
                 default -> 48;
             };
         }

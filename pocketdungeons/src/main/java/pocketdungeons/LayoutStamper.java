@@ -228,6 +228,10 @@ final class LayoutStamper {
         // soft mechanic gates the directional gate pass places.
         Set<BlockPos> nodePositions = new LinkedHashSet<>();
         Set<BlockPos> softGates = new LinkedHashSet<>();
+        // PD-160: the flooded hall's containment doors (latches) and the connector
+        // iron doors' levers and buttons, each mapped to the door it opens.
+        Set<BlockPos> latchDoors = new LinkedHashSet<>();
+        Map<BlockPos, Set<BlockPos>> doorOpeners = new HashMap<>();
         // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
         // in the first cleared encounter cell; carried on the layout so the
         // right-click handler can find it without scanning the world.
@@ -295,6 +299,9 @@ final class LayoutStamper {
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
             OmenSources.arm(level, cellOrigin, entry.meta, theme);
             trialSpawners.addAll(spawnerAnchors);
+            if ("flooded_hall".equals(entry.meta.content)) {
+                latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));
+            }
             // A dead end that holds no fight (a vault, a chest, a wall) may hold a fountain.
             if (!isAnomalyCell && spawnerAnchors.isEmpty() && !cell.equals(plan.entrance())
                     && !cell.equals(plan.terminal())
@@ -339,7 +346,7 @@ final class LayoutStamper {
         }
 
         Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
-        applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots);
+        applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots, doorOpeners);
 
         applyDirectionalGates(level, geometry, plan, manifest, softGates);
 
@@ -366,7 +373,9 @@ final class LayoutStamper {
                 pocket2Door,
                 Set.copyOf(ironDoorFarSideSlots),
                 Set.copyOf(nodePositions),
-                Set.copyOf(softGates));
+                Set.copyOf(softGates),
+                Set.copyOf(latchDoors),
+                Map.copyOf(doorOpeners));
     }
 
     /**
@@ -652,7 +661,8 @@ final class LayoutStamper {
      */
     private static void applyConnectors(ServerLevel level, PlanGeometry geometry, DungeonPlan plan,
                                         PlanCell entranceCell, RoomManifest manifest,
-                                        Set<BlockPos> ironDoorFarSideSlots) {
+                                        Set<BlockPos> ironDoorFarSideSlots,
+                                        Map<BlockPos, Set<BlockPos>> doorOpeners) {
         for (PlanEdge edge : plan.doors()) {
             if (edge.touches(entranceCell)) {
                 continue;
@@ -705,9 +715,25 @@ final class LayoutStamper {
                 }
             } else if (type == ConnectorType.IRON_DOOR) {
                 PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
-                applyConnectorToSide(level, geometry, nearCell, edge, type, fillNearColumn);
                 PlanCell farCell = edge.other(nearCell);
+                DoorMask.Direction nearWall = nearCell.directionTo(farCell);
                 DoorMask.Direction farWall = farCell.directionTo(nearCell);
+                if (nearWall != null) {
+                    // PD-160: the lever is on another wall of the near room and a
+                    // stone button stands in the far room; neither is adjacent to
+                    // the door, so IronDoorLatch opens it on use.
+                    ConnectorStamper.IronDoor placedDoor = ConnectorStamper.applyIronDoor(
+                            level, geometry.cellOrigin(nearCell), nearWall);
+                    Set<BlockPos> lowers = Set.copyOf(placedDoor.lowers());
+                    doorOpeners.put(placedDoor.lever(), lowers);
+                    if (farWall != null) {
+                        BlockPos button = ConnectorStamper.applyFarSideButton(
+                                level, geometry.cellOrigin(farCell), farWall);
+                        if (button != null) {
+                            doorOpeners.put(button, lowers);
+                        }
+                    }
+                }
                 if (farWall != null) {
                     ironDoorFarSideSlots.addAll(ConnectorGeometry.rect(
                             geometry.cellOrigin(farCell), farWall,

@@ -553,24 +553,31 @@ public final class PlaytestFixGameTest {
         net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
 
         player.getInventory().clearContent();
-        for (int slot = 0; slot < 9; slot++) {
-            player.getInventory().setItem(slot, new net.minecraft.world.item.ItemStack(
-                    net.minecraft.world.item.Items.BONE, 64));
-            player.getInventory().setItem(slot + 9, new net.minecraft.world.item.ItemStack(
-                    net.minecraft.world.item.Items.EMERALD, 64));
+        // The seeded stock and prices vary (up to 31 units at 20 apiece), so hold plenty of every currency.
+        net.minecraft.world.item.Item[] coins = {net.minecraft.world.item.Items.BONE,
+                net.minecraft.world.item.Items.ROTTEN_FLESH, net.minecraft.world.item.Items.EMERALD};
+        int[] slots = {10, 10, 4};
+        int next = 0;
+        for (int c = 0; c < coins.length; c++) {
+            for (int n = 0; n < slots[c]; n++) {
+                player.getInventory().setItem(next++, new net.minecraft.world.item.ItemStack(coins[c], 64));
+            }
         }
         String tag = villager.entityTags().stream().filter(t -> t.startsWith("pocketdungeons_store_inv:"))
                 .findFirst().orElseThrow();
         int stock = Integer.parseInt(tag.substring("pocketdungeons_store_inv:".length()).split(";")[0].split(",", 5)[3]);
         for (int i = 0; i < stock; i++) {
-            helper.assertTrue(StoreNPC.buy(player, villager, 0) == StoreNPC.Sale.BOUGHT, "buy " + i);
+            StoreNPC.Sale got = StoreNPC.buy(player, villager, 0);
+            helper.assertTrue(got == StoreNPC.Sale.BOUGHT, "buy " + i + " gave " + got + " from " + tag);
         }
         helper.assertTrue(StoreNPC.buy(player, villager, 0) == StoreNPC.Sale.SOLD_OUT, "a line bought out is sold out");
         boolean clean = false;
         for (net.minecraft.world.item.ItemStack stack : player.getInventory().getNonEquipmentItems()) {
             if (!stack.isEmpty() && !stack.is(net.minecraft.world.item.Items.BONE)
+                    && !stack.is(net.minecraft.world.item.Items.ROTTEN_FLESH)
                     && !stack.is(net.minecraft.world.item.Items.EMERALD)) {
-                clean = !stack.has(net.minecraft.core.component.DataComponents.LORE)
+                clean = stack.getOrDefault(net.minecraft.core.component.DataComponents.LORE,
+                        net.minecraft.world.item.component.ItemLore.EMPTY).lines().isEmpty()
                         && !stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
                 helper.assertTrue(clean, "a bought stack is the plain item: " + stack);
             }

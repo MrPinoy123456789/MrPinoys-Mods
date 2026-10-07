@@ -63,6 +63,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         BlacksmithNPC.register();
         LibrarianNPC.register();
         StoreNPC.register();
+        IronDoorLatch.register();
 
         LOG.info("Pocket Dungeons initialised (server-side only)");
     }

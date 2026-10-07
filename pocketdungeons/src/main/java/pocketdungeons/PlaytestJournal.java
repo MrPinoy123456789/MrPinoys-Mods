@@ -493,9 +493,8 @@ final class PlaytestJournal {
                 pack.add(inventory.getItem(i));
             }
             extras.put("pack", describe(pack));
-            net.minecraft.world.SimpleContainer storage = record == null ? null
-                    : record.runStorage.get(player.getUUID());
-            extras.put("run_storage", describe(storage == null ? List.of() : storage.getItems()));
+            extras.put("run_storage", describe(DungeonLog.forServer(player.level().getServer())
+                    .storageOf(player.getUUID())));
             extras.put("ender_chest", describe(player.getEnderChestInventory().getItems()));
             DungeonLog log = DungeonLog.forServer(player.level().getServer());
             extras.put("kept", describe(log.orphanOf(player.getUUID()).items()));

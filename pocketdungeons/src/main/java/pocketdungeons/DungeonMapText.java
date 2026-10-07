@@ -145,7 +145,7 @@ final class DungeonMapText {
         return node == null ? 0 : node.layer();
     }
 
-    /** {@code "+2"}, or {@code "+0 scrap"} for a resource dungeon floor. */
+    /** {@code "+2 scrap"}; {@code "+0 scrap"} only for a door dealt no step, which no deal produces now. */
     static String stepWord(int step) {
         return step <= 0 ? "+0 scrap" : "+" + step + " scrap";
     }

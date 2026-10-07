@@ -57,6 +57,7 @@ public class DungeonDefTest {
         testPackValidatorFindings();
         testShippedDungeons();
         testNodeLight();
+        testHiddenOre();
         System.out.println("DungeonDefTest: all checks passed");
     }
 
@@ -183,6 +184,49 @@ public class DungeonDefTest {
     }
 
     /** W4: a node's light is lit by default, dark and dim parse, and a stranger is rejected. */
+    /** Design item 7: hiddenOre parses with its defaults, validates, and falls back to the palette. */
+    private static void testHiddenOre() {
+        String base = JSON.replace("\"nodes\"", "HIDDEN\"nodes\"");
+        DungeonDef none = DungeonDef.fromJson(T + "frostworks", JsonParser.parseString(JSON).getAsJsonObject());
+        check(none.hiddenOre() == null, "no hiddenOre field, no hidden ore");
+
+        DungeonDef plain = DungeonDef.fromJson(T + "frostworks", JsonParser.parseString(
+                base.replace("HIDDEN", "\"hiddenOre\": {},\n")).getAsJsonObject());
+        DungeonDef.HiddenOre defaults = plain.hiddenOre();
+        check(defaults != null && defaults.pocketsMin() == 0 && defaults.pocketsMax() == 2
+                && defaults.sizeMin() == 1 && defaults.sizeMax() == 3 && defaults.blocks().isEmpty(),
+                "an empty hiddenOre object takes the defaults");
+        check(defaults.blocksOr(List.of("minecraft:coal_ore", "minecraft:stone")).equals(List.of("minecraft:coal_ore")),
+                "no blocks declared: the non-structural palette");
+        check(problems(plain).stream().noneMatch(p -> p.contains("hiddenOre")), "defaults over an ore palette are sound");
+
+        DungeonDef declared = DungeonDef.fromJson(T + "frostworks", JsonParser.parseString(
+                base.replace("HIDDEN", "\"hiddenOre\": {\"pocketsMax\": 3, \"sizeMax\": 2, "
+                        + "\"blocks\": [\"coal_ore\", \"coal_ore\", \"gold_ore\"]},\n")).getAsJsonObject());
+        check(declared.hiddenOre().pocketsMax() == 3 && declared.hiddenOre().sizeMax() == 2, "declared bounds read");
+        check(declared.hiddenOre().blocks().equals(List.of("minecraft:coal_ore", "minecraft:coal_ore",
+                "minecraft:gold_ore")), "declared blocks keep their repeats (weights) and take the minecraft namespace");
+
+        check(!new DungeonDef.HiddenOre(0, 2, 1, 3, List.of("minecraft:coal_ore")).problems(List.of()).stream()
+                .findAny().isPresent(), "a sound declaration has no problems");
+        check(!new DungeonDef.HiddenOre(3, 2, 1, 3, List.of("minecraft:coal_ore")).problems(List.of()).isEmpty(),
+                "pocketsMax below pocketsMin");
+        check(!new DungeonDef.HiddenOre(0, 9, 1, 3, List.of("minecraft:coal_ore")).problems(List.of()).isEmpty(),
+                "too many pockets");
+        check(!new DungeonDef.HiddenOre(0, 2, 0, 3, List.of("minecraft:coal_ore")).problems(List.of()).isEmpty(),
+                "size below one");
+        check(!new DungeonDef.HiddenOre(0, 2, 4, 3, List.of("minecraft:coal_ore")).problems(List.of()).isEmpty(),
+                "sizeMax below sizeMin");
+        check(!new DungeonDef.HiddenOre(0, 2, 1, 3, List.of()).problems(List.of()).isEmpty(),
+                "no blocks and no palette");
+        check(!new DungeonDef.HiddenOre(0, 2, 1, 3, List.of("minecraft:stone")).problems(List.of()).isEmpty(),
+                "a structural block would make walls mineable");
+        check(problems(new DungeonDef(T + "frostworks", "Frostworks", 2, DungeonDef.Kind.STORY, T + "frostworks",
+                new DungeonDef.LootBand(2, 3), List.of("minecraft:iron_ore"), "", "", null,
+                valid().nodes(), valid().edges(), new DungeonDef.HiddenOre(5, 1, 1, 3, List.of())))
+                .stream().anyMatch(p -> p.contains("hiddenOre")), "the dungeon reports a bad hiddenOre");
+    }
+
     private static void testNodeLight() {
         DungeonDef plain = DungeonDef.fromJson(T + "x", JsonParser.parseString(JSON).getAsJsonObject());
         check(plain.node("a").light().equals("lit"), "light defaults lit");

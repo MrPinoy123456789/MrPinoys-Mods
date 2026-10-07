@@ -389,3 +389,91 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** start the server on a copy of a pre-branch world; join as a keystone 15 or higher player and as a low one, one of whom had chosen a now hidden bag.
 - **Pass:** no stack trace on load; the high player sees Act 2 and 3 dungeons and the low one only Act 1; the hidden bag still gives its kit.
 - **Fail signs:** a decode error in the log; a high player reset to Act 1; a kit refill at the bank.
+
+## L38. 2026-10-06: the Store is one row you click
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-159, `StoreNPC.openShop`): the Store opens a one row shop; a click takes one, the stock is claimed with the delivery, and a bought stack is the plain item.
+- **Do:** Open a Store. Left click and right click an item. Buy a log twice with a log already in the pack. Stand with too little of the currency. Buy a line out.
+- **Pass:** Both clicks buy one and hand it over; the log stacks with the one you had; the price reads red when you cannot pay; a sold out line becomes a gray pane named sold out and refuses.
+- **Fail signs:** An item that does not arrive but costs stock; a bought stack that will not stack; a price that stays gold when short.
+
+## L39. 2026-10-06: diary entry 8 reads whole
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-157, `BookPages`): a long diary page is split over as many book pages as it needs, at a paragraph, then a sentence, then a word.
+- **Do:** Finish the Mineshaft (or have the owner hand over entry 8, The First Pick) and open the book.
+- **Pass:** Every sentence is there, none cut off at the foot of a page, no blank page.
+- **Fail signs:** Text that stops at the bottom of page 1; a blank page.
+
+## L40. 2026-10-06: a Mineshaft floor 1 has ore
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-149, `LayoutPlanner.plan`): a resource floor whose plan fits none of its ore rooms retries the next seed.
+- **Do:** Start the Mineshaft three times and read the floor_complete line of floor 1 each time.
+- **Pass:** `nodes_total` is above 0 on floor 1 every time, and the player can see ore.
+- **Fail signs:** A floor 1 of only generic halls with `nodes_total` 0.
+
+## L41. 2026-10-06: a flooded hall entered from outside
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, `IronDoorLatch`): the flooded hall's containment doors are latches. The button they used to have sat in the water and was washed off.
+- **Do:** Bias to `flooded_hall` and enter it from the west door, then from the east. Click the iron door from the dry side.
+- **Pass:** Both leaves open on a click from either side, stay open about three seconds, then close; no button anywhere; the water stays in.
+- **Fail signs:** A door that will not open from outside; water pouring out through an open door for longer than three seconds.
+
+## L42. 2026-10-06: the connector lever is on another wall
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, PD-55, `ConnectorStamper.applyIronDoor`): a connector iron door's lever moves off the frame to another wall of the near room, and the far room gets a stone button.
+- **Do:** Find a connector iron door (about one door edge in ten). Look for the lever in the room before it; walk through, turn round and find the button.
+- **Pass:** The lever is on a different wall at head height and works the door; the stone button on the far side opens it too; clicking the shut door with neither says The lever is in this room.
+- **Fail signs:** A lever on the frame again; a lever in water or inside a wall; a far side with no way to open.
+
+## L43. 2026-10-06: the omen bar is full and red at 4/4
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-158, `OmenBar.sync`): during a floor the bar fills by floor omen over 4 and colours green (0 to 1), yellow (2 to 3), red (4).
+- **Do:** Raise the floor omen to 2, 3 and 4 by dying, eating and lingering, and watch the bar.
+- **Pass:** The fill steps in quarters and is full at 4/4; the colour goes green, yellow, red; one more fall ends the run shows from omen 3.
+- **Fail signs:** A part filled bar at 4/4.
+
+## L44. 2026-10-06: doors behind one edge differ in affixes
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 3, `DoorAffixes`): doors that lead to the same floor reroll their seeded affixes until no two are twins.
+- **Do:** At a node with one edge, at compass 5 or higher, preview the three doors.
+- **Pass:** The three doors show different affixes (at compass 5 only the step differs, by design); no `Same as door` line.
+- **Fail signs:** Two doors with the same floor, step, affixes and price.
+
+## L45. 2026-10-06: resource doors show scrap and ore
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design items 1 and 6, `DungeonScreen.previewContent`): Mineshaft floors pay chart scrap like any floor, and the door board shows the ore as plain words.
+- **Do:** Preview each Mineshaft door. Read the title, the name, the cyan line and the loot line. On a capstone door read the title width.
+- **Pass:** Title `MINESHAFT - floor N of 3` (middle dot) in yellow; cyan line `2 scrap` then coal, copper, iron, gold; `loot x3` in green; dim or dark on its own line. Titles fit the backdrop; the Wither's Keep and Spawner Dungeon titles measure about 8.4 and 9.3 blocks on an 8 block backdrop, so note how they look.
+- **Fail signs:** No scrap on a resource door; labels like Rewards: or Resources:; a title that runs off the panel.
+
+## L46. 2026-10-06: GO HOME reads scrap and charts
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 2, `IntervalBanking.homeScreen`): the GO HOME board is a title and a body: scrap carried, then what it comes to.
+- **Do:** Go home with 3, 5, 7 and 10 scrap carried (or read the board at each step of a trip).
+- **Pass:** 3 scrap over 2 more for a chart (gold); 5 scrap over 1 chart (green); 7 scrap over 1 chart, a middle dot, 2 scrap lost (gray); 10 scrap over 2 charts. Nothing carried reads no scrap yet. The banked chat line says N scrap lost.
+- **Fail signs:** The old Take home or DUNGEON CLEARED: GO HOME wording on the wall.
+
+## L47. 2026-10-06: hidden ore is found by digging
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 7, `HiddenOrePlanner`): Mineshaft rock holds a few buried pockets of one to three ore blocks, counted as nodes.
+- **Do:** Dig into the walls of mineshaft_seam and other Mineshaft rooms with the right pick.
+- **Pass:** Some digs find a pocket of 1 to 3 ore; none shows from the corridor before it is dug; `nodes_total` counts it and `nodes_mined` rises when it is mined.
+- **Fail signs:** Ore visible from inside the room before digging; ore in the wall ring.
+
+## L48. 2026-10-06: Dungeon Storage survives a logout and a teardown
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 5, `RunStorage`): the storage chest is a 27 slot container saved in `DungeonLog`; nothing moves it when a run ends.
+- **Do:** Put items in the staging room's ender chest (titled Dungeon Storage), log out and back in, finish or fail a run, start another and open it again. Then die at max omen after adding loot.
+- **Pass:** The items are still in their slots after the logout and the teardown and nothing went to the pack; a max omen death returns the storage to how it was when the interval began (earlier trips' items safe, this interval's stashed loot gone).
+- **Fail signs:** An empty storage after a run closes; a stored item in the pack instead; a duplicate after the death.

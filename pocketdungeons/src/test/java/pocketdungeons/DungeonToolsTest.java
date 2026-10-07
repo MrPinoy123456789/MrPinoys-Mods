@@ -44,8 +44,10 @@ public class DungeonToolsTest {
                 "stone pickaxe cap is 12");
         check(DungeonTools.durabilityCap(Items.IRON_PICKAXE), 16,
                 "iron pickaxe cap is 16");
-        check(DungeonTools.durabilityCap(Items.DIAMOND_PICKAXE), 20,
-                "diamond pickaxe cap is 20");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_PICKAXE), 32,
+                "diamond pickaxe cap is 32");
+        check(DungeonTools.durabilityCap(Items.NETHERITE_PICKAXE), 48,
+                "netherite pickaxe cap is 48");
         check(DungeonTools.durabilityCap(Items.STONE_AXE), 12,
                 "stone axe cap is 12");
         check(DungeonTools.durabilityCap(Items.STONE_SHOVEL), 12,
@@ -58,8 +60,8 @@ public class DungeonToolsTest {
                 "stone sword cap is 40");
         check(DungeonTools.durabilityCap(Items.IRON_SWORD), 64,
                 "iron sword cap is 64");
-        check(DungeonTools.durabilityCap(Items.DIAMOND_SWORD), 96,
-                "diamond sword cap is 96");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_SWORD), 128,
+                "diamond sword cap is 128");
         check(DungeonTools.durabilityCap(Items.BOW), 64,
                 "bow cap is 64");
         check(DungeonTools.durabilityCap(Items.TRIDENT), 96,
@@ -68,8 +70,12 @@ public class DungeonToolsTest {
                 "leather helmet cap is 32");
         check(DungeonTools.durabilityCap(Items.IRON_CHESTPLATE), 64,
                 "iron chestplate cap is 64");
-        check(DungeonTools.durabilityCap(Items.DIAMOND_BOOTS), 96,
-                "diamond boots cap is 96");
+        check(DungeonTools.durabilityCap(Items.DIAMOND_BOOTS), 144,
+                "diamond boots cap is 144");
+        check(DungeonTools.durabilityCap(Items.NETHERITE_SWORD), 192,
+                "netherite sword cap is 192");
+        check(DungeonTools.durabilityCap(Items.NETHERITE_BOOTS), 192,
+                "netherite boots cap is 192");
         check(DungeonTools.durabilityCap(Items.IRON_SWORD) > DungeonTools.durabilityCap(Items.IRON_PICKAXE),
                 "a weapon is capped more gently than a tool of the same material");
 
