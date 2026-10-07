@@ -22,7 +22,7 @@ public class BossRulesTest {
     private static final Path DATA = Path.of("src/main/resources/data/pocketdungeons");
 
     private static final String SHAPE = """
-            {"name": "NAME", "act": 4, "kind": "KIND", "mainTheme": "frostworks",
+            {"name": "NAME", "act": 4, "baseLevel": 1, "kind": "KIND", "mainTheme": "frostworks",
              "lootBand": {"min": 3, "max": 4},
              "nodes": [
                {"id": "gate", "name": "Gate", "layer": 1},

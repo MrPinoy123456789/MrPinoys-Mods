@@ -155,6 +155,13 @@ confirmed by the owner on 2026-10-05.
     a chart per typical trip. A floor far beneath a member's compass pays them
     less: `scrap - (member level - floor level)`, floored at 0, settled per
     member. Carried progress between trips is gone.
+  - **2026-10-06 rework: authored floor levels.** A dungeon declares
+    `baseLevel` (the entry floor's level); a node's floor runs at
+    `baseLevel + layer - 1` unless the node pins its own `level`. A node's
+    level may never drop below a node feeding it (the validator reports it).
+    Floor level is a property of the dungeon, not of the member's compass:
+    `FloorLevels.of` is the single read, and a door's level is the node's
+    level plus the dealt step.
   - **Promised rewards.** A node may author `rewards` (item and count); the
     door advertises them and a copper chest on the reward floor holds them.
     The three completion chests are one barrel holding every roll (the finish

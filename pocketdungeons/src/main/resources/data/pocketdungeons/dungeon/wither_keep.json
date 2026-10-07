@@ -1,6 +1,7 @@
 {
   "name": "The Wither's Keep",
   "act": 4,
+  "baseLevel": 20,
   "kind": "capstone",
   "mainTheme": "wither_keep",
   "lootBand": {

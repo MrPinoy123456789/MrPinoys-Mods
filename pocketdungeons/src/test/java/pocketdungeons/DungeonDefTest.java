@@ -58,6 +58,7 @@ public class DungeonDefTest {
         testShippedDungeons();
         testNodeLight();
         testHiddenOre();
+        testFloorLevels();
         System.out.println("DungeonDefTest: all checks passed");
     }
 
@@ -136,7 +137,7 @@ public class DungeonDefTest {
 
     private static final String JSON = """
             {
-              "name": "Frostworks", "act": 2, "kind": "dungeon", "mainTheme": "frostworks",
+              "name": "Frostworks", "act": 2, "baseLevel": 1, "kind": "dungeon", "mainTheme": "frostworks",
               "lootBand": {"min": 2, "max": 3},
               "nodePalette": ["iron_ore", "minecraft:diamond_ore"],
               "merchant": "frost_buyer", "diary": "entry_9",
@@ -303,6 +304,51 @@ public class DungeonDefTest {
     private static void testValidBaseline() {
         expectClean(valid(), "baseline story dungeon");
         check(valid().layers() == 4, "baseline has four layers");
+    }
+
+    // ---- floor levels (D26) -----------------------------------------------------
+
+    private static DungeonDef.Node leveled(String id, int layer, int level) {
+        return new DungeonDef.Node(id, id, layer, "", "", List.of(), 0, false, "lit",
+                List.of(), DungeonDef.Node.INHERIT_NODE_ROOMS, level);
+    }
+
+    private static DungeonDef based(int baseLevel, List<DungeonDef.Node> nodes, List<DungeonDef.Edge> edges) {
+        return new DungeonDef(T + "frostworks", "Frostworks", 2, DungeonDef.Kind.DUNGEON, T + "frostworks",
+                new DungeonDef.LootBand(2, 3), List.of("minecraft:iron_ore"), "", "", null, nodes, edges,
+                null, 0, baseLevel);
+    }
+
+    private static void testFloorLevels() {
+        // Derived: baseLevel + layer - 1.
+        DungeonDef base = based(5, List.of(n("a", 1), n("b", 2), n("c", 2), n("d", 3), fin("z", 4)),
+                List.of(e("a", "b"), e("a", "c"), e("b", "d"), e("c", "d"), e("d", "z")));
+        expectClean(base, "derived levels rise with the layer");
+        check(FloorLevels.of(base, "a") == 5, "the entry floor runs at baseLevel");
+        check(FloorLevels.of(base, "d") == 7, "layer 3 runs at baseLevel + 2");
+        check(FloorLevels.of(base, "z") == 8, "the final runs at baseLevel + 3");
+        check(FloorLevels.of(base, "ghost") == 5, "an unknown node falls back to baseLevel");
+        check(FloorLevels.of(base, (DungeonDef.Node) null) == 5, "a missing node falls back to baseLevel");
+
+        // Declared level wins over the derived one.
+        DungeonDef pinned = based(5, List.of(n("a", 1), n("b", 2), fin("z", 3),
+                leveled("boss", 4, 20)),
+                List.of(e("a", "b"), e("b", "z"), e("z", "boss")));
+        check(FloorLevels.of(pinned, "boss") == 20, "a declared node level wins");
+
+        // A declared level may not drop below a node feeding it.
+        DungeonDef drops = based(5, List.of(leveled("a", 1, 10), n("b", 2), fin("z", 3)),
+                List.of(e("a", "b"), e("b", "z")));
+        expectProblem(drops, "drops below", "a derived level below a declared feeder");
+
+        // baseLevel is required and at least 1.
+        expectThrows(() -> based(0, List.of(n("a", 1), fin("z", 2)), List.of(e("a", "z"))),
+                "baseLevel below 1");
+        expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
+                JSON.replace("\"baseLevel\": 1,", "")).getAsJsonObject()), "missing baseLevel");
+        expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
+                JSON.replace("\"layer\": 2, \"signatureAffix", "\"layer\": 2, \"level\": 0, \"signatureAffix"))
+                .getAsJsonObject()), "node level of 0");
     }
 
     private static void testLayerCount() {

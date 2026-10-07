@@ -1,6 +1,7 @@
 {
   "name": "Blackstone",
   "act": 4,
+  "baseLevel": 18,
   "kind": "dungeon",
   "mainTheme": "blackstone",
   "lootBand": {

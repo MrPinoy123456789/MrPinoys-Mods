@@ -26,7 +26,7 @@ public class TripDoorsTest {
 
     /** Frostworks shaped: a fork, a one edge node, a two edge node with a side branch, a final. */
     private static final String FROST = """
-            {"name": "Frostworks", "act": 2, "kind": "dungeon", "mainTheme": "frostworks",
+            {"name": "Frostworks", "act": 2, "baseLevel": 1, "kind": "dungeon", "mainTheme": "frostworks",
              "lootBand": {"min": 2, "max": 3},
              "nodes": [
                {"id": "gate", "name": "Frozen Gate", "layer": 1},
@@ -51,7 +51,7 @@ public class TripDoorsTest {
             """;
 
     private static final String MINE = """
-            {"name": "Mineshaft", "act": 1, "kind": "dungeon", "mainTheme": "rootworks",
+            {"name": "Mineshaft", "act": 1, "baseLevel": 1, "kind": "dungeon", "mainTheme": "rootworks",
              "lootBand": {"min": 1, "max": 1},
              "nodes": [
                {"id": "adit", "name": "The Adit", "layer": 1},
@@ -144,7 +144,7 @@ public class TripDoorsTest {
         }
         // Three edges never repeat.
         DungeonDef three = DungeonDef.fromJson(T + "three", JsonParser.parseString("""
-                {"name": "Three", "act": 1, "kind": "dungeon", "mainTheme": "rootworks",
+                {"name": "Three", "act": 1, "baseLevel": 1, "kind": "dungeon", "mainTheme": "rootworks",
                  "lootBand": {"min": 1, "max": 1},
                  "nodes": [{"id": "a", "name": "A", "layer": 1}, {"id": "b", "name": "B", "layer": 2},
                            {"id": "c", "name": "C", "layer": 2}, {"id": "d", "name": "D", "layer": 2},
@@ -239,7 +239,7 @@ public class TripDoorsTest {
 
     private static void testFirstDoorsOfferUnlockedDungeons() {
         DungeonDef endless = DungeonDef.fromJson(T + "endless_mine", JsonParser.parseString("""
-                {"name": "Endless Mine", "act": 1, "kind": "endless", "mainTheme": "rootworks",
+                {"name": "Endless Mine", "act": 1, "baseLevel": 1, "kind": "endless", "mainTheme": "rootworks",
                  "lootBand": {"min": 1, "max": 1},
                  "nodes": [{"id": "face", "name": "Face", "layer": 1}], "edges": []}
                 """).getAsJsonObject());

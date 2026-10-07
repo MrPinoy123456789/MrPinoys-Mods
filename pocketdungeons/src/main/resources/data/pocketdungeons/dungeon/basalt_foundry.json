@@ -1,6 +1,7 @@
 {
   "name": "Basalt Foundry",
   "act": 4,
+  "baseLevel": 16,
   "kind": "dungeon",
   "mainTheme": "basalt_foundry",
   "lootBand": {

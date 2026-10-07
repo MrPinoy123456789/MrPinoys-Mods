@@ -1,6 +1,7 @@
 {
   "name": "Herobrine",
   "act": 5,
+  "baseLevel": 25,
   "kind": "capstone",
   "mainTheme": "herobrine",
   "lootBand": {

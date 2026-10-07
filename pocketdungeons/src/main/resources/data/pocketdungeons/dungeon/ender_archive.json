@@ -1,6 +1,7 @@
 {
   "name": "Ender Archive",
   "act": 5,
+  "baseLevel": 21,
   "kind": "dungeon",
   "mainTheme": "ender_archive",
   "lootBand": {

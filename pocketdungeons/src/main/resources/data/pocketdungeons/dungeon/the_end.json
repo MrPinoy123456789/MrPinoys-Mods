@@ -1,6 +1,7 @@
 {
   "name": "The End",
   "act": 5,
+  "baseLevel": 23,
   "kind": "dungeon",
   "mainTheme": "the_end",
   "lootBand": {

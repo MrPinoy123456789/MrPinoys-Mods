@@ -192,8 +192,10 @@ final class Keystone {
             String theme = mine ? EndlessMineRules.MINE_THEME_ID : null;
             offers = new Offer[TripDoors.DOOR_COUNT];
             for (int i = 0; i < offers.length; i++) {
-                offers[i] = new Offer(KeystoneMath.upgrade(level, steps[i], max), Set.of(), steps[i], theme,
-                        Tier.FREE);
+                int floorLevel = mine
+                        ? EndlessMineRules.floorLevel(record.interval.floorIndex + 1, steps[i])
+                        : KeystoneMath.upgrade(level, steps[i], max);
+                offers[i] = new Offer(floorLevel, Set.of(), steps[i], theme, Tier.FREE);
             }
         } else {
             offers = new Offer[doors.length];
@@ -236,7 +238,8 @@ final class Keystone {
         String theme = node == null ? null : node.overridesTheme() ? node.theme() : def.mainTheme();
         Set<String> signature = node == null || node.signatureAffix().isEmpty()
                 ? Set.of() : Set.of(node.signatureAffix());
-        return new Offer(KeystoneMath.upgrade(level, door.step(), max), signature, door.step(), theme,
+        int floorLevel = FloorLevels.of(def, door.nodeId());
+        return new Offer(KeystoneMath.upgrade(floorLevel, door.step(), max), signature, door.step(), theme,
                 Tier.FREE, door);
     }
 

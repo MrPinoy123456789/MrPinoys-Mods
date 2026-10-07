@@ -1,6 +1,7 @@
 {
   "name": "Copper Works",
   "act": 2,
+  "baseLevel": 8,
   "kind": "dungeon",
   "mainTheme": "copper_works",
   "lootBand": {

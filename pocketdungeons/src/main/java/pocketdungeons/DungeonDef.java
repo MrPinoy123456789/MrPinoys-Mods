@@ -35,17 +35,21 @@ import java.util.function.ToIntFunction;
  *                    (design 2026-10-06-1 item 7), or null for none
  * @param minNodeRooms how many node-bearing rooms every floor must place (the PD-149
  *                     guarantee as data); a node may override it
+ * @param baseLevel    the level of the entry floor (design D26); a floor at layer L
+ *                     defaults to {@code baseLevel + L - 1}, a node may override with
+ *                     {@code level}
  */
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
-                  List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms) {
+                  List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
+                  int baseLevel) {
 
     /** A dungeon with no hidden ore and no node room guarantee. */
     DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                List<String> nodePalette, String merchant, String diary, Deviation deviation,
                List<Node> nodes, List<Edge> edges) {
         this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
-                null, 0);
+                null, 0, 1);
     }
 
     /** A dungeon with hidden ore and no node room guarantee. */
@@ -53,7 +57,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                List<String> nodePalette, String merchant, String diary, Deviation deviation,
                List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre) {
         this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
-                hiddenOre, 0);
+                hiddenOre, 0, 1);
     }
 
     /** What a dungeon is for (design D12, revised 2026-10-06). */
@@ -191,10 +195,12 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      * dark node darkens every room that does not say {@code requiresLight}, and the
      * Feral affix is not dealt on it. {@code minNodeRooms} overrides the dungeon's own
      * node room guarantee for this floor; {@link #INHERIT_NODE_ROOMS} means inherit.
+     * {@code level} (D26) overrides the floor's level; {@link #UNSET_LEVEL} means
+     * {@code baseLevel + layer - 1} ({@link FloorLevels}).
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
-                List<Reward> rewards, int minNodeRooms) {
+                List<Reward> rewards, int minNodeRooms, int level) {
 
         static final String LIGHT_LIT = "lit";
         static final String LIGHT_DIM = "dim";
@@ -203,11 +209,14 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         /** {@link #minNodeRooms} value meaning "use the dungeon's own {@code minNodeRooms}". */
         static final int INHERIT_NODE_ROOMS = -1;
 
+        /** {@link #level} value meaning "derive the floor level from the layer". */
+        static final int UNSET_LEVEL = -1;
+
         /** A node with the default light ({@code lit}) and no promised rewards. */
         Node(String id, String name, int layer, String theme, String signatureAffix,
              List<String> roomBias, int roomCount, boolean isFinal) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT,
-                    List.of(), INHERIT_NODE_ROOMS);
+                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL);
         }
 
         /** A node with light and rewards, inheriting the dungeon's node room guarantee. */
@@ -215,7 +224,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
              List<String> roomBias, int roomCount, boolean isFinal, String light,
              List<Reward> rewards) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
-                    INHERIT_NODE_ROOMS);
+                    INHERIT_NODE_ROOMS, UNSET_LEVEL);
         }
 
         /**
@@ -264,6 +273,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
             if (minNodeRooms < INHERIT_NODE_ROOMS) {
                 throw new IllegalArgumentException("node minNodeRooms must be >= 0 when present: " + id);
+            }
+            if (level < UNSET_LEVEL || level == 0) {
+                throw new IllegalArgumentException("node level must be >= 1 when present: " + id);
             }
         }
 
@@ -314,6 +326,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         edges = List.copyOf(edges);
         if (minNodeRooms < 0) {
             throw new IllegalArgumentException("minNodeRooms must be >= 0: " + id);
+        }
+        if (baseLevel < 1) {
+            throw new IllegalArgumentException("baseLevel must be >= 1: " + id);
         }
         if (nodes.isEmpty()) {
             throw new IllegalArgumentException("a dungeon needs at least one node: " + id);
@@ -455,6 +470,20 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             if (count.getValue() > MAX_EDGES_OUT) {
                 out.add("node " + count.getKey() + " has " + count.getValue() + " edges out; the most allowed is "
                         + MAX_EDGES_OUT);
+            }
+        }
+        // D26: difficulty never eases as a path deepens; a node's level (declared or
+        // derived from its layer) must be at least the level of every node feeding it.
+        Map<String, Integer> effectiveLevels = new HashMap<>();
+        for (Node node : nodes) {
+            effectiveLevels.put(node.id(), FloorLevels.of(this, node));
+        }
+        for (Edge edge : edges) {
+            int fromLevel = effectiveLevels.get(edge.from());
+            int toLevel = effectiveLevels.get(edge.to());
+            if (toLevel < fromLevel) {
+                out.add("node " + edge.to() + " (level " + toLevel + ") drops below "
+                        + edge.from() + " (level " + fromLevel + ") along its edge");
             }
         }
         if (hasCycle()) {
@@ -619,6 +648,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         String merchant = optionalString(obj, "merchant");
         String diary = optionalString(obj, "diary");
         int minNodeRooms = obj.has("minNodeRooms") ? requiredInt(obj, "minNodeRooms") : 0;
+        int baseLevel = requiredInt(obj, "baseLevel");
 
         Deviation deviation = null;
         if (obj.has("deviation") && obj.get("deviation").isJsonObject()) {
@@ -673,7 +703,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     node.has("light") && !node.get("light").isJsonNull()
                             ? node.get("light").getAsString().trim() : Node.LIGHT_LIT,
                     rewards,
-                    node.has("minNodeRooms") ? requiredInt(node, "minNodeRooms") : Node.INHERIT_NODE_ROOMS));
+                    node.has("minNodeRooms") ? requiredInt(node, "minNodeRooms") : Node.INHERIT_NODE_ROOMS,
+                    node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {
@@ -682,7 +713,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     edge.has("cost") ? requiredInt(edge, "cost") : 0));
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
-                deviation, nodes, edges, hiddenOre, minNodeRooms);
+                deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel);
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */

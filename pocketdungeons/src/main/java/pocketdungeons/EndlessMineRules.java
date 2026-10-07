@@ -146,6 +146,21 @@ final class EndlessMineRules {
         return band.clamp(band.min() + Math.max(0, floor - layerStart(layer)) / 3);
     }
 
+    /** The floor level each layer's act begins at (D26): acts 1 to 4 begin at 1, 6, 13, 16. */
+    private static final int[] ACT_BASE_LEVEL = {1, 6, 13, 16};
+
+    /**
+     * The level Mine floor number {@code floor} (from 1) runs at: its layer's
+     * act base plus the floors into the layer, plus the dealt door step. Same
+     * rule {@link FloorLevels} gives a graph dungeon, spelled out in floors
+     * because the Mine has no nodes.
+     */
+    static int floorLevel(int floor, int step) {
+        int layer = layerOf(floor);
+        return ACT_BASE_LEVEL[actForLayer(layer) - 1]
+                + Math.max(0, floor - layerStart(layer)) + Math.max(0, step);
+    }
+
     /** Whether {@code floor} is the first floor of a layer past the first (a layer transition). */
     static boolean isTransition(int floor) {
         return floor > 1 && layerStart(layerOf(floor)) == floor;

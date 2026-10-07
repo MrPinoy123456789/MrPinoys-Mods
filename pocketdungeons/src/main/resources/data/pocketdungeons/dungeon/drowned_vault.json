@@ -1,6 +1,7 @@
 {
   "name": "Drowned Vault",
   "act": 3,
+  "baseLevel": 15,
   "kind": "capstone",
   "mainTheme": "drowned_vault",
   "lootBand": {

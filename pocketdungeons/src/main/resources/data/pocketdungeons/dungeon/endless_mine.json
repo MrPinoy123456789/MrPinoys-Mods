@@ -1,6 +1,7 @@
 {
   "name": "Endless Mine",
   "act": 1,
+  "baseLevel": 1,
   "kind": "endless",
   "mainTheme": "endless_mine",
   "lootBand": {

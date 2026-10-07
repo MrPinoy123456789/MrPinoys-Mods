@@ -211,7 +211,7 @@ public class ActUnlockTest {
         // The counter is the first door's salt: it changes the deal between trips.
         List<DungeonDef> eligible = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
-            String json = "{\"name\": \"D" + i + "\", \"act\": 1, \"kind\": \"dungeon\","
+            String json = "{\"name\": \"D" + i + "\", \"act\": 1, \"baseLevel\": 1, \"kind\": \"dungeon\","
                     + " \"mainTheme\": \"rootworks\", \"lootBand\": {\"min\": 1, \"max\": 2},"
                     + " \"nodes\": [{\"id\": \"a\", \"name\": \"A\", \"layer\": 1},"
                     + " {\"id\": \"b\", \"name\": \"B\", \"layer\": 2, \"final\": true}],"

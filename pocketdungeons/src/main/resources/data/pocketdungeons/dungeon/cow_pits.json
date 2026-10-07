@@ -1,6 +1,7 @@
 {
   "name": "Cow Pits",
   "act": 2,
+  "baseLevel": 6,
   "kind": "dungeon",
   "minNodeRooms": 1,
   "mainTheme": "cow_pits",

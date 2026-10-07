@@ -1,6 +1,7 @@
 {
   "name": "Frostworks",
   "act": 2,
+  "baseLevel": 10,
   "kind": "dungeon",
   "mainTheme": "frostworks",
   "lootBand": {

@@ -51,7 +51,7 @@ public class NodePaletteTest {
     }
 
     private static void testValidatorFinding() {
-        String json = "{\"name\": \"T\", \"act\": 1, \"kind\": \"dungeon\", \"mainTheme\": \"infestation\","
+        String json = "{\"name\": \"T\", \"act\": 1, \"baseLevel\": 1, \"kind\": \"dungeon\", \"mainTheme\": \"infestation\","
                 + " \"lootBand\": {\"min\": 1, \"max\": 2}, \"nodePalette\": [\"coal_ore\", \"stone\", \"oak_planks\"],"
                 + " \"nodes\": [{\"id\": \"a\", \"name\": \"A\", \"layer\": 1}, {\"id\": \"b\", \"name\": \"B\", \"layer\": 2},"
                 + " {\"id\": \"c\", \"name\": \"C\", \"layer\": 3, \"final\": true}],"

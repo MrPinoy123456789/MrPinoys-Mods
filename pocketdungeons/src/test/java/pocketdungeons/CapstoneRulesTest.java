@@ -19,7 +19,7 @@ public class CapstoneRulesTest {
     private static final UUID OWNER = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
 
     private static final String SHAPE = """
-            {"name": "NAME", "act": ACT, "kind": "KIND", "mainTheme": "frostworks",
+            {"name": "NAME", "act": ACT, "baseLevel": 1, "kind": "KIND", "mainTheme": "frostworks",
              "lootBand": {"min": 1, "max": 2},
              "nodes": [
                {"id": "gate", "name": "Gate", "layer": 1},
