@@ -102,6 +102,8 @@ confirmed by the owner on 2026-10-05.
   Each door shows floor name, step, affix, loot tier and scrap cost. Steps of
   later floors are hidden until you get there (rolled on arrival). This also
   answers the 2026-10-02-1 ask for diagrams over text on the go-home screen.
+  Amended 2026-10-06 (D23): the first map also lists the open act's locked
+  dungeons, each as `Name · compass N`.
 
 - **D6a. One main theme; floors and rooms may deviate a bit.** Every kind of
   dungeon (dungeon, capstone, endless) has one main theme, but a floor
@@ -207,7 +209,9 @@ confirmed by the owner on 2026-10-05.
   5 (which five is an audit question). Kit top-up and the bag chest refill are
   removed (L23 retires). Resource dungeons are the restock.
 - **D15. Party: the leader's progress sets the choices; any member can act.**
-  The leader's unlocked acts decide which dungeons and branches are offered. Any
+  The leader's unlocked acts and compass level decide which dungeons and
+  branches are offered (D23: a dungeon whose unlock level is above the
+  leader's compass is not dealt). Any
   member can pull a door lever, choose a branch or pull HOME. A leader setting,
   **whitelist only**, limits those decisions to listed members (joining is
   unchanged). Each member banks from their own key, as today.
@@ -533,7 +537,8 @@ decoration (W6, W7), and the room selector reading `dungeons`, `acts`,
 ## 11. As built: wave W7a (the Act 1 and Act 2 capstones, the capstone offer rule)
 
 **Capstone offer rule** (`TripDoors.pendingCapstone`, `TripDoors.dealFirst`, read in `Keystone.offers`).
-A capstone of act N is offered only when act N is unlocked (`eligibleFirst` already filters by act). On
+A capstone of act N is offered only when act N is unlocked and the leader's compass reaches its unlock level
+(`eligibleFirst` filters by both, D23). On
 top of that, the first staging room of a trip carries the *pending capstone* on door 1 or door 2 (a seeded
 pick of the two, never only door 3): the capstone dungeon of the lowest unlocked act whose capstone the
 player has not finished (`DungeonLog.Entry#dungeonsFinished`). It is guaranteed every trip until it is

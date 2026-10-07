@@ -141,22 +141,35 @@ public class CapstoneRulesTest {
         DungeonDef story = def("frostworks", 2, "dungeon");
         List<DungeonDef> all = List.of(vault, story, city, spawner);
 
-        check(TripDoors.pendingCapstone(all, Set.of(1), Set.of()) == spawner, "act 1 open: the spawner dungeon");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of()) == spawner,
+        check(TripDoors.pendingCapstone(all, Set.of(1), Set.of(), 25) == spawner, "act 1 open: the spawner dungeon");
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(), 25) == spawner,
                 "the lowest uncleared capstone wins while act 1's is pending");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(T + "spawner_dungeon")) == city,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(T + "spawner_dungeon"), 25) == city,
                 "act 1 cleared: the Ancient City is next");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon")) == city,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon"), 25) == city,
                 "a bare id in the finished set counts as the namespaced dungeon");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon", "ancient_city")) == null,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon", "ancient_city"), 25) == null,
                 "act 3 is not open, so its capstone is never pending");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3), Set.of("spawner_dungeon", "ancient_city")) == vault,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3), Set.of("spawner_dungeon", "ancient_city"), 25) == vault,
                 "act 3 open: the Drowned Vault");
         check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3),
-                Set.of("spawner_dungeon", "ancient_city", T + "drowned_vault")) == null, "all cleared: nothing pending");
-        check(TripDoors.pendingCapstone(List.of(story), Set.of(2), Set.of()) == null, "a story dungeon is never a capstone");
-        check(TripDoors.pendingCapstone(List.of(), Set.of(1), Set.of()) == null, "no dungeons, nothing pending");
-        check(TripDoors.pendingCapstone(all, Set.of(), Set.of()) == null, "no open act, nothing pending");
+                Set.of("spawner_dungeon", "ancient_city", T + "drowned_vault"), 25) == null,
+                "all cleared: nothing pending");
+        check(TripDoors.pendingCapstone(List.of(story), Set.of(2), Set.of(), 25) == null,
+                "an ordinary dungeon is never a capstone");
+        check(TripDoors.pendingCapstone(List.of(), Set.of(1), Set.of(), 25) == null,
+                "no dungeons, nothing pending");
+        check(TripDoors.pendingCapstone(all, Set.of(), Set.of(), 25) == null, "no open act, nothing pending");
+        // D23: a capstone whose unlock level the compass has not reached is not yet guaranteed.
+        DungeonDef high = DungeonDef.fromJson(T + "high_capstone", JsonParser.parseString(
+                SHAPE.replace("NAME", "high_capstone").replace("ACT", "1").replace("KIND", "capstone")
+                        .replace("\"baseLevel\": 1", "\"baseLevel\": 12")).getAsJsonObject());
+        check(TripDoors.pendingCapstone(List.of(spawner, high), Set.of(1), Set.of(), 4) == spawner,
+                "a locked capstone is not pending");
+        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 4) == null,
+                "a locked capstone alone means nothing pending");
+        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 12) == high,
+                "it becomes pending when the compass reaches it");
     }
 
     private static void testCapstoneGuaranteeStaysOffDoorThree() {

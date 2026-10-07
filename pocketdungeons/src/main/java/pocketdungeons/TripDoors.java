@@ -71,12 +71,34 @@ final class TripDoors {
     /**
      * The dungeons a trip may start in: ordinary and capstone kinds (never
      * endless, which is its own mode, D13) of an unlocked act, with one entry
-     * node. Sorted by id so the deal is independent of load order.
+     * node, and an {@link DungeonDef#unlockLevel() unlock level} the leader's
+     * compass has reached (D23). Sorted by id so the deal is independent of
+     * load order.
      */
-    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs) {
+    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                          int compass) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act()) && def.entry() != null) {
+            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+                    && def.entry() != null && def.unlockLevel() <= compass) {
+                out.add(def);
+            }
+        }
+        out.sort(Comparator.comparing(DungeonDef::id));
+        return out;
+    }
+
+    /**
+     * The act's dungeons the leader's compass has not reached (D23): open act,
+     * entry node, unlock level above {@code compass}. Sorted by id, for the
+     * staging map's locked lines.
+     */
+    static List<DungeonDef> lockedFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                        int compass) {
+        List<DungeonDef> out = new ArrayList<>();
+        for (DungeonDef def : all) {
+            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+                    && def.entry() != null && def.unlockLevel() > compass) {
                 out.add(def);
             }
         }
@@ -148,11 +170,13 @@ final class TripDoors {
      * offered once act N is open, because {@link #eligibleFirst} already filters by act; this
      * adds the guarantee on top, so a player who has opened an act but not cleared its capstone
      * is shown the capstone at the first door every trip until they do.
+     * A capstone whose {@link DungeonDef#unlockLevel() unlock level} the
+     * leader's compass has not reached is not yet guaranteed (D23).
      *
      * @param finishedDungeons the ids (bare or namespaced) of the dungeons the player has finished
      */
     static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
-                                      Set<String> finishedDungeons) {
+                                      Set<String> finishedDungeons, int compass) {
         Set<String> finished = new LinkedHashSet<>();
         for (String id : finishedDungeons) {
             finished.add(DungeonDef.qualify(id));
@@ -160,7 +184,8 @@ final class TripDoors {
         DungeonDef best = null;
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.CAPSTONE || def.entry() == null
-                    || !unlockedActs.contains(def.act()) || finished.contains(DungeonDef.qualify(def.id()))) {
+                    || !unlockedActs.contains(def.act()) || def.unlockLevel() > compass
+                    || finished.contains(DungeonDef.qualify(def.id()))) {
                 continue;
             }
             if (best == null || def.act() < best.act()

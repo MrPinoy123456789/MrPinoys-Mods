@@ -112,9 +112,16 @@ final class DungeonMapText {
 
     /**
      * The map before a dungeon is chosen: each door offers a dungeon. {@code
-     * lookup} resolves a dungeon id to its definition.
+     * lookup} resolves a dungeon id to its definition. {@code locked} lists
+     * the open act's dungeons the leader's compass has not reached (D23),
+     * each with its unlock level.
      */
     static List<Line> firstLines(TripDoors.Door[] doors, Function<String, DungeonDef> lookup) {
+        return firstLines(doors, lookup, List.of());
+    }
+
+    static List<Line> firstLines(TripDoors.Door[] doors, Function<String, DungeonDef> lookup,
+                                 List<DungeonDef> locked) {
         List<Line> out = new ArrayList<>();
         out.add(new Line("CHOOSE A DUNGEON", Tone.TITLE));
         out.add(new Line("The door you take picks the dungeon. Going home early banks what you cleared.",
@@ -135,6 +142,12 @@ final class DungeonMapText {
             }
             if (!finals.isEmpty()) {
                 out.add(new Line("    ends at " + String.join(", ", finals), Tone.FINAL));
+            }
+        }
+        if (!locked.isEmpty()) {
+            out.add(new Line("Locked", Tone.HEADING));
+            for (DungeonDef def : locked) {
+                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
             }
         }
         return out;

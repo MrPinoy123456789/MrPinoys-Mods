@@ -79,6 +79,8 @@ public class TripDoorsTest {
         testVariantsNumberTheCopies();
         testFinalNodeHasNoDoors();
         testFirstDoorsOfferUnlockedDungeons();
+        testCompassGatesDungeons();
+        testActOneOffersAtCompassOne();
         testFirstDoorsRepeatWhenFewDungeons();
         testReachability();
         testMapText();
@@ -244,13 +246,34 @@ public class TripDoorsTest {
                  "nodes": [{"id": "face", "name": "Face", "layer": 1}], "edges": []}
                 """).getAsJsonObject());
         List<DungeonDef> all = List.of(frost, mine, endless);
-        List<DungeonDef> act1 = TripDoors.eligibleFirst(all, Set.of(1));
+        List<DungeonDef> act1 = TripDoors.eligibleFirst(all, Set.of(1), 25);
         check(act1.size() == 1 && act1.get(0).id().equals(T + "mineshaft"),
                 "act 1 offers the mineshaft, never endless: " + act1);
-        List<DungeonDef> both = TripDoors.eligibleFirst(all, Set.of(1, 2));
+        List<DungeonDef> both = TripDoors.eligibleFirst(all, Set.of(1, 2), 25);
         check(both.size() == 2 && both.get(0).id().compareTo(both.get(1).id()) < 0, "sorted by id, endless excluded");
-        check(TripDoors.eligibleFirst(all, Set.of()).isEmpty(), "no unlocked act, no dungeon");
+        check(TripDoors.eligibleFirst(all, Set.of(), 25).isEmpty(), "no unlocked act, no dungeon");
         check(TripDoors.dealFirst(OWNER, List.of(), 0).length == 0, "nothing eligible deals nothing");
+    }
+
+    private static void testCompassGatesDungeons() {
+        DungeonDef late = DungeonDef.fromJson(T + "late",
+                JsonParser.parseString(FROST.replace("Frostworks", "Late")
+                        .replace("\"baseLevel\": 1", "\"baseLevel\": 8")).getAsJsonObject());
+        check(late.unlockLevel() == 8, "unlockLevel reads baseLevel");
+        List<DungeonDef> all = List.of(frost, mine, late);
+        // frost is act 2 baseLevel 1, mine act 1 baseLevel 1, late act 2 baseLevel 8.
+        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(mine)
+                && !TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(late),
+                "compass 7 does not see the level 8 dungeon");
+        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 8).contains(late),
+                "compass 8 unlocks it");
+        check(TripDoors.eligibleFirst(List.of(late), Set.of(2), 1).isEmpty(),
+                "a locked dungeon is never eligible");
+        check(TripDoors.lockedFirst(all, Set.of(1, 2), 7).equals(List.of(late)),
+                "the locked list holds what the compass has not reached");
+        check(TripDoors.lockedFirst(all, Set.of(1, 2), 25).isEmpty(), "nothing locked at compass 25");
+        check(TripDoors.lockedFirst(all, Set.of(1), 0).equals(List.of(mine)),
+                "locked hides closed acts but lists open ones the compass has not reached");
     }
 
     private static void testFirstDoorsRepeatWhenFewDungeons() {
@@ -376,6 +399,26 @@ public class TripDoorsTest {
             TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(def), 0);
             check(first[0].nodeId().equals(def.entry().id()), name + ": first door leads to the entry node");
         }
+    }
+
+    /** D23: a fresh compass still has somewhere to go. */
+    private static void testActOneOffersAtCompassOne() throws Exception {
+        List<DungeonDef> shipped = new ArrayList<>();
+        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon"};
+        for (String name : names) {
+            try (InputStream in = TripDoorsTest.class.getClassLoader()
+                    .getResourceAsStream("data/pocketdungeons/dungeon/" + name + ".json")) {
+                check(in != null, "shipped dungeon on the classpath: " + name);
+                shipped.add(DungeonDef.fromJson(T + name,
+                        JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8))
+                                .getAsJsonObject()));
+            }
+        }
+        check(!TripDoors.eligibleFirst(shipped, Set.of(1), 1).isEmpty(),
+                "act 1 at compass 1 offers at least one dungeon");
+        check(TripDoors.eligibleFirst(shipped, Set.of(1), 1).stream()
+                        .allMatch(d -> d.unlockLevel() <= 1),
+                "everything offered at compass 1 is unlocked");
     }
 
     // ---- helpers ------------------------------------------------------------------

@@ -170,11 +170,13 @@ final class Keystone {
         } else {
             DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
             java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
+            // D23: the leader's compass (their permanent chart level) gates which dungeons deal.
+            int compass = Math.max(1, entry.highestCharts());
             // Design section 11: an open act whose capstone is not cleared keeps its capstone on door 1
             // or 2 of every first staging room, so the Endless Mine's door 3 never hides it.
-            doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts),
+            doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts, compass),
                     entry.campaign().tripCounter(),
-                    TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished()));
+                    TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished(), compass));
             // D13: once Act 1's capstone has opened Act 2, the Endless Mine replaces door 3 of the
             // first staging room. It never appears later in a trip (a trip is one dungeon).
             DungeonDef mineDef = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);

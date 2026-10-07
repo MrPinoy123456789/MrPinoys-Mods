@@ -261,10 +261,16 @@ final class DialogScreens {
         }
         TripDoors.Door[] dealt = doors.toArray(new TripDoors.Door[0]);
         DungeonDef def = TripView.def(record);
-        List<DungeonMapText.Line> lines = def == null
-                ? DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id))
-                : DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
-                        record.interval.finished);
+        List<DungeonMapText.Line> lines;
+        if (def == null) {
+            java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, record.owner);
+            int compass = Math.max(1, entry.highestCharts());
+            lines = DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id),
+                    TripDoors.lockedFirst(DungeonDefs.current().all(), acts, compass));
+        } else {
+            lines = DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
+                    record.interval.finished);
+        }
         List<DialogBody> body = new ArrayList<>();
         for (DungeonMapText.Line line : lines) {
             body.add(DialogKit.text(Component.literal(line.text()).withStyle(toneColour(line.tone()))));

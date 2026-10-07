@@ -365,6 +365,16 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         return max;
     }
 
+    /**
+     * The compass level at which this dungeon unlocks (D23): a dungeon whose
+     * unlock level is above the leader's compass is not offered at the first
+     * door and is never the guaranteed capstone. Settled equal to
+     * {@link #baseLevel} (plan 2026-10-06-2 section B).
+     */
+    int unlockLevel() {
+        return baseLevel;
+    }
+
     /** The one node on layer 1, or null if there is not exactly one. */
     Node entry() {
         Node found = null;
