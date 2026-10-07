@@ -80,9 +80,9 @@ def spawner_config(prefix, tier, ominous, roster):
             {'data': eject_key, 'weight': 5},
             {'data': 'pocketdungeons:spawners/emeralds', 'weight': 5},
         ],
-        # K: our own ominous drops; vanilla's pays ominous bottles and cut trims.
+        # The sky drops are vanilla's splash potions (buffs and debuffs), not loot.
         'items_to_drop_when_ominous':
-            'pocketdungeons:spawners/items_to_drop_when_ominous',
+            'minecraft:spawners/trial_chamber/items_to_drop_when_ominous',
     }
 
 
