@@ -34,15 +34,15 @@ NORMAL = {1: (4, 2, 2, 1, 40), 2: (6, 3, 2, 1, 30), 3: (8, 4, 3, 1, 20)}
 # Ominous adds +2 total, +1 simultaneous over normal, same ticks and adds.
 OMINOUS = {1: (6, 3, 2, 1, 40), 2: (8, 4, 2, 1, 30), 3: (10, 5, 3, 1, 20)}
 
-# Equipment loot tables per tier, keyed by melee/ranged. Tier 3 uses vanilla
-# trial chamber equipment, matching the crypt configs.
+# Equipment loot tables per tier, keyed by melee/ranged. All three tiers use
+# our own untrimmed tables (PD-106), matching the crypt configs.
 EQUIP = {
     1: {'melee': 'pocketdungeons:equipment/tier_1_melee',
         'ranged': 'pocketdungeons:equipment/tier_1_ranged'},
     2: {'melee': 'pocketdungeons:equipment/tier_2_melee',
         'ranged': 'pocketdungeons:equipment/tier_2_ranged'},
-    3: {'melee': 'minecraft:equipment/trial_chamber_melee',
-        'ranged': 'minecraft:equipment/trial_chamber_ranged'},
+    3: {'melee': 'pocketdungeons:equipment/tier_3_melee',
+        'ranged': 'pocketdungeons:equipment/tier_3_ranged'},
 }
 
 
@@ -112,8 +112,6 @@ def item_entry(name, weight, count=None, damage=False, custom_data=None):
     if custom_data:
         mine.update(custom_data)
     components = {'minecraft:custom_data': {'pocketdungeons': mine}} if mine else {}
-    if isinstance(count, tuple):
-        components['minecraft:max_stack_size'] = 8
     if components:
         functions.append({'function': 'minecraft:set_components',
                           'components': components})

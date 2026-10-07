@@ -1447,12 +1447,6 @@
                 "min": 2,
                 "max": 4
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ],
           "weight": 6
@@ -1468,12 +1462,6 @@
                 "min": 1,
                 "max": 3
               }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
-              }
             }
           ],
           "weight": 4
@@ -1488,12 +1476,6 @@
                 "type": "minecraft:uniform",
                 "min": 2,
                 "max": 5
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
               }
             }
           ],
@@ -1520,12 +1502,6 @@
                 "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:max_stack_size": 8
               }
             }
           ],
