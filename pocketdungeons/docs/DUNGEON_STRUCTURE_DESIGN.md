@@ -1,7 +1,10 @@
 # Dungeon structure design
 
 Status: built on branch `dungeon-structure` (waves W1 to W7b, verified in W8 on
-2026-10-05), not yet playtested. Decided with the owner on 2026-10-04 and
+2026-10-05), not yet playtested. **Owner decisions D23 to D41 (2026-10-06) in
+`docs/plan-2026-10-06-2.md` change parts of this design** (D5, D8, D11, D12,
+D13, D14, D16, D16a among them); that plan lists the amendments to make here
+as it is built. Until then, where the two disagree, the plan wins. Decided with the owner on 2026-10-04 and
 2026-10-05 in an interactive questionnaire. Sections 1 to 8 are the design as
 decided (section 1 describes the code before this branch); sections 9 to 12 are
 the as-built notes the builders wrote, and the verification result is in
