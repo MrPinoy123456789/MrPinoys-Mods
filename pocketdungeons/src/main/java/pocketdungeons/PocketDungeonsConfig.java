@@ -176,6 +176,8 @@ public final class PocketDungeonsConfig {
     private static int echoShardsPerFinish = 1;
     /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
     private static int finishVaultChests = 2;
+    /** Emeralds per scrap a member above the floor's level is paid instead of scrap (D27). */
+    private static int overlevelEmeraldsPerScrap = 2;
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     private static int capstoneStartOmen = 1;
     /**
@@ -634,6 +636,10 @@ public final class PocketDungeonsConfig {
         return finishVaultChests;
     }
 
+    public static int overlevelEmeraldsPerScrap() {
+        return overlevelEmeraldsPerScrap;
+    }
+
     public static int capstoneStartOmen() {
         return capstoneStartOmen;
     }
@@ -927,6 +933,7 @@ public final class PocketDungeonsConfig {
         echoShardsPerInterval = 1;
         echoShardsPerFinish = 1;
         finishVaultChests = 2;
+        overlevelEmeraldsPerScrap = 2;
         capstoneStartOmen = 1;
         echoShardFloorChance = 0;
         echoShardOrdealChance = 0.25;
@@ -1124,6 +1131,7 @@ public final class PocketDungeonsConfig {
         echoShardsPerInterval = readInt(root, "echoShardsPerInterval", 1, v -> v >= 0, "must be >= 0");
         echoShardsPerFinish = readInt(root, "echoShardsPerFinish", 1, v -> v >= 0, "must be >= 0");
         finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
+        overlevelEmeraldsPerScrap = readInt(root, "overlevelEmeraldsPerScrap", 2, v -> v >= 0, "must be >= 0");
         capstoneStartOmen = readInt(root, "capstoneStartOmen", 1, v -> v >= 0 && v <= 4, "must be between 0 and 4");
         echoShardFloorChance = readDouble(root, "echoShardFloorChance", 0, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
@@ -1450,6 +1458,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("echoShardsPerInterval", 1);
         root.addProperty("echoShardsPerFinish", 1);
         root.addProperty("finishVaultChests", 2);
+        root.addProperty("overlevelEmeraldsPerScrap", 2);
         root.addProperty("capstoneStartOmen", 1);
         root.addProperty("echoShardFloorChance", 0);
         root.addProperty("echoShardOrdealChance", 0.25);

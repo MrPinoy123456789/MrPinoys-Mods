@@ -38,7 +38,7 @@ mines), `AGENDA.md` (A2, A3, A6, A7, A8), `AUDIT_2026-09.md` section 11,
 | Zone unlocks | `rules.unlock_level` exists, but no theme file sets it, so every zone is open at keystone 1. Deepslate (an entry) lists `ender_archive` and `basalt_foundry` as next. This is why the End came early. | `ZoneRules.unlockLevel`, theme files |
 | Doors and steps | Door 1 is +1 and free; door 2 is +2, needs keystone 7 and 3 shards; door 3 is +3, needs keystone 15 and 3 shards. The floor runs at keystone + step. | `Keystone.offers`, `KeystoneMath.upgrade`, `door2MinLevel`, `greaterDoorMinLevel`, `fuelCostPerGreaterDoor` |
 | What the level does | Mob scale (0.65 + 0.8% per level), loot tier (1 to 4 at tier 1, 5 to 9 tier 2, 10 to 19 tier 3 diamond, 20+ tier 4 netherite), seeded affix count (1 from level 5, 2 from 25, +1 per 20). The keystone is fixed for a whole trip; it only changes at a bank. | `DifficultyProfile`, `KeystoneMath.lootTier`, `AffixMath.seededCount` |
-| Banking | Sum of cleared floors' chart scrap, converted 5 to a chart at home; leftover scrap is lost. A floor beneath a member's compass pays less (scrap minus level gap, floored at 0). | `IntervalBanking.settle` |
+| Banking | A floor clear pays each member its dealt step in scrap, or emeralds when the member's permanent chart level already stands above the floor (`step * overlevelEmeraldsPerScrap`, default 2). | `FloorPay`, `ScrapMath` |
 | Echo shards | 0.5 chance per member on every floor clear (still in code although the owner asked on 2026-10-02-2 to remove it), 1 per full trip at bank, 0.25 per Ordeal per player, 1 for a short trip ended on the free door. | `RunLifecycle` (floor roll near line 1221, bank near 1451), `Ordeals` |
 | Endless Mine | A Cube recipe (raw iron, keystone 5) forces the `endless_mine` theme for the trip: no final floor, loot tier +1 every 3 floors, materials role. | `cube_recipe/endless_mine.json`, `EndlessMineRules`, `ZONES_SPEC.md` section 3 |
 | Rooms | 61 rooms; 10 are bound to themes by a `theme` field, 51 are generic and reskinned by the theme's processors. A cell is 16x7x16. | `dungeon_room/*.json`, `RoomSelector` |
@@ -142,10 +142,12 @@ confirmed by the owner on 2026-10-05.
 
 ### 3.4 Rewards
 
-- **D11. Finishing a dungeon pays the guaranteed echo shard plus a themed vault,
+- **D11. Finishing a dungeon pays the guaranteed emeralds plus a themed vault,
   and on first clear the dungeon's diary page.** This replaces "1 shard per full
   trip", and the per-floor shard roll is removed. Going home early banks what
-  the floors paid but no shard, no vault, no page.
+  the floors paid but no emeralds, no vault, no page. Amended 2026-10-06
+  (plan 2026-10-06-2 J1): echo shards retire as currency; the finish pays
+  `finishEmeralds` (8).
   - **2026-10-05 rework: chart scrap, charts and the compass.** Player-facing,
     the keystone is the **compass**. A door's step is dealt as **chart scrap**
     (still 1 to 3, still sets the floor's level). Five scrap make one **chart**;
@@ -322,8 +324,9 @@ final vault.
 14. The Endless Mine's place in the act table: the history board's "deepest
     floor" needs a home in the UI.
 15. Floor level is compass plus step, so a solo player is never above a floor
-    and the too easy discount never bites solo. Authored fixed floor levels, or
-    a per-dungeon levelCap, would make it real. Deferred 2026-10-06.
+    and the too easy discount never bites solo. Resolved 2026-10-06 by D26 and
+    D27: floor levels are authored (`baseLevel`, node `level`), and a member
+    above the floor is paid emeralds instead of scrap (`FloorPay`).
 
 ## 6. Staged implementation outline (no code)
 
