@@ -190,9 +190,9 @@ confirmed by the owner on 2026-10-05.
     the door has a price. Dark, dim and experimental floors add a line. The
     separator is a middle dot. No labels: colour does the grouping.
   - **The GO HOME board** is the same split (title 1.0, body 0.8): `GO HOME`
-    (green once the dungeon is cleared), and what going home costs: nothing is
-    banked and nothing is forfeited but the unfinished finish rewards
-    (`Unfinished: vault, page`). The `Lives N` line is step 4's work.
+    (green once the dungeon is cleared), the trip's `Lives N`, and what going
+    home forfeits: nothing is banked and nothing is forfeited but the
+    unfinished finish rewards (`Unfinished: vault, page`).
 - **D12. A dungeon's resource nodes are flavour; the Mineshaft has the most.**
   Revised 2026-10-06 (plan 2026-10-06-2 G): the resource kind is retired. Every
   dungeon pays scrap, and its finish pays emeralds, the vault and the page.

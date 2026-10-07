@@ -104,73 +104,39 @@ final class IntervalBanking {
         return charts + (charts == 1 ? " chart" : " charts");
     }
 
-    /** How a part of the go-home board's outcome line is coloured. */
-    enum HomeTone {
-        /** The scrap total: cyan, like everything you take home. */
-        SCRAP,
-        /** The charts it makes: green. */
-        CHARTS,
-        /** What is still missing for a chart: gold. */
-        NEEDS,
-        /** What would be lost on the way out, or nothing carried: gray. */
-        LOST
-    }
-
-    /** One coloured piece of the outcome line. */
-    record HomePart(String text, HomeTone tone) {}
-
     /**
-     * The go-home board: always {@code GO HOME} (gold, or green once
-     * {@code finished}, the moment the dungeon's final floor is cleared), the
-     * scrap carried, and what it comes to. Structured rather than a newline
-     * string so the screen colours each part without splitting text.
+     * The go-home board, J1 amended (plan 2026-10-06-2 item 4): always
+     * {@code GO HOME} (gold, or green once {@code finished}, the moment the
+     * dungeon's final floor is cleared), the lives the trip has left, and
+     * what leaving forfeits. Scrap never appears: J1 already paid it at
+     * each floor clear, so the old {@code carried} table is gone.
      *
-     * @param scrapLine {@code "7 scrap"}, or empty when nothing is carried
-     * @param outcome   the pieces of the second line, joined by {@code " \u00b7 "}
+     * @param livesLine  {@code "Lives 3"}, the risk meter's reading
+     * @param unfinished the promises the trip still holds, {@code vault} and
+     *                   {@code page}; rendered {@code Unfinished: vault, page}
+     *                   and absent once the dungeon is cleared
      */
-    record HomeScreen(String title, boolean finished, String scrapLine, List<HomePart> outcome) {
+    record HomeScreen(String title, boolean finished, String livesLine, List<String> unfinished) {
 
-        /** The board as plain text: the scrap line (when any), then the outcome line. */
-        String body() {
-            StringBuilder out = new StringBuilder();
-            if (!scrapLine.isEmpty()) {
-                out.append(scrapLine).append('\n');
-            }
-            for (int i = 0; i < outcome.size(); i++) {
-                out.append(i == 0 ? "" : " \u00b7 ").append(outcome.get(i).text());
-            }
-            return out.toString();
+        /** The forfeit line, or empty when nothing is left to lose. */
+        String unfinishedLine() {
+            return unfinished.isEmpty() ? "" : "Unfinished: " + String.join(", ", unfinished);
         }
-    }
 
-    /** The scrap a settlement carries: its whole charts at {@link #SCRAP_PER_CHART} each, plus the remainder. */
-    static int carried(Settlement s) {
-        return s.levels() * SCRAP_PER_CHART + s.scrapLeft();
+        /** The board as plain text: the lives line, then the forfeit line (when any). */
+        String body() {
+            String line = unfinishedLine();
+            return line.isEmpty() ? livesLine : livesLine + '\n' + line;
+        }
     }
 
     /**
-     * The go-home board for what the lever would carry home right now.
-     * Carried 0 reads {@code no scrap yet}; 3 reads {@code 3 scrap} over
-     * {@code 2 more for a chart}; 5 reads {@code 1 chart}; 7 reads
-     * {@code 1 chart \u00b7 2 scrap lost}; 10 reads {@code 2 charts}.
-     * (Step 16 rewrites this board to the J1 wording; until then it still
-     * answers "how far to the next chart".)
+     * The go-home board for pulling the lever right now. {@code omen} is the
+     * trip's deaths (J3: the board reads lives); {@code unfinished} is what
+     * going home forfeits, which the caller reads off the live record.
      */
-    static HomeScreen homeScreen(Settlement now, boolean finished) {
-        int carried = carried(now);
-        List<HomePart> outcome = new java.util.ArrayList<>();
-        if (carried <= 0) {
-            outcome.add(new HomePart("no scrap yet", HomeTone.LOST));
-            return new HomeScreen("GO HOME", finished, "", outcome);
-        }
-        if (now.levels() > 0) {
-            outcome.add(new HomePart(chartText(now.levels()), HomeTone.CHARTS));
-            if (now.scrapLeft() > 0) {
-                outcome.add(new HomePart(now.scrapLeft() + " scrap lost", HomeTone.LOST));
-            }
-        } else {
-            outcome.add(new HomePart((SCRAP_PER_CHART - now.scrapLeft()) + " more for a chart", HomeTone.NEEDS));
-        }
-        return new HomeScreen("GO HOME", finished, scrapText(carried), outcome);
+    static HomeScreen homeScreen(int omen, boolean finished, List<String> unfinished) {
+        return new HomeScreen("GO HOME", finished, OmenBarText.livesText(omen),
+                List.copyOf(unfinished));
     }
 }

@@ -469,34 +469,31 @@ final class DungeonScreen {
     }
 
     /**
-     * The go-home board: what the owner would bank by pulling the lever right
-     * now, as {@link IntervalBanking#homeScreen} words it: {@code GO HOME}
-     * (gold, or green once the dungeon is cleared) over the scrap carried
-     * (cyan) and what it comes to (charts green, what is lost gray, what is
-     * missing for a chart gold). Other members bank from their own keys; the
-     * owner's numbers are the ones on the wall.
+     * The go-home board (J1 amended): {@code GO HOME} (gold, or green once
+     * the dungeon is cleared) over the trip's lives (cyan) and what pulling
+     * the lever forfeits (gray), since scrap is already earned at each
+     * floor clear. The vault is the finish's chests; the page is the
+     * dungeon's diary while the owner still owes it.
      */
     static Board homeContent(MinecraftServer server, InstanceRecord record) {
-        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
-        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(now, record.interval.finished);
+        List<String> unfinished = new ArrayList<>();
+        DungeonDef def = record.interval.finished ? null : TripView.def(record);
+        if (def != null) {
+            if (PocketDungeonsConfig.finishVaultChests() > 0) {
+                unfinished.add("vault");
+            }
+            if (diaryOwed(def, DungeonLog.forServer(server).get(record.owner))) {
+                unfinished.add("page");
+            }
+        }
+        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen,
+                record.interval.finished, unfinished);
         Component title = Component.literal(screen.title())
                 .withStyle(screen.finished() ? ChatFormatting.GREEN : ChatFormatting.GOLD);
-        MutableComponent body = Component.empty();
-        if (!screen.scrapLine().isEmpty()) {
-            body.append(Component.literal(screen.scrapLine()).withStyle(ChatFormatting.AQUA)).append("\n");
-        }
-        boolean first = true;
-        for (IntervalBanking.HomePart part : screen.outcome()) {
-            if (!first) {
-                body.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.GRAY));
-            }
-            first = false;
-            body.append(Component.literal(part.text()).withStyle(switch (part.tone()) {
-                case SCRAP -> ChatFormatting.AQUA;
-                case CHARTS -> ChatFormatting.GREEN;
-                case NEEDS -> ChatFormatting.GOLD;
-                case LOST -> ChatFormatting.GRAY;
-            }));
+        MutableComponent body = Component.literal(screen.livesLine()).withStyle(ChatFormatting.AQUA);
+        String forfeit = screen.unfinishedLine();
+        if (!forfeit.isEmpty()) {
+            body.append("\n").append(Component.literal(forfeit).withStyle(ChatFormatting.GRAY));
         }
         return new Board(title, body);
     }

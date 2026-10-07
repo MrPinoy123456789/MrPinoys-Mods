@@ -52,32 +52,29 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.chartText(1), "1 chart");
         checkEquals(IntervalBanking.chartText(2), "2 charts");
         checkEquals(IntervalBanking.chests(1), "1 chest");
-        // The go-home board: carried scrap and what it comes to (the table in the plan).
-        checkEquals(home(0), "no scrap yet");
-        checkEquals(home(3), "3 scrap\n2 more for a chart");
-        checkEquals(home(5), "5 scrap\n1 chart");
-        checkEquals(home(7), "7 scrap\n1 chart \u00b7 2 scrap lost");
-        checkEquals(home(10), "10 scrap\n2 charts");
-        checkEquals(IntervalBanking.homeScreen(
-                IntervalBanking.settle(List.of(3, 3, 3), List.of(12, 12, 12), 0, 0), true).title(), "GO HOME");
-        check(IntervalBanking.homeScreen(
-                IntervalBanking.settle(List.of(3, 3, 3), List.of(12, 12, 12), 0, 0), true).finished(), "finished flag");
-        check(!IntervalBanking.homeScreen(settle(List.of(3)), false).finished(), "not finished flag");
-        IntervalBanking.HomeScreen seven = IntervalBanking.homeScreen(
-                new IntervalBanking.Settlement(1, 2, 3), false);
-        check(seven.outcome().get(0).tone() == IntervalBanking.HomeTone.CHARTS
-                && seven.outcome().get(1).tone() == IntervalBanking.HomeTone.LOST, "charts green, lost gray");
-        check(IntervalBanking.homeScreen(new IntervalBanking.Settlement(0, 3, 3), false)
-                .outcome().get(0).tone() == IntervalBanking.HomeTone.NEEDS, "more for a chart is gold");
-        for (String line : List.of(IntervalBanking.scrapText(1), home(7), home(3), home(0))) {
+        // The go-home board (J1 amended): GO HOME over Lives N, then what
+        // leaving forfeits. Scrap never appears: it was paid at each clear.
+        checkEquals(home(0, List.of()), "Lives 5");
+        checkEquals(home(3, List.of()), "Lives 2");
+        checkEquals(home(1, List.of("vault", "page")), "Lives 4\nUnfinished: vault, page");
+        checkEquals(home(2, List.of("vault")), "Lives 3\nUnfinished: vault");
+        IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, true, List.of());
+        checkEquals(cleared.title(), "GO HOME");
+        check(cleared.finished(), "finished flag");
+        check(!IntervalBanking.homeScreen(0, false, List.of()).finished(), "not finished flag");
+        checkEquals(IntervalBanking.homeScreen(4, false, List.of("page")).unfinishedLine(),
+                "Unfinished: page");
+        check(IntervalBanking.homeScreen(0, true, List.of()).unfinishedLine().isEmpty(),
+                "a cleared dungeon forfeits nothing");
+        for (String line : List.of(IntervalBanking.scrapText(1), home(0, List.of()),
+                home(1, List.of("vault", "page")))) {
             check(!line.contains("--") && !line.contains("\u2014"), "no dash punctuation: " + line);
         }
     }
 
-    /** The go-home board's body when {@code carried} scrap is held (5 scrap makes a chart). */
-    private static String home(int carried) {
-        return IntervalBanking.homeScreen(new IntervalBanking.Settlement(carried / 5, carried % 5, 3), false)
-                .body();
+    /** The go-home board's body with the trip at {@code omen} deaths and {@code unfinished} left. */
+    private static String home(int omen, List<String> unfinished) {
+        return IntervalBanking.homeScreen(omen, false, unfinished).body();
     }
 
     private static IntervalBanking.Settlement settle(List<Integer> steps) {
