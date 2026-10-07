@@ -417,6 +417,19 @@ final class RoomContent {
     private static final int MINE_COOLDOWN_TICKS = 100;
 
     /**
+     * Whether the TNT at {@code pos} is one of the Explosive affix's floor
+     * mines, as opposed to TNT a player placed. Only mines are refused fire.
+     */
+    static boolean isAffixMine(BlockPos pos) {
+        for (AffixMine mine : PENDING_EXPLOSIVES) {
+            if (mine.tntPos.equals(pos)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Scatters {@link PocketDungeonsConfig#explosiveHazardsPerCell} fake TNT
      * mines across the cell, seeded off the run so a given seed always stamps
      * the same hazards. Each mine replaces a floor block with TNT. Stepping on

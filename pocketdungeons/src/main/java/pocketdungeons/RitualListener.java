@@ -120,10 +120,12 @@ final class RitualListener {
 
         // PD-124: the Explosive affix uses fake TNT mines that trigger on
         // contact. Flint and steel or fire charges cannot prime them; the mine
-        // itself handles ignition.
+        // itself handles ignition. TNT a player placed is ordinary TNT (the
+        // rubble blasts need it), so only registered mines are refused.
         if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
                 && level.getBlockState(pos).is(Blocks.TNT)
-                && Instances.dungeonCellOriginAt(pos) != null) {
+                && Instances.dungeonCellOriginAt(pos) != null
+                && RoomContent.isAffixMine(pos)) {
             ItemStack held = serverPlayer.getItemInHand(hand);
             if (held.is(Items.FLINT_AND_STEEL) || held.is(Items.FIRE_CHARGE)) {
                 serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(

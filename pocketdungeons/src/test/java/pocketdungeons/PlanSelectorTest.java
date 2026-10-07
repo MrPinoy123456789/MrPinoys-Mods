@@ -50,7 +50,7 @@ public class PlanSelectorTest {
         for (long seed = 0; seed < 300; seed++) {
             // The spine runs c0 to c3, so only the c1-c4 spur door can seal.
             Set<PlanEdge> spine = Set.of(e01, e12, e23);
-            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, c0, spine);
+            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, c0, spine, Set.of());
             if (bag.size() > 1 || bag.contains(e01) || bag.stream().anyMatch(spine::contains)) {
                 throw new AssertionError("seed " + seed + " placed " + bag
                         + "; at most one, never the entrance's, never a spine edge");
@@ -60,6 +60,25 @@ public class PlanSelectorTest {
         if (picked < 50 || picked > 160) {
             throw new AssertionError("about a third of plans should get rubble, got "
                     + picked + " of 300");
+        }
+
+        // A required cell (a trial spawner room) behind the only spur door
+        // forbids the plug on every seed: rubble gates optional rooms only.
+        for (long seed = 0; seed < 300; seed++) {
+            Set<PlanEdge> spine = Set.of(e01, e12, e23);
+            if (!RoomSelector.pickRubbleEdges(seed, doors, c0, spine, Set.of(c4)).isEmpty()) {
+                throw new AssertionError("seed " + seed + " plugged the door to a required spawner room");
+            }
+        }
+        // A shortcut (a door whose far side stays reachable another way) may still plug.
+        PlanEdge e04 = new PlanEdge(c4, c2);
+        Set<PlanEdge> loop = Set.of(e01, e12, e23, e14, e04);
+        int shortcuts = 0;
+        for (long seed = 0; seed < 300; seed++) {
+            shortcuts += RoomSelector.pickRubbleEdges(seed, loop, c0, Set.of(e01, e12, e23), Set.of(c4)).size();
+        }
+        if (shortcuts == 0) {
+            throw new AssertionError("a loop door that cuts nothing off should still be pluggable");
         }
 
         // Sealed two-story cells: every one, bag or not (E, D25). The lower

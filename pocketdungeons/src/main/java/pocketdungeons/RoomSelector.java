@@ -164,8 +164,17 @@ final class RoomSelector {
         for (int i = 1; i < spine.size(); i++) {
             spineEdges.add(new PlanEdge(spine.get(i - 1), spine.get(i)));
         }
+        // A cell hosting a trial spawner is required: the floor cannot finish
+        // without clearing it, so rubble may never cut one off.
+        Set<PlanCell> encounterCells = new HashSet<>();
+        for (Map.Entry<PlanCell, String> role : shape.roles().entrySet()) {
+            RoomRoleDefinition def = RoleManifest.current().byId(role.getValue());
+            if (def != null && def.operation == RoomRoleDefinition.Operation.TRIAL_ENCOUNTER) {
+                encounterCells.add(role.getKey());
+            }
+        }
         Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), shape.entrance(),
-                spineEdges);
+                spineEdges, encounterCells);
         Set<PlanCell> sealed = pickSealedCells(multiStory);
 
         DungeonPlan plan = new DungeonPlan(
@@ -282,14 +291,17 @@ final class RoomSelector {
      * rolled off the plan seed. A door is eligible when it does not touch the
      * entrance (the stamper leaves the entrance's doors alone) and is not on
      * the entrance-to-staging spine (E, D25): a plug only ever gates a spur,
-     * so the way on never asks for the blast. One per plan, so the bonus
+     * so the way on never asks for the blast. Nor may a plug cut off a
+     * required cell ({@code requiredCells}, the trial spawner rooms): rubble
+     * gates optional rooms and shortcuts only. One per plan, so the bonus
      * stays rare.
      */
     static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, PlanCell entrance,
-                                         Set<PlanEdge> spineEdges) {
+                                         Set<PlanEdge> spineEdges, Set<PlanCell> requiredCells) {
         List<PlanEdge> eligible = new ArrayList<>();
         for (PlanEdge edge : doors) {
-            if (edge.touches(entrance) || spineEdges.contains(edge)) {
+            if (edge.touches(entrance) || spineEdges.contains(edge)
+                    || cutsOffRequired(doors, edge, entrance, requiredCells)) {
                 continue;
             }
             eligible.add(edge);
@@ -309,6 +321,33 @@ final class RoomSelector {
             return Set.of();
         }
         return Set.of(eligible.get(rng.nextInt(eligible.size())));
+    }
+
+    /** Whether plugging {@code plugged} leaves a required cell unreachable from the entrance. */
+    private static boolean cutsOffRequired(Set<PlanEdge> doors, PlanEdge plugged, PlanCell entrance,
+                                           Set<PlanCell> requiredCells) {
+        Set<PlanCell> reached = new HashSet<>();
+        java.util.ArrayDeque<PlanCell> queue = new java.util.ArrayDeque<>();
+        reached.add(entrance);
+        queue.add(entrance);
+        while (!queue.isEmpty()) {
+            PlanCell cell = queue.poll();
+            for (PlanEdge door : doors) {
+                if (door.equals(plugged) || !door.touches(cell)) {
+                    continue;
+                }
+                PlanCell next = door.other(cell);
+                if (reached.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        for (PlanCell required : requiredCells) {
+            if (!reached.contains(required)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
