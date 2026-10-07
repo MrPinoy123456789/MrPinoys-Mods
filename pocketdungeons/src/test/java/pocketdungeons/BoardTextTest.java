@@ -9,6 +9,7 @@ public class BoardTextTest {
         testTitle();
         testPrices();
         testPalette();
+        testNotes();
         System.out.println("BoardTextTest passed");
     }
 
@@ -24,6 +25,29 @@ public class BoardTextTest {
         eq(BoardText.costText(2), "costs 2 scrap");
         for (String line : List.of(BoardText.titleLine("A", 1, 2), BoardText.lootText(1), BoardText.costText(2))) {
             check(!line.contains("--") && line.indexOf('\u2014') < 0, "no dash punctuation: " + line);
+        }
+    }
+
+    /** The floor info sheet's one sentence: most urgent first, short, and free of dash punctuation. */
+    private static void testNotes() {
+        eq(BoardText.floorLine(3, 4), "Floor 3 of 4");
+        eq(BoardText.floorLine(6), "Floor 6");
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true), "Sculk hears every step. Sneak.");
+        eq(BoardText.notesLine(false, false, "dark", true, List.of("coal"), true), "Pitch dark. Bring torches.");
+        eq(BoardText.notesLine(false, false, "dim", false, List.of(), false), "Dim light. Torches help.");
+        eq(BoardText.notesLine(false, false, "lit", true, List.of("coal"), true), "The last floor. Clear it to finish.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal", "copper", "iron", "gold"), true),
+                "Mine the walls for coal, copper and iron.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal"), true), "Mine the walls for coal.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), true), "Mine the walls for ore.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false), "Clear the spawners to open the way.");
+        eq(BoardText.notesLine(true, true, "dark", true, List.of("coal"), true), "The shaft runs deeper with every floor.");
+        for (String line : List.of(
+                BoardText.notesLine(false, true, "lit", false, List.of(), false),
+                BoardText.notesLine(false, false, "dark", false, List.of(), false),
+                BoardText.notesLine(false, false, "lit", false, List.of("coal", "iron"), true))) {
+            check(!line.contains("--") && line.indexOf('\u2014') < 0 && line.length() <= 48,
+                    "short and dash free: " + line);
         }
     }
 

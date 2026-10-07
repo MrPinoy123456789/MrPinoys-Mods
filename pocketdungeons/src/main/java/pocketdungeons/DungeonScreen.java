@@ -64,8 +64,26 @@ import java.util.UUID;
  */
 final class DungeonScreen {
 
+    /**
+     * The two sheets of a selected door's board, side by side on the wall: the
+     * floor info (what does not change with the deal) on the viewer's left, and
+     * the deal (affixes, pay, loot, cost) on the right. An empty component takes
+     * its display away.
+     *
+     * @param dungeon the dungeon's name, the largest line
+     * @param floor   {@code Floor 3 of 4}
+     * @param notes   the one sentence of what to expect, the smallest and grey
+     * @param deal    the floor's name and everything the deal decides
+     */
+    record Sheets(Component dungeon, Component floor, Component notes, Component deal) {}
+
     /** A board: its first line, and everything below it. An empty body is no second display. */
-    record Board(Component title, Component body) {
+    record Board(Component title, Component body, Sheets sheets) {
+
+        /** A single-sheet board: a title and a body, no floor sheets. */
+        Board(Component title, Component body) {
+            this(title, body, null);
+        }
 
         /** A board that is only a title. */
         static Board titleOnly(Component title) {
@@ -120,6 +138,29 @@ final class DungeonScreen {
     private static final double HISTORY_HEADING_Y = 5.4;
     private static final double HISTORY_BODY_CENTER_Y = 3.6;
 
+    /** Marks the displays of the two-sheet door board, besides {@link #TAG}. */
+    static final String SHEET_TAG = "pocketdungeons_screen_sheet";
+    private static final String SLOT_DUNGEON = "pocketdungeons_sheet_dungeon";
+    private static final String SLOT_FLOOR = "pocketdungeons_sheet_floor";
+    private static final String SLOT_NOTES = "pocketdungeons_sheet_notes";
+    private static final String SLOT_DEAL = "pocketdungeons_sheet_deal";
+    /**
+     * Each sheet is 5 blocks wide, 62.5 percent of the 8 block board it
+     * replaces (the brief: at most 70). Their centres sit 2.5 blocks either side
+     * of the old board's centre, so the pair spans 10 blocks centred on it,
+     * exactly the backdrop ({@link RoomTemplateGenerator#DOOR_SCREEN_ALONG_MIN}
+     * to {@code MAX}).
+     */
+    static final double SHEET_WIDTH = 5.0;
+    static final double SHEET_OFFSET = 2.5;
+    static final float SHEET_DUNGEON_SCALE = 2.0f;
+    static final float SHEET_FLOOR_SCALE = 1.6f;
+    /** The smallest text on the board, for the notes sentence. */
+    static final float SHEET_NOTES_SCALE = 1.2f;
+    static final float SHEET_DEAL_SCALE = 1.6f;
+    /** A line of default font text is about 5.6 px wide per character; wrapping is estimated from it. */
+    private static final double CHAR_PX = 5.6;
+
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
     /**
@@ -165,6 +206,11 @@ final class DungeonScreen {
      * this with an origin and wall before or instead of a record).
      */
     static void summonDoor(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall, Board content) {
+        if (content.sheets() != null) {
+            showSheets(level, roomOrigin, wall, content.sheets());
+            return;
+        }
+        clearSheets(level, roomOrigin, wall);
         showBoard(level, roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y, DOOR_SCALE, DOOR_TITLE_BOTTOM_Y,
                 DOOR_BODY_SCALE, DOOR_BODY_CENTER_Y, yawFor(wall), content);
     }
@@ -399,6 +445,23 @@ final class DungeonScreen {
         }
         lines.add(loot);
 
+        // The deal sheet (what the random deal decided): the floor's name, its affixes on a line of their
+        // own, the pay, the loot and cost, and the caution and tutorial lines. The notes the floor itself
+        // carries (dark, sculk, ore) belong to the info sheet.
+        List<Component> deal = new ArrayList<>();
+        deal.add(Component.literal(name).withStyle(ChatFormatting.WHITE));
+        MutableComponent affixLine = Component.empty();
+        for (AffixDefinition affix : AffixMath.ordered(effective, AffixManifest.current().definitions())) {
+            addPart(affixLine, affix.label, ChatFormatting.LIGHT_PURPLE);
+        }
+        if (!affixLine.getString().isEmpty()) {
+            deal.add(affixLine);
+        }
+        if (!gets.getString().isEmpty()) {
+            deal.add(gets);
+        }
+        deal.add(loot);
+
         // PD-154: a dark floor was a surprise after the lever. One short line warns it.
         if (node != null && DungeonDef.Node.LIGHT_DARK.equals(node.light())) {
             lines.add(Component.literal("dark: bring torches").withStyle(ChatFormatting.GOLD));
@@ -408,15 +471,42 @@ final class DungeonScreen {
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             lines.add(Component.literal("experimental").withStyle(ChatFormatting.RED));
+            deal.add(Component.literal("experimental").withStyle(ChatFormatting.RED));
         }
         if (offerLevel <= 1) {
             lines.add(Component.literal("Pull the lever to descend!").withStyle(ChatFormatting.GREEN));
+            deal.add(Component.literal("Pull the lever to descend!").withStyle(ChatFormatting.GREEN));
         }
         Component bias = biasNote(owner);
         if (bias != null) {
             lines.add(bias);
+            deal.add(bias);
         }
-        return new Board(title, joinLines(lines));
+
+        // The floor info sheet: the dungeon, the floor, and one sentence of what to expect.
+        Component dungeonLine;
+        Component floorLine;
+        if (mine) {
+            dungeonLine = Component.literal(dungeonName.isEmpty() ? "Endless Mine" : dungeonName);
+            floorLine = Component.literal(BoardText.floorLine(floorNumber));
+        } else if (def != null && node != null) {
+            dungeonLine = Component.literal(dungeonName);
+            floorLine = Component.literal(BoardText.floorLine(node.layer(), def.layers()));
+        } else {
+            dungeonLine = Component.literal(header);
+            floorLine = Component.empty();
+        }
+        boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
+        List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
+        String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
+                node != null && node.isFinal(), def != null && showsNodes(def, node) ? ores : List.of(),
+                def != null && showsNodes(def, node));
+        Sheets sheets = new Sheets(
+                dungeonLine.copy().withStyle(ChatFormatting.YELLOW),
+                floorLine.copy().withStyle(ChatFormatting.YELLOW),
+                Component.literal(notes).withStyle(ChatFormatting.GRAY),
+                joinLines(deal));
+        return new Board(title, joinLines(lines), sheets);
     }
 
     /** Appends {@code text} to {@code line}, behind a separator when the line already has a part. */
@@ -602,8 +692,124 @@ final class DungeonScreen {
         }
     }
 
+    // ---- the two sheets of a selected door ---------------------------------------
+
+    /** The absolute along a viewer-side along maps to (the selector wall mirrors on SOUTH and WEST). */
+    private static double absAlong(DoorMask.Direction wall, double viewerAlong) {
+        return RoomGeometry.mirrorsAlong(wall) ? RoomGeometry.CELL - viewerAlong : viewerAlong;
+    }
+
+    private static int sheetLineWidth(float scale) {
+        return (int) Math.round(SHEET_WIDTH / (RENDER_SCALE * scale));
+    }
+
+    /** How many lines {@code text} takes at {@code lineWidth} pixels, counting explicit breaks and estimated wraps. */
+    private static int wrappedLines(Component text, int lineWidth) {
+        int count = 0;
+        for (String line : text.getString().split("\n", -1)) {
+            count += Math.max(1, (int) Math.ceil(line.length() * CHAR_PX / lineWidth));
+        }
+        return Math.max(1, count);
+    }
+
+    private static AABB around(double[] xyz, double radius) {
+        return new AABB(xyz[0] - radius, xyz[1] - radius, xyz[2] - radius,
+                xyz[0] + radius, xyz[1] + radius, xyz[2] + radius);
+    }
+
+    /** Takes the two-sheet displays of the door wall down (a single board is about to replace them). */
+    private static void clearSheets(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall) {
+        double[] centre = wallAnchor(roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y);
+        for (Display.TextDisplay sheet : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 7),
+                e -> e.entityTags().contains(SHEET_TAG))) {
+            sheet.discard();
+        }
+    }
+
+    /**
+     * Shows the two sheets: the floor info on the viewer's left, the deal on the
+     * right, each 5 blocks wide and centred 2.5 blocks from the old board's
+     * centre. The floor info stacks its three lines (the dungeon's name, the
+     * floor, and the notes sentence) as separate displays at their own sizes,
+     * centred as a block on the backdrop's two rows; the deal is one display
+     * centred on the same line.
+     */
+    private static void showSheets(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall,
+                                   Sheets sheets) {
+        double[] centre = wallAnchor(roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y);
+        // The single board's layers go: they sit at the middle, the sheets either side of it.
+        for (Display.TextDisplay single : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 2),
+                e -> e.entityTags().contains(TAG) && !e.entityTags().contains(SHEET_TAG))) {
+            single.discard();
+        }
+        float yaw = yawFor(wall);
+        double infoAlong = absAlong(wall, DOOR_SCREEN_ALONG - SHEET_OFFSET);
+        double dealAlong = absAlong(wall, DOOR_SCREEN_ALONG + SHEET_OFFSET);
+
+        int notesWidth = sheetLineWidth(SHEET_NOTES_SCALE);
+        boolean hasFloor = !sheets.floor().getString().isEmpty();
+        boolean hasNotes = !sheets.notes().getString().isEmpty();
+        double nameH = 0.25 * SHEET_DUNGEON_SCALE;
+        double floorH = hasFloor ? 0.25 * SHEET_FLOOR_SCALE : 0.0;
+        double notesH = hasNotes ? 0.25 * SHEET_NOTES_SCALE * wrappedLines(sheets.notes(), notesWidth) : 0.0;
+        double gapA = hasFloor ? 0.06 : 0.0;
+        double gapB = hasNotes ? 0.12 : 0.0;
+        double total = nameH + gapA + floorH + gapB + notesH;
+        double top = Math.min(DOOR_CENTER_Y + 0.9, DOOR_CENTER_Y + total / 2.0);
+
+        double nameBottom = top - nameH;
+        upsertSheet(level, centre, SLOT_DUNGEON, wallAnchor(roomOrigin, wall, infoAlong,
+                nameBottom + RENDER_SCALE * SHEET_DUNGEON_SCALE), yaw, SHEET_DUNGEON_SCALE,
+                sheets.dungeon(), sheetLineWidth(SHEET_DUNGEON_SCALE));
+        double floorBottom = nameBottom - gapA - floorH;
+        upsertSheet(level, centre, SLOT_FLOOR, wallAnchor(roomOrigin, wall, infoAlong,
+                floorBottom + RENDER_SCALE * SHEET_FLOOR_SCALE), yaw, SHEET_FLOOR_SCALE,
+                sheets.floor(), sheetLineWidth(SHEET_FLOOR_SCALE));
+        double notesBottom = floorBottom - gapB - notesH;
+        upsertSheet(level, centre, SLOT_NOTES, wallAnchor(roomOrigin, wall, infoAlong,
+                notesBottom + RENDER_SCALE * SHEET_NOTES_SCALE), yaw, SHEET_NOTES_SCALE,
+                sheets.notes(), notesWidth);
+
+        int dealWidth = sheetLineWidth(SHEET_DEAL_SCALE);
+        int dealLines = wrappedLines(sheets.deal(), dealWidth);
+        double dealY = DOOR_CENTER_Y - RENDER_SCALE * SHEET_DEAL_SCALE * (5 * dealLines - 1);
+        upsertSheet(level, centre, SLOT_DEAL, wallAnchor(roomOrigin, wall, dealAlong, dealY), yaw,
+                SHEET_DEAL_SCALE, sheets.deal(), dealWidth);
+    }
+
+    /**
+     * Updates the sheet display tagged {@code slot} in place, summons it when
+     * there is none, and takes it away when its text is empty.
+     */
+    private static void upsertSheet(ServerLevel level, double[] centre, String slot, double[] xyz, float yaw,
+                                    float scale, Component text, int lineWidth) {
+        Display.TextDisplay display = null;
+        for (Display.TextDisplay d : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 7),
+                e -> e.entityTags().contains(SHEET_TAG) && e.entityTags().contains(slot))) {
+            if (display == null) {
+                display = d;
+            } else {
+                d.discard();
+            }
+        }
+        if (text.getString().isEmpty()) {
+            if (display != null) {
+                display.discard();
+            }
+            return;
+        }
+        if (display != null) {
+            display.setPos(xyz[0], xyz[1], xyz[2]);
+            display.setYRot(yaw % 360.0f);
+            ((TextDisplayAccessor) display).pocketdungeons$setText(text);
+            ((TextDisplayAccessor) display).pocketdungeons$setLineWidth(lineWidth);
+            return;
+        }
+        summon(level, xyz, yaw, scale, text, lineWidth, false, SHEET_TAG, slot);
+    }
+
     private static void summon(ServerLevel level, double[] xyz, float yaw, float scale, Component text,
-                               int lineWidth, boolean body) {
+                               int lineWidth, boolean body, String... extraTags) {
         Display.TextDisplay display = EntityTypes.TEXT_DISPLAY.create(level, EntitySpawnReason.COMMAND);
         if (display == null) {
             return;
@@ -644,6 +850,9 @@ final class DungeonScreen {
         tags.add(StringTag.valueOf(TAG));
         if (body) {
             tags.add(StringTag.valueOf(BODY_TAG));
+        }
+        for (String extra : extraTags) {
+            tags.add(StringTag.valueOf(extra));
         }
         tag.put("Tags", tags);
 

@@ -322,6 +322,15 @@ final class RoomTemplateGenerator {
             .setValue(CopperBulbBlock.LIT, true);
     /** The physical backdrop behind each screen's text_display. */
     private static final BlockState SCREEN_BLOCK = Blocks.CONCRETE.black().defaultBlockState();
+    /**
+     * The door screen backdrop, rows Y=4..5: blocks 3..12, ten wide and centred
+     * on the block boundary at 8.0 like the eight wide one it replaced, so the
+     * two sheets of the door board (the floor info and the deal) sit side by
+     * side on it. Block 2 (the go-home bulb, one of them mirrored to 13) stays
+     * clear on every wall.
+     */
+    static final int DOOR_SCREEN_ALONG_MIN = 3;
+    static final int DOOR_SCREEN_ALONG_MAX = 12;
     /** The commit lever base state; {@link #leverState} adds the wall-facing. */
     private static final BlockState LEVER_OFF = Blocks.LEVER.defaultBlockState()
             .setValue(LeverBlock.FACE, AttachFace.WALL);
@@ -609,7 +618,7 @@ final class RoomTemplateGenerator {
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), leverState(wall));
         placeLeverSign(level, o, wall);
         for (int y = 4; y <= 5; y++) {
-            for (int along = 4; along <= 11; along++) {
+            for (int along = DOOR_SCREEN_ALONG_MIN; along <= DOOR_SCREEN_ALONG_MAX; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
             }
         }
@@ -659,7 +668,7 @@ final class RoomTemplateGenerator {
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), RoomBuilder.AIR);
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), SIGN_Y), RoomBuilder.AIR);
         for (int y = 4; y <= 5; y++) {
-            for (int along = 4; along <= 11; along++) {
+            for (int along = DOOR_SCREEN_ALONG_MIN; along <= DOOR_SCREEN_ALONG_MAX; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
             }
         }
