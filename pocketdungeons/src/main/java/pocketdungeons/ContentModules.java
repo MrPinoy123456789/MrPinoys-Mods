@@ -91,12 +91,15 @@ public final class ContentModules {
             JsonElement lootEl = obj.get("loot");
             if (lootEl != null && lootEl.isJsonObject()) {
                 for (Map.Entry<String, JsonElement> entry : lootEl.getAsJsonObject().entrySet()) {
+                    if (!entry.getValue().isJsonPrimitive()) {
+                        throw new IllegalArgumentException(fileIdentity + ": \"loot\" values must be strings");
+                    }
                     loot.put(JsonPackSupport.qualify(entry.getKey()),
                             JsonPackSupport.qualify(entry.getValue().getAsString()));
                 }
             }
             return new Module(qualified, label, description, defaultEnabled,
-                    Map.copyOf(loot),
+                    java.util.Collections.unmodifiableMap(loot),
                     stringList(obj, "allow", fileIdentity),
                     stringList(obj, "stations", fileIdentity),
                     stringList(obj, "merchantStock", fileIdentity),
@@ -114,6 +117,10 @@ public final class ContentModules {
             }
             List<String> values = new ArrayList<>();
             for (JsonElement entry : element.getAsJsonArray()) {
+                if (!entry.isJsonPrimitive()) {
+                    throw new IllegalArgumentException(fileIdentity + ": \"" + key
+                            + "\" must be an array of strings");
+                }
                 values.add(entry.getAsString());
             }
             return List.copyOf(values);
@@ -134,8 +141,9 @@ public final class ContentModules {
     private final List<String> rejections;
 
     private ContentModules(Map<String, Module> byId, List<String> rejections) {
+        List<Module> modulesInOrder = new ArrayList<>(byId.values());
         this.byId = Map.copyOf(byId);
-        this.modules = List.copyOf(byId.values());
+        this.modules = List.copyOf(modulesInOrder);
         this.rejections = List.copyOf(rejections);
     }
 
@@ -223,8 +231,9 @@ public final class ContentModules {
     }
 
     /**
-     * Every item id enabled modules' allow lists contribute. The loot rule
-     * checks treat a module table as allowed when its entries sit in the
+     * Every item id enabled modules' allow lists contribute. No runtime gate
+     * reads this; it is the data the loot rule checks (tests and tools)
+     * use. They treat a module table as allowed when its entries sit in the
      * core allow list plus its own module's {@code allow} (plan L2).
      */
     static Set<String> enabledAllowItems() {
@@ -243,12 +252,16 @@ public final class ContentModules {
      * when no module claims it or a claiming module is on.
      */
     static boolean stationEnabled(String name) {
+        boolean claimed = false;
         for (Module module : current.modules) {
             if (module.stations().contains(name)) {
-                return enabled(module.id());
+                if (enabled(module.id())) {
+                    return true;
+                }
+                claimed = true;
             }
         }
-        return true;
+        return !claimed;
     }
 
     /**

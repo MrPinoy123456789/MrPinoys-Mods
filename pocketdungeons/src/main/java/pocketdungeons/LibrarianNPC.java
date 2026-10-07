@@ -191,7 +191,11 @@ final class LibrarianNPC {
      * librarian is standing yet; the sweep then catches the spawn.
      */
     static void restock(MinecraftServer server, InstanceRecord record) {
-        ServerLevel dungeonLevel = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        restock(server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL), record);
+    }
+
+    /** {@link #restock(MinecraftServer, InstanceRecord)} against an explicit level, for tests. */
+    static void restock(ServerLevel dungeonLevel, InstanceRecord record) {
         if (dungeonLevel == null || record.roomCellOrigin == null) {
             return;
         }

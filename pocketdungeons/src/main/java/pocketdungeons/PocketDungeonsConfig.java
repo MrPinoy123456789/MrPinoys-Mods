@@ -752,7 +752,14 @@ public final class PocketDungeonsConfig {
             "fuelItem", "fuelCostPerGreaterDoor", "fuelPerFreeRun",
             "greaterDoorMinLevel", "door2MinLevel", "echoShardsPerInterval",
             "echoShardsPerFinish", "echoShardFloorChance", "echoShardOrdealChance",
-            "salvageKeysPerFuel");
+            "salvageKeysPerFuel",
+            // Steps 14 and 18: the kit top-up, lock in, gamble, per-station unlock
+            // levels and the Herobrine Cube knobs are gone.
+            "kitTopUpBandLow", "kitTopUpBandMid", "kitTopUpBandHigh",
+            "lockInEmeralds", "lockInUnlockLevel", "gambleEmeraldsPerTier",
+            "gambleSlotMultiplier", "gambleWeightedSlot", "gambleUnlockLevel",
+            "rerollUnlockLevel", "salvageUnlockLevel", "cubeBlock", "cubeUnlockLevel",
+            "imbueMaterial", "imbueCost", "extractionReversible");
 
     private static void apply(JsonObject root) {
         List<String> retired = RETIRED_KEYS.stream().filter(root::has).toList();

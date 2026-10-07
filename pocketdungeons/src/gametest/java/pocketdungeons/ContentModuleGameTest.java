@@ -57,6 +57,28 @@ public final class ContentModuleGameTest {
     }
 
     /**
+     * A saved choice of a gated bag would strand its owner; the choice is
+     * cleared so the bag chest offers the picker again.
+     */
+    @GameTest
+    public void aGatedBagChoiceIsClearedNotStranded(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ContentReload.reload(server);
+        DungeonLog log = DungeonLog.forServer(server);
+        java.util.UUID id = java.util.UUID.randomUUID();
+        try {
+            log.setBag(id, BagIds.LUMBERJACK);
+            helper.assertTrue(!Bags.clearGatedChoice(log, id), "a core bag choice is left alone");
+            log.setBag(id, BagIds.MASON);
+            helper.assertTrue(Bags.clearGatedChoice(log, id), "a gated bag choice is cleared");
+            helper.assertTrue(log.bagOf(id).isEmpty(), "the picker is open again");
+        } finally {
+            log.setBag(id, "");
+        }
+        helper.succeed();
+    }
+
+    /**
      * L1 (D40): while the {@code extra_bags} module is off the five cut bags
      * never reach the bag manifest, so the picker cannot offer them and a
      * held one cannot roll. Enabling the module and reloading restores them.

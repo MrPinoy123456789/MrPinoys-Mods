@@ -802,6 +802,11 @@ public final class InventorySwap {
      * missing table costs nothing and is retried on the next entry.
      */
     private static void grantMigrationKit(DungeonLog log, ServerPlayer player) {
+        if (Bags.clearGatedChoice(log, player.getUUID())) {
+            player.sendSystemMessage(Component.literal(
+                            "Your old bag is not available any more. Choose another at the bag chest.")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
         DungeonLog.Entry entry = log.get(player.getUUID());
         if (entry.bag().isEmpty() || entry.kitGranted()) {
             return;

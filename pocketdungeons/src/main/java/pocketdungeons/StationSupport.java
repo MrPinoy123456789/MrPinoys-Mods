@@ -27,7 +27,12 @@ final class StationSupport {
             return false;
         }
         Block block = Block.byItem(item);
-        return block != Blocks.AIR && state.is(block);
+        if (block == Blocks.AIR || !state.is(block)) {
+            return false;
+        }
+        // L2: a station block a disabled content module claims does not operate.
+        return ContentModules.stationEnabled(
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).getPath());
     }
 
     /** The string marker at {@code custom_data.pocketdungeons.<key>}, or {@code ""} if the stack has none. */

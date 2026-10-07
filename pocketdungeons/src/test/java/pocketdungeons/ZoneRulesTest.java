@@ -94,6 +94,12 @@ public class ZoneRulesTest {
         check(full.depthBonus() == 0.5, "numbers");
         check(full.lootRole().equals("trophy") && full.lootTierEvery() == 2, "loot");
         check(full.unlockLevel() == 25, "unlock level");
+        try {
+            parse("{\"kit_top_up_scale\": 0.5}");
+            throw new AssertionError("the retired kit_top_up_scale must be rejected as an unknown field");
+        } catch (IllegalArgumentException expected) {
+            check(expected.getMessage().contains("kit_top_up_scale"), "the rejection names the retired key");
+        }
         ZoneRules empty = parse("{}");
         check(empty.equals(ZoneRules.DEFAULT), "an empty block is the default zone");
 

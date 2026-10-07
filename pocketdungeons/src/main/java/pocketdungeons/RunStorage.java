@@ -1,7 +1,6 @@
 package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -89,20 +88,13 @@ final class RunStorage {
     }
 
     /**
-     * A right-click on a block in the dungeon. J6 (D38): the chest's position
-     * decides. Any ender chest inside a live instance's room, the safe room
-     * or the staging room at the Doors, opens the storage whether a run is
-     * up or not; so does any chest a floor-loop member clicks mid-run, the
-     * stamped staging-room chest being the usual one. Everywhere else in the
-     * dungeon falls through to the ender chest denial.
+     * A right-click on a block in the dungeon. J6 (D38, owner amendment): any
+     * ender chest anywhere in the dungeon world, the safe room, the Doors or
+     * a floor, opens the player's Dungeon Storage whether a run is up or not.
+     * The vanilla ender chest never opens there.
      */
-    static boolean onUse(ServerPlayer player, BlockState state, BlockPos pos, boolean inDungeon) {
+    static boolean onUse(ServerPlayer player, BlockState state, boolean inDungeon) {
         if (!inDungeon || !matchesStation(state)) {
-            return false;
-        }
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        boolean midRun = record != null && record.inFloorLoop();
-        if (!midRun && Instances.roomRecordAt(pos) == null) {
             return false;
         }
         MinecraftServer server = player.level().getServer();

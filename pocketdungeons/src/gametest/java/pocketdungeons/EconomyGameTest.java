@@ -26,7 +26,7 @@ import net.minecraft.world.phys.AABB;
  * <h2>What is here and what is not</h2>
  *
  * <p>The trade screens are deliberately absent: merchant offers open as a
- * vanilla {@code MerchantGui} the player clicks, and DISCOVERIES trap 10 is
+ * vanilla trading screen the player clicks, and DISCOVERIES trap 10 is
  * explicit that nothing headless right-clicks a screen. Asserting a fake call
  * into the click path would prove the assertion, not the station. It stays a
  * {@code LIVE_TEST_PASS} row. What is covered here is the delivery primitive
@@ -114,6 +114,27 @@ public final class EconomyGameTest {
      * at the old salvage rates, one emerald each, three for an ominous key,
      * and leave the inventory. They never reach the next floor or the bench.
      */
+    /** A big haul splits into legal stacks; no oversized emerald stack is minted. */
+    @GameTest
+    public void manyKeysPayInLegalStacks(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        emptyInventory(player);
+        player.getInventory().setItem(0, new ItemStack(Items.OMINOUS_TRIAL_KEY, 30));
+        helper.runAfterDelay(4L, () -> {
+            int paid = RunLifecycle.redeemKeys(player);
+            helper.assertValueEqual(paid, 90, "30 ominous keys pay 90 emeralds");
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                helper.assertTrue(stack.getCount() <= stack.getMaxStackSize(), "no oversized stack in slot " + i);
+            }
+            helper.assertValueEqual(countIn(player, Items.EMERALD) + countNearby(server, player, Items.EMERALD),
+                    90, "all of it exists exactly once");
+            cleanUp(server, DungeonLog.forServer(server), player);
+            helper.succeed();
+        });
+    }
+
     @GameTest
     public void clearFloorRedeemsTheKeysItFinds(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();

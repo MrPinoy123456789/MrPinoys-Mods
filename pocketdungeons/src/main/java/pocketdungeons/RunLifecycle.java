@@ -1501,8 +1501,12 @@ final class RunLifecycle {
         }
         int emeralds = SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds())
                 + SalvageMath.keyEmeralds(ominous, PocketDungeonsConfig.salvageOminousKeyEmeralds());
-        if (emeralds > 0) {
-            Payout.deliver(player, new ItemStack(Items.EMERALD, emeralds));
+        int left = emeralds;
+        int max = new ItemStack(Items.EMERALD).getMaxStackSize();
+        while (left > 0) {
+            int n = Math.min(max, left);
+            Payout.deliver(player, new ItemStack(Items.EMERALD, n));
+            left -= n;
         }
         return emeralds;
     }

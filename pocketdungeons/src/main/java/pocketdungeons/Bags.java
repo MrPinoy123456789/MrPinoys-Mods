@@ -202,6 +202,23 @@ final class Bags {
     }
 
     /**
+     * L2: a saved bag choice that a disabled content module now gates would
+     * strand its owner (no kit can roll, and the picker refuses a second
+     * pick). Clears the choice so the bag chest offers the picker again.
+     *
+     * @return whether a choice was cleared
+     */
+    static boolean clearGatedChoice(DungeonLog log, java.util.UUID player) {
+        String chosen = log.bagOf(player);
+        if (chosen.isEmpty() || ContentModules.bagEnabled(chosen)) {
+            return false;
+        }
+        log.setBag(player, "");
+        log.setKitGranted(player, false);
+        return true;
+    }
+
+    /**
      * One roll of this bag's kit table, or {@code null} if the bag or its
      * table is missing. The built-in tables are deterministic (every pool
      * rolls one fixed entry), so a roll is also how {@code PackValidator}

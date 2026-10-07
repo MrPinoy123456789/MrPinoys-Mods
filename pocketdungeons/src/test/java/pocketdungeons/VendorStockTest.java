@@ -6,8 +6,7 @@ import java.util.List;
  * Pure regression for {@link VendorStock} (J5a): the offer plan is one line
  * per category and tier (nine at cap 3, six at cap 2), every line prices to
  * {@link VendorMath} and names a {@code gear/<category>_<tier>} table.
- * Needs the vanilla bootstrap only for {@code LootTables}, same as
- * {@code CubeStationTest} used to.
+ * Needs the vanilla bootstrap only for {@code LootTables}.
  */
 public class VendorStockTest {
 
@@ -23,7 +22,7 @@ public class VendorStockTest {
     private static void testActGatedCounts() {
         check(VendorStock.gearLines(3).size(), 9, "Act 2 stock is nine gear offers");
         check(VendorStock.gearLines(2).size(), 6, "Act 1 stock is six gear offers");
-        check(VendorStock.gearLines(1).size(), 3, "a floor of one tier is three offers");
+        check(VendorStock.gearLines(1).size(), 3, "a cap of one tier is three offers");
     }
 
     private static void testLines() {

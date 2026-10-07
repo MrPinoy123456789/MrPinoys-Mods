@@ -56,7 +56,7 @@ final class FirstVisitTutorial {
         },
         ENDER_CHEST("ender_chest", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
-                return List.of("Any ender chest in the safe room or at the Doors is your Dungeon Storage: "
+                return List.of("Any ender chest in the dungeon is your Dungeon Storage: "
                         + "27 extra slots that stay yours between runs, so you can leave spare things there.");
             }
         },

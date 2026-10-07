@@ -23,6 +23,7 @@
       "pocketdungeons.ContentReloadGameTest",
       "pocketdungeons.ContentModuleGameTest",
       "pocketdungeons.PiglinBarterGameTest",
+      "pocketdungeons.VendorGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

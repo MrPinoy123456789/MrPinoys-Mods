@@ -101,13 +101,6 @@
                     "minimum": 1,
                     "default": 1,
                     "$comment": "The keystone level from which a door into this zone can be dealt."
-                },
-                "kit_top_up_scale": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10,
-                    "default": 1.0,
-                    "$comment": "Multiplier on the safe-visit kit top-up (a bag's kit_baseline, see dungeon_bag.schema.json). The grant is still capped at the baseline."
                 }
             }
         }
