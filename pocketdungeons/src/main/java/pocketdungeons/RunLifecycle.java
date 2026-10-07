@@ -1356,7 +1356,7 @@ final class RunLifecycle {
             boolean first = log.addDungeonFinished(member, def.id());
             // D8, D16, D29: every finish re-evaluates the member's acts; a
             // finish that opens nothing names what is left.
-            DungeonProgress.onProgress(server, record, memberPlayer, true);
+            DungeonProgress.onProgress(server, record, memberPlayer, true, first);
             // J1: the finish pays emeralds now; the echo shard is retired.
             int emeralds = PocketDungeonsConfig.finishEmeralds();
             String diaryId = "";

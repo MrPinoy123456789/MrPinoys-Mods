@@ -118,6 +118,33 @@ final class ActProgress {
     }
 
     /**
+     * Where a member stands in {@code act}, for a milestone title:
+     * {@code "3 of 5 dungeons"} and, for an act with a Mine leg,
+     * {@code "Mine floor 2 of 5"}, joined by {@code ", "}.
+     */
+    static String progressLine(int act, Set<String> finished, int deepestMineFloor,
+                               Collection<DungeonDef> all) {
+        Set<String> done = new LinkedHashSet<>();
+        for (String id : finished) {
+            done.add(DungeonDef.qualify(id));
+        }
+        List<DungeonDef> dungeons = actDungeons(act, all);
+        int have = 0;
+        for (DungeonDef def : dungeons) {
+            if (done.contains(DungeonDef.qualify(def.id()))) {
+                have++;
+            }
+        }
+        List<String> parts = new ArrayList<>();
+        parts.add(have + " of " + dungeons.size() + " dungeons");
+        int target = mineTarget(act);
+        if (target > 0) {
+            parts.add("Mine floor " + Math.min(deepestMineFloor, target) + " of " + target);
+        }
+        return String.join(", ", parts);
+    }
+
+    /**
      * What {@code act} still asks of a member, for the "what is left" line:
      * {@code "Act 1: 2 dungeons and the Mine to floor 5 left."} Returns an
      * empty string when the act is complete (or nothing is left to say).

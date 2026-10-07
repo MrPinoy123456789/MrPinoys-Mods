@@ -97,6 +97,10 @@ public class ActUnlockTest {
         check(ActProgress.complete(5, Set.of("the_end", "ender_archive", "herobrine"), 0, act5), true,
                 "act 5 completes on dungeons alone");
 
+        check(ActProgress.progressLine(1, Set.of("mineshaft"), 2, act1),
+                "1 of 3 dungeons, Mine floor 2 of 5", "the milestone title's progress line");
+        check(ActProgress.progressLine(5, Set.of("the_end"), 9, act5),
+                "1 of 3 dungeons", "an act without a Mine leg names dungeons only");
         check(ActProgress.remainingLine(1, Set.of(), 0, act1),
                 "Act 1: 3 dungeons and the Mine to floor 5 left.", "the full remaining line");
         check(ActProgress.remainingLine(1, Set.of("mineshaft"), 0, act1),

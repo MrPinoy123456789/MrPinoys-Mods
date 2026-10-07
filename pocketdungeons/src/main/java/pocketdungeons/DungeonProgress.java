@@ -43,6 +43,16 @@ final class DungeonProgress {
      */
     static int onProgress(MinecraftServer server, InstanceRecord record, ServerPlayer member,
                           boolean announceRemaining) {
+        return onProgress(server, record, member, announceRemaining, false);
+    }
+
+    /**
+     * As {@link #onProgress(MinecraftServer, InstanceRecord, ServerPlayer, boolean)};
+     * {@code newFinish} marks the first time this member finished the
+     * record's dungeon, which earns a milestone title when no act opened.
+     */
+    static int onProgress(MinecraftServer server, InstanceRecord record, ServerPlayer member,
+                          boolean announceRemaining, boolean newFinish) {
         DungeonLog log = DungeonLog.forServer(server);
         UUID id = member.getUUID();
         DungeonLog.Entry entry = log.get(id);
@@ -79,6 +89,10 @@ final class DungeonProgress {
             PlaytestJournal.actUnlocked(member, record, dungeonId, 0, true);
         }
 
+        if (opened == 0) {
+            milestoneTitle(server, id, record, finished, depth, all, newFinish, announceRemaining);
+        }
+
         if (opened == 0 && announceRemaining) {
             // Name what is left on the lowest incomplete act, so a finish that
             // opens nothing still says why.
@@ -91,5 +105,36 @@ final class DungeonProgress {
             }
         }
         return opened;
+    }
+
+    /**
+     * Big on-screen text for a milestone that did not open an act: the first
+     * finish of a dungeon (its name, then where the act stands) and the Mine
+     * reaching an act's depth target. An act opening has its own title.
+     */
+    private static void milestoneTitle(MinecraftServer server, UUID id, InstanceRecord record,
+                                       Set<String> finished, int depth, Collection<DungeonDef> all,
+                                       boolean newFinish, boolean finishCall) {
+        if (finishCall) {
+            DungeonDef def = record == null ? null : DungeonDefs.current().byId(record.interval.dungeonId);
+            if (newFinish && def != null) {
+                StaggeredTitle.show(server, id,
+                        Component.literal(def.name() + " cleared").withStyle(ChatFormatting.GOLD),
+                        java.util.List.of("Act " + def.act() + ": "
+                                + ActProgress.progressLine(def.act(), finished, depth, all)),
+                        ChatFormatting.GRAY);
+            }
+            return;
+        }
+        for (int act = DungeonDef.MIN_ACT; act < DungeonDef.MAX_ACT; act++) {
+            if (ActProgress.mineTarget(act) > 0 && depth == ActProgress.mineTarget(act)) {
+                StaggeredTitle.show(server, id,
+                        Component.literal("Mine floor " + depth + " reached").withStyle(ChatFormatting.GOLD),
+                        java.util.List.of("Act " + act + ": "
+                                + ActProgress.progressLine(act, finished, depth, all)),
+                        ChatFormatting.GRAY);
+                return;
+            }
+        }
     }
 }
