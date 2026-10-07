@@ -110,6 +110,11 @@ public final class Chime {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 0.8f);
     }
 
+    /** Scrap was earned at a floor clear: the XP orb pickup, soft. */
+    public static void scrapEarned(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP), 0.5f, 1.0f);
+    }
+
     /** The keystone was depleted. Descending two notes. */
     public static void keystoneDepleted(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.8f);

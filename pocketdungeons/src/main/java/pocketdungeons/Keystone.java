@@ -9,6 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.ArrayList;
@@ -287,7 +288,7 @@ final class Keystone {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Right-click a lodestone to use it."));
         if (ordered.isEmpty()) {
-            lore.add(grey("Clear floors and bank them at home to trade up."));
+            lore.add(grey("Clear floors to earn scrap and raise your compass."));
         } else {
             for (AffixDefinition def : ordered) {
                 lore.add(grey(def.blurb));
@@ -295,6 +296,34 @@ final class Keystone {
         }
         stack.set(DataComponents.LORE, new ItemLore(lore));
         return stack;
+    }
+
+    /**
+     * J1: shows the member's scrap on every compass they carry, as a lore line
+     * {@code Scrap 3/5 to chart 4 (13 held)}. Replaces the previous scrap line,
+     * leaves the rest of the lore alone. Call after scrap is earned or spent.
+     */
+    static void showScrap(ServerPlayer player, int scrap) {
+        String line = "Scrap " + ScrapMath.scrapIntoChart(scrap) + "/" + ScrapMath.SCRAP_PER_CHART
+                + " to chart " + (ScrapMath.chartLevel(scrap) + 1) + " (" + scrap + " held)";
+        net.minecraft.world.entity.player.Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!isKeystone(stack)) {
+                continue;
+            }
+            ItemLore existing = stack.get(DataComponents.LORE);
+            List<Component> lines = new ArrayList<>();
+            if (existing != null) {
+                for (Component component : existing.lines()) {
+                    if (!component.getString().startsWith("Scrap ")) {
+                        lines.add(component);
+                    }
+                }
+            }
+            lines.add(grey(line));
+            stack.set(DataComponents.LORE, new ItemLore(lines));
+        }
     }
 
     private static Component grey(String text) {

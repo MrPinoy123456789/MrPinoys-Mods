@@ -671,6 +671,7 @@ final class RunLifecycle {
         // straight from the member's scrap pool; the gate above checked it.
         if (doorCost > 0) {
             log.spendScrap(player.getUUID(), doorCost);
+            Keystone.showScrap(player, log.get(player.getUUID()).scrap());
         }
 
         // A trip has begun (the first door of a dungeon): count it for the leader, which
@@ -1454,7 +1455,10 @@ final class RunLifecycle {
                     } else {
                         Chime.keystoneLevelUp(memberPlayer);
                     }
+                } else {
+                    Chime.scrapEarned(memberPlayer);
                 }
+                Keystone.showScrap(memberPlayer, log.get(member).scrap());
             } else if (pay.emeralds() > 0) {
                 Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, pay.emeralds()));
             }
@@ -1464,6 +1468,11 @@ final class RunLifecycle {
             StringBuilder line = new StringBuilder();
             if (pay.scrap() > 0 || pay.emeralds() > 0) {
                 line.append(pay.line());
+                if (pay.scrap() > 0) {
+                    int held = log.get(member).scrap();
+                    line.append(" (").append(ScrapMath.scrapIntoChart(held)).append("/")
+                            .append(ScrapMath.SCRAP_PER_CHART).append(" to the next chart)");
+                }
             }
             if (keyEmeralds > 0) {
                 if (!line.isEmpty()) {
