@@ -41,9 +41,9 @@ final class BoardText {
         return shards + (shards == 1 ? " echo shard" : " echo shards");
     }
 
-    /** {@code "costs 1 echo shard"}: the door's price, worded as a price so it cannot read as a gain. */
-    static String costText(int shards) {
-        return "costs " + shardText(shards);
+    /** {@code "costs 2 scrap"}: the door's price, worded as a price so it cannot read as a gain. */
+    static String costText(int scrap) {
+        return "costs " + scrap + " scrap";
     }
 
     /**

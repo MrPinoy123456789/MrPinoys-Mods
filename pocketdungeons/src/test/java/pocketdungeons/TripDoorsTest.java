@@ -164,7 +164,7 @@ public class TripDoorsTest {
         for (int path = 1; path <= 30; path++) {
             for (TripDoors.Door door : TripDoors.dealNext(OWNER, frost, "furnaces", path)) {
                 if (door.nodeId().equals("vault")) {
-                    check(door.cost() == 2 && door.sideBranch(), "the side edge costs its authored shards");
+                    check(door.cost() == 2 && door.sideBranch(), "the side edge costs its authored scrap");
                     sawSide = true;
                 } else {
                     check(door.cost() == 0 && !door.sideBranch(), "a main edge is free");
@@ -300,7 +300,7 @@ public class TripDoorsTest {
         check(text.contains(">> Glaze Furnaces <<"), "the current node is marked");
         check(text.contains("* Frozen Gate"), "a visited node is marked");
         check(text.contains("The Big Freeze (FINAL FLOOR)"), "the final node is marked");
-        check(text.contains("to Glaze Vault (side branch: 2 shards)"), "a side edge shows its cost");
+        check(text.contains("to Glaze Vault (side branch: 2 scrap)"), "a side edge shows its cost");
         check(text.contains("Ice Kitchens (out of reach now)") || text.contains("Stray Barracks (out of reach now)"),
                 "nodes no door can reach are flagged");
         check(text.contains("Doors from here"), "doors are listed");
@@ -323,7 +323,7 @@ public class TripDoorsTest {
         // The side door says so.
         boolean sideDoor = false;
         for (DungeonMapText.Line line : lines) {
-            sideDoor |= line.text().startsWith("Door ") && line.text().contains("side branch: 2 shards")
+            sideDoor |= line.text().startsWith("Door ") && line.text().contains("side branch: 2 scrap")
                     && line.text().contains("Glaze Vault");
         }
         check(sideDoor || !has(doors, "vault"), "the side door line shows its cost");

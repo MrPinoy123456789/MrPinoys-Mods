@@ -305,12 +305,12 @@ final class DungeonScreen {
      * <pre>
      * INFESTATION . floor 3 of 4          title, yellow
      * Hollow Walls . Overclocked          name white, affixes magenta
-     * 3 scrap . 2 echo shards             what you get, cyan
-     * loot x3 . costs 1 echo shard        loot green, price yellow
+     * 2 scrap                             what you get, cyan
+     * loot x3 . costs 2 scrap             loot green, price yellow
      * </pre>
-     * (the real separator is {@link BoardText#SEP}). The cyan line is the owner's
-     * scrap (after the too easy discount), a node dungeon's ore, the floor's
-     * promises and, on the last floor, the finish: shards, vault, and the diary page
+     * (the real separator is {@link BoardText#SEP}). The cyan line is the member's
+     * floor pay (scrap, or emeralds above the floor), a node dungeon's ore, the floor's
+     * promises and, on the last floor, the finish: vault chests and the diary page
      * while it is still owed. Later floors' steps are never shown (design D6).
      */
     static Board previewContent(ServerLevel level, InstanceRecord record, int step) {
@@ -531,7 +531,7 @@ final class DungeonScreen {
                 Component.literal("Visitors: " + visitors + "\nWhitelist: " + whitelist));
     }
 
-    /** Context 5: the lever refused: "Select a door first", "Not enough fuel". */
+    /** Context 5: the lever refused: "Select a door first", "Not enough scrap". */
     static Board refusalContent(String message) {
         return Board.titleOnly(Component.literal(message).withStyle(ChatFormatting.RED));
     }

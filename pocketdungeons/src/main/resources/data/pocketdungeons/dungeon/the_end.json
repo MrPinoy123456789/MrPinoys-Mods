@@ -94,7 +94,7 @@
     {
       "from": "outer_islands",
       "to": "end_ship",
-      "cost": 1
+      "cost": 2
     },
     {
       "from": "chorus_orchard",

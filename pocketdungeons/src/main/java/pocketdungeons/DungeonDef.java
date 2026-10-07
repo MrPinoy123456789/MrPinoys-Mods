@@ -284,7 +284,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
     }
 
-    /** A directed edge between two nodes; {@code cost} is echo shards (0 is a main path edge). */
+    /** A directed edge between two nodes; {@code cost} is scrap (0 is a main path edge). */
     record Edge(String from, String to, int cost) {
         Edge {
             if (from == null || from.isBlank() || to == null || to.isBlank()) {

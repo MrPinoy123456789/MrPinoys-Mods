@@ -46,13 +46,13 @@ public class SideBranchPayTest {
     }
 
     private static void testMessages() {
-        String refusal = SideBranchPay.refusal(3, 1);
-        check(refusal.equals("Needs 3 echo shards. You have 1."),
+        String refusal = SideBranchPay.refusal(4, 3);
+        check(refusal.equals("Not enough scrap: 4 needed, 3 carried."),
                 "the refusal names the need and the balance: " + refusal);
-        String screen = SideBranchPay.screenRefusal(1, 0);
-        check(screen.equals("1 echo shard short"),
+        String screen = SideBranchPay.screenRefusal(2, 0);
+        check(screen.equals("2 scrap short"),
                 "the screen refusal names the shortfall: " + screen);
-        check(SideBranchPay.balanceLine(1, 4).equals("1 echo shard. You carry 4."), "the personal line");
+        check(SideBranchPay.balanceLine(2, 4).equals("2 scrap. You carry 4."), "the personal line");
         for (String line : new String[]{refusal, screen, SideBranchPay.balanceLine(2, 0)}) {
             check(!line.contains("--") && !line.contains(String.valueOf((char) 0x2014)),
                     "no dash punctuation: " + line);

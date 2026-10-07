@@ -90,11 +90,13 @@ confirmed by the owner on 2026-10-05.
   `greaterDoorMinLevel` go away.
   - **Spare doors:** a floor with fewer than 3 edges out fills the spare doors
     with the same branch at the other steps, so the risk choice never vanishes.
-- **D5. Echo shards buy side branches.** Each edge is authored as main (free)
-  or side (costs N shards, typically 1 or 2). Every non-final floor must have
-  at least one free edge out (a pack validator rule). Greater doors, their tier
-  and the free door's shard payout are removed. Steps are the risk; shards are
-  the route.
+- **D5. Scrap buys side branches** (plan 2026-10-06-2 J1: was echo shards;
+  authored costs doubled from the shard values). Each edge is authored as main
+  (free) or side (costs N scrap, typically 2 or 4). The member who pulls the
+  lever pays from their own pool; "Not enough scrap: 4 needed, 3 carried." is
+  the refusal. Every non-final floor must have at least one free edge out (a
+  pack validator rule). Greater doors, their tier and the free door's shard
+  payout are removed. Steps are the risk; scrap is the route.
 - **D6. The staging room shows the whole dungeon map**: the graph, where you
   are, the final floor, each edge's shard cost and what each branch can reach.
   Each door shows floor name, step, affix, loot tier and shard cost. Steps of
@@ -247,7 +249,7 @@ confirmed by the owner on 2026-10-05.
 
 ## 4. Example dungeon graph: Frostworks (Act 2)
 
-Five layers, widths 1, 2, 3, 2, 1. One side branch costs 2 shards and is the
+Five layers, widths 1, 2, 3, 2, 1. One side branch costs 4 scrap and is the
 only way into the Glaze Vault floor. Branches rejoin before the final floor.
 Steps (+1, +2, +3) are not drawn: they are dealt at random at each staging room.
 
@@ -258,12 +260,12 @@ flowchart LR
     K --> S["Stray Barracks"]
     K --> P["Powder Snow Fields"]
     F --> P
-    F -->|"side: 2 shards"| V["Glaze Vault"]
+    F -->|"side: 4 scrap"| V["Glaze Vault"]
     S --> C["Cold Storage"]
     P --> C
     P --> R["Ice Run"]
     V --> R
-    C --> X["The Big Freeze<br/>final floor: vault, shard, diary page"]
+    C --> X["The Big Freeze<br/>final floor: vault, emeralds, diary page"]
     R --> X
 ```
 
@@ -275,17 +277,17 @@ ASCII, for the staging room map:
 [Frozen Gate]-+-[Ice Kitchens]--+-[Stray Barracks]----+-[Cold Storage]-+
               |                 +-[Powder Snow Fields]-+                |
               +-[Glaze Furnaces]+                      +-[Ice Run]------+-[The Big Freeze]
-                                +==2==[Glaze Vault]----+
+                                +==4==[Glaze Vault]----+
  
- --- main path (free)    ==N== side branch (N shards)
+ --- main path (free)    ==N== side branch (N scrap)
 ```
 
 D6a in this example: Stray Barracks could be a Deepslate floor (an Act 2
 neighbour) inside Frostworks, while the Frozen Gate and the Big Freeze stay
 Frostworks.
 
-Glaze Vault is reachable only by taking Glaze Furnaces at layer 2 and paying 2
-shards at layer 3: "some floors are only reachable through earlier choices".
+Glaze Vault is reachable only by taking Glaze Furnaces at layer 2 and paying 4
+scrap at layer 3: "some floors are only reachable through earlier choices".
 Shortest finish is 5 floors; a trip that banks after floor 3 never sees the
 final vault.
 

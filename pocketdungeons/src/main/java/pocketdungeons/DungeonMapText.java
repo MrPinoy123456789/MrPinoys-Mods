@@ -37,7 +37,7 @@ final class DungeonMapText {
         List<Line> out = new ArrayList<>();
         out.add(new Line(def.name().toUpperCase(), Tone.TITLE));
         out.add(new Line("Act " + def.act() + ", " + def.layers() + " layers. "
-                + "You are here: >> <<. Visited: *. Some doors cost echo shards.", Tone.NOTE));
+                + "You are here: >> <<. Visited: *. Some doors cost scrap.", Tone.NOTE));
 
         Set<String> ahead = TripDoors.reachableFrom(def, current);
         for (int layer = 1; layer <= def.layers(); layer++) {
@@ -75,7 +75,7 @@ final class DungeonMapText {
                     if (edge.free()) {
                         out.add(new Line("    to " + name, Tone.NORMAL));
                     } else {
-                        out.add(new Line("    to " + name + " (side branch: " + shards(edge.cost()) + ")",
+                        out.add(new Line("    to " + name + " (side branch: " + scrap(edge.cost()) + ")",
                                 Tone.SIDE));
                     }
                 }
@@ -93,7 +93,7 @@ final class DungeonMapText {
                 StringBuilder text = new StringBuilder("Door ").append(slot + 1).append(": ").append(name)
                         .append(", ").append(stepWord(door.step()));
                 if (door.sideBranch()) {
-                    text.append(", side branch: ").append(shards(door.cost()));
+                    text.append(", side branch: ").append(scrap(door.cost()));
                 }
                 out.add(new Line(text.toString(), door.sideBranch() ? Tone.SIDE : Tone.NORMAL));
                 List<String> reach = new ArrayList<>();
@@ -150,7 +150,7 @@ final class DungeonMapText {
         return step <= 0 ? "+0 scrap" : "+" + step + " scrap";
     }
 
-    static String shards(int cost) {
-        return cost + (cost == 1 ? " shard" : " shards");
+    static String scrap(int cost) {
+        return cost + " scrap";
     }
 }

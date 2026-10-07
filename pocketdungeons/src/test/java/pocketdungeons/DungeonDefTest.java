@@ -792,8 +792,8 @@ public class DungeonDefTest {
         DungeonDef frost = loaded.byId("frostworks");
         check(frost.layers() == 5 && frost.nodes().size() == 9, "frostworks follows the design example");
         check(frost.node("glaze_furnaces").signatureAffix().equals(T + "molten"), "glaze furnaces is molten");
-        check(frost.edgesFrom("glaze_furnaces").stream().anyMatch(x -> x.to().equals("glaze_vault") && x.cost() == 2),
-                "glaze vault is a 2 shard side branch");
+        check(frost.edgesFrom("glaze_furnaces").stream().anyMatch(x -> x.to().equals("glaze_vault") && x.cost() == 4),
+                "glaze vault is a 4 scrap side branch");
     }
 
     private static Set<String> ids(Path dir) throws IOException {

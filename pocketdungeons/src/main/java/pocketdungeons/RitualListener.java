@@ -549,7 +549,8 @@ final class RitualListener {
         }
         int cost = offers[Math.min(step - 1, offers.length - 1)].cost();
         if (cost > 0) {
-            int carried = Fuel.carried(player);
+            int carried = DungeonLog.forServer(player.level().getServer())
+                    .get(player.getUUID()).scrap();
             player.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
                     SideBranchPay.balanceLine(cost, carried))
                     .withStyle(SideBranchPay.affordable(cost, carried) ? ChatFormatting.GRAY : ChatFormatting.RED)));
@@ -562,7 +563,7 @@ final class RitualListener {
      * spelled out: {@link #pullLever} names the reason on the screen and
      * {@link #selectDoor} sounds it on the preview click, so the two can never
      * disagree about which doors are openable. Only a side branch (an edge that
-     * costs echo shards) or a finished dungeon refuses; there are no level gates.
+     * costs scrap) or a finished dungeon refuses; there are no level gates.
      * {@code RunLifecycle.commitDoor} re-checks all of this regardless; this
      * is for the message and the cue, not for the rule.
      */
@@ -584,8 +585,9 @@ final class RitualListener {
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         int cost = offer.cost();
         if (cost > 0) {
-            // The viewing player's own pack, never the owner's.
-            int carried = Fuel.carried(player);
+            // The viewing player's own scrap pool, never the owner's.
+            int carried = DungeonLog.forServer(player.level().getServer())
+                    .get(player.getUUID()).scrap();
             if (!SideBranchPay.affordable(cost, carried)) {
                 return SideBranchPay.screenRefusal(cost, carried);
             }

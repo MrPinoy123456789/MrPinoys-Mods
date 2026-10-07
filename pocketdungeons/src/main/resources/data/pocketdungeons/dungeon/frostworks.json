@@ -113,7 +113,7 @@
     {
       "from": "glaze_furnaces",
       "to": "glaze_vault",
-      "cost": 2
+      "cost": 4
     },
     {
       "from": "stray_barracks",

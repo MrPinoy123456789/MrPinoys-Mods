@@ -115,7 +115,7 @@
     {
       "from": "piglin_barracks",
       "to": "slag_vents",
-      "cost": 1
+      "cost": 2
     },
     {
       "from": "chain_bridge",

@@ -35,7 +35,7 @@ import java.util.UUID;
  * open preview and the commit behind it see the same deal, and the deal does
  * not change between renders.
  *
- * <p>Costs are echo shards and ride on the edge (D5): a side edge costs its
+ * <p>Costs are scrap and ride on the edge (J1, old D5): a side edge costs its
  * authored {@code cost}; a main edge and a dungeon entry cost nothing.
  */
 final class TripDoors {
@@ -47,8 +47,8 @@ final class TripDoors {
 
     /**
      * One dealt door. {@code nodeId} is the floor behind it, {@code step} the
-     * chart scrap steps it adds (1 to 3), {@code cost} the echo
-     * shards it takes. {@code dungeonId} is always set. {@code variant} is how many
+     * chart scrap steps it adds (1 to 3), {@code cost} the scrap
+     * it takes. {@code dungeonId} is always set. {@code variant} is how many
      * earlier doors of the same deal lead to the same floor (0 for the first copy):
      * {@link DoorAffixes} rerolls a copy's affixes by it so no two doors are twins.
      * {@code pathLength} is the deal's seed input, kept on the door so the preview and

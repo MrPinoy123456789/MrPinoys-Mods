@@ -82,7 +82,7 @@ final class Keystone {
      * M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is
      * active. {@code FREE} is every ordinary door. {@code GREATER} is unused since
      * the dungeon structure waves: the Greater door tier, its level gates and its
-     * shard cost are gone (design D4, D5); a door's only price is its edge's
+     * fuel cost are gone (design D4, D5); a door's only price is its edge's
      * {@link TripDoors.Door#cost()}. The constant stays so a stale reference
      * still compiles.
      */
@@ -94,7 +94,7 @@ final class Keystone {
      * <p>{@code step} is the keystone steps this door adds (the floor runs at
      * keystone plus step; 0 for a resource dungeon floor), dealt by a seeded shuffle
      * and independent of which door slot the offer sits in. {@code door} says which
-     * dungeon floor lies behind it and what it costs in echo shards; it is
+     * dungeon floor lies behind it and what it costs in scrap; it is
      * {@code null} for the operator's experimental offer and for an Endless Mine run,
      * which stand outside any dungeon graph.
      *
@@ -113,12 +113,12 @@ final class Keystone {
             return affixes.contains(AffixIds.OMINOUS);
         }
 
-        /** Echo shards this door takes at the lever; 0 for a main path door. */
+        /** Scrap this door takes at the lever; 0 for a main path door. */
         int cost() {
             return door == null ? 0 : door.cost();
         }
 
-        /** Whether this door costs no shards. Kept for older callers; doors have no level gate any more. */
+        /** Whether this door costs no scrap. Kept for older callers; doors have no level gate any more. */
         boolean free() {
             return cost() == 0;
         }
@@ -150,8 +150,8 @@ final class Keystone {
      * </ul>
      *
      * <p>Pure of side effects and stable for the same state, because it is called to
-     * render a screen as often as to settle a choice. The shard cost and the refusal
-     * for being short of shards happen where a door is actually chosen
+     * render a screen as often as to settle a choice. The scrap cost and the refusal
+     * for being short of scrap happen where a door is actually chosen
      * ({@link RunLifecycle#commitDoor}), not here. No door promises {@code OMINOUS}
      * (a floor turns ominous by a roll at commit time, {@link Omen#ominousChance});
      * {@link Offer#ominous()} stays for an operator's fixed experimental offer.

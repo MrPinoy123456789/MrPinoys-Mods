@@ -22,8 +22,8 @@ public class BoardTextTest {
     private static void testPrices() {
         eq(BoardText.shardText(1), "1 echo shard");
         eq(BoardText.shardText(2), "2 echo shards");
-        eq(BoardText.costText(1), "costs 1 echo shard");
-        eq(BoardText.costText(2), "costs 2 echo shards");
+        eq(BoardText.costText(1), "costs 1 scrap");
+        eq(BoardText.costText(2), "costs 2 scrap");
         for (String line : List.of(BoardText.titleLine("A", 1, 2), BoardText.lootText(1), BoardText.costText(2))) {
             check(!line.contains("--") && line.indexOf('\u2014') < 0, "no dash punctuation: " + line);
         }

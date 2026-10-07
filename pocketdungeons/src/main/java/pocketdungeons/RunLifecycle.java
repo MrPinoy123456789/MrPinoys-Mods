@@ -469,13 +469,13 @@ final class RunLifecycle {
             return false;
         }
 
-        // A side branch costs echo shards (design D5). The door screen names the
+        // A side branch costs scrap (design J1). The door screen names the
         // shortfall (RitualListener.doorRefusal); re-check here for safety.
         int previewCost = offer.cost();
         if (previewCost > 0) {
-            Fuel.refundBanked(player);
             // The member who right-clicks the door is the one who would pay.
-            if (!SideBranchPay.affordable(previewCost, Fuel.carried(player))) {
+            int carried = DungeonLog.forServer(server).get(player.getUUID()).scrap();
+            if (!SideBranchPay.affordable(previewCost, carried)) {
                 return false;
             }
         }
@@ -575,14 +575,13 @@ final class RunLifecycle {
         }
         Keystone.Offer offer = offers[step - 1];
 
-        // Re-check the side branch's shard cost at commit time, since the
-        // player's pack may have changed since the preview. The member who commits
-        // (the one pulling the lever) pays from their own pack, never the owner's
+        // Re-check the side branch's scrap cost at commit time, since the
+        // player's pool may have changed since the preview. The member who commits
+        // (the one pulling the lever) pays from their own pool, never the owner's
         // (dungeon structure W5, SideBranchPay).
         int doorCost = offer.cost();
         if (doorCost > 0) {
-            Fuel.refundBanked(player);
-            int carried = Fuel.carried(player);
+            int carried = log.get(player.getUUID()).scrap();
             if (!SideBranchPay.affordable(doorCost, carried)) {
                 player.sendSystemMessage(Component.literal(SideBranchPay.refusal(doorCost, carried))
                         .withStyle(ChatFormatting.RED));
@@ -669,9 +668,9 @@ final class RunLifecycle {
         }
 
         // The spend happens only once the commit has actually succeeded,
-        // straight from the pack; the gate above checked it was there.
+        // straight from the member's scrap pool; the gate above checked it.
         if (doorCost > 0) {
-            Fuel.take(player, doorCost);
+            log.spendScrap(player.getUUID(), doorCost);
         }
 
         // PD-121: retake the interval snapshot at the first door commit, after
