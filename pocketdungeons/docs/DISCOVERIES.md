@@ -596,3 +596,12 @@ Two gotchas, worth not re-discovering:
     wolves aggroing zombies when the fence gate opens; this needs a live
     client check to confirm the wolves actually path to and attack the
     zombies rather than idling in the kennel.
+
+37. RESOLVED: Content module loot applies per roll, not per reload. The L2
+    module hook (ContentModuleLoader) sits on LootTableEvents.MODIFY_DROPS and
+    consults ContentModules.enabled at roll time, then rolls the module table
+    and merges its drops. Confirmed by ContentModuleGameTest on a live
+    GameTestServer: enabling pocketdungeons:alchemy makes chests/tier_2 yield
+    nether wart immediately, disabling removes it, with no /reload between.
+    Manifest surfaces still settle at reload: module-owned bags are skipped
+    inside BagManifest.parse, which only runs in ContentSnapshot.build.

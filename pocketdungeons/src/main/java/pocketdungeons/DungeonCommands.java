@@ -335,6 +335,24 @@ final class DungeonCommands {
                             .then(Commands.literal("coverage")
                                     .executes(ctx -> coverage(ctx.getSource())))
 
+                            // L2 (D41): content module listing and toggles.
+                            // The toggle writes pocketdungeons.json and lands
+                            // on the next /reload for manifest surfaces.
+                            .then(Commands.literal("modules")
+                                    .executes(ctx -> contentModules(ctx.getSource())))
+                            .then(Commands.literal("module")
+                                    .then(Commands.argument("id", StringArgumentType.word())
+                                            .then(Commands.literal("on")
+                                                    .executes(ctx -> contentModuleSet(
+                                                            ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "id"),
+                                                            true)))
+                                            .then(Commands.literal("off")
+                                                    .executes(ctx -> contentModuleSet(
+                                                            ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "id"),
+                                                            false)))))
+
                             // Playtest tooling: steer room selection toward rooms under test.
                             .then(Commands.literal("bias")
                                     .executes(ctx -> listBias(ctx.getSource()))
@@ -1781,6 +1799,48 @@ final class DungeonCommands {
             source.sendFailure(Component.literal("  " + hole));
         }
         return 0;
+    }
+
+    /**
+     * {@code /dungeon admin modules}: every loaded content module, its
+     * resolved state, and whether that state came from the manifest default
+     * or a config override (L2, D41).
+     */
+    private static int contentModules(CommandSourceStack source) {
+        if (ContentModules.modules().isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No content modules loaded."), false);
+            return 1;
+        }
+        for (ContentModules.Module module : ContentModules.modules()) {
+            boolean on = ContentModules.enabled(module.id());
+            String state = (on ? "on" : "off")
+                    + (ContentModules.overrides().containsKey(module.id()) ? " (config)" : " (default)");
+            source.sendSuccess(() -> Component.literal(
+                    module.label() + " (" + module.id() + "): " + state
+                            + " - " + module.description()), false);
+        }
+        return 1;
+    }
+
+    /**
+     * {@code /dungeon admin module <id> on|off}: writes the override to
+     * {@code pocketdungeons.json}. Loot changes apply to new rolls at once;
+     * manifest surfaces (module bags in the picker, gated stations) settle
+     * on the next {@code /reload}, which the command reports.
+     */
+    private static int contentModuleSet(CommandSourceStack source, String id, boolean on) {
+        ContentModules.Module module = ContentModules.module(id);
+        if (module == null) {
+            source.sendFailure(Component.literal(
+                    "No content module named " + id + "; /dungeon admin modules lists them."));
+            return 0;
+        }
+        PocketDungeonsConfig.setModuleOverride(module.id(), on);
+        source.sendSuccess(() -> Component.literal(
+                "Content module " + module.id() + " is now " + (on ? "on" : "off")
+                        + " (saved to pocketdungeons.json; manifest surfaces update on /reload)"),
+                true);
+        return 1;
     }
 
     private static int plan(CommandSourceStack source, long seed) {

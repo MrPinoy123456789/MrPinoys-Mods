@@ -1,0 +1,18 @@
+{
+  "id": "redstone",
+  "label": "Redstone",
+  "description": "Redstone dust, pistons, repeaters, rails and lightning rods.",
+  "default": false,
+  "allow": [
+    "redstone",
+    "piston",
+    "sticky_piston",
+    "repeater",
+    "comparator",
+    "rail",
+    "powered_rail",
+    "detector_rail",
+    "activator_rail",
+    "lightning_rod"
+  ]
+}

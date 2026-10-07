@@ -72,6 +72,17 @@ final class BagManifest {
 
     /** F1: accepts the incoming ResourceManager from the reload callback. */
     static BagManifest parse(MinecraftServer server, ResourceManager rm) {
+        return parse(server, rm, Set.of());
+    }
+
+    /**
+     * {@link #parse(MinecraftServer, ResourceManager)} that skips the bag ids
+     * in {@code skipIds}: the content module surface (L2, D41) names bags
+     * that exist only while their module is on, so the snapshot's bag parse
+     * passes the module candidate's disabled bag ids and those files never
+     * enter the manifest.
+     */
+    static BagManifest parse(MinecraftServer server, ResourceManager rm, Set<String> skipIds) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
         Map<Identifier, Resource> resources = rm.listResources(
@@ -80,6 +91,9 @@ final class BagManifest {
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
             String id = JsonPackSupport.resourceId(resource.getKey(), "dungeon_bag");
+            if (skipIds.contains(id)) {
+                continue;
+            }
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 BagDefinition def = BagMeta.fromJson(
                         JsonParser.parseReader(reader).getAsJsonObject(), id);

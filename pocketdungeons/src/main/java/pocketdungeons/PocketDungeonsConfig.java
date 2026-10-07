@@ -391,11 +391,15 @@ public final class PocketDungeonsConfig {
      */
     private static boolean extractionReversible = false;
 
+    /** The file {@link #load} last read, so {@link #setModuleOverride} can write it back. */
+    private static volatile Path configFile;
+
     private PocketDungeonsConfig() {}
 
     /** Loads and validates every registry setting, preserving an unreadable file for manual repair. */
     public static void load(Path configDir) {
         Path file = configDir.resolve("pocketdungeons.json");
+        configFile = file;
         try {
             Files.createDirectories(configDir);
             if (!Files.exists(file)) {
@@ -882,6 +886,9 @@ public final class PocketDungeonsConfig {
         imbueCost = 4;
         equipCap = 3;
         extractionReversible = false;
+
+        // L2 (D41): no content module overrides; every module sits at its manifest default.
+        ContentModules.setOverrides(Map.of());
     }
 
     /**
@@ -905,6 +912,25 @@ public final class PocketDungeonsConfig {
             PocketDungeonsMod.LOG.info("pocketdungeons.json still sets {}, which no longer do anything "
                     + "(retired keys); ignoring them", String.join(", ", retired));
         }
+        // L2 (D41): "modules": {"alchemy": true} overrides a content module's
+        // manifest default. A missing entry means the manifest default; a
+        // non-boolean value is ignored with a warning; an id no module
+        // declares is kept but reported at content reload time
+        // (ContentModuleLoader.parse).
+        Map<String, Boolean> moduleOverrides = new java.util.LinkedHashMap<>();
+        JsonElement modulesElement = root.get("modules");
+        if (modulesElement != null && modulesElement.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : modulesElement.getAsJsonObject().entrySet()) {
+                JsonElement value = entry.getValue();
+                if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()) {
+                    moduleOverrides.put(JsonPackSupport.qualify(entry.getKey()), value.getAsBoolean());
+                } else {
+                    PocketDungeonsMod.LOG.warn("pocketdungeons.json modules.{} must be true or false; "
+                            + "ignoring", entry.getKey());
+                }
+            }
+        }
+        ContentModules.setOverrides(moduleOverrides);
         // A cell is exactly one chunk only while the slot origin is chunk-aligned,
         // and every force-load and teardown calculation downstream leans on that.
         slotPitch = readInt(root, "slotPitch", 2048,
@@ -1287,6 +1313,42 @@ public final class PocketDungeonsConfig {
         return merged.equals(parsed) ? null : merged;
     }
 
+    /**
+     * L2 (D41): sets or clears one content module override ({@code on == null}
+     * restores the manifest default) and persists the {@code "modules"} object
+     * to {@code pocketdungeons.json}. Other keys are preserved: the file is
+     * read back, the modules object rewritten, and the result saved. With no
+     * config file on disk (unit tests) only the in-memory override moves.
+     */
+    public static void setModuleOverride(String id, Boolean on) {
+        ContentModules.setOverride(id, on);
+        Path file = configFile;
+        if (file == null) {
+            return;
+        }
+        try {
+            JsonObject parsed = null;
+            if (Files.exists(file)) {
+                try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                    parsed = GSON.fromJson(r, JsonObject.class);
+                }
+            }
+            if (parsed == null) {
+                parsed = new JsonObject();
+            }
+            JsonObject modules = new JsonObject();
+            for (Map.Entry<String, Boolean> entry : ContentModules.overrides().entrySet()) {
+                modules.addProperty(entry.getKey(), entry.getValue());
+            }
+            parsed.add("modules", modules);
+            try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                GSON.toJson(parsed, w);
+            }
+        } catch (Exception e) {
+            PocketDungeonsMod.LOG.error("pocketdungeons.json could not record module override {}", id, e);
+        }
+    }
+
     private static JsonObject defaultsJson() {
         JsonObject root = new JsonObject();
         root.addProperty("slotPitch", 2048);
@@ -1404,6 +1466,7 @@ public final class PocketDungeonsConfig {
             powerBonusesJson.add(entryJson);
         }
         root.add("powerBonuses", powerBonusesJson);
+        root.add("modules", new JsonObject());
         root.addProperty("imbueMaterial", "minecraft:iron_ingot");
         root.addProperty("imbueCost", 4);
         root.addProperty("equipCap", 3);

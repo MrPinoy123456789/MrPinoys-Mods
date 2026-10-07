@@ -1,0 +1,18 @@
+{
+  "id": "gardening",
+  "label": "Gardening",
+  "description": "Seeds, saplings, crops, dirt, moss and vines.",
+  "default": false,
+  "allow": [
+    "wheat_seeds",
+    "carrot",
+    "potato",
+    "beetroot_seeds",
+    "oak_sapling",
+    "birch_sapling",
+    "spruce_sapling",
+    "dirt",
+    "moss_block",
+    "vine"
+  ]
+}

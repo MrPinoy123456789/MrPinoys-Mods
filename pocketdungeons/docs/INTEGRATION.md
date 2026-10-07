@@ -910,3 +910,61 @@ own hardware, population and other mods. To set your own caps:
    preview-heavy; the load test does not drive those paths, so an
    operator should set them conservatively and raise them only with
    `/dungeon admin diagnostics` watching the live counts.
+
+## Content modules (L2, D41)
+
+A content module is a named, toggleable bundle of optional content. Each
+module is a file at `data/<namespace>/content_module/<name>.json`:
+
+```json
+{
+  "id": "alchemy",
+  "label": "Alchemy",
+  "description": "Nether wart, blaze powder and the brewing stand.",
+  "default": false,
+  "loot": {
+    "chests/tier_2": "modules/alchemy/chests/tier_2",
+    "chests/supply_tier_2": "modules/alchemy/chests/supply_tier_2"
+  },
+  "allow": ["nether_wart", "blaze_powder", "blaze_rod", "magma_cream", "glass_bottle"],
+  "stations": ["brewing_stand"],
+  "merchantStock": ["nether_wart"],
+  "bags": []
+}
+```
+
+The fields:
+
+| Field | Effect while the module is on |
+|---|---|
+| `loot` | target table to module table. Each roll of the target also rolls the module table and merges the drops. Module tables live under `loot_table/modules/<module>/`, so a disabled module's tables stay loaded but never roll |
+| `allow` | item ids added to the loot allow list. The loot rule check validates a module table against the core allow list plus its own `allow` |
+| `stations` | station block names gated on the module; a claimed station refuses politely while the module is off |
+| `merchantStock` | item ids merchant stock may list only while the module is on |
+| `bags` | bag ids that exist only while the module is on; a disabled module's bags are skipped at bag-manifest load |
+
+`"id"` must resolve to the file's namespaced path, `"default"` is the state
+used when the config names no override. Overrides live in
+`pocketdungeons.json` under `"modules"`:
+
+```json
+"modules": {
+  "pocketdungeons:alchemy": true
+}
+```
+
+A missing entry means the manifest default; a non-boolean value is ignored
+with a warning; an override naming a module no manifest declares has no
+effect and is warned about at content reload. Operators can list and toggle
+modules at runtime:
+
+```
+/dungeon admin modules
+/dungeon admin module alchemy on
+/dungeon admin module alchemy off
+```
+
+Toggling writes `pocketdungeons.json`. Loot changes apply to the next roll
+immediately; manifest surfaces (module bags, gated stations) settle on the
+next `/reload`. The shipped modules are `alchemy`, `trims`, `redstone`,
+`gardening`, `decor` and `extra_bags`, all defaulting off.

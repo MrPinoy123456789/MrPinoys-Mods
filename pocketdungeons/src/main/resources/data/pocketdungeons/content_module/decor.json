@@ -1,0 +1,18 @@
+{
+  "id": "decor",
+  "label": "Decor",
+  "description": "Decorative blocks, extra light blocks, fences and bars.",
+  "default": false,
+  "allow": [
+    "lantern",
+    "soul_lantern",
+    "glowstone",
+    "sea_lantern",
+    "oak_fence",
+    "spruce_fence",
+    "iron_bars",
+    "bookshelf",
+    "flower_pot",
+    "painting"
+  ]
+}

@@ -48,6 +48,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         PressureSources.register();
         CapstoneFights.register();
         DungeonDrops.register();
+        ContentModuleLoader.register();
         SpiderUnstick.register();
         PartyRewards.register();
         StaggeredTitle.register();

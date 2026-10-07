@@ -386,7 +386,9 @@ for ((taskName, testClass) in mapOf(
     "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
     // Simplification step 3b: floor pay split and the scrap ledger.
     "floorPayTest" to "FloorPayTest",
-    "scrapMathTest" to "ScrapMathTest"
+    "scrapMathTest" to "ScrapMathTest",
+    // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
+    "contentModulesTest" to "ContentModulesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -474,6 +476,7 @@ tasks.test {
     dependsOn("hiddenOrePlannerTest")
     dependsOn("floorPayTest")
     dependsOn("scrapMathTest")
+    dependsOn("contentModulesTest")
     failOnNoDiscoveredTests = false
 }
 
