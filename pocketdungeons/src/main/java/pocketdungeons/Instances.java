@@ -169,12 +169,18 @@ final class Instances {
                 return false;
             }
             if (record.inFloorLoop()) {
-                record.interval.omen = Omen.add(record.interval.omen, 1);
-                OmenBar.sync(server, record);
-                if (Omen.clamp(record.interval.omen) >= Omen.MAX_OMEN) {
+                // J3: death is the only thing that raises omen. A trip starts
+                // at five lives; the fifth death ends the run.
+                if (Omen.nextDeathFails(record.interval.omen)) {
+                    PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
+                            Omen.MAX_OMEN + 1, player.blockPosition());
                     failRunOmen(server, record, player, source);
                     return false;
                 }
+                record.interval.omen = Omen.add(record.interval.omen, 1);
+                PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
+                        record.interval.omen, player.blockPosition());
+                OmenBar.deathCue(server, record, record.interval.omen);
             }
             PlaytestJournal.rescue(player, record, source);
             // M27.3: deferred until extended dungeons. A checkpoint that
@@ -208,7 +214,7 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
+                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
             }
         });
 
@@ -1466,8 +1472,7 @@ final class Instances {
         // A floor turns ominous by chance, rolled now that the door is chosen:
         // the more omen the party has banked this interval, the likelier.
         if (!affixes.contains(AffixIds.OMINOUS)
-                && level.getRandom().nextDouble() < Omen.ominousChance(
-                        record.interval.bankedOmenSum(), record.interval.floorOmens.size())) {
+                && level.getRandom().nextDouble() < Omen.ominousChance(record.interval.omen)) {
             affixes = new java.util.LinkedHashSet<>(affixes);
             affixes.add(AffixIds.OMINOUS);
             ominousRolled = true;
@@ -1566,32 +1571,11 @@ final class Instances {
             }
         }
 
-        // A zone's floors past its usual length start with omen already on
-        // them (ZoneRules.baseOmen): pushing deeper is always a gamble, and
-        // the bar and a cue say so as the floor opens.
-        ZoneRules zone = ZoneRules.forTheme(effectiveThemeId);
-        int headStart = zone.baseOmen(record.interval.floorIndex + 1, PocketDungeonsConfig.floorsPerSafeVisit());
-        if (headStart > 0) {
-            int before = record.interval.omen;
-            record.interval.omen = Omen.add(record.interval.omen, headStart);
-            if (record.interval.omen > before) {
-                OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
-                        record.interval.omen - before, null);
-            }
-        }
-
-        // Dungeon structure W7b (design D16a): a capstone dungeon's final floor starts with omen on it.
+        // J3: a capstone dungeon's final floor opens two levels harder (it
+        // used to start with omen on it, D16a reworked).
         if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
-            int capstoneOmen = CapstoneStart.amount(DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId(),
-                    PocketDungeonsConfig.capstoneStartOmen());
-            if (capstoneOmen > 0) {
-                int before = record.interval.omen;
-                record.interval.omen = CapstoneStart.raise(before, capstoneOmen);
-                if (record.interval.omen > before) {
-                    OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
-                            record.interval.omen - before, null);
-                }
-            }
+            record.floor.levelBonus += CapstoneStart.levelBonus(
+                    DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId());
         }
 
         // M11: a zone whose capstone is the boss gets its one proof encounter.
@@ -2101,7 +2085,7 @@ final class Instances {
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
                 mob.addTag("pocketdungeons_omen_wave");
-                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
+                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
         }
@@ -2189,7 +2173,7 @@ final class Instances {
     static ReturnPoint detach(MinecraftServer server, InstanceRecord record, UUID member, ServerPlayer player) {
         // Before anything else, while the room is still exactly as they left it.
         RunLifecycle.saveRoomIfOwner(server, record, member);
-        OmenSources.forget(member);
+        PressureSources.forget(member);
         OmenBar.detach(record, member);
         ReturnPoint point = record.members.remove(member);
         record.guests.remove(member);

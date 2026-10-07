@@ -95,9 +95,8 @@ public final class PocketDungeonsConfig {
     private static int maxGridSpan = 12;
     private static int clearBlocksPerTick = 8192;
     // The interval's usual length: after this many floors the HOME screen
-    // lights up and deeper floors start with omen on them, and it is how many
-    // door steps bank one keystone level (IntervalBanking). Nothing forces
-    // the party home.
+    // lights up, and it is how many door steps bank one keystone level
+    // (IntervalBanking). Nothing forces the party home.
     private static int floorsPerSafeVisit = 3;
     // UNUSED since dungeon structure W5 (D14, no kit refill); still read and saved.
     // The share of a kit's missing stackable items a safe visit restores, by
@@ -165,7 +164,6 @@ public final class PocketDungeonsConfig {
     /** Chance a dead-end cell holds a fountain boon. */
     private static double fountainChance = 0.15;
     /** Omen a cleansing fountain takes off the floor. */
-    private static int fountainOmenRelief = 2;
     /** Emeralds each member is paid when a dungeon is finished (J1: was the echo shard). */
     private static int finishEmeralds = 8;
     /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
@@ -173,7 +171,6 @@ public final class PocketDungeonsConfig {
     /** Emeralds per scrap a member above the floor's level is paid instead of scrap (D27). */
     private static int overlevelEmeraldsPerScrap = 2;
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
-    private static int capstoneStartOmen = 1;
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
     private static double ordealEmeraldChance = 0.25;
     /** Silenced's trial spawners detect players at this range instead of 14. */
@@ -591,9 +588,6 @@ public final class PocketDungeonsConfig {
         return overlevelEmeraldsPerScrap;
     }
 
-    public static int capstoneStartOmen() {
-        return capstoneStartOmen;
-    }
 
     public static double ordealEmeraldChance() {
         return ordealEmeraldChance;
@@ -603,9 +597,6 @@ public final class PocketDungeonsConfig {
         return fountainChance;
     }
 
-    public static int fountainOmenRelief() {
-        return fountainOmenRelief;
-    }
 
     public static int lockInEmeralds() {
         return lockInEmeralds;
@@ -836,11 +827,9 @@ public final class PocketDungeonsConfig {
         lockInEmeralds = 32;
         lockInUnlockLevel = 5;
         fountainChance = 0.15;
-        fountainOmenRelief = 2;
         finishEmeralds = 8;
         finishVaultChests = 2;
         overlevelEmeraldsPerScrap = 2;
-        capstoneStartOmen = 1;
         ordealEmeraldChance = 0.25;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
@@ -1028,13 +1017,11 @@ public final class PocketDungeonsConfig {
         silencedConsumablesPerOmen = readInt(root, "silencedConsumablesPerOmen", 3, v -> v >= 1, "must be >= 1");
         fountainChance = readDouble(root, "fountainChance", 0.15, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
-        fountainOmenRelief = readInt(root, "fountainOmenRelief", 2, v -> v >= 1, "must be >= 1");
         lockInEmeralds = readInt(root, "lockInEmeralds", 32, v -> v >= 1 && v <= 64, "must be between 1 and 64");
         lockInUnlockLevel = readInt(root, "lockInUnlockLevel", 5, v -> v >= 1, "must be >= 1");
         finishEmeralds = readInt(root, "finishEmeralds", 8, v -> v >= 0, "must be >= 0");
         finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
         overlevelEmeraldsPerScrap = readInt(root, "overlevelEmeraldsPerScrap", 2, v -> v >= 0, "must be >= 0");
-        capstoneStartOmen = readInt(root, "capstoneStartOmen", 1, v -> v >= 0 && v <= 4, "must be between 0 and 4");
         ordealEmeraldChance = readDouble(root, "ordealEmeraldChance", 0.25, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
@@ -1345,13 +1332,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("silencedPlayerRange", 6);
         root.addProperty("silencedConsumablesPerOmen", 3);
         root.addProperty("fountainChance", 0.15);
-        root.addProperty("fountainOmenRelief", 2);
         root.addProperty("lockInEmeralds", 32);
         root.addProperty("lockInUnlockLevel", 5);
         root.addProperty("finishEmeralds", 8);
         root.addProperty("finishVaultChests", 2);
         root.addProperty("overlevelEmeraldsPerScrap", 2);
-        root.addProperty("capstoneStartOmen", 1);
         root.addProperty("ordealEmeraldChance", 0.25);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);

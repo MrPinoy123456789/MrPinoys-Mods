@@ -344,8 +344,7 @@ final class PlaytestJournal {
     static void omenRise(MinecraftServer s, InstanceRecord record, Omen.Source source, int amount,
                          int total, BlockPos at) {
         safely("omen_rise", () -> {
-            String sourceName = source == Omen.Source.DEPTH ? "headstart"
-                    : source.name().toLowerCase(java.util.Locale.ROOT);
+            String sourceName = source.name().toLowerCase(java.util.Locale.ROOT);
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = s.getPlayerList().getPlayer(member);
                 if (player == null) {
@@ -357,6 +356,28 @@ final class PlaytestJournal {
                 extras.put("total", total);
                 extras.put("room", FloorRooms.roomAt(record, at != null ? at : player.blockPosition()));
                 record(player, record, "omen_rise", extras);
+            }
+        });
+    }
+
+    /**
+     * A pressure trigger answered (J3: dwell, a sensor pulse, a shriek, the
+     * Ominous Bargain, a Silenced consumable, a Barred Vault clear): written
+     * for every member present. {@code at} is where it fired or null for a
+     * floor-wide trigger, in which case each member's own room is named.
+     */
+    static void hazard(MinecraftServer s, InstanceRecord record, Omen.Source source, BlockPos at) {
+        safely("hazard", () -> {
+            String sourceName = source.name().toLowerCase(java.util.Locale.ROOT);
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer player = s.getPlayerList().getPlayer(member);
+                if (player == null) {
+                    continue;
+                }
+                Map<String, Object> extras = new LinkedHashMap<>();
+                extras.put("source", sourceName);
+                extras.put("room", FloorRooms.roomAt(record, at != null ? at : player.blockPosition()));
+                record(player, record, "hazard", extras);
             }
         });
     }
@@ -450,7 +471,7 @@ final class PlaytestJournal {
             Map<String, Object> extras = new LinkedHashMap<>();
             extras.put("trigger", trigger);
             extras.put("floors", floors);
-            extras.put("band", settled.band());
+
             extras.put("levels_gained", settled.levels());
             extras.put("scrap_left", settled.scrapLeft());
             extras.put("chests", chests);

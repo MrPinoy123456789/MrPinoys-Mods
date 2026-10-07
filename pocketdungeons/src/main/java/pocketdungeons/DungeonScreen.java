@@ -477,7 +477,7 @@ final class DungeonScreen {
      * owner's numbers are the ones on the wall.
      */
     static Board homeContent(MinecraftServer server, InstanceRecord record) {
-        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
+        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
         IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(now, record.interval.finished);
         Component title = Component.literal(screen.title())
                 .withStyle(screen.finished() ? ChatFormatting.GREEN : ChatFormatting.GOLD);

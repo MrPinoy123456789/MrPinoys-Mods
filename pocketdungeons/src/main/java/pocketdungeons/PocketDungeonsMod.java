@@ -45,7 +45,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomTemplateGenerator.register();
         Locks.register();
         AltarOffering.register();
-        OmenSources.register();
+        PressureSources.register();
         CapstoneFights.register();
         DungeonDrops.register();
         SpiderUnstick.register();

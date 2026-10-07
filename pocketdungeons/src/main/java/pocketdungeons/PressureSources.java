@@ -6,6 +6,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -19,49 +21,51 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * M48: the omen source table (spec 5.2, 5.4).
+ * J3 (plan 2026-10-06-2): the floor's pressure triggers, reworked off omen.
+ * Death is the only thing that raises omen; everything else here answers in
+ * the dungeon's own coin: a lootless wave after the player, darkness on a
+ * shriek, a harder floor for the Ominous Bargain.
  *
- * <p>{@link Omen} is deliberately pure arithmetic and says so: "the caller
- * tracks the current floor's omen and hands it to {@code clamp} or {@code add}
- * on every source event". This is that caller. Without it {@code record.interval.omen}
- * stays 0 for the life of every run, every completion lands in the low band,
- * and the {@code pressure} field on a room's metadata is read by nothing.
- *
- * <p>Five sources, all polled rather than hooked, which keeps the mod's
+ * <p>Five triggers, all polled rather than hooked, which keeps the mod's
  * one-mixin budget intact:
  *
  * <ul>
- *   <li><strong>Dwell.</strong> Time a player spends in an unsolved cell. A
- *       cleared cell and the staging room are free (spec 5.4).</li>
- *   <li><strong>Sensor pulses.</strong> Sculk sensors going active, counted on
- *       the rising edge. Frame Lock's pots and Pot Room's forty.</li>
- *   <li><strong>Shrieks.</strong> Sculk shriekers, one omen each.</li>
- *   <li><strong>The Ominous Bargain.</strong> Once, when its reward is taken.</li>
- *   <li><strong>Barred Vault.</strong> Once, when its reward is taken.</li>
+ *   <li><strong>Dwell.</strong> Time a player spends in an unsolved cell: a
+ *       wave per 90 seconds past the first 60. A cleared cell and the
+ *       staging room are free (spec 5.4).</li>
+ *   <li><strong>Sensor pulses.</strong> Sculk sensors going active, counted
+ *       on the rising edge: a wave per five pulses, or per pulse on an
+ *       Ancient City floor ({@link SculkOmen}), where the final floor's
+ *       fourth pulse wakes the Warden.</li>
+ *   <li><strong>Shrieks.</strong> Sculk shriekers: darkness, then a wave.</li>
+ *   <li><strong>The Ominous Bargain.</strong> Once, when its reward is taken:
+ *       +2 level for the rest of the floor.</li>
+ *   <li><strong>Barred Vault.</strong> Once, when its reward is taken: relief,
+ *       a life back.</li>
  * </ul>
  *
  * <p>Cells are armed at stamp time from {@code DungeonRoomMeta.pressure}, the
  * same shape as {@link Locks}: scan the cell once, remember the positions, then
  * poll them. Rooms declaring {@code pressure: "local"} arm nothing here; local
  * pressure is the room's own business (rising lava, a closing bridge) and costs
- * no run-level omen.
+ * nothing run-level.
  */
-final class OmenSources {
+final class PressureSources {
 
     /** One armed cell: what to poll, and what has already been counted. */
     private static final class Armed {
         final List<BlockPos> sensors = new ArrayList<>();
         final List<BlockPos> shriekers = new ArrayList<>();
-        /** The spur reward container, for the two one-shot sources. */
+        /** The spur reward container, for the two one-shot triggers. */
         BlockPos spurChest;
         /** Which one-shot this cell owns, or null. */
         String spurKind;
         boolean spurFired;
         /** Rising-edge memory, parallel to the lists above. */
         final Map<BlockPos, Boolean> wasActive = new HashMap<>();
-        /** Pulses counted but not yet worth an omen: the formula is one per five ({@link SculkOmen}). */
+        /** Pulses counted but not yet worth a wave: one per five outside the Ancient City ({@link SculkOmen}). */
         int pendingPulses;
-        /** Ancient City: every sculk block was armed and a sensor pulse is worth a whole omen. */
+        /** Ancient City: every sculk block was armed and every pulse answers. */
         boolean ancientCity;
     }
 
@@ -69,7 +73,7 @@ final class OmenSources {
     private static final class Dwell {
         BlockPos cell;
         int seconds;
-        int awarded;
+        int wavesPaid;
     }
 
     private static final Map<BlockPos, Armed> ARMED = new LinkedHashMap<>();
@@ -78,7 +82,10 @@ final class OmenSources {
     /** One poll per second. Dwell is measured in 90 second steps; this is ample. */
     private static final int PERIOD = 20;
 
-    private OmenSources() {}
+    /** The Ominous Bargain's price: +2 floor level for the rest of the floor (J3). */
+    static final int BARGAIN_LEVELS = 2;
+
+    private PressureSources() {}
 
     /** Wires the poll. Call once from {@code onInitialize}. */
     static void register() {
@@ -90,20 +97,20 @@ final class OmenSources {
     }
 
     /**
-     * Arms the omen sources in the cell at {@code origin} from its room
+     * Arms the pressure triggers in the cell at {@code origin} from its room
      * metadata. Only {@code pressure: "omen"} arms anything: a room that says
-     * nothing about pressure, or says {@code local}, contributes no run-level
-     * omen and is not polled.
+     * nothing about pressure, or says {@code local}, triggers nothing and is
+     * not polled.
      */
     static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta) {
         arm(level, origin, meta, null);
     }
 
     /**
-     * Dungeon structure W7a: {@link #arm(ServerLevel, BlockPos, DungeonRoomMeta)} for a floor of
+     * {@link #arm(ServerLevel, BlockPos, DungeonRoomMeta)} for a floor of
      * {@code themeId}. On an Ancient City floor ({@link SculkOmen#armsAllSculk}) every sculk sensor
-     * and shrieker in the cell is armed whatever the room's {@code pressure} says, and a sensor pulse
-     * is worth a whole omen. Spur chests stay owned by rooms that declare {@code pressure: "omen"}.
+     * and shrieker in the cell is armed whatever the room's {@code pressure} says, and every
+     * sensor pulse answers. Spur chests stay owned by rooms that declare {@code pressure: "omen"}.
      */
     static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta, String themeId) {
         boolean ancient = SculkOmen.armsAllSculk(themeId);
@@ -142,7 +149,7 @@ final class OmenSources {
         return "ominous_bargain".equals(content) || "barred_vault".equals(content);
     }
 
-    /** Drops the sources for one cell. Called from teardown alongside {@link Locks#clear}. */
+    /** Drops the triggers for one cell. Called from teardown alongside {@link Locks#clear}. */
     static void clear(BlockPos cellOrigin) {
         ARMED.remove(cellOrigin);
     }
@@ -183,43 +190,63 @@ final class OmenSources {
             }
             if (pulses > 0) {
                 armed.pendingPulses += pulses;
-                // The formula is +1 omen per 5 pulses, so bank the remainder
-                // rather than rounding every poll down to nothing.
-                int gained = SculkOmen.omenFromPulses(armed.pendingPulses, armed.ancientCity);
-                if (gained > 0) {
-                    add(server, record, gained, Omen.Source.SENSOR, origin);
-                    armed.pendingPulses = SculkOmen.remainingPulses(armed.pendingPulses, gained, armed.ancientCity);
+                if (armed.ancientCity) {
+                    // The Ancient City counts every pulse; the Warden reads
+                    // the final floor's total (J3).
+                    record.floor.sculkPulses += pulses;
                 }
+                // The formula is one wave per five pulses (every pulse in the
+                // Ancient City), so bank the remainder rather than rounding
+                // every poll down to nothing.
+                int waves = Omen.wavesFromPulses(armed.pendingPulses, armed.ancientCity);
+                for (int i = 0; i < waves; i++) {
+                    trigger(server, record, Omen.Source.SENSOR, origin);
+                }
+                armed.pendingPulses = Omen.remainingPulses(armed.pendingPulses, waves, armed.ancientCity);
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
                 if (now && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
-                    add(server, record, Omen.shriekContribution(1), Omen.Source.SHRIEK, pos);
+                    darken(level, record, pos);
+                    trigger(server, record, Omen.Source.SHRIEK, pos);
                 }
                 armed.wasActive.put(pos, now);
             }
             if (armed.spurChest != null && !armed.spurFired && spurTaken(level, armed.spurChest)) {
                 armed.spurFired = true;
                 if ("ominous_bargain".equals(armed.spurKind)) {
-                    // The bargain replaces the floor's omen, it does not stack
-                    // onto it. Omen.bargainOmen's own javadoc is explicit.
-                    int before = record.interval.omen;
-                    record.interval.omen = Omen.set(Omen.bargainOmen());
-                    if (record.interval.omen > before) {
-                        OmenBar.omenRose(server, record, Omen.Source.BARGAIN, record.interval.omen,
-                                record.interval.omen - before, armed.spurChest);
-                    }
+                    // J3: the bargain is a harder floor, +2 level for the
+                    // rest of it, not omen.
+                    record.floor.levelBonus += BARGAIN_LEVELS;
+                    PlaytestJournal.hazard(server, record, Omen.Source.BARGAIN, armed.spurChest);
+                    OmenBar.cue(server, record, Omen.Source.BARGAIN);
                 } else {
-                    // Barred Vault is relief: a negative contribution.
-                    add(server, record, Omen.barredVaultContribution(), null, armed.spurChest);
+                    // Barred Vault is relief: a life back, never below zero.
+                    relieve(server, record, 1);
+                    PlaytestJournal.hazard(server, record, Omen.Source.VAULT, armed.spurChest);
                 }
             }
         }
     }
 
+    /** Vanilla's shrieker answer: darkness on every member close enough to have been heard. */
+    private static void darken(ServerLevel level, InstanceRecord record, BlockPos shrieker) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = serverOf(level).getPlayerList().getPlayer(member);
+            if (player != null && player.level() == level
+                    && player.blockPosition().distSqr(shrieker) <= 40 * 40) {
+                player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 260));
+            }
+        }
+    }
+
+    private static MinecraftServer serverOf(ServerLevel level) {
+        return level.getServer();
+    }
+
     /**
-     * Dwell, per player, per cell. {@link Omen#dwellContribution} is cumulative
-     * for a given dwell time, so only the increase since the last poll is added.
+     * Dwell, per player, per cell. {@link Omen#dwellWaves} is cumulative for a
+     * given dwell time, so only the increase since the last poll answers.
      */
     private static void pollDwell(MinecraftServer server, ServerLevel level, InstanceRecord record) {
         for (UUID id : record.members.keySet()) {
@@ -233,78 +260,68 @@ final class OmenSources {
             if (cell == null) {
                 dwell.cell = null;
                 dwell.seconds = 0;
-                dwell.awarded = 0;
+                dwell.wavesPaid = 0;
                 continue;
             }
             BlockPos origin = record.layout.geometry().cellOrigin(cell);
             if (!origin.equals(dwell.cell)) {
                 dwell.cell = origin.immutable();
                 dwell.seconds = 0;
-                dwell.awarded = 0;
+                dwell.wavesPaid = 0;
             }
             dwell.seconds += PERIOD / 20;
             boolean staging = origin.equals(record.stagingCellOrigin);
-            int total = Omen.dwellContribution(dwell.seconds, unsolved(level, origin), staging);
-            if (total > dwell.awarded) {
-                add(server, record, total - dwell.awarded, Omen.Source.DWELL, at);
-                dwell.awarded = total;
+            int owed = Omen.dwellWaves(dwell.seconds, unsolved(level, origin), staging);
+            while (owed > dwell.wavesPaid) {
+                trigger(server, record, Omen.Source.DWELL, at);
+                dwell.wavesPaid++;
             }
         }
     }
 
     /**
      * Whether the cell's situation is still unsolved, which is what spec 5.4
-     * makes dwelling cost. A cell with an armed lock has not been opened, and a
+     * makes dwelling answer. A cell with an armed lock has not been opened, and a
      * cell with an uncleared trial spawner has not been fought.
      */
     private static boolean unsolved(ServerLevel level, BlockPos origin) {
         return Locks.isArmed(origin) || TrialContent.hasActiveSpawner(level, origin);
     }
 
-    /**
-     * Adds to the current floor's omen, clamped per floor (spec 5.2).
-     * Contributions may be negative: clearing a Barred Vault is relief, not
-     * pressure, so this must not filter them out. A rise is scaled by the
-     * zone's {@link ZoneRules#omenScale} and announced on the omen bar as
-     * coming from {@code source}; relief ({@code source} null) is unscaled
-     * and silent, and so is a rise the per-floor clamp swallowed.
-     */
-    /** Consumables used so far by each Silenced player; {@code silencedConsumablesPerOmen} of them raise the omen once. */
+    /** Consumables used so far by each Silenced player; every {@code silencedConsumablesPerOmen}-th spawns a wave. */
     private static final Map<UUID, Integer> SILENCED_USES = new HashMap<>();
 
     /**
      * A Silenced member used a consumable (playtest 2026-10-02-1: Silence no
-     * longer blocks consumables; using one costs omen). Every
-     * {@code silencedConsumablesPerOmen}-th use raises the omen by one.
+     * longer blocks consumables; using one is heard). Every
+     * {@code silencedConsumablesPerOmen}-th use sends a wave (J3).
      */
     static void silencedUse(MinecraftServer server, InstanceRecord record, UUID player) {
         int per = PocketDungeonsConfig.silencedConsumablesPerOmen();
         int uses = SILENCED_USES.merge(player, 1, Integer::sum);
         if (uses >= per) {
             SILENCED_USES.put(player, 0);
-            add(server, record, 1, Omen.Source.SILENCE, null);
+            trigger(server, record, Omen.Source.SILENCE, null);
         }
     }
 
-    /** Takes the given omen off the floor, silently (the fountain cleanse). */
+    /**
+     * A trigger answered: journal it, send the lootless wave, play the cue.
+     * The wave's size follows the lives already lost, so a shaken trip is
+     * punished harder (danger still scales with omen in
+     * {@code Instances#applyMobScale}).
+     */
+    private static void trigger(MinecraftServer server, InstanceRecord record, Omen.Source source,
+                                BlockPos at) {
+        PlaytestJournal.hazard(server, record, source, at);
+        Instances.spawnOmenWave(server, record, Math.max(1, Omen.clamp(record.interval.omen) + 1));
+        OmenBar.cue(server, record, source);
+    }
+
+    /** Takes {@code amount} omen off the trip: a life back, never below zero (the fountain, a Barred Vault). */
     static void relieve(MinecraftServer server, InstanceRecord record, int amount) {
-        add(server, record, -Math.abs(amount), null, null);
+        record.interval.omen = Math.max(0, Omen.clamp(record.interval.omen) - Math.abs(amount));
         OmenBar.sync(server, record);
-    }
-
-    private static void add(MinecraftServer server, InstanceRecord record, int contribution,
-                            Omen.Source source, BlockPos at) {
-        if (source != null) {
-            contribution = ZoneRules.of(record).scaleOmen(contribution);
-        }
-        if (contribution == 0) {
-            return;
-        }
-        int before = record.interval.omen;
-        record.interval.omen = Omen.clamp(Omen.add(record.interval.omen, contribution));
-        if (source != null && record.interval.omen > before) {
-            OmenBar.omenRose(server, record, source, record.interval.omen, record.interval.omen - before, at);
-        }
     }
 
     private static boolean sensorActive(BlockState state) {
@@ -317,7 +334,7 @@ final class OmenSources {
                 && state.getValue(BlockStateProperties.SHRIEKING);
     }
 
-    /** A spur pays its omen when its reward leaves the container. */
+    /** A spur pays its price when its reward leaves the container. */
     static boolean spurTaken(ServerLevel level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof Container container && container.isEmpty();
     }

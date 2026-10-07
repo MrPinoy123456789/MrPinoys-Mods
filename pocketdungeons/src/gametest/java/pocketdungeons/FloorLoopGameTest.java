@@ -162,75 +162,28 @@ public final class FloorLoopGameTest {
     }
 
     /**
-     * M65 step 2: omen bands at floor counts 1, 3 and 5. The finish table
-     * (spec 5.2, 5.4) keys off the sum of all floors' omens since the last
-     * safe visit, scaled by {@code floorsPerSafeVisit}. The band determines
-     * the keystone level change (+1/+1/+0) and the chest count (3/2/1).
-     *
-     * <p>With the clock no longer depleting on ordinary floors, the omen
-     * system is the only penalty mechanism. This test verifies the band
-     * outcomes at the three floor counts the handoff names, for each of
-     * the three bands.
+     * J3: the trip's omen is its death count, shown as lives, and it never
+     * touches what a floor pays. Five lives at a clean trip, one at four
+     * deaths, and the fifth death ends the run.
      */
     @GameTest(maxTicks = 20)
-    public void omenBandsAtFloorCounts(GameTestHelper helper) {
-        // Floor count 1: 0-1 low, 2-3 mid, 4 high.
-        checkBand(helper, 1, 0, 0, 1, 3);
-        checkBand(helper, 1, 1, 0, 1, 3);
-        checkBand(helper, 1, 2, 1, 1, 2);
-        checkBand(helper, 1, 3, 1, 1, 2);
-        checkBand(helper, 1, 4, 2, 0, 1);
-
-        // Floor count 3: 0-3 low, 4-9 mid, 10-12 high.
-        checkBand(helper, 3, 0, 0, 1, 3);
-        checkBand(helper, 3, 3, 0, 1, 3);
-        checkBand(helper, 3, 4, 1, 1, 2);
-        checkBand(helper, 3, 9, 1, 1, 2);
-        checkBand(helper, 3, 10, 2, 0, 1);
-        checkBand(helper, 3, 12, 2, 0, 1);
-
-        // Floor count 5: 0-5 low, 6-15 mid, 16-20 high.
-        checkBand(helper, 5, 0, 0, 1, 3);
-        checkBand(helper, 5, 5, 0, 1, 3);
-        checkBand(helper, 5, 6, 1, 1, 2);
-        checkBand(helper, 5, 15, 1, 1, 2);
-        checkBand(helper, 5, 16, 2, 0, 1);
-        checkBand(helper, 5, 20, 2, 0, 1);
-
-        // SPEEDRUNNER is now "low-omen completion" (band 0, 3 chests),
-        // not "finished before the clock ran out." Verify the chest count
-        // that the settlement checks: chests >= 3 means low omen.
-        if (Omen.chestCount(0) < 3) {
-            helper.fail("Low band should give 3 chests for SPEEDRUNNER");
+    public void livesAtDeathCounts(GameTestHelper helper) {
+        int[] expectedLives = {5, 4, 3, 2, 1};
+        for (int omen = 0; omen <= 4; omen++) {
+            if (Omen.lives(omen) != expectedLives[omen]) {
+                helper.fail("omen " + omen + " should read " + expectedLives[omen]
+                        + " lives, got " + Omen.lives(omen));
+                return;
+            }
         }
-        if (Omen.chestCount(1) >= 3) {
-            helper.fail("Mid band should not give 3 chests for SPEEDRUNNER");
+        if (!Omen.nextDeathFails(4) || Omen.nextDeathFails(3)) {
+            helper.fail("the fifth death ends the run, the fourth does not");
+            return;
         }
-        if (Omen.chestCount(2) >= 3) {
-            helper.fail("High band should not give 3 chests for SPEEDRUNNER");
+        if (Omen.baseRewardChests() != 3) {
+            helper.fail("a floor pays three chests whatever the omen");
+            return;
         }
-
         helper.succeed();
-    }
-
-    private static void checkBand(GameTestHelper helper, int floors, int omenSum,
-                                   int expectedBand, int expectedLevelChange, int expectedChests) {
-        int band = Omen.band(omenSum, floors);
-        if (band != expectedBand) {
-            helper.fail("At " + floors + " floors, omen sum " + omenSum
-                    + ": expected band " + expectedBand + " but got " + band);
-            return;
-        }
-        int levelChange = Omen.levelChange(band);
-        if (levelChange != expectedLevelChange) {
-            helper.fail("At " + floors + " floors, omen sum " + omenSum
-                    + ": expected level change " + expectedLevelChange + " but got " + levelChange);
-            return;
-        }
-        int chests = Omen.chestCount(band);
-        if (chests != expectedChests) {
-            helper.fail("At " + floors + " floors, omen sum " + omenSum
-                    + ": expected " + expectedChests + " chests but got " + chests);
-        }
     }
 }

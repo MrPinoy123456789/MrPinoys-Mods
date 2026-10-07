@@ -15,12 +15,10 @@ import java.util.UUID;
  * The omen boss bar: one vanilla {@link ServerBossEvent} per floor loop
  * instance, shown to every member while they stand in the dungeon dimension.
  *
- * <p>During a floor it reads the floor's omen, the band the interval would
- * settle in right now, and the spawner gate. Between floors it names the floor
- * just cleared and the band. At home it is hidden. Colour follows the band
- * (green, yellow, red) and, between floors, the fill is the interval's omen against the next
- * band up, so a player can see the next step coming. During a floor the bar is the floor's
- * own omen: full at 4/4, green to yellow to red.
+ * <p>J3: the bar is the trip's lives ({@code 5 - omen}). During a floor it
+ * reads the spawner gate and the lives left; between floors it names the
+ * floor just cleared, what going home pays, and the lives. At home it is
+ * hidden. Colour and fill follow lives: full and green at five, red at one.
  *
  * <p>Membership of the bar is reconciled on every watch tick
  * ({@link #sync}), so every route into the dungeon is covered without each
@@ -83,13 +81,7 @@ final class OmenBar {
         }
         OmenBar bar = of(record);
         boolean active = record.phase == RunSession.Phase.ACTIVE;
-        // The band's thresholds scale to the floors the sum covers: the
-        // cleared ones, plus the one in progress during a floor. The same
-        // Omen.band the settlement uses, so the bar always shows what going
-        // home would bank.
         int floorCount = active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex);
-        int sum = record.interval.omenSum();
-        int band = Omen.band(sum, floorCount);
         int chests = !active && record.floor.rewardChests >= 0 ? record.floor.rewardChests
                 : Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorCount);
         String title;
@@ -100,19 +92,13 @@ final class OmenBar {
         } else {
             title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
                     record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),
-                    band, chests);
+                    record.interval.omen, chests);
         }
         repaintHeldLine(server, record, bar);
         bar.event.setName(Component.literal(title));
-        if (active) {
-            // PD-158: during a floor the bar is the floor's omen (the title prints it as
-            // n/4), so it fills and colours by that; the band is what going home banks.
-            bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen)));
-            bar.event.setProgress(Omen.clamp(record.interval.omen) / (float) Omen.MAX_OMEN);
-        } else {
-            bar.event.setColor(colour(band));
-            bar.event.setProgress(Omen.bandProgress(sum, floorCount));
-        }
+        // J3: the bar is lives either way: full and green at five, red at one.
+        bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen)));
+        bar.event.setProgress(Omen.lives(record.interval.omen) / (float) Omen.LIVES);
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
@@ -171,27 +157,40 @@ final class OmenBar {
     }
 
     /**
-     * The omen just rose to {@code omen} because of {@code source}: a short
-     * line on each member's action bar and a low cue, held back per source so
-     * dwell does not repeat itself, then an immediate repaint of the bar.
-     * Every rise is journaled ({@code omen_rise}), cue or not: {@code amount}
-     * is the rise itself and {@code at} where it came from, or null for a
-     * floor-wide source.
+     * A trigger {@code source} answered (J3: a wave, the bargain's harder
+     * floor): a short line on each member's action bar and a low cue, held
+     * back per source so dwell does not repeat itself, then an immediate
+     * repaint of the bar.
      */
-    static void omenRose(MinecraftServer server, InstanceRecord record, Omen.Source source, int omen,
-                         int amount, net.minecraft.core.BlockPos at) {
+    static void cue(MinecraftServer server, InstanceRecord record, Omen.Source source) {
         if (!record.inFloorLoop()) {
             return;
         }
-        PlaytestJournal.omenRise(server, record, source, amount, omen, at);
-        Instances.spawnOmenWave(server, record, omen);
+        showLine(server, record, source, OmenBarText.cueLine(source));
+        sync(server, record);
+    }
+
+    /**
+     * A death took a life: the cue names what is left ({@code "A bad omen. 2
+     * lives left."}), never held back, then the bar repaints.
+     */
+    static void deathCue(MinecraftServer server, InstanceRecord record, int omen) {
+        if (!record.inFloorLoop()) {
+            return;
+        }
+        showLine(server, record, Omen.Source.DEATH, OmenBarText.deathCue(omen));
+        sync(server, record);
+    }
+
+    /** The shared cue: rate limited per source, held on screen for the sensor line (PD-100). */
+    private static void showLine(MinecraftServer server, InstanceRecord record, Omen.Source source,
+                                 String text) {
         OmenBar bar = of(record);
         long now = server.getTickCount();
         int slot = source.ordinal();
         if (now - bar.lastCueTick[slot] >= OmenBarText.cueCooldownTicks(source)) {
             bar.lastCueTick[slot] = now;
-            Component line = Component.literal(OmenBarText.riseLine(source, omen))
-                    .withStyle(ChatFormatting.DARK_PURPLE);
+            Component line = Component.literal(text).withStyle(ChatFormatting.DARK_PURPLE);
             int hold = OmenBarText.holdTicks(source);
             if (hold > 0) {
                 bar.heldLine = line;
@@ -207,7 +206,7 @@ final class OmenBar {
             }
             bar.lastSoundTick = now;
         } else if (now - bar.lastSoundTick >= 20) {
-            // A gain inside the line's cooldown is still heard, once a second at most.
+            // A trigger inside the line's cooldown is still heard, once a second at most.
             bar.lastSoundTick = now;
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
@@ -216,11 +215,10 @@ final class OmenBar {
                 }
             }
         }
-        sync(server, record);
     }
 
-    private static BossEvent.BossBarColor colour(int band) {
-        return switch (band) {
+    private static BossEvent.BossBarColor colour(int colourIndex) {
+        return switch (colourIndex) {
             case 0 -> BossEvent.BossBarColor.GREEN;
             case 1 -> BossEvent.BossBarColor.YELLOW;
             default -> BossEvent.BossBarColor.RED;

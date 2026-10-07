@@ -215,10 +215,10 @@ final class DialogScreens {
      * ({@code /dungeon cashout}), so this is tier A like {@link #quitDoorConfirm}.
      */
     static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
-        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
+        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
         // J1: scrap is paid at the floor clear, so going home forfeits nothing.
-        String keeps = "You keep your pack and the scrap you earned. The omen was "
-                + OmenBarText.bandName(now.band()) + ".";
+        String keeps = "You keep your pack and the scrap you earned. "
+                + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         boolean finished = record.interval.finished;
         String dungeon = TripView.dungeonName(record);
         String ends = record.interval.mineSealedAct > 0

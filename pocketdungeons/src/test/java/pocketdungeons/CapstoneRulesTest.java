@@ -99,13 +99,14 @@ public class CapstoneRulesTest {
     // ---- sculk omen --------------------------------------------------------------------
 
     private static void testSculkPulseRule() {
-        check(SculkOmen.pulsesPerOmen(false) == 5, "elsewhere a sensor needs five pulses per omen");
-        check(SculkOmen.pulsesPerOmen(true) == 1, "in the Ancient City every pulse is an omen");
-        check(SculkOmen.omenFromPulses(4, false) == 0 && SculkOmen.omenFromPulses(5, false) == 1, "legacy rule intact");
-        check(SculkOmen.omenFromPulses(1, true) == 1 && SculkOmen.omenFromPulses(3, true) == 3, "every pulse counts");
-        check(SculkOmen.remainingPulses(7, 1, false) == 2, "legacy remainder");
-        check(SculkOmen.remainingPulses(3, 3, true) == 0, "ancient pulses are all paid out");
-        check(SculkOmen.omenFromPulses(-2, true) == 0, "negative pulses are nothing");
+        // J3: pulses answer with waves, not omen; five elsewhere, every one in the Ancient City.
+        check(Omen.pulsesPerWave(false) == 5, "elsewhere a sensor needs five pulses per wave");
+        check(Omen.pulsesPerWave(true) == 1, "in the Ancient City every pulse answers");
+        check(Omen.wavesFromPulses(4, false) == 0 && Omen.wavesFromPulses(5, false) == 1, "five per wave");
+        check(Omen.wavesFromPulses(1, true) == 1 && Omen.wavesFromPulses(3, true) == 3, "every pulse counts");
+        check(Omen.remainingPulses(7, 1, false) == 2, "the remainder banks toward the next wave");
+        check(Omen.remainingPulses(3, 3, true) == 0, "ancient pulses are all paid out");
+        check(Omen.wavesFromPulses(-2, true) == 0, "negative pulses are nothing");
         check(SculkOmen.armsAllSculk("ancient_city") && SculkOmen.armsAllSculk(T + "ancient_city"),
                 "the Ancient City arms every sculk block, bare or namespaced");
         check(!SculkOmen.armsAllSculk("deepslate") && !SculkOmen.armsAllSculk(null) && !SculkOmen.armsAllSculk(""),
@@ -113,11 +114,12 @@ public class CapstoneRulesTest {
     }
 
     private static void testWardenSummonRule() {
-        check(SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN, false), "omen 4 on the final floor summons");
-        check(!SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN - 1, false), "omen 3 does not");
-        check(!SculkOmen.shouldSummonWarden(true, false, Omen.MAX_OMEN, false), "not on an earlier floor");
-        check(!SculkOmen.shouldSummonWarden(false, true, Omen.MAX_OMEN, false), "not in another dungeon");
-        check(!SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN, true), "only once");
+        // J3: the Warden counts the final floor's pulses and wakes on the fourth.
+        check(SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES, false), "the fourth pulse summons");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES - 1, false), "the third does not");
+        check(!SculkOmen.shouldSummonWarden(true, false, SculkOmen.WARDEN_PULSES, false), "not on an earlier floor");
+        check(!SculkOmen.shouldSummonWarden(false, true, SculkOmen.WARDEN_PULSES, false), "not in another dungeon");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES, true), "only once");
     }
 
     private static void testWardenOnlyInAncientCity() {

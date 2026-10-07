@@ -972,12 +972,11 @@ final class RunLifecycle {
     /**
      * The owner leaving between floors ({@code /dungeon exit}, the
      * lodestone's Leave, or {@code /dungeon quit} with nothing left to quit):
-     * the interval is not forfeited but settles
-     * {@link IntervalBanking#LEAVE_PENALTY} band worse for every member
-     * present, and the run ends, as a party leader leaving always has ended
-     * it. The room was saved at the first commit and stays despawned, so the
-     * next run opens at home. A preview still open is cancelled first, its
-     * catalyst refunded.
+     * the interval settles for every member present (D24: exactly like the
+     * home lever, no band penalty), and the run ends, as a party leader
+     * leaving always has ended it. The room was saved at the first commit and
+     * stays despawned, so the next run opens at home. A preview still open is
+     * cancelled first, its catalyst refunded.
      */
     private static boolean leaveAtCheckpoint(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -991,9 +990,9 @@ final class RunLifecycle {
             }
             PlaytestJournal.hintLeave(member, "checkpoint_exit", record);
         }
-        settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "checkpoint_exit");
+        settleOnce(server, record, "checkpoint_exit");
         Instances.announce(server, record, owner.getName().getString()
-                + " leaves at the checkpoint. The run ends, and the trip banks one band worse.",
+                + " leaves at the checkpoint. The run ends.",
                 owner.getUUID());
         InstanceTeardown.purge(server, record, "owner left at a checkpoint", owner.getUUID());
         return true;
@@ -1124,14 +1123,10 @@ final class RunLifecycle {
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.floor.theme);
 
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         int floorsCleared = record.interval.floorIndex;
         ZoneRules rules = ZoneRules.of(record);
-        // The band the interval stands in now that this floor is banked, over
-        // the floors actually cleared: what the chests beyond the door were
-        // counted from, and what going home would settle if nothing else rises.
-        int band = Omen.band(record.interval.bankedOmenSum(), Math.max(1, floorsCleared));
-        String verdict = OmenBarText.completionVerdict(band,
+        // J3: the verdict is lives, not a band; omen is danger only.
+        String verdict = OmenBarText.completionVerdict(record.interval.omen,
                 record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.baseRewardChests());
         if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
@@ -1157,10 +1152,7 @@ final class RunLifecycle {
                     "You reach the end of this floor. " + verdict
                             + " The barrel waits beyond the door. GO HOME banks your charts;"
                             + " DESCEND for bonus chests and better loot."
-                            + (TripView.finalAhead(record) ? " The final floor is ahead." : "")
-                            + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
-                                    ? " Every floor deeper starts with the omen already risen."
-                                    : ""))
+                            + (TripView.finalAhead(record) ? " The final floor is ahead." : ""))
                     .withStyle(ChatFormatting.AQUA));
         }
         // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
@@ -1253,11 +1245,11 @@ final class RunLifecycle {
             }
         }
 
-        // Omen no longer reduces chests or key progress; it adds danger. The
+        // J3: omen adds danger only, never reward cuts. The
         // base reward is always three chests, plus the zone's depth bonus on
-        // deeper floors. The band still colours the bar and the kit refill.
+        // deeper floors.
         ZoneRules rules = ZoneRules.of(record);
-        int band = bankFloorOmen(record);
+        bankFloorOmen(record);
         int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
         record.floor.rewardChests = chests;
 
@@ -1474,24 +1466,25 @@ final class RunLifecycle {
         }
     }
 
-    static int bankFloorOmen(InstanceRecord record) {
+    /**
+     * Records the trip's omen at this floor's clear for the journal (J3: the
+     * omen itself carries across floors, it is lives, not per-floor pressure).
+     */
+    static void bankFloorOmen(InstanceRecord record) {
         record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
-        record.interval.omen = 0;
-        return Omen.band(record.interval.bankedOmenSum(), record.interval.floorOmens.size());
     }
 
     /**
-     * What {@code member} would bank if the interval settled right now with
-     * {@code penalty} bands of penalty: the go-home screen's numbers, and the
-     * same arithmetic {@link #settleInterval} applies.
+     * What {@code member} would bank if the interval settled right now: the
+     * go-home screen's numbers, and the same arithmetic
+     * {@link #settleInterval} applies.
      */
     static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
-                                                    UUID member, int penalty) {
+                                                    UUID member) {
         int floors = record.interval.floorSteps.size();
         return IntervalBanking.settle(record.interval.floorSteps, record.interval.floorLevels,
-                record.interval.bankedOmenSum(),
                 DungeonLog.forServer(server).get(member).keystoneLevel(),
-                penalty, ZoneRules.of(record).bonusChests(floors));
+                ZoneRules.of(record).bonusChests(floors));
     }
 
     /**
@@ -1528,36 +1521,33 @@ final class RunLifecycle {
      * Settles the interval once: the guard is set before the settlement runs,
      * so one that throws partway is not repeated in full by a retry.
      */
-    private static void settleOnce(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
+    private static void settleOnce(MinecraftServer server, InstanceRecord record, String trigger) {
         if (!record.interval.safeVisitSettled) {
             record.interval.safeVisitSettled = true;
-            settleInterval(server, record, penalty, trigger);
+            settleInterval(server, record, trigger);
         }
     }
 
-    /** The settlement of going home: {@link #settleInterval} with no penalty. */
+    /** The settlement of going home, as the home lever. */
     static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
-        settleInterval(server, record, 0);
+        settleInterval(server, record, "home_lever");
+    }
+
+    /** {@link #settleInterval(MinecraftServer, InstanceRecord, String)} with the default trigger. */
+    static void settleInterval(MinecraftServer server, InstanceRecord record) {
+        settleInterval(server, record, "home_lever");
     }
 
     /**
-     * The settlement that ends an interval, for every member present: the
-     * omen band over the floors actually cleared (made {@code penalty} bands
-     * worse for a checkpoint exit), each member's keystone by
-     * {@link IntervalBanking}'s average-of-doors rule from their own key and
-     * their own carried progress, free-door fuel, the payout command, the
-     * kit top-up ({@link KitTopUp}), prestige, the diary and the run record.
+     * The settlement that ends an interval, for every member present. The
+     * home lever, a checkpoint exit and a grace expiry settle identically
+     * (D24); {@code trigger} only names what ended the interval for the
+     * journal's {@code bank} event: {@code home_lever},
+     * {@code checkpoint_exit} or {@code grace_expiry}. Runs the payout
+     * command, the kit top-up ({@link KitTopUp}), prestige, the diary and the
+     * run record.
      */
-    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty) {
-        settleInterval(server, record, penalty, penalty > 0 ? "checkpoint_exit" : "home_lever");
-    }
-
-    /**
-     * {@link #settleInterval(MinecraftServer, InstanceRecord, int)}, naming what
-     * ended the interval for the journal's {@code bank} event: {@code home_lever},
-     * {@code checkpoint_exit} or {@code grace_expiry}.
-     */
-    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
+    static void settleInterval(MinecraftServer server, InstanceRecord record, String trigger) {
         if (!record.isKeystoneRun()) {
             return;
         }
@@ -1565,10 +1555,9 @@ final class RunLifecycle {
         int floors = interval.floorSteps.size();
         int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
-                interval.floorLevels, interval.bankedOmenSum(), 0, penalty, bonusChests);
+                interval.floorLevels, 0, bonusChests);
 
-        // Per-member settlement: keystone levels and carried progress,
-        // free-door fuel, payout, prestige, diary.
+        // Per-member settlement: the journal row, payout, prestige, diary.
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
@@ -1576,20 +1565,16 @@ final class RunLifecycle {
                 continue;
             }
             // J1: each floor paid its scrap at the clear, so going home
-            // converts nothing. The settlement still supplies the omen band
-            // and the chest count for the journal and the home title.
+            // converts nothing. The settlement supplies the chest count for
+            // the journal and the home title.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
                 IntervalBanking.Settlement settled = new IntervalBanking.Settlement(
-                        shared.band(), 0, 0, shared.chests());
+                        0, 0, shared.chests());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
                         bonusChests, memberEntry.keystoneLevel());
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
-                memberPlayer.sendSystemMessage(Component.literal(
-                        (penalty > 0
-                                ? "You leave at the checkpoint, so the omen counts one band worse. "
-                                : "Home. ")
-                                + "The omen was " + OmenBarText.bandName(settled.band()) + ".")
+                memberPlayer.sendSystemMessage(Component.literal("Home.")
                         .withStyle(ChatFormatting.GOLD));
                 if ("home_lever".equals(trigger)) {
                     showHomeTitle(memberPlayer, settled);
@@ -1753,7 +1738,7 @@ final class RunLifecycle {
         }
 
         // M65: settle the interval before tearing down the dungeon, once.
-        settleOnce(server, record, 0, "home_lever");
+        settleOnce(server, record, "home_lever");
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
@@ -2050,7 +2035,7 @@ final class RunLifecycle {
             if (record.phase == RunSession.Phase.PREVIEW && level != null) {
                 Instances.clearPreview(level, record, true);
             }
-            settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "grace_expiry");
+            settleOnce(server, record, "grace_expiry");
         }
         Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
         InstanceTeardown.purge(server, record, "party leader did not reconnect");

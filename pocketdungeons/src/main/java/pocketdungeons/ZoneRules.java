@@ -39,19 +39,11 @@ import java.util.Set;
  *                        it from the adventure node's kind, as before.
  * @param depthBonus      bonus completion chests per floor since the last
  *                        bank, counted from the second floor: the floor's
- *                        chests are the band's plus
+ *                        chests are the base three plus
  *                        {@code floor(depthBonus * (floor - 1))}, capped at
  *                        {@link #MAX_BONUS_CHESTS}. The default third of a
  *                        chest per floor adds nothing on floors 1 to 3, one
  *                        chest from floor 4, two from 7, three from 10.
- * @param omenBaseAfter   the floor count after which every new floor of the
- *                        interval starts with {@link #omenBaseAmount} omen
- *                        already on it, or {@link #INTERVAL_LENGTH} for
- *                        {@code floorsPerSafeVisit}
- * @param omenBaseAmount  that head start, 0 to 4
- * @param omenScale       multiplier on every omen rise (dwell, sensors,
- *                        shrieks). Relief and the Ominous Bargain's fixed
- *                        value are not scaled.
  * @param lootRole        which faucet the zone is (ZONES_SPEC section 5):
  *                        {@code gear}, {@code materials} or {@code trophy}.
  *                        Declared and validated; nothing pays differently by
@@ -66,8 +58,7 @@ import java.util.Set;
  *                        the kit baseline.
  */
 record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonus,
-                 int omenBaseAfter, int omenBaseAmount, double omenScale, String lootRole,
-                 int lootTierEvery, int unlockLevel, double kitTopUpScale) {
+                 String lootRole, int lootTierEvery, int unlockLevel, double kitTopUpScale) {
 
     /** What a zone's floors end in. */
     enum Capstone { NONE, BOSS }
@@ -81,9 +72,6 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
     /** The faucets a zone can declare. */
     static final Set<String> LOOT_ROLES = Set.of("gear", "materials", "trophy");
 
-    /** {@link #omenBaseAfter} meaning "the interval length", {@code floorsPerSafeVisit}. */
-    static final int INTERVAL_LENGTH = -1;
-
     /** The most bonus chests a floor can carry: one on top of each completion chest spot. */
     static final int MAX_BONUS_CHESTS = 3;
 
@@ -92,7 +80,7 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
 
     /** The ordinary dungeon, and every theme whose file has no {@code rules} block. */
     static final ZoneRules DEFAULT = new ZoneRules(List.of(STANDARD), null, 1.0 / 3.0,
-            INTERVAL_LENGTH, 1, 1.0, "gear", 0, 1, 1.0);
+            "gear", 0, 1, 1.0);
 
     ZoneRules {
         floorSequence = List.copyOf(floorSequence);
@@ -143,21 +131,6 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
         return floorSequence.get(Math.floorMod(Math.max(1, floorNumber) - 1, floorSequence.size()));
     }
 
-    /** {@link #omenBaseAfter}, with {@link #INTERVAL_LENGTH} resolved against the config. */
-    int omenBaseAfter(int floorsPerSafeVisit) {
-        return omenBaseAfter == INTERVAL_LENGTH ? Math.max(1, floorsPerSafeVisit) : omenBaseAfter;
-    }
-
-    /**
-     * The omen floor {@code floorNumber} (1 based) of an interval starts with:
-     * {@link #omenBaseAmount} once the interval is past
-     * {@link #omenBaseAfter}, nothing before. Not cumulative: floor 5 starts
-     * with the same head start as floor 4.
-     */
-    int baseOmen(int floorNumber, int floorsPerSafeVisit) {
-        return floorNumber > omenBaseAfter(floorsPerSafeVisit) ? omenBaseAmount : 0;
-    }
-
     /**
      * Bonus completion chests for the floor that makes {@code floorsCleared}
      * since the last bank. See {@link #depthBonus}. The small epsilon keeps a
@@ -181,19 +154,6 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
             return baseTier;
         }
         return Math.min(MAX_LOOT_TIER, baseTier + Math.max(0, floorsCleared) / lootTierEvery);
-    }
-
-    /**
-     * An omen rise scaled by {@link #omenScale}, rounded to the nearest whole
-     * point. Relief (a negative or zero contribution) passes through
-     * unscaled: the scale is about pressure, and a harsher zone should not
-     * also make its reliefs bigger.
-     */
-    int scaleOmen(int contribution) {
-        if (contribution <= 0 || omenScale == 1.0) {
-            return contribution;
-        }
-        return (int) Math.max(0, Math.round(contribution * omenScale));
     }
 
     // ---- parsing (pure) -------------------------------------------------------
@@ -243,22 +203,6 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
         }
 
         double depthBonus = number(obj, "depth_bonus", DEFAULT.depthBonus, 0.0, MAX_BONUS_CHESTS);
-        int omenBaseAfter = DEFAULT.omenBaseAfter;
-        int omenBaseAmount = DEFAULT.omenBaseAmount;
-        if (obj.has("omen_base")) {
-            if (!obj.get("omen_base").isJsonObject()) {
-                throw new IllegalArgumentException("rules.omen_base must be an object with 'after' and 'amount'");
-            }
-            JsonObject base = obj.getAsJsonObject("omen_base");
-            for (String key : base.keySet()) {
-                if (!key.equals("after") && !key.equals("amount")) {
-                    throw new IllegalArgumentException("rules.omen_base: unknown field '" + key + "'");
-                }
-            }
-            omenBaseAfter = base.has("after") ? integer(base, "after", 0, 0, 1000) : INTERVAL_LENGTH;
-            omenBaseAmount = integer(base, "amount", DEFAULT.omenBaseAmount, 0, Omen.MAX_OMEN);
-        }
-        double omenScale = number(obj, "omen_scale", DEFAULT.omenScale, 0.0, 4.0);
         String lootRole = DEFAULT.lootRole;
         if (obj.has("loot_role")) {
             lootRole = obj.get("loot_role").getAsString().trim().toLowerCase(Locale.ROOT);
@@ -270,13 +214,12 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
         int lootTierEvery = integer(obj, "loot_tier_every", DEFAULT.lootTierEvery, 0, 1000);
         int unlockLevel = integer(obj, "unlock_level", DEFAULT.unlockLevel, 1, 100000);
         double kitTopUpScale = number(obj, "kit_top_up_scale", DEFAULT.kitTopUpScale, 0.0, 10.0);
-        return new ZoneRules(sequence, capstone, depthBonus, omenBaseAfter, omenBaseAmount,
-                omenScale, lootRole, lootTierEvery, unlockLevel, kitTopUpScale);
+        return new ZoneRules(sequence, capstone, depthBonus, lootRole, lootTierEvery,
+                unlockLevel, kitTopUpScale);
     }
 
     private static final Set<String> KNOWN_KEYS = Set.of("floor_kind", "floor_sequence", "capstone",
-            "depth_bonus", "omen_base", "omen_scale", "loot_role", "loot_tier_every", "unlock_level",
-            "kit_top_up_scale");
+            "depth_bonus", "loot_role", "loot_tier_every", "unlock_level", "kit_top_up_scale");
 
     private static String floorKind(String raw, String field) {
         String kind = raw.trim().toLowerCase(Locale.ROOT);

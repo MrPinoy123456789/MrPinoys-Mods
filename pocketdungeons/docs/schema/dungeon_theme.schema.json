@@ -84,32 +84,6 @@
                     "default": 0.3333,
                     "$comment": "Bonus completion chests per floor since the last bank, counted from the second floor: floor(depth_bonus * (floor - 1)), at most 3, stacked on the three chest spots. The default pays nothing on floors 1 to 3, one from floor 4, two from 7, three from 10."
                 },
-                "omen_base": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "after": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 1000,
-                            "$comment": "Floors of an interval after which every new floor starts with omen on it. Left out, the config's floorsPerSafeVisit."
-                        },
-                        "amount": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 4,
-                            "default": 1,
-                            "$comment": "The head start, per floor, not cumulative."
-                        }
-                    }
-                },
-                "omen_scale": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 4,
-                    "default": 1.0,
-                    "$comment": "Multiplier on every omen rise (dwell, sensors, shrieks), rounded to a whole point. Relief and the Ominous Bargain are not scaled."
-                },
                 "loot_role": {
                     "enum": ["gear", "materials", "trophy"],
                     "default": "gear",

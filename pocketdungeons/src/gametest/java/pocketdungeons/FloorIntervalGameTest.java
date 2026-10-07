@@ -54,18 +54,21 @@ public final class FloorIntervalGameTest {
 
     /** B1: the homecoming reset leaves nothing of the last interval's omen behind. */
     @GameTest(maxTicks = 20)
-    public void consecutiveSafeVisitsLandInTheSameBand(GameTestHelper helper) {
+    public void consecutiveSafeVisitsResetLives(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         InstanceRecord record = new InstanceRecord(9981, helper.absolutePos(BlockPos.ZERO),
                 server.getTickCount(), null, Set.of(), UUID.randomUUID(), false);
-        int[] bands = new int[2];
         for (int visit = 0; visit < 2; visit++) {
-            int band = -1;
+            // J3: omen is the trip's deaths and carries across floors; the
+            // journal records it at each clear and the reset is the interval's.
             for (int floor = 0; floor < FLOORS_PER_VISIT; floor++) {
                 record.interval.omen = OMEN_PER_FLOOR;
-                band = RunLifecycle.bankFloorOmen(record);
+                RunLifecycle.bankFloorOmen(record);
             }
-            bands[visit] = band;
+            if (record.interval.omen != OMEN_PER_FLOOR) {
+                helper.fail("the trip's omen is lives: it must survive a floor clear");
+                return;
+            }
             // The settlement guard is part of the interval too.
             record.interval.safeVisitSettled = true;
             // What returnToSafe, its teleport fallback and the quit reset
@@ -77,15 +80,6 @@ public final class FloorIntervalGameTest {
                         + ", settled=" + record.interval.safeVisitSettled);
                 return;
             }
-        }
-        if (bands[0] != bands[1]) {
-            helper.fail("Visit 2 finished in band " + bands[1] + " but visit 1 in band " + bands[0]
-                    + " with the same omen per floor");
-            return;
-        }
-        if (bands[0] == 0) {
-            helper.fail("Fixture should land above band 0 to prove anything; got band 0");
-            return;
         }
         helper.succeed();
     }
@@ -297,7 +291,7 @@ public final class FloorIntervalGameTest {
         InstanceRecord untimed = new InstanceRecord(9986, record.origin, server.getTickCount(),
                 record.layout, Set.of(), UUID.randomUUID(), true);
         untimed.phase = RunSession.Phase.ACTIVE;
-        OmenBar.omenRose(server, untimed, Omen.Source.SHRIEK, 1, 1, null);
+        OmenBar.cue(server, untimed, Omen.Source.SHRIEK);
         if (OmenBar.shows(untimed) || untimed.omenBar != null) {
             helper.fail("an admin untimed run is outside the loop and gets no bar");
             return;

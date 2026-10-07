@@ -13,11 +13,11 @@ import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 
 /**
- * M64 (SITUATIONS_SPEC 5.2, 5.4): the omen spur's "taken" test.
+ * M64 (SITUATIONS_SPEC 5.2, 5.4): the spur's "taken" test.
  *
- * <p>{@link OmenSources#spurTaken} decides whether a spur reward container has
- * been emptied, which is what fires the one-shot omen contribution for the
- * Ominous Bargain and the Barred Vault. The current implementation reads
+ * <p>{@link PressureSources#spurTaken} decides whether a spur reward container has
+ * been emptied, which is what fires the one-shot trigger for the
+ * Ominous Bargain (a harder floor, J3) and the Barred Vault (a life back). The current implementation reads
  * {@code container.isEmpty()}, which is correct for the ordinary case (the
  * player takes the loot, the container is empty) but has four edge cases this
  * scenario pins down:
@@ -25,7 +25,7 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
  * <ul>
  *   <li><strong>Partial loot.</strong> The player takes some but not all items.
  *       The container is not empty, so {@code spurTaken} returns false. The
- *       omen does not fire. This is a known gap: the player got the reward but
+ *       trigger does not fire. This is a known gap: the player got the reward but
  *       the spur does not notice.</li>
  *   <li><strong>Inserted junk.</strong> The player takes the loot and puts
  *       junk back in. The container is not empty, so {@code spurTaken} returns
@@ -33,19 +33,19 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
  *   <li><strong>Initially empty.</strong> The loot table rolled nothing, so the
  *       container was never filled. {@code spurTaken} returns true on the first
  *       poll, and the spur fires without the player ever taking anything. This
- *       is the false positive: an unearned omen contribution.</li>
+ *       is the false positive: an unearned trigger.</li>
  *   <li><strong>Alternate container.</strong> A barrel instead of a chest.
  *       Both implement {@link Container}, so {@code spurTaken} works the same.
  *       This is the one case that is correct by construction.</li>
  * </ul>
  *
  * <p>These scenarios document the current behavior. The partial-loot and
- * inserted-junk cases are false negatives (the omen should fire but does not),
- * and the initially-empty case is a false positive (the omen should not fire
+ * inserted-junk cases are false negatives (the trigger should fire but does not),
+ * and the initially-empty case is a false positive (the trigger should not fire
  * but does). Fixing them is a separate milestone; this test pins down what the
  * code does today so a fix can prove it changed.
  *
- * <p>Same package rationale as {@link CustodyGameTest}: {@link OmenSources} is
+ * <p>Same package rationale as {@link CustodyGameTest}: {@link PressureSources} is
  * package-private.
  */
 public final class OmenGameTest {
@@ -54,7 +54,7 @@ public final class OmenGameTest {
 
     /**
      * A container with partial loot is not empty, so {@code spurTaken} returns
-     * false. The omen does not fire even though the player took some reward.
+     * false. The trigger does not fire even though the player took some reward.
      */
     @GameTest(maxTicks = 20)
     public void spurTakenPartialLootDoesNotFire(GameTestHelper helper) {
@@ -67,9 +67,9 @@ public final class OmenGameTest {
         placeItem(level, chestPos, 1, new ItemStack(Items.GOLD_INGOT, 1));
         removeItem(level, chestPos, 0);
 
-        helper.assertFalse(OmenSources.spurTaken(level, chestPos),
+        helper.assertFalse(PressureSources.spurTaken(level, chestPos),
                 "partial loot: the container is not empty, so spurTaken returns false; "
-                        + "this is the false negative: the player took reward but the omen does not fire");
+                        + "this is the false negative: the player took reward but the trigger does not fire");
         helper.succeed();
     }
 
@@ -77,7 +77,7 @@ public final class OmenGameTest {
 
     /**
      * A container where the loot was taken and junk was inserted is not empty,
-     * so {@code spurTaken} returns false. The omen does not fire even though
+     * so {@code spurTaken} returns false. The trigger does not fire even though
      * the reward is gone.
      */
     @GameTest(maxTicks = 20)
@@ -91,7 +91,7 @@ public final class OmenGameTest {
         removeItem(level, chestPos, 0);
         placeItem(level, chestPos, 0, new ItemStack(Items.COBBLESTONE, 1));
 
-        helper.assertFalse(OmenSources.spurTaken(level, chestPos),
+        helper.assertFalse(PressureSources.spurTaken(level, chestPos),
                 "inserted junk: the container is not empty, so spurTaken returns false; "
                         + "this is the false negative: the reward was taken but junk masks it");
         helper.succeed();
@@ -101,7 +101,7 @@ public final class OmenGameTest {
 
     /**
      * A container that was never filled (the loot table rolled nothing) is
-     * empty, so {@code spurTaken} returns true. The omen fires without the
+     * empty, so {@code spurTaken} returns true. The trigger fires without the
      * player ever taking anything. This is the false positive.
      */
     @GameTest(maxTicks = 20)
@@ -111,9 +111,9 @@ public final class OmenGameTest {
         level.setBlock(chestPos, Blocks.CHEST.defaultBlockState(), 3);
 
         // The chest was never filled. It is empty.
-        helper.assertTrue(OmenSources.spurTaken(level, chestPos),
+        helper.assertTrue(PressureSources.spurTaken(level, chestPos),
                 "initially empty: the container is empty, so spurTaken returns true; "
-                        + "this is the false positive: the omen fires without the player taking anything");
+                        + "this is the false positive: the trigger fires without the player taking anything");
         helper.succeed();
     }
 
@@ -131,12 +131,12 @@ public final class OmenGameTest {
         level.setBlock(barrelPos, Blocks.BARREL.defaultBlockState(), 3);
 
         // Empty barrel: spurTaken returns true.
-        helper.assertTrue(OmenSources.spurTaken(level, barrelPos),
+        helper.assertTrue(PressureSources.spurTaken(level, barrelPos),
                 "an empty barrel is a taken spur, same as an empty chest");
 
         // Place an item: spurTaken returns false.
         placeItem(level, barrelPos, 0, new ItemStack(Items.DIAMOND, 1));
-        helper.assertFalse(OmenSources.spurTaken(level, barrelPos),
+        helper.assertFalse(PressureSources.spurTaken(level, barrelPos),
                 "a barrel with an item is not a taken spur, same as a chest with an item");
         helper.succeed();
     }

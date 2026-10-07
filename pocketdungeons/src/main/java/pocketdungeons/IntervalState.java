@@ -25,14 +25,18 @@ final class IntervalState {
     int floorIndex;
 
     /**
-     * The running omen of the floor in progress, 0 to 4. Banked onto
-     * {@link #floorOmens} and zeroed when the floor is cleared. It lives here
-     * rather than on the floor because omen gathered between floors (dwelling
-     * in an old, unsolved cell) counts toward the next one.
+     * The trip's omen, 0 to 4: the count of deaths this trip (J3: death is
+     * the only thing that raises it). The player reads it as lives,
+     * {@code 5 - omen}; the fifth death ends the run. Per trip, so it is
+     * never zeroed at a floor clear.
      */
     int omen;
 
-    /** Each cleared floor's clamped omen, in order. {@link Omen#floorSum} keys the finish table off this. */
+    /**
+     * The trip's omen at each floor clear, in order, for the journal's
+     * {@code floor_complete} event. Record-keeping only: {@link #omen}
+     * itself carries across floors.
+     */
     final List<Integer> floorOmens = new ArrayList<>();
 
     /**
@@ -115,17 +119,13 @@ final class IntervalState {
      */
     boolean safeVisitSettled;
 
-    /** The interval's omen so far: every banked floor plus the running one. */
+    /** The interval's omen: the trip's deaths, clamped. Alias kept for the journal and context. */
     int omenSum() {
-        int sum = Omen.clamp(omen);
-        for (int banked : floorOmens) {
-            sum += Omen.clamp(banked);
-        }
-        return sum;
+        return Omen.clamp(omen);
     }
 
-    /** The banked floors' omen alone, the sum settlement uses. */
+    /** The same reading under the old name, for the callers that predate J3. */
     int bankedOmenSum() {
-        return Omen.floorSum(floorOmens.stream().mapToInt(Integer::intValue).toArray());
+        return Omen.clamp(omen);
     }
 }
