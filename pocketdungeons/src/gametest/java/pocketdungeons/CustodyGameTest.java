@@ -50,9 +50,7 @@ import java.util.Set;
  * scenarios stand the nether or the overworld in for it), a keystone in slot
  * 0 on a live entry (a keystone holder's remote is also reconciled into their
  * survival inventory by the keystone watcher, which a conservation count
- * cannot tell apart; the pure core covers the slot 0 rule), and the kit
- * top-up's settlement path, which needs a live instance record (its math is
- * {@code KitTopUpTest}; the rest is a live checklist row).
+ * cannot tell apart; the pure core covers the slot 0 rule).
  *
  * <p>The dungeon dimension is the nether here, for the reason
  * {@link InventorySwap.Probe#useDimensionForTesting} spells out: a

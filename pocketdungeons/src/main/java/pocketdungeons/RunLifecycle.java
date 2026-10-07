@@ -1585,7 +1585,7 @@ final class RunLifecycle {
      * (D24); {@code trigger} only names what ended the interval for the
      * journal's {@code bank} event: {@code home_lever},
      * {@code checkpoint_exit} or {@code grace_expiry}. Runs the payout
-     * command, the kit top-up ({@link KitTopUp}), prestige, the diary and the
+     * command, prestige, the diary and the
      * run record.
      */
     static void settleInterval(MinecraftServer server, InstanceRecord record, String trigger) {

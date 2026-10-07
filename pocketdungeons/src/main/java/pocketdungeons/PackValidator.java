@@ -459,12 +459,10 @@ final class PackValidator {
     }
 
     /**
-     * Kit baselines that load but would misbehave at a safe visit's top-up
-     * ({@link KitTopUp}): an item or empty that does not resolve, a tool not
-     * marked as a durability line (it would be refilled by count instead of
-     * replaced when missing), a durability mark on an item with none, and a
-     * line asking for more than one roll of the bag's kit table gives, which
-     * would let the top-up hand out more than the kit ever did.
+     * Kit baselines that load but are internally inconsistent: an item or
+     * empty that does not resolve, a tool not marked as a durability line, a
+     * durability mark on an item with none, and a line asking for more than
+     * one roll of the bag's kit table gives.
      *
      * @param rolled     one roll of a bag's kit table as counts per item id,
      *                   or {@code null} when the table is missing (reported by
@@ -493,8 +491,7 @@ final class PackValidator {
                             line.item() + " is marked durability but has no durability"));
                 } else if (!line.durability() && hasDurability) {
                     findings.add(new Finding(bag.id, "kit_baseline", line.item()
-                            + " has durability; mark it \"durability\": true so it is replaced when"
-                            + " missing and never refilled by count"));
+                            + " has durability; mark it \"durability\": true"));
                 }
                 if (line.emptiesInto() != null && damageable.apply(line.emptiesInto()) == null) {
                     findings.add(new Finding(bag.id, "kit_baseline", line.item()
@@ -503,8 +500,7 @@ final class PackValidator {
                 int given = roll == null ? line.count() : roll.getOrDefault(line.item(), 0);
                 if (given < line.count()) {
                     findings.add(new Finding(bag.id, "kit_baseline", line.item() + " asks for "
-                            + line.count() + " but one roll of " + bag.lootTable + " gives " + given
-                            + "; the top-up would hand out more than the kit"));
+                            + line.count() + " but one roll of " + bag.lootTable + " gives " + given));
                 }
             }
         }
@@ -528,10 +524,16 @@ final class PackValidator {
         Map<String, Integer> counts = new java.util.HashMap<>();
         for (net.minecraft.world.item.ItemStack stack : rolled) {
             if (!stack.isEmpty()) {
-                counts.merge(KitTopUp.itemId(stack), stack.getCount(), Integer::sum);
+                counts.merge(itemId(stack), stack.getCount(), Integer::sum);
             }
         }
         return counts;
+    }
+
+    /** The stack's registered item id, or empty for an empty stack. */
+    private static String itemId(net.minecraft.world.item.ItemStack stack) {
+        return stack.isEmpty() ? ""
+                : net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
     /**

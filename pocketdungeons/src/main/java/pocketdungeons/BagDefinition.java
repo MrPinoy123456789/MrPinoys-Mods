@@ -42,16 +42,13 @@ import java.util.Set;
  *
  * <h2>Kit baseline</h2>
  *
- * <p>{@link #kitBaseline} is the deterministic kit a safe visit tops up
- * toward ({@link KitTopUp}): an item, a count, whether it is a durability
- * item (replaced when missing, never repaired), and optionally the item a
- * used one turns into (a water bucket empties into a bucket, which the top-up
- * refills rather than minting a second bucket). It is declared in the bag's
+ * <p>{@link #kitBaseline} is the declared kit contents: an item, a count,
+ * whether it is a durability item, and optionally the item a used one turns
+ * into (a water bucket empties into a bucket). It is declared in the bag's
  * JSON rather than read off the loot table, because a table is allowed to be
- * random and a top-up target is not; the built-in baselines are exactly their
- * tables' guaranteed entries, and {@code PackValidator} checks that a
- * baseline never asks for more than one roll of the table gives. An empty
- * baseline means the bag is never topped up.
+ * random and a baseline is not; {@code PackValidator} checks that a baseline
+ * never asks for more than one roll of the table gives. There is no top-up:
+ * a bag's kit is granted once, when it is chosen.
  */
 final class BagDefinition {
 
@@ -60,12 +57,9 @@ final class BagDefinition {
      *
      * @param item        namespaced item id
      * @param count       how many the kit holds, at least 1
-     * @param durability  a tool or other item whose durability is the economy:
-     *                    only a missing one is replaced, at the calmest band,
-     *                    and a damaged one is never repaired
-     * @param emptiesInto the item a used one leaves behind, or {@code null}.
-     *                    The top-up turns a held empty back into this item
-     *                    instead of minting a new one alongside it.
+     * @param durability  a tool or other item whose durability is the economy
+     * @param emptiesInto the item a used one leaves behind, or {@code null}
+     *                    (a water bucket empties into a bucket)
      */
     record KitItem(String item, int count, boolean durability, String emptiesInto) {}
 

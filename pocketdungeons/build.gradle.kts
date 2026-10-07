@@ -365,8 +365,6 @@ for ((taskName, testClass) in mapOf(
     "configSaveTest" to "ConfigSaveTest",
     "zoneRulesTest" to "ZoneRulesTest",
     "intervalBankingTest" to "IntervalBankingTest",
-    // Audit wave 2c: the safe-visit kit top-up's pure core.
-    "kitTopUpTest" to "KitTopUpTest",
     // Lemon steps 1 and 2: the playtest journal line format, the context
     // snapshot builder, and Lemon's chat routing and bubbles.
     "journalFormatTest" to "JournalFormatTest",
@@ -472,7 +470,6 @@ tasks.test {
     dependsOn("configSaveTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
-    dependsOn("kitTopUpTest")
     dependsOn("journalFormatTest")
     dependsOn("lemonSpeechTest")
     dependsOn("bookPagesTest")

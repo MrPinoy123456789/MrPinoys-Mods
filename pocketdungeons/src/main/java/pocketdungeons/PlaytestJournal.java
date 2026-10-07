@@ -481,25 +481,6 @@ final class PlaytestJournal {
         });
     }
 
-    /** A kit top-up was applied (even one that granted nothing). */
-    static void kitTopUp(ServerPlayer player, InstanceRecord record, int band, KitTopUp.Plan plan) {
-        safely("kit_topup", () -> {
-            Map<String, Integer> granted = new LinkedHashMap<>();
-            List<String> tools = new ArrayList<>();
-            for (KitTopUp.Grant grant : plan.grants()) {
-                granted.merge(grant.item(), grant.count(), Integer::sum);
-                if (grant.durability()) {
-                    tools.add(grant.item());
-                }
-            }
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("band", band);
-            extras.put("granted", granted);
-            extras.put("tools_replaced", tools);
-            record(player, record, "kit_topup", extras);
-        });
-    }
-
     /**
      * Every item the player holds, by store (playtest 2026-10-03-2: the loot
      * could not be analysed afterwards, because the journal kept only an

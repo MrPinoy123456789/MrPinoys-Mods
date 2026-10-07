@@ -42,7 +42,6 @@ public class ZoneRulesTest {
         check(d.lootRole().equals("gear"), "the gear faucet");
         check(d.lootTierEvery() == 0, "no depth tier");
         check(d.unlockLevel() == 1, "offered from level 1");
-        check(d.kitTopUpScale() == 1.0, "kit top-up unscaled");
         check(ZoneRules.forTheme(null) == ZoneRules.DEFAULT, "no theme is the default zone");
         check(ZoneRules.forTheme("nobody:unknown") == ZoneRules.DEFAULT, "an unknown theme is the default zone");
     }
@@ -88,13 +87,13 @@ public class ZoneRulesTest {
         ZoneRules full = parse("""
                 {"floor_sequence": ["standard", "standard"], "capstone": "boss", "depth_bonus": 0.5,
                  "loot_role": "trophy",
-                 "loot_tier_every": 2, "unlock_level": 25, "kit_top_up_scale": 0.5}
+                 "loot_tier_every": 2, "unlock_level": 25}
                 """);
         check(full.floorSequence().equals(List.of("standard", "standard")), "floor sequence");
         check(full.capstone() == ZoneRules.Capstone.BOSS, "capstone");
         check(full.depthBonus() == 0.5, "numbers");
         check(full.lootRole().equals("trophy") && full.lootTierEvery() == 2, "loot");
-        check(full.unlockLevel() == 25 && full.kitTopUpScale() == 0.5, "unlock and kit");
+        check(full.unlockLevel() == 25, "unlock level");
         ZoneRules empty = parse("{}");
         check(empty.equals(ZoneRules.DEFAULT), "an empty block is the default zone");
 

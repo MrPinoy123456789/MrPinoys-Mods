@@ -61,7 +61,7 @@ public class JournalFormatTest {
         extras.put("granted", Map.of("minecraft:torch", 8));
         extras.put("score", null);
         extras.put("ok", true);
-        JsonObject o = JsonParser.parseString(JournalFormat.line("kit_topup", common(), extras)).getAsJsonObject();
+        JsonObject o = JsonParser.parseString(JournalFormat.line("bank", common(), extras)).getAsJsonObject();
         check(o.get("affixes").getAsJsonArray().size() == 2, "arrays written as arrays");
         check(o.get("granted").getAsJsonObject().get("minecraft:torch").getAsInt() == 8, "maps as objects");
         check(o.get("score").isJsonNull(), "null as null");

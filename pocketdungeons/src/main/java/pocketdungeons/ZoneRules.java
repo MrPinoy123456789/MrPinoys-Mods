@@ -53,12 +53,9 @@ import java.util.Set;
  *                        The Endless Mine's escalating haul.
  * @param unlockLevel     the keystone level at which a door into this zone
  *                        can be offered
- * @param kitTopUpScale   multiplier on the safe-visit kit top-up
- *                        ({@link KitTopUp}); the result is still capped at
- *                        the kit baseline.
  */
 record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonus,
-                 String lootRole, int lootTierEvery, int unlockLevel, double kitTopUpScale) {
+                 String lootRole, int lootTierEvery, int unlockLevel) {
 
     /** What a zone's floors end in. */
     enum Capstone { NONE, BOSS }
@@ -80,7 +77,7 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
 
     /** The ordinary dungeon, and every theme whose file has no {@code rules} block. */
     static final ZoneRules DEFAULT = new ZoneRules(List.of(STANDARD), null, 1.0 / 3.0,
-            "gear", 0, 1, 1.0);
+            "gear", 0, 1);
 
     ZoneRules {
         floorSequence = List.copyOf(floorSequence);
@@ -213,13 +210,12 @@ record ZoneRules(List<String> floorSequence, Capstone capstone, double depthBonu
         }
         int lootTierEvery = integer(obj, "loot_tier_every", DEFAULT.lootTierEvery, 0, 1000);
         int unlockLevel = integer(obj, "unlock_level", DEFAULT.unlockLevel, 1, 100000);
-        double kitTopUpScale = number(obj, "kit_top_up_scale", DEFAULT.kitTopUpScale, 0.0, 10.0);
         return new ZoneRules(sequence, capstone, depthBonus, lootRole, lootTierEvery,
-                unlockLevel, kitTopUpScale);
+                unlockLevel);
     }
 
     private static final Set<String> KNOWN_KEYS = Set.of("floor_kind", "floor_sequence", "capstone",
-            "depth_bonus", "loot_role", "loot_tier_every", "unlock_level", "kit_top_up_scale");
+            "depth_bonus", "loot_role", "loot_tier_every", "unlock_level");
 
     private static String floorKind(String raw, String field) {
         String kind = raw.trim().toLowerCase(Locale.ROOT);

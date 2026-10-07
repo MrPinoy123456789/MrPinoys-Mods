@@ -204,7 +204,7 @@ final class Bags {
     /**
      * One roll of this bag's kit table, or {@code null} if the bag or its
      * table is missing. The built-in tables are deterministic (every pool
-     * rolls one fixed entry), so a roll is also how the safe-visit top-up
+     * rolls one fixed entry), so a roll is also how {@code PackValidator}
      * learns what a kit item looks like: its components, such as the Mason
      * pickaxe's short durability or the eight-high torch stacks.
      */
