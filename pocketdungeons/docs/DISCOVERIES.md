@@ -605,3 +605,15 @@ Two gotchas, worth not re-discovering:
     nether wart immediately, disabling removes it, with no /reload between.
     Manifest surfaces still settle at reload: module-owned bags are skipped
     inside BagManifest.parse, which only runs in ContentSnapshot.build.
+
+38. RESOLVED: In 26.2, AbstractVillager.overrideOffers is an empty
+    extension-point stub. Calling it writes nothing; a villager whose
+    offers field stays null lazily regenerates vanilla profession trades on
+    the first getOffers. Write offers with Villager.setOffers instead; the
+    field persists through the villager's own saved data. Vanilla
+    restock() only calls resetUses on the offers already there, so custom
+    offers survive a job-site restock; vanilla updateTrades only fires from
+    the lazy init or a career level-up, which xp 0 on every offer prevents.
+    The per-trade hook is AbstractVillager.notifyTrade, which
+    MerchantResultSlot.onTake fires once per completed trade on the server
+    merchant (MerchantTradeMixin).
