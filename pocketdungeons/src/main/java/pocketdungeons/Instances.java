@@ -3305,6 +3305,7 @@ final class Instances {
             player.setLastDeathLocation(Optional.empty());
         }
 
+        InventorySwap.liftCursorBeforeCrossing(server, player, dimension);
         player.teleport(new TeleportTransition(target, pos, Vec3.ZERO, yaw, pitch,
                 TeleportTransition.DO_NOTHING));
     }
@@ -3343,6 +3344,7 @@ final class Instances {
         }
         BlockPos pos = spawn.pos();
         Vec3 dest = Vec3.atBottomCenterOf(pos);
+        InventorySwap.liftCursorBeforeCrossing(server, player, target.dimension());
         player.teleport(new TeleportTransition(target, dest, Vec3.ZERO,
                 spawn.yaw(), spawn.pitch(), TeleportTransition.DO_NOTHING));
     }

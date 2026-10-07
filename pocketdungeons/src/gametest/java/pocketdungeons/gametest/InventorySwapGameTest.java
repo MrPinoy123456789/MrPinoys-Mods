@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 
@@ -78,12 +79,12 @@ public final class InventorySwapGameTest {
      * Scenario 2: leaving the void restores the survival inventory exactly,
      * cursor included.
      *
-     * <p>The expectation accounts for something the spec does not: on a
+     * <p>The expectation accounts for something the spec does not: on a raw
      * teleport, vanilla has already dealt with the carried stack before any
-     * Fabric event fires. See {@link #cursorItemSurvivesAReconcile} for the
-     * detail and for the path this mod does own. Either way the stack ends up
-     * in the first free main slot, so that is what the round trip has to
-     * reproduce.
+     * Fabric event fires; on a mod-driven one, {@code Instances.teleport}
+     * lifts it into the record first. See {@link #cursorItemSurvivesAReconcile}
+     * for the detail. Either way the stack ends up in the first free main
+     * slot, so that is what the round trip has to reproduce.
      */
     @GameTest
     public void exitRestoresSurvivalExactly(GameTestHelper helper) {
@@ -233,8 +234,11 @@ public final class InventorySwapGameTest {
      * inventory slot, or dropped it at the origin if there was no free slot.
      * Fabric ships no BEFORE variant of that event (checked in
      * fabric-entity-events-v1 5.0.5: {@code AfterEntityChange} and
-     * {@code AfterPlayerChange} are the only two), so getting ahead of it would
-     * take a mixin, and this mod's mixin budget is spent.
+     * {@code AfterPlayerChange} are the only two), so getting ahead of a
+     * teleport this mod does not drive would take a mixin, and this mod's
+     * mixin budget is spent. For the moves it does drive the answer is
+     * {@code InventorySwap.liftCursorBeforeCrossing}, called from
+     * {@code Instances.teleport} before the transition starts.
      *
      * <p>What this mod does own is every reconcile that is <em>not</em>
      * preceded by a vanilla teleport: the tick sweep and the join handler. That
@@ -286,6 +290,13 @@ public final class InventorySwapGameTest {
      * <p>The pack fills the main inventory, so its cursor stack has to go
      * loose, and the record already holds a loose stack from before the
      * failure, which the ejection must not wipe. Unbanked loot is kept.
+     *
+     * <p>The exit drives {@link InventorySwap.Probe#modTeleport} rather than a
+     * raw {@code teleportTo}, because production ejections always go through
+     * {@code Instances.teleport}: that path lifts the cursor stack into the
+     * record before {@code Player.remove(CHANGED_DIMENSION)} can resolve it
+     * through {@code placeItemBackInInventory}, which on a full pack would
+     * drop it on the void floor (scenario 5's javadoc has the jar references).
      */
     @GameTest
     public void ejectionKeepsEachStackOnce(GameTestHelper helper) {
@@ -309,7 +320,8 @@ public final class InventorySwapGameTest {
         player.getInventory().setItem(5, new ItemStack(Items.GOLD_INGOT, 7));
         InventorySwap.Probe.keepLoose(player, List.of(new ItemStack(Items.EMERALD, 5)));
 
-        outOfVoid(helper, player, overworld);
+        InventorySwap.Probe.modTeleport(player, overworld, new Vec3(0.5, 80.0, 0.5));
+        InventorySwap.Probe.reconcileNow(player);
         helper.assertFalse(InventorySwap.Probe.isStashed(player), "the ejection restored survival");
         intoVoid(helper, player, dungeon);
 

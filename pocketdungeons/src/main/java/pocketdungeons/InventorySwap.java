@@ -8,11 +8,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -176,6 +178,16 @@ public final class InventorySwap {
             if (server != null) {
                 DungeonLog.forServer(server).setOrphan(player.getUUID(), OrphanRecord.NONE);
             }
+        }
+
+        /**
+         * Moves the player the way the mod moves them, through
+         * {@link Instances#teleport}. A raw {@code teleportTo} exercises the
+         * vanilla path, which resolves the carried stack during the removal
+         * before any event fires; the mod path lifts it into the record first.
+         */
+        public static void modTeleport(ServerPlayer player, ServerLevel target, Vec3 pos) {
+            Instances.teleport(target.getServer(), player, target.dimension(), pos, 0.0F, 0.0F);
         }
 
     }
@@ -941,6 +953,40 @@ public final class InventorySwap {
      * cannot drop anything, and the stack still lands in slot 41 of the
      * snapshot. That is what fixes vanilla MC-258705 here.
      */
+    /**
+     * Lifts the cursor stack into the player's dungeon inventory record ahead
+     * of a mod-driven teleport out of the void.
+     *
+     * <p>Verified in the 26.2 jar: {@code ServerPlayer.teleport} removes the
+     * player from the old level through {@code Player.remove(CHANGED_DIMENSION)}
+     * before {@code AFTER_PLAYER_CHANGE_LEVEL} can fire, and
+     * {@code InventoryMenu.removed} resolves the carried stack itself via
+     * {@code placeItemBackInInventory}: into a free slot when the pack has one,
+     * dropped at the player's feet in the <em>departing</em> dimension when it
+     * does not. On the way out that floor is the void, so a full pack would
+     * lose the stack outright. Parking it in the record first turns the drop
+     * into a merge: {@link #leaveVoid} carries the record's loose stacks along
+     * and the next entry hands the stack back as if it had gone loose.
+     *
+     * <p>The entering direction needs no such lift: the stack lands in a free
+     * survival slot where {@link #enterVoid} snapshots it, or is dropped at
+     * the origin the player returns to. Teleports this mod does not drive (an
+     * admin {@code /tp}, another mod) remain the documented residual: Fabric
+     * ships no pre-change player event and the mixin budget is spent.
+     */
+    static void liftCursorBeforeCrossing(MinecraftServer server, ServerPlayer player,
+                                         ResourceKey<Level> destination) {
+        if (!player.level().dimension().equals(dungeonLevel) || destination.equals(dungeonLevel)) {
+            return;
+        }
+        ItemStack carried = player.containerMenu.getCarried();
+        if (carried.isEmpty()) {
+            return;
+        }
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        keepForNextEntry(DungeonLog.forServer(server), player.getUUID(), List.of(carried));
+    }
+
     private static List<ItemStack> snapshotPlayer(ServerPlayer player, PlayerSlots slots) {
         ItemStack carried = player.containerMenu.getCarried().copy();
         player.containerMenu.setCarried(ItemStack.EMPTY);
