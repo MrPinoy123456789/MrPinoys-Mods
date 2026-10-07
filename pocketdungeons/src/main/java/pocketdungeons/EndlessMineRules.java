@@ -68,11 +68,15 @@ final class EndlessMineRules {
 
     // ---- depth layers (design D13, ZONES_SPEC 3.5) ----------------------------------
 
-    /** The mine dungeon's id: the door offered at the first staging room once act 2 is open. */
+    /** The mine dungeon's id: the door offered at the first staging room once it is open. */
     static final String MINE_DUNGEON_ID = "pocketdungeons:endless_mine";
 
-    /** The act a player must have cleared into (unlocked) to open the Endless Mine at all. */
-    static final int OPENING_ACT = 2;
+    /**
+     * The act the Endless Mine belongs to (D29): it opens in act 1 now, gated
+     * on the leader's compass by {@code endlessMineUnlockLevel} so a new
+     * player's first doors are dungeons.
+     */
+    static final int OPENING_ACT = 1;
 
     /** Layer names, by layer number 1 to 4. */
     private static final String[] LAYER_NAMES = {"Upper workings", "Deepslate", "Deep dark", "Magma core"};
@@ -80,9 +84,15 @@ final class EndlessMineRules {
     /** Last floor of each of the first three layers: 5, 11 and 17. Layer 4 runs on from 18. */
     private static final int[] LAYER_LAST_FLOOR = {5, 11, 17};
 
-    /** Whether the Endless Mine is open to a player with these acts unlocked. */
-    static boolean opensFor(java.util.Set<Integer> unlockedActs) {
-        return unlockedActs != null && unlockedActs.contains(OPENING_ACT);
+    /**
+     * Whether the Endless Mine is open to a player with these acts unlocked
+     * and this compass level: act {@link #OPENING_ACT} open, and the compass
+     * at {@code endlessMineUnlockLevel} so a new player's first doors are
+     * dungeons (D29).
+     */
+    static boolean opensFor(java.util.Set<Integer> unlockedActs, int compass) {
+        return unlockedActs != null && unlockedActs.contains(OPENING_ACT)
+                && compass >= PocketDungeonsConfig.endlessMineUnlockLevel();
     }
 
     /** Whether {@code offer} opens a Mine from the first staging room. */

@@ -153,6 +153,42 @@ final class DungeonMapText {
         return out;
     }
 
+    /**
+     * The act checklist for the first staging map (D29): each dungeon of
+     * {@code act} with a tick when finished or its unlock level when locked,
+     * the Endless Mine's depth against the act's target, then nothing for a
+     * complete act. Sorted by dungeon id so the order is stable.
+     */
+    static List<Line> actChecklist(int act, java.util.Collection<DungeonDef> all, Set<String> finished,
+                                 int compass, int deepestMineFloor) {
+        List<Line> out = new ArrayList<>();
+        Set<String> done = new java.util.LinkedHashSet<>();
+        for (String id : finished) {
+            done.add(DungeonDef.qualify(id));
+        }
+        List<DungeonDef> dungeons = new ArrayList<>(ActProgress.actDungeons(act, all));
+        dungeons.sort(java.util.Comparator.comparing(DungeonDef::id));
+        if (dungeons.isEmpty()) {
+            return out;
+        }
+        out.add(new Line("Act " + act + " checklist", Tone.HEADING));
+        for (DungeonDef def : dungeons) {
+            if (done.contains(DungeonDef.qualify(def.id()))) {
+                out.add(new Line("    " + def.name() + " (done)", Tone.VISITED));
+            } else if (def.unlockLevel() > compass) {
+                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
+            } else {
+                out.add(new Line("    " + def.name(), Tone.NORMAL));
+            }
+        }
+        int target = ActProgress.mineTarget(act);
+        if (target > 0) {
+            out.add(new Line("    Endless Mine · floor " + Math.min(deepestMineFloor, target)
+                    + " of " + target + (deepestMineFloor >= target ? " (done)" : ""), Tone.NOTE));
+        }
+        return out;
+    }
+
     private static int layerOf(DungeonDef def, String nodeId) {
         DungeonDef.Node node = def.node(nodeId);
         return node == null ? 0 : node.layer();

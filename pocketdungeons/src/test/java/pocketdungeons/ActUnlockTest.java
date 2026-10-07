@@ -26,6 +26,7 @@ public class ActUnlockTest {
         testNames();
         testMigrationRule();
         testCapstoneMapping();
+        testActCompletion();
         testLogUnlocks();
         testMigrationOnLoad();
         testRoundTrip();
@@ -61,6 +62,51 @@ public class ActUnlockTest {
         check(ActProgress.unlockedByCapstone(5), 0, "act 5 capstone opens nothing yet");
         check(ActProgress.completesCampaign(5), true, "act 5 capstone completes the campaign");
         check(ActProgress.completesCampaign(4), false, "act 4 capstone does not");
+    }
+
+    private static DungeonDef actDungeon(String id, int act, String kind) {
+        String json = "{\"name\": \"" + id + "\", \"act\": " + act + ", \"baseLevel\": 1, \"kind\": \"" + kind
+                + "\", \"mainTheme\": \"rootworks\", \"lootBand\": {\"min\": 1, \"max\": 2},"
+                + " \"nodes\": [{\"id\": \"a\", \"name\": \"A\", \"layer\": 1},"
+                + " {\"id\": \"b\", \"name\": \"B\", \"layer\": 2, \"final\": true}],"
+                + " \"edges\": [{\"from\": \"a\", \"to\": \"b\"}]}";
+        return DungeonDef.fromJson("pocketdungeons:" + id, JsonParser.parseString(json).getAsJsonObject());
+    }
+
+    /** D29: an act completes when its dungeons are finished and its Mine layer is reached. */
+    private static void testActCompletion() {
+        List<DungeonDef> act1 = List.of(
+                actDungeon("mineshaft", 1, "dungeon"), actDungeon("rootworks", 1, "dungeon"),
+                actDungeon("spawner", 1, "capstone"), actDungeon("endless_mine", 1, "endless"));
+        check(ActProgress.mineTarget(1) == 5 && ActProgress.mineTarget(4) == 23
+                && ActProgress.mineTarget(5) == 0, true, "the layer bottoms");
+        check(ActProgress.actDungeons(1, act1).size(), 3, "the Endless Mine is not an act dungeon");
+
+        check(ActProgress.complete(1, Set.of(), 99, act1), false, "no dungeons finished: not complete");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), 4, act1), false,
+                "the Mine to floor 4 is not enough");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act1), true,
+                "all dungeons and floor 5 completes act 1");
+        check(ActProgress.complete(1, Set.of("pocketdungeons:mineshaft", "pocketdungeons:rootworks",
+                "pocketdungeons:spawner"), 9, act1), true, "namespaced ids count too");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks"), 9, act1), false,
+                "a missing capstone holds the act open");
+        // Act 5 has no Mine layer: dungeons alone complete it.
+        List<DungeonDef> act5 = List.of(actDungeon("the_end", 5, "dungeon"),
+                actDungeon("ender_archive", 5, "dungeon"), actDungeon("herobrine", 5, "capstone"));
+        check(ActProgress.complete(5, Set.of("the_end", "ender_archive", "herobrine"), 0, act5), true,
+                "act 5 completes on dungeons alone");
+
+        check(ActProgress.remainingLine(1, Set.of(), 0, act1),
+                "Act 1: 3 dungeons and the Mine to floor 5 left.", "the full remaining line");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft"), 0, act1),
+                "Act 1: 2 dungeons and the Mine to floor 5 left.", "the example from the plan");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 2, act1),
+                "Act 1: the Mine to floor 5 left.", "only the Mine left");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act1),
+                "", "a complete act says nothing");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act5),
+                "", "an empty act says nothing too");
     }
 
     private static void testLogUnlocks() {

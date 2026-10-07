@@ -177,11 +177,11 @@ final class Keystone {
             doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts, compass),
                     entry.campaign().tripCounter(),
                     TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished(), compass));
-            // D13: once Act 1's capstone has opened Act 2, the Endless Mine replaces door 3 of the
-            // first staging room. It never appears later in a trip (a trip is one dungeon).
+            // D13, D29: the Endless Mine is in act 1, but its door 3 waits for the leader's
+            // compass to reach endlessMineUnlockLevel. It never appears later in a trip.
             DungeonDef mineDef = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);
             if (doors.length == TripDoors.DOOR_COUNT && mineDef != null && mineDef.entry() != null
-                    && EndlessMineRules.opensFor(acts)) {
+                    && EndlessMineRules.opensFor(acts, compass)) {
                 doors[TripDoors.DOOR_COUNT - 1] = new TripDoors.Door(mineDef.id(), mineDef.entry().id(),
                         doors[TripDoors.DOOR_COUNT - 1].step(), 0);
             }

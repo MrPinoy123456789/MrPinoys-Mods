@@ -98,6 +98,9 @@ public final class PocketDungeonsConfig {
     // lights up, and it is how many door steps bank one keystone level
     // (IntervalBanking). Nothing forces the party home.
     private static int floorsPerSafeVisit = 3;
+    // The compass level the Endless Mine's door 3 needs (D29): the Mine is in
+    // act 1 now, but a new player's first doors stay dungeons until this.
+    private static int endlessMineUnlockLevel = 3;
     // UNUSED since dungeon structure W5 (D14, no kit refill); still read and saved.
     // The share of a kit's missing stackable items a safe visit restores, by
     // the interval's omen band: calm, mid, high. Tools are replaced at the
@@ -535,6 +538,11 @@ public final class PocketDungeonsConfig {
         return floorsPerSafeVisit;
     }
 
+    /** The compass level the Endless Mine's door needs. See the field. */
+    public static int endlessMineUnlockLevel() {
+        return endlessMineUnlockLevel;
+    }
+
     /** The kit top-up's band fractions, calm first. See the fields. */
     public static double[] kitTopUpBandFractions() {
         return new double[]{kitTopUpBandLow, kitTopUpBandMid, kitTopUpBandHigh};
@@ -801,6 +809,7 @@ public final class PocketDungeonsConfig {
         maxGridSpan = 12;
         clearBlocksPerTick = 8192;
         floorsPerSafeVisit = 3;
+        endlessMineUnlockLevel = 3;
         kitTopUpBandLow = 1.0;
         kitTopUpBandMid = 0.5;
         kitTopUpBandHigh = 0.0;
@@ -951,6 +960,7 @@ public final class PocketDungeonsConfig {
         planAttemptBudget = readInt(root, "planAttemptBudget", 32, v -> v >= 1, "must be >= 1");
         maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
         floorsPerSafeVisit = readInt(root, "floorsPerSafeVisit", 3, v -> v >= 1, "must be >= 1");
+        endlessMineUnlockLevel = readInt(root, "endlessMineUnlockLevel", 3, v -> v >= 1, "must be >= 1");
         kitTopUpBandLow = readDouble(root, "kitTopUpBandLow", 1.0,
                 v -> v >= 0.0 && v <= 1.0, "must be between 0 and 1");
         kitTopUpBandMid = readDouble(root, "kitTopUpBandMid", 0.5,
@@ -1307,6 +1317,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("maxGridSpan", 12);
         root.addProperty("clearBlocksPerTick", 8192);
         root.addProperty("floorsPerSafeVisit", 3);
+        root.addProperty("endlessMineUnlockLevel", 3);
         root.addProperty("kitTopUpBandLow", 1.0);
         root.addProperty("kitTopUpBandMid", 0.5);
         root.addProperty("kitTopUpBandHigh", 0.0);

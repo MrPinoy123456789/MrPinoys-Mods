@@ -134,6 +134,11 @@ confirmed by the owner on 2026-10-05.
 
 - **D8. Clearing an act's capstone unlocks the next act.** Keystone level never
   gates access. Needs a per-player "acts cleared" record.
+  Amended 2026-10-06 (D29): the act completes, not just the capstone. Act N
+  opens when every dungeon and capstone of act N-1 is finished and the
+  Endless Mine has reached the bottom of that act's layer (5, 11, 17, 23);
+  act 5 has no layer. Every finish and every new deepest Mine floor
+  re-evaluates this per member.
 - **D9. Ending: escape now, seal later.** At the Act 5 capstone Herobrine
   nearly wins, Alex saves the player (her first appearance in person, answering
   the diaries) and he escapes. The post-campaign modes are the search. A later
@@ -196,9 +201,12 @@ confirmed by the owner on 2026-10-05.
   pens. 2 to 6 floors, finite nodes, mobs and omen still live. Capped tool
   durability (pickaxes 12 to 16 uses) is the limit: a trip spends durability
   for ore. Node tiers follow the act band.
-- **D13. The Endless Mine opens after Act 1, and each depth layer needs its
-  act.** Depth layers per `ZONES_SPEC.md` 3.5; the shaft past Deepslate stays
-  sealed until Act 2 is cleared, the magma core until Act 4. Banks like any
+- **D13. The Endless Mine opens in Act 1, and each depth layer needs its
+  act.** Amended 2026-10-06 (D29): the Mine is an act 1 dungeon now, its
+  door 3 gated on `endlessMineUnlockLevel` (compass 3) so a new player's
+  first doors are dungeons. Depth layers per `ZONES_SPEC.md` 3.5; the shaft
+  past Deepslate stays sealed until Act 2 is cleared, the magma core until
+  Act 4. Banks like any
   dungeon, loot tier climbs every 3 floors within the layer's band, ends when
   you bank or fail, and the deepest floor goes on the history board. It stops
   being a Cube recipe.
@@ -215,8 +223,10 @@ confirmed by the owner on 2026-10-05.
   member can pull a door lever, choose a branch or pull HOME. A leader setting,
   **whitelist only**, limits those decisions to listed members (joining is
   unchanged). Each member banks from their own key, as today.
-- **D16. Every member present at a capstone clear unlocks the next act**, so a
-  friend can be carried.
+- **D16. Every member present at a finish re-evaluates their acts** (D29, was
+  "at a capstone clear unlocks the next act"): progress is per member, so a
+  friend can be carried through a capstone and gets the capstone ticked, but
+  their own act list completes only when their own list is done.
 - **D16a. Defaults for the other systems** (confirmed 2026-10-05):
   - Affixes: a floor node may declare a signature affix ("Glaze Furnaces" is
     always Molten); otherwise affixes are seeded as today.

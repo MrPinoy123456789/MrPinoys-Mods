@@ -1230,7 +1230,13 @@ final class RunLifecycle {
         if (EndlessMineRules.isMine(record)) {
             DungeonLog mineLog = DungeonLog.forServer(server);
             for (UUID member : record.members.keySet()) {
-                mineLog.recordMineFloor(member, floorsCleared);
+                if (mineLog.recordMineFloor(member, floorsCleared)) {
+                    // D29: a new deepest floor may complete the act's Mine leg.
+                    ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+                    if (memberPlayer != null) {
+                        DungeonProgress.onProgress(server, record, memberPlayer, false);
+                    }
+                }
             }
             int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
                     DungeonProgress.unlockedActs(server, record.owner));
@@ -1347,10 +1353,9 @@ final class RunLifecycle {
                 continue;
             }
             boolean first = log.addDungeonFinished(member, def.id());
-            // D8, D16: every member present at a capstone clear opens the next act.
-            if (def.kind() == DungeonDef.Kind.CAPSTONE) {
-                DungeonProgress.onCapstoneCleared(server, record, memberPlayer, def);
-            }
+            // D8, D16, D29: every finish re-evaluates the member's acts; a
+            // finish that opens nothing names what is left.
+            DungeonProgress.onProgress(server, record, memberPlayer, true);
             // J1: the finish pays emeralds now; the echo shard is retired.
             int emeralds = PocketDungeonsConfig.finishEmeralds();
             String diaryId = "";

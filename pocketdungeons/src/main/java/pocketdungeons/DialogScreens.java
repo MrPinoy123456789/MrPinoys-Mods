@@ -265,8 +265,21 @@ final class DialogScreens {
         if (def == null) {
             java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, record.owner);
             int compass = Math.max(1, entry.highestCharts());
-            lines = DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id),
-                    TripDoors.lockedFirst(DungeonDefs.current().all(), acts, compass));
+            java.util.Collection<DungeonDef> all = DungeonDefs.current().all();
+            lines = new ArrayList<>(DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id),
+                    TripDoors.lockedFirst(all, acts, compass)));
+            // D29: the checklist covers the lowest incomplete open act, or the
+            // newest open one when every open act is done.
+            int checklistAct = acts.isEmpty() ? 0 : new java.util.TreeSet<>(acts).last();
+            for (int act : acts) {
+                if (!ActProgress.complete(act, entry.dungeonsFinished(),
+                        entry.campaign().deepestMineFloor(), all)) {
+                    checklistAct = act;
+                    break;
+                }
+            }
+            lines.addAll(DungeonMapText.actChecklist(checklistAct, all, entry.dungeonsFinished(),
+                    compass, entry.campaign().deepestMineFloor()));
         } else {
             lines = DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
                     record.interval.finished);

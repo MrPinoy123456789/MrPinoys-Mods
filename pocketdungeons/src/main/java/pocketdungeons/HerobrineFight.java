@@ -67,7 +67,7 @@ import java.util.UUID;
  * invulnerable, the {@link StoreNPC} approach of a tagged vanilla entity), they speak, Steve is
  * gone in a burst of portal particles, Alex gives the party a word and vanishes, and the pad opens.
  * Stepping on the pad then completes the floor, which finishes the dungeon and, through
- * {@link DungeonProgress#onCapstoneCleared}, sets {@code campaignComplete} for every member present.
+ * {@link DungeonProgress#onProgress}, sets {@code campaignComplete} for every member present.
  * The pad is shut until the scene is over ({@link #padRefusal}).
  */
 final class HerobrineFight {
