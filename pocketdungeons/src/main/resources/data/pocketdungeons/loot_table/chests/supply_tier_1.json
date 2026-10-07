@@ -33,7 +33,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:baked_potato",
+          "name": "minecraft:bread",
           "weight": 3,
           "functions": [
             {
@@ -47,7 +47,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cooked_mutton",
+          "name": "minecraft:cooked_beef",
           "weight": 3,
           "functions": [
             {
@@ -61,7 +61,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cooked_chicken",
+          "name": "minecraft:cooked_beef",
           "weight": 2,
           "functions": [
             {
@@ -75,7 +75,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:golden_carrot",
+          "name": "minecraft:cooked_beef",
           "weight": 1,
           "functions": [
             {
@@ -89,7 +89,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:sweet_berries",
+          "name": "minecraft:bread",
           "weight": 2,
           "functions": [
             {
@@ -132,21 +132,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:bone",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:binomial",
-                "n": 3,
-                "p": 0.1667
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:stone",
+          "name": "minecraft:cobblestone",
           "weight": 6,
           "functions": [
             {
@@ -160,7 +146,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:stone_bricks",
+          "name": "minecraft:cobblestone",
           "weight": 5,
           "functions": [
             {
@@ -202,20 +188,6 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:moss_block",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
           "name": "minecraft:oak_planks",
           "weight": 16,
           "functions": [
@@ -230,90 +202,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_bars",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:dirt",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:coarse_dirt",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:rooted_dirt",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:oak_sapling",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:wheat_seeds",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:potato",
+          "name": "minecraft:bread",
           "weight": 4,
           "functions": [
             {
@@ -327,7 +216,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:carrot",
+          "name": "minecraft:bread",
           "weight": 4,
           "functions": [
             {
@@ -335,48 +224,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:beetroot_seeds",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:melon_seeds",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:pumpkin_seeds",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
               }
             }
           ]
@@ -484,23 +331,12 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:stone",
+          "name": "minecraft:cobblestone",
           "weight": 8,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 8
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:snowball",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 16
             }
           ]
         },
@@ -513,31 +349,6 @@
           "type": "minecraft:item",
           "name": "minecraft:shears",
           "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:golden_boots",
-          "weight": 4,
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -578,7 +389,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:spruce_planks",
+          "name": "minecraft:oak_planks",
           "weight": 4,
           "functions": [
             {
@@ -592,7 +403,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:birch_planks",
+          "name": "minecraft:oak_planks",
           "weight": 4,
           "functions": [
             {
@@ -600,6 +411,34 @@
               "count": {
                 "min": 2,
                 "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:sand",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gravel",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 3
               }
             }
           ]

@@ -3,6 +3,20 @@
   "label": "Decor",
   "description": "Decorative blocks, extra light blocks, fences and bars.",
   "default": false,
+  "loot": {
+    "chests/tier_1": "modules/decor/chests/decor",
+    "chests/tier_2": "modules/decor/chests/decor",
+    "chests/tier_3": "modules/decor/chests/decor",
+    "chests/tier_4": "modules/decor/chests/decor",
+    "chests/tier_1_ominous": "modules/decor/chests/decor",
+    "chests/tier_2_ominous": "modules/decor/chests/decor",
+    "chests/tier_3_ominous": "modules/decor/chests/decor",
+    "chests/tier_4_ominous": "modules/decor/chests/decor",
+    "chests/supply_tier_1": "modules/decor/chests/decor",
+    "chests/supply_tier_2": "modules/decor/chests/decor",
+    "chests/supply_tier_3": "modules/decor/chests/decor",
+    "chests/supply_tier_4": "modules/decor/chests/decor"
+  },
   "allow": [
     "lantern",
     "soul_lantern",

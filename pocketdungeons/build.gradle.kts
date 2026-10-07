@@ -388,7 +388,10 @@ for ((taskName, testClass) in mapOf(
     "floorPayTest" to "FloorPayTest",
     "scrapMathTest" to "ScrapMathTest",
     // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
-    "contentModulesTest" to "ContentModulesTest"
+    "contentModulesTest" to "ContentModulesTest",
+    // Simplification step 12 (K, K2, K3): the simple-loot allow list, the cuts,
+    // copper out of the palettes, and the dungeon barter table's contents.
+    "lootRulesTest" to "LootRulesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -477,6 +480,7 @@ tasks.test {
     dependsOn("floorPayTest")
     dependsOn("scrapMathTest")
     dependsOn("contentModulesTest")
+    dependsOn("lootRulesTest")
     failOnNoDiscoveredTests = false
 }
 

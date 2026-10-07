@@ -2,29 +2,37 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": {
-        "min": 1,
-        "max": 2
-      },
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/helmet_2"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/chestplate_2"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/leggings_2"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/boots_2"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/weapon_2"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
-          "weight": 10,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:gold_ingot",
-          "weight": 8,
+          "weight": 6,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -38,13 +46,27 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
-          "weight": 2,
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:lapis_lazuli",
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": {
                 "min": 1,
-                "max": 2
+                "max": 3
               }
             }
           ]
@@ -52,72 +74,6 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:emerald",
-          "weight": 7,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond",
-          "weight": 8
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:book",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "min": 20,
-                "max": 30
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:brewing_stand",
-          "weight": 4
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:nether_wart",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:blaze_powder",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:glass_bottle",
           "weight": 3,
           "functions": [
             {
@@ -131,524 +87,22 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_helmet",
-          "weight": 6,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:bolt",
-                  "material": "minecraft:gold"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:vex",
-                  "material": "minecraft:redstone"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:host",
-                  "material": "minecraft:copper"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:wayfinder",
-                  "material": "minecraft:iron"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:shaper",
-                  "material": "minecraft:redstone"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_chestplate",
-          "weight": 6,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:shaper",
-                  "material": "minecraft:copper"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:coast",
-                  "material": "minecraft:gold"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:bolt",
-                  "material": "minecraft:copper"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:flow",
-                  "material": "minecraft:iron"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:sentry",
-                  "material": "minecraft:redstone"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_leggings",
-          "weight": 6,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:rib",
-                  "material": "minecraft:redstone"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:snout",
-                  "material": "minecraft:iron"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:silence",
-                  "material": "minecraft:redstone"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:wild",
-                  "material": "minecraft:redstone"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:wayfinder",
-                  "material": "minecraft:iron"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_boots",
-          "weight": 6,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:flow",
-                  "material": "minecraft:copper"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:host",
-                  "material": "minecraft:copper"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:shaper",
-                  "material": "minecraft:gold"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:coast",
-                  "material": "minecraft:gold"
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.012
-                }
-              ],
-              "components": {
-                "minecraft:trim": {
-                  "pattern": "minecraft:raiser",
-                  "material": "minecraft:redstone"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_sword",
-          "weight": 4,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:crossbow",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": {
-                "type": "minecraft:uniform",
-                "min": 15,
-                "max": 25
-              },
-              "options": "#pocketdungeons:random_loot"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "tier": 2,
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:deepslate",
-          "weight": 8,
+          "name": "minecraft:diamond",
+          "weight": 3,
           "functions": [
             {
               "function": "minecraft:set_count",
-              "count": 8
+              "count": {
+                "min": 1,
+                "max": 2
+              }
             }
           ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:book",
+          "weight": 2
         }
       ]
     },
@@ -657,99 +111,34 @@
       "conditions": [
         {
           "condition": "minecraft:random_chance",
-          "chance": 0.08
+          "chance": 0.34
         }
       ],
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:sentry_armor_trim_smithing_template",
-          "weight": 1
+          "name": "minecraft:sentry_armor_trim_smithing_template"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.35
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_apple",
+          "weight": 3
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:dune_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:coast_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:wild_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:ward_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:eye_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:vex_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:tide_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:snout_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:rib_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:spire_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:wayfinder_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:shaper_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:silence_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:raiser_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:host_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:flow_armor_trim_smithing_template",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:bolt_armor_trim_smithing_template",
-          "weight": 1
+          "name": "minecraft:cake",
+          "weight": 2
         }
       ]
     }

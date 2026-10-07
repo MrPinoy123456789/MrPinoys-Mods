@@ -9,7 +9,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:golden_carrot",
+          "name": "minecraft:cooked_beef",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -70,7 +70,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:sandstone",
+          "name": "minecraft:cobblestone",
           "weight": 2,
           "functions": [
             {
@@ -108,7 +108,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:deepslate",
+          "name": "minecraft:cobblestone",
           "weight": 1,
           "functions": [
             {

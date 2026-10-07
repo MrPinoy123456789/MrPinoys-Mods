@@ -107,6 +107,21 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         return "minecraft".equals(ns) && (STRUCTURAL_BLOCKS.contains(name) || name.endsWith("_planks"));
     }
 
+    /**
+     * Whether a block id is a copper ore (K2.8): copper left the game as a
+     * whole tier, so a node or palette must not hand it back.
+     */
+    static boolean isCopperOre(String blockId) {
+        if (blockId == null) {
+            return false;
+        }
+        String id = blockId.trim();
+        int colon = id.indexOf(':');
+        String ns = colon < 0 ? "minecraft" : id.substring(0, colon);
+        String name = colon < 0 ? id : id.substring(colon + 1);
+        return "minecraft".equals(ns) && (name.equals("copper_ore") || name.equals("deepslate_copper_ore"));
+    }
+
     /** The loot tiers this dungeon's act allows (D10), inclusive. */
     record LootBand(int min, int max) {
         LootBand {
@@ -179,6 +194,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             for (String block : usable) {
                 if (isStructuralBlock(block)) {
                     out.add("hiddenOre block " + block + " is a structural block, which would make walls mineable");
+                }
+                if (isCopperOre(block)) {
+                    out.add("hiddenOre block " + block + " is copper ore, which left the game (K2.8)");
                 }
             }
             return out;

@@ -3,6 +3,20 @@
   "label": "Gardening",
   "description": "Seeds, saplings, crops, dirt, moss and vines.",
   "default": false,
+  "loot": {
+    "chests/tier_1": "modules/gardening/chests/gardening",
+    "chests/tier_2": "modules/gardening/chests/gardening",
+    "chests/tier_3": "modules/gardening/chests/gardening",
+    "chests/tier_4": "modules/gardening/chests/gardening",
+    "chests/tier_1_ominous": "modules/gardening/chests/gardening",
+    "chests/tier_2_ominous": "modules/gardening/chests/gardening",
+    "chests/tier_3_ominous": "modules/gardening/chests/gardening",
+    "chests/tier_4_ominous": "modules/gardening/chests/gardening",
+    "chests/supply_tier_1": "modules/gardening/chests/gardening",
+    "chests/supply_tier_2": "modules/gardening/chests/gardening",
+    "chests/supply_tier_3": "modules/gardening/chests/gardening",
+    "chests/supply_tier_4": "modules/gardening/chests/gardening"
+  },
   "allow": [
     "wheat_seeds",
     "carrot",

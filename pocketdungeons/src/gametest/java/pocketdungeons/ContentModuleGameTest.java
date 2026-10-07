@@ -24,7 +24,7 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest;
  *
  * <p>Runs inside the GameTestServer, which loads the mod's bundled datapack
  * including {@code content_module/alchemy.json} and
- * {@code loot_table/modules/alchemy/chests/tier_2.json}. The override the
+ * {@code loot_table/modules/alchemy/chests/alchemy.json}. The override the
  * test sets is cleared in a {@code finally} so a failure cannot leak an
  * enabled module into the rest of the suite or the config file.
  */

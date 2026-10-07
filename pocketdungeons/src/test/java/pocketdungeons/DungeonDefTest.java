@@ -743,8 +743,10 @@ public class DungeonDefTest {
         check(cows.lootBand().min() == 2 && cows.lootBand().max() == 3, "cow_pits is in the act 2 band");
         DungeonDef lush = loaded.byId("rootworks");
         check(lush.name().equals("Lush Caves"), "rootworks is shown as Lush Caves");
-        check(lush.nodePalette().containsAll(List.of("minecraft:oak_log", "minecraft:clay", "minecraft:copper_ore",
+        check(lush.nodePalette().containsAll(List.of("minecraft:oak_log", "minecraft:clay",
                 "minecraft:iron_ore")), "lush caves palette");
+        check(lush.nodePalette().stream().noneMatch(DungeonDef::isCopperOre),
+                "copper ore is out of every palette (K2.8)");
         // W7b: the Act 4 and Act 5 dungeons.
         DungeonDef witherKeep = loaded.byId("wither_keep");
         check(witherKeep.kind() == DungeonDef.Kind.CAPSTONE && witherKeep.layers() == 4,

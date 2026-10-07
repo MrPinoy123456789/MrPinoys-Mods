@@ -71,7 +71,7 @@
       "chance": 0.25
     },
     {
-      "block": "minecraft:copper_ore",
+      "block": "minecraft:iron_ore",
       "from": [
         3,
         1,

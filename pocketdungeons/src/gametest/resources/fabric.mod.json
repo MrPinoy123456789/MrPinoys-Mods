@@ -22,6 +22,7 @@
       "pocketdungeons.CubeRecipeGameTest",
       "pocketdungeons.ContentReloadGameTest",
       "pocketdungeons.ContentModuleGameTest",
+      "pocketdungeons.PiglinBarterGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

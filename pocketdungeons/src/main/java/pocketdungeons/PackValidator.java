@@ -256,6 +256,10 @@ final class PackValidator {
                     findings.add(new Finding(def.id(), "nodePalette",
                             "structural block " + block + " would make walls mineable; a palette holds resource blocks only"));
                 }
+                if (DungeonDef.isCopperOre(block)) {
+                    findings.add(new Finding(def.id(), "nodePalette",
+                            "copper ore " + block + " is out of the loot and the palettes (K2.7, K2.8)"));
+                }
             }
             if (!themes.contains(def.mainTheme())) {
                 findings.add(new Finding(def.id(), "mainTheme", "theme not found: " + def.mainTheme()));
@@ -312,6 +316,9 @@ final class PackValidator {
                             "node block is not a vanilla block: " + node.block()));
                 } else if (!blockExists.test(node.block())) {
                     findings.add(new Finding(room, "nodes", "node block does not exist: " + node.block()));
+                } else if (DungeonDef.isCopperOre(node.block())) {
+                    findings.add(new Finding(room, "nodes",
+                            "copper ore is out of the loot and the palettes (K2.7, K2.8)"));
                 }
             }
             for (String role : meta.graphRole) {

@@ -9,9 +9,8 @@
     "max": 3
   },
   "nodePalette": [
-    "copper_ore",
-    "deepslate_copper_ore",
-    "iron_ore"
+    "iron_ore",
+    "coal_ore"
   ],
   "deviation": {
     "chance": 0.2,

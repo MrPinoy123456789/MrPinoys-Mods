@@ -150,7 +150,7 @@ public final class SalvageGameTest {
         helper.assertValueEqual(countIn(player, Items.IRON_NUGGET), 0, "never nuggets");
 
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 40, 40))
-                .is(Items.IRON_INGOT), "chainmail gives iron");
+                .isEmpty(), "chainmail left the loot and its salvage rule went with it (K2.6)");
         ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50));
         helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1, "worn netherite leggings give 1 scrap");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_SWORD), 20, 20))

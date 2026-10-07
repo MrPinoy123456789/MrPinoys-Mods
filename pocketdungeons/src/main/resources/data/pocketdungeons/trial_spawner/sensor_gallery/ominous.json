@@ -29,5 +29,5 @@
       "weight": 5
     }
   ],
-  "items_to_drop_when_ominous": "minecraft:spawners/trial_chamber/items_to_drop_when_ominous"
+  "items_to_drop_when_ominous": "pocketdungeons:spawners/items_to_drop_when_ominous"
 }

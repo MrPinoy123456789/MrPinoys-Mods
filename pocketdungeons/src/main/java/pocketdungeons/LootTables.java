@@ -58,6 +58,13 @@ final class LootTables {
     static final String ANOMALY = "chests/anomaly";
 
     /**
+     * K3: the barter table that pays out when a piglin barters inside the
+     * dungeon dimension. Vanilla's own {@code gameplay/piglin_bartering} is
+     * untouched; {@code DungeonDrops} reroutes the roll per dimension.
+     */
+    static final String PIGLIN_BARTER = "gameplay/piglin_bartering";
+
+    /**
      * M49: the bag tables of SITUATIONS_SPEC 3.2, one per archetype under
      * {@code bags/}. Listed in {@link #ALL} rather than treated as optional the
      * way the themed {@code _drowned} suffix is: a missing themed table falls
@@ -93,7 +100,7 @@ final class LootTables {
                 VAULT_TIER_1, VAULT_TIER_2, VAULT_TIER_3, VAULT_TIER_4,
                 VAULT_TIER_1_OMINOUS, VAULT_TIER_2_OMINOUS, VAULT_TIER_3_OMINOUS,
                 VAULT_TIER_4_OMINOUS,
-                POCKET2, ANOMALY));
+                POCKET2, ANOMALY, PIGLIN_BARTER));
         all.addAll(Bags.paths());
         for (int tier = 1; tier <= MAX_TIER; tier++) {
             for (String slot : GEAR_SLOTS) {
@@ -144,12 +151,12 @@ final class LootTables {
      * buries the room when it comes out of a vault, with the two stacks that
      * mattered lost somewhere in the dirt and saplings.
      *
-     * <p>The vault tables are the chest tables with the bulk taken out: the
-     * treasure, ore, gear, curio and trim pools, each clamped to one roll, and
-     * the gear pool made guaranteed because a vault costs a key. Roughly 2 to 6
-     * stacks rather than 13 to 22. They are generated from the chest tables by
-     * {@code tools/gen_vault_tables.py}, which has the full rule; rerun it after
-     * editing anything under {@code loot_table/chests}.
+     * <p>The vault tables pay the treasure a key deserves in a handful of
+     * stacks: guaranteed gear, rare food, valuables and a trim shot, roughly
+     * 3 to 6 stacks rather than 13 to 22. Under K the chests stopped carrying
+     * gear at all, so there is nothing left to derive from:
+     * {@code tools/gen_vault_tables.py} synthesizes each tier from an explicit
+     * pool now. Rerun it after changing the vault policy.
      */
     static String vaultTable(int tier, boolean ominous) {
         return switch (clamp(tier)) {

@@ -10,8 +10,7 @@
   },
   "nodePalette": [
     "coal_ore",
-    "iron_ore",
-    "copper_ore"
+    "iron_ore"
   ],
   "deviation": {
     "chance": 0.15,

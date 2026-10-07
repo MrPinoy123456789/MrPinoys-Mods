@@ -32,7 +32,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.ArrayList;
@@ -489,15 +488,13 @@ final class StoreNPC {
 
     // ---- item pools ----
 
+    // Stock follows the K and K2 loot lists: iron and diamond gear only, food
+    // is the two staples, blocks are the building set a chest may pay.
     private static final List<PoolEntry> ARMOUR_POOL = List.of(
             new PoolEntry(Items.IRON_HELMET, "Iron Helmet", 2),
             new PoolEntry(Items.IRON_CHESTPLATE, "Iron Chestplate", 5),
             new PoolEntry(Items.IRON_LEGGINGS, "Iron Leggings", 4),
             new PoolEntry(Items.IRON_BOOTS, "Iron Boots", 2),
-            new PoolEntry(Items.CHAINMAIL_HELMET, "Chainmail Helmet", 1),
-            new PoolEntry(Items.CHAINMAIL_CHESTPLATE, "Chainmail Chestplate", 3),
-            new PoolEntry(Items.GOLDEN_HELMET, "Golden Helmet", 0),
-            new PoolEntry(Items.GOLDEN_BOOTS, "Golden Boots", 0),
             new PoolEntry(Items.DIAMOND_HELMET, "Diamond Helmet", 8),
             new PoolEntry(Items.DIAMOND_BOOTS, "Diamond Boots", 6));
 
@@ -506,32 +503,23 @@ final class StoreNPC {
             new PoolEntry(Items.IRON_AXE, "Iron Axe", 1),
             new PoolEntry(Items.BOW, "Bow", 2),
             new PoolEntry(Items.CROSSBOW, "Crossbow", 3),
-            new PoolEntry(Items.TRIDENT, "Trident", 10),
             new PoolEntry(Items.STONE_SWORD, "Stone Sword", 0),
-            new PoolEntry(Items.GOLDEN_SWORD, "Golden Sword", 0),
             new PoolEntry(Items.SHIELD, "Shield", 1));
 
     private static final List<PoolEntry> BLOCK_POOL = List.of(
             new PoolEntry(Items.OAK_PLANKS, "Oak Planks", 0),
-            new PoolEntry(Items.SPRUCE_PLANKS, "Spruce Planks", 0),
             new PoolEntry(Items.COBBLESTONE, "Cobblestone", 0),
-            new PoolEntry(Items.STONE, "Stone", 0),
-            new PoolEntry(Items.DIRT, "Dirt", -1),
+            new PoolEntry(Items.SAND, "Sand", 0),
+            new PoolEntry(Items.GRAVEL, "Gravel", 0),
             new PoolEntry(Items.OAK_LOG, "Oak Log", 1),
-            new PoolEntry(Items.GLASS, "Glass", 1),
             new PoolEntry(Items.TORCH, "Torch", -1),
-            new PoolEntry(Items.LADDER, "Ladder", 0),
-            new PoolEntry(Items.BRICKS, "Bricks", 2));
+            new PoolEntry(Items.OBSIDIAN, "Obsidian", 3));
 
     private static final List<PoolEntry> FOOD_POOL = List.of(
             new PoolEntry(Items.BREAD, "Bread", 0),
             new PoolEntry(Items.COOKED_BEEF, "Cooked Beef", 1),
-            new PoolEntry(Items.COOKED_PORKCHOP, "Cooked Porkchop", 1),
-            new PoolEntry(Items.COOKED_CHICKEN, "Cooked Chicken", 0),
-            new PoolEntry(Items.GOLDEN_CARROT, "Golden Carrot", 3),
-            new PoolEntry(Items.APPLE, "Apple", 0),
-            new PoolEntry(Items.BAKED_POTATO, "Baked Potato", 0),
-            new PoolEntry(Items.PUMPKIN_PIE, "Pumpkin Pie", 1));
+            new PoolEntry(Items.CAKE, "Cake", 4),
+            new PoolEntry(Items.GOLDEN_APPLE, "Golden Apple", 5));
 
     private static final List<PoolEntry> UTILITY_POOL = List.of(
             new PoolEntry(Items.WATER_BUCKET, "Water Bucket", 3),
@@ -542,30 +530,19 @@ final class StoreNPC {
             new PoolEntry(Items.CLOCK, "Clock", 1),
             new PoolEntry(Items.SPYGLASS, "Spyglass", 2),
             new PoolEntry(Items.BUCKET, "Bucket", 1),
-            new PoolEntry(Items.ENDER_PEARL, "Ender Pearl", 4),
-            new PoolEntry(Items.SADDLE, "Saddle", 3));
+            new PoolEntry(Items.ENDER_PEARL, "Ender Pearl", 4));
 
     private static final List<PoolEntry> VALUABLE_POOL = List.of(
             new PoolEntry(Items.IRON_INGOT, "Iron Ingot", 0),
             new PoolEntry(Items.GOLD_INGOT, "Gold Ingot", 1),
             new PoolEntry(Items.DIAMOND, "Diamond", 5),
-            new PoolEntry(Items.QUARTZ, "Quartz", 0),
             new PoolEntry(Items.LAPIS_LAZULI, "Lapis Lazuli", 0),
-            new PoolEntry(Items.REDSTONE, "Redstone", 0),
             new PoolEntry(Items.GUNPOWDER, "Gunpowder", 1),
-            new PoolEntry(Items.GLOWSTONE_DUST, "Glowstone Dust", 0),
-            new PoolEntry(Items.NETHERITE_SCRAP, "Netherite Scrap", 8),
+            new PoolEntry(Items.NETHERITE_INGOT, "Netherite Ingot", 8),
             new PoolEntry(Items.EXPERIENCE_BOTTLE, "Bottle o' Enchanting", 2));
 
-
-    private static final List<PoolEntry> POTION_POOL = List.of(
-            new PoolEntry(Items.POTION, "Potion of Healing", 0, Potions.HEALING),
-            new PoolEntry(Items.POTION, "Potion of Fire Resistance", 0, Potions.FIRE_RESISTANCE),
-            new PoolEntry(Items.POTION, "Potion of Swiftness", 0, Potions.SWIFTNESS),
-            new PoolEntry(Items.POTION, "Potion of Strength", 2, Potions.STRENGTH),
-            new PoolEntry(Items.POTION, "Potion of Regeneration", 1, Potions.REGENERATION),
-            new PoolEntry(Items.POTION, "Potion of Night Vision", 0, Potions.NIGHT_VISION),
-            new PoolEntry(Items.POTION, "Potion of Water Breathing", 0, Potions.WATER_BREATHING));
+    // Potions left the stock with brewing itself (K2.2); the alchemy module is
+    // where anything brewing-adjacent lives now.
 
     // ---- pool groups (declared after the pools they hold; static init runs in order) ----
 
@@ -576,7 +553,6 @@ final class StoreNPC {
     private static final List<Pool> UTILITY = List.of(new Pool(UTILITY_POOL, 3, 1, 2));
     private static final List<Pool> COMBAT = List.of(
             new Pool(ARMOUR_POOL, 1, 1, 1),
-            new Pool(WEAPON_POOL, 1, 1, 1),
-            new Pool(POTION_POOL, 3, 1, 2));
+            new Pool(WEAPON_POOL, 1, 1, 1));
     private static final List<Pool> RARE = List.of(new Pool(VALUABLE_POOL, 5, 1, 4));
 }

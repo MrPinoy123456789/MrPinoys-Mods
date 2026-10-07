@@ -140,9 +140,10 @@ final class SalvageStation {
      * 2026-10-03), by its material and how worn it is
      * ({@link SalvageMath#band}):
      * <ul>
-     *   <li>leather, iron, chainmail (as iron), gold, copper, diamond and
-     *       netherite (as scrap) armour, weapons and tools:
-     *       {@link SalvageMath#materials};</li>
+     *   <li>leather, iron, gold, diamond and netherite (as scrap) armour,
+     *       weapons and tools: {@link SalvageMath#materials}. Chainmail and
+     *       copper gear left the loot tables with K2, and their rules left
+     *       with them;</li>
      *   <li>wooden tools: 1 plank in the high band, 2 sticks in the middle;</li>
      *   <li>stone tools: 1 cobblestone in the high or middle band;</li>
      *   <li>a shield: 1 plank in the high or middle band.</li>
@@ -181,14 +182,11 @@ final class SalvageStation {
         if (path.startsWith("leather_")) {
             return Items.LEATHER;
         }
-        if (path.startsWith("iron_") || path.startsWith("chainmail_")) {
+        if (path.startsWith("iron_")) {
             return Items.IRON_INGOT;
         }
         if (path.startsWith("golden_")) {
             return Items.GOLD_INGOT;
-        }
-        if (path.startsWith("copper_")) {
-            return Items.COPPER_INGOT;
         }
         if (path.startsWith("diamond_")) {
             return Items.DIAMOND;
