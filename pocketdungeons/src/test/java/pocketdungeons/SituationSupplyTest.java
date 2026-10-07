@@ -94,16 +94,17 @@ public class SituationSupplyTest {
 
     /**
      * The Sapper bag carries {@code blocks} (TNT). TNT is consumed in use: three
-     * sticks, three walls, then the bag is empty. The boolean model says
-     * {@code blocks} is available at every depth, so two consecutive
-     * {@code blocks}-requiring rooms on the spine resolve without a fallback.
-     * That is the over-promise: the model says solvable, the player is stuck.
+     * sticks, three walls, then the bag is empty. Before E (D25) the boolean
+     * model said {@code blocks} was available at every depth from the bag, so
+     * two consecutive {@code blocks}-requiring rooms on the spine resolved
+     * without a fallback: solvable on paper, stuck in play. E closed the gap
+     * at the source: the bag never reaches the spine's seed, so the same
+     * floor falls back for a Sapper exactly as for a Pilgrim.
      *
-     * <p>This fixture documents the gap. The mitigation, asserted in
-     * {@link #testFiniteToolRequiresRenewableProviderOrToolFreeFallback}, is
-     * that the catalogue carries a renewable {@code blocks} provider so a floor
-     * can place one upstream of the gate, making the gate solvable without
-     * spending the bag's TNT at all.
+     * <p>What remains is asserted in
+     * {@link #testFiniteToolRequiresRenewableProviderOrToolFreeFallback}: a
+     * renewable {@code blocks} provider upstream still satisfies a spine gate,
+     * for any bag.
      */
     private static void testSappersTntIsNotReusableMasonry() {
         DungeonShape shape = line(4, "corridor");
@@ -121,24 +122,14 @@ public class SituationSupplyTest {
         RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null, sapper);
 
         if (result.plan() == null) {
-            throw new AssertionError("the Sapper's blocks should resolve both rooms; failed at "
-                    + result.failure());
+            throw new AssertionError("resolution failed at " + result.failure());
         }
-        // The boolean model says both gates are solvable from the bag alone,
-        // because blocks is depth 0 and stays available. That is the gap: TNT
-        // is finite, and the model cannot see it.
-        check(result.fallbackCells().isEmpty(), true,
-                "the boolean model says both blocks gates are solvable from the bag; "
-                        + "TNT is finite, so this is the over-promise, not a proof");
-        // Both cells took the blocks-requiring room, which is exactly what the
-        // model gets wrong: it assumes the tool is reusable.
-        String atFirst = result.plan().rooms().get(first).name();
-        String atSecond = result.plan().rooms().get(second).name();
-        check(atFirst.startsWith("rubble"), true,
-                "first blocks gate took the rubble room; got " + atFirst);
-        check(atSecond.startsWith("rubble"), true,
-                "second blocks gate took the rubble room; got " + atSecond
-                        + "; the model reused the spent TNT, which is the gap");
+        // The bag's blocks are invisible to the spine now, so both gates fall
+        // back for the Sapper just as they do for the Pilgrim.
+        check(result.fallbackCells().contains(first), true,
+                "the Sapper's blocks do not reach the spine; the first gate must fall back");
+        check(result.fallbackCells().contains(second), true,
+                "the Sapper's blocks do not reach the spine; the second gate must fall back");
     }
 
     // ---- Shepherd's leads are not a guaranteed creature ----

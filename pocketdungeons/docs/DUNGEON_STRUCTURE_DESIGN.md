@@ -215,7 +215,11 @@ confirmed by the owner on 2026-10-05.
 
 - **D14. Five starting kits, granted once, no refills.** The 9 bags are cut to
   5 (which five is an audit question). Kit top-up and the bag chest refill are
-  removed (L23 retires). Resource dungeons are the restock.
+  removed (L23 retires). Amended 2026-10-06 (plan 2026-10-06-2, sections E and
+  D25): the main path is solvable with nothing, so the planner seeds the spine
+  with the Pilgrim's empty bag plus the party's own `mob` tag, and the kit
+  only opens bonus rooms: tool-gated spurs, rubble doorways and sealed lower
+  stories. Resource dungeons are the restock.
 - **D15. Party: the leader's progress sets the choices; any member can act.**
   The leader's unlocked acts and compass level decide which dungeons and
   branches are offered (D23: a dungeon whose unlock level is above the

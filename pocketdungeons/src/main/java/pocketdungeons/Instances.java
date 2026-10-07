@@ -431,10 +431,10 @@ final class Instances {
                                               int slot, BlockPos origin, long seed,
                                               int keystoneLevel, Set<String> affixes,
                                               String theme, UUID owner) {
-        // M48: seed the solvability pass from the owner's bag. buildLayout is
-        // the untimed/admin path with no party, so the party size is one.
-        String bagId = owner == null ? "" : DungeonLog.forServer(server).bagOf(owner);
-        Set<String> bagTags = BagTags.seed(bagId, 1);
+        // E (D25): the spine proves solvable for a Pilgrim; the bag only opens
+        // bonus rooms now. buildLayout is the untimed/admin path with no
+        // party, so the party size is one.
+        Set<String> bagTags = BagTags.pilgrim(1);
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
@@ -1122,21 +1122,16 @@ final class Instances {
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
-        String bagId = DungeonLog.forServer(server).bagOf(record.owner);
-        // M65: use conservative live capabilities on later floors. On
-        // floor 0 (HOME phase), the original bag enum is a fair proof:
-        // the party just chose it and has not entered yet. On later
-        // floors (FLOOR_CLEARED phase), tools may have been spent, lost
-        // or used up, so the bag enum is no longer proof. Use the live
-        // party size (members actually present and online) for the mob
-        // tag, and keep the bag tags as a conservative baseline: the
-        // generator still proves solvability with them, but the live
-        // party size reflects who is actually here.
+        // E (D25): the spine proves solvable for a Pilgrim; the chosen bag
+        // only opens bonus rooms now, so the seed no longer reads it. The
+        // party still brings its own mob: on floor 0 (HOME phase) every
+        // member counts, on later floors (FLOOR_CLEARED phase) only members
+        // actually present and online do (M65).
         int livePartySize = record.members.size();
         if (record.phase == RunSession.Phase.FLOOR_CLEARED) {
             livePartySize = countLiveMembers(server, record);
         }
-        Set<String> bagTags = BagTags.seed(bagId, livePartySize);
+        Set<String> bagTags = BagTags.pilgrim(livePartySize);
 
         // M66: read the keystone's recipe tags (without clearing them) and
         // resolve a RunRecipePlan. The plan carries every recipe effect the

@@ -23,64 +23,53 @@ public class PlanSelectorTest {
         testBudgetValidation();
         testConfiguredGridSpan();
         testThemeFilter();
-        testRubbleNeedsAnExplosiveBeforeIt();
+        testRubbleOnlyOnSpurEdges();
         testTierGate();
         testResourceFloorGuaranteesANodeRoom();
         System.out.println("PlanSelectorTest passed");
     }
 
     /**
-     * Rubble doorways ({@link RoomSelector#pickRubbleEdges}): none without an
-     * explosive, never on the entrance's door, at most one per plan, and with
-     * a creeper room at depth 2 only on a door whose deeper side is past it.
+     * Rubble doorways ({@link RoomSelector#pickRubbleEdges}): never on a spine
+     * edge, never on the entrance's door, at most one per plan, and about a
+     * third of seeds get one regardless of the bag (E, D25).
      */
-    private static void testRubbleNeedsAnExplosiveBeforeIt() {
+    private static void testRubbleOnlyOnSpurEdges() {
         PlanCell c0 = new PlanCell(0, 0);
         PlanCell c1 = new PlanCell(1, 0);
         PlanCell c2 = new PlanCell(2, 0);
         PlanCell c3 = new PlanCell(3, 0);
+        PlanCell c4 = new PlanCell(1, 1);
         PlanEdge e01 = new PlanEdge(c0, c1);
         PlanEdge e12 = new PlanEdge(c1, c2);
         PlanEdge e23 = new PlanEdge(c2, c3);
-        Set<PlanEdge> doors = Set.of(e01, e12, e23);
-        Map<PlanCell, Integer> depths = Map.of(c0, 0, c1, 1, c2, 2, c3, 3);
+        PlanEdge e14 = new PlanEdge(c1, c4);
+        Set<PlanEdge> doors = Set.of(e01, e12, e23, e14);
 
         int picked = 0;
         for (long seed = 0; seed < 300; seed++) {
-            if (!RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(), Set.of()).isEmpty()) {
-                throw new AssertionError("no explosive anywhere, yet seed " + seed + " placed rubble");
-            }
-            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(),
-                    Set.of(SituationTags.EXPLOSIVE));
-            if (bag.size() > 1 || bag.contains(e01)) {
-                throw new AssertionError("seed " + seed + " placed " + bag + "; at most one, never the entrance's");
+            // The spine runs c0 to c3, so only the c1-c4 spur door can seal.
+            Set<PlanEdge> spine = Set.of(e01, e12, e23);
+            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, c0, spine);
+            if (bag.size() > 1 || bag.contains(e01) || bag.stream().anyMatch(spine::contains)) {
+                throw new AssertionError("seed " + seed + " placed " + bag
+                        + "; at most one, never the entrance's, never a spine edge");
             }
             picked += bag.size();
-            Set<PlanEdge> creeper = RoomSelector.pickRubbleEdges(seed, doors, depths, c0,
-                    Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of());
-            if (!creeper.isEmpty() && !creeper.equals(Set.of(e23))) {
-                throw new AssertionError("seed " + seed + " put rubble at " + creeper
-                        + " before the creeper room it needs");
-            }
         }
         if (picked < 50 || picked > 160) {
-            throw new AssertionError("with the Sapper's TNT about a third of plans should get rubble, got "
+            throw new AssertionError("about a third of plans should get rubble, got "
                     + picked + " of 300");
         }
 
-        // Sealed two-story cells: all of them with the Sapper's TNT, none without
-        // an explosive, and with a creeper room at depth 2 only those deeper.
+        // Sealed two-story cells: every one, bag or not (E, D25). The lower
+        // story never holds the way on, so it is always a bonus pocket.
         Set<PlanCell> twoStory = Set.of(c1, c3);
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of()).isEmpty()) {
-            throw new AssertionError("no explosive, yet a floor was sealed");
+        if (!RoomSelector.pickSealedCells(twoStory).equals(twoStory)) {
+            throw new AssertionError("every two-story cell's lower story seals");
         }
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of(SituationTags.EXPLOSIVE))
-                .equals(twoStory)) {
-            throw new AssertionError("with the Sapper's TNT every two-story cell is sealed");
-        }
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of())
-                .equals(Set.of(c3))) {
-            throw new AssertionError("a creeper room at depth 2 can only open floors deeper than it");
+        if (!RoomSelector.pickSealedCells(Set.of()).isEmpty()) {
+            throw new AssertionError("no two-story cells, nothing to seal");
         }
     }
 

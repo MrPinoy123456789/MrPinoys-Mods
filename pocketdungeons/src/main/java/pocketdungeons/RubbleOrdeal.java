@@ -28,18 +28,18 @@ import java.util.function.Predicate;
  * whole effect, and the rubble goes on the next Ordeal tick. An explosion that
  * reaches no rubble is untouched.
  *
- * <p>The planner only plugs a door when an {@code explosive} is reachable
- * before it (the Sapper's TNT, or a creeper room upstream), at most one per
- * floor ({@link RoomSelector#pickRubbleEdges}). The slot is in the wall ring,
+ * <p>The planner only plugs a door off the entrance-to-staging spine, at most
+ * one per floor ({@link RoomSelector#pickRubbleEdges}), so a plug is always a
+ * bonus door the main path does not depend on. The slot is in the wall ring,
  * so the shell rule already keeps pickaxes and stray blasts off the stone.
  *
  * <p><strong>Two kinds.</strong> {@link #KIND} is the doorway plug.
  * {@link #FLOOR} seals a two-story room (2026-10-02): rubble over the upper
  * floor's drop shaft and ladder hole, so the lower story (its reward, and in
  * {@code blaze_cellar} its encounter) opens only to a blast. The planner seals
- * a two-story cell only when an explosive is reachable before it
- * ({@link RoomSelector#pickSealedCells}); otherwise the room stamps open as it
- * always did. A sealed lower story's spawners are left out of the floor's
+ * every two-story cell ({@link RoomSelector#pickSealedCells}), since the way
+ * through the cell is always the upper story. A sealed lower story's spawners
+ * are left out of the floor's
  * clear gate until the seal breaks ({@link #hidesSpawner}), so a sealed room
  * never holds a floor shut. Clearing a floor seal puts back what the rubble
  * replaced, the ladder's top rung included, so the climb out still works.

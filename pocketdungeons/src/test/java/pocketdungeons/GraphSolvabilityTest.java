@@ -14,16 +14,17 @@ import net.minecraft.nbt.CompoundTag;
  * asserted over every cell of every floor in a seed sweep, and over one
  * hand-built fixture per edge case the spec lists.
  *
- * <p>The invariant:
+ * <p>The invariant, after E (D25):
  *
- * <blockquote>A cell at distance n may only {@code require} capabilities that
- * are {@code provides} of some cell at distance &lt; n, or of the bag.</blockquote>
+ * <blockquote>A spine cell at distance n may only {@code require} capabilities
+ * that are {@code provides} of some cell at distance &lt; n, or of the Pilgrim
+ * seed plus party size. A spur cell may {@code require} a tool the party does
+ * not carry: it is a bonus room, not the way on.</blockquote>
  *
  * <p>The sweep runs it as spec 6.3's Pilgrim test: an empty bag and a party of
  * one, which is the strictest seed there is, so a floor that passes here is
- * solvable for all eight bags. Spurs are included, which is the whole reason
- * 6.6 exists and 6.2 was not enough: a gated cell three cells down an optional
- * branch is a cell some player will stand in front of.
+ * solvable for every bag. Spurs are still swept: they assert placement, not
+ * solvability, since the bonus rooms are allowed to want tools.
  *
  * <p>Every failure prints the seed and the cell. A solvability failure that
  * does not is a failure nobody can reproduce.
@@ -57,6 +58,7 @@ public class GraphSolvabilityTest {
         testAvailableIsABooleanSet();
         testBacktrackingRecoversWhatGreedyLoses();
         testUnsatisfiableRequiresNeverLands();
+        testSpineSameForEveryBag();
         testConsumableNeverGatesTheSpine();
         testAccessPlacement();
         testGuaranteePreservesSolvability();
@@ -130,9 +132,13 @@ public class GraphSolvabilityTest {
             taggedPlacements += assertInvariant(seed, shape, result.plan(), manifest, bag,
                     result.fallbackCells());
 
+            // E (D25): unreachable_* may land on a spur (a bonus room nobody
+            // can open), but never on the spine where it would block the way.
+            Set<PlanCell> spineCells = new LinkedHashSet<>(spine(shape));
             for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> entry : result.plan().rooms().entrySet()) {
-                if (entry.getValue().name().startsWith("unreachable_")) {
-                    throw new AssertionError("seed " + seed + ": cell " + entry.getKey()
+                if (spineCells.contains(entry.getKey())
+                        && entry.getValue().name().startsWith("unreachable_")) {
+                    throw new AssertionError("seed " + seed + ": spine cell " + entry.getKey()
                             + " took " + entry.getValue().name()
                             + ", whose requires nothing on this floor can satisfy");
                 }
@@ -284,6 +290,7 @@ public class GraphSolvabilityTest {
                                        RoomManifest manifest, Set<String> bag,
                                        Set<PlanCell> fallbacks) {
         Map<PlanCell, Integer> distances = shape.rootDistances();
+        Set<PlanCell> spine = new LinkedHashSet<>(spine(shape));
         int tagged = 0;
 
         for (PlanCell cell : shape.cells()) {
@@ -309,6 +316,11 @@ public class GraphSolvabilityTest {
                 continue;
             }
             tagged++;
+            if (!spine.contains(cell)) {
+                // E (D25): a spur is a bonus room, free to want a tool the
+                // party does not carry. The proof only holds the spine.
+                continue;
+            }
 
             int depth = distances.get(cell);
             Set<String> available = new LinkedHashSet<>(bag);
@@ -363,12 +375,12 @@ public class GraphSolvabilityTest {
      * <strong>Loops.</strong> A cell reachable two ways takes the shorter
      * distance, which is the strictest reading.
      *
-     * <p>The fixture is a six-cell ring. The encounter cell sits two steps
-     * clockwise from the entrance and four steps anticlockwise; the only room
-     * that provides water is the loot cell at distance three. Under the shorter
-     * distance the encounter cell cannot have water and must take the plain
-     * room. Under the longer one it could, so a pass that used the wrong
-     * distance would place the water room here and fail this test.
+     * <p>The fixture is a six-cell path with a two-cell tail off the terminal.
+     * The encounter cell sits two steps from the entrance; the only room that
+     * provides water is the loot cell at distance three. The encounter cell
+     * is on the spine, so it cannot have water and must take the plain room;
+     * a pass that used the wrong distance would place the water room here and
+     * fail this test. The tail proves the same rule does not silence a spur.
      */
     private static void testLoopTakesTheShorterDistance() {
         PlanCell entrance = new PlanCell(0, 0);
@@ -383,7 +395,7 @@ public class GraphSolvabilityTest {
         Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
                 new PlanEdge(entrance, east), new PlanEdge(east, corner),
                 new PlanEdge(corner, far), new PlanEdge(far, back),
-                new PlanEdge(back, south), new PlanEdge(south, entrance)));
+                new PlanEdge(back, south)));
         Map<PlanCell, String> roles = new LinkedHashMap<>();
         roles.put(entrance, RoleIds.ENTRANCE);
         roles.put(east, RoleIds.CORRIDOR);
@@ -396,8 +408,8 @@ public class GraphSolvabilityTest {
                 List.of(entrance, east, corner, far), roles);
 
         if (shape.rootDistances().get(corner) != 2) {
-            throw new AssertionError("the ring's encounter cell is two steps one way and four the "
-                    + "other; BFS must call it 2, got " + shape.rootDistances().get(corner));
+            throw new AssertionError("the encounter cell is two steps from the entrance; "
+                    + "BFS must call it 2, got " + shape.rootDistances().get(corner));
         }
         if (shape.rootDistances().get(far) != 3) {
             throw new AssertionError("expected the loot cell at distance 3, got "
@@ -429,9 +441,31 @@ public class GraphSolvabilityTest {
      * The same floor that falls back for a Pilgrim resolves cleanly for a
      * Plumber, whose bag carries the water the gate wants.
      */
+    /**
+     * <strong>The bag is not depth zero for the spine.</strong> E (D25) moved
+     * the bag off the main path: a water gate on the spine falls back for a
+     * Plumber exactly as it does for a Pilgrim, while a spur may still take
+     * the water room either way, because the bonus room is allowed to want a
+     * tool nobody carries.
+     */
     private static void testBagIsDepthZero() {
-        DungeonShape shape = line(3, "encounter");
+        PlanCell entrance = new PlanCell(0, 0);
         PlanCell gate = new PlanCell(1, 0);
+        PlanCell exit = new PlanCell(2, 0);
+        PlanCell spur = new PlanCell(1, 1);
+
+        Set<PlanCell> cells = new LinkedHashSet<>(List.of(entrance, gate, exit, spur));
+        Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
+                new PlanEdge(entrance, gate), new PlanEdge(gate, exit),
+                new PlanEdge(gate, spur)));
+        Map<PlanCell, String> roles = new LinkedHashMap<>();
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(gate, RoleIds.ENCOUNTER);
+        roles.put(exit, RoleIds.EXIT);
+        roles.put(spur, RoleIds.CORRIDOR);
+
+        DungeonShape shape = new DungeonShape(5, cells, edges, entrance, exit,
+                List.of(entrance, gate, exit), roles);
 
         List<RoomManifest.Entry> entries = new ArrayList<>();
         entries.addAll(everyMask("hall", List.of("entrance"), List.of(), List.of()));
@@ -441,26 +475,24 @@ public class GraphSolvabilityTest {
         // two legal rooms.
         entries.addAll(everyMask("flooded_fight", List.of("encounter"), List.of(),
                 List.of(SituationTags.WATER)));
+        // The only corridor room wants water too: the spur proves bonus rooms
+        // may ask for tools.
+        entries.addAll(everyMask("cistern", List.of("corridor"), List.of(),
+                List.of(SituationTags.WATER)));
         RoomManifest manifest = RoomManifest.create(entries, List.of());
 
-        RoomSelector.Result pilgrim = RoomSelector.resolveDetailed(shape, manifest, null,
-                BagTags.pilgrim());
-        if (!pilgrim.fallbackCells().contains(gate)) {
-            throw new AssertionError("an empty bag cannot open a water gate at distance 1, so "
-                    + gate + " should have fallen back; fallbacks were " + pilgrim.fallbackCells());
+        for (Set<String> bag : List.of(BagTags.pilgrim(), BagTags.seed("plumber", 1))) {
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null, bag);
+            if (!result.fallbackCells().contains(gate)) {
+                throw new AssertionError("the spine cannot spend a bag's water under E, so "
+                        + gate + " should have fallen back for " + bag
+                        + "; fallbacks were " + result.fallbackCells());
+            }
+            if (!result.plan().rooms().get(spur).name().startsWith("cistern")) {
+                throw new AssertionError("the spur is a bonus room and may want water; got "
+                        + result.plan().rooms().get(spur).name() + " for " + bag);
+            }
         }
-
-        Set<String> plumber = BagTags.seed("plumber", 1);
-        RoomSelector.Result carried = RoomSelector.resolveDetailed(shape, manifest, null, plumber);
-        if (carried.fallbackCells().contains(gate)) {
-            throw new AssertionError("the Plumber's water is available at every distance, so the "
-                    + "water gate at " + gate + " must be selectable; it fell back");
-        }
-        if (!carried.plan().rooms().get(gate).name().startsWith("flooded_fight")) {
-            throw new AssertionError("expected the water gate at " + gate + ", got "
-                    + carried.plan().rooms().get(gate).name());
-        }
-        assertInvariant(0, shape, carried.plan(), manifest, plumber, carried.fallbackCells());
     }
 
     /**
@@ -692,8 +724,10 @@ public class GraphSolvabilityTest {
 
     /**
      * A room whose {@code requires} nothing on the floor can satisfy is never
-     * placed, on any of the sweep's floors or on a fixture where it is the only
-     * alternative to a plain room.
+     * placed on the spine, on any of the sweep's floors or on a fixture where
+     * it is the only alternative to a plain room. Under E (D25) a spur is the
+     * exception: the bonus room may ask for a tool nobody carries, so the
+     * fixture's second half puts the unreachable room where it must land.
      */
     private static void testUnsatisfiableRequiresNeverLands() {
         DungeonShape shape = line(4, "encounter");
@@ -714,6 +748,84 @@ public class GraphSolvabilityTest {
                         + UNREACHABLE_TAG + ", which nothing on this floor provides");
             }
         }
+
+        // The spur half: a corridor whose only candidate wants a boat takes it,
+        // because a bonus room's refusal is a sign, not a broken plan.
+        PlanCell entrance = new PlanCell(0, 0);
+        PlanCell mid = new PlanCell(1, 0);
+        PlanCell exit = new PlanCell(2, 0);
+        PlanCell spur = new PlanCell(1, 1);
+        Set<PlanCell> cells = new LinkedHashSet<>(List.of(entrance, mid, exit, spur));
+        Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
+                new PlanEdge(entrance, mid), new PlanEdge(mid, exit),
+                new PlanEdge(mid, spur)));
+        Map<PlanCell, String> roles = new LinkedHashMap<>();
+        roles.put(entrance, RoleIds.ENTRANCE);
+        roles.put(mid, RoleIds.ENCOUNTER);
+        roles.put(exit, RoleIds.EXIT);
+        roles.put(spur, RoleIds.CORRIDOR);
+        DungeonShape spurShape = new DungeonShape(31, cells, edges, entrance, exit,
+                List.of(entrance, mid, exit), roles);
+
+        List<RoomManifest.Entry> spurEntries = new ArrayList<>();
+        spurEntries.addAll(everyMask("hall", List.of("entrance"), List.of(), List.of()));
+        spurEntries.addAll(everyMask("way_out", List.of("exit"), List.of(), List.of()));
+        spurEntries.addAll(everyMask("plain_fight", List.of("encounter"), List.of(), List.of()));
+        spurEntries.addAll(everyMask("unreachable_dock", List.of("corridor"), List.of(),
+                List.of(UNREACHABLE_TAG)));
+        RoomManifest spurManifest = RoomManifest.create(spurEntries, List.of());
+
+        RoomSelector.Result spurResult = RoomSelector.resolveDetailed(spurShape, spurManifest, null,
+                BagTags.pilgrim());
+        String atSpur = spurResult.plan().rooms().get(spur).name();
+        if (!atSpur.startsWith("unreachable_dock")) {
+            throw new AssertionError("a spur may want a tool nobody carries; expected "
+                    + "unreachable_dock at " + spur + ", got " + atSpur);
+        }
+    }
+
+    /**
+     * E (D25): a Sapper and a Pilgrim get spines with the same requirements.
+     * The spine's solvability proof ignores bag tool tags entirely, so the
+     * union of {@code requires} on the entrance-to-staging path is identical
+     * no matter which bag the door sold.
+     */
+    private static void testSpineSameForEveryBag() {
+        RoomManifest manifest = sweepManifest();
+        int floors = 0;
+        for (long seed = 0; seed < 100; seed++) {
+            DungeonShape shape = LayoutGraphGenerator.generate(seed, 8, 12);
+            if (shape == null) {
+                continue;
+            }
+            floors++;
+            Set<PlanCell> spineCells = new LinkedHashSet<>(spine(shape));
+            Set<String> baseline = null;
+            for (String bagId : BagIds.BUILT_IN_ORDER) {
+                Set<String> bag = BagTags.seed(bagId.substring(bagId.indexOf(':') + 1), 2);
+                DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null, bag).plan();
+                if (plan == null) {
+                    continue;
+                }
+                Set<String> spineRequires = new LinkedHashSet<>();
+                for (PlanCell cell : spineCells) {
+                    spineRequires.addAll(
+                            manifest.byName(plan.rooms().get(cell).name()).meta.requires);
+                }
+                if (baseline == null) {
+                    baseline = spineRequires;
+                } else if (!baseline.equals(spineRequires)) {
+                    throw new AssertionError("seed " + seed + ": bag " + bagId + " produced spine "
+                            + "requirements " + spineRequires + ", the Pilgrim baseline is "
+                            + baseline);
+                }
+            }
+        }
+        if (floors < 50) {
+            throw new AssertionError("expected at least 50 resolvable floors, got " + floors);
+        }
+        System.out.println("Spine-equality sweep: " + floors + " floors, identical spine "
+                + "requirements for every bag");
     }
 
     /**

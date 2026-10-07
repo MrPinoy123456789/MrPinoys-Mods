@@ -63,13 +63,17 @@ final class RoomSelector {
 
     /**
      * M47 (SITUATIONS_SPEC 6.6): resolution with the root-distance solvability
-     * pass, seeded from the party's bag.
+     * pass. E (D25) split the proof in two: the entrance-to-staging spine is
+     * seeded from the Pilgrim's bag plus the party's own {@code mob}, while a
+     * spur cell may take a room whose {@code requires} names a tool nobody
+     * carries, because a bonus room that stays shut is a sign, not a broken
+     * plan.
      *
-     * <p>Cells are processed in BFS order rather than grid order, and a cell at
-     * root distance n may only take a room whose {@code requires} is a subset of
-     * the tags reachable at a distance strictly below n: the bag's seed, plus
-     * the {@code provides} of every shallower cell. That makes the solution to
-     * a gate reachable before the gate on every path, spurs included, which is
+     * <p>Cells are processed in BFS order rather than grid order, and a spine
+     * cell at root distance n may only take a room whose {@code requires} is a
+     * subset of the tags reachable at a distance strictly below n: the Pilgrim
+     * seed, plus the {@code provides} of every shallower cell. That makes the
+     * solution to a gate reachable before the gate on the main path, which is
      * the whole point of 6.6 over 6.2's single walk.
      *
      * <p><strong>What the model assumes.</strong> {@code available} is a boolean
@@ -145,21 +149,24 @@ final class RoomSelector {
         }
         orientGatedRooms(shape, manifest, placed, depths);
 
-        Map<PlanCell, List<String>> provides = new HashMap<>();
         Set<PlanCell> multiStory = new HashSet<>();
         for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
             RoomManifest.Entry entry = manifest.byName(e.getValue().name());
-            if (entry != null && entry.meta.provides != null) {
-                provides.put(e.getKey(), entry.meta.provides);
-            }
             if (entry != null && entry.meta.spanY > 1 && !e.getKey().equals(anomalyCell)) {
                 multiStory.add(e.getKey());
             }
         }
-        Set<String> seedTags = bagTags == null ? Set.of() : bagTags;
-        Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), depths, shape.entrance(),
-                provides, seedTags);
-        Set<PlanCell> sealed = pickSealedCells(multiStory, depths, provides, seedTags);
+        // E (D25): rubble only ever plugs a door off the entrance-to-staging
+        // spine, and a two-story cell's lower story is always a bonus (the
+        // way on never runs through it, so it can always seal).
+        List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
+        Set<PlanEdge> spineEdges = new HashSet<>();
+        for (int i = 1; i < spine.size(); i++) {
+            spineEdges.add(new PlanEdge(spine.get(i - 1), spine.get(i)));
+        }
+        Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), shape.entrance(),
+                spineEdges);
+        Set<PlanCell> sealed = pickSealedCells(multiStory);
 
         DungeonPlan plan = new DungeonPlan(
                 shape.seed(),
@@ -273,25 +280,19 @@ final class RoomSelector {
     /**
      * The doors to plug with rubble ({@link ConnectorType#RUBBLE}): at most one,
      * rolled off the plan seed. A door is eligible when it does not touch the
-     * entrance (the stamper leaves the entrance's doors alone) and an
-     * {@code explosive} is reachable before it: in the party's bag, or provided
-     * by a room at a depth below the door's deeper side. Cells at a smaller
-     * depth are reached without crossing this door, so a creeper room up there
-     * or the Sapper's TNT can always clear it. One per plan, because the bag's
-     * TNT is counted, not endless.
+     * entrance (the stamper leaves the entrance's doors alone) and is not on
+     * the entrance-to-staging spine (E, D25): a plug only ever gates a spur,
+     * so the way on never asks for the blast. One per plan, so the bonus
+     * stays rare.
      */
-    static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, Map<PlanCell, Integer> depths,
-                                         PlanCell entrance, Map<PlanCell, List<String>> provides,
-                                         Set<String> bagTags) {
+    static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, PlanCell entrance,
+                                         Set<PlanEdge> spineEdges) {
         List<PlanEdge> eligible = new ArrayList<>();
         for (PlanEdge edge : doors) {
-            if (edge.touches(entrance)) {
+            if (edge.touches(entrance) || spineEdges.contains(edge)) {
                 continue;
             }
-            int deeper = Math.max(depths.getOrDefault(edge.a(), 0), depths.getOrDefault(edge.b(), 0));
-            if (explosiveBelow(deeper, depths, provides, bagTags)) {
-                eligible.add(edge);
-            }
+            eligible.add(edge);
         }
         if (eligible.isEmpty()) {
             return Set.of();
@@ -311,36 +312,15 @@ final class RoomSelector {
     }
 
     /**
-     * The two-story cells whose way down is sealed with rubble
-     * ({@link RubbleOrdeal#FLOOR}): every one with an {@code explosive}
-     * reachable at a smaller depth, since the party has to bring the blast in
-     * with them. The rest stamp open, as they always did. A seal gates only
-     * the lower story's reward, never the way on, so there is no cap.
+     * E (D25): a two-story room's lower story is a reward pocket, never the
+     * way on (the way through the cell is on the upper story, where the
+     * doorway doors are). So every multi-story cell seals its lower story,
+     * and {@link RubbleOrdeal#FLOOR} arms each seal at stamp time. The blast
+     * that opens it is a bonus spend, not a path requirement, so there is no
+     * cap.
      */
-    static Set<PlanCell> pickSealedCells(Set<PlanCell> multiStory, Map<PlanCell, Integer> depths,
-                                         Map<PlanCell, List<String>> provides, Set<String> bagTags) {
-        Set<PlanCell> out = new HashSet<>();
-        for (PlanCell cell : multiStory) {
-            if (explosiveBelow(depths.getOrDefault(cell, 0), depths, provides, bagTags)) {
-                out.add(cell);
-            }
-        }
-        return Set.copyOf(out);
-    }
-
-    /** Whether an {@code explosive} is in the bag or provided by a cell shallower than {@code depth}. */
-    private static boolean explosiveBelow(int depth, Map<PlanCell, Integer> depths,
-                                          Map<PlanCell, List<String>> provides, Set<String> bagTags) {
-        if (bagTags.contains(SituationTags.EXPLOSIVE)) {
-            return true;
-        }
-        for (Map.Entry<PlanCell, List<String>> e : provides.entrySet()) {
-            if (depths.getOrDefault(e.getKey(), Integer.MAX_VALUE) < depth
-                    && e.getValue().contains(SituationTags.EXPLOSIVE)) {
-                return true;
-            }
-        }
-        return false;
+    static Set<PlanCell> pickSealedCells(Set<PlanCell> multiStory) {
+        return Set.copyOf(multiStory);
     }
 
     /**
@@ -831,6 +811,9 @@ final class RoomSelector {
         private final Map<PlanCell, Integer> depths;
         private final List<PlanCell> order;
         private final Set<String> bagTags;
+        /** E (D25): the spine's seed. Bag tool tags never reach the spine's
+         *  solvability proof; only the party's own {@code mob} does. */
+        private final Set<String> spineSeed;
         private final Set<String> weightedRooms;
         private final int maxTier;
         private final RoomEligibility.Floor floor;
@@ -863,6 +846,8 @@ final class RoomSelector {
             this.depths = depths;
             this.order = order;
             this.bagTags = bagTags;
+            this.spineSeed = bagTags != null && bagTags.contains(SituationTags.MOB)
+                    ? Set.of(SituationTags.MOB) : Set.of();
             this.weightedRooms = weightedRooms == null ? Set.of() : Set.copyOf(weightedRooms);
             this.maxTier = maxTier;
         }
@@ -956,7 +941,8 @@ final class RoomSelector {
             for (int i = 0; i < order.size(); i++) {
                 PlanCell cell = order.get(i);
                 int depth = depths.getOrDefault(cell, 0);
-                Set<String> optimistic = new LinkedHashSet<>(bagTags);
+                Set<String> optimistic = new LinkedHashSet<>(
+                        onSpine.contains(cell) ? spineSeed : bagTags);
                 for (int j = 0; j < i; j++) {
                     if (depths.getOrDefault(order.get(j), 0) >= depth) {
                         break;
@@ -1080,7 +1066,8 @@ final class RoomSelector {
          * because the player is not guaranteed to have visited it first.
          */
         private Set<String> availableFor(int index) {
-            Set<String> available = new LinkedHashSet<>(bagTags);
+            Set<String> available = new LinkedHashSet<>(
+                    onSpine.contains(order.get(index)) ? spineSeed : bagTags);
             int depth = depths.getOrDefault(order.get(index), 0);
             for (int i = 0; i < index; i++) {
                 if (depths.getOrDefault(order.get(i), 0) >= depth) {
@@ -1411,7 +1398,10 @@ final class RoomSelector {
         List<RoomManifest.Match> pool = new ArrayList<>(matches.size());
         for (RoomManifest.Match match : matches) {
             DungeonRoomMeta meta = match.entry().meta;
-            if (!available.containsAll(meta.requires)) {
+            // E (D25): off the spine a room may ask for a tool the party does
+            // not carry; those are the bonus rooms. Only the spine must prove
+            // solvable with the Pilgrim seed and upstream provides.
+            if (onSpine && !available.containsAll(meta.requires)) {
                 continue;
             }
             if (onSpine && !java.util.Collections.disjoint(meta.requires, CONSUMABLE_TAGS)) {
