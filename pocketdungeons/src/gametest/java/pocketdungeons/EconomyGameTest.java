@@ -109,6 +109,36 @@ public final class EconomyGameTest {
         helper.succeed();
     }
 
+    /**
+     * J7: the keys a member still holds when the floor clears are bought back
+     * at the old salvage rates, one emerald each, three for an ominous key,
+     * and leave the inventory. They never reach the next floor or the bench.
+     */
+    @GameTest
+    public void clearFloorRedeemsTheKeysItFinds(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        emptyInventory(player);
+        player.getInventory().setItem(0, new ItemStack(Items.TRIAL_KEY, 2));
+        player.getInventory().setItem(1, new ItemStack(Items.OMINOUS_TRIAL_KEY));
+        player.getInventory().setItem(2, new ItemStack(Items.COBBLESTONE, 7));
+
+        helper.runAfterDelay(4L, () -> {
+            int paid = RunLifecycle.redeemKeys(player);
+            int inInventory = countIn(player, Items.EMERALD);
+            int onFloor = countNearby(server, player, Items.EMERALD);
+            helper.assertValueEqual(paid, 5, "2 keys and 1 ominous key pay 5 emeralds");
+            helper.assertValueEqual(inInventory + onFloor, 5, "the buy-back exists exactly once");
+            helper.assertValueEqual(countIn(player, Items.TRIAL_KEY), 0, "the plain keys are gone");
+            helper.assertValueEqual(countIn(player, Items.OMINOUS_TRIAL_KEY), 0, "the ominous key is gone");
+            helper.assertValueEqual(countIn(player, Items.COBBLESTONE), 7, "everything else is untouched");
+            helper.assertValueEqual(RunLifecycle.redeemKeys(player), 0, "a second pass finds nothing");
+
+            cleanUp(server, DungeonLog.forServer(server), player);
+            helper.succeed();
+        });
+    }
+
     // ---- helpers ------------------------------------------------------------
 
     /**

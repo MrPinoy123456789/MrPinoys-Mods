@@ -35,12 +35,9 @@ import java.util.Set;
  *   <li><strong>Bones.</strong> A mob's loot (a skeleton's bones) keeps about a
  *       quarter of its bones. The mod's own chest, spawner and vault tables
  *       carry the same cut in their data files, where an author can see it.</li>
- *   <li><strong>Equipment drops.</strong> A mob's worn or held gear drops at
- *       least {@link #EQUIPMENT_DROP_CHANCE} of the time (the trial spawner
- *       tables said 0, vanilla says 0.085). A bow or crossbow in the hand
- *       floors at {@link #RANGED_DROP_CHANCE} instead (playtest 2026-09-29-2:
- *       every skeleton is an archer, so the general floor turned bows into
- *       disposables while arrows stayed scarce).</li>
+ *   <li><strong>Mobs drop no gear (J7).</strong> A dungeon mob's worn or held
+ *       gear never drops; gear comes from chests, vaults and merchants. The
+ *       salvage bench still takes gear a player carries in from outside.</li>
  *   <li><strong>Torches drop nothing</strong> (playtest 2026-10-01-1). Light is
  *       a resource here, so a torch broken by any means (by hand, its support
  *       broken, washed off by water) is gone. Every torch, the player's own
@@ -67,21 +64,6 @@ final class DungeonDrops {
 
     /** Share of a mob's bones that survive (the owner asked for about a quarter). */
     static final double BONE_SHARE = 0.25;
-    /** Floor for a dungeon mob's per-slot equipment drop chance. */
-    static final float EQUIPMENT_DROP_CHANCE = 0.2f;
-    /**
-     * The floor for a worn armour slot (PD-106, playtest 2026-10-02-1: "A LOT
-     * of trimmed armour"). Four slots at the general floor rained armour from
-     * one room; this is roughly vanilla's 0.085.
-     */
-    static final float ARMOUR_DROP_CHANCE = 0.08f;
-    /**
-     * The floor for a held bow or crossbow. Lower than the rest because
-     * skeletons are the commonest mob and each one holds a bow: at the general
-     * floor a floor's worth of archers left a pile of bows and made Unbreaking
-     * worthless next to arrow-saving enchantments.
-     */
-    static final float RANGED_DROP_CHANCE = 0.05f;
 
     /** The block loot tables of the light torches; wall torches drop through these too. */
     static final Set<String> TORCH_TABLES = Set.of(
@@ -153,16 +135,11 @@ final class DungeonDrops {
                     });
                 }
             } else if (entity instanceof Mob mob) {
+                // J7: no equipment drops in the dungeon, whatever the table
+                // or the difficulty would have given the slot.
                 for (EquipmentSlot slot : GEAR_SLOTS) {
-                    ItemStack worn = mob.getItemBySlot(slot);
-                    if (worn.isEmpty()) {
-                        continue;
-                    }
-                    float floor = worn.is(Items.BOW) || worn.is(Items.CROSSBOW)
-                            ? RANGED_DROP_CHANCE
-                            : slot.isArmor() ? ARMOUR_DROP_CHANCE : EQUIPMENT_DROP_CHANCE;
-                    if (mob.getDropChances().byEquipment(slot) < floor) {
-                        mob.setDropChance(slot, floor);
+                    if (!mob.getItemBySlot(slot).isEmpty()) {
+                        mob.setDropChance(slot, 0f);
                     }
                 }
             }

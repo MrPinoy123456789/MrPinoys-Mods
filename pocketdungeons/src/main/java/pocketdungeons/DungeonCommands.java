@@ -182,15 +182,9 @@ final class DungeonCommands {
                                     .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "leader")))))
 
-                    // M75: mint an optional written memento of the caller's
-                    // most recent completed run, from the server-side run
-                    // record kept on every safe visit. The memento is a
-                    // vanilla written book the owner can place on a lectern;
-                    // it carries no progression credit. No record, no
-                    // memento: a player who has not finished a run gets a
-                    // refusal line, not a blank book.
-                    .then(Commands.literal("memento")
-                            .executes(ctx -> memento(ctx.getSource().getPlayerOrException())))
+                    // J7: /dungeon memento is hidden for now (no playtest has
+                    // met it). The minting method stays, the command does not
+                    // register.
 
                     // M2 T2.2: an owner's own guest list for their room.
                     // M20: the lobby directory replaces the calling card, so the

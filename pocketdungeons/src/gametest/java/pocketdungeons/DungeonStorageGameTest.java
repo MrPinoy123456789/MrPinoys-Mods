@@ -22,7 +22,8 @@ import java.util.UUID;
 /**
  * Design 2026-10-06-1 item 5: Dungeon Storage is a 27 slot container backed by {@link DungeonLog}.
  * It persists on every change, survives a teardown, takes what an old per-run storage still held,
- * and an omen death closes an open menu before rolling it back.
+ * and a failed run leaves it alone (J2). J6: it opens from any ender chest in the
+ * safe room or at the Doors, run or no run.
  */
 public final class DungeonStorageGameTest {
 
@@ -73,7 +74,7 @@ public final class DungeonStorageGameTest {
         InstanceRecord record = floorRecord(helper, server, id);
         register(record, player);
         try {
-            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), true),
+            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), BlockPos.ZERO, true),
                     "the storage block opens the storage inside a run");
             helper.assertTrue(player.containerMenu instanceof ChestMenu, "a chest menu is open");
             player.containerMenu.getSlot(0).set(new ItemStack(Items.DIAMOND, 5));
@@ -108,7 +109,7 @@ public final class DungeonStorageGameTest {
             // The next open finds it.
             InstanceRecord next = floorRecord(helper, server, id);
             register(next, player);
-            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), true),
+            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), BlockPos.ZERO, true),
                     "it opens again on the next run");
             helper.assertTrue(player.containerMenu.getSlot(0).getItem().is(Items.DIAMOND),
                     "the next open shows the stored item");
@@ -182,7 +183,7 @@ public final class DungeonStorageGameTest {
             before.set(1, new ItemStack(Items.IRON_INGOT, 9));
             log.setStorage(id, before);
 
-            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), true), "it opens");
+            helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), BlockPos.ZERO, true), "it opens");
             // Unbanked loot stashed during the interval.
             player.containerMenu.getSlot(2).set(new ItemStack(Items.DIAMOND, 7));
             helper.assertTrue(log.storageOf(id).get(2).is(Items.DIAMOND), "the loot is in the storage");
@@ -198,6 +199,56 @@ public final class DungeonStorageGameTest {
             player.closeContainer();
             log.setStorage(id, List.of());
             unregister(player);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * J6 (D38): any ender chest in a live instance's safe room or staging room
+     * opens the storage, whether or not the player is in a run and whether or
+     * not the room is theirs. A chest outside the rooms falls through, so the
+     * dungeon's vanilla-ender-chest denial still gets its say.
+     */
+    @GameTest(maxTicks = 20)
+    public void anyRoomEnderChestOpensTheStorage(GameTestHelper helper) {
+        ServerPlayer visitor = player(helper);
+        MinecraftServer server = visitor.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = visitor.getUUID();
+        InstanceRecord record = floorRecord(helper, server, UUID.randomUUID());
+        BlockPos roomOrigin = helper.absolutePos(BlockPos.ZERO);
+        record.roomCellOrigin = roomOrigin;
+        record.stagingCellOrigin = roomOrigin.offset(40, 0, 0);
+        // A visitor: registered in the slot table for the room scan, never as a member.
+        InstanceRegistry.bySlot.put(SLOT, record);
+        InstanceRegistry.usedSlots.add(SLOT);
+        try {
+            helper.assertTrue(RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH),
+                            roomOrigin.offset(2, 1, 2), true),
+                    "an ender chest in the safe room opens the visitor's storage");
+            visitor.containerMenu.getSlot(0).set(new ItemStack(Items.IRON_INGOT, 4));
+            visitor.closeContainer();
+            helper.assertTrue(log.storageOf(id).get(0).is(Items.IRON_INGOT),
+                    "the visitor's own storage took the stack");
+
+            helper.assertTrue(RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH),
+                            record.stagingCellOrigin.offset(5, 2, 5), true),
+                    "an ender chest at the Doors opens it too");
+            helper.assertTrue(visitor.containerMenu.getSlot(0).getItem().is(Items.IRON_INGOT),
+                    "the same storage, not a new one");
+            visitor.closeContainer();
+
+            helper.assertTrue(!RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH),
+                            roomOrigin.offset(-5, 1, 0), true),
+                    "a chest outside the rooms falls through to the denial");
+            helper.assertTrue(!RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH),
+                            roomOrigin.offset(2, 1, 2), false),
+                    "and nothing opens outside the dungeon at all");
+        } finally {
+            visitor.closeContainer();
+            log.setStorage(id, List.of());
+            InstanceRegistry.bySlot.remove(SLOT);
+            InstanceRegistry.usedSlots.remove(SLOT);
         }
         helper.succeed();
     }

@@ -19,17 +19,18 @@ import java.util.Set;
  * The salvage bench (playtest 2026-09-29, A3): what it takes, what it pays,
  * and what it leaves alone. Drives {@link SalvageStation#salvageContents}
  * directly, the screen's Salvage button minus the screen: nothing headless
- * clicks an SGUI chest (DISCOVERIES trap 10). The rates are the shipped
- * defaults (1 emerald per tier, 1 per key, 3 per ominous key).
+ * clicks an SGUI chest (DISCOVERIES trap 10). Gear pays the grindstone's
+ * XP and its materials, never emeralds; keys are refused (J7).
  */
 @SuppressWarnings("removal")
 public final class SalvageGameTest {
 
     /**
-     * One screen of mixed surplus: keys pay emeralds, gear pays the
-     * grindstone's XP and its materials but never emeralds (owner request,
-     * 2026-10-03), and everything the bench refuses is still in the screen
-     * afterwards, untouched.
+     * One screen of mixed surplus: gear pays the grindstone's XP and its
+     * materials but never emeralds (owner request, 2026-10-03), and
+     * everything the bench refuses is still in the screen afterwards,
+     * untouched. J7: that includes keys, which the floor now buys back at
+     * clear instead.
      */
     @GameTest
     public void salvagePaysForSurplusAndLeavesTheRest(GameTestHelper helper) {
@@ -60,13 +61,18 @@ public final class SalvageGameTest {
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "a screen with surplus in it salvages");
 
-        // 3 keys + 3 (one ominous key); the tagged sword and helmet pay no emeralds.
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 6, "emeralds paid for keys only");
+        // J7: keys are refused, so nothing in this screen pays emeralds.
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "gear never pays emeralds");
         helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2, "a fresh iron sword and helmet give an ingot each");
         helper.assertTrue(player.totalExperience > xpBefore, "the enchanted bow paid the grindstone's XP");
         for (int slot = 0; slot <= 4; slot++) {
+            if (slot == 2 || slot == 3) {
+                continue;
+            }
             helper.assertTrue(input.getItem(slot).isEmpty(), "salvaged slot " + slot + " is empty");
         }
+        helper.assertValueEqual(input.getItem(2).getCount(), 3, "the keys are refused and stay");
+        helper.assertTrue(input.getItem(3).is(Items.OMINOUS_TRIAL_KEY), "the ominous key stays too");
         helper.assertTrue(input.getItem(5).is(Items.DIAMOND_SWORD),
                 "imbued gear is refused and stays in the screen");
         helper.assertValueEqual(input.getItem(6).getCount(), 5, "dirt is refused and stays, all five");
@@ -185,9 +191,9 @@ public final class SalvageGameTest {
         return stack;
     }
 
-    /** J5: no unlock level, so a key salvages even at compass level 0. */
+    /** J7: keys never go through the bench; the floor buys them back at clear. */
     @GameTest
-    public void aKeySalvagesWithoutAnUnlockLevel(GameTestHelper helper) {
+    public void keysAreRefusedNotSalvaged(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
@@ -195,10 +201,12 @@ public final class SalvageGameTest {
 
         SimpleContainer input = new SimpleContainer(18);
         input.setItem(0, new ItemStack(Items.TRIAL_KEY, 2));
-        helper.assertTrue(SalvageStation.salvageContents(player, input) != null,
-                "no level gate stands between a key and the bench");
-        helper.assertTrue(input.getItem(0).isEmpty(), "the keys were taken");
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 2, "and paid for");
+        input.setItem(1, new ItemStack(Items.OMINOUS_TRIAL_KEY));
+        helper.assertTrue(SalvageStation.salvageContents(player, input) == null,
+                "a screen of only keys salvages nothing");
+        helper.assertValueEqual(input.getItem(0).getCount(), 2, "the keys are still in the screen");
+        helper.assertTrue(input.getItem(1).is(Items.OMINOUS_TRIAL_KEY), "the ominous key too");
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "no emeralds changed hands");
 
         cleanUp(server, player);
         helper.succeed();

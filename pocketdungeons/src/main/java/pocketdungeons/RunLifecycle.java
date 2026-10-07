@@ -1458,12 +1458,53 @@ final class RunLifecycle {
             } else if (pay.emeralds() > 0) {
                 Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, pay.emeralds()));
             }
+            // J7: unused trial keys never leave their floor; they settle for
+            // emeralds on the same clear line at the salvage rates.
+            int keyEmeralds = redeemKeys(memberPlayer);
+            StringBuilder line = new StringBuilder();
             if (pay.scrap() > 0 || pay.emeralds() > 0) {
-                memberPlayer.sendSystemMessage(Component.literal(pay.line())
+                line.append(pay.line());
+            }
+            if (keyEmeralds > 0) {
+                if (!line.isEmpty()) {
+                    line.append(", ");
+                }
+                line.append("+").append(keyEmeralds).append(keyEmeralds == 1 ? " emerald" : " emeralds")
+                        .append(" for vault keys");
+            }
+            if (!line.isEmpty()) {
+                memberPlayer.sendSystemMessage(Component.literal(line.toString())
                         .withStyle(ChatFormatting.AQUA));
             }
-            PlaytestJournal.floorPay(memberPlayer, record, pay.scrap(), pay.emeralds());
+            PlaytestJournal.floorPay(memberPlayer, record, pay.scrap(), pay.emeralds() + keyEmeralds);
         }
+    }
+
+    /**
+     * J7: buys back every trial key {@code player} still holds at the salvage
+     * rates (plain keys at {@code salvageKeyEmeralds}, ominous at
+     * {@code salvageOminousKeyEmeralds}), removes them, and returns the
+     * emeralds paid; 0 when there were none. Keys never leave their floor.
+     * Package private so a gametest can drive it without a floor clear.
+     */
+    static int redeemKeys(ServerPlayer player) {
+        int keys = 0, ominous = 0;
+        for (int i = 0; i < InventorySwap.LIVE_SLOTS; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(Items.TRIAL_KEY)) {
+                keys += stack.getCount();
+                player.getInventory().setItem(i, ItemStack.EMPTY);
+            } else if (stack.is(Items.OMINOUS_TRIAL_KEY)) {
+                ominous += stack.getCount();
+                player.getInventory().setItem(i, ItemStack.EMPTY);
+            }
+        }
+        int emeralds = SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds())
+                + SalvageMath.keyEmeralds(ominous, PocketDungeonsConfig.salvageOminousKeyEmeralds());
+        if (emeralds > 0) {
+            Payout.deliver(player, new ItemStack(Items.EMERALD, emeralds));
+        }
+        return emeralds;
     }
 
     /**

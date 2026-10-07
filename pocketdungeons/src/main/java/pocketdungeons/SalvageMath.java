@@ -2,8 +2,10 @@ package pocketdungeons;
 
 /**
  * The salvage bench's payout arithmetic, pure JDK so {@code SalvageMathTest}
- * runs headless like {@code GambleMathTest}. {@link SalvageStation} sorts the
- * items and hands the counts here; nothing in this class touches an item.
+ * runs headless. {@link SalvageStation} sorts the items and hands the counts
+ * here; nothing in this class touches an item. J7: the key rates moved to
+ * the floor clear ({@link RunLifecycle#redeemKeys}), which reuses
+ * {@link #keyEmeralds}.
  * The rates and why they sit where they do are in
  * {@code docs/reference/SALVAGE_PROPOSAL.md}.
  */

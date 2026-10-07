@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -27,8 +28,8 @@ import java.util.UUID;
  * to give players a bit of extra inventory space during runs"; made permanent in the
  * 2026-10-06 design, item 5). Every staging room is stamped with an ender chest set
  * into its wall ({@link RoomTemplateGenerator#placeRunStorage}); right-clicking it, or
- * any other ender chest in the dungeon, opens the player's own 27 slots, so it feels
- * vanilla while being gated behind the scenes.
+ * any other ender chest in the safe room, at the Doors or mid-run (J6), opens the
+ * player's own 27 slots, so it feels vanilla while being gated behind the scenes.
  *
  * <p>The contents belong to the player, not the run: they live in {@link DungeonLog}
  * ({@link DungeonLog#storageOf}), the way the dungeon pack does, and survive floors,
@@ -88,17 +89,20 @@ final class RunStorage {
     }
 
     /**
-     * A right-click on a block in the dungeon. Claimed when it is the storage
-     * block and the player is in a run's floor loop; the vanilla chest never
-     * opens. A visit, a build room, an untimed run or a Pocket2 child has no
-     * storage, and falls through to the ender chest denial.
+     * A right-click on a block in the dungeon. J6 (D38): the chest's position
+     * decides. Any ender chest inside a live instance's room, the safe room
+     * or the staging room at the Doors, opens the storage whether a run is
+     * up or not; so does any chest a floor-loop member clicks mid-run, the
+     * stamped staging-room chest being the usual one. Everywhere else in the
+     * dungeon falls through to the ender chest denial.
      */
-    static boolean onUse(ServerPlayer player, BlockState state, boolean inDungeon) {
+    static boolean onUse(ServerPlayer player, BlockState state, BlockPos pos, boolean inDungeon) {
         if (!inDungeon || !matchesStation(state)) {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.inFloorLoop()) {
+        boolean midRun = record != null && record.inFloorLoop();
+        if (!midRun && Instances.roomRecordAt(pos) == null) {
             return false;
         }
         MinecraftServer server = player.level().getServer();

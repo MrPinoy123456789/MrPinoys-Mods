@@ -170,11 +170,12 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // Run storage (playtest 2026-10-02-1): the ender chest, gated behind the
-        // scenes, opens the player's own run storage in a run instead of their
-        // real ender chest. Ahead of the denial below and the room permission
-        // mask, since every member has their own storage in any room.
-        if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
+        // Dungeon Storage (playtest 2026-10-02-1, J6): the ender chest, gated
+        // behind the scenes, opens the player's own storage in a run, in the
+        // safe room or at the Doors, instead of their real ender chest. Ahead
+        // of the denial below and the room permission mask, since every member
+        // has their own storage in any room.
+        if (RunStorage.onUse(serverPlayer, level.getBlockState(pos), pos,
                 level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL))) {
             return InteractionResult.SUCCESS_SERVER;
         }

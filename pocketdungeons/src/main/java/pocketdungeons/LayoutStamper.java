@@ -238,7 +238,10 @@ final class LayoutStamper {
         // Rolled once per run off the plan seed, and gated on the adventure
         // graph: a theme that has no node in it (an unthemed run, or a datapack
         // that never declared one) never hosts a pocket door.
-        boolean pocket2Rolled = theme != null
+        // J7: Pocket2 is hidden from players for now; no playtest has met it.
+        // The machinery stays, the roll is pinned off until it does.
+        boolean pocket2Rolled = Pocket2.DOORS_LIVE
+                && theme != null
                 && AdventureGraphs.current().graph().node(theme) != null
                 && RandomSource.create(plan.seed()).nextDouble()
                 < PocketDungeonsConfig.pocket2DoorChance();
