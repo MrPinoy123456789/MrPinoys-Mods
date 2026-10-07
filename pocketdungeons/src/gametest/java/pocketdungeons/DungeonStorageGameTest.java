@@ -166,7 +166,7 @@ public final class DungeonStorageGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void anOmenDeathClosesTheMenuThenRollsTheStorageBack(GameTestHelper helper) {
+    public void aFailedRunLeavesTheStorageAlone(GameTestHelper helper) {
         ServerPlayer player = player(helper);
         MinecraftServer server = player.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
@@ -182,20 +182,17 @@ public final class DungeonStorageGameTest {
             log.setStorage(id, before);
 
             helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), true), "it opens");
-            helper.assertTrue(record.interval.storageSnapshot.containsKey(id), "the first open took the interval snapshot");
             // Unbanked loot stashed during the interval.
             player.containerMenu.getSlot(2).set(new ItemStack(Items.DIAMOND, 7));
             helper.assertTrue(log.storageOf(id).get(2).is(Items.DIAMOND), "the loot is in the storage");
 
-            RunStorage.rollBackToInterval(server, record);
-            helper.assertTrue(!(player.containerMenu instanceof ChestMenu), "the open menu was closed first");
+            // J2: failure costs only the stake, so nothing rolls back.
+            Instances.failRunOmen(server, record, player, player.damageSources().generic());
             List<ItemStack> after = log.storageOf(id);
             helper.assertTrue(after.get(1).is(Items.IRON_INGOT) && after.get(1).getCount() == 9,
-                    "what was stored before the interval is safe");
-            helper.assertTrue(after.get(2).isEmpty(), "what was stashed during the interval is gone");
-            // A stale menu closing late must not write the old stacks back (no duplication).
-            helper.assertTrue(log.storageOf(id).stream().noneMatch(s -> s.is(Items.DIAMOND)),
-                    "no diamond survived the rollback");
+                    "what was stored before is safe");
+            helper.assertTrue(after.get(2).is(Items.DIAMOND) && after.get(2).getCount() == 7,
+                    "what was stashed during the run is kept");
         } finally {
             player.closeContainer();
             log.setStorage(id, List.of());

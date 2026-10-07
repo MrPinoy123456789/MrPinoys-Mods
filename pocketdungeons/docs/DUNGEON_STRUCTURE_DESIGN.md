@@ -227,8 +227,8 @@ confirmed by the owner on 2026-10-05.
     unchanged here; revised 2026-10-06 (`design-2026-10-06-1.md` item 5): it is
     now Dungeon Storage, 27 slots per player saved in `DungeonLog`, never emptied
     by a teardown or a logout (the auto-return and its offline notice are gone).
-    A run failure still rolls it back to the interval's start, closing an open
-    menu first. Whatever an old live run's storage still held moves into it.
+    A run failure leaves it alone (J2, 2026-10-06: the failure costs only the
+    stake). Whatever an old live run's storage still held moves into it.
 
 ### 3.6 Rooms, light and resources
 

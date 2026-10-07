@@ -53,24 +53,6 @@ final class IntervalState {
      */
     final List<Integer> floorLevels = new ArrayList<>();
 
-    /**
-     * Snapshot of each member's dungeon inventory, used when a max-omen death fails
-     * the run and the unbanked floors must pay nothing. Stored as 42-slot lists
-     * (main, armour, offhand, cursor), copied so the live inventory cannot mutate
-     * them. For a fresh interval the definitive snapshot is taken at the first
-     * door commit ({@link InventorySwap#snapshotAtFirstCommit}), after the bag kit
-     * has been applied.
-     */
-    final Map<UUID, List<ItemStack>> inventorySnapshot = new HashMap<>();
-
-    /**
-     * Each member's run storage at interval start ({@link RunStorage}), taken
-     * on their first open this interval and rolled back with
-     * {@link #inventorySnapshot} on a max-omen death. A member with no entry
-     * has not touched their storage this interval.
-     */
-    final Map<UUID, List<ItemStack>> storageSnapshot = new HashMap<>();
-
     // ---- the dungeon trip (dungeon structure W2) -----------------------------------------
     //
     // One trip is one dungeon (design D1). The interval is the trip, so this state is

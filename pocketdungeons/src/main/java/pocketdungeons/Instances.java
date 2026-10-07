@@ -1771,7 +1771,6 @@ final class Instances {
         // interval and floor, and no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(lobbyLayout(safeOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     // ---- exit ---------------------------------------------------------------
@@ -2019,38 +2018,25 @@ final class Instances {
     }
 
     /**
-     * A death at max omen fails the run: everyone is sent home, unbanked floors
-     * pay nothing, and each member's dungeon inventory reverts to the
-     * snapshot taken at interval start. Keystone level and home room are
-     * untouched.
+     * A death at the last life fails the run: everyone is sent home with what
+     * they carry, unbanked floors pay nothing, and the dungeon's finish is not
+     * paid (J2). Keystone level and home room are untouched.
      */
     static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
-        // The storage reverts with the pack (any open menu is closed first).
-        RunStorage.rollBackToInterval(server, record);
-        DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
-            List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
-                if (snapshot != null) {
-                    InventorySwap.restoreIntervalSnapshot(server, player, snapshot);
-                }
                 eject(server, record, player);
             } else {
-                if (snapshot != null) {
-                    List<ItemStack> kept = new ArrayList<>(InventorySwap.SLOTS + 8);
-                    kept.addAll(snapshot);
-                    log.setOrphan(member, InventorySwap.OrphanRecord.of(kept));
-                }
                 detach(server, record, member, null);
             }
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         PlaytestJournal.runFailed(server, record, deadPlayer, source);
-        announce(server, record, "The dungeon claims a max-omen death. Everyone is sent home.", null);
+        announce(server, record, "The dungeon claims you. You keep what you carry.", null);
         InstanceTeardown.purge(server, record, "omen fail", deadPlayer.getUUID());
     }
 

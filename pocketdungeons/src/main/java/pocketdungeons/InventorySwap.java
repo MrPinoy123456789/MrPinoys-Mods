@@ -178,13 +178,6 @@ public final class InventorySwap {
             }
         }
 
-        /** The max-omen revert, the same call {@code Instances.failRunOmen} makes. */
-        public static void restoreIntervalSnapshotNow(ServerPlayer player, List<ItemStack> snapshot) {
-            MinecraftServer server = player.level().getServer();
-            if (server != null) {
-                restoreIntervalSnapshot(server, player, snapshot);
-            }
-        }
     }
 
     // ---- the 42 slot snapshot ----------------------------------------------
@@ -776,7 +769,6 @@ public final class InventorySwap {
         grantMigrationKit(log, player);
         slots.flush();
         InventoryJournal.commit(server, player, op);
-        snapshotOnEntry(player);
         if (survival.stream().anyMatch(stack -> !stack.isEmpty())) {
             player.sendSystemMessage(Component.literal(
                             "Your own gear is stored safely and comes back when you leave. This is your dungeon pack.")
@@ -812,73 +804,6 @@ public final class InventorySwap {
                         "Your bag is packed once, now. From here on the pack is yours to keep, "
                                 + "and nothing refills it.")
                 .withStyle(ChatFormatting.AQUA));
-    }
-
-    /**
-     * Captures each online member's current dungeon inventory into the
-     * interval snapshot. Called when an interval begins so a max-omen death
-     * can revert the unbanked floors to what the party carried at the start.
-     */
-    static void captureIntervalSnapshot(MinecraftServer server, InstanceRecord record) {
-        for (UUID member : record.members.keySet()) {
-            ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player == null || !player.level().dimension().equals(dungeonLevel)) {
-                continue;
-            }
-            PlayerSlots slots = new PlayerSlots(player);
-            record.interval.inventorySnapshot.put(member, snapshotPlayer(player, slots));
-        }
-    }
-
-    /**
-     * Takes this player's interval snapshot the moment their dungeon pack is
-     * swapped in, unless the current interval already holds one for them. This
-     * covers the first interval of a fresh run (which never passes through
-     * {@link InstanceRecord#beginInterval}) and a member who joins mid
-     * interval, both of whom {@link #captureIntervalSnapshot} would miss.
-     */
-    private static void snapshotOnEntry(ServerPlayer player) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null) {
-            return;
-        }
-        record.interval.inventorySnapshot.computeIfAbsent(player.getUUID(),
-                id -> snapshotPlayer(player, new PlayerSlots(player)));
-    }
-
-    /**
-     * PD-121: retakes the interval snapshot when the first door of an interval
-     * is committed. The entry snapshot may have been taken before a fresh player
-     * chose a bag and received the one-time kit, so this refresh makes sure the
-     * revert keeps what they carried into the first floor.
-     */
-    static void snapshotAtFirstCommit(MinecraftServer server, InstanceRecord record) {
-        if (record.interval.floorIndex != 0) {
-            return;
-        }
-        captureIntervalSnapshot(server, record);
-    }
-
-    /**
-     * Restores a player's live dungeon inventory to the interval-start
-     * snapshot. Only the live inventory: the ejection that follows sends them
-     * home, and {@link #leaveVoid} keeps what is live as their pack, along with
-     * the loose stacks already in their record.
-     *
-     * <p>PD-92: this used to write the snapshot into the record as well, so the
-     * leave found every stack twice, once live and once held, kept the live
-     * one in its slot and carried the held one as a loose copy. It also wrote
-     * over any loose stacks the record was holding. A cursor stack the snapshot
-     * has no free slot for is kept as loose instead of dropped.
-     */
-    static void restoreIntervalSnapshot(MinecraftServer server, ServerPlayer player,
-                                        List<ItemStack> snapshot) {
-        DungeonLog log = DungeonLog.forServer(server);
-        PlayerSlots slots = new PlayerSlots(player);
-        clear(slots);
-        ItemStack overflow = restore(slots, snapshot);
-        slots.flush();
-        keepForNextEntry(log, player.getUUID(), List.of(overflow));
     }
 
     /**

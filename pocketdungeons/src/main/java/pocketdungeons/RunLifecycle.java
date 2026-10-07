@@ -673,11 +673,6 @@ final class RunLifecycle {
             log.spendScrap(player.getUUID(), doorCost);
         }
 
-        // PD-121: retake the interval snapshot at the first door commit, after
-        // the bag kit has been applied and the door cost paid, so a max-omen
-        // fail reverts to what the player actually carried into the first floor.
-        InventorySwap.snapshotAtFirstCommit(server, record);
-
         // A trip has begun (the first door of a dungeon): count it for the leader, which
         // changes the first door's deal for their next trip even if this one is quit early.
         if (firstDoorOfTrip && !record.interval.dungeonId.isEmpty() && record.owner != null) {
@@ -1836,7 +1831,6 @@ final class RunLifecycle {
     static void beginHomecoming(InstanceRecord record, MinecraftServer server, long now) {
         record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout, now);
         record.beginInterval(Instances.lobbyLayout(record.roomCellOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     /**
@@ -1908,7 +1902,6 @@ final class RunLifecycle {
         // no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(Instances.lobbyLayout(safeOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
 
         RunSession.transition(record, RunSession.Phase.HOME);
 
