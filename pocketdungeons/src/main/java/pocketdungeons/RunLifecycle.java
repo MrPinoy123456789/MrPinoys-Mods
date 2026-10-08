@@ -1153,9 +1153,9 @@ final class RunLifecycle {
         }
         // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
         // the decision point, so a floor clear also gets a title.
-        showFloorClearedTitle(player, OmenBarText.clearedHeadline(floorsCleared, TripView.dungeonName(record),
-                EndlessMineRules.isMine(record), record.interval.finished, TripView.finalAhead(record)),
-                record.interval.finished ? "GO HOME" : "GO HOME or DESCEND");
+        showFloorClearedTitle(player, OmenBarText.clearedScreenTitle(floorsCleared, TripView.dungeonName(record),
+                EndlessMineRules.isMine(record), record.interval.finished),
+                OmenBarText.clearedSubtitle(record.interval.finished, TripView.finalAhead(record)));
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
@@ -2184,11 +2184,16 @@ final class RunLifecycle {
      * opened the floor, the free door included.
      */
     private static void applyQuitPenalty(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
-        int cost = PocketDungeonsConfig.timedOutDepletion();
-        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
+        // PD-168 (owner ruling 2026-10-08): a quit is a fail for the haul. Every member's haul banks
+        // at the fail share and the rest is lost, exactly as a fifth death; the compass is no
+        // longer lowered, so walking away can never beat failing.
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            bankHaul(server, record, member, BankContext.FAIL);
+        }
+        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.NO_CHANGE);
         owner.sendSystemMessage(Component.literal(
-                "You quit the door. Your compass is downgraded by " + cost
-                        + (cost == 1 ? " level." : " levels."))
+                "You quit the door. It counts as a failed dungeon: your haul keeps "
+                        + PocketDungeonsConfig.failHaulKeepPercent() + " percent. Your compass is unchanged.")
                 .withStyle(ChatFormatting.YELLOW));
         Chime.doorQuit(owner);
     }
@@ -2254,7 +2259,7 @@ final class RunLifecycle {
         // state. The player stays in the safe room and picks a new door.
         FloorHistory.quit(player, record);
         applyQuitPenalty(server, record, player);
-        PlaytestJournal.quitFloor(player, PocketDungeonsConfig.timedOutDepletion());
+        PlaytestJournal.quitFloor(player, 0);
         Instances.resetToLobby(server, record, true);
         return true;
     }

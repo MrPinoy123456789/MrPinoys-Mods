@@ -182,6 +182,10 @@ final class IronDoorLatch {
         if (layout.isConnectorDoor(lower)) {
             return "The lever is in this room.";
         }
+        // PD-170: a toll door says what it wants, not just that something does.
+        if (cellOrigin != null && Locks.isToll(cellOrigin)) {
+            return Locks.hint(cellOrigin);
+        }
         if (cellOrigin != null && (Locks.hint(cellOrigin) != null || Ordeals.objectiveAt(cellOrigin) != null)) {
             return "Opens when the room is solved.";
         }

@@ -24,7 +24,7 @@ Every Ordeal has:
 | Collapsing Bridge | cross to the far side | planks drop away under you | the far-side lever locks the bridge in place | `CollapsingBridgeOrdeal` |
 | Thicket | reach the spawner through the webs | cobwebs and cave spiders | the lever on the spawner shuts it off | `SpawnerOrdeal.THICKET` |
 | Ice Run | climb the floating ice to the platform in the middle, or pillar up to it | strays on the floor shooting you off the ice; a miss drops you to the floor and back to the start | the lever on the platform shuts the spawner off | `SpawnerOrdeal.ICE_RUN` |
-| Hold the Plate | hold the plate for 30 seconds | waves raised by the plate, and the room's spawner | the hold completes and the exit opens; the timer pauses when you step off | `HoldThePlateOrdeal` |
+| Plate Relay (room id `hold_the_plate`) | stand on the lit corner plate for 3 seconds, 5 times (+1 per extra player, max 8); the light jumps after each charge | a wave from the room's spawner per charge, and a mob each time a light waits 15 seconds | the last charge opens the exit | `PlateRelayOrdeal` |
 | Rubble | clear a doorway plugged with fallen stone | none; the way on is blocked | any explosion that reaches it (TNT, or a lured creeper) clears it and hurts nothing (no lever) | `RubbleOrdeal` |
 
 ## Conventions

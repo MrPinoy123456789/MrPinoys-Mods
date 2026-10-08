@@ -65,6 +65,47 @@ public final class TollRoomGameTest {
         }
     }
 
+    /** PD-170: an ominous floor drops ominous trial keys, and they pay the same toll. */
+    @GameTest(maxTicks = 80)
+    public void anOminousTrialKeyPaysTheTrialKeyToll(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos o = new BlockPos(10752, 120, 10496);
+        forceCell(level, o, true);
+        helper.runAfterDelay(10, () -> {
+            try {
+                helper.assertTrue(Locks.matches(new ItemStack(Items.OMINOUS_TRIAL_KEY), Items.TRIAL_KEY)
+                                && Locks.matches(new ItemStack(Items.TRIAL_KEY), Items.TRIAL_KEY)
+                                && !Locks.matches(new ItemStack(Items.OMINOUS_TRIAL_KEY), Items.GOLD_INGOT)
+                                && !Locks.matches(new ItemStack(Items.GOLD_INGOT), Items.TRIAL_KEY),
+                        "the trial key toll takes either kind, and only that toll");
+                stampOldTemplate(level, o, Items.TRIAL_KEY);
+                SpurToll.apply(level, o, Items.TRIAL_KEY);
+                helper.assertTrue(Locks.isToll(o) && Locks.hint(o).contains("plain or ominous"),
+                        "the door's hint names both kinds");
+
+                HopperBlockEntity toll = (HopperBlockEntity) level.getBlockEntity(o.offset(8, 1, 7));
+                toll.setItem(0, new ItemStack(Items.OMINOUS_TRIAL_KEY, 2));
+                helper.runAfterDelay(30, () -> {
+                    try {
+                        BlockState door = level.getBlockState(o.offset(8, 1, DOOR_Z));
+                        helper.assertTrue(door.is(Blocks.IRON_DOOR) && door.getValue(DoorBlock.OPEN),
+                                "an ominous key in the hopper latches the door open");
+                        HopperBlockEntity after = (HopperBlockEntity) level.getBlockEntity(o.offset(8, 1, 7));
+                        helper.assertValueEqual(after.getItem(0).getCount(), 1, "and the toll took exactly one");
+                        helper.succeed();
+                    } finally {
+                        Locks.clear(o);
+                        forceCell(level, o, false);
+                    }
+                });
+            } catch (RuntimeException e) {
+                Locks.clear(o);
+                forceCell(level, o, false);
+                throw e;
+            }
+        });
+    }
+
     @GameTest(maxTicks = 80)
     public void aTollRoomIsRepairedWhenItIsStamped(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

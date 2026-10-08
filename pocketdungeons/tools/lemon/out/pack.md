@@ -383,22 +383,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
 - **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
 
-### L52. 2026-10-06: the librarian sells rolled gear
-
-- **Status:** owed, 2026-10-07-1.md: not exercised; the built-in tour advertised it twice ("Craft a lectern ... A Librarian moves in") and he did not follow it up. Earlier: owed
-- **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
-- **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
-- **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
-- **Fail signs:** Vanilla librarian enchanted book trades; stock that never changes; tier IV before a capstone.
-
-### L53. 2026-10-06: keys settle on the clear line
-
-- **Status:** owed, 2026-10-07-1.md: no key redemption observed directly; the floor-4 `floor_pay` of 9 emeralds may include key buy-back (unconfirmed). No gear drops seen in snapshots (rotten_flesh only). Related break: the barred_vault filter hopper holds 4x64 trial keys the player could pull (PD-164), which would flood this redemption path if exploited. Earlier: owed
-- **Changed:** 2026-10-06 (J7, `DungeonDrops`, `RunLifecycle.redeemKeys`): mobs drop no gear in the dungeon, and trial keys never leave their floor. The salvage bench refuses keys; at a floor clear each unused key becomes emeralds.
-- **Do:** Kill dungeon mobs and check the drops; put a trial key in the salvage input; clear a floor holding a plain and an ominous trial key.
-- **Pass:** No weapons, armour or bows drop; the bench refuses the key; the clear line pays 1 emerald for the plain key and 3 for the ominous, and the keys are gone.
-- **Fail signs:** A mob dropping a bow; a key salvaging at the bench; a key still in hand after the clear.
-
 # Rooms (id: roles, tier, depth, requirements)
 
 - barred_vault: loot, tier 2, depth 2+, needs trial_key, pressure omen

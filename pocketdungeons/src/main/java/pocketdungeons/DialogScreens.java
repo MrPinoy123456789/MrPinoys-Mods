@@ -182,14 +182,15 @@ final class DialogScreens {
 
     /**
      * The confirmation for the in-dungeon menu's Quit Door option. Quitting
-     * fails the current dungeon, downgrades the keystone, and resets the
+     * fails the current dungeon (the haul keeps its fail share), and resets the
      * room to its lobby state so a new door can be chosen. The confirm is
      * a fixed command string ({@code /dungeon quit}), so this is tier A:
      * no round trip through {@link DialogRouter} is needed.
      */
     static Dialog quitDoorConfirm() {
-        int cost = PocketDungeonsConfig.timedOutDepletion();
-        String costLine = cost == 1 ? "Costs 1 compass level." : "Costs " + cost + " compass levels.";
+        // PD-168: a quit is a failed dungeon for the haul; the compass is not touched.
+        String costLine = "Counts as a failed dungeon: your haul keeps "
+                + PocketDungeonsConfig.failHaulKeepPercent() + " percent.";
         return DialogKit.confirm("Quit the dungeon?",
                 List.of(DialogKit.text(Component.literal(costLine)
                                 .withStyle(ChatFormatting.YELLOW)),

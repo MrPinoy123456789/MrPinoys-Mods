@@ -1,14 +1,18 @@
 package pocketdungeons;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -16,9 +20,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The gated rooms' lock system.
@@ -133,6 +139,12 @@ final class Locks {
         return lock != null && lock.kind() != Kind.HOPPER_KEY;
     }
 
+    /** Whether the cell's armed lock is a hopper toll. */
+    static boolean isToll(BlockPos cellOrigin) {
+        Lock lock = ACTIVE.get(cellOrigin);
+        return lock != null && lock.kind() == Kind.HOPPER_KEY;
+    }
+
     /** Drops one cell's lock. Called from teardown, per cell of the layout. */
     static void clear(BlockPos cellOrigin) {
         ACTIVE.remove(cellOrigin);
@@ -151,9 +163,53 @@ final class Locks {
             case ITEM_ANY -> "Put any item in the chest to open it.";
             case ITEM_KEY -> "Put " + Component.translatable(lock.key().getDescriptionId()).getString() + " in the chest to open it.";
             case PLATES_ALL -> "Hold every pressure plate down at once.";
-            case HOPPER_KEY -> "Drop " + Component.translatable(lock.key().getDescriptionId()).getString()
-                    + " in the hopper to open the door.";
+            case HOPPER_KEY -> "Drop " + tollName(lock.key()) + " in the hopper to open the door.";
         };
+    }
+
+    /** PD-170: a trial key toll takes either kind, and the hint says so. */
+    private static String tollName(Item key) {
+        String name = Component.translatable(key.getDescriptionId()).getString();
+        return key == Items.TRIAL_KEY ? "a " + name + " (plain or ominous)" : name;
+    }
+
+    /**
+     * PD-170: whether {@code stack} pays a lock that asks for {@code key}. An ominous
+     * floor drops ominous trial keys, a different item, and the toll must not turn them
+     * away: the vault behind it can hold the last spawner the floor needs.
+     */
+    static boolean matches(ItemStack stack, Item key) {
+        return !stack.isEmpty() && key != null
+                && (stack.is(key) || (key == Items.TRIAL_KEY && stack.is(Items.OMINOUS_TRIAL_KEY)));
+    }
+
+    /** Ticks between the same player hearing the same toll hint. */
+    private static final long NEAR_HINT_COOLDOWN = 200;
+    /** How close to a toll hopper a player must stand to be told what it wants. */
+    private static final double NEAR_HINT_RANGE = 7.0;
+    private static final Map<UUID, Long> NEAR_HINTED = new HashMap<>();
+
+    /**
+     * PD-170: the hint line only came with using the iron door, and a player who never
+     * got that far never learned the toll exists. Walking up to the hopper says it too.
+     */
+    private static void nearHint(Lock lock) {
+        BlockPos hopper = lock.triggers().getFirst();
+        long now = lock.level().getGameTime();
+        for (ServerPlayer player : lock.level().players()) {
+            if (player.distanceToSqr(hopper.getX() + 0.5, hopper.getY() + 0.5, hopper.getZ() + 0.5)
+                    > NEAR_HINT_RANGE * NEAR_HINT_RANGE) {
+                continue;
+            }
+            Long last = NEAR_HINTED.get(player.getUUID());
+            if (last != null && now - last < NEAR_HINT_COOLDOWN) {
+                continue;
+            }
+            NEAR_HINTED.put(player.getUUID(), now);
+            player.connection.send(new ClientboundSetActionBarTextPacket(
+                    Component.literal("Toll door: drop " + tollName(lock.key()) + " in the hopper.")
+                            .withStyle(ChatFormatting.GOLD)));
+        }
     }
 
     private static void tick() {
@@ -161,6 +217,9 @@ final class Locks {
             Lock lock = entry.getValue();
             if (stale(lock)) {
                 return true;
+            }
+            if (lock.kind() == Kind.HOPPER_KEY && !satisfied(lock)) {
+                nearHint(lock);
             }
             if (!satisfied(lock)) {
                 return false;
@@ -208,7 +267,7 @@ final class Locks {
         }
         for (int i = 0; i < container.getContainerSize(); i++) {
             ItemStack stack = container.getItem(i);
-            if (!stack.isEmpty() && stack.is(key)) {
+            if (matches(stack, key)) {
                 return true;
             }
         }
@@ -223,7 +282,7 @@ final class Locks {
             }
             for (int i = 0; i < container.getContainerSize(); i++) {
                 ItemStack stack = container.getItem(i);
-                if (!stack.isEmpty() && stack.is(lock.key())) {
+                if (matches(stack, lock.key())) {
                     stack.shrink(1);
                     container.setItem(i, stack.isEmpty() ? ItemStack.EMPTY : stack);
                     container.setChanged();

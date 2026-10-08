@@ -360,6 +360,31 @@ public final class LemonGameTest {
     }
 
     /**
+     * PD-176: a delivered reply resolves every pending question, so the guide's fallback has
+     * nothing left to give up on; a second reply with nothing pending is harmless.
+     */
+    @GameTest(maxTicks = 20)
+    public void aDeliveredReplyClearsThePendingQuestion(GameTestHelper helper) {
+        ServerPlayer player = standingPlayer(helper, helper.absolutePos(new BlockPos(1, 2, 1)));
+        try {
+            Lemon.setMode(player, true);
+            Lemon.heard(player, "what is this floor called?");
+            helper.assertValueEqual(Lemon.view(player).pendingQuestions(), 1, "the question is held for the agent");
+            Lemon.think(player, "");
+            helper.assertTrue(Lemon.view(player).thinking(), "a think holds it");
+            Lemon.reply(player, "It is the Great Drip Cavern.");
+            helper.assertValueEqual(Lemon.view(player).pendingQuestions(), 0, "the reply answered it");
+            helper.assertTrue(!Lemon.view(player).thinking(), "and ended the think hold");
+            Lemon.reply(player, "Anything else?");
+            helper.assertValueEqual(Lemon.view(player).pendingQuestions(), 0, "a reply with nothing pending adds nothing");
+            helper.succeed();
+        } finally {
+            Lemon.setMode(player, false);
+            Lemon.forget(helper.getLevel().getServer(), player.getUUID());
+        }
+    }
+
+    /**
      * Playtest 2026-10-02-1: Lemon keeps each diary the first time it is
      * handed over; a second copy is acknowledged but stays in the hand.
      */

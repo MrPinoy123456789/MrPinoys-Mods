@@ -306,6 +306,14 @@ for ((taskName, testClass) in mapOf(
     // Dungeon structure W5: five kits with hidden bags, the side branch payer, structural palette blocks and room eligibility.
     "kitHiddenBagTest" to "KitHiddenBagTest",
     "doorLivesTest" to "DoorLivesTest",
+    // Playtest 2026-10-07-2 (PD-175): no loot entry enchants an already enchanted book.
+    "bookLootTest" to "BookLootTest",
+    // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
+    "floorTitleTest" to "FloorTitleTest",
+    // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
+    "rubbleRulesTest" to "RubbleRulesTest",
+    // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
+    "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
     "roomEligibilityTest" to "RoomEligibilityTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
@@ -408,6 +416,10 @@ tasks.test {
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
     dependsOn("doorLivesTest")
+    dependsOn("bookLootTest")
+    dependsOn("floorTitleTest")
+    dependsOn("rubbleRulesTest")
+    dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
     dependsOn("bossRulesTest")

@@ -61,17 +61,30 @@ public class OmenBarTextTest {
 
     private static void testClearedTitle() {
         // Between floors: the headline, what going home pays, and the lives left.
+        // PD-174: the bar keeps the floor and the lives; the loot outcome is in chat.
         checkEquals(OmenBarText.clearedTitle(2, "Frostworks", false, false, false, 1, 2),
-                "Floor 2 of Frostworks cleared | 2 loot rolls, chart scrap | Lives 4");
+                "Floor 2 of Frostworks cleared | Lives 4");
         checkEquals(OmenBarText.clearedTitle(4, "Frostworks", false, false, true, 0, 3),
-                "Floor 4 of Frostworks cleared, final floor ahead | 3 loot rolls, chart scrap | Lives 5");
+                "Floor 4 of Frostworks cleared, final floor ahead | Lives 5");
         checkEquals(OmenBarText.clearedTitle(5, "Frostworks", false, true, false, 1, 3),
-                "Frostworks cleared | 3 loot rolls, chart scrap | Lives 4");
+                "Frostworks cleared | Lives 4");
         // No dungeon (a run outside the graph) just counts floors; never a trip length.
         checkEquals(OmenBarText.clearedTitle(4, "", false, false, false, 1, 3),
-                "Floor 4 cleared | 3 loot rolls, chart scrap | Lives 4");
+                "Floor 4 cleared | Lives 4");
         checkEquals(OmenBarText.clearedTitle(5, "", true, false, false, 2, 2),
-                "Mine floor 5 cleared | 2 loot rolls, chart scrap | Lives 3");
+                "Mine floor 5 cleared | Lives 3");
+        // The big screen title never carries the final-floor tail; the subtitle does.
+        checkEquals(OmenBarText.clearedScreenTitle(4, "Frostworks", false, false), "Floor 4 of Frostworks cleared");
+        checkEquals(OmenBarText.clearedSubtitle(false, true), "Final floor ahead: GO HOME or DESCEND");
+        checkEquals(OmenBarText.clearedSubtitle(false, false), "GO HOME or DESCEND");
+        checkEquals(OmenBarText.clearedSubtitle(true, false), "GO HOME");
+        for (String line : new String[] {
+                OmenBarText.clearedTitle(4, "Ancient City", false, false, true, 0, 3),
+                OmenBarText.clearedScreenTitle(4, "Ancient City", false, false)}) {
+            if (line.contains(" | ") && line.length() > 60) {
+                throw new AssertionError("too long for one line: " + line);
+            }
+        }
     }
 
     private static void testCompletionVerdict() {

@@ -71,7 +71,7 @@ final class PressureSpecs {
             // spawners, which raise the plate's waves while it is held.
             BlockPos spawner = TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
                     "hold_the_plate", true);
-            Ordeals.arm(HoldThePlateOrdeal.INSTANCE, level, o);
+            Ordeals.arm(PlateRelayOrdeal.INSTANCE, level, o);
             return spawner;
         });
         // M58: template-only pressure rooms. The decor in the RoomSpec is
@@ -247,13 +247,13 @@ private static RoomSpec risingLava() {
     // ---- 3. Hold the Plate --------------------------------------------------
 
     /**
-     * A stone pressure plate in the room centre and a trial spawner. Stand on
-     * the plate for {@link HoldThePlateOrdeal#HOLD_SECONDS} seconds and the
-     * iron door at the exit opens; step off and the count pauses. The spawner
-     * sits between the entrance and the plate so the decision is informed from
-     * the doorway.
+     * The Plate Relay room. The template carries a centre plate and a trial spawner; at stamp
+     * {@link PlateRelayOrdeal} swaps the centre plate for four corner plates, one lit at a time.
+     * Stand on the lit plate for {@link PlateRelayOrdeal#CHARGE_SECONDS} seconds to charge it and the
+     * light jumps; enough charges open the iron door at the exit. The spawner sits between the
+     * entrance and the plates so the decision is informed from the doorway.
      *
-     * <p>PD-67: the count lives in {@link HoldThePlateOrdeal}, not in redstone.
+     * <p>PD-67: the count lives in {@link PlateRelayOrdeal}, not in redstone.
      * The template used to carry a hopper clock, a comparator, dust and a
      * repeater, but the diodes faced the wrong way (a diode's FACING is its
      * input side), the plate was wired to nothing and the clock had no lock,

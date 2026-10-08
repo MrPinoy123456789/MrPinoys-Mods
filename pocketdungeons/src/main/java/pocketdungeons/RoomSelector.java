@@ -173,6 +173,14 @@ final class RoomSelector {
                 encounterCells.add(role.getKey());
             }
         }
+        // PD-171: a spawner also comes from the room itself, not only from a role (the Barred
+        // Vault held the last required spawner of a floor with a rubble plug on the way in).
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
+            RoomManifest.Entry entry = manifest.byName(e.getValue().name());
+            if (hostsEncounter(e.getValue().name(), entry == null ? null : entry.meta.content)) {
+                encounterCells.add(e.getKey());
+            }
+        }
         Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), shape.entrance(),
                 spineEdges, encounterCells);
         Set<PlanCell> sealed = pickSealedCells(multiStory);
@@ -281,6 +289,21 @@ final class RoomSelector {
             return null;
         }
         return best;
+    }
+
+    /**
+     * PD-171: the situation ids whose handler calls {@code TrialContent.applyEncounter}, so the
+     * room holds a trial spawner the floor may need cleared. A rubble plug must never cut one
+     * off. {@code RubbleRulesTest} reads the sources and fails if a handler is missing here.
+     */
+    static final Set<String> ENCOUNTER_ROOMS = Set.of(
+            "breeze_arena", "bogged_marsh", "ledge_archers", "the_raid", "slime_pit", "wither_loft",
+            "creeper_kennel", "hold_the_plate", "sensor_gallery", "kennel_crossing", "blaze_cellar",
+            "barred_vault");
+
+    /** Whether a room (by name, or by the situation id its manifest entry names) holds a spawner. */
+    static boolean hostsEncounter(String name, String content) {
+        return ENCOUNTER_ROOMS.contains(name) || (content != null && ENCOUNTER_ROOMS.contains(content));
     }
 
     /** The chance a plan with an eligible door gets one rubble doorway. */

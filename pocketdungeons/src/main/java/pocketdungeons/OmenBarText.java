@@ -80,8 +80,28 @@ final class OmenBarText {
      */
     static String clearedTitle(int floorsCleared, String dungeon, boolean mine, boolean finished,
                                boolean finalAhead, int omen, int chests) {
+        // PD-174: the loot outcome used to ride on this line and the whole thing ran off the
+        // player's screen. The outcome is in the completion chat line; the bar keeps the floor
+        // and the lives.
         return clearedHeadline(floorsCleared, dungeon, mine, finished, finalAhead)
-                + " | " + outcome(chests) + " | " + livesText(omen);
+                + " | " + livesText(omen);
+    }
+
+    /**
+     * PD-174: the big on-screen title of a floor clear. The headline alone, without the
+     * {@code ", final floor ahead"} tail, which is too wide at title size; the tail moves to
+     * {@link #clearedSubtitle}.
+     */
+    static String clearedScreenTitle(int floorsCleared, String dungeon, boolean mine, boolean finished) {
+        return clearedHeadline(floorsCleared, dungeon, mine, finished, false);
+    }
+
+    /** The line under the floor clear title: what the party can do next. */
+    static String clearedSubtitle(boolean finished, boolean finalAhead) {
+        if (finished) {
+            return "GO HOME";
+        }
+        return finalAhead ? "Final floor ahead: GO HOME or DESCEND" : "GO HOME or DESCEND";
     }
 
     /**

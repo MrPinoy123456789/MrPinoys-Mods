@@ -488,7 +488,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L50. 2026-10-06: the Store is a villager's trade screen
 
-- **Status:** partial 2026-10-07 (`2026-10-07-1.md`): he entered `the_store` on Cow Pits floor 2 and reports "Villager shop works fine", so the real trade screen opens. No `shop_sale` journal event, so a completed trade and the bundle payout stay unverified. Earlier: owed
+- **Status:** pass 2026-10-08 (`2026-10-07-2.md`): completed trades now journaled from two vendors: `shop_sale` x2 (Web Trader, 1 emerald for 3 string) and `shop_purchase` (Wandering Merchant, bow for 3 emeralds; home Librarian, diamond leggings for 18). Earlier: partial 2026-10-07 (`2026-10-07-1.md`, screen opened, no journaled trade); owed
 - **Changed:** 2026-10-06 (J4, `StoreNPC`, `MerchantThemes`): each themed merchant is a tagged villager with real `MerchantOffer`s. Leftover drops go in as bundles, the pool pays out in the merchant's currency.
 - **Do:** Trade at two different themed merchants; buy something and watch the journal.
 - **Pass:** The vanilla merchant screen opens, not a chest menu; offers are real trades; a completed trade writes a `shop_sale` journal row with the item.
@@ -504,7 +504,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L52. 2026-10-06: the librarian sells rolled gear
 
-- **Status:** owed, 2026-10-07-1.md: not exercised; the built-in tour advertised it twice ("Craft a lectern ... A Librarian moves in") and he did not follow it up. Earlier: owed
+- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): he built the lectern (and enchanting table, grindstone, smithing table) in his safe room and bought rolled gear from the Librarian: `shop_purchase` diamond_leggings for 18 emeralds. Offer count, Mending price and restock-on-homecoming still unverified. Earlier: owed, 2026-10-07-1.md: not exercised
 - **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
 - **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
 - **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
@@ -512,7 +512,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L53. 2026-10-06: keys settle on the clear line
 
-- **Status:** owed, 2026-10-07-1.md: no key redemption observed directly; the floor-4 `floor_pay` of 9 emeralds may include key buy-back (unconfirmed). No gear drops seen in snapshots (rotten_flesh only). Related break: the barred_vault filter hopper holds 4x64 trial keys the player could pull (PD-164), which would flood this redemption path if exploited. Earlier: owed
+- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): key redemption on the clear line confirmed by `floor_pay` emerald payloads of 3, 4 and 1 emeralds alongside scrap (matching the J7 rates: 1 plain, 3 ominous). New related break: ominous trial keys cannot pay the barred_vault toll, so on ominous floors keys can only ever redeem (PD-170). Mob gear drops not rechecked this session. Earlier: owed, 2026-10-07-1.md
 - **Changed:** 2026-10-06 (J7, `DungeonDrops`, `RunLifecycle.redeemKeys`): mobs drop no gear in the dungeon, and trial keys never leave their floor. The salvage bench refuses keys; at a floor clear each unused key becomes emeralds.
 - **Do:** Kill dungeon mobs and check the drops; put a trial key in the salvage input; clear a floor holding a plain and an ominous trial key.
 - **Pass:** No weapons, armour or bows drop; the bench refuses the key; the clear line pays 1 emerald for the plain key and 3 for the ominous, and the keys are gone.
@@ -520,7 +520,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L54. 2026-10-07: Haul and Blood Doors
 
-- **Status:** owed
+- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): every bank path verified in the journal (home lever x2, finish "banked 5", fifth-death fail "banked 4 of 8"), compass lore correct in and out of trip, GO HOME board shows per-member haul, lives, unfinished and the half-loss line, and floor clears pay zero emeralds. Model mechanics pass. Failed checks: blood door never taken (lives:1 edge previewed only), last-life refusal untested, disconnect/grace untested, milestone title not reached (first:false finishes), migration join message unverified. New breaks filed: owner death purges the party run at any lives count (PD-167), quit and purge never settle the haul (PD-168), quit strands dungeon gear in the overworld (PD-169), ominous keys cannot pay the vault toll (PD-170). Player's one-sentence explain: "I can't tell yet, feels like it doesn't exist": the model works but is invisible; his proposal "pull the lever is the payout ritual" is logged in the report. Earlier: owed
 - **Changed:** 2026-10-07 (`docs/decision-2026-10-07-haul-and-blood-doors.md`, PD-162): scrap rides in a per-trip haul that banks into the compass bar at home or a finish and is half lost to a failed dungeon; a side door costs the party a life; floors below your compass pay 1; no overlevel emeralds.
 - **Do:** (1) As a migrated compass 12 player: read the compass lore (`Compass 12: 0/5 scrap to 13`) and the one time join message; clear a Copper Works floor and read the clear line (`+1 scrap (you are above this floor). Haul 1.`). (2) Take a side door and watch Lives drop; try it at Lives 1. (3) Go home with a haul. (4) Fail on purpose with a haul. (5) Party of two with different compasses. (6) Disconnect mid trip, rejoin inside the grace, then let a grace expire. (7) Count emeralds over the session and deaths per trip. (8) Ask the player to explain the system in one sentence.
 - **Pass:** the lore, clear line, GO HOME board (`Haul N scrap`, `Lives N`, `Unfinished: ...`, footer while a haul is at risk) and door board (`Costs 1 life`) agree; going home says `Home. Banked N scrap: compass X, y/5 to Z.`; a failure says `Half your haul made it out: banked A of B scrap.`; the last life is never for sale; emeralds no longer come from floor clears.

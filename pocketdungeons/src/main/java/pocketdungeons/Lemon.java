@@ -121,6 +121,9 @@ final class Lemon {
         boolean agentQuiet;
         /** Set by {@code think}: the guide fallback waits until then instead of {@code lemonFallbackSeconds}. */
         long thinkingUntil;
+        /** PD-176: when the guide's fallback last gave up on a question, and which; 0 if never. */
+        long fallbackAt;
+        String fallbackText;
         /** Set by {@code think}: Lemon stays away, not listening lit, until it next speaks or is spoken to. */
         boolean hidden;
         long lastAddressed = -CONVERSATION_TICKS;
@@ -501,9 +504,22 @@ final class Lemon {
         long now = player.level().getServer().getTickCount();
         State state = stateFor(player.getUUID());
         resolvePending(player, state, now, "llm");
+        // PD-176: an agent slower than the fallback window answers a question the guide has
+        // already given up on. The reply is still shown, and the journal says it was a late
+        // answer instead of leaving only "unanswered" for a question that did get one.
+        if (state.fallbackText != null && now - state.fallbackAt <= LATE_REPLY_TICKS) {
+            PocketDungeonsMod.LOG.info("Lemon late reply <{}> {}s after the fallback: {}",
+                    player.getName().getString(), (now - state.fallbackAt) / 20, state.fallbackText);
+            PlaytestJournal.lemonAsk(player, state.fallbackText, "llm_late", 0, (now - state.fallbackAt) / 20);
+        }
+        state.fallbackText = null;
+        state.fallbackAt = 0;
         show(player, state, text, false, "replies");
         return Delivery.SHOWN;
     }
+
+    /** How long after the fallback gave up a reply still counts as a late answer to that question. */
+    static final long LATE_REPLY_TICKS = 20L * 120;
 
     /**
      * {@code dungeon lemon think}: acknowledge a question while the agent
@@ -623,6 +639,8 @@ final class Lemon {
                 state.pending.get(0).askedAt(), state.thinkingUntil, now)) {
             PocketDungeonsMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
                     state.pending.get(state.pending.size() - 1).text());
+            state.fallbackAt = now;
+            state.fallbackText = state.pending.get(state.pending.size() - 1).text();
             resolvePending(player, state, now, "none");
             state.hidden = false;
             show(player, state, HONEST_LINE, false, "says");

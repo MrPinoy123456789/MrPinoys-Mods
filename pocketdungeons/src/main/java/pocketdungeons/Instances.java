@@ -1911,7 +1911,7 @@ final class Instances {
      * and re-enter the dungeon from there. Falls back to {@link #eject} (return
      * point) when the record has no room cell (admin/untimed runs).
      */
-    private static void rescue(ServerPlayer player, InstanceRecord record) {
+    static void rescue(ServerPlayer player, InstanceRecord record) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
@@ -1940,7 +1940,18 @@ final class Instances {
         // present used to leave the run running without them; dropMember's
         // leadership branch now ends it for everyone, exactly as a voluntary
         // exit or a disconnect already would.
-        RunLifecycle.dropMember(server, record, player.getUUID(), player, "death rescue");
+        //
+        // PD-167: with a room to regroup in, the rescue is a detach and a
+        // re-admit, not a departure. Going through dropMember there let the
+        // leadership rule end the run for the whole party whenever the owner
+        // died, at any lives count; under Blood Doors a death spends one life
+        // and nothing else. Only a rescue with no room to return to (admin,
+        // untimed, visit) is still a real exit and keeps the leadership rule.
+        if (hadRoom) {
+            detach(server, record, player.getUUID(), player);
+        } else {
+            RunLifecycle.dropMember(server, record, player.getUUID(), player, "death rescue");
+        }
 
         // dropMember's leadership branch purges the whole record synchronously
         // (InstanceRegistry.bySlot.remove), so this is how rescue tells
