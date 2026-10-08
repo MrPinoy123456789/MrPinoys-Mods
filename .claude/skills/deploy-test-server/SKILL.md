@@ -52,4 +52,5 @@ has interrupted long polling waits.
 - Upload failed or Ready never reached: `status`, read the log tail, retry once; if it still fails, report the
   exact output instead of trying other hosting routes.
 - Wrong server id printed: stop immediately, change nothing, tell the owner.
+- After a deploy, `node tools/server/pdserver.mjs cmd dungeon admin validate` should answer `Pack validation passed: no findings.` (confirmed 2026-10-08 on 714a0605 with 118 rooms).
 - A new jar loaded but content looks stale: `dungeon admin validate` through `cmd` lists pack findings.
