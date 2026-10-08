@@ -86,7 +86,8 @@
       "id": "big_freeze",
       "name": "The Big Freeze",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["big_freeze"]
     }
   ],
   "edges": [

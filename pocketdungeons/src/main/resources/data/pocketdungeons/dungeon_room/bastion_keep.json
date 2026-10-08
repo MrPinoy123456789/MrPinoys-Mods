@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/bastion_keep",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["blackstone"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "blackstone",
+  "dungeons": ["blackstone"],
+  "acts": [4],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:gilded_blackstone", "from": [8,2,6], "to": [11,2,9], "count": 4 },
+    { "block": "minecraft:nether_gold_ore", "from": [8,2,6], "to": [11,2,9], "count": 3 },
+    { "block": "minecraft:ancient_debris", "from": [8,2,6], "to": [11,2,9], "count": 1, "chance": 0.35 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

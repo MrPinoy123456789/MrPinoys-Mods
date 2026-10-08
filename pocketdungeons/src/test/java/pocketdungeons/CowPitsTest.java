@@ -31,15 +31,18 @@ public class CowPitsTest {
     }
 
     private static void testCap() {
-        check(CowPits.FLOOR_MIN == 6 && CowPits.FLOOR_CAP == 10, "6 to 10 cows per floor");
+        check(CowPits.FLOOR_MIN == 6 && CowPits.FLOOR_CAP == 13, "6 to 13 cows per floor (the ward adds 3)");
         check(CowPits.maxPossible() <= CowPits.FLOOR_CAP, "the room set never exceeds the cap: " + CowPits.maxPossible());
         check(CowPits.maxPossible() >= CowPits.FLOOR_MIN, "and can reach the minimum");
-        check(CowPits.ROOM_COWS.get("cow_pens") * CowPits.ROOM_LIMITS.get("cow_pens") >= CowPits.FLOOR_MIN,
+        check(CowPits.maxPossible() == 13, "pens 6 + loft 2 + yard 2 + ward 3: " + CowPits.maxPossible());
+        check(CowPits.ROOM_COWS.keySet().equals(CowPits.ROOM_LIMITS.keySet()), "every cow room has a limit");
+        check(CowPits.ROOM_COWS.get("cow_ward") == 1 + CowPits.WARD_CELL_NAMES.size(), "ward: pedestal plus named cell cows");
+        check(CowPits.ROOM_COWS.get("cow_pens") *CowPits.ROOM_LIMITS.get("cow_pens") >= CowPits.FLOOR_MIN,
                 "the pens alone reach the minimum");
         check(CowPits.spawnCount(3, 0) == 3, "a room spawns its own count on an empty floor");
-        check(CowPits.spawnCount(3, 8) == 2, "the cap trims the last room");
-        check(CowPits.spawnCount(3, 10) == 0, "a full floor spawns none");
-        check(CowPits.spawnCount(3, 14) == 0, "an over full floor spawns none");
+        check(CowPits.spawnCount(3, 11) == 2, "the cap trims the last room");
+        check(CowPits.spawnCount(3, 13) == 0, "a full floor spawns none");
+        check(CowPits.spawnCount(3, 16) == 0, "an over full floor spawns none");
         check(CowPits.spawnCount(0, 0) == 0, "an empty room spawns none");
     }
 

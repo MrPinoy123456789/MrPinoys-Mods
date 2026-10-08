@@ -79,7 +79,8 @@
       "id": "bastion_keep",
       "name": "The Bastion Keep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["bastion_keep"]
     },
     {
       "id": "crimson_grove",

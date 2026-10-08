@@ -29,6 +29,7 @@
       "pocketdungeons.RescueGameTest",
       "pocketdungeons.HerdGameTest",
       "pocketdungeons.PlateRelayGameTest",
+      "pocketdungeons.RoomLibraryGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

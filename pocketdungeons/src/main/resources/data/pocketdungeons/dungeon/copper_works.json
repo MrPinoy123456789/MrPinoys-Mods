@@ -62,7 +62,8 @@
       "id": "master_furnace",
       "name": "The Master Furnace",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["master_furnace"]
     }
   ],
   "edges": [

@@ -20,7 +20,8 @@
       "layer": 1,
       "light": "dim",
       "roomBias": [
-        "cow_pens"
+        "cow_pens",
+        "cow_ward"
       ]
     },
     {

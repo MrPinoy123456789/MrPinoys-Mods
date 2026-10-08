@@ -64,7 +64,8 @@
       "id": "last_index",
       "name": "The Last Index",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["last_index"]
     }
   ],
   "edges": [

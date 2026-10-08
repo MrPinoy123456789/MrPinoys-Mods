@@ -31,7 +31,8 @@
       "layer": 2,
       "roomBias": [
         "infested_wall",
-        "burrow_tunnel"
+        "burrow_tunnel",
+        "gnawed_vein"
       ],
       "light": "dim"
     },
@@ -68,7 +69,8 @@
       "id": "queens_nest",
       "name": "The Queen's Nest",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["queens_nest"]
     }
   ],
   "edges": [

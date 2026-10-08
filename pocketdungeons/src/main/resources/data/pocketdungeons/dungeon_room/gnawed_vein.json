@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/gnawed_vein",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["infestation"],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "infestation",
+  "dungeons": ["infestation"],
+  "acts": [1],
+  "nodes": [
+    { "block": "minecraft:iron_ore", "from": [3, 1, 5], "to": [5, 3, 5], "count": 3 },
+    { "block": "minecraft:coal_ore", "from": [10, 1, 5], "to": [12, 3, 5], "count": 3 },
+    { "block": "minecraft:coal_ore", "from": [5, 1, 9], "to": [7, 3, 9], "count": 2 },
+    { "block": "minecraft:iron_ore", "from": [11, 1, 9], "to": [13, 3, 9], "count": 2, "chance": 0.8 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

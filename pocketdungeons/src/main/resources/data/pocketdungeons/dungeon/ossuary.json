@@ -30,7 +30,8 @@
       "layer": 2,
       "roomBias": [
         "crypt_corner",
-        "ossuary_passage"
+        "ossuary_passage",
+        "charnel_niches"
       ],
       "light": "dim"
     },
@@ -62,7 +63,8 @@
       "id": "last_rest",
       "name": "The Last Rest",
       "layer": 3,
-      "final": true
+      "final": true,
+      "roomBias": ["last_rest"]
     }
   ],
   "edges": [

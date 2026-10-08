@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/last_rest",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["ossuary"],
+  "dungeons": ["ossuary"],
+  "acts": [1],
+  "graphRole": ["final"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "ossuary",
+  "nodes": [
+    { "block": "minecraft:bone_block", "from": [4, 1, 1], "to": [5, 2, 1], "count": 2 },
+    { "block": "minecraft:bone_block", "from": [10, 1, 14], "to": [11, 2, 14], "count": 2 },
+    { "block": "minecraft:coal_ore", "from": [10, 1, 1], "to": [11, 2, 1], "count": 2 },
+    { "block": "minecraft:iron_ore", "from": [4, 1, 14], "to": [5, 2, 14], "count": 2, "chance": 0.7 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

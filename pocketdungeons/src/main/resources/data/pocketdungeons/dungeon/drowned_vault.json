@@ -72,7 +72,8 @@
       "id": "wardens_deep",
       "name": "The Warden's Deep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["wardens_deep"]
     }
   ],
   "edges": [

@@ -72,7 +72,8 @@
       "id": "great_crucible",
       "name": "The Great Crucible",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["great_crucible"]
     },
     {
       "id": "warped_grove",

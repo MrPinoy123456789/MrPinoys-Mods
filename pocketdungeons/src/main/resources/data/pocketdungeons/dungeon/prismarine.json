@@ -64,7 +64,8 @@
       "id": "monument_heart",
       "name": "Heart of the Monument",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["monument_heart"]
     }
   ],
   "edges": [

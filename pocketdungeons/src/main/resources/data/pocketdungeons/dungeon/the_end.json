@@ -75,7 +75,8 @@
       "id": "world_rim",
       "name": "The Rim of the World",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["world_rim"]
     }
   ],
   "edges": [

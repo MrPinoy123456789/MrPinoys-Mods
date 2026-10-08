@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/master_furnace",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["copper_works"],
+  "dungeons": ["copper_works"],
+  "acts": [2],
+  "graphRole": ["final"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "copper_works",
+  "nodes": [
+    { "block": "minecraft:iron_ore", "from": [1, 1, 3], "to": [1, 2, 5], "count": 4 },
+    { "block": "minecraft:coal_ore", "from": [1, 1, 10], "to": [1, 2, 12], "count": 3 },
+    { "block": "minecraft:iron_ore", "from": [14, 1, 3], "to": [14, 2, 5], "count": 3, "chance": 0.7 },
+    { "block": "minecraft:coal_ore", "from": [14, 1, 10], "to": [14, 2, 12], "count": 3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

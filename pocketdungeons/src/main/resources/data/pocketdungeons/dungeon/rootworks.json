@@ -33,7 +33,8 @@
       "layer": 2,
       "roomBias": [
         "lush_hollow",
-        "thicket"
+        "thicket",
+        "root_sandbar"
       ],
       "light": "dim"
     },
@@ -75,7 +76,10 @@
       "id": "great_taproot",
       "name": "The Great Drip Cavern",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "great_drip_cavern"
+      ]
     }
   ],
   "edges": [

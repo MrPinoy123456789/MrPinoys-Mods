@@ -85,7 +85,8 @@
       "id": "silent_deep",
       "name": "The Silent Deep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["silent_deep"]
     }
   ],
   "edges": [

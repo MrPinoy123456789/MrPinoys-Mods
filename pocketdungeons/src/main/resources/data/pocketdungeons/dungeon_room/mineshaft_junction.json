@@ -1,0 +1,29 @@
+{
+  "template": "pocketdungeons:rooms/mineshaft_junction",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["mineshaft", "deepslate"],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "mineshaft",
+  "dungeons": ["mineshaft"],
+  "acts": [1],
+  "nodes": [
+    { "block": "minecraft:coal_ore", "from": [5, 1, 2], "to": [5, 3, 4], "count": 3 },
+    { "block": "minecraft:coal_ore", "from": [2, 1, 5], "to": [4, 3, 5], "count": 2 },
+    { "block": "minecraft:iron_ore", "from": [9, 1, 2], "to": [9, 3, 4], "count": 3 },
+    { "block": "minecraft:iron_ore", "from": [11, 1, 5], "to": [13, 3, 5], "count": 3, "chance": 0.75 },
+    { "block": "minecraft:iron_ore", "from": [5, 1, 11], "to": [5, 3, 13], "count": 2, "chance": 0.6 },
+    { "block": "minecraft:coal_ore", "from": [2, 1, 9], "to": [4, 3, 9], "count": 2, "chance": 0.6 },
+    { "block": "minecraft:gold_ore", "from": [9, 1, 11], "to": [9, 3, 13], "count": 2, "chance": 0.5 },
+    { "block": "minecraft:iron_ore", "from": [11, 1, 9], "to": [13, 3, 9], "count": 2, "chance": 0.5 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

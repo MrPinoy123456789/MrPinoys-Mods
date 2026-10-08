@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/silent_deep",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["deepslate"],
+  "dungeons": ["deepslate"],
+  "acts": [2],
+  "graphRole": ["final"],
+  "light": "dark",
+  "corridor": "wide",
+  "biome": "deepslate",
+  "nodes": [
+    { "block": "minecraft:deepslate_lapis_ore", "from": [6, 2, 6], "to": [9, 2, 9], "count": 3 },
+    { "block": "minecraft:deepslate_redstone_ore", "from": [6, 2, 6], "to": [9, 2, 9], "count": 3 },
+    { "block": "minecraft:deepslate_iron_ore", "from": [6, 2, 6], "to": [9, 2, 9], "count": 2 },
+    { "block": "minecraft:deepslate_diamond_ore", "from": [6, 2, 6], "to": [9, 2, 9], "count": 1, "chance": 0.5 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

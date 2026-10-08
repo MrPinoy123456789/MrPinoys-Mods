@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/monument_heart",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["prismarine"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "prismarine",
+  "dungeons": ["prismarine"],
+  "acts": [3],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:gold_ore", "from": [7,1,7], "to": [8,2,8], "count": 3 },
+    { "block": "minecraft:lapis_ore", "from": [7,1,7], "to": [8,2,8], "count": 2 },
+    { "block": "minecraft:diamond_ore", "from": [7,1,7], "to": [8,2,8], "count": 1, "chance": 0.5 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}
