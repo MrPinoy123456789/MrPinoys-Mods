@@ -285,6 +285,11 @@ in a shared tree.
   (cycling the points when `count` is larger), and `after` runs once per mob in that shuffled order, so tell mobs apart
   by position (for example height), not by order. Name an entity with `setCustomName` and `setCustomNameVisible(true)`.
   The room needs an `ENCOUNTER_ROOMS` entry only if its handler calls `TrialContent.applyEncounter`.
+- **Update the floor's note.** A room that changes what a floor offers (an ore room added to a `roomBias`, a final room)
+  should change that node's `"notes"` in `dungeon/<id>.json` (see `dungeon-content`); `FloorNotesTest` fails a note that names
+  an ore no biased room declares. To make a dungeon you do not own use your rooms, add `borrowableBy: ["<dungeon id>"]` to the
+  room's manifest and put the room in the nodes' `roomBias` (Cow Pits borrows four ore rooms this way); set `minNodeRooms`
+  to 0 on a dungeon that should not promise ore.
 - Resource budgets are part of the design: count logs, sand and ore in the room and keep them small (groves hold 8 to 9
   logs, `root_sandbar` about 38 sand). Cow rooms are capped by `CowPits.ROOM_COWS`, `ROOM_LIMITS` and `FLOOR_CAP`.
 - Editing JSON with `sed` flips line endings on the touched lines (the files are CRLF). Prefer the Edit tool.

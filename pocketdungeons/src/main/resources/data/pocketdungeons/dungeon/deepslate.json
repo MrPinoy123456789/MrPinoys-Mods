@@ -1,5 +1,6 @@
 {
   "name": "Deepslate",
+  "notes": "Deep ore: iron, lapis, redstone and a chance of diamond.",
   "act": 2,
   "baseLevel": 6,
   "kind": "dungeon",
@@ -30,6 +31,7 @@
     {
       "id": "lantern_stairs",
       "name": "Lantern Stairs",
+      "notes": "A broken shaft landing. Iron and lapis.",
       "layer": 2,
       "roomBias": [
         "deep_shaft_landing"
@@ -38,6 +40,7 @@
     {
       "id": "sculk_shallows",
       "name": "Sculk Shallows",
+      "notes": "Sculk sensors in the halls. Quiet feet.",
       "layer": 2,
       "roomBias": [
         "sensor_gallery"
@@ -46,6 +49,7 @@
     {
       "id": "deep_quarry",
       "name": "Deep Quarry",
+      "notes": "A geode of lapis, and a chance of diamond.",
       "layer": 3,
       "roomBias": [
         "deep_geode"
@@ -54,6 +58,7 @@
     {
       "id": "cracked_barracks",
       "name": "Cracked Barracks",
+      "notes": "Bones in the barracks. Skeletons wait.",
       "layer": 3,
       "theme": "ossuary",
       "roomBias": [
@@ -63,6 +68,7 @@
     {
       "id": "tuff_cellars",
       "name": "Tuff Cellars",
+      "notes": "Barred vaults and fossil galleries. Iron and lapis.",
       "layer": 3,
       "roomBias": [
         "barred_vault",
@@ -72,6 +78,7 @@
     {
       "id": "pale_gallery",
       "name": "Pale Gallery",
+      "notes": "The deep dark landing. A shrieker waits.",
       "layer": 4,
       "roomBias": [
         "deep_dark_landing"
@@ -80,6 +87,7 @@
     {
       "id": "collapsed_landing",
       "name": "Collapsed Landing",
+      "notes": "A detour off the main way down.",
       "layer": 4,
       "rewards": [
         {
@@ -91,6 +99,7 @@
     {
       "id": "silent_deep",
       "name": "The Silent Deep",
+      "notes": "The last floor. A silent hall of lapis, iron and diamond.",
       "layer": 5,
       "final": true,
       "roomBias": ["silent_deep"]

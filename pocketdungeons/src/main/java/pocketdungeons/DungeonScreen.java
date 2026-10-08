@@ -498,9 +498,13 @@ final class DungeonScreen {
         }
         boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
         List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
+        // The dungeon's note speaks on its entry floor (the first door is the choice of dungeon); a deeper
+        // floor speaks for itself. Both are the reason to pick this door over the next.
+        String authored = def == null || node == null ? ""
+                : node.layer() == 1 && !def.notes().isEmpty() ? def.notes() : node.notes();
         String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
                 node != null && node.isFinal(), def != null && showsNodes(def, node) && oreHonest ? ores : List.of(),
-                def != null && showsNodes(def, node) && oreHonest);
+                def != null && showsNodes(def, node) && oreHonest, authored);
         Sheets sheets = new Sheets(
                 dungeonLine.copy().withStyle(ChatFormatting.YELLOW),
                 floorLine.copy().withStyle(ChatFormatting.YELLOW),

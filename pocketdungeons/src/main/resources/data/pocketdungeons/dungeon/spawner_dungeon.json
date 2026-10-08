@@ -1,5 +1,6 @@
 {
   "name": "The Spawner Dungeon",
+  "notes": "Spawners everywhere. Three floors to the brood.",
   "act": 1,
   "baseLevel": 5,
   "kind": "capstone",
@@ -29,6 +30,7 @@
     {
       "id": "mossy_halls",
       "name": "The Mossy Halls",
+      "notes": "Mossy halls and spawner dens.",
       "layer": 2,
       "roomBias": [
         "spawner_den",
@@ -38,12 +40,14 @@
     {
       "id": "bone_gallery",
       "name": "The Bone Gallery",
+      "notes": "A gallery of bones. Skeletons wait.",
       "layer": 2,
       "theme": "ossuary"
     },
     {
       "id": "brood_chamber",
       "name": "The Brood Chamber",
+      "notes": "The last floor. The brood chamber.",
       "layer": 3,
       "final": true,
       "roomBias": [

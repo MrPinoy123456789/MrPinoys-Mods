@@ -1,5 +1,6 @@
 {
   "name": "Mineshaft",
+  "notes": "Coal, iron, gold and sand. Dig the rails and seams for ore.",
   "act": 1,
   "baseLevel": 1,
   "kind": "dungeon",
@@ -44,6 +45,7 @@
     {
       "id": "main_drift",
       "name": "The Main Drift",
+      "notes": "Long rail tunnels with ore seams along the walls.",
       "layer": 2,
       "light": "dim",
       "roomBias": [
@@ -54,6 +56,7 @@
     {
       "id": "side_gallery",
       "name": "Side Gallery",
+      "notes": "Crossroads and ore seams. More ways to dig.",
       "layer": 2,
       "light": "dim",
       "roomBias": [
@@ -64,6 +67,7 @@
     {
       "id": "deep_face",
       "name": "The Deep Face",
+      "notes": "The last floor. Cave-ins and ore seams.",
       "layer": 3,
       "final": true,
       "light": "dim",

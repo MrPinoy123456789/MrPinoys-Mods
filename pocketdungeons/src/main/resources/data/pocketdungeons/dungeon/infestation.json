@@ -1,5 +1,6 @@
 {
   "name": "Infestation",
+  "notes": "Silverfish, webs and string. Coal and iron in gnawed veins.",
   "act": 1,
   "baseLevel": 2,
   "kind": "dungeon",
@@ -28,6 +29,7 @@
     {
       "id": "chewed_corridors",
       "name": "Chewed Corridors",
+      "notes": "Gnawed veins of coal and iron. Mind the stone.",
       "layer": 2,
       "roomBias": [
         "infested_wall",
@@ -39,6 +41,7 @@
     {
       "id": "silverfish_nests",
       "name": "Silverfish Nests",
+      "notes": "Slime pits and silverfish nests. Loot, not ore.",
       "layer": 2,
       "roomBias": [
         "slime_pit"
@@ -48,6 +51,7 @@
     {
       "id": "hollow_walls",
       "name": "Hollow Walls",
+      "notes": "Webs and thickets. String for the taking.",
       "layer": 3,
       "theme": "rootworks",
       "roomBias": [
@@ -63,11 +67,13 @@
     {
       "id": "stone_larder",
       "name": "Stone Larder",
+      "notes": "Plain halls. The quiet choice.",
       "layer": 3
     },
     {
       "id": "queens_nest",
       "name": "The Queen's Nest",
+      "notes": "The last floor. The nest: eggs, webs, coal and iron.",
       "layer": 4,
       "final": true,
       "roomBias": ["queens_nest"]

@@ -1,5 +1,6 @@
 {
   "name": "Copper Works",
+  "notes": "A copper forge full of coal and iron. Smelt as you go.",
   "act": 2,
   "baseLevel": 8,
   "kind": "dungeon",
@@ -28,6 +29,7 @@
     {
       "id": "boiler_hall",
       "name": "Boiler Hall",
+      "notes": "Boilers and forges. Raid the coal bunkers.",
       "layer": 2,
       "roomBias": [
         "copper_works_forge",
@@ -38,6 +40,7 @@
     {
       "id": "pipe_galleries",
       "name": "Pipe Galleries",
+      "notes": "An ore chute and pipe galleries. Coal and iron.",
       "layer": 2,
       "roomBias": [
         "copper_ore_chute"
@@ -46,6 +49,7 @@
     {
       "id": "gear_loft",
       "name": "Gear Loft",
+      "notes": "A deepslate loft. Different stone, different mobs.",
       "layer": 3,
       "theme": "deepslate",
       "rewards": [
@@ -58,6 +62,7 @@
     {
       "id": "verdigris_foundry",
       "name": "Verdigris Foundry",
+      "notes": "Old forges, green with age.",
       "layer": 3,
       "roomBias": [
         "copper_works_forge"
@@ -66,6 +71,7 @@
     {
       "id": "master_furnace",
       "name": "The Master Furnace",
+      "notes": "The last floor. Smelt on the spot at the Master Furnace.",
       "layer": 4,
       "final": true,
       "roomBias": ["master_furnace"]

@@ -1,5 +1,6 @@
 {
   "name": "Lush Caves",
+  "notes": "Sand, clay, wood and iron under glowing roots.",
   "act": 1,
   "baseLevel": 1,
   "kind": "dungeon",
@@ -30,6 +31,7 @@
     {
       "id": "tangled_hollow",
       "name": "Glow Berry Hollow",
+      "notes": "Glow berries and sandbars. Webs in the thickets.",
       "layer": 2,
       "roomBias": [
         "lush_hollow",
@@ -41,6 +43,7 @@
     {
       "id": "mossy_burrow",
       "name": "Clay Burrow",
+      "notes": "Winding root tunnels. Quiet and dim.",
       "layer": 2,
       "roomBias": [
         "lush_root_gallery",
@@ -51,6 +54,7 @@
     {
       "id": "heartwood",
       "name": "The Heartwood",
+      "notes": "Clay pools and a tree grove. Clay, wood and iron.",
       "layer": 3,
       "roomBias": [
         "lush_clay_pool",
@@ -60,6 +64,7 @@
     {
       "id": "sapping_den",
       "name": "Sapping Den",
+      "notes": "Silverfish walls and sap. Tread carefully.",
       "layer": 3,
       "theme": "infestation",
       "roomBias": [
@@ -75,6 +80,7 @@
     {
       "id": "great_taproot",
       "name": "The Great Drip Cavern",
+      "notes": "The last floor. A vast dripping cavern of sand and clay.",
       "layer": 4,
       "final": true,
       "roomBias": [

@@ -1,5 +1,6 @@
 {
   "name": "Cow Pits",
+  "notes": "A barn of numbered cows: beef, leather and a mine below.",
   "act": 2,
   "baseLevel": 6,
   "kind": "dungeon",
@@ -30,6 +31,7 @@
     {
       "id": "the_big_barn",
       "name": "The Big Barn",
+      "notes": "The last floor. The herd, the lofts and a mine below.",
       "layer": 2,
       "final": true,
       "light": "dim",

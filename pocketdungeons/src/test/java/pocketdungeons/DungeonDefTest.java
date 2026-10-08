@@ -58,6 +58,7 @@ public class DungeonDefTest {
         testShippedDungeons();
         testNodeLight();
         testHiddenOre();
+        testNotes();
         testFloorLevels();
         System.out.println("DungeonDefTest: all checks passed");
     }
@@ -211,6 +212,34 @@ public class DungeonDefTest {
 
     /** W4: a node's light is lit by default, dark and dim parse, and a stranger is rejected. */
     /** Design item 7: hiddenOre parses with its defaults, validates, and falls back to the palette. */
+    /** Floor and dungeon notes (2026-10-08): optional, trimmed, one sentence, and free of dash punctuation. */
+    private static void testNotes() {
+        com.google.gson.JsonObject plain = JsonParser.parseString(JSON).getAsJsonObject();
+        DungeonDef none = DungeonDef.fromJson(T + "frostworks", plain);
+        check(none.notes().isEmpty(), "a dungeon without a note reads as none");
+        check(none.nodes().stream().allMatch(n -> n.notes().isEmpty()), "and so does a node");
+
+        com.google.gson.JsonObject noted = JsonParser.parseString(JSON).getAsJsonObject();
+        noted.addProperty("notes", "  Ice and powder snow.  ");
+        noted.getAsJsonArray("nodes").get(0).getAsJsonObject().addProperty("notes", "Frozen kitchens.");
+        DungeonDef d = DungeonDef.fromJson(T + "frostworks", noted);
+        check(d.notes().equals("Ice and powder snow."), "the dungeon note is trimmed");
+        check(d.nodes().get(0).notes().equals("Frozen kitchens."), "the node note is read");
+
+        String tooLong = "x".repeat(DungeonDef.Node.MAX_NOTES + 1);
+        com.google.gson.JsonObject long1 = JsonParser.parseString(JSON).getAsJsonObject();
+        long1.addProperty("notes", tooLong);
+        expectThrows(() -> DungeonDef.fromJson(T + "x", long1), "a dungeon note over the limit is refused");
+        com.google.gson.JsonObject long2 = JsonParser.parseString(JSON).getAsJsonObject();
+        long2.getAsJsonArray("nodes").get(0).getAsJsonObject().addProperty("notes", tooLong);
+        expectThrows(() -> DungeonDef.fromJson(T + "x", long2), "a node note over the limit is refused");
+        com.google.gson.JsonObject dash = JsonParser.parseString(JSON).getAsJsonObject();
+        dash.addProperty("notes", "Cold -- and dark.");
+        expectThrows(() -> DungeonDef.fromJson(T + "x", dash), "a note with dash punctuation is refused");
+        check(new DungeonDef.Node("a", "a", 1, "", "", List.of(), 0, false).notes().isEmpty(),
+                "the short node constructors carry no note");
+    }
+
     private static void testHiddenOre() {
         String base = JSON.replace("\"nodes\"", "HIDDEN\"nodes\"");
         DungeonDef none = DungeonDef.fromJson(T + "frostworks", JsonParser.parseString(JSON).getAsJsonObject());
@@ -743,7 +772,9 @@ public class DungeonDefTest {
         check(mineshaft.nodePalette().contains("minecraft:deepslate_iron_ore"), "mineshaft holds deepslate ore variants");
         DungeonDef cows = loaded.byId("cow_pits");
         check(cows.kind() == DungeonDef.Kind.DUNGEON && cows.layers() == 2, "cow_pits is a 2 layer dungeon");
-        check(cows.minNodeRooms() == 1, "cow_pits guarantees a pen per floor");
+        // Owner ruling 2026-10-08: Cow Pits does not promise ore (its board stays quiet unless a floor holds some);
+        // borrowed ore rooms are in its rotation, not guaranteed.
+        check(cows.minNodeRooms() == 0, "cow_pits promises no ore rooms");
         check(cows.lootBand().min() == 2 && cows.lootBand().max() == 3, "cow_pits is in the act 2 band");
         DungeonDef lush = loaded.byId("rootworks");
         check(lush.name().equals("Lush Caves"), "rootworks is shown as Lush Caves");
@@ -786,7 +817,9 @@ public class DungeonDefTest {
         for (DungeonDef d : loaded.all()) {
             if (d.kind() == DungeonDef.Kind.DUNGEON || d.kind() == DungeonDef.Kind.CAPSTONE) {
                 check(d.layers() >= 2 && d.layers() <= 5, d.id() + " has 2 to 5 layers");
-                if (d.minNodeRooms() == 0) {
+                // Cow Pits (owner ruling 2026-10-08) promises no ore but borrows ore rooms through their
+                // borrowableBy lists, not through a node theme override.
+                if (d.minNodeRooms() == 0 && !d.id().equals("pocketdungeons:cow_pits")) {
                     boolean borrows = false;
                     for (DungeonDef.Node node : d.nodes()) {
                         borrows |= node.overridesTheme();

@@ -42,6 +42,16 @@ public class BoardTextTest {
         eq(BoardText.notesLine(false, false, "lit", false, List.of(), true), "Mine the walls for ore.");
         eq(BoardText.notesLine(false, false, "lit", false, List.of(), false), "Clear the spawners to open the way.");
         eq(BoardText.notesLine(true, true, "dark", true, List.of("coal"), true), "The shaft runs deeper with every floor.");
+        // The authored note (2026-10-08) is the reason to choose the floor: it wins over every derived
+        // sentence, except the Endless Mine's own line, and a blank note falls back to the derived one.
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true, "The Warden sleeps here."),
+                "The Warden sleeps here.");
+        eq(BoardText.notesLine(false, false, "dim", true, List.of("coal"), true, "Glow berries and sandbars."),
+                "Glow berries and sandbars.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false, "  A detour.  "), "A detour.");
+        eq(BoardText.notesLine(true, false, "lit", false, List.of(), false, "A note"), "The shaft runs deeper with every floor.");
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true, " "), "Sculk hears every step. Sneak.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false, null), "Clear the spawners to open the way.");
         for (String line : List.of(
                 BoardText.notesLine(false, true, "lit", false, List.of(), false),
                 BoardText.notesLine(false, false, "dark", false, List.of(), false),

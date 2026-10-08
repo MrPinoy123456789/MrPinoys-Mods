@@ -34,11 +34,33 @@ twice as likely), `nodes[]`, `edges[]`.
 - Resource-poor dungeons (Infestation, Ossuary, Lush Caves) get `hiddenOre` or ore rooms; a dungeon with
   neither never buries anything in walls, and its palette nodes are invisible (PD-161, PD-147 family).
 
+## Dungeon and floor notes (the reason to choose a door)
+
+The small grey line at the bottom of the door board is the reason a player would pick this door over another
+(owner, 2026-10-08). Write it for that:
+
+- Fields: `"notes"` on the dungeon (shown on its entry floor, which is also the choice of dungeon) and `"notes"` on every other
+  node. At most 90 characters, one short sentence group, no dash punctuation (the loader refuses both). The Endless
+  Mine keeps its own code line.
+- Say what THIS floor offers that its siblings do not: its signature set piece or rooms ("Glow berries and sandbars"),
+  its ore, a hazard that is also the draw ("Molten floors: the only lava you will find"), a vault that needs a key
+  ("A barred vault. Bring a trial key."), a detour, or that it is the quiet choice. The last floor says "The last floor." and
+  names its final room's draw.
+- Do not repeat the deal sheet (price in lives, rewards) or the lines the board already prints (affixes, light).
+- Be honest. Floors are random, so say what the floor's biased rooms offer ("Burial niches of bone, coal and iron"), never a
+  guarantee the planner cannot keep. `FloorNotesTest` fails if a note names coal, iron, gold, lapis, diamond, redstone,
+  sand, clay or bone that no biased room declares (or, for a dungeon note, that no room bound to the dungeon or its palette has),
+  if two floors of a dungeon share a note, or if an Act 1 or 2 floor has none.
+- When a room or `roomBias` change what a floor offers, change its note in the same commit.
+- Derived fallback (`BoardText.notesLine`) still covers a floor with no note: dark, dim, last floor, the palette's ores.
+
 ## Validation
 
 After any data change run, in order:
 1. `.\gradlew.bat test --console=plain` (the data tests: `DungeonDefTest`, `PackValidator`-backed tests,
-   `LootRulesTest`, `TripDoorsTest` and the JSON-reading ones).
+   `LootRulesTest`, `FloorNotesTest`, `TripDoorsTest` and the JSON-reading ones).
+   The floor soak (`FloorSoakGameTest`, `PD_SOAK_SEEDS=150 ./gradlew.bat runGameTest`) plans every Act 1 and 2 floor over
+   many seeds; run it after changing rooms, `roomBias`, `borrowableBy` or `minNodeRooms`.
 2. `.\gradlew.bat dungeonIntegrationTest --console=plain` (boots the real server with the datapack; prints PASS).
 3. On a running server `dungeon admin validate` (via `pdserver.mjs cmd dungeon admin validate`) lists every
    cross-resource finding as file, field, cause and a reproducible seed. It catches a `roomBias` naming a room

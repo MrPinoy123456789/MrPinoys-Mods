@@ -1,5 +1,6 @@
 {
   "name": "Ossuary",
+  "notes": "A catacomb of skeletons. Bone meal, coal and iron.",
   "act": 1,
   "baseLevel": 4,
   "kind": "dungeon",
@@ -27,6 +28,7 @@
     {
       "id": "skull_galleries",
       "name": "Skull Galleries",
+      "notes": "Burial niches of bone, coal and iron.",
       "layer": 2,
       "roomBias": [
         "crypt_corner",
@@ -38,6 +40,7 @@
     {
       "id": "bone_pits",
       "name": "Bone Pits",
+      "notes": "A crypt where skeletons guard the loot.",
       "layer": 2,
       "roomBias": [
         "ossuary_crypt"
@@ -47,6 +50,7 @@
     {
       "id": "sealed_reliquary",
       "name": "Sealed Reliquary",
+      "notes": "Silverfish in the walls. Break stone with care.",
       "layer": 2,
       "theme": "infestation",
       "roomBias": [
@@ -62,6 +66,7 @@
     {
       "id": "last_rest",
       "name": "The Last Rest",
+      "notes": "The last floor. A burial hall of bone, coal and iron.",
       "layer": 3,
       "final": true,
       "roomBias": ["last_rest"]

@@ -56,8 +56,25 @@ final class BoardText {
      */
     static String notesLine(boolean mine, boolean ancientCity, String light, boolean finalFloor,
                             List<String> ores, boolean hasNodes) {
+        return notesLine(mine, ancientCity, light, finalFloor, ores, hasNodes, "");
+    }
+
+    /**
+     * As above, with the floor's authored note first. The note is the reason a player would choose this floor
+     * over another (2026-10-08): what it offers that its siblings do not. It is written per dungeon (shown on
+     * the entry floor) and per floor, and wins over every derived sentence. The derived sentences below stay as
+     * the fallback for a floor nobody has written for, and the Endless Mine, whose floors are all alike, keeps
+     * its own line.
+     *
+     * @param authored the node's note, or the dungeon's note on its entry floor; blank when there is none
+     */
+    static String notesLine(boolean mine, boolean ancientCity, String light, boolean finalFloor,
+                            List<String> ores, boolean hasNodes, String authored) {
         if (mine) {
             return "The shaft runs deeper with every floor.";
+        }
+        if (authored != null && !authored.isBlank()) {
+            return authored.trim();
         }
         if (ancientCity) {
             return "Sculk hears every step. Sneak.";

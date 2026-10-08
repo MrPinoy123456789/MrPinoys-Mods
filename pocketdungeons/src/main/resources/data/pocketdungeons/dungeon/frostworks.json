@@ -1,5 +1,6 @@
 {
   "name": "Frostworks",
+  "notes": "Ice and powder snow. Iron, lapis and diamond.",
   "act": 2,
   "baseLevel": 10,
   "kind": "dungeon",
@@ -30,11 +31,13 @@
     {
       "id": "ice_kitchens",
       "name": "Ice Kitchens",
+      "notes": "Frozen kitchens and cold halls.",
       "layer": 2
     },
     {
       "id": "glaze_furnaces",
       "name": "Glaze Furnaces",
+      "notes": "Molten floors: the only lava you will find.",
       "layer": 2,
       "signatureAffix": "molten",
       "roomBias": [
@@ -44,12 +47,14 @@
     {
       "id": "stray_barracks",
       "name": "Stray Barracks",
+      "notes": "Deepslate barracks hidden in the ice.",
       "layer": 3,
       "theme": "deepslate"
     },
     {
       "id": "powder_snow_fields",
       "name": "Powder Snow Fields",
+      "notes": "Powder snow pits and drifts, with iron beneath.",
       "layer": 3,
       "roomBias": [
         "powder_snow_field",
@@ -59,6 +64,7 @@
     {
       "id": "glaze_vault",
       "name": "Glaze Vault",
+      "notes": "A barred vault. Bring a trial key.",
       "layer": 3,
       "roomBias": [
         "barred_vault"
@@ -73,6 +79,7 @@
     {
       "id": "cold_storage",
       "name": "Cold Storage",
+      "notes": "Frozen lockers and an ice vault: iron, lapis, diamond.",
       "layer": 4,
       "roomBias": [
         "frost_cold_store",
@@ -82,6 +89,7 @@
     {
       "id": "ice_run",
       "name": "Ice Run",
+      "notes": "Slick ice. One slip and you slide.",
       "layer": 4,
       "roomBias": [
         "ice_run"
@@ -90,6 +98,7 @@
     {
       "id": "big_freeze",
       "name": "The Big Freeze",
+      "notes": "The last floor. A frozen cascade of lapis and diamond.",
       "layer": 5,
       "final": true,
       "roomBias": ["big_freeze"]

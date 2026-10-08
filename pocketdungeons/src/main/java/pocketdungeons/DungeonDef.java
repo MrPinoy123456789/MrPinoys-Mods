@@ -42,14 +42,39 @@ import java.util.function.ToIntFunction;
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
                   List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
-                  int baseLevel) {
+                  int baseLevel, String notes) {
+
+    /** A dungeon with no note: the shape this record had before dungeon notes. */
+    DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
+               List<String> nodePalette, String merchant, String diary, Deviation deviation,
+               List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
+               int baseLevel) {
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
+                hiddenOre, minNodeRooms, baseLevel, "");
+    }
+
+    /**
+     * The checked form of a note: trimmed, at most {@link Node#MAX_NOTES} characters, and free of the
+     * dash punctuation the house style forbids. {@code null} reads as no note.
+     */
+    static String checkedNotes(String notes, String owner) {
+        String text = notes == null ? "" : notes.trim();
+        if (text.length() > Node.MAX_NOTES) {
+            throw new IllegalArgumentException("notes of " + owner + " run " + text.length() + " characters; at most "
+                    + Node.MAX_NOTES + ": " + text);
+        }
+        if (text.indexOf('\u2014') >= 0 || text.contains(" -- ")) {
+            throw new IllegalArgumentException("notes of " + owner + " use dash punctuation: " + text);
+        }
+        return text;
+    }
 
     /** A dungeon with no hidden ore and no node room guarantee. */
     DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                List<String> nodePalette, String merchant, String diary, Deviation deviation,
                List<Node> nodes, List<Edge> edges) {
         this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
-                null, 0, 1);
+                null, 0, 1, "");
     }
 
     /** A dungeon with hidden ore and no node room guarantee. */
@@ -57,7 +82,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                List<String> nodePalette, String merchant, String diary, Deviation deviation,
                List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre) {
         this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
-                hiddenOre, 0, 1);
+                hiddenOre, 0, 1, "");
     }
 
     /** What a dungeon is for (design D12, revised 2026-10-06). */
@@ -218,7 +243,13 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
-                List<Reward> rewards, int minNodeRooms, int level) {
+                List<Reward> rewards, int minNodeRooms, int level, String notes) {
+
+        /**
+         * The longest floor or dungeon note, in characters. The note is the one line of the door board that
+         * says why a player would choose this floor over another; it wraps, but it must stay one sentence.
+         */
+        static final int MAX_NOTES = 90;
 
         static final String LIGHT_LIT = "lit";
         static final String LIGHT_DIM = "dim";
@@ -234,7 +265,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         Node(String id, String name, int layer, String theme, String signatureAffix,
              List<String> roomBias, int roomCount, boolean isFinal) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT,
-                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL);
+                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL, "");
         }
 
         /** A node with light and rewards, inheriting the dungeon's node room guarantee. */
@@ -242,7 +273,15 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
              List<String> roomBias, int roomCount, boolean isFinal, String light,
              List<Reward> rewards) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
-                    INHERIT_NODE_ROOMS, UNSET_LEVEL);
+                    INHERIT_NODE_ROOMS, UNSET_LEVEL, "");
+        }
+
+        /** A node with no note: the shape this record had before floor notes. */
+        Node(String id, String name, int layer, String theme, String signatureAffix,
+             List<String> roomBias, int roomCount, boolean isFinal, String light,
+             List<Reward> rewards, int minNodeRooms, int level) {
+            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
+                    minNodeRooms, level, "");
         }
 
         /**
@@ -284,6 +323,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
             theme = theme == null ? "" : theme;
             signatureAffix = signatureAffix == null ? "" : signatureAffix;
+            notes = checkedNotes(notes, "node " + id);
             roomBias = List.copyOf(roomBias);
             rewards = rewards == null ? List.of() : List.copyOf(rewards);
             if (roomCount < 0) {
@@ -736,7 +776,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                             ? node.get("light").getAsString().trim() : Node.LIGHT_LIT,
                     rewards,
                     node.has("minNodeRooms") ? requiredInt(node, "minNodeRooms") : Node.INHERIT_NODE_ROOMS,
-                    node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL));
+                    node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL,
+                    optionalString(node, "notes")));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {
@@ -748,7 +789,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     edge.has("lives") ? requiredInt(edge, "lives") : 0));
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
-                deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel);
+                deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel,
+                checkedNotes(optionalString(obj, "notes"), "dungeon " + id));
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */
