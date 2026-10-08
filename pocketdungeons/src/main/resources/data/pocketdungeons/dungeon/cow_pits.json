@@ -3,7 +3,7 @@
   "act": 2,
   "baseLevel": 6,
   "kind": "dungeon",
-  "minNodeRooms": 1,
+  "minNodeRooms": 0,
   "mainTheme": "cow_pits",
   "lootBand": {
     "min": 2,
@@ -21,7 +21,10 @@
       "light": "dim",
       "roomBias": [
         "cow_pens",
-        "cow_ward"
+        "cow_ward",
+        "mineshaft_seam",
+        "mineshaft_dead_end",
+        "root_sandbar"
       ]
     },
     {
@@ -33,7 +36,8 @@
       "roomBias": [
         "cow_pens",
         "hay_loft",
-        "cow_yard"
+        "cow_yard",
+        "mineshaft_junction"
       ]
     }
   ],

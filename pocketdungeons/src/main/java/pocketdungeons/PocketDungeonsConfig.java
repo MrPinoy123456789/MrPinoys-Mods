@@ -305,8 +305,11 @@ public final class PocketDungeonsConfig {
      * written.
      */
     private static int lootDurabilityPercent = 110;
-    /** Percent of the same cap table for crafted gear and everything else; 100 is the table as written. */
-    private static int craftedDurabilityPercent = 100;
+    /**
+     * Percent of the same cap table for crafted gear and everything else (owner, 2026-10-08: all gear gets
+     * 10 percent more); 100 is the table as written.
+     */
+    private static int craftedDurabilityPercent = 110;
 
     // ---- Powers (M17) --------------------------------------------------------
     // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
@@ -760,7 +763,7 @@ public final class PocketDungeonsConfig {
         salvageOminousKeyEmeralds = 3;
         salvageMaterialBonus = 1;
         lootDurabilityPercent = 110;
-        craftedDurabilityPercent = 100;
+        craftedDurabilityPercent = 110;
 
         powerBonuses = defaultPowerBonuses();
         equipCap = 3;
@@ -978,7 +981,7 @@ public final class PocketDungeonsConfig {
         salvageMaterialBonus = readInt(root, "salvageMaterialBonus", 1, v -> v >= 0 && v <= 20, "must be 0 to 20");
         lootDurabilityPercent = readInt(root, "lootDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
                 "must be 10 to 1000");
-        craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 100, v -> v >= 10 && v <= 1000,
+        craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
                 "must be 10 to 1000");
 
         powerBonuses = readPowerBonuses(root);
@@ -1293,7 +1296,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("salvageOminousKeyEmeralds", 3);
         root.addProperty("salvageMaterialBonus", 1);
         root.addProperty("lootDurabilityPercent", 110);
-        root.addProperty("craftedDurabilityPercent", 100);
+        root.addProperty("craftedDurabilityPercent", 110);
 
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {

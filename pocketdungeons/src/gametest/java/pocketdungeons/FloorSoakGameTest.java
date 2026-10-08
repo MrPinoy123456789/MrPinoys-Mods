@@ -80,6 +80,7 @@ public final class FloorSoakGameTest {
         Set<String> bound = new TreeSet<>();
         int plans = 0;
         int resourceShortPlans = 0;
+        int oreFloors = 0;
         int noSpawnerPlans = 0;
         int finalFloors = 0;
         int finalFloorsWithoutFinalRoom = 0;
@@ -129,6 +130,9 @@ public final class FloorSoakGameTest {
                         continue;
                     }
                     check(plan, floor, def, node, where, hard, soft, placed);
+                    if (countNodeRooms(plan) > 0) {
+                        oreFloors++;
+                    }
                     int needed = def.minNodeRooms(node);
                     if (needed > 0 && countNodeRooms(plan) < needed) {
                         resourceShortPlans++;
@@ -161,6 +165,7 @@ public final class FloorSoakGameTest {
         report.append("## ").append(id).append(" (act ").append(def.act()).append(")\n\n");
         report.append("- floors planned: ").append(plans).append(" (").append(seedsPerFloor).append(" seeds per floor)\n");
         report.append("- hard findings: ").append(hard.size()).append('\n');
+        report.append("- floors with at least one ore room: ").append(oreFloors).append(" of ").append(plans).append('\n');
         report.append("- floors short of the promised node rooms: ").append(resourceShortPlans).append('\n');
         report.append("- floors with no spawner room: ").append(noSpawnerPlans).append('\n');
         if (finalRoomsAvailable > 0) {
@@ -177,8 +182,8 @@ public final class FloorSoakGameTest {
         }
         report.append('\n');
         write(report.toString());
-        PocketDungeonsMod.LOG.info("Floor soak {}: {} plans, {} hard, {} short of nodes, {} without a spawner, {} never rolled",
-                id, plans, hard.size(), resourceShortPlans, noSpawnerPlans, neverRolled.size());
+        PocketDungeonsMod.LOG.info("Floor soak {}: {} plans, {} hard, {} with ore rooms, {} short of nodes, {} without a spawner, {} never rolled",
+                id, plans, hard.size(), oreFloors, resourceShortPlans, noSpawnerPlans, neverRolled.size());
         if (!hard.isEmpty()) {
             helper.fail(hard.size() + " hard finding(s) in " + id + "; first: " + hard.get(0));
             return;

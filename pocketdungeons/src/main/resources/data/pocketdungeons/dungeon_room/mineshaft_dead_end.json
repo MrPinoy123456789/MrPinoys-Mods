@@ -22,5 +22,6 @@
   "provides": [],
   "requires": [],
   "access": "open",
-  "window": "bars"
+  "window": "bars",
+  "borrowableBy": ["cow_pits"]
 }

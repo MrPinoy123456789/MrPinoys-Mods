@@ -35,11 +35,11 @@ command).
    `python tools/tune_loot.py spawner-keys --percent 50 --exact`. `python tools/tune_loot.py show` prints the weights now;
    `apply --check` changes nothing and exits 1 if files differ. `tools/gen_themed_content.py` reads the same knob, so
    regenerating does not undo it. Test: `SpawnerEjectOddsTest` fails if any spawner is under the knob.
-3. **`lootDurabilityPercent`** (layer 1, default `110`) and **`craftedDurabilityPercent`** (default `100`). Dungeon gear is
+3. **`lootDurabilityPercent`** (layer 1, default `110`) and **`craftedDurabilityPercent`** (default `110`). Dungeon gear is
    capped to the table in `DungeonTools.durabilityCap` (iron sword 64, diamond sword 128 ...). Gear from the mod's own chests,
    vaults and gear tables (loot table ids in the `pocketdungeons:` namespace) gets the table times `lootDurabilityPercent`;
-   crafted gear and everything else gets it times `craftedDurabilityPercent`. 110 means 10 percent more on chest and vault
-   items. Gear that took the higher loot cap is not cut back when it later drops as an item. To change the base table itself,
+   crafted gear and everything else gets it times `craftedDurabilityPercent`. Both are 110, so all dungeon gear has 10
+   percent more than the table (owner, 2026-10-08); set either to 100 to take its share back to the table. Gear that took the higher loot cap is not cut back when it later drops as an item. To change the base table itself,
    edit `durabilityCap` (layer 4). Tests: `DungeonToolsTest.testLootDurabilityKnob` (the arithmetic) and `DurabilityKnobGameTest`
    (item stacks; a pure `main()` cannot build one because item components are not bound there).
 
@@ -60,7 +60,7 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
   `maxGridSpan` 12, `planAttemptBudget` 32, `anomalyRoomChance` 0.08, `fountainChance` 0.15, `pocket2DoorChance` 0.2.
 - **Pacing and progress:** `floorsPerSafeVisit` 3, `endlessMineUnlockLevel` 3, `timedOutDepletion` (superseded by the quit
   rule; kept for old files), `afkSeconds` 300, `ownerReconnectGraceSeconds` 120, `rewardRoomGraceSeconds` 600.
-- **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 100, `salvageMaterialBonus` 1.
+- **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
 - **Capacity:** `maxPartyMembers` 6, `maxConcurrentInstances` 32, `maxConcurrentVisits` 16, `maxConcurrentPreviews` 16.
 - **Lemon timings:** `lemonFallbackSeconds` 45, `lemonThinkSeconds` 90, `lemonLlmLapseSeconds` 300, `lemonIdleSeconds` 20.
 
