@@ -1,0 +1,4 @@
+{
+  "_comment": "Tuning knobs for data that cannot read pocketdungeons.json at run time. Change a value, then run: python tools/tune_loot.py apply   (see the tune-knobs skill).",
+  "spawnerKeyPercent": 60
+}

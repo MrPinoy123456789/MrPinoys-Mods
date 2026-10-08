@@ -147,33 +147,52 @@ final class SalvageStation {
      *   <li>stone tools: 1 cobblestone in the high or middle band;</li>
      *   <li>a shield: 1 plank in the high or middle band.</li>
      * </ul>
-     * Under 25 percent, and for anything else (bows, flint and steel),
-     * nothing: {@link ItemStack#EMPTY}. Never nuggets.
+     * Under 25 percent nothing, before the {@code salvageMaterialBonus} knob (default 1)
+     * adds its count to every band; anything else (bows, flint and steel) gives
+     * {@link ItemStack#EMPTY}. Never nuggets.
      */
     static ItemStack materialsBack(ItemStack stack) {
+        return materialsBack(stack, PocketDungeonsConfig.salvageMaterialBonus());
+    }
+
+    /**
+     * As {@link #materialsBack(ItemStack)}, with the bonus given: every count is raised by
+     * {@code bonus} in every band (the {@code salvageMaterialBonus} knob), so a piece that paid
+     * nothing under 25 percent pays {@code bonus}, one that paid 1 pays {@code 1 + bonus}, and so on.
+     * Pieces that give nothing at any wear (bows, flint and steel) still give nothing.
+     */
+    static ItemStack materialsBack(ItemStack stack, int bonus) {
         SalvageMath.Band band = SalvageMath.band(stack.getMaxDamage() - stack.getDamageValue(),
                 stack.getMaxDamage());
-        if (band == SalvageMath.Band.LOW) {
-            return ItemStack.EMPTY;
-        }
+        boolean low = band == SalvageMath.Band.LOW;
         String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         if (path.equals("shield")) {
-            return new ItemStack(Items.OAK_PLANKS);
+            return counted(Items.OAK_PLANKS, low ? 0 : 1, bonus);
         }
         if (!isArmourOrTool(path)) {
             return ItemStack.EMPTY;
         }
         if (path.startsWith("wooden_")) {
-            return band == SalvageMath.Band.HIGH ? new ItemStack(Items.OAK_PLANKS) : new ItemStack(Items.STICK, 2);
+            return switch (band) {
+                case HIGH -> counted(Items.OAK_PLANKS, 1, bonus);
+                case MID -> counted(Items.STICK, 2, bonus);
+                case LOW -> counted(Items.STICK, 0, bonus);
+            };
         }
         if (path.startsWith("stone_")) {
-            return new ItemStack(Items.COBBLESTONE);
+            return counted(Items.COBBLESTONE, low ? 0 : 1, bonus);
         }
         Item material = metalOf(path);
         if (material == null) {
             return ItemStack.EMPTY;
         }
-        return new ItemStack(material, SalvageMath.materials(isLarge(stack), band));
+        return counted(material, SalvageMath.materials(isLarge(stack), band), bonus);
+    }
+
+    /** {@code base} plus {@code bonus} of {@code item}, or nothing when that is not positive. */
+    private static ItemStack counted(Item item, int base, int bonus) {
+        int count = SalvageMath.withBonus(base, bonus);
+        return count <= 0 ? ItemStack.EMPTY : new ItemStack(item, count);
     }
 
     /** The material of leather, metal and gem gear, read from its id; {@code null} for anything else. */

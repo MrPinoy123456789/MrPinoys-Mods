@@ -68,6 +68,15 @@ final class SalvageMath {
         };
     }
 
+    /**
+     * The {@code salvageMaterialBonus} knob: {@code bonus} more of the material in every band, so a
+     * count of 0 pays {@code bonus}, 1 pays {@code 1 + bonus}, 2 pays {@code 2 + bonus}. A negative
+     * bonus never pays less than nothing.
+     */
+    static int withBonus(int base, int bonus) {
+        return Math.max(0, base) + Math.max(0, bonus);
+    }
+
     /** As {@link #materials(boolean, Band)}, from raw durability. */
     static int materials(boolean large, int left, int max) {
         return materials(large, band(left, max));

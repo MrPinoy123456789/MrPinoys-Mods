@@ -292,6 +292,21 @@ public final class PocketDungeonsConfig {
     private static int salvageKeyEmeralds = 1;
     /** Emeralds per ominous vault key. */
     private static int salvageOminousKeyEmeralds = 3;
+    /**
+     * Tuning knob (2026-10-08): extra pieces of material every salvaged item pays in every
+     * wear band, so what paid 0 pays 1, 1 pays 2, 2 pays 3. 0 restores the old table.
+     */
+    private static int salvageMaterialBonus = 1;
+
+    // ---- durability of dungeon gear (tuning knobs, 2026-10-08) ----------------------------
+    /**
+     * Percent of the dungeon durability cap ({@link DungeonTools#durabilityCap}) that gear from
+     * the mod's chests, vaults and gear tables gets: 110 is 10 percent more. 100 is the cap table as
+     * written.
+     */
+    private static int lootDurabilityPercent = 110;
+    /** Percent of the same cap table for crafted gear and everything else; 100 is the table as written. */
+    private static int craftedDurabilityPercent = 100;
 
     // ---- Powers (M17) --------------------------------------------------------
     // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
@@ -608,6 +623,18 @@ public final class PocketDungeonsConfig {
         return salvageKeyEmeralds;
     }
 
+    public static int salvageMaterialBonus() {
+        return salvageMaterialBonus;
+    }
+
+    public static int lootDurabilityPercent() {
+        return lootDurabilityPercent;
+    }
+
+    public static int craftedDurabilityPercent() {
+        return craftedDurabilityPercent;
+    }
+
     public static int salvageOminousKeyEmeralds() {
         return salvageOminousKeyEmeralds;
     }
@@ -731,6 +758,9 @@ public final class PocketDungeonsConfig {
         salvageEmeraldsPerTier = 1;
         salvageKeyEmeralds = 1;
         salvageOminousKeyEmeralds = 3;
+        salvageMaterialBonus = 1;
+        lootDurabilityPercent = 110;
+        craftedDurabilityPercent = 100;
 
         powerBonuses = defaultPowerBonuses();
         equipCap = 3;
@@ -945,6 +975,11 @@ public final class PocketDungeonsConfig {
         salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
         salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
         salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
+        salvageMaterialBonus = readInt(root, "salvageMaterialBonus", 1, v -> v >= 0 && v <= 20, "must be 0 to 20");
+        lootDurabilityPercent = readInt(root, "lootDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
+                "must be 10 to 1000");
+        craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 100, v -> v >= 10 && v <= 1000,
+                "must be 10 to 1000");
 
         powerBonuses = readPowerBonuses(root);
         equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
@@ -1256,6 +1291,9 @@ public final class PocketDungeonsConfig {
         root.addProperty("salvageEmeraldsPerTier", 1);
         root.addProperty("salvageKeyEmeralds", 1);
         root.addProperty("salvageOminousKeyEmeralds", 3);
+        root.addProperty("salvageMaterialBonus", 1);
+        root.addProperty("lootDurabilityPercent", 110);
+        root.addProperty("craftedDurabilityPercent", 100);
 
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {

@@ -31,6 +31,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import loot_rules
 
 SPAWNER_DIR = 'src/main/resources/data/pocketdungeons/trial_spawner'
+
+# The key share of a spawner's eject comes from tools/loot_knobs.json (spawnerKeyPercent), the same value
+# tools/tune_loot.py writes into the shipped files, so regenerating does not undo the tuning.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loot_knobs.json'), encoding='utf-8') as _handle:
+    _KNOBS = json.load(_handle)
+KEY_EJECT_WEIGHT = max(0, min(10, round(_KNOBS['spawnerKeyPercent'] / 10)))
+EMERALD_EJECT_WEIGHT = 10 - KEY_EJECT_WEIGHT
 CHESTS_DIR = 'src/main/resources/data/pocketdungeons/loot_table/chests'
 
 # Tier scaling: (total_mobs, simultaneous_mobs, total_added, sim_added, ticks)
@@ -77,8 +84,8 @@ def spawner_config(prefix, tier, ominous, roster):
         'ticks_between_spawn': ticks,
         'spawn_potentials': spawns,
         'loot_tables_to_eject': [
-            {'data': eject_key, 'weight': 5},
-            {'data': 'pocketdungeons:spawners/emeralds', 'weight': 5},
+            {'data': eject_key, 'weight': KEY_EJECT_WEIGHT},
+            {'data': 'pocketdungeons:spawners/emeralds', 'weight': EMERALD_EJECT_WEIGHT},
         ],
         # The sky drops are vanilla's splash potions (buffs and debuffs), not loot.
         'items_to_drop_when_ominous':

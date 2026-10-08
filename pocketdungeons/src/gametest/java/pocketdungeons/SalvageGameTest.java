@@ -63,7 +63,10 @@ public final class SalvageGameTest {
 
         // J7: keys are refused, so nothing in this screen pays emeralds.
         helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "gear never pays emeralds");
-        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2, "a fresh iron sword and helmet give an ingot each");
+        // The salvageMaterialBonus knob adds its count to every piece, so the table is read through it.
+        int bonus = PocketDungeonsConfig.salvageMaterialBonus();
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2 + 2 * bonus,
+                "a fresh iron sword and helmet give an ingot each, plus the bonus");
         helper.assertTrue(player.totalExperience > xpBefore, "the enchanted bow paid the grindstone's XP");
         for (int slot = 0; slot <= 4; slot++) {
             if (slot == 2 || slot == 3) {
@@ -151,22 +154,31 @@ public final class SalvageGameTest {
 
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "the gear salvages");
-        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3, "2 ingots from the chestplate, 1 from the leggings");
-        helper.assertValueEqual(countIn(player, Items.LEATHER), 1, "a half-worn helmet gives 1 leather");
+        // salvageMaterialBonus (default 1) adds to every band, so even the worn-out sword pays the bonus.
+        int bonus = PocketDungeonsConfig.salvageMaterialBonus();
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3 + 3 * bonus,
+                "2 ingots from the chestplate, 1 from the leggings and 0 from the worn sword, plus the bonus on each");
+        helper.assertValueEqual(countIn(player, Items.LEATHER), 1 + bonus, "a half-worn helmet gives 1 leather plus the bonus");
         helper.assertValueEqual(countIn(player, Items.IRON_NUGGET), 0, "never nuggets");
 
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 40, 40))
                 .isEmpty(), "chainmail left the loot and its salvage rule went with it (K2.6)");
         ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50));
-        helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1, "worn netherite leggings give 1 scrap");
+        helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1 + bonus,
+                "worn netherite leggings give 1 scrap plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_SWORD), 20, 20))
                 .is(Items.OAK_PLANKS), "a fresh wooden sword gives a plank");
         ItemStack sticks = SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_PICKAXE), 20, 10));
-        helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2, "a half-worn wooden tool gives 2 sticks");
+        helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2 + bonus,
+                "a half-worn wooden tool gives 2 sticks plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.SHIELD), 100, 30))
                 .is(Items.OAK_PLANKS), "a shield gives a plank");
-        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5)).isEmpty(),
-                "a worn-out stone pickaxe gives nothing");
+        ItemStack wornStone = SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5));
+        helper.assertTrue(bonus == 0 ? wornStone.isEmpty()
+                        : wornStone.is(Items.COBBLESTONE) && wornStone.getCount() == bonus,
+                "a worn-out stone pickaxe gives nothing, or just the bonus");
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.IRON_SWORD), 64, 3), 0).isEmpty(),
+                "with the bonus at 0 a worn sword gives nothing again");
         helper.assertTrue(SalvageStation.materialsBack(new ItemStack(Items.BOW)).isEmpty(), "a bow gives nothing");
 
         cleanUp(server, player);

@@ -100,6 +100,11 @@ final class DungeonDrops {
             boolean mobLoot = table.unwrapKey()
                     .map(key -> key.identifier().getPath().startsWith("entities/"))
                     .orElse(false);
+            // Gear from the mod's own chests, vaults and gear tables takes the loot knob; anything else
+            // (a mob's axe, vanilla tables) the crafted one.
+            int percent = tableId.startsWith(PocketDungeonsMod.MOD_ID + ":")
+                    ? PocketDungeonsConfig.lootDurabilityPercent()
+                    : PocketDungeonsConfig.craftedDurabilityPercent();
             for (int i = drops.size() - 1; i >= 0; i--) {
                 ItemStack stack = drops.get(i);
                 if (mobLoot && stack.is(Items.BONE)) {
@@ -110,7 +115,7 @@ final class DungeonDrops {
                     }
                     stack.setCount(kept);
                 }
-                drops.set(i, DungeonTools.limitDurability(stack));
+                drops.set(i, DungeonTools.limitDurability(stack, percent, 0));
             }
         });
 
@@ -119,7 +124,9 @@ final class DungeonDrops {
                 return;
             }
             if (entity instanceof ItemEntity item) {
-                ItemStack capped = DungeonTools.limitDurability(item.getItem());
+                // Gear that took the higher loot cap must not be cut back to the crafted one here.
+                ItemStack capped = DungeonTools.limitDurability(item.getItem(),
+                        PocketDungeonsConfig.craftedDurabilityPercent(), PocketDungeonsConfig.lootDurabilityPercent());
                 if (capped != item.getItem()) {
                     item.setItem(capped);
                 }

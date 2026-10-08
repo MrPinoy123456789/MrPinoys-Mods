@@ -308,6 +308,8 @@ for ((taskName, testClass) in mapOf(
     "doorLivesTest" to "DoorLivesTest",
     // Playtest 2026-10-07-2 (PD-175): no loot entry enchants an already enchanted book.
     "bookLootTest" to "BookLootTest",
+    // Tuning knobs (2026-10-08): every trial spawner gives at least the key share in tools/loot_knobs.json.
+    "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
@@ -417,6 +419,7 @@ tasks.test {
     dependsOn("kitHiddenBagTest")
     dependsOn("doorLivesTest")
     dependsOn("bookLootTest")
+    dependsOn("spawnerEjectOddsTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
     dependsOn("plateRelayTest")

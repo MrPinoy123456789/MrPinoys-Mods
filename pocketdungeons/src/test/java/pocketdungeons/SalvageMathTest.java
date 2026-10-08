@@ -10,6 +10,7 @@ public class SalvageMathTest {
         testGrindstoneXp();
         testKeys();
         testMaterials();
+        testBonus();
         System.out.println("SalvageMathTest passed");
     }
 
@@ -62,5 +63,22 @@ public class SalvageMathTest {
         check(SalvageMath.materials(false, 15, 64), 0, "a sword under 25 percent gives nothing");
         check(SalvageMath.materials(false, 3, 64), 0, "a worn sword gives nothing");
         check(SalvageMath.materials(true, 0, 0), 0, "an undamageable item gives nothing");
+    }
+
+    /**
+     * The salvageMaterialBonus knob (2026-10-08, default 1): every band pays {@code bonus} more, so
+     * what paid 0 pays 1, 1 pays 2 and 2 pays 3. A bonus of 0 is the old table; a negative bonus
+     * never takes anything away.
+     */
+    private static void testBonus() {
+        int bonus = 1;
+        check(SalvageMath.withBonus(SalvageMath.materials(true, 40, 40), bonus), 3, "a full chestplate pays 3");
+        check(SalvageMath.withBonus(SalvageMath.materials(true, 20, 40), bonus), 2, "a half worn chestplate pays 2");
+        check(SalvageMath.withBonus(SalvageMath.materials(true, 5, 40), bonus), 1, "a worn chestplate pays 1, not nothing");
+        check(SalvageMath.withBonus(SalvageMath.materials(false, 64, 64), bonus), 2, "a full sword pays 2");
+        check(SalvageMath.withBonus(SalvageMath.materials(false, 3, 64), bonus), 1, "a worn sword pays 1, not nothing");
+        check(SalvageMath.withBonus(2, 0), 2, "a bonus of 0 is the old table");
+        check(SalvageMath.withBonus(2, 3), 5, "a bonus of 3 adds 3");
+        check(SalvageMath.withBonus(2, -4), 2, "a negative bonus never pays less");
     }
 }
