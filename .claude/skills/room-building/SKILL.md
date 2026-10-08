@@ -127,9 +127,9 @@ Use the Write/Edit tools for Java and JSON. Large bash heredocs with embedded qu
      Fill the whole interior with `Blocks.STONE` (no node palette holds it, so rock is never a node), then carve `AIR`
      for tunnels, chambers and ore pockets, then declare ore nodes over the pockets in the manifest. Spawn points may
      sit on the edge of a door lane (the tunnel room does); they just must not block the lane.
-3. Write the manifest JSON. Copy a neighbour and change `template`, roles, bindings, nodes. A new room needs
-   no `roomBias` entry: `dungeons` binding already weights it x5 in its own dungeon; add a node `roomBias` only to push
-   a specific room harder on a specific floor (final-floor rooms, see `FINAL_FLOOR_ROOMS.md`).
+3. Write the manifest JSON. Copy a neighbour and change `template`, roles, bindings, nodes. A room is drawn without a
+   `roomBias` (its `dungeons` binding already weights it x5 in its own dungeon); add a node `roomBias` when the brief asks
+   for it, to push a room harder on a specific floor (always for final-floor rooms, see `FINAL_FLOOR_ROOMS.md`).
 4. Generate the template (confirmed working, 2026-10-08). Until the `.nbt` exists the startup log shows
    `Loaded N dungeon rooms (1 rejected ...)` and an error naming your room; that is expected during generation. Add a
    throwaway gametest and register it in `src/gametest/resources/fabric.mod.json` (one added line in the entrypoint
@@ -222,9 +222,11 @@ files by reflection (a class that does not exist yet is skipped). Each agent the
 Write call), manifests, `.nbt` files, throwaway class and the dungeon JSONs it adds a `roomBias` to; it edits nothing else.
 Afterwards the coordinator deletes the throwaway classes and their `fabric.mod.json` lines.
 
-Take a gradle lock around every run (Git Bash):
-`until mkdir /a/tmp/gradle.lock 2>/dev/null; do sleep 20; done; <gradle ...>; rmdir /a/tmp/gradle.lock`. Always release it.
-If a session dies mid-run, the lock stays: the coordinator clears it (`rmdir /a/tmp/gradle.lock`) after confirming no
+Take a gradle lock around every run (Git Bash), skipping the run if the lock cannot be had (never run gradle without it,
+and never remove a lock you did not take):
+`n=0; until mkdir /a/tmp/gradle.lock 2>/dev/null; do sleep 20; n=$((n+1)); [ $n -gt 60 ] && { echo lock-timeout; exit 1; }; done; <gradle ...>; rmdir /a/tmp/gradle.lock`.
+Always release it. A foreground Bash call is capped at 10 minutes, so a full run behind a contended lock must use
+`run_in_background` (then wait for its notification). If a session dies mid-run, the lock stays: the coordinator clears it (`rmdir /a/tmp/gradle.lock`) after confirming no
 gradle process is running, then resumes the agents. A sibling's half-written file can break your compile: wait and retry,
 never fix it. A run with a sibling's failing test exits 1: use `--continue` and judge your own rooms by their findings.
 `Loaded N dungeon rooms (M rejected)` counts every in-flight room (a sibling's missing `.nbt` is a rejection, and a
@@ -252,8 +254,25 @@ in a shared tree.
   hanging dripstone all worked. Only door slots and lanes are off limits.
 - Nodes fill air in manifest order: with several specs on one box, earlier entries take their `count` first.
 - **Every spawn point and chest must be reachable** or the connectivity check fails, so a "sealed viewing chamber"
-  needs an opening; use a cobweb-filled gap in the glass (`cow_ward`). Cobwebs, carpets, candles, eggs and snow layers
-  have no collision, so they never block the check (and never block a player).
+  needs an opening; use a cobweb-filled gap in the glass (`cow_ward`). The check counts any block WITH a collision
+  shape as an obstacle in a feet or head cell. Passable: air, cobwebs, rails, plants, powder snow,
+  single `SNOW` layers, pressure plates. Obstacles: **carpets** (thin collision: a moss-carpet rug on the floor row of
+  an aisle failed the check, so lay rugs as a block in the floor row y=0), `SNOW` of 2 or more layers, iron bars,
+  barrels, hoppers, lecterns, stairs and slabs (they are walkable surfaces but block a feet cell). Sealed ore pockets
+  that nobody can reach are fine; the check only covers doors, spawn points and chests.
+- Interior cells start as air; chests and spawn markers are placed after the decor and override it.
+- Stairs and slabs: use `BlockStateProperties.HORIZONTAL_FACING` and `HALF` (`StairBlock.FACING` did not compile);
+  rail curve `RailShape.NORTH_EAST` joins the north and east neighbours; amethyst clusters take `FACING`; a ladder
+  takes `HORIZONTAL_FACING`; end rods take `FACING` (default is fine). Keep chests at y=1; one at y=2 on a platform is
+  untested.
+- **Generic rooms** (no `dungeons`, `theme` or `acts` in the manifest, like `hall_*` and the `hall_*` variants) are
+  eligible in every dungeon. They are weighted 1 (bare halls) or 2 (variants) against x5 for a room bound to the floor's
+  dungeon, and a floor draws each cell from rooms that match its door mask and role. Use only the four placeholders and
+  neutral blocks so they re-skin everywhere.
+- **Data-coupled tests:** a new room with nodes or a handler can change tests that sample plans or count rooms:
+  `BoardGameTest.theBoardOnlyPromisesOreThePlanCanDeliver` (Copper Works now always holds ore, so it also samples the Ancient City
+  for the quiet case), `RubbleRulesTest`, `CowPitsTest` (cow caps), `LootRulesTest`. After adding rooms to a dungeon with
+  no `hiddenOre`, run the whole suite and read any failing assertion before changing a room or a test.
 - **Processor-skinned rooms:** only the four placeholders are remapped (per the table above). Direct blocks, plants,
   real `OAK_LOG` and a direct `SEA_LANTERN` survive any processor. A manifest `processors` field applies the named list
   to the whole room, so two manifests with different `processors` can share one template (`grove_tee` serves `grove`
@@ -277,7 +296,10 @@ in a shared tree.
   shared tree so a sibling's failing test does not hide the rest. Do not use PowerShell's `*>`: it writes UTF-16 that
   Grep cannot read. Success is exit code 0, `All N required tests passed`, `dungeonIntegrationTest` passing, and
   `Loaded N dungeon rooms` equal to the old count plus your rooms (alone in the tree). The generation run's count
-  includes your throwaway test; the final one does not.
+  includes your throwaway test; the final one does not. **In a shared tree with a failing sibling test** the exit code and
+  the "All N required tests passed" line are unusable: success for your rooms is `Saved room template to ...<room>.nbt`
+  in the generation run, no `Room library check: <your room>` line, `dungeonIntegrationTest: PASS`, and `Loaded` showing
+  no rejection of your rooms.
 - Read the redirected file with Grep (`BUILD`, `FAILED`, `required tests passed`, `Loaded \d+ dungeon rooms`).
   `newRoomsConnectEveryDoor` is not logged by name: a failure appears as a failed test with the finding text, and a
   pass is simply inside `All N required tests passed`.
