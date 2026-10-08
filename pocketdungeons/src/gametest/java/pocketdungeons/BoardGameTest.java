@@ -131,32 +131,44 @@ public final class BoardGameTest {
         helper.assertTrue(mineshaft != null && copper != null, "both dungeons are loaded");
         helper.assertTrue(mineshaft.hiddenOre() != null && copper.hiddenOre() == null,
                 "the Mineshaft buries ore and Copper Works declares none");
+        // Two palette-only dungeons: Copper Works (which now has enough ore rooms that every sampled floor
+        // holds some) and the Ancient City (which declares none, so its plans must read as quiet).
+        DungeonDef ancientCity = DungeonDefs.current().byId("pocketdungeons:ancient_city");
+        helper.assertTrue(ancientCity != null && ancientCity.hiddenOre() == null,
+                "the Ancient City is loaded and declares no hidden ore");
         int silent = 0;
         int loud = 0;
-        for (long seed = 1; seed <= 80; seed++) {
-            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
-                    LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
-                    LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
-                    LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
-                    LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "copper_works", null);
-            if (outcome.plan() == null) {
-                continue;
-            }
-            helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), mineshaft),
-                    "a hidden ore dungeon always holds nodes");
-            boolean declared = outcome.plan().rooms().values().stream().anyMatch(r -> {
-                RoomManifest.Entry entry = RoomManifest.current().byName(r.name());
-                return entry != null && !entry.meta.nodes.isEmpty();
-            });
-            helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), copper) == declared,
-                    "a palette-only plan holds nodes exactly when a placed room declares them (seed " + seed + ")");
-            if (declared) {
-                loud++;
-            } else {
-                silent++;
+        String[] themes = {"copper_works", "ancient_city"};
+        DungeonDef[] defs = {copper, ancientCity};
+        for (int which = 0; which < themes.length; which++) {
+            DungeonDef def = defs[which];
+            for (long seed = 1; seed <= 80; seed++) {
+                LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                        LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                        LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                        LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                        LayoutPlanner.DEFAULT_MAX_GRID_SPAN, themes[which], null);
+                if (outcome.plan() == null) {
+                    continue;
+                }
+                helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), mineshaft),
+                        "a hidden ore dungeon always holds nodes");
+                boolean declared = outcome.plan().rooms().values().stream().anyMatch(r -> {
+                    RoomManifest.Entry entry = RoomManifest.current().byName(r.name());
+                    return entry != null && !entry.meta.nodes.isEmpty();
+                });
+                helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), def) == declared,
+                        "a palette-only plan holds nodes exactly when a placed room declares them ("
+                                + themes[which] + " seed " + seed + ")");
+                if (declared) {
+                    loud++;
+                } else {
+                    silent++;
+                }
             }
         }
-        helper.assertTrue(silent > 0, "some Copper Works plans hold no nodes, and the board stays quiet about ore");
+        helper.assertTrue(loud > 0, "some palette-only plans hold nodes, and the board promises ore");
+        helper.assertTrue(silent > 0, "some palette-only plans hold no nodes, and the board stays quiet about ore");
         helper.succeed();
     }
 }

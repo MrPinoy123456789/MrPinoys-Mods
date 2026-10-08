@@ -52,7 +52,8 @@
       "name": "Powder Snow Fields",
       "layer": 3,
       "roomBias": [
-        "powder_snow_field"
+        "powder_snow_field",
+        "frost_snowdrift"
       ]
     },
     {
@@ -72,7 +73,11 @@
     {
       "id": "cold_storage",
       "name": "Cold Storage",
-      "layer": 4
+      "layer": 4,
+      "roomBias": [
+        "frost_cold_store",
+        "frost_ice_vault"
+      ]
     },
     {
       "id": "ice_run",

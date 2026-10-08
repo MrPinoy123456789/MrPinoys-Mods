@@ -1,0 +1,22 @@
+{
+  "template": "pocketdungeons:rooms/archive_stacks",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["ender_archive"],
+  "dungeons": ["ender_archive"],
+  "acts": [5],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "ender_archive",
+  "nodes": [
+    { "block": "minecraft:deepslate_diamond_ore", "from": [1, 1, 10], "to": [1, 2, 10], "count": 1, "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

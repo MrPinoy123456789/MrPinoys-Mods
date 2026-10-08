@@ -30,13 +30,18 @@
       "name": "Boiler Hall",
       "layer": 2,
       "roomBias": [
-        "copper_works_forge"
+        "copper_works_forge",
+        "copper_boiler",
+        "copper_pipe_hall"
       ]
     },
     {
       "id": "pipe_galleries",
       "name": "Pipe Galleries",
-      "layer": 2
+      "layer": 2,
+      "roomBias": [
+        "copper_ore_chute"
+      ]
     },
     {
       "id": "gear_loft",

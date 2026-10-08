@@ -35,7 +35,9 @@ public final class RoomLibraryGameTest {
      */
     private static final String[] CHECKED_SPEC_CLASSES = {
             "ActOneRoomSpecs", "FinalFloorSpecs", "FinalFloorEarlySpecs", "FinalFloorLateSpecs",
-            "GroveAndResourceSpecs", "CowWardSpecs"};
+            "GroveAndResourceSpecs", "CowWardSpecs",
+            "CopperWorksRoomSpecs", "FrostworksRoomSpecs", "DeepslateRoomSpecs", "EnderArchiveRoomSpecs",
+            "GenericHallVariantSpecs"};
 
     /** The rooms that must pass: {@link #NAMED} plus every room of {@link #CHECKED_SPEC_CLASSES}. */
     private static List<String> checked() {

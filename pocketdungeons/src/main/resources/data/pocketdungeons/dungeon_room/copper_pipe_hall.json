@@ -1,0 +1,21 @@
+{
+  "template": "pocketdungeons:rooms/copper_pipe_hall",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["copper_works"],
+  "dungeons": ["copper_works"],
+  "acts": [2],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "copper_works",
+  "tier": 1,
+  "access": "open",
+  "window": "bars",
+  "nodes": [
+    { "block": "minecraft:iron_ore", "from": [1, 1, 3], "to": [1, 2, 4], "count": 3, "chance": 0.8 },
+    { "block": "minecraft:coal_ore", "from": [14, 1, 3], "to": [14, 1, 4], "count": 2 }
+  ]
+}
