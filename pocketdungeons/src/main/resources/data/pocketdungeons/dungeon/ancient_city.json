@@ -1,6 +1,7 @@
 {
   "name": "Ancient City",
   "act": 2,
+  "baseLevel": 12,
   "kind": "capstone",
   "mainTheme": "ancient_city",
   "lootBand": {

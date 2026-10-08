@@ -34,7 +34,7 @@ final class RoomEligibility {
      * PD-149: the weight multiplier for a room bound to the floor's own dungeon or main theme
      * ({@code dungeons}, or legacy {@code theme}, names it). A preference again, not a lock, but a
      * stronger one than {@link #ROLE_BOOST}: themed rooms should carry a floor, with generic halls
-     * filling the cells they do not cover. Without it a resource dungeon could roll a whole floor
+     * filling the cells they do not cover. Without it a node dungeon could roll a whole floor
      * of generic halls and pay nothing (playtest 2026-10-05-1).
      */
     static final int DUNGEON_BOOST = 5;
@@ -51,21 +51,20 @@ final class RoomEligibility {
      * @param borrowedFromDungeon the dungeon that owns a borrowed floor theme, or empty when not borrowed
      * @param entryNode           whether the floor is the dungeon's entry node
      * @param finalNode           whether the floor is a final node
-     * @param sideEdge            whether the floor was reached by a side edge (a shard cost)
-     * @param resource            whether the dungeon is a resource dungeon (D12): its payout is the
-     *                            nodes it stamps, so a floor must carry at least one room that
-     *                            declares or is bound to it
+     * @param sideEdge            whether the floor was reached by a side edge (a scrap cost)
+     * @param minNodeRooms        how many node-bearing rooms the floor must place (the PD-149
+     *                            guarantee as data, {@code DungeonDef.minNodeRooms}); 0 means none
      */
     record Floor(String dungeonId, String mainTheme, String roomTheme, int act, boolean capstone,
                  String floorTheme, String borrowedFromDungeon, boolean entryNode, boolean finalNode,
-                 boolean sideEdge, boolean resource) {
+                 boolean sideEdge, int minNodeRooms) {
 
-        /** The pre-resource shape, kept so callers written before the flag read the same. */
+        /** The pre-guarantee shape, kept so callers written before the knob read the same. */
         Floor(String dungeonId, String mainTheme, String roomTheme, int act, boolean capstone,
               String floorTheme, String borrowedFromDungeon, boolean entryNode, boolean finalNode,
               boolean sideEdge) {
             this(dungeonId, mainTheme, roomTheme, act, capstone, floorTheme, borrowedFromDungeon,
-                    entryNode, finalNode, sideEdge, false);
+                    entryNode, finalNode, sideEdge, 0);
         }
 
         boolean borrowed() {

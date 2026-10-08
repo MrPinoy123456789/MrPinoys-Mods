@@ -117,3 +117,29 @@ playtest journal once it exists; blank means not recorded.
 - Full Mineshaft clear paid 0 charts under the no-scrap-on-resource rule; owner decided resource floors should pay like normal floors.
 - Mineshaft floor 1 again generated with nodes_total 0 (PD-149 reopened). Floor 2 placed mineshaft_seam; floor 3 mined 5/8 nodes.
 - Player noted diamond pick durability (max 20) feels too low with interiors mineable.
+| 2026-10-07 | copper_works | 1 | 1 | 119 | 0 | 0 | 0 | 76 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 2 | 1 | 77 | 0 | 0 | 2 | 30 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 3 | 1 | 81 | 0 | 0 | 0 | 46 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works (master_furnace) | 4 (final) | 1 | 187 | 0 | 0 | 1 | 476 | 4 | banked 00:43, first clear | entry_13 diary, +8 em | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits | 1 | 1 | ~272 | 0 | 0 | n/a | n/a | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits (the_big_barn) | 2 (final) | 1 | 200 | 0 | 0 | 9 | 0 | 3 | finished 00:53, first clear | entry_15 diary, +8 em | 2026-10-07-1.md |
+| 2026-10-08 | deepslate | 1 | 1 | 918 | 0 | 0 | 0 | 96 | 3 | cleared (self-issued key+TNT) | toll blocked on ominous floor | 2026-10-07-2.md |
+| 2026-10-08 | deepslate | 2 | 1 | 393 | 1 | 1 | 0 | 291 | 3 | cleared | the_herd gold unmineable | 2026-10-07-2.md |
+| 2026-10-08 | ossuary | 3 | 1 | n/a | n/a | n/a | n/a | n/a | n/a | quit (penalty 1) | quit kept haul, gear bug | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 1 | 2 | 147 | 0 | 0 | 5 | 63 | 3 | cleared, home bank | seam 5/13 nodes | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 2) | 2 | n/a | n/a | n/a | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 2) | 2 | n/a | 1 | 1 | n/a | n/a | n/a | owner death: purged | PD-167 live | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 3) | 2 | 136 | 0 | 0 | 0 | n/a | 3 | cleared | nodes 0/19 palette-only | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 3) | 2 | 176 | 1 | 0 | 0 | 139 | 3 | cleared | member death = 1 life, ok | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 3 (run 3) | 2 | 425 | 1 | 0 | 0 | 0 | 3 | cleared | 2 shop_sales (Web Trader) | 2026-10-07-2.md |
+| 2026-10-08 | rootworks (great_taproot) | 4 (final, ominous) | 2 | n/a | 4 | n/a | n/a | n/a | n/a | FAILED at 5th death | haul 8: banked 4 lost 4, compass 0->1 | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 1 (trip 3) | 2 | 249 | 0 | 0 | 6 | 119 | 3 | cleared | seam 6/10, bought bow 3em | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 2 (trip 3) | 2 | n/a | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft (deep_face) | 3 (final) | 2 | n/a | 0 | 0 | 3 | 0 | 3 | FINISHED: banked 5, compass 1->2, +8em | first:false | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 4) | 2 | 201 | 0 | 0 | 0 | 88 | 3 | cleared | nodes 0/23 | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 4) | 2 | n/a | n/a | n/a | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | infestation (deviated f3) | 3 | 2 | n/a | 1 | n/a | n/a | n/a | n/a | in progress at wrap | deviation live, blank book bug | 2026-10-07-2.md |
+
+- 2026-10-08 haul session: every exit kind observed (home lever x2, finish, fifth-death fail, quit, purge). Fail is the only one that halves; quit and purge move the whole haul.
+- Deaths: 1 owner death ended a run early (PD-167); ~4 member/non-fatal deaths cost a life each correctly; the fifth death failed the run as designed.
+- Emerald sources seen: J7 key redemption on clear lines (3, 4, 1), +8 finish, merchant buys (he spent 3em bow, 18em leggings). No emerald floor pay.

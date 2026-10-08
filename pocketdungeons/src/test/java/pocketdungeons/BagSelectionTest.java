@@ -7,19 +7,20 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Regression for the bag picker (M48): the picker lists all nine bags in
- * declaration order, each button carries the clicker's UUID and the bag id,
- * and the confirm dialog carries the bag id on its Confirm button. No server
- * is available in this headless test, so the live {@link DialogScreens#bagPicker}
- * and {@link DialogScreens#bagConfirm} wrappers (which read a ServerPlayer) are
- * pinned at the pure {@link DialogScreens#bagPickerDialog} and
+ * Regression for the bag picker (M48): the picker lists the five offered
+ * bags in declaration order, each button carries the clicker's UUID and the
+ * bag id, and the confirm dialog carries the bag id on its Confirm button.
+ * No server is available in this headless test, so the live
+ * {@link DialogScreens#bagPicker} and {@link DialogScreens#bagConfirm}
+ * wrappers (which read a ServerPlayer) are pinned at the pure
+ * {@link DialogScreens#bagPickerDialog} and
  * {@link DialogScreens#bagConfirmDialog} halves, the same split
  * {@code LodestoneMenuTest} uses.
  *
  * <p>M70: the picker now reads the data-driven {@link BagManifest} rather than
  * the deleted {@code Bags} enum. This test publishes a synthetic manifest
- * built from {@link BagIds} before running, so the headless test sees the same
- * nine bags the live server would load from {@code dungeon_bag/*.json}.
+ * holding L1's five offered bags, so the headless test sees the same picker
+ * the live server shows with the {@code extra_bags} module off.
  */
 public class BagSelectionTest {
 
@@ -29,16 +30,17 @@ public class BagSelectionTest {
         net.minecraft.SharedConstants.setVersion(net.minecraft.DetectedVersion.BUILT_IN);
         net.minecraft.server.Bootstrap.bootStrap();
 
-        // M70: publish a synthetic bag manifest from the built-in ids, so
-        // the picker reads the same nine bags the live server would load.
+        // M70: publish a synthetic bag manifest with L1's five offered bags,
+        // so the picker reads the same list the live server shows while the
+        // extra_bags module is off.
         publishSyntheticManifest();
 
         UUID owner = UUID.fromString("00000000-0000-0000-0000-0000000000c2");
 
-        // The picker lists all nine bags in declaration order, each with a
+        // The picker lists the five offered bags in order, each with a
         // non-empty label and blurb.
         List<DialogScreens.BagOption> options = DialogScreens.bagOptions();
-        check(options.size(), 9, "picker lists all nine bags");
+        check(options.size(), 5, "picker lists the five offered bags");
         List<String> ids = new ArrayList<>();
         for (DialogScreens.BagOption option : options) {
             ids.add(option.bagId());
@@ -46,7 +48,8 @@ public class BagSelectionTest {
             check(option.tooltip().isEmpty(), false, "bag tooltip is non-empty: " + option.bagId());
             check(Bags.byId(option.bagId()) != null, true, "bag id resolves: " + option.bagId());
         }
-        check(ids, BagIds.BUILT_IN_ORDER, "bag ids in declaration order");
+        check(ids, List.of(BagIds.LUMBERJACK, BagIds.SAPPER, BagIds.RANGER, BagIds.INNKEEPER,
+                BagIds.GUARD), "bag ids in picker order");
 
         // The picker dialog is a MultiActionDialog with one button per bag,
         // each carrying the owner UUID and the bag id under the bag action.
@@ -55,8 +58,8 @@ public class BagSelectionTest {
                 "picker is a MultiActionDialog");
         net.minecraft.server.dialog.MultiActionDialog list =
                 (net.minecraft.server.dialog.MultiActionDialog) picker;
-        check(list.actions().size(), 9, "one picker button per bag");
-        for (int i = 0; i < 8; i++) {
+        check(list.actions().size(), 5, "one picker button per bag");
+        for (int i = 0; i < 5; i++) {
             net.minecraft.server.dialog.action.CustomAll action = (net.minecraft.server.dialog.action.CustomAll)
                     list.actions().get(i).action().orElseThrow();
             net.minecraft.nbt.CompoundTag payload = action.additions().orElseThrow();
@@ -93,29 +96,31 @@ public class BagSelectionTest {
     }
 
     /**
-     * Publishes a synthetic {@link BagManifest} built from the nine built-in
+     * Publishes a synthetic {@link BagManifest} built from L1's five offered
      * {@link BagIds}, so the headless picker reads the same bags the live
-     * server would load from {@code dungeon_bag/*.json}. The definitions carry
-     * the label and blurb the JSON files ship, so the dialog text matches.
+     * server would load from {@code dungeon_bag/*.json} with the
+     * {@code extra_bags} module off. The definitions carry the label, blurb
+     * and order the JSON files ship, so the dialog text and order match.
      */
     private static void publishSyntheticManifest() {
         Map<String, BagManifest.Entry> entries = new LinkedHashMap<>();
-        String[][] bags = {
-                {BagIds.MASON, "Mason's Bag", "Stone, a pick, and the patience to use them."},
-                {BagIds.PLUMBER, "Plumber's Bag", "Two buckets. Everything else is what you do with them."},
-                {BagIds.SAPPER, "Sapper's Bag", "Three sticks of the loudest answer there is."},
-                {BagIds.MAGICIAN, "Magician's Bag", "Pearls and wind. Doors are for other people."},
-                {BagIds.RANGER, "Ranger's Bag", "Reach. See it first, hit it from there."},
-                {BagIds.SHEPHERD, "Shepherd's Bag", "Leads and bones. Something down here will follow you."},
-                {BagIds.INNKEEPER, "Innkeeper's Bag", "Milk, an apple, and a warm light. You will keep."},
-                {BagIds.PILGRIM, "Pilgrim's Bag", "Bread. The rooms owe you the rest."},
-                {BagIds.GUARD, "Guard's Bag", "A sword and a shield. Hold the line."},
+        Object[][] bags = {
+                {BagIds.LUMBERJACK, "Lumberjack's Bag",
+                        "An axe and an armful of timber. The rest is elbow grease.", 1},
+                {BagIds.SAPPER, "Sapper's Bag",
+                        "Three sticks of the loudest answer there is, and a pick for the quiet bits.", 2},
+                {BagIds.RANGER, "Ranger's Bag", "Reach. See it first, hit it from there.", 4},
+                {BagIds.INNKEEPER, "Innkeeper's Bag",
+                        "Milk, an apple, a warm light, and a rolling pin you will regret "
+                                + "underestimating.", 6},
+                {BagIds.GUARD, "Guard's Bag", "A sword and a shield. Hold the line.", 8},
         };
-        for (int i = 0; i < bags.length; i++) {
-            String id = bags[i][0];
-            String label = bags[i][1];
-            String blurb = bags[i][2];
-            BagDefinition def = new BagDefinition(id, label, blurb, i,
+        for (Object[] bag : bags) {
+            String id = (String) bag[0];
+            String label = (String) bag[1];
+            String blurb = (String) bag[2];
+            int order = (Integer) bag[3];
+            BagDefinition def = new BagDefinition(id, label, blurb, order,
                     List.of(), java.util.Set.of(),
                     BagMeta.defaultLootTable(id));
             entries.put(id, new BagManifest.Entry(id, def));

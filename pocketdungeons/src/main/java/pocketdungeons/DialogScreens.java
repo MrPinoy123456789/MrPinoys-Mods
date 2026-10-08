@@ -60,10 +60,6 @@ final class DialogScreens {
     static final String KEY_ENCHANT = "pd_enchant";
     static final String ACTION_REROLL = "reroll";
 
-    /** M17: which extracted power the Cube's imbue picker's button chose. */
-    static final String KEY_POWER = "pd_power";
-    static final String ACTION_IMBUE = "imbue";
-
     /** M20: which public room the lobby browser's button chose to visit. */
     static final String ACTION_VISIT_ROOM = "pd_visit_room";
     /**
@@ -109,8 +105,6 @@ final class DialogScreens {
     /** Reads one unlocked diary entry in the book screen (playtest 2026-10-02-1). */
     static final String ACTION_READ_DIARY = "read_diary";
     static final String KEY_DIARY = "pd_diary";
-    /** The lodestone menu's Stations option: opens the SGUI station picker (owner-only). */
-    static final String ACTION_STATIONS = "stations";
     /**
      * The Back buttons. This API has no history stack, so going back is the
      * parent screen rebuilt from live state, which means a round trip through
@@ -188,14 +182,15 @@ final class DialogScreens {
 
     /**
      * The confirmation for the in-dungeon menu's Quit Door option. Quitting
-     * fails the current dungeon, downgrades the keystone, and resets the
+     * fails the current dungeon (the haul keeps its fail share), and resets the
      * room to its lobby state so a new door can be chosen. The confirm is
      * a fixed command string ({@code /dungeon quit}), so this is tier A:
      * no round trip through {@link DialogRouter} is needed.
      */
     static Dialog quitDoorConfirm() {
-        int cost = PocketDungeonsConfig.timedOutDepletion();
-        String costLine = cost == 1 ? "Costs 1 compass level." : "Costs " + cost + " compass levels.";
+        // PD-168: a quit is a failed dungeon for the haul; the compass is not touched.
+        String costLine = "Counts as a failed dungeon: your haul keeps "
+                + PocketDungeonsConfig.failHaulKeepPercent() + " percent.";
         return DialogKit.confirm("Quit the dungeon?",
                 List.of(DialogKit.text(Component.literal(costLine)
                                 .withStyle(ChatFormatting.YELLOW)),
@@ -215,8 +210,11 @@ final class DialogScreens {
      * ({@code /dungeon cashout}), so this is tier A like {@link #quitDoorConfirm}.
      */
     static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
-        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        String keeps = IntervalBanking.takeHomeLine(now).replace('\n', ' ');
+        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
+        // Going home banks the haul into the compass; nothing is lost.
+        int haul = DungeonLog.forServer(server).haulOf(record.owner);
+        String keeps = "You keep your pack and bank " + haul + " scrap into your compass. "
+                + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         boolean finished = record.interval.finished;
         String dungeon = TripView.dungeonName(record);
         String ends = record.interval.mineSealedAct > 0
@@ -224,7 +222,7 @@ final class DialogScreens {
                 : finished
                 ? "You cleared " + dungeon + ". Ends this run and takes the party home."
                 : dungeon.isEmpty() ? "Ends this run and takes the party home."
-                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish shard or vault.";
+                        : "Leaves " + dungeon + " unfinished and takes the party home. No finish emeralds or vault.";
         return DialogKit.confirm("Go home?",
                 List.of(DialogKit.text(Component.literal(ends)
                                 .withStyle(ChatFormatting.YELLOW)),
@@ -241,7 +239,7 @@ final class DialogScreens {
 
     /**
      * The staging room's dungeon map: the layers of the dungeon this trip is in, the
-     * node the party stands at, the final floor, each edge's shard cost and which
+     * node the party stands at, the final floor, each edge's scrap cost and which
      * floors each door can reach. Before the first door of a trip it lists the three
      * dungeons on offer instead. Read only; opened by right-clicking the floor
      * history board in the staging room, or {@code /dungeon map}. The lines come from
@@ -259,13 +257,37 @@ final class DialogScreens {
         }
         TripDoors.Door[] dealt = doors.toArray(new TripDoors.Door[0]);
         DungeonDef def = TripView.def(record);
-        List<DungeonMapText.Line> lines = def == null
-                ? DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id))
-                : DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
-                        record.interval.finished);
+        List<DungeonMapText.Line> lines;
+        if (def == null) {
+            java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, record.owner);
+            int compass = Math.max(1, entry.highestCharts());
+            java.util.Collection<DungeonDef> all = DungeonDefs.current().all();
+            lines = new ArrayList<>(DungeonMapText.firstLines(dealt, id -> DungeonDefs.current().byId(id),
+                    TripDoors.lockedFirst(all, acts, compass)));
+            // D29: the checklist covers the lowest incomplete open act, or the
+            // newest open one when every open act is done.
+            int checklistAct = acts.isEmpty() ? 0 : new java.util.TreeSet<>(acts).last();
+            for (int act : acts) {
+                if (!ActProgress.complete(act, entry.dungeonsFinished(),
+                        entry.campaign().deepestMineFloor(), all)) {
+                    checklistAct = act;
+                    break;
+                }
+            }
+            lines.addAll(DungeonMapText.actChecklist(checklistAct, all, entry.dungeonsFinished(),
+                    compass, entry.campaign().deepestMineFloor()));
+        } else {
+            lines = DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
+                    record.interval.finished);
+        }
         List<DialogBody> body = new ArrayList<>();
         for (DungeonMapText.Line line : lines) {
             body.add(DialogKit.text(Component.literal(line.text()).withStyle(toneColour(line.tone()))));
+        }
+        if (def == null && record.interval.floorIndex == 0 && !record.floor.doorTaken) {
+            return DialogKit.list("Dungeon map", body, List.of(DialogKit.command("Reroll dungeons",
+                    "Deal three different dungeons at the first doors (the owner, before a door is taken)",
+                    "dungeon reroll")), "Close");
         }
         return DialogKit.notice("Dungeon map", body, DialogKit.closeButton("Close"));
     }
@@ -503,47 +525,6 @@ final class DialogScreens {
         return DialogKit.list("Reroll station", body, buttons, "Close");
     }
 
-    // ---- section 8: the gear gamble station (M16) ---------------------------
-    // The gamble station now uses SGUI's MerchantGui (villager trading screen)
-    // rather than a vanilla dialog. The villager UI fits emerald-as-currency
-    // naturally, and onTrade intercepts each trade to run the real random loot
-    // draw. See GambleStation for the implementation.
-
-    // ---- section 9: the Herobrine Cube's imbue picker (M17) -----------------
-
-    /**
-     * Every power the player has extracted, one "Imbue" button each. Tier B,
-     * like {@link #rerollPicker}: the button carries the power id so
-     * {@link CubeStation#handleImbue} can re-validate the held item, the
-     * player's live extracted-power set, and the material cost, since all
-     * three can change while the picker sits open.
-     */
-    static Dialog imbuePicker(UUID player, ItemStack held, Set<String> extractedPowers,
-                              Set<String> activePowers, String notice) {
-        List<DialogBody> body = new ArrayList<>();
-        if (notice != null) {
-            body.add(DialogKit.text(Component.literal(notice).withStyle(ChatFormatting.YELLOW)));
-        }
-        int cost = PocketDungeonsConfig.imbueCost();
-        body.add(DialogKit.text("Imbuing " + held.getHoverName().getString() + ". Costs "
-                + cost + " " + PocketDungeonsConfig.imbueMaterial() + "."));
-
-        List<ActionButton> buttons = new ArrayList<>();
-        for (String power : CubeStation.sortedUnlocked(extractedPowers, activePowers)) {
-            CompoundTag context = new CompoundTag();
-            context.putString(KEY_OWNER, player.toString());
-            context.putString(KEY_POWER, power);
-            buttons.add(DialogKit.button("Imbue " + power, null, DialogKit.submit(ACTION_IMBUE, context)));
-        }
-        if (buttons.isEmpty()) {
-            body.add(DialogKit.text(extractedPowers.isEmpty()
-                    ? "You have not extracted any powers yet."
-                    : "Every power you have unlocked is already active on your worn gear."));
-            return DialogKit.notice("Herobrine Cube", body);
-        }
-        return DialogKit.list("Herobrine Cube", body, buttons, "Close");
-    }
-
     // ---- section 10: the lobby directory (M20) ------------------------------
 
     /** One row of the lobby directory before rendering, kept pure for the headless test. */
@@ -747,10 +728,6 @@ final class DialogScreens {
                 // the room is stamped, and only its owner gets to reframe it.
                 options.add(new MenuOption("Change Shell", "Swap your room's frame",
                         ACTION_CHANGE_SHELL));
-                // Stations: owner-only, same gate as Change Shell. A party
-                // member visiting another player's room does not see this.
-                options.add(new MenuOption("Stations", "Take a station block for your room",
-                        ACTION_STATIONS));
             }
             options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
             options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
@@ -770,8 +747,6 @@ final class DialogScreens {
                 new MenuOption("Visit a Friend", "Rooms you have been invited to",
                         ACTION_BROWSE_FRIENDS),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
-                new MenuOption("Stations", "Take a station block for your room",
-                        ACTION_STATIONS),
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Diaries", null, ACTION_DIARIES),
                 resetKeyOption());

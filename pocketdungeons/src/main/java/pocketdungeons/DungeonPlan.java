@@ -23,13 +23,13 @@ import java.util.Set;
  * theme's skinning on that one cell.
  *
  * <p>{@code rubbleEdges} are the doors the stamper plugs with rubble
- * ({@link ConnectorType#RUBBLE}), at most one per plan and only where an
- * {@code explosive} is reachable before the door ({@link RoomSelector}).
- * Empty on almost every plan.
+ * ({@link ConnectorType#RUBBLE}), at most one per plan and only off the
+ * entrance-to-staging spine, so a plug is always a bonus door
+ * ({@link RoomSelector}). Empty on almost every plan.
  *
  * <p>{@code sealedCells} are two-story cells whose way down the stamper seals
- * with rubble ({@link RubbleOrdeal#FLOOR}), chosen where an {@code explosive}
- * is reachable before the cell. A two-story cell not in it stamps open.
+ * with rubble ({@link RubbleOrdeal#FLOOR}); the lower story is always a bonus
+ * pocket, never the way on, so every two-story cell seals.
  */
 record DungeonPlan(
         long seed,

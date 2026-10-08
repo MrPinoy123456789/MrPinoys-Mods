@@ -28,7 +28,7 @@ import java.util.UUID;
  * off {@code custom_data.pocketdungeons.power} via {@link CubeStation#powerOf}),
  * and the modifier-application half is untouched. A sibling class rather than
  * a shared one, matching this mod's one-listener-per-feature convention
- * ({@code RerollStation}, {@code GambleStation}, {@code TrimListener} are all
+ * ({@code RerollStation}, {@code TrimListener} are all
  * separate); the two features have different slot sets (armour only for
  * trims, armour plus the weapon hand for powers) and different tick cadences
  * would be an odd thing to force to agree.

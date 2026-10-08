@@ -1,7 +1,8 @@
 {
   "name": "Lush Caves",
   "act": 1,
-  "kind": "story",
+  "baseLevel": 1,
+  "kind": "dungeon",
   "mainTheme": "rootworks",
   "lootBand": {
     "min": 1,
@@ -10,7 +11,7 @@
   "nodePalette": [
     "oak_log",
     "clay",
-    "copper_ore",
+    "sand",
     "iron_ore"
   ],
   "deviation": {
@@ -32,7 +33,8 @@
       "layer": 2,
       "roomBias": [
         "lush_hollow",
-        "thicket"
+        "thicket",
+        "root_sandbar"
       ],
       "light": "dim"
     },
@@ -65,7 +67,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -74,7 +76,10 @@
       "id": "great_taproot",
       "name": "The Great Drip Cavern",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "great_drip_cavern"
+      ]
     }
   ],
   "edges": [
@@ -101,7 +106,7 @@
     {
       "from": "tangled_hollow",
       "to": "sapping_den",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "heartwood",

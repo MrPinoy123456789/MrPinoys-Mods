@@ -33,7 +33,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:baked_potato",
+          "name": "minecraft:bread",
           "weight": 3,
           "functions": [
             {
@@ -47,7 +47,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cooked_mutton",
+          "name": "minecraft:cooked_beef",
           "weight": 3,
           "functions": [
             {
@@ -61,7 +61,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cooked_chicken",
+          "name": "minecraft:cooked_beef",
           "weight": 2,
           "functions": [
             {
@@ -75,7 +75,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:golden_carrot",
+          "name": "minecraft:cooked_beef",
           "weight": 1,
           "functions": [
             {
@@ -89,7 +89,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:sweet_berries",
+          "name": "minecraft:bread",
           "weight": 2,
           "functions": [
             {
@@ -132,21 +132,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:bone",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:binomial",
-                "n": 4,
-                "p": 0.1563
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:deepslate",
+          "name": "minecraft:cobblestone",
           "weight": 5,
           "functions": [
             {
@@ -160,7 +146,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:polished_deepslate",
+          "name": "minecraft:cobblestone",
           "weight": 4,
           "functions": [
             {
@@ -174,7 +160,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:deepslate_bricks",
+          "name": "minecraft:cobblestone",
           "weight": 4,
           "functions": [
             {
@@ -188,7 +174,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:copper_block",
+          "name": "minecraft:cobblestone",
           "weight": 4,
           "functions": [
             {
@@ -202,7 +188,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:prismarine",
+          "name": "minecraft:cobblestone",
           "weight": 4,
           "functions": [
             {
@@ -216,7 +202,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cut_copper",
+          "name": "minecraft:cobblestone",
           "weight": 3,
           "functions": [
             {
@@ -230,7 +216,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:prismarine_bricks",
+          "name": "minecraft:cobblestone",
           "weight": 3,
           "functions": [
             {
@@ -244,7 +230,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:dark_prismarine",
+          "name": "minecraft:cobblestone",
           "weight": 3,
           "functions": [
             {
@@ -258,7 +244,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:crying_obsidian",
+          "name": "minecraft:cobblestone",
           "weight": 2,
           "functions": [
             {
@@ -272,76 +258,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:dirt",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:coarse_dirt",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:rooted_dirt",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:oak_sapling",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:wheat_seeds",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:potato",
+          "name": "minecraft:bread",
           "weight": 4,
           "functions": [
             {
@@ -355,7 +272,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:carrot",
+          "name": "minecraft:bread",
           "weight": 4,
           "functions": [
             {
@@ -363,48 +280,6 @@
               "count": {
                 "min": 1,
                 "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:beetroot_seeds",
-          "weight": 3,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:melon_seeds",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:pumpkin_seeds",
-          "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 1
               }
             }
           ]
@@ -433,6 +308,20 @@
               "count": {
                 "min": 1,
                 "max": 2
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gunpowder",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 3
               }
             }
           ]
@@ -512,23 +401,12 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:deepslate",
+          "name": "minecraft:cobblestone",
           "weight": 8,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 8
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:snowball",
-          "weight": 5,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 16
             }
           ]
         },
@@ -541,31 +419,6 @@
           "type": "minecraft:item",
           "name": "minecraft:shears",
           "weight": 2,
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:golden_boots",
-          "weight": 4,
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -614,6 +467,34 @@
               "count": {
                 "min": 2,
                 "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:sand",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gravel",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 3
               }
             }
           ]

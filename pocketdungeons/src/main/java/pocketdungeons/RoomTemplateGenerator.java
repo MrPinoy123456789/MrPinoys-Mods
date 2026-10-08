@@ -253,7 +253,18 @@ final class RoomTemplateGenerator {
         specs.addAll(StagingSpecs.list());
         specs.addAll(SituationSpecs.list());
         specs.addAll(ResourceBiomeSpecs.list());
+        specs.addAll(ActOneRoomSpecs.list());
         specs.addAll(CapstoneSpecs.list());
+        specs.addAll(FinalFloorEarlySpecs.list());
+        specs.addAll(FinalFloorLateSpecs.list());
+        specs.addAll(GroveAndResourceSpecs.list());
+        specs.addAll(CowWardSpecs.list());
+        specs.addAll(CopperWorksRoomSpecs.list());
+        specs.addAll(FrostworksRoomSpecs.list());
+        specs.addAll(DeepslateRoomSpecs.list());
+        specs.addAll(EnderArchiveRoomSpecs.list());
+        specs.addAll(GenericHallVariantSpecs.list());
+        specs.addAll(FinalFloorSpecs.list());
         specs.addAll(NetherEndSpecs.list());
         return specs;
     }
@@ -322,6 +333,15 @@ final class RoomTemplateGenerator {
             .setValue(CopperBulbBlock.LIT, true);
     /** The physical backdrop behind each screen's text_display. */
     private static final BlockState SCREEN_BLOCK = Blocks.CONCRETE.black().defaultBlockState();
+    /**
+     * The door screen backdrop, rows Y=4..5: blocks 3..12, ten wide and centred
+     * on the block boundary at 8.0 like the eight wide one it replaced, so the
+     * two sheets of the door board (the floor info and the deal) sit side by
+     * side on it. Block 2 (the go-home bulb, one of them mirrored to 13) stays
+     * clear on every wall.
+     */
+    static final int DOOR_SCREEN_ALONG_MIN = 3;
+    static final int DOOR_SCREEN_ALONG_MAX = 12;
     /** The commit lever base state; {@link #leverState} adds the wall-facing. */
     private static final BlockState LEVER_OFF = Blocks.LEVER.defaultBlockState()
             .setValue(LeverBlock.FACE, AttachFace.WALL);
@@ -609,7 +629,7 @@ final class RoomTemplateGenerator {
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), leverState(wall));
         placeLeverSign(level, o, wall);
         for (int y = 4; y <= 5; y++) {
-            for (int along = 4; along <= 11; along++) {
+            for (int along = DOOR_SCREEN_ALONG_MIN; along <= DOOR_SCREEN_ALONG_MAX; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
             }
         }
@@ -659,7 +679,7 @@ final class RoomTemplateGenerator {
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), 2), RoomBuilder.AIR);
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, LEVER_ALONG), SIGN_Y), RoomBuilder.AIR);
         for (int y = 4; y <= 5; y++) {
-            for (int along = 4; along <= 11; along++) {
+            for (int along = DOOR_SCREEN_ALONG_MIN; along <= DOOR_SCREEN_ALONG_MAX; along++) {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), RoomBuilder.WALL);
             }
         }
@@ -828,6 +848,60 @@ final class RoomTemplateGenerator {
         BlockPos[] out = Arrays.copyOf(base, base.length + extra.length);
         System.arraycopy(extra, 0, out, base.length, extra.length);
         return out;
+    }
+
+    // ---- test hooks ---------------------------------------------------------
+
+    /** The spec of the room named {@code name} (library or anomaly), or {@code null}. */
+    static RoomSpec specNamed(String name) {
+        for (RoomSpec spec : specs()) {
+            if (spec.name.equals(name)) {
+                return spec;
+            }
+        }
+        for (RoomSpec spec : anomalySpecs()) {
+            if (spec.name.equals(name)) {
+                return spec;
+            }
+        }
+        return null;
+    }
+
+    /** Every library room name, in generation order. */
+    static List<String> specNames() {
+        List<String> names = new ArrayList<>();
+        for (RoomSpec spec : specs()) {
+            names.add(spec.name);
+        }
+        return names;
+    }
+
+    /**
+     * Builds {@code spec} at {@code o} exactly as the generator does before capture (shell, door
+     * jigsaws, decor, chests, spawn markers, spawner, exit pad), without queueing a capture. For
+     * checks that walk the finished room.
+     */
+    static void buildForCheck(ServerLevel level, BlockPos o, RoomSpec spec) {
+        if (spec.shellPalette != null) {
+            buildCellWithPalette(level, o, spec.doors, spec.shellPalette, spec.spanY);
+        } else {
+            buildCell(level, o, spec.doors, spec.spanY);
+        }
+        if (spec.decor != null) {
+            spec.decor.accept(level, o);
+        }
+        for (BlockPos chest : spec.chests) {
+            placeChest(level, o.offset(chest));
+        }
+        for (BlockPos spawn : spec.spawns) {
+            placeSpawnPoint(level, o.offset(spawn));
+        }
+        if (spec.spawner != null) {
+            placeSpawner(level, o.offset(spec.spawner));
+        }
+        if (spec.exitPad) {
+            placeExitPad(level, o);
+        }
     }
 
     // ---- building -----------------------------------------------------------

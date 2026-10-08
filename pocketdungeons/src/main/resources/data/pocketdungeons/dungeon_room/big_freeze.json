@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/big_freeze",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["frostworks"],
+  "dungeons": ["frostworks"],
+  "acts": [2],
+  "graphRole": ["final"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "frostworks",
+  "nodes": [
+    { "block": "minecraft:iron_ore", "from": [3, 1, 2], "to": [4, 2, 3], "count": 3 },
+    { "block": "minecraft:lapis_ore", "from": [7, 1, 2], "to": [8, 2, 3], "count": 3 },
+    { "block": "minecraft:iron_ore", "from": [11, 1, 2], "to": [12, 2, 3], "count": 2 },
+    { "block": "minecraft:diamond_ore", "from": [11, 1, 2], "to": [12, 2, 3], "count": 1, "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

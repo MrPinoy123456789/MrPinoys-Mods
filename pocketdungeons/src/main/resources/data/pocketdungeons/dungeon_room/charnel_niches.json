@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/charnel_niches",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["ossuary"],
+  "dungeons": ["ossuary"],
+  "acts": [1],
+  "corridor": "narrow",
+  "light": "dim",
+  "biome": "ossuary",
+  "nodes": [
+    { "block": "minecraft:bone_block", "from": [2, 1, 5], "to": [3, 2, 5], "count": 1 },
+    { "block": "minecraft:bone_block", "from": [9, 1, 9], "to": [10, 2, 9], "count": 1 },
+    { "block": "minecraft:coal_ore", "from": [5, 1, 5], "to": [6, 2, 5], "count": 2 },
+    { "block": "minecraft:iron_ore", "from": [12, 1, 9], "to": [13, 2, 9], "count": 2, "chance": 0.7 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

@@ -62,17 +62,24 @@ public class RoomFurnitureTest {
         }
     }
 
-    /** The 8x2 black concrete screen is set into the wall itself, above the door row. */
+    /** The 10x2 black concrete screen is set into the wall itself, above the door row. */
     private static void testDoorScreenBlocks(DoorMask.Direction wall) {
-        for (int along = 4; along <= 11; along++) {
+        check(RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN + RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX == 15,
+                "the screen is centred on the wall's middle, boundary 8.0");
+        for (int along = RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN;
+             along <= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX; along++) {
             for (int y = 4; y <= 5; y++) {
                 check(isFurniture(wallRing(wall, along, y), wall), "screen " + wall + " " + along + " " + y);
             }
         }
-        // The screen runs 4..11; 3 and 12 either side are plain protected
-        // wall. The go-home bulb sits one further out, over its lever.
-        check(!isFurniture(wallRing(wall, 3, 4), wall), "screen edge " + wall);
-        check(!isFurniture(wallRing(wall, 12, 4), wall), "screen edge " + wall);
+        // The screen runs 3..12; 1 and 14 either side are plain protected
+        // wall, and the go-home bulb (absolute 2, or 13 mirrored) stays out of
+        // the span on every wall.
+        check(!isFurniture(wallRing(wall, 14, 4), wall), "screen edge " + wall);
+        check(!isFurniture(wallRing(wall, 1, 4), wall), "screen edge " + wall);
+        int bulb = RoomGeometry.mirrorsAlong(wall) ? 13 : 2;
+        check(bulb < RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN || bulb > RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX,
+                "the go-home bulb is outside the screen " + wall);
     }
 
     /**

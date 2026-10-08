@@ -72,6 +72,17 @@ final class BagManifest {
 
     /** F1: accepts the incoming ResourceManager from the reload callback. */
     static BagManifest parse(MinecraftServer server, ResourceManager rm) {
+        return parse(server, rm, Set.of());
+    }
+
+    /**
+     * {@link #parse(MinecraftServer, ResourceManager)} that skips the bag ids
+     * in {@code skipIds}: the content module surface (L2, D41) names bags
+     * that exist only while their module is on, so the snapshot's bag parse
+     * passes the module candidate's disabled bag ids and those files never
+     * enter the manifest.
+     */
+    static BagManifest parse(MinecraftServer server, ResourceManager rm, Set<String> skipIds) {
         Map<String, Entry> entries = new LinkedHashMap<>();
         List<String> rejections = new ArrayList<>();
         Map<Identifier, Resource> resources = rm.listResources(
@@ -80,6 +91,9 @@ final class BagManifest {
         sorted.sort(Map.Entry.comparingByKey());
         for (Map.Entry<Identifier, Resource> resource : sorted) {
             String id = JsonPackSupport.resourceId(resource.getKey(), "dungeon_bag");
+            if (skipIds.contains(id)) {
+                continue;
+            }
             try (BufferedReader reader = resource.getValue().openAsReader()) {
                 BagDefinition def = BagMeta.fromJson(
                         JsonParser.parseReader(reader).getAsJsonObject(), id);
@@ -158,14 +172,16 @@ final class BagManifest {
     }
 
     /**
-     * Whether every built-in bag id is present. The required coverage gate
-     * for bags: a pack that drops the {@code pocketdungeons} pack cannot
-     * silently remove Mason, the way the room manifest cannot drop entrance
-     * and exit. A candidate that fails this gate is not published.
+     * Whether every built-in bag id is present, minus the ids in
+     * {@code excused}: the required coverage gate for bags. A pack that drops
+     * the {@code pocketdungeons} pack cannot silently remove Mason, the way
+     * the room manifest cannot drop entrance and exit, but a bag id a
+     * disabled content module claims is absent on purpose (L2) and is passed
+     * in as excused. A candidate that fails this gate is not published.
      */
-    boolean hasBuiltInCoverage() {
+    boolean hasBuiltInCoverage(java.util.Set<String> excused) {
         for (String id : BagIds.BUILT_IN_ORDER) {
-            if (!byId.containsKey(id)) {
+            if (!byId.containsKey(id) && !excused.contains(id)) {
                 return false;
             }
         }

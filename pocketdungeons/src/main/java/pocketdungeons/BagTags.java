@@ -60,4 +60,13 @@ final class BagTags {
     static Set<String> pilgrim() {
         return seed(null, 1);
     }
+
+    /**
+     * E (D25): the spine's solvability seed. A Pilgrim carries nothing but
+     * the party still brings {@link SituationTags#MOB} when it is large
+     * enough, so the floor's main path is provable without any bag's tools.
+     */
+    static Set<String> pilgrim(int partySize) {
+        return seed(null, partySize);
+    }
 }

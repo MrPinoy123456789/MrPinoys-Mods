@@ -52,6 +52,8 @@ final class StaggeredTitle {
         final ChatFormatting lineStyle;
         long nextTick;
         int shown = -1;
+        /** How long the last beat's text stays; a milestone holds longer than the 50 ticks of a floor start. */
+        int stay = STAY_TICKS;
 
         Sequence(UUID player, Component title, List<String> lines, ChatFormatting lineStyle, long nextTick) {
             this.player = player;
@@ -68,11 +70,51 @@ final class StaggeredTitle {
 
     private static final List<Sequence> RUNNING = new ArrayList<>();
 
+    /** A sequence waiting for its moment (PD-165): a milestone queued behind the floor clear's own title. */
+    private record Pending(long dueTick, UUID player, Component title, List<String> lines,
+                           ChatFormatting lineStyle, int stay, java.util.function.Consumer<ServerPlayer> onShow) {}
+
+    private static final List<Pending> PENDING = new ArrayList<>();
+
+    /**
+     * Ticks a milestone waits before it shows. The floor clear and the way home
+     * each run their own sequence ({@link RunLifecycle}) in the same tick, and
+     * a new sequence replaces a running one, so a milestone shown at once was
+     * overwritten before it could be read (PD-165). The clear's title takes about
+     * 85 ticks (fade in, the subtitle beat, the stay and the fade out).
+     */
+    static final int MILESTONE_DELAY_TICKS = 100;
+    /** How long a milestone's last line stays: four and a half seconds, nearly twice a floor start's. */
+    static final int MILESTONE_STAY_TICKS = 90;
+
     private StaggeredTitle() {}
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(StaggeredTitle::tick);
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> RUNNING.clear());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            RUNNING.clear();
+            PENDING.clear();
+        });
+    }
+
+    /**
+     * Queues a milestone: after {@link #MILESTONE_DELAY_TICKS} it shows like
+     * {@link #show} but holds {@link #MILESTONE_STAY_TICKS}, and {@code onShow}
+     * runs with the player at that moment (the fanfare). A player who left in
+     * between simply misses it.
+     */
+    static void showMilestone(MinecraftServer server, UUID player, Component title, List<String> lines,
+                              ChatFormatting lineStyle, java.util.function.Consumer<ServerPlayer> onShow) {
+        if (server == null || player == null) {
+            return;
+        }
+        PENDING.add(new Pending(server.getTickCount() + MILESTONE_DELAY_TICKS, player, title,
+                List.copyOf(lines), lineStyle, MILESTONE_STAY_TICKS, onShow));
+    }
+
+    /** How many milestones are queued for {@code player}, for tests. */
+    static int pendingFor(UUID player) {
+        return (int) PENDING.stream().filter(p -> p.player().equals(player)).count();
     }
 
     /**
@@ -82,11 +124,17 @@ final class StaggeredTitle {
      */
     static void show(MinecraftServer server, UUID player, Component title, List<String> lines,
                      ChatFormatting lineStyle) {
+        show(server, player, title, lines, lineStyle, STAY_TICKS);
+    }
+
+    private static void show(MinecraftServer server, UUID player, Component title, List<String> lines,
+                             ChatFormatting lineStyle, int stay) {
         if (server == null || player == null) {
             return;
         }
         RUNNING.removeIf(s -> s.player.equals(player));
         Sequence sequence = new Sequence(player, title, List.copyOf(lines), lineStyle, server.getTickCount());
+        sequence.stay = stay;
         RUNNING.add(sequence);
         step(server, sequence);
         if (sequence.finished()) {
@@ -108,6 +156,22 @@ final class StaggeredTitle {
     }
 
     private static void tick(MinecraftServer server) {
+        if (!PENDING.isEmpty()) {
+            long due = server.getTickCount();
+            for (Pending pending : new ArrayList<>(PENDING)) {
+                if (due < pending.dueTick()) {
+                    continue;
+                }
+                PENDING.remove(pending);
+                ServerPlayer player = server.getPlayerList().getPlayer(pending.player());
+                if (player == null) {
+                    continue;
+                }
+                show(server, pending.player(), pending.title(), pending.lines(), pending.lineStyle(),
+                        pending.stay());
+                pending.onShow().accept(player);
+            }
+        }
         if (RUNNING.isEmpty()) {
             return;
         }
@@ -141,7 +205,7 @@ final class StaggeredTitle {
         // Each beat resends the title, so only the first one fades in; the rest cut straight to the
         // longer text rather than flickering.
         player.connection.send(new ClientboundSetTitlesAnimationPacket(shown == 0 ? FIRST_FADE_IN : 0,
-                STAY_TICKS, FADE_OUT));
+                s.stay, FADE_OUT));
         player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
         player.connection.send(new ClientboundSetTitleTextPacket(s.title));
         Chime.thud(player, shown);

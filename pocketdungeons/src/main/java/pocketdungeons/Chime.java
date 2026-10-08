@@ -99,7 +99,9 @@ public final class Chime {
             case SENSOR -> play(player, Holder.direct(SoundEvents.WARDEN_NEARBY_CLOSER), 0.7f, 1.0f);
             case SHRIEK -> play(player, Holder.direct(SoundEvents.WARDEN_HEARTBEAT), 0.6f, 1.0f);
             case BARGAIN -> play(player, SoundEvents.OMINOUS_BOTTLE_DISPOSE, 0.5f, 0.8f);
-            case DEPTH -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.35f);
+            case VAULT -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.35f);
+            case DEATH -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.3f);
+            case DOOR -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.25f);
             case SILENCE -> play(player, Holder.direct(SoundEvents.WARDEN_AMBIENT), 0.5f, 1.2f);
         }
     }
@@ -107,6 +109,17 @@ public final class Chime {
     /** The keystone banked a door offer and levelled up. */
     public static void keystoneLevelUp(ServerPlayer player) {
         play(player, SoundEvents.NOTE_BLOCK_CHIME, 0.4f, 0.8f);
+    }
+
+    /** An act was completed or its capstone unlocked: the challenge toast, then the level up chime. */
+    public static void fanfare(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE), 0.8f, 1.0f);
+        keystoneLevelUp(player);
+    }
+
+    /** Scrap was earned at a floor clear: the XP orb pickup, soft. */
+    public static void scrapEarned(ServerPlayer player) {
+        play(player, Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP), 0.5f, 1.0f);
     }
 
     /** The keystone was depleted. Descending two notes. */

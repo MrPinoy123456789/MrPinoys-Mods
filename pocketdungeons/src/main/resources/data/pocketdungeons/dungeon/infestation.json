@@ -1,7 +1,8 @@
 {
   "name": "Infestation",
   "act": 1,
-  "kind": "story",
+  "baseLevel": 2,
+  "kind": "dungeon",
   "mainTheme": "infestation",
   "lootBand": {
     "min": 1,
@@ -9,8 +10,7 @@
   },
   "nodePalette": [
     "coal_ore",
-    "iron_ore",
-    "copper_ore"
+    "iron_ore"
   ],
   "deviation": {
     "chance": 0.2,
@@ -31,7 +31,8 @@
       "layer": 2,
       "roomBias": [
         "infested_wall",
-        "burrow_tunnel"
+        "burrow_tunnel",
+        "gnawed_vein"
       ],
       "light": "dim"
     },
@@ -54,7 +55,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -68,7 +69,8 @@
       "id": "queens_nest",
       "name": "The Queen's Nest",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["queens_nest"]
     }
   ],
   "edges": [
@@ -95,7 +97,7 @@
     {
       "from": "silverfish_nests",
       "to": "hollow_walls",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "hollow_walls",

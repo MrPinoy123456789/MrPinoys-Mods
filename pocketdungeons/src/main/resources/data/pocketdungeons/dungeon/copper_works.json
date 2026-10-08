@@ -1,16 +1,16 @@
 {
   "name": "Copper Works",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 8,
+  "kind": "dungeon",
   "mainTheme": "copper_works",
   "lootBand": {
     "min": 2,
     "max": 3
   },
   "nodePalette": [
-    "copper_ore",
-    "deepslate_copper_ore",
-    "iron_ore"
+    "iron_ore",
+    "coal_ore"
   ],
   "deviation": {
     "chance": 0.2,
@@ -30,13 +30,18 @@
       "name": "Boiler Hall",
       "layer": 2,
       "roomBias": [
-        "copper_works_forge"
+        "copper_works_forge",
+        "copper_boiler",
+        "copper_pipe_hall"
       ]
     },
     {
       "id": "pipe_galleries",
       "name": "Pipe Galleries",
-      "layer": 2
+      "layer": 2,
+      "roomBias": [
+        "copper_ore_chute"
+      ]
     },
     {
       "id": "gear_loft",
@@ -45,7 +50,7 @@
       "theme": "deepslate",
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -62,7 +67,8 @@
       "id": "master_furnace",
       "name": "The Master Furnace",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["master_furnace"]
     }
   ],
   "edges": [
@@ -89,7 +95,7 @@
     {
       "from": "boiler_hall",
       "to": "gear_loft",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "verdigris_foundry",

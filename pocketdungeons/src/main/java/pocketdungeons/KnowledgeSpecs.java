@@ -112,6 +112,7 @@ final class KnowledgeSpecs {
         });
         Situations.register("the_herd", (level, o, role, depth, profile, spawns, seed,
                 affixes, lootSuffix, theme, voidedFloor, content) -> {
+            placeHerdGold(level, o);
             RoomContent.spawnMobs(level, o, EntityTypes.ZOMBIFIED_PIGLIN, 12, spawns, seed, null);
             return null;
         });
@@ -285,19 +286,35 @@ final class KnowledgeSpecs {
     // ---- 3. The Herd (tier 1, open) ----------------------------------------
 
     /**
-     * Twelve zombified piglins milling about. Gold blocks sunk into the floor
-     * among the herd (audit 2.9): a player who mines quietly carries
-     * {@code gold} forward. {@code provides: ["gold"]}.
+     * Twelve zombified piglins milling about. Gold blocks standing among the
+     * herd (audit 2.9): a player who mines quietly carries {@code gold}
+     * forward. {@code provides: ["gold"]}.
+     *
+     * <p>PD-172: the blocks used to be sunk at y=0, which is the cell's shell
+     * floor row and immutable to everyone, so the quiet mining could not happen.
+     * They stand on the floor now, in the editable interior.
      */
     private static RoomSpec theHerd() {
         return new RoomSpec("the_herd", EnumSet.of(ENTRANCE, EXIT))
                 .spawns(QUAD_SPAWNS)
-                .decor((level, o) -> {
-                    RoomBuilder.set(level, o.offset(6, 0, 6), Blocks.GOLD_BLOCK.defaultBlockState());
-                    RoomBuilder.set(level, o.offset(10, 0, 10), Blocks.GOLD_BLOCK.defaultBlockState());
-                    RoomBuilder.set(level, o.offset(6, 0, 10), Blocks.GOLD_BLOCK.defaultBlockState());
-                    RoomBuilder.set(level, o.offset(10, 0, 6), Blocks.GOLD_BLOCK.defaultBlockState());
-                });
+                .decor(KnowledgeSpecs::placeHerdGold);
+    }
+
+    /**
+     * The herd's four gold blocks, one block above the shell floor. Also run at
+     * stamp time ({@code Situations}), because the baked {@code .nbt} template
+     * still has the old sunk blocks: any gold left in the floor row goes back to
+     * the room's floor block. Idempotent.
+     */
+    static void placeHerdGold(ServerLevel level, BlockPos o) {
+        BlockState floor = level.getBlockState(o.offset(8, 0, 8));
+        for (int[] spot : new int[][] {{6, 6}, {10, 10}, {6, 10}, {10, 6}}) {
+            if (level.getBlockState(o.offset(spot[0], 0, spot[1])).is(Blocks.GOLD_BLOCK)
+                    && !floor.is(Blocks.GOLD_BLOCK) && !floor.isAir()) {
+                RoomBuilder.set(level, o.offset(spot[0], 0, spot[1]), floor);
+            }
+            RoomBuilder.set(level, o.offset(spot[0], 1, spot[1]), Blocks.GOLD_BLOCK.defaultBlockState());
+        }
     }
 
     // ---- 4. Deep Dark Landing (tier 3, open) -------------------------------

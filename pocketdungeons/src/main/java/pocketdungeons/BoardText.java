@@ -31,19 +31,67 @@ final class BoardText {
         return dungeonName.toUpperCase(Locale.ROOT) + SEP + "floor " + floor;
     }
 
+    /** {@code "Floor 3 of 4"}: the second line of the floor info sheet. */
+    static String floorLine(int layer, int layers) {
+        return "Floor " + layer + " of " + layers;
+    }
+
+    /** {@code "Floor 6"}: the Endless Mine has no last floor to count to. */
+    static String floorLine(int floor) {
+        return "Floor " + floor;
+    }
+
+    /**
+     * The one sentence the floor info sheet ends with: the single most
+     * important thing to know about the floor that does not depend on the
+     * deal. Most urgent first: the sculk of the Ancient City, then darkness,
+     * the last floor, what can be mined, and otherwise the way out.
+     *
+     * @param mine        the Endless Mine
+     * @param ancientCity every sculk block on the floor is armed
+     * @param light       {@code "dark"}, {@code "dim"} or anything else for lit
+     * @param finalFloor  clearing it finishes the dungeon
+     * @param ores        the mineable words (see {@link #paletteWords}); empty with none
+     * @param hasNodes    the floor stamps ore nodes, even if the dungeon names none
+     */
+    static String notesLine(boolean mine, boolean ancientCity, String light, boolean finalFloor,
+                            List<String> ores, boolean hasNodes) {
+        if (mine) {
+            return "The shaft runs deeper with every floor.";
+        }
+        if (ancientCity) {
+            return "Sculk hears every step. Sneak.";
+        }
+        if ("dark".equals(light)) {
+            return "Pitch dark. Bring torches.";
+        }
+        if ("dim".equals(light)) {
+            return "Dim light. Torches help.";
+        }
+        if (finalFloor) {
+            return "The last floor. Clear it to finish.";
+        }
+        if (!ores.isEmpty()) {
+            List<String> shown = ores.size() > 3 ? ores.subList(0, 3) : ores;
+            String joined = shown.size() == 1 ? shown.get(0)
+                    : String.join(", ", shown.subList(0, shown.size() - 1)) + " and " + shown.get(shown.size() - 1);
+            return "Mine the walls for " + joined + ".";
+        }
+        if (hasNodes) {
+            return "Mine the walls for ore.";
+        }
+        return "Clear the spawners to open the way.";
+    }
+
     /** {@code "loot \u00d73"}: the completion rolls a floor would pay. */
     static String lootText(int chests) {
         return "loot \u00d7" + chests;
     }
 
-    /** {@code "1 echo shard"} or {@code "2 echo shards"}. */
-    static String shardText(int shards) {
-        return shards + (shards == 1 ? " echo shard" : " echo shards");
-    }
 
-    /** {@code "costs 1 echo shard"}: the door's price, worded as a price so it cannot read as a gain. */
-    static String costText(int shards) {
-        return "costs " + shardText(shards);
+    /** {@code "costs 2 scrap"}: the door's price, worded as a price so it cannot read as a gain. */
+    static String costText(int scrap) {
+        return "costs " + scrap + " scrap";
     }
 
     /**

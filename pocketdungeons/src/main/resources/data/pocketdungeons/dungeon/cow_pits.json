@@ -1,7 +1,9 @@
 {
   "name": "Cow Pits",
   "act": 2,
-  "kind": "resource",
+  "baseLevel": 6,
+  "kind": "dungeon",
+  "minNodeRooms": 1,
   "mainTheme": "cow_pits",
   "lootBand": {
     "min": 2,
@@ -18,7 +20,8 @@
       "layer": 1,
       "light": "dim",
       "roomBias": [
-        "cow_pens"
+        "cow_pens",
+        "cow_ward"
       ]
     },
     {

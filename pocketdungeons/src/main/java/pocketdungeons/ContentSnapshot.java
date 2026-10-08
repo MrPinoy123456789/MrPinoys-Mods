@@ -55,13 +55,14 @@ final class ContentSnapshot {
     private final BagManifest bags;
     private final RoleManifest roles;
     private final CubeRecipeManifest recipes;
+    private final ContentModules modules;
     private final List<String> errors;
     private final boolean valid;
 
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
                             ThemeManifest themes, AdventureGraphs adventure, DungeonDefs dungeons, Diaries diaries,
                             AffixManifest affixes, BagManifest bags, RoleManifest roles,
-                            CubeRecipeManifest recipes,
+                            CubeRecipeManifest recipes, ContentModules modules,
                             List<String> errors, boolean valid) {
         this.rooms = rooms;
         this.anomalyRooms = anomalyRooms;
@@ -73,6 +74,7 @@ final class ContentSnapshot {
         this.bags = bags;
         this.roles = roles;
         this.recipes = recipes;
+        this.modules = modules;
         this.errors = List.copyOf(errors);
         this.valid = valid;
     }
@@ -110,7 +112,10 @@ final class ContentSnapshot {
         DungeonDefs dungeons = DungeonDefs.parse(server, rm, themeId -> themes.byId(themeId) != null);
         Diaries diaries = Diaries.parse(server, rm);
         AffixManifest affixes = AffixManifest.parse(server, rm);
-        BagManifest bags = BagManifest.parse(server, rm);
+        // L2: modules parse before bags so a disabled module's bags can be
+        // skipped by the bag parse below.
+        ContentModules modules = ContentModuleLoader.parse(server, rm);
+        BagManifest bags = BagManifest.parse(server, rm, modules.disabledBags());
         RoleManifest roles = RoleManifest.parse(server, rm);
         CubeRecipeManifest recipes = CubeRecipeManifest.parse(server, rm);
 
@@ -155,7 +160,7 @@ final class ContentSnapshot {
         // drops the pocketdungeons pack cannot silently remove Mason, the way
         // the room manifest cannot drop entrance and exit. A candidate that
         // fails this gate is not published.
-        if (!bags.hasBuiltInCoverage()) {
+        if (!bags.hasBuiltInCoverage(modules.disabledBags())) {
             valid = false;
             errors.add("required coverage failed: missing built-in bag definitions "
                     + "(expected " + BagIds.BUILT_IN_ORDER + ", have " + bags.ids() + ")");
@@ -180,7 +185,7 @@ final class ContentSnapshot {
         }
 
         return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, dungeons, diaries, affixes,
-                bags, roles, recipes, errors, valid);
+                bags, roles, recipes, modules, errors, valid);
     }
 
     RoomManifest rooms() {
@@ -228,6 +233,11 @@ final class ContentSnapshot {
         return recipes;
     }
 
+    /** L2 (D41): the content module manifest this snapshot parsed. */
+    ContentModules modules() {
+        return modules;
+    }
+
     /** Cross resource and coverage errors that made this candidate invalid. */
     List<String> errors() {
         return errors;
@@ -255,6 +265,7 @@ final class ContentSnapshot {
         all.addAll(bags.rejections());
         all.addAll(roles.rejections());
         all.addAll(recipes.rejections());
+        all.addAll(modules.rejections());
         all.addAll(errors);
         return all;
     }

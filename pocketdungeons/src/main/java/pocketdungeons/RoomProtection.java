@@ -426,7 +426,8 @@ final class RoomProtection {
             if (y == 3 && along >= 7 && along <= 9) {
                 return true; // the three copper bulbs, one over each door
             }
-            if (y >= 4 && y <= 5 && along >= 4 && along <= 11) {
+            if (y >= 4 && y <= 5 && along >= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN
+                    && along <= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX) {
                 return true; // the door screen blocks
             }
         }

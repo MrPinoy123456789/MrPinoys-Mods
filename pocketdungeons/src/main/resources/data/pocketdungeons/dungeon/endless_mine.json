@@ -1,6 +1,7 @@
 {
   "name": "Endless Mine",
   "act": 1,
+  "baseLevel": 1,
   "kind": "endless",
   "mainTheme": "endless_mine",
   "lootBand": {
@@ -10,10 +11,8 @@
   "nodePalette": [
     "coal_ore",
     "iron_ore",
-    "copper_ore",
     "deepslate_coal_ore",
-    "deepslate_iron_ore",
-    "deepslate_copper_ore"
+    "deepslate_iron_ore"
   ],
   "nodes": [
     {

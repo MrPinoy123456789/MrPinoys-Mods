@@ -13,6 +13,9 @@
     "TextDisplayAccessor",
     "DisplayAccessor",
     "OmenWaveNoDropsMixin",
+    "SculkSensorPlayersOnlyMixin",
+    "CalibratedSculkSensorPlayersOnlyMixin",
+    "MerchantTradeMixin",
     "TrialSpawnerStateDataAccessor",
     "VaultServerDataAccessor"
   ],

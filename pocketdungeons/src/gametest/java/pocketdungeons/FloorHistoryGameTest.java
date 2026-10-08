@@ -46,4 +46,15 @@ public final class FloorHistoryGameTest {
                 "the date carries no time of day");
         helper.succeed();
     }
+
+    @GameTest
+    public void affixShortNamesAreContractionsOfAtMostFiveLetters(GameTestHelper helper) {
+        for (AffixDefinition def : AffixManifest.current().definitions()) {
+            helper.assertTrue(def.shortName.length() <= 5, def.id + " short name too long: " + def.shortName);
+            if (def.label.length() <= 5) {
+                helper.assertTrue(def.shortName.equals(def.label), def.id + " is already short and keeps its name");
+            }
+        }
+        helper.succeed();
+    }
 }

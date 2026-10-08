@@ -46,7 +46,7 @@ final class PlayerContext {
     /** Everything the JSON says, as plain values. */
     record Snapshot(String t, String player, String name, String phase, int slot, int floor,
                     String zone, int keystone, int runLevel, int party, String dimension, String room,
-                    String roomCell, List<RoomView> rooms, int floorOmen, int intervalOmen, int band, int floorsCounted,
+                    String roomCell, List<RoomView> rooms, int floorOmen, int intervalOmen, int lives, int floorsCounted,
                     int spawnersCleared, int spawnersNeeded, int spawnersTotal,
                     List<ToolView> tools, int blocks, int food, int freeSlots, boolean nearFull,
                     Lemon.View lemon, List<JsonObject> recent,
@@ -103,7 +103,7 @@ final class PlayerContext {
         JsonObject omen = new JsonObject();
         omen.addProperty("floor", s.floorOmen());
         omen.addProperty("interval", s.intervalOmen());
-        omen.addProperty("band", s.band());
+        omen.addProperty("lives", s.lives());
         omen.addProperty("floors", s.floorsCounted());
         o.add("omen", omen);
 
@@ -153,13 +153,9 @@ final class PlayerContext {
         return o;
     }
 
-    /**
-     * The band the interval stands in so far: the sum over every floor
-     * counted (the banked ones and the one in play), with the thresholds
-     * scaled to that many floors.
-     */
-    static int bandSoFar(int intervalOmen, int floorsCounted) {
-        return Omen.band(intervalOmen, Math.max(1, floorsCounted));
+    /** The lives the trip's omen leaves: {@code 5 - omen} (J3). */
+    static int livesLeft(int intervalOmen) {
+        return Omen.lives(intervalOmen);
     }
 
     // ---- reading the live server ---------------------------------------------------
@@ -231,7 +227,7 @@ final class PlayerContext {
 
         return new Snapshot(t, player.getUUID().toString(), player.getName().getString(), phase, slot, floor,
                 zone, keystone, runLevel, party, player.level().dimension().identifier().toString(), room,
-                roomCell, rooms, floorOmen, intervalOmen, bandSoFar(intervalOmen, floorsCounted), floorsCounted,
+                roomCell, rooms, floorOmen, intervalOmen, livesLeft(intervalOmen), floorsCounted,
                 cleared, DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()), total,
                 tools, blocks, food, free, free <= NEAR_FULL_SLOTS, Lemon.view(player),
                 PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS),

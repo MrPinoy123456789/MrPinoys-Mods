@@ -45,9 +45,10 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomTemplateGenerator.register();
         Locks.register();
         AltarOffering.register();
-        OmenSources.register();
+        PressureSources.register();
         CapstoneFights.register();
         DungeonDrops.register();
+        ContentModuleLoader.register();
         SpiderUnstick.register();
         PartyRewards.register();
         StaggeredTitle.register();
@@ -60,7 +61,6 @@ public final class PocketDungeonsMod implements ModInitializer {
         TrimListener.register();
         PowerListener.register();
         DiaryReading.register();
-        BlacksmithNPC.register();
         LibrarianNPC.register();
         StoreNPC.register();
         IronDoorLatch.register();

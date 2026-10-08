@@ -63,12 +63,10 @@ final class RitualListener {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             Keystone.warmUp();
             TrialContent.warmUp();
-            Fuel.warmUp();
             RerollStation.warmUp();
             RunStorage.warmUp();
             SalvageStation.warmUp();
             TrimListener.warmUp();
-            CubeStation.warmUp();
             PowerListener.warmUp();
         });
     }
@@ -122,10 +120,12 @@ final class RitualListener {
 
         // PD-124: the Explosive affix uses fake TNT mines that trigger on
         // contact. Flint and steel or fire charges cannot prime them; the mine
-        // itself handles ignition.
+        // itself handles ignition. TNT a player placed is ordinary TNT (the
+        // rubble blasts need it), so only registered mines are refused.
         if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
                 && level.getBlockState(pos).is(Blocks.TNT)
-                && Instances.dungeonCellOriginAt(pos) != null) {
+                && Instances.dungeonCellOriginAt(pos) != null
+                && RoomContent.isAffixMine(pos)) {
             ItemStack held = serverPlayer.getItemInHand(hand);
             if (held.is(Items.FLINT_AND_STEEL) || held.is(Items.FIRE_CHARGE)) {
                 serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
@@ -159,6 +159,7 @@ final class RitualListener {
         }
         if (bagRecord != null && !bagRecord.visitInstance
                 && Instances.isBagChest(level.getBlockState(pos))) {
+            Bags.clearGatedChoice(DungeonLog.forServer(level.getServer()), serverPlayer.getUUID());
             String carried = DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID());
             if (carried.isEmpty()) {
                 DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
@@ -172,10 +173,11 @@ final class RitualListener {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        // Run storage (playtest 2026-10-02-1): the ender chest, gated behind the
-        // scenes, opens the player's own run storage in a run instead of their
-        // real ender chest. Ahead of the denial below and the room permission
-        // mask, since every member has their own storage in any room.
+        // Dungeon Storage (playtest 2026-10-02-1, J6): the ender chest, gated
+        // behind the scenes, opens the player's own storage anywhere in the
+        // dungeon, run or no run, instead of their real ender chest. Ahead
+        // of the denial below and the room permission mask, since every member
+        // has their own storage in any room.
         if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
                 level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL))) {
             return InteractionResult.SUCCESS_SERVER;
@@ -289,19 +291,11 @@ final class RitualListener {
         // M14: the reroll station. A positive test on the held item, same as
         // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by
-        // default a plain vanilla smithing table).
+        // default a plain vanilla enchanting table, since J5).
         if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
-
-        // M17: the Herobrine Cube. Two positive tests on the held item (a rare
-        // reward to extract, or imbuable gear with no power yet), same shape as
-        // the reroll station above; anything else at the same block falls
-        // straight through to vanilla's own behaviour.
-        if (CubeStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
-            return InteractionResult.SUCCESS_SERVER;
-        }
 
         // The dead-end fountain (playtest 2026-10-02-1): a full water cauldron on
         // a chiseled pedestal. Any other cauldron falls through to vanilla.
@@ -511,7 +505,7 @@ final class RitualListener {
                         RoomTemplateGenerator.bulbAlongForStep(step), false);
             }
             // Show why this door cannot be previewed. The doorRefusal
-            // method knows the exact reason (level gate or fuel gate).
+            // method knows the exact reason (a scrap cost or a finished run).
             // Without this, a player who right-clicks a greater door they
             // cannot afford gets no feedback at all: the bulb does not
             // light, the screen does not change, and they have no idea
@@ -549,10 +543,11 @@ final class RitualListener {
         }
         int cost = offers[Math.min(step - 1, offers.length - 1)].cost();
         if (cost > 0) {
-            int carried = Fuel.carried(player);
+            // The price is the party's lives, so the line names the lives that are left.
+            int livesLeft = Omen.lives(record.interval.omen);
             player.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
-                    SideBranchPay.balanceLine(cost, carried))
-                    .withStyle(SideBranchPay.affordable(cost, carried) ? ChatFormatting.GRAY : ChatFormatting.RED)));
+                    DoorLives.costText(cost) + ". Lives " + livesLeft + ".")
+                    .withStyle(DoorLives.affordable(livesLeft, cost) ? ChatFormatting.GRAY : ChatFormatting.RED)));
         }
     }
 
@@ -562,7 +557,7 @@ final class RitualListener {
      * spelled out: {@link #pullLever} names the reason on the screen and
      * {@link #selectDoor} sounds it on the preview click, so the two can never
      * disagree about which doors are openable. Only a side branch (an edge that
-     * costs echo shards) or a finished dungeon refuses; there are no level gates.
+     * costs scrap) or a finished dungeon refuses; there are no level gates.
      * {@code RunLifecycle.commitDoor} re-checks all of this regardless; this
      * is for the message and the cue, not for the rule.
      */
@@ -584,10 +579,10 @@ final class RitualListener {
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         int cost = offer.cost();
         if (cost > 0) {
-            // The viewing player's own pack, never the owner's.
-            int carried = Fuel.carried(player);
-            if (!SideBranchPay.affordable(cost, carried)) {
-                return SideBranchPay.screenRefusal(cost, carried);
+            // The price is lives, the party's (the trip's omen), and the last one is never for sale.
+            int livesLeft = Omen.lives(record.interval.omen);
+            if (!DoorLives.affordable(livesLeft, cost)) {
+                return DoorLives.screenRefusal(livesLeft, cost);
             }
         }
         return null;
@@ -617,7 +612,6 @@ final class RitualListener {
         BlockState state = level.getBlockState(pos);
         return state.getMenuProvider(level, pos) != null
                 || RerollStation.matchesStation(state)
-                || CubeStation.matchesStation(state)
                 || SalvageStation.matchesStation(state);
     }
 

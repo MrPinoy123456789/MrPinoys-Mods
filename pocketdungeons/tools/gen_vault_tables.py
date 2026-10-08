@@ -1,153 +1,103 @@
 #!/usr/bin/env python3
-"""Derives the vault loot tables from the chest loot tables.
+"""Writes the vault loot tables under the K2 split: chests feed you, vaults
+equip you.
 
-A vault is not a chest. A chest holds its roll across 27 slots and the player
-opens it and takes what they want; a vault ejects every stack it rolls onto the
-floor, one item entity at a time. The chest tables guarantee 13 to 22 rolls, so
-pointing a vault at one buries the room in dirt, saplings and cobblestone and
-loses the two stacks that actually mattered somewhere in the pile.
+The old generator derived vaults by filtering the chest tables, which worked
+while chests carried a gear pool to keep. K2.4 took gear out of the chests, so
+the vault recipe is authored here directly instead. A vault pays:
 
-So the vault tables are the chest tables with the bulk taken out: the treasure,
-ore, gear, curio and trim pools survive, every one of them clamped to a single
-roll, and the food, torches, bones, building blocks, dirt, saplings, seeds,
-arrows and the mineral tail are dropped. That lands a vault at roughly 2 to 6
-stacks. Two rules beyond the filter:
+  * gear: one piece from the five slot tables of the vault's tier, guaranteed;
+    a key-gated container that can pay out nothing but ore is worse than one
+    that pays out too much (the rule the old filter encoded),
+  * treasure: the vault's mineral take, scaled by tier; ominous rolls twice,
+  * a sentry trim template about one roll in three: the one pattern K2.1 kept
+    in core loot, so a vault is where a player still picks it up,
+  * rarely, the rare foods: cake and golden apples live in vaults and the
+    finish chests only (K).
 
-  * Where a table has several pools of the same kind (the ominous tables repeat
-    their treasure pool two and three times over), the richest one is kept and
-    the rest are dropped: one pool per kind of thing.
-  * The gear pool loses its random_chance and becomes guaranteed. It is the only
-    uplift here and it is the point of the whole exercise: a vault costs a key,
-    and a key-gated container that can pay out nothing but ore is worse than one
-    that pays out too much.
+The _drowned vaults are single-entry references to the base table of the same
+tier and flag: the drowned theme's chest tables are themselves references, so
+a vault with the same contents is the honest description.
 
-Run from the mod root after editing anything under loot_table/chests:
+Run from the mod root:
 
     python tools/gen_vault_tables.py
-
-Every pool in every source table must be classified below. An unrecognised one
-is an error rather than a default, so a new chest pool cannot silently land in
-the vaults or silently miss them.
 """
 
-import json
 import os
 import sys
 
-CHESTS = 'src/main/resources/data/pocketdungeons/loot_table/chests'
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gen_themed_content as g
+
 VAULTS = 'src/main/resources/data/pocketdungeons/loot_table/vaults'
-
-# Keyed by the pool's first entry, which identifies the pool across every tier.
-KEEP = {
-    'minecraft:diamond': 'treasure',
-    'minecraft:iron_ingot': 'ore',
-    'minecraft:echo_shard': 'echo',
-    'minecraft:brewing_stand': 'curio',
-    'minecraft:ender_chest': 'curio',
-    'minecraft:trident': 'themed_weapon',
-    'minecraft:heart_of_the_sea': 'themed_treasure',
-    'minecraft:water_bucket': 'tools',
-}
-
-DROP = {
-    'minecraft:bread', 'minecraft:cooked_cod', 'minecraft:golden_carrot',
-    'minecraft:torch', 'minecraft:sea_lantern',
-    'minecraft:bone',
-    'minecraft:stone', 'minecraft:deepslate', 'minecraft:end_stone',
-    'minecraft:prismarine_bricks', 'minecraft:dark_prismarine',
-    'minecraft:oxidized_cut_copper',
-    'minecraft:dirt', 'minecraft:oak_sapling', 'minecraft:wheat_seeds',
-    'minecraft:arrow',
-    'minecraft:quartz', 'minecraft:amethyst_shard',
-    'minecraft:redstone', 'minecraft:diamond_sword', 'minecraft:copper_ingot',
-    'minecraft:cobblestone', 'minecraft:sandstone', 'minecraft:oak_log',
-    'minecraft:potato', 'minecraft:nautilus_shell',
-}
-
-# These reference another loot table instead of listing item pools directly,
-# and the table they point at is itself one of the tier_*_ominous tables
-# already handled here, so skipping them outright loses nothing.
-SKIP_TABLES = {
-    'tier_1_ominous_drowned.json', 'tier_2_ominous_drowned.json',
-    'tier_3_ominous_drowned.json',
-}
-
-ARMOR_SUFFIXES = ('_helmet', '_chestplate', '_leggings', '_boots')
-WEAPON_SUFFIXES = ('_sword', '_axe')
-WEAPON_NAMES = {'minecraft:bow', 'minecraft:crossbow'}
+GEAR_SLOTS = ('helmet', 'chestplate', 'leggings', 'boots', 'weapon')
 
 
-def kind(pool, path, index):
-    """Which bucket this pool falls in, or None if it is dropped."""
-    first = pool['entries'][0].get('name')
-    if first is None:
-        sys.exit('%s pool %d has no leading item entry' % (path, index))
-    if first.endswith('_armor_trim_smithing_template'):
-        return 'trim'
-    # The leader decides pools like "tools" (leads with a water bucket) before
-    # the armour scan runs below; otherwise a gold boot buried later in that
-    # same pool would read as gear and the whole pool would be dropped.
-    if first in KEEP:
-        return KEEP[first]
-    names = [entry.get('name') for entry in pool['entries']]
-    if any(name is not None and name.endswith(ARMOR_SUFFIXES) for name in names):
-        return 'gear'
-    if any(name in WEAPON_NAMES or (name is not None and name.endswith(WEAPON_SUFFIXES))
-           for name in names):
-        return 'weapon'
-    if first in DROP:
-        return None
-    sys.exit('%s pool %d leads with %s, which is in neither KEEP nor DROP. '
-             'Classify it in tools/gen_vault_tables.py before regenerating.'
-             % (path, index, first))
-
-
-def vault_pools(table, path):
-    """The kept pools, one per kind, richest wins, every one clamped to a roll."""
-    best = {}
-    for index, pool in enumerate(table.get('pools', [])):
-        bucket = kind(pool, path, index)
-        if bucket is None:
-            continue
-        incumbent = best.get(bucket)
-        if incumbent is None or len(pool['entries']) > len(incumbent[1]['entries']):
-            best[bucket] = (index, pool)
-
-    out = []
-    for index, pool in sorted(best.values()):
-        pool = json.loads(json.dumps(pool))  # the source table is not ours to edit
-        pool['rolls'] = 1
-        pool.pop('bonus_rolls', None)
-        if kind(pool, path, index) == 'gear':
-            pool.pop('conditions', None)
-        out.append(pool)
+def entry(name, weight=None, count=None):
+    out = {'type': 'minecraft:item', 'name': 'minecraft:' + name}
+    if weight is not None:
+        out['weight'] = weight
+    if count is not None:
+        out['functions'] = [{'function': 'minecraft:set_count',
+                             'count': {'min': count[0], 'max': count[1]}}]
     return out
 
 
+def vault_table(tier, ominous):
+    """The vault recipe for one tier and flag."""
+    pools = [
+        # Gear: one slot's piece, guaranteed (see module docstring).
+        {'rolls': 2 if ominous else 1,
+         'entries': [{'type': 'minecraft:loot_table',
+                      'value': 'pocketdungeons:gear/%s_%d' % (slot, tier)}
+                     for slot in GEAR_SLOTS]},
+        # Treasure: the vault's mineral take.
+        {'rolls': {'min': 1, 'max': 2} if ominous else 1,
+         'entries': [
+             entry('iron_ingot', 6, (1, 3)),
+             entry('coal', 4, (2, 5)),
+             entry('lapis_lazuli', 3, (1, 3)),
+             entry('emerald', 3, (1, 2)),
+             entry('diamond', 3, (1, 2)),
+             entry('book', 2),
+         ] + ([entry('netherite_ingot', 1)] if tier >= 4 else [])},
+        # The one trim pattern, about a third of vaults.
+        {'rolls': 1, 'conditions': [
+            {'condition': 'minecraft:random_chance',
+             'chance': 0.5 if ominous else 0.34}],
+         'entries': [entry('sentry_armor_trim_smithing_template')]},
+        # The rare foods: vaults and the finish chests only.
+        {'rolls': 1, 'conditions': [
+            {'condition': 'minecraft:random_chance',
+             'chance': 0.5 if ominous else 0.35}],
+         'entries': [
+             entry('golden_apple', 3),
+             entry('cake', 2),
+         ] + ([entry('enchanted_golden_apple', 1)] if tier >= 3 else [])},
+    ]
+    return {'type': 'minecraft:chest', 'pools': pools}
+
+
+def ref_table(target):
+    """A vault that is another vault's table outright, for the drowned suffix."""
+    return {'type': 'minecraft:chest',
+            'pools': [{'rolls': 1, 'entries': [
+                {'type': 'minecraft:loot_table', 'value': target}]}]}
+
+
 def main():
-    if not os.path.isdir(CHESTS):
-        sys.exit('run this from the mod root: %s not found' % CHESTS)
-    os.makedirs(VAULTS, exist_ok=True)
-
-    names = sorted(n for n in os.listdir(CHESTS)
-                   if n.startswith('tier_') and n.endswith('.json')
-                   and n not in SKIP_TABLES)
-    for name in names:
-        path = os.path.join(CHESTS, name)
-        with open(path, encoding='utf-8') as handle:
-            table = json.load(handle)
-
-        pools = vault_pools(table, path)
-        out = {'type': table.get('type', 'minecraft:chest'), 'pools': pools}
-        target = os.path.join(VAULTS, name)
-        with open(target, 'w', encoding='utf-8', newline='\n') as handle:
-            json.dump(out, handle, indent=2)
-            handle.write('\n')
-
-        was = len(table.get('pools', []))
-        print('%-22s %2d pools -> %d (%s)' % (
-            name, was, len(pools),
-            ', '.join(kind(p, path, i) for i, p in enumerate(pools))))
+    if not os.path.isdir(VAULTS):
+        sys.exit('run this from the mod root: %s not found' % VAULTS)
+    for tier in (1, 2, 3, 4):
+        for ominous in (False, True):
+            suffix = '_ominous' if ominous else ''
+            name = 'tier_%d%s.json' % (tier, suffix)
+            g.write_json(os.path.join(VAULTS, name), vault_table(tier, ominous))
+            for drowned in ('_drowned',):
+                g.write_json(os.path.join(VAULTS, 'tier_%d%s%s.json' % (tier, suffix, drowned)),
+                             ref_table('pocketdungeons:vaults/tier_%d%s' % (tier, suffix)))
+    print('done')
 
 
 if __name__ == '__main__':

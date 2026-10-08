@@ -46,6 +46,13 @@ import java.util.UUID;
 final class Pocket2 {
 
     /**
+     * J7: Pocket2 is hidden from players for now; no playtest has met it.
+     * Everything below stays built and tested; {@link LayoutStamper} just
+     * never rolls the door while this is {@code false}.
+     */
+    static final boolean DOORS_LIVE = false;
+
+    /**
      * How many cells a child dungeon is planned with. The low end of M25's
      * "3-5 cells" is 4, not 3: a 3-cell path has a single interior cell, and
      * the planner's role guarantee can only give that one cell to encounter or

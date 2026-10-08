@@ -1,7 +1,9 @@
 {
   "name": "Mineshaft",
   "act": 1,
-  "kind": "resource",
+  "baseLevel": 1,
+  "kind": "dungeon",
+  "minNodeRooms": 1,
   "mainTheme": "mineshaft",
   "lootBand": {
     "min": 1,
@@ -9,11 +11,10 @@
   },
   "nodePalette": [
     "coal_ore",
-    "copper_ore",
     "iron_ore",
     "gold_ore",
+    "sand",
     "deepslate_coal_ore",
-    "deepslate_copper_ore",
     "deepslate_iron_ore",
     "deepslate_gold_ore"
   ],
@@ -24,10 +25,13 @@
     "sizeMin": 1,
     "sizeMax": 3,
     "blocks": [
-      "coal_ore", "coal_ore", "coal_ore",
-      "iron_ore", "iron_ore",
-      "copper_ore", "copper_ore",
-      "gold_ore"
+      "coal_ore",
+      "coal_ore",
+      "coal_ore",
+      "iron_ore",
+      "iron_ore",
+      "gold_ore",
+      "sand"
     ]
   },
   "nodes": [

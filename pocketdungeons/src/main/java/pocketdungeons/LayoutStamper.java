@@ -165,7 +165,7 @@ final class LayoutStamper {
         RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
                 depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
-            OmenSources.arm(level, cellOrigin, entry.meta, theme);
+            PressureSources.arm(level, cellOrigin, entry.meta, theme);
         NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
                 plan.seed() ^ cellOrigin.asLong(), nodesOut);
 
@@ -238,7 +238,10 @@ final class LayoutStamper {
         // Rolled once per run off the plan seed, and gated on the adventure
         // graph: a theme that has no node in it (an unthemed run, or a datapack
         // that never declared one) never hosts a pocket door.
-        boolean pocket2Rolled = theme != null
+        // J7: Pocket2 is hidden from players for now; no playtest has met it.
+        // The machinery stays, the roll is pinned off until it does.
+        boolean pocket2Rolled = Pocket2.DOORS_LIVE
+                && theme != null
                 && AdventureGraphs.current().graph().node(theme) != null
                 && RandomSource.create(plan.seed()).nextDouble()
                 < PocketDungeonsConfig.pocket2DoorChance();
@@ -297,7 +300,7 @@ final class LayoutStamper {
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
                     isAnomalyCell && !"store".equals(entry.meta.content) ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
-            OmenSources.arm(level, cellOrigin, entry.meta, theme);
+            PressureSources.arm(level, cellOrigin, entry.meta, theme);
             trialSpawners.addAll(spawnerAnchors);
             if ("flooded_hall".equals(entry.meta.content)) {
                 latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));

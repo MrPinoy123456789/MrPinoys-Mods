@@ -169,12 +169,18 @@ final class Instances {
                 return false;
             }
             if (record.inFloorLoop()) {
-                record.interval.omen = Omen.add(record.interval.omen, 1);
-                OmenBar.sync(server, record);
-                if (Omen.clamp(record.interval.omen) >= Omen.MAX_OMEN) {
+                // J3: death is the only thing that raises omen. A trip starts
+                // at five lives; the fifth death ends the run.
+                if (Omen.nextDeathFails(record.interval.omen)) {
+                    PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
+                            Omen.MAX_OMEN + 1, player.blockPosition());
                     failRunOmen(server, record, player, source);
                     return false;
                 }
+                record.interval.omen = Omen.add(record.interval.omen, 1);
+                PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
+                        record.interval.omen, player.blockPosition());
+                OmenBar.deathCue(server, record, record.interval.omen);
             }
             PlaytestJournal.rescue(player, record, source);
             // M27.3: deferred until extended dungeons. A checkpoint that
@@ -208,7 +214,7 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
+                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
             }
         });
 
@@ -254,6 +260,12 @@ final class Instances {
         // until M46.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 InventorySwap.reconcile(handler.getPlayer()));
+
+        // A haul carried out of a trip that ended while the member was away (a server restart, a
+        // grace expiry that missed them) comes home when they next join; the one time message
+        // tells a migrated player what scrap is now.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                RunLifecycle.onJoinHaul(server, handler.getPlayer()));
 
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
@@ -425,10 +437,10 @@ final class Instances {
                                               int slot, BlockPos origin, long seed,
                                               int keystoneLevel, Set<String> affixes,
                                               String theme, UUID owner) {
-        // M48: seed the solvability pass from the owner's bag. buildLayout is
-        // the untimed/admin path with no party, so the party size is one.
-        String bagId = owner == null ? "" : DungeonLog.forServer(server).bagOf(owner);
-        Set<String> bagTags = BagTags.seed(bagId, 1);
+        // E (D25): the spine proves solvable for a Pilgrim; the bag only opens
+        // bonus rooms now. buildLayout is the untimed/admin path with no
+        // party, so the party size is one.
+        Set<String> bagTags = BagTags.pilgrim(1);
         LayoutPlanner.Outcome outcome = LayoutPlanner.plan(
                 seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                 PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
@@ -609,17 +621,12 @@ final class Instances {
             admit(server, record, companion);
         }
 
-        // The engine screen was summoned at stamp time without a viewer; now
-        // that the owner is standing here, show their actual fuel count.
+        // The history screen was summoned at stamp time without a viewer; now
+        // that the owner is standing here, refresh it for them.
         DungeonScreen.updateHistory(level, record);
 
         player.sendSystemMessage(Component.literal(
                 "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
-
-        // M71: fire the discovery floor. Delivers a catalyst on the first
-        // eligible safe visit, so a new player has a dependable first
-        // experiment at the Cube without being handed a recipe list.
-        DiscoveryFloor.fire(server, player);
 
         return true;
     }
@@ -1083,7 +1090,7 @@ final class Instances {
         return new RoomEligibility.Floor(def.id(), def.mainTheme(), roomTheme, def.act(),
                 def.kind() == DungeonDef.Kind.CAPSTONE, effectiveThemeId, borrowedFrom,
                 node.layer() == 1, node.isFinal(), offer.door().sideBranch(),
-                def.kind() == DungeonDef.Kind.RESOURCE);
+                def.minNodeRooms(node));
     }
 
     /**
@@ -1116,21 +1123,16 @@ final class Instances {
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
-        String bagId = DungeonLog.forServer(server).bagOf(record.owner);
-        // M65: use conservative live capabilities on later floors. On
-        // floor 0 (HOME phase), the original bag enum is a fair proof:
-        // the party just chose it and has not entered yet. On later
-        // floors (FLOOR_CLEARED phase), tools may have been spent, lost
-        // or used up, so the bag enum is no longer proof. Use the live
-        // party size (members actually present and online) for the mob
-        // tag, and keep the bag tags as a conservative baseline: the
-        // generator still proves solvability with them, but the live
-        // party size reflects who is actually here.
+        // E (D25): the spine proves solvable for a Pilgrim; the chosen bag
+        // only opens bonus rooms now, so the seed no longer reads it. The
+        // party still brings its own mob: on floor 0 (HOME phase) every
+        // member counts, on later floors (FLOOR_CLEARED phase) only members
+        // actually present and online do (M65).
         int livePartySize = record.members.size();
         if (record.phase == RunSession.Phase.FLOOR_CLEARED) {
             livePartySize = countLiveMembers(server, record);
         }
-        Set<String> bagTags = BagTags.seed(bagId, livePartySize);
+        Set<String> bagTags = BagTags.pilgrim(livePartySize);
 
         // M66: read the keystone's recipe tags (without clearing them) and
         // resolve a RunRecipePlan. The plan carries every recipe effect the
@@ -1466,8 +1468,7 @@ final class Instances {
         // A floor turns ominous by chance, rolled now that the door is chosen:
         // the more omen the party has banked this interval, the likelier.
         if (!affixes.contains(AffixIds.OMINOUS)
-                && level.getRandom().nextDouble() < Omen.ominousChance(
-                        record.interval.bankedOmenSum(), record.interval.floorOmens.size())) {
+                && level.getRandom().nextDouble() < Omen.ominousChance(record.interval.omen)) {
             affixes = new java.util.LinkedHashSet<>(affixes);
             affixes.add(AffixIds.OMINOUS);
             ominousRolled = true;
@@ -1566,32 +1567,11 @@ final class Instances {
             }
         }
 
-        // A zone's floors past its usual length start with omen already on
-        // them (ZoneRules.baseOmen): pushing deeper is always a gamble, and
-        // the bar and a cue say so as the floor opens.
-        ZoneRules zone = ZoneRules.forTheme(effectiveThemeId);
-        int headStart = zone.baseOmen(record.interval.floorIndex + 1, PocketDungeonsConfig.floorsPerSafeVisit());
-        if (headStart > 0) {
-            int before = record.interval.omen;
-            record.interval.omen = Omen.add(record.interval.omen, headStart);
-            if (record.interval.omen > before) {
-                OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
-                        record.interval.omen - before, null);
-            }
-        }
-
-        // Dungeon structure W7b (design D16a): a capstone dungeon's final floor starts with omen on it.
+        // J3: a capstone dungeon's final floor opens two levels harder (it
+        // used to start with omen on it, D16a reworked).
         if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
-            int capstoneOmen = CapstoneStart.amount(DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId(),
-                    PocketDungeonsConfig.capstoneStartOmen());
-            if (capstoneOmen > 0) {
-                int before = record.interval.omen;
-                record.interval.omen = CapstoneStart.raise(before, capstoneOmen);
-                if (record.interval.omen > before) {
-                    OmenBar.omenRose(server, record, Omen.Source.DEPTH, record.interval.omen,
-                            record.interval.omen - before, null);
-                }
-            }
+            record.floor.levelBonus += CapstoneStart.levelBonus(
+                    DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId());
         }
 
         // M11: a zone whose capstone is the boss gets its one proof encounter.
@@ -1787,7 +1767,6 @@ final class Instances {
         // interval and floor, and no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(lobbyLayout(safeOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     // ---- exit ---------------------------------------------------------------
@@ -1932,7 +1911,7 @@ final class Instances {
      * and re-enter the dungeon from there. Falls back to {@link #eject} (return
      * point) when the record has no room cell (admin/untimed runs).
      */
-    private static void rescue(ServerPlayer player, InstanceRecord record) {
+    static void rescue(ServerPlayer player, InstanceRecord record) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
@@ -1961,7 +1940,18 @@ final class Instances {
         // present used to leave the run running without them; dropMember's
         // leadership branch now ends it for everyone, exactly as a voluntary
         // exit or a disconnect already would.
-        RunLifecycle.dropMember(server, record, player.getUUID(), player, "death rescue");
+        //
+        // PD-167: with a room to regroup in, the rescue is a detach and a
+        // re-admit, not a departure. Going through dropMember there let the
+        // leadership rule end the run for the whole party whenever the owner
+        // died, at any lives count; under Blood Doors a death spends one life
+        // and nothing else. Only a rescue with no room to return to (admin,
+        // untimed, visit) is still a real exit and keeps the leadership rule.
+        if (hadRoom) {
+            detach(server, record, player.getUUID(), player);
+        } else {
+            RunLifecycle.dropMember(server, record, player.getUUID(), player, "death rescue");
+        }
 
         // dropMember's leadership branch purges the whole record synchronously
         // (InstanceRegistry.bySlot.remove), so this is how rescue tells
@@ -2035,38 +2025,29 @@ final class Instances {
     }
 
     /**
-     * A death at max omen fails the run: everyone is sent home, unbanked floors
-     * pay nothing, and each member's dungeon inventory reverts to the
-     * snapshot taken at interval start. Keystone level and home room are
-     * untouched.
+     * A death at the last life fails the run: everyone is sent home with what
+     * they carry, unbanked floors pay nothing, and the dungeon's finish is not
+     * paid (J2). Keystone level and home room are untouched.
      */
     static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
-        // The storage reverts with the pack (any open menu is closed first).
-        RunStorage.rollBackToInterval(server, record);
-        DungeonLog log = DungeonLog.forServer(server);
+        // A failed dungeon keeps half of every member's haul, present or detached, and loses the rest.
         for (UUID member : new ArrayList<>(record.members.keySet())) {
-            List<ItemStack> snapshot = record.interval.inventorySnapshot.get(member);
+            RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
+        }
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
-                if (snapshot != null) {
-                    InventorySwap.restoreIntervalSnapshot(server, player, snapshot);
-                }
                 eject(server, record, player);
             } else {
-                if (snapshot != null) {
-                    List<ItemStack> kept = new ArrayList<>(InventorySwap.SLOTS + 8);
-                    kept.addAll(snapshot);
-                    log.setOrphan(member, InventorySwap.OrphanRecord.of(kept));
-                }
                 detach(server, record, member, null);
             }
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         PlaytestJournal.runFailed(server, record, deadPlayer, source);
-        announce(server, record, "The dungeon claims a max-omen death. Everyone is sent home.", null);
+        announce(server, record, "The dungeon claims you. You keep what you carry.", null);
         InstanceTeardown.purge(server, record, "omen fail", deadPlayer.getUUID());
     }
 
@@ -2101,7 +2082,7 @@ final class Instances {
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
                 mob.addTag("pocketdungeons_omen_wave");
-                applyMobScale(mob, record.layout.keystoneLevel(), Omen.clamp(record.interval.omen));
+                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
         }
@@ -2189,7 +2170,7 @@ final class Instances {
     static ReturnPoint detach(MinecraftServer server, InstanceRecord record, UUID member, ServerPlayer player) {
         // Before anything else, while the room is still exactly as they left it.
         RunLifecycle.saveRoomIfOwner(server, record, member);
-        OmenSources.forget(member);
+        PressureSources.forget(member);
         OmenBar.detach(record, member);
         ReturnPoint point = record.members.remove(member);
         record.guests.remove(member);
@@ -3340,6 +3321,7 @@ final class Instances {
             player.setLastDeathLocation(Optional.empty());
         }
 
+        InventorySwap.liftCursorBeforeCrossing(server, player, dimension);
         player.teleport(new TeleportTransition(target, pos, Vec3.ZERO, yaw, pitch,
                 TeleportTransition.DO_NOTHING));
     }
@@ -3378,6 +3360,7 @@ final class Instances {
         }
         BlockPos pos = spawn.pos();
         Vec3 dest = Vec3.atBottomCenterOf(pos);
+        InventorySwap.liftCursorBeforeCrossing(server, player, target.dimension());
         player.teleport(new TeleportTransition(target, dest, Vec3.ZERO,
                 spawn.yaw(), spawn.pitch(), TeleportTransition.DO_NOTHING));
     }

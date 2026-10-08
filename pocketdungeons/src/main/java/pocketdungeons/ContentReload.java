@@ -123,6 +123,7 @@ final class ContentReload {
                 BagManifest.publish(candidate.bags());
                 RoleManifest.publish(candidate.roles());
                 CubeRecipeManifest.publish(candidate.recipes());
+                ContentModules.publish(candidate.modules());
                 LootTables.validateAtStartup(server);
                 reconcileActiveFloors(server, candidate);
             } else {

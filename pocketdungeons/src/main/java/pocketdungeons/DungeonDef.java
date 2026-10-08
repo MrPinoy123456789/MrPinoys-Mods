@@ -33,35 +33,49 @@ import java.util.function.ToIntFunction;
  * @param deviation   how a floor may borrow another theme (D6a), or null
  * @param hiddenOre   ore pockets buried in the solid rock of every room the dungeon stamps
  *                    (design 2026-10-06-1 item 7), or null for none
+ * @param minNodeRooms how many node-bearing rooms every floor must place (the PD-149
+ *                     guarantee as data); a node may override it
+ * @param baseLevel    the level of the entry floor (design D26); a floor at layer L
+ *                     defaults to {@code baseLevel + L - 1}, a node may override with
+ *                     {@code level}
  */
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
-                  List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre) {
+                  List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
+                  int baseLevel) {
 
-    /** A dungeon with no hidden ore. */
+    /** A dungeon with no hidden ore and no node room guarantee. */
     DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                List<String> nodePalette, String merchant, String diary, Deviation deviation,
                List<Node> nodes, List<Edge> edges) {
-        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges, null);
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
+                null, 0, 1);
     }
 
-    /** What a dungeon is for. */
+    /** A dungeon with hidden ore and no node room guarantee. */
+    DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
+               List<String> nodePalette, String merchant, String diary, Deviation deviation,
+               List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre) {
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
+                hiddenOre, 0, 1);
+    }
+
+    /** What a dungeon is for (design D12, revised 2026-10-06). */
     enum Kind {
-        STORY, RESOURCE, CAPSTONE, ENDLESS;
+        DUNGEON, CAPSTONE, ENDLESS;
 
         static Kind parse(String word) {
             return switch (word) {
-                case "story" -> STORY;
-                case "resource" -> RESOURCE;
+                case "dungeon" -> DUNGEON;
                 case "capstone" -> CAPSTONE;
                 case "endless" -> ENDLESS;
                 default -> throw new IllegalArgumentException(
-                        "kind must be story, resource, capstone or endless: " + word);
+                        "kind must be dungeon, capstone or endless: " + word);
             };
         }
     }
 
-    static final int MIN_LAYERS = 3;
+    static final int MIN_LAYERS = 2;
     static final int MAX_LAYERS = 6;
     static final int MAX_EDGES_OUT = 3;
     static final int MIN_ACT = 1;
@@ -91,6 +105,21 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         String ns = colon < 0 ? "minecraft" : id.substring(0, colon);
         String name = colon < 0 ? id : id.substring(colon + 1);
         return "minecraft".equals(ns) && (STRUCTURAL_BLOCKS.contains(name) || name.endsWith("_planks"));
+    }
+
+    /**
+     * Whether a block id is a copper ore (K2.8): copper left the game as a
+     * whole tier, so a node or palette must not hand it back.
+     */
+    static boolean isCopperOre(String blockId) {
+        if (blockId == null) {
+            return false;
+        }
+        String id = blockId.trim();
+        int colon = id.indexOf(':');
+        String ns = colon < 0 ? "minecraft" : id.substring(0, colon);
+        String name = colon < 0 ? id : id.substring(colon + 1);
+        return "minecraft".equals(ns) && (name.equals("copper_ore") || name.equals("deepslate_copper_ore"));
     }
 
     /** The loot tiers this dungeon's act allows (D10), inclusive. */
@@ -166,6 +195,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 if (isStructuralBlock(block)) {
                     out.add("hiddenOre block " + block + " is a structural block, which would make walls mineable");
                 }
+                if (isCopperOre(block)) {
+                    out.add("hiddenOre block " + block + " is copper ore, which left the game (K2.8)");
+                }
             }
             return out;
         }
@@ -179,21 +211,38 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      * <p>{@code light} (W4, D17) is {@code lit}, {@code dim} or {@code dark}, default
      * {@code lit}: the minimum darkness every room of this floor is stamped with. A
      * dark node darkens every room that does not say {@code requiresLight}, and the
-     * Feral affix is not dealt on it.
+     * Feral affix is not dealt on it. {@code minNodeRooms} overrides the dungeon's own
+     * node room guarantee for this floor; {@link #INHERIT_NODE_ROOMS} means inherit.
+     * {@code level} (D26) overrides the floor's level; {@link #UNSET_LEVEL} means
+     * {@code baseLevel + layer - 1} ({@link FloorLevels}).
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
-                List<Reward> rewards) {
+                List<Reward> rewards, int minNodeRooms, int level) {
 
         static final String LIGHT_LIT = "lit";
         static final String LIGHT_DIM = "dim";
         static final String LIGHT_DARK = "dark";
 
+        /** {@link #minNodeRooms} value meaning "use the dungeon's own {@code minNodeRooms}". */
+        static final int INHERIT_NODE_ROOMS = -1;
+
+        /** {@link #level} value meaning "derive the floor level from the layer". */
+        static final int UNSET_LEVEL = -1;
+
         /** A node with the default light ({@code lit}) and no promised rewards. */
         Node(String id, String name, int layer, String theme, String signatureAffix,
              List<String> roomBias, int roomCount, boolean isFinal) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT,
-                    List.of());
+                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL);
+        }
+
+        /** A node with light and rewards, inheriting the dungeon's node room guarantee. */
+        Node(String id, String name, int layer, String theme, String signatureAffix,
+             List<String> roomBias, int roomCount, boolean isFinal, String light,
+             List<Reward> rewards) {
+            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
+                    INHERIT_NODE_ROOMS, UNSET_LEVEL);
         }
 
         /**
@@ -240,6 +289,12 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             if (roomCount < 0) {
                 throw new IllegalArgumentException("node roomCount must be >= 1 when present: " + id);
             }
+            if (minNodeRooms < INHERIT_NODE_ROOMS) {
+                throw new IllegalArgumentException("node minNodeRooms must be >= 0 when present: " + id);
+            }
+            if (level < UNSET_LEVEL || level == 0) {
+                throw new IllegalArgumentException("node level must be >= 1 when present: " + id);
+            }
         }
 
         boolean overridesTheme() {
@@ -247,14 +302,18 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
     }
 
-    /** A directed edge between two nodes; {@code cost} is echo shards (0 is a main path edge). */
+    /**
+     * A directed edge between two nodes; {@code cost} is the lives a side door takes from the party
+     * (0 is a main path edge, 1 or 2 a side branch). The file key is {@code lives}.
+     */
     record Edge(String from, String to, int cost) {
         Edge {
             if (from == null || from.isBlank() || to == null || to.isBlank()) {
                 throw new IllegalArgumentException("edge endpoints must not be blank");
             }
-            if (cost < 0) {
-                throw new IllegalArgumentException("edge cost must be >= 0: " + from + " to " + to);
+            if (cost < 0 || cost > DoorLives.MAX_LIVES) {
+                throw new IllegalArgumentException("edge lives must be 0 to " + DoorLives.MAX_LIVES + ": "
+                        + from + " to " + to);
             }
         }
 
@@ -287,6 +346,12 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         diary = diary == null ? "" : diary;
         nodes = List.copyOf(nodes);
         edges = List.copyOf(edges);
+        if (minNodeRooms < 0) {
+            throw new IllegalArgumentException("minNodeRooms must be >= 0: " + id);
+        }
+        if (baseLevel < 1) {
+            throw new IllegalArgumentException("baseLevel must be >= 1: " + id);
+        }
         if (nodes.isEmpty()) {
             throw new IllegalArgumentException("a dungeon needs at least one node: " + id);
         }
@@ -322,6 +387,16 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         return max;
     }
 
+    /**
+     * The compass level at which this dungeon unlocks (D23): a dungeon whose
+     * unlock level is above the leader's compass is not offered at the first
+     * door and is never the guaranteed capstone. Settled equal to
+     * {@link #baseLevel} (plan 2026-10-06-2 section B).
+     */
+    int unlockLevel() {
+        return baseLevel;
+    }
+
     /** The one node on layer 1, or null if there is not exactly one. */
     Node entry() {
         Node found = null;
@@ -344,6 +419,15 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
         }
         return out;
+    }
+
+    /**
+     * How many node-bearing rooms a floor of {@code node} must place (the PD-149
+     * guarantee, now data instead of a kind): the node's own
+     * {@code minNodeRooms} when declared, else the dungeon's.
+     */
+    int minNodeRooms(Node node) {
+        return node != null && node.minNodeRooms() >= 0 ? node.minNodeRooms() : minNodeRooms;
     }
 
     List<Edge> edgesFrom(String nodeId) {
@@ -370,8 +454,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         boolean endless = kind == Kind.ENDLESS;
         int layerCount = layers();
 
-        // D12: a resource dungeon is 1 to 3 floors, so it may be shorter than the story minimum.
-        int minLayers = endless || kind == Kind.RESOURCE ? 1 : MIN_LAYERS;
+        // D12 (revised): every dungeon but the endless one is 2 to 6 floors; length is flavour.
+        int minLayers = endless ? 1 : MIN_LAYERS;
         if (layerCount < minLayers || layerCount > MAX_LAYERS) {
             out.add("layers must be " + minLayers + " to " + MAX_LAYERS
                     + " but the highest node layer is " + layerCount);
@@ -420,13 +504,27 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                         + MAX_EDGES_OUT);
             }
         }
+        // D26: difficulty never eases as a path deepens; a node's level (declared or
+        // derived from its layer) must be at least the level of every node feeding it.
+        Map<String, Integer> effectiveLevels = new HashMap<>();
+        for (Node node : nodes) {
+            effectiveLevels.put(node.id(), FloorLevels.of(this, node));
+        }
+        for (Edge edge : edges) {
+            int fromLevel = effectiveLevels.get(edge.from());
+            int toLevel = effectiveLevels.get(edge.to());
+            if (toLevel < fromLevel) {
+                out.add("node " + edge.to() + " (level " + toLevel + ") drops below "
+                        + edge.from() + " (level " + fromLevel + ") along its edge");
+            }
+        }
         if (hasCycle()) {
             out.add("the graph has a cycle");
         }
 
         List<Node> finals = finals();
         if (!endless && finals.isEmpty()) {
-            out.add("a " + kind.name().toLowerCase() + " dungeon needs a final node");
+            out.add("dungeon " + id + " needs a final node");
         }
         if (kind == Kind.CAPSTONE && finals.size() != 1) {
             out.add("a capstone dungeon needs exactly one final node but has " + finals.size());
@@ -581,6 +679,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
         String merchant = optionalString(obj, "merchant");
         String diary = optionalString(obj, "diary");
+        int minNodeRooms = obj.has("minNodeRooms") ? requiredInt(obj, "minNodeRooms") : 0;
+        int baseLevel = requiredInt(obj, "baseLevel");
 
         Deviation deviation = null;
         if (obj.has("deviation") && obj.get("deviation").isJsonObject()) {
@@ -634,16 +734,21 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     node.has("final") && node.get("final").getAsBoolean(),
                     node.has("light") && !node.get("light").isJsonNull()
                             ? node.get("light").getAsString().trim() : Node.LIGHT_LIT,
-                    rewards));
+                    rewards,
+                    node.has("minNodeRooms") ? requiredInt(node, "minNodeRooms") : Node.INHERIT_NODE_ROOMS,
+                    node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {
             JsonObject edge = element.getAsJsonObject();
+            if (edge.has("cost")) {
+                throw new IllegalArgumentException("edge 'cost' was scrap and is gone; a side door costs 'lives' (1 or 2)");
+            }
             edges.add(new Edge(requiredString(edge, "from"), requiredString(edge, "to"),
-                    edge.has("cost") ? requiredInt(edge, "cost") : 0));
+                    edge.has("lives") ? requiredInt(edge, "lives") : 0));
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
-                deviation, nodes, edges, hiddenOre);
+                deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel);
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */

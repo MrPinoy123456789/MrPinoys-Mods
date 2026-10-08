@@ -1,0 +1,10 @@
+{
+  "template": "pocketdungeons:rooms/grove_glade",
+  "processors": "pocketdungeons:theme_grove",
+  "footprint": [1, 1],
+  "roles": ["loot", "corridor"],
+  "theme": ["drowned_vault", "prismarine"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 1
+}

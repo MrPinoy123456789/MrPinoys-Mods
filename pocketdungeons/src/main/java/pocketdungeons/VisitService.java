@@ -163,8 +163,8 @@ final class VisitService {
 
         // M19: a visit copy gets the physical UI too. The door screen shows the
         // room as a place (who it belongs to, its visitors and whitelist) since
-        // a visitor never chooses doors; the engine screen shows the cost line
-        // without the owner's fuel count. Summoned after admit so the new
+        // a visitor never chooses doors; the history screen shows the map
+        // without the owner's numbers. Summoned after admit so the new
         // visitor is already counted.
         DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.roomContent(server, record, visitor));

@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/great_drip_cavern",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["rootworks"],
+  "light": "dim",
+  "biome": "lush_cave",
+  "dungeons": ["rootworks"],
+  "acts": [1],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:clay", "from": [7, 1, 12], "to": [8, 1, 13], "count": 4 },
+    { "block": "minecraft:sand", "from": [12, 1, 10], "to": [13, 1, 11], "count": 3 },
+    { "block": "minecraft:iron_ore", "from": [14, 1, 3], "to": [14, 3, 5], "count": 3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

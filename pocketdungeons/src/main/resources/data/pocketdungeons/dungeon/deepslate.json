@@ -1,7 +1,8 @@
 {
   "name": "Deepslate",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 6,
+  "kind": "dungeon",
   "mainTheme": "deepslate",
   "lootBand": {
     "min": 2,
@@ -29,7 +30,10 @@
     {
       "id": "lantern_stairs",
       "name": "Lantern Stairs",
-      "layer": 2
+      "layer": 2,
+      "roomBias": [
+        "deep_shaft_landing"
+      ]
     },
     {
       "id": "sculk_shallows",
@@ -42,7 +46,10 @@
     {
       "id": "deep_quarry",
       "name": "Deep Quarry",
-      "layer": 3
+      "layer": 3,
+      "roomBias": [
+        "deep_geode"
+      ]
     },
     {
       "id": "cracked_barracks",
@@ -58,7 +65,8 @@
       "name": "Tuff Cellars",
       "layer": 3,
       "roomBias": [
-        "barred_vault"
+        "barred_vault",
+        "deep_fossil_gallery"
       ]
     },
     {
@@ -75,7 +83,7 @@
       "layer": 4,
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -84,7 +92,8 @@
       "id": "silent_deep",
       "name": "The Silent Deep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["silent_deep"]
     }
   ],
   "edges": [
@@ -131,7 +140,7 @@
     {
       "from": "deep_quarry",
       "to": "collapsed_landing",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "pale_gallery",

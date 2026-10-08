@@ -25,14 +25,18 @@ final class IntervalState {
     int floorIndex;
 
     /**
-     * The running omen of the floor in progress, 0 to 4. Banked onto
-     * {@link #floorOmens} and zeroed when the floor is cleared. It lives here
-     * rather than on the floor because omen gathered between floors (dwelling
-     * in an old, unsolved cell) counts toward the next one.
+     * The trip's omen, 0 to 4: the count of deaths this trip (J3: death is
+     * the only thing that raises it). The player reads it as lives,
+     * {@code 5 - omen}; the fifth death ends the run. Per trip, so it is
+     * never zeroed at a floor clear.
      */
     int omen;
 
-    /** Each cleared floor's clamped omen, in order. {@link Omen#floorSum} keys the finish table off this. */
+    /**
+     * The trip's omen at each floor clear, in order, for the journal's
+     * {@code floor_complete} event. Record-keeping only: {@link #omen}
+     * itself carries across floors.
+     */
     final List<Integer> floorOmens = new ArrayList<>();
 
     /**
@@ -49,24 +53,6 @@ final class IntervalState {
      */
     final List<Integer> floorLevels = new ArrayList<>();
 
-    /**
-     * Snapshot of each member's dungeon inventory, used when a max-omen death fails
-     * the run and the unbanked floors must pay nothing. Stored as 42-slot lists
-     * (main, armour, offhand, cursor), copied so the live inventory cannot mutate
-     * them. For a fresh interval the definitive snapshot is taken at the first
-     * door commit ({@link InventorySwap#snapshotAtFirstCommit}), after the bag kit
-     * has been applied.
-     */
-    final Map<UUID, List<ItemStack>> inventorySnapshot = new HashMap<>();
-
-    /**
-     * Each member's run storage at interval start ({@link RunStorage}), taken
-     * on their first open this interval and rolled back with
-     * {@link #inventorySnapshot} on a max-omen death. A member with no entry
-     * has not touched their storage this interval.
-     */
-    final Map<UUID, List<ItemStack>> storageSnapshot = new HashMap<>();
-
     // ---- the dungeon trip (dungeon structure W2) -----------------------------------------
     //
     // One trip is one dungeon (design D1). The interval is the trip, so this state is
@@ -81,6 +67,13 @@ final class IntervalState {
      * graph.
      */
     String dungeonId = "";
+
+    /**
+     * How many times the owner re-dealt the first staging room's dungeons
+     * ({@code /dungeon reroll}); mixed into the deal's salt. Only the first
+     * deal of a trip reads it, and a new interval starts it at zero.
+     */
+    int doorReroll;
 
     /** The node the party last entered: its floor is in progress or cleared. Empty with no dungeon. */
     String nodeId = "";
@@ -115,17 +108,13 @@ final class IntervalState {
      */
     boolean safeVisitSettled;
 
-    /** The interval's omen so far: every banked floor plus the running one. */
+    /** The interval's omen: the trip's deaths, clamped. Alias kept for the journal and context. */
     int omenSum() {
-        int sum = Omen.clamp(omen);
-        for (int banked : floorOmens) {
-            sum += Omen.clamp(banked);
-        }
-        return sum;
+        return Omen.clamp(omen);
     }
 
-    /** The banked floors' omen alone, the sum settlement uses. */
+    /** The same reading under the old name, for the callers that predate J3. */
     int bankedOmenSum() {
-        return Omen.floorSum(floorOmens.stream().mapToInt(Integer::intValue).toArray());
+        return Omen.clamp(omen);
     }
 }

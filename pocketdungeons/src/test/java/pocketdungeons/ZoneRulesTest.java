@@ -11,7 +11,7 @@ import java.util.UUID;
 /**
  * Headless regression for the zone rules hook ({@link ZoneRules}): the
  * default zone's numbers, the arithmetic every rule feeds (depth bonus chests,
- * the omen head start, the loot tier, the omen scale, the capstone), the
+ * the loot tier, the capstone), the
  * {@code rules} block's parsing and its refusals, the Endless Mine expressed
  * through its own theme file, and the unlock level filtering the door pick
  * without disturbing it.
@@ -24,9 +24,7 @@ public class ZoneRulesTest {
 
         testDefaultZone();
         testDepthBonus();
-        testBaseOmen();
         testLootTier();
-        testOmenScale();
         testCapstone();
         testParsing();
         testRefusals();
@@ -41,12 +39,9 @@ public class ZoneRulesTest {
         ZoneRules d = ZoneRules.DEFAULT;
         check(d.floorKindAt(1).equals("standard") && d.floorKindAt(7).equals("standard"), "standard floors");
         check(d.capstone() == null, "the default leaves the capstone to the adventure node");
-        check(d.omenBaseAfter(3) == 3 && d.omenBaseAmount() == 1, "head start after the interval length");
-        check(d.omenScale() == 1.0, "omen unscaled");
         check(d.lootRole().equals("gear"), "the gear faucet");
         check(d.lootTierEvery() == 0, "no depth tier");
         check(d.unlockLevel() == 1, "offered from level 1");
-        check(d.kitTopUpScale() == 1.0, "kit top-up unscaled");
         check(ZoneRules.forTheme(null) == ZoneRules.DEFAULT, "no theme is the default zone");
         check(ZoneRules.forTheme("nobody:unknown") == ZoneRules.DEFAULT, "an unknown theme is the default zone");
     }
@@ -67,23 +62,6 @@ public class ZoneRulesTest {
         checkEquals(steep.bonusChests(9), ZoneRules.MAX_BONUS_CHESTS, "capped");
     }
 
-    /** The head start applies past the threshold, not cumulatively. */
-    private static void testBaseOmen() {
-        ZoneRules d = ZoneRules.DEFAULT;
-        for (int floor = 1; floor <= 3; floor++) {
-            checkEquals(d.baseOmen(floor, 3), 0, "no head start on floor " + floor);
-        }
-        checkEquals(d.baseOmen(4, 3), 1, "floor 4 starts at 1");
-        checkEquals(d.baseOmen(9, 3), 1, "not cumulative");
-        checkEquals(d.baseOmen(6, 5), 1, "follows the configured interval length");
-        checkEquals(d.baseOmen(5, 5), 0, "follows the configured interval length");
-        ZoneRules early = parse("{\"omen_base\": {\"after\": 1, \"amount\": 2}}");
-        checkEquals(early.baseOmen(1, 3), 0, "explicit after");
-        checkEquals(early.baseOmen(2, 3), 2, "explicit amount");
-        ZoneRules off = parse("{\"omen_base\": {\"amount\": 0}}");
-        checkEquals(off.baseOmen(10, 3), 0, "amount 0 turns it off");
-    }
-
     private static void testLootTier() {
         checkEquals(ZoneRules.DEFAULT.lootTier(1, 9), 1, "the default zone keeps the key's tier");
         ZoneRules every3 = parse("{\"loot_tier_every\": 3}");
@@ -93,15 +71,6 @@ public class ZoneRulesTest {
         checkEquals(every3.lootTier(1, 6), 3, "floor 6 escalates again");
         checkEquals(every3.lootTier(1, 12), 3, "capped at the top tier");
         checkEquals(every3.lootTier(3, 3), 3, "the top tier stays the top tier");
-    }
-
-    private static void testOmenScale() {
-        checkEquals(ZoneRules.DEFAULT.scaleOmen(1), 1, "unscaled");
-        ZoneRules harsh = parse("{\"omen_scale\": 1.5}");
-        checkEquals(harsh.scaleOmen(2), 3, "a rise is scaled");
-        checkEquals(harsh.scaleOmen(-1), -1, "relief is not");
-        ZoneRules calm = parse("{\"omen_scale\": 0}");
-        checkEquals(calm.scaleOmen(3), 0, "a zero scale silences rises");
     }
 
     private static void testCapstone() {
@@ -117,14 +86,20 @@ public class ZoneRulesTest {
     private static void testParsing() {
         ZoneRules full = parse("""
                 {"floor_sequence": ["standard", "standard"], "capstone": "boss", "depth_bonus": 0.5,
-                 "omen_base": {"after": 4, "amount": 1}, "omen_scale": 1.25, "loot_role": "trophy",
-                 "loot_tier_every": 2, "unlock_level": 25, "kit_top_up_scale": 0.5}
+                 "loot_role": "trophy",
+                 "loot_tier_every": 2, "unlock_level": 25}
                 """);
         check(full.floorSequence().equals(List.of("standard", "standard")), "floor sequence");
         check(full.capstone() == ZoneRules.Capstone.BOSS, "capstone");
-        check(full.depthBonus() == 0.5 && full.omenBaseAfter(3) == 4 && full.omenScale() == 1.25, "numbers");
+        check(full.depthBonus() == 0.5, "numbers");
         check(full.lootRole().equals("trophy") && full.lootTierEvery() == 2, "loot");
-        check(full.unlockLevel() == 25 && full.kitTopUpScale() == 0.5, "unlock and kit");
+        check(full.unlockLevel() == 25, "unlock level");
+        try {
+            parse("{\"kit_top_up_scale\": 0.5}");
+            throw new AssertionError("the retired kit_top_up_scale must be rejected as an unknown field");
+        } catch (IllegalArgumentException expected) {
+            check(expected.getMessage().contains("kit_top_up_scale"), "the rejection names the retired key");
+        }
         ZoneRules empty = parse("{}");
         check(empty.equals(ZoneRules.DEFAULT), "an empty block is the default zone");
 
@@ -143,11 +118,11 @@ public class ZoneRulesTest {
         expectFailure("{\"floor_sequence\": []}", "must not be empty");
         expectFailure("{\"capstone\": \"scenario_end\"}", "capstone");
         expectFailure("{\"depth_bonus\": -1}", "depth_bonus");
-        expectFailure("{\"omen_scale\": 9}", "omen_scale");
         expectFailure("{\"loot_role\": \"gold\"}", "loot_role");
         expectFailure("{\"unlock_level\": 0}", "unlock_level");
-        expectFailure("{\"omen_base\": {\"amount\": 5}}", "amount");
-        expectFailure("{\"omen_base\": {\"when\": 3}}", "unknown field");
+        // J3: the omen knobs are gone, and a rules block naming one is refused like any typo.
+        expectFailure("{\"omen_scale\": 9}", "unknown field");
+        expectFailure("{\"omen_base\": {\"amount\": 5}}", "unknown field");
         expectFailure("{\"depth_bonuss\": 1}", "unknown field");
     }
 

@@ -9,7 +9,6 @@ public class SalvageMathTest {
     public static void main(String[] args) {
         testGrindstoneXp();
         testKeys();
-        testKeysToFuel();
         testMaterials();
         System.out.println("SalvageMathTest passed");
     }
@@ -32,17 +31,6 @@ public class SalvageMathTest {
         check(SalvageMath.keyEmeralds(2, 3), 6);
         check(SalvageMath.keyEmeralds(-1, 3), 0);
         check(SalvageMath.keyEmeralds(3, -1), 0);
-    }
-
-    private static void testKeysToFuel() {
-        // Off by default: no fuel, no keys taken.
-        check(SalvageMath.keyFuel(7, 0), 0);
-        check(SalvageMath.keysForFuel(7, 0), 0);
-        // Whole units only; the remainder stays with the player.
-        check(SalvageMath.keyFuel(7, 3), 2);
-        check(SalvageMath.keysForFuel(7, 3), 6);
-        check(SalvageMath.keyFuel(2, 3), 0);
-        check(SalvageMath.keysForFuel(2, 3), 0);
     }
 
     private static void check(int actual, int expected) {

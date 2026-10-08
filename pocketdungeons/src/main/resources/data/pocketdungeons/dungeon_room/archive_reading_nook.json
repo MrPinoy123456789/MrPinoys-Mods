@@ -1,0 +1,22 @@
+{
+  "template": "pocketdungeons:rooms/archive_reading_nook",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["ender_archive"],
+  "dungeons": ["ender_archive"],
+  "acts": [5],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "ender_archive",
+  "nodes": [
+    { "block": "minecraft:diamond_ore", "from": [14, 1, 7], "to": [14, 2, 8], "count": 1, "chance": 0.4 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

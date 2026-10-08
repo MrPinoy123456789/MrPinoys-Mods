@@ -14,8 +14,8 @@ import java.util.UUID;
 /**
  * Pure-JDK regression for the dungeon trip door deal ({@link TripDoors}) and the
  * staging map text ({@link DungeonMapText}): seeded stability, steps as a shuffle
- * of 1 to 3, the spare doors repeating a branch, resource dungeons dealing every
- * step as 0, side edge costs, the first door offering dungeons of unlocked acts,
+ * of 1 to 3, the spare doors repeating a branch, every kind of dungeon dealing
+ * the same steps, side edge costs, the first door offering dungeons of unlocked acts,
  * and the shipped dungeons dealing a full staging room at every non-final node.
  */
 public class TripDoorsTest {
@@ -26,7 +26,7 @@ public class TripDoorsTest {
 
     /** Frostworks shaped: a fork, a one edge node, a two edge node with a side branch, a final. */
     private static final String FROST = """
-            {"name": "Frostworks", "act": 2, "kind": "story", "mainTheme": "frostworks",
+            {"name": "Frostworks", "act": 2, "baseLevel": 1, "kind": "dungeon", "mainTheme": "frostworks",
              "lootBand": {"min": 2, "max": 3},
              "nodes": [
                {"id": "gate", "name": "Frozen Gate", "layer": 1},
@@ -43,7 +43,7 @@ public class TripDoorsTest {
                {"from": "kitchens", "to": "barracks"},
                {"from": "kitchens", "to": "fields"},
                {"from": "furnaces", "to": "fields"},
-               {"from": "furnaces", "to": "vault", "cost": 2},
+               {"from": "furnaces", "to": "vault", "lives": 1},
                {"from": "barracks", "to": "big"},
                {"from": "fields", "to": "big"},
                {"from": "vault", "to": "big"}
@@ -51,7 +51,7 @@ public class TripDoorsTest {
             """;
 
     private static final String MINE = """
-            {"name": "Mineshaft", "act": 1, "kind": "resource", "mainTheme": "rootworks",
+            {"name": "Mineshaft", "act": 1, "baseLevel": 1, "kind": "dungeon", "mainTheme": "rootworks",
              "lootBand": {"min": 1, "max": 1},
              "nodes": [
                {"id": "adit", "name": "The Adit", "layer": 1},
@@ -79,6 +79,8 @@ public class TripDoorsTest {
         testVariantsNumberTheCopies();
         testFinalNodeHasNoDoors();
         testFirstDoorsOfferUnlockedDungeons();
+        testCompassGatesDungeons();
+        testActOneOffersAtCompassOne();
         testFirstDoorsRepeatWhenFewDungeons();
         testReachability();
         testMapText();
@@ -121,7 +123,7 @@ public class TripDoorsTest {
 
     /** One out edge: all three doors lead to it, at the three steps. */
     private static void testSpareDoorsRepeatABranch() {
-        DungeonDef oneEdge = DungeonDef.fromJson(T + "line", JsonParser.parseString(MINE.replace("resource", "story"))
+        DungeonDef oneEdge = DungeonDef.fromJson(T + "line", JsonParser.parseString(MINE)
                 .getAsJsonObject());
         TripDoors.Door[] doors = TripDoors.dealNext(OWNER, oneEdge, "adit", 1);
         check(doors.length == 3, "three doors");
@@ -144,7 +146,7 @@ public class TripDoorsTest {
         }
         // Three edges never repeat.
         DungeonDef three = DungeonDef.fromJson(T + "three", JsonParser.parseString("""
-                {"name": "Three", "act": 1, "kind": "story", "mainTheme": "rootworks",
+                {"name": "Three", "act": 1, "baseLevel": 1, "kind": "dungeon", "mainTheme": "rootworks",
                  "lootBand": {"min": 1, "max": 1},
                  "nodes": [{"id": "a", "name": "A", "layer": 1}, {"id": "b", "name": "B", "layer": 2},
                            {"id": "c", "name": "C", "layer": 2}, {"id": "d", "name": "D", "layer": 2},
@@ -164,7 +166,7 @@ public class TripDoorsTest {
         for (int path = 1; path <= 30; path++) {
             for (TripDoors.Door door : TripDoors.dealNext(OWNER, frost, "furnaces", path)) {
                 if (door.nodeId().equals("vault")) {
-                    check(door.cost() == 2 && door.sideBranch(), "the side edge costs its authored shards");
+                    check(door.cost() == 1 && door.sideBranch(), "the side edge costs its authored lives");
                     sawSide = true;
                 } else {
                     check(door.cost() == 0 && !door.sideBranch(), "a main edge is free");
@@ -180,12 +182,12 @@ public class TripDoorsTest {
     private static void testResourceStepsAreDealtLikeAnyOther() {
         for (int path = 1; path <= 30; path++) {
             TripDoors.Door[] doors = TripDoors.dealNext(OWNER, mine, "adit", path);
-            check(shuffleOfOneTwoThree(doors), "a resource dungeon deals a shuffle of 1, 2, 3: "
+            check(shuffleOfOneTwoThree(doors), "a node dungeon deals a shuffle of 1, 2, 3: "
                     + java.util.Arrays.toString(doors));
         }
         for (int salt = 0; salt < 20; salt++) {
             TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(mine), salt);
-            check(shuffleOfOneTwoThree(first), "entering a resource dungeon deals a shuffle of 1, 2, 3 too");
+            check(shuffleOfOneTwoThree(first), "entering a node dungeon deals a shuffle of 1, 2, 3 too");
             for (TripDoors.Door door : first) {
                 check(door.dungeonId().equals(T + "mineshaft") && door.nodeId().equals("adit"),
                         "the entry door is the dungeon's entry: " + door);
@@ -239,18 +241,39 @@ public class TripDoorsTest {
 
     private static void testFirstDoorsOfferUnlockedDungeons() {
         DungeonDef endless = DungeonDef.fromJson(T + "endless_mine", JsonParser.parseString("""
-                {"name": "Endless Mine", "act": 1, "kind": "endless", "mainTheme": "rootworks",
+                {"name": "Endless Mine", "act": 1, "baseLevel": 1, "kind": "endless", "mainTheme": "rootworks",
                  "lootBand": {"min": 1, "max": 1},
                  "nodes": [{"id": "face", "name": "Face", "layer": 1}], "edges": []}
                 """).getAsJsonObject());
         List<DungeonDef> all = List.of(frost, mine, endless);
-        List<DungeonDef> act1 = TripDoors.eligibleFirst(all, Set.of(1));
+        List<DungeonDef> act1 = TripDoors.eligibleFirst(all, Set.of(1), 25);
         check(act1.size() == 1 && act1.get(0).id().equals(T + "mineshaft"),
-                "act 1 offers the resource dungeon, never endless: " + act1);
-        List<DungeonDef> both = TripDoors.eligibleFirst(all, Set.of(1, 2));
+                "act 1 offers the mineshaft, never endless: " + act1);
+        List<DungeonDef> both = TripDoors.eligibleFirst(all, Set.of(1, 2), 25);
         check(both.size() == 2 && both.get(0).id().compareTo(both.get(1).id()) < 0, "sorted by id, endless excluded");
-        check(TripDoors.eligibleFirst(all, Set.of()).isEmpty(), "no unlocked act, no dungeon");
+        check(TripDoors.eligibleFirst(all, Set.of(), 25).isEmpty(), "no unlocked act, no dungeon");
         check(TripDoors.dealFirst(OWNER, List.of(), 0).length == 0, "nothing eligible deals nothing");
+    }
+
+    private static void testCompassGatesDungeons() {
+        DungeonDef late = DungeonDef.fromJson(T + "late",
+                JsonParser.parseString(FROST.replace("Frostworks", "Late")
+                        .replace("\"baseLevel\": 1", "\"baseLevel\": 8")).getAsJsonObject());
+        check(late.unlockLevel() == 8, "unlockLevel reads baseLevel");
+        List<DungeonDef> all = List.of(frost, mine, late);
+        // frost is act 2 baseLevel 1, mine act 1 baseLevel 1, late act 2 baseLevel 8.
+        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(mine)
+                && !TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(late),
+                "compass 7 does not see the level 8 dungeon");
+        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 8).contains(late),
+                "compass 8 unlocks it");
+        check(TripDoors.eligibleFirst(List.of(late), Set.of(2), 1).isEmpty(),
+                "a locked dungeon is never eligible");
+        check(TripDoors.lockedFirst(all, Set.of(1, 2), 7).equals(List.of(late)),
+                "the locked list holds what the compass has not reached");
+        check(TripDoors.lockedFirst(all, Set.of(1, 2), 25).isEmpty(), "nothing locked at compass 25");
+        check(TripDoors.lockedFirst(all, Set.of(1), 0).equals(List.of(mine)),
+                "locked hides closed acts but lists open ones the compass has not reached");
     }
 
     private static void testFirstDoorsRepeatWhenFewDungeons() {
@@ -300,7 +323,7 @@ public class TripDoorsTest {
         check(text.contains(">> Glaze Furnaces <<"), "the current node is marked");
         check(text.contains("* Frozen Gate"), "a visited node is marked");
         check(text.contains("The Big Freeze (FINAL FLOOR)"), "the final node is marked");
-        check(text.contains("to Glaze Vault (side branch: 2 shards)"), "a side edge shows its cost");
+        check(text.contains("to Glaze Vault (side branch: 1 life)"), "a side edge shows its cost");
         check(text.contains("Ice Kitchens (out of reach now)") || text.contains("Stray Barracks (out of reach now)"),
                 "nodes no door can reach are flagged");
         check(text.contains("Doors from here"), "doors are listed");
@@ -323,7 +346,7 @@ public class TripDoorsTest {
         // The side door says so.
         boolean sideDoor = false;
         for (DungeonMapText.Line line : lines) {
-            sideDoor |= line.text().startsWith("Door ") && line.text().contains("side branch: 2 shards")
+            sideDoor |= line.text().startsWith("Door ") && line.text().contains("side branch: 1 life")
                     && line.text().contains("Glaze Vault");
         }
         check(sideDoor || !has(doors, "vault"), "the side door line shows its cost");
@@ -340,10 +363,10 @@ public class TripDoorsTest {
         check(text.contains("CHOOSE A DUNGEON"), "heading");
         check(text.contains("Frostworks") && text.contains("Mineshaft"), "both dungeons named");
         check(text.contains("ends at The Big Freeze"), "the final floor is named");
-        check(!text.contains("+0 scrap"), "no door is dealt zero scrap, the resource door included");
+        check(!text.contains("+0 scrap"), "no door is dealt zero scrap");
     }
 
-    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3, resource dungeons included. */
+    /** Every non-final node of every shipped dungeon deals three doors with steps 1 to 3. */
     private static void testShippedDungeonsDealFullRooms() throws Exception {
         String[] names = {"rootworks", "infestation", "ossuary", "deepslate", "copper_works", "frostworks",
                 "prismarine", "drowned_vault", "basalt_foundry", "blackstone", "ender_archive"};
@@ -376,6 +399,26 @@ public class TripDoorsTest {
             TripDoors.Door[] first = TripDoors.dealFirst(OWNER, List.of(def), 0);
             check(first[0].nodeId().equals(def.entry().id()), name + ": first door leads to the entry node");
         }
+    }
+
+    /** D23: a fresh compass still has somewhere to go. */
+    private static void testActOneOffersAtCompassOne() throws Exception {
+        List<DungeonDef> shipped = new ArrayList<>();
+        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon"};
+        for (String name : names) {
+            try (InputStream in = TripDoorsTest.class.getClassLoader()
+                    .getResourceAsStream("data/pocketdungeons/dungeon/" + name + ".json")) {
+                check(in != null, "shipped dungeon on the classpath: " + name);
+                shipped.add(DungeonDef.fromJson(T + name,
+                        JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8))
+                                .getAsJsonObject()));
+            }
+        }
+        check(!TripDoors.eligibleFirst(shipped, Set.of(1), 1).isEmpty(),
+                "act 1 at compass 1 offers at least one dungeon");
+        check(TripDoors.eligibleFirst(shipped, Set.of(1), 1).stream()
+                        .allMatch(d -> d.unlockLevel() <= 1),
+                "everything offered at compass 1 is unlocked");
     }
 
     // ---- helpers ------------------------------------------------------------------

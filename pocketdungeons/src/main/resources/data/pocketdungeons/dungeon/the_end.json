@@ -1,7 +1,8 @@
 {
   "name": "The End",
   "act": 5,
-  "kind": "story",
+  "baseLevel": 23,
+  "kind": "dungeon",
   "mainTheme": "the_end",
   "lootBand": {
     "min": 4,
@@ -65,7 +66,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -74,7 +75,8 @@
       "id": "world_rim",
       "name": "The Rim of the World",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["world_rim"]
     }
   ],
   "edges": [
@@ -93,7 +95,7 @@
     {
       "from": "outer_islands",
       "to": "end_ship",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "chorus_orchard",

@@ -54,18 +54,21 @@ public final class FloorIntervalGameTest {
 
     /** B1: the homecoming reset leaves nothing of the last interval's omen behind. */
     @GameTest(maxTicks = 20)
-    public void consecutiveSafeVisitsLandInTheSameBand(GameTestHelper helper) {
+    public void consecutiveSafeVisitsResetLives(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         InstanceRecord record = new InstanceRecord(9981, helper.absolutePos(BlockPos.ZERO),
                 server.getTickCount(), null, Set.of(), UUID.randomUUID(), false);
-        int[] bands = new int[2];
         for (int visit = 0; visit < 2; visit++) {
-            int band = -1;
+            // J3: omen is the trip's deaths and carries across floors; the
+            // journal records it at each clear and the reset is the interval's.
             for (int floor = 0; floor < FLOORS_PER_VISIT; floor++) {
                 record.interval.omen = OMEN_PER_FLOOR;
-                band = RunLifecycle.bankFloorOmen(record);
+                RunLifecycle.bankFloorOmen(record);
             }
-            bands[visit] = band;
+            if (record.interval.omen != OMEN_PER_FLOOR) {
+                helper.fail("the trip's omen is lives: it must survive a floor clear");
+                return;
+            }
             // The settlement guard is part of the interval too.
             record.interval.safeVisitSettled = true;
             // What returnToSafe, its teleport fallback and the quit reset
@@ -77,15 +80,6 @@ public final class FloorIntervalGameTest {
                         + ", settled=" + record.interval.safeVisitSettled);
                 return;
             }
-        }
-        if (bands[0] != bands[1]) {
-            helper.fail("Visit 2 finished in band " + bands[1] + " but visit 1 in band " + bands[0]
-                    + " with the same omen per floor");
-            return;
-        }
-        if (bands[0] == 0) {
-            helper.fail("Fixture should land above band 0 to prove anything; got band 0");
-            return;
         }
         helper.succeed();
     }
@@ -297,7 +291,7 @@ public final class FloorIntervalGameTest {
         InstanceRecord untimed = new InstanceRecord(9986, record.origin, server.getTickCount(),
                 record.layout, Set.of(), UUID.randomUUID(), true);
         untimed.phase = RunSession.Phase.ACTIVE;
-        OmenBar.omenRose(server, untimed, Omen.Source.SHRIEK, 1, 1, null);
+        OmenBar.cue(server, untimed, Omen.Source.SHRIEK);
         if (OmenBar.shows(untimed) || untimed.omenBar != null) {
             helper.fail("an admin untimed run is outside the loop and gets no bar");
             return;
@@ -306,14 +300,12 @@ public final class FloorIntervalGameTest {
     }
 
     /**
-     * PD-121: a fresh player's kit is applied after entry, so the interval
-     * snapshot taken on entry would be empty. The snapshot is retaken at the
-     * first door commit; a max-omen death then reverts to that committed pack,
-     * not the empty entry snapshot. Loot picked up after the commit is lost; the
-     * pack carried in is kept.
+     * J2: a last-life death fails the run and costs only the stake. The member
+     * is sent home with the pack unchanged, unbanked loot included, and no
+     * finish reward is paid.
      */
     @GameTest(maxTicks = 20)
-    public void maxOmenDeathOnFirstIntervalRevertsInventory(GameTestHelper helper) {
+    public void lastLifeDeathKeepsWhatTheyCarry(GameTestHelper helper) {
         ServerPlayer player = standInALoadedChunk(helper);
         MinecraftServer server = player.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
@@ -332,41 +324,28 @@ public final class FloorIntervalGameTest {
         }
         log.setOrphan(player.getUUID(), new InventorySwap.OrphanRecord(pack));
         try {
-            // Entry: the pack is swapped in where the player stands. Because the
-            // orphan pack is empty, the entry snapshot is empty.
+            // Entry: the pack is swapped in where the player stands.
             InventorySwap.Probe.useDimensionForTesting(Level.OVERWORLD);
             InventorySwap.Probe.forceStash(player, false, List.of());
             InventorySwap.Probe.reconcileNow(player);
-            if (!record.interval.inventorySnapshot.containsKey(player.getUUID())) {
-                helper.fail("entering on the first interval took no snapshot");
-                return;
-            }
 
-            // Simulate the bag kit being granted after entry, then the first
-            // door commit refreshing the snapshot.
+            // What they carried, and unbanked loot on top.
             player.getInventory().add(new ItemStack(Items.STONE_SWORD));
-            InventorySwap.snapshotAtFirstCommit(server, record);
-
-            // Unbanked loot, then the killing blow at max omen.
             player.getInventory().add(new ItemStack(Items.DIAMOND, 7));
             Instances.failRunOmen(server, record, player, player.damageSources().generic());
 
-            if (player.getInventory().countItem(Items.DIAMOND) != 0) {
-                helper.fail("the unbanked loot survived a max-omen death");
+            if (player.getInventory().countItem(Items.DIAMOND) != 7
+                    || player.getInventory().countItem(Items.STONE_SWORD) != 1) {
+                helper.fail("a failed run changed the pack");
                 return;
             }
-            if (player.getInventory().countItem(Items.STONE_SWORD) != 1) {
-                helper.fail("the bag kit did not survive a max-omen death");
-                return;
-            }
-            // The leave keeps the reverted pack. PD-92: the revert used to
-            // write the record too, and the leave then kept every stack twice.
+            // The leave keeps the pack as carried.
             InventorySwap.Probe.useDimensionForTesting(Level.NETHER);
             InventorySwap.Probe.reconcileNow(player);
             List<ItemStack> kept = log.orphanOf(player.getUUID()).items();
-            if (kept.stream().anyMatch(s -> s.is(Items.DIAMOND))
+            if (kept.stream().filter(s -> s.is(Items.DIAMOND)).mapToInt(ItemStack::getCount).sum() != 7
                     || kept.stream().filter(s -> s.is(Items.STONE_SWORD)).count() != 1) {
-                helper.fail("the kept pack is not the one carried in, once: " + kept);
+                helper.fail("the kept pack is not what they carried: " + kept);
                 return;
             }
         } finally {

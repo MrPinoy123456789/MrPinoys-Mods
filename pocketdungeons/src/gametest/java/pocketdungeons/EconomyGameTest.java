@@ -19,111 +19,22 @@ import net.minecraft.world.phys.AABB;
  * M63 currency conservation: a station or a payout may refuse, but it may never
  * charge without delivering, deliver without charging, or deliver twice.
  *
- * <p>Same package rationale as {@link CustodyGameTest}: {@link Fuel},
- * {@link Payout}, {@link RerollStation} and {@link CubeStation} are all
+ * <p>Same package rationale as {@link CustodyGameTest}: {@link Payout},
+ * {@link RerollStation} and {@link CubeStation} are all
  * package-private, and sharing the package is cheaper than opening them.
  *
  * <h2>What is here and what is not</h2>
  *
- * <p>{@link GambleStation}'s draw is deliberately absent. Its money-moving half
- * is {@code handleTrade}, a private callback reachable only through an SGUI
- * {@code MerchantGui} the player clicks, and DISCOVERIES trap 10 is explicit
- * that nothing headless right-clicks a screen. Asserting a fake call into it
- * would prove the assertion, not the station. It stays a
+ * <p>The trade screens are deliberately absent: merchant offers open as a
+ * vanilla trading screen the player clicks, and DISCOVERIES trap 10 is
+ * explicit that nothing headless right-clicks a screen. Asserting a fake call
+ * into the click path would prove the assertion, not the station. It stays a
  * {@code LIVE_TEST_PASS} row. What is covered here is the delivery primitive
  * every one of those paths ends in, {@link Payout#deliver}, which is where a
  * lost reward would actually be lost.
  */
 @SuppressWarnings("removal")
 public final class EconomyGameTest {
-
-    /**
-     * A Greater door pays from the pack (2026-10-02): what is taken leaves the
-     * inventory, and asking for more than is carried takes only what exists.
-     */
-    @GameTest
-    public void fuelIsTakenFromThePackWithoutMinting(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        Fuel.grant(player, 10);
-        helper.assertValueEqual(Fuel.carried(player), 10, "a grant of ten put ten shards in the pack");
-        helper.assertValueEqual(carriedFuel(player), 10, "and the slot count agrees");
-
-        helper.assertValueEqual(Fuel.take(player, 4), 4, "taking four took four");
-        helper.assertValueEqual(Fuel.carried(player), 6, "leaving six");
-
-        helper.assertValueEqual(Fuel.take(player, 10), 6, "asking for ten took only the six there were");
-        helper.assertValueEqual(Fuel.carried(player), 0, "and nothing is left or minted");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
-
-    /** A balance left in the retired engine bank comes back as shards, once. */
-    @GameTest
-    public void aBankedBalanceIsRefundedAsShards(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        log.addFuel(player.getUUID(), 5);
-        Fuel.refundBanked(player);
-        helper.assertValueEqual(Fuel.carried(player), 5, "the five banked shards are back in the pack");
-        helper.assertValueEqual(log.get(player.getUUID()).fuel(), 0, "and the balance is empty");
-
-        Fuel.refundBanked(player);
-        helper.assertValueEqual(Fuel.carried(player), 5, "a second refund hands back nothing more");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
-
-    /**
-     * PD-48, revised 2026-10-02: plain echo shards and this mod's old marked
-     * shards pay for a door; a shard another mod re-skinned with its own
-     * custom data does not, and is never taken.
-     */
-    @GameTest
-    public void plainShardsCountButAnotherModsShardDoesNot(GameTestHelper helper) {
-        MinecraftServer server = helper.getLevel().getServer();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Item fuelItem = requireFuelItem(helper);
-        DungeonLog log = DungeonLog.forServer(server);
-        clearFuel(log, player);
-        emptyInventory(player);
-
-        player.getInventory().setItem(0, new ItemStack(fuelItem, 3));
-        ItemStack marked = new ItemStack(fuelItem, 2);
-        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, marked, tag -> {
-            net.minecraft.nbt.CompoundTag mine = new net.minecraft.nbt.CompoundTag();
-            mine.putBoolean("fuel", true);
-            tag.put(PocketDungeonsMod.MOD_ID, mine);
-        });
-        player.getInventory().setItem(1, marked);
-        ItemStack foreign = new ItemStack(fuelItem, 7);
-        net.minecraft.world.item.component.CustomData.update(DataComponents.CUSTOM_DATA, foreign, tag -> {
-            net.minecraft.nbt.CompoundTag theirs = new net.minecraft.nbt.CompoundTag();
-            theirs.putBoolean("boss_stone", true);
-            tag.put("kamutotems", theirs);
-        });
-        player.getInventory().setItem(2, foreign);
-
-        helper.assertValueEqual(Fuel.carried(player), 5, "three plain and two marked shards count");
-        helper.assertValueEqual(Fuel.take(player, 10), 5, "only those five are taken");
-        helper.assertValueEqual(player.getInventory().getItem(2).getCount(), 7,
-                "the other mod's shards are untouched");
-
-        cleanUp(server, log, player);
-        helper.succeed();
-    }
 
     /**
      * A reward handed to a player with nowhere to put it lands on the floor,
@@ -182,25 +93,71 @@ public final class EconomyGameTest {
         DungeonLog log = DungeonLog.forServer(server);
         emptyInventory(player);
 
-        // Materials both stations would charge, and an empty hand: the gear the
-        // picker was built over is gone.
+        // The material the station would charge, and an empty hand: the gear
+        // the picker was built over is gone.
         player.getInventory().setItem(1, new ItemStack(Items.LAPIS_LAZULI, 64));
-        player.getInventory().setItem(2, new ItemStack(Items.DIAMOND, 64));
         int lapisBefore = countIn(player, Items.LAPIS_LAZULI);
-        int diamondBefore = countIn(player, Items.DIAMOND);
 
         RerollStation.handleReroll(player, "minecraft:sharpness");
-        CubeStation.handleImbue(player, "pocketdungeons:some_power");
 
         helper.assertValueEqual(countIn(player, Items.LAPIS_LAZULI), lapisBefore,
                 "a stale reroll click spent no lapis");
-        helper.assertValueEqual(countIn(player, Items.DIAMOND), diamondBefore,
-                "a stale imbue click spent no material");
         helper.assertValueEqual(countNearby(server, player, Items.LAPIS_LAZULI), 0,
                 "and nothing was dropped on the floor instead of spent");
 
         cleanUp(server, log, player);
         helper.succeed();
+    }
+
+    /**
+     * J7: the keys a member still holds when the floor clears are bought back
+     * at the old salvage rates, one emerald each, three for an ominous key,
+     * and leave the inventory. They never reach the next floor or the bench.
+     */
+    /** A big haul splits into legal stacks; no oversized emerald stack is minted. */
+    @GameTest
+    public void manyKeysPayInLegalStacks(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        emptyInventory(player);
+        player.getInventory().setItem(0, new ItemStack(Items.OMINOUS_TRIAL_KEY, 30));
+        helper.runAfterDelay(4L, () -> {
+            int paid = RunLifecycle.redeemKeys(player);
+            helper.assertValueEqual(paid, 90, "30 ominous keys pay 90 emeralds");
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                helper.assertTrue(stack.getCount() <= stack.getMaxStackSize(), "no oversized stack in slot " + i);
+            }
+            helper.assertValueEqual(countIn(player, Items.EMERALD) + countNearby(server, player, Items.EMERALD),
+                    90, "all of it exists exactly once");
+            cleanUp(server, DungeonLog.forServer(server), player);
+            helper.succeed();
+        });
+    }
+
+    @GameTest
+    public void clearFloorRedeemsTheKeysItFinds(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer player = standInALoadedChunk(helper);
+        emptyInventory(player);
+        player.getInventory().setItem(0, new ItemStack(Items.TRIAL_KEY, 2));
+        player.getInventory().setItem(1, new ItemStack(Items.OMINOUS_TRIAL_KEY));
+        player.getInventory().setItem(2, new ItemStack(Items.COBBLESTONE, 7));
+
+        helper.runAfterDelay(4L, () -> {
+            int paid = RunLifecycle.redeemKeys(player);
+            int inInventory = countIn(player, Items.EMERALD);
+            int onFloor = countNearby(server, player, Items.EMERALD);
+            helper.assertValueEqual(paid, 5, "2 keys and 1 ominous key pay 5 emeralds");
+            helper.assertValueEqual(inInventory + onFloor, 5, "the buy-back exists exactly once");
+            helper.assertValueEqual(countIn(player, Items.TRIAL_KEY), 0, "the plain keys are gone");
+            helper.assertValueEqual(countIn(player, Items.OMINOUS_TRIAL_KEY), 0, "the ominous key is gone");
+            helper.assertValueEqual(countIn(player, Items.COBBLESTONE), 7, "everything else is untouched");
+            helper.assertValueEqual(RunLifecycle.redeemKeys(player), 0, "a second pass finds nothing");
+
+            cleanUp(server, DungeonLog.forServer(server), player);
+            helper.succeed();
+        });
     }
 
     // ---- helpers ------------------------------------------------------------
@@ -242,26 +199,6 @@ public final class EconomyGameTest {
         return player;
     }
 
-    private static Item requireFuelItem(GameTestHelper helper) {
-        Item item = Fuel.item();
-        if (item == null) {
-            helper.fail("the configured fuel item did not resolve; the economy cannot be asserted on");
-        }
-        return item;
-    }
-
-    /** How many fuel units the player is carrying, by {@link Fuel#isFuel}'s own rule, slot by slot. */
-    private static int carriedFuel(ServerPlayer player) {
-        int total = 0;
-        for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
-            ItemStack stack = player.getInventory().getItem(slot);
-            if (Fuel.isFuel(stack)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
-    }
-
     private static int countIn(ServerPlayer player, Item item) {
         int total = 0;
         for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
@@ -298,13 +235,6 @@ public final class EconomyGameTest {
         return false;
     }
 
-    private static void clearFuel(DungeonLog log, ServerPlayer player) {
-        int banked = log.get(player.getUUID()).fuel();
-        if (banked != 0) {
-            log.addFuel(player.getUUID(), -banked);
-        }
-    }
-
     private static void emptyInventory(ServerPlayer player) {
         for (int slot = 0; slot < InventorySwap.LIVE_SLOTS; slot++) {
             player.getInventory().setItem(slot, ItemStack.EMPTY);
@@ -313,7 +243,6 @@ public final class EconomyGameTest {
     }
 
     private static void cleanUp(MinecraftServer server, DungeonLog log, ServerPlayer player) {
-        clearFuel(log, player);
         emptyInventory(player);
         server.getPlayerList().remove(player);
     }

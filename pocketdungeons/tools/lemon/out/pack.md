@@ -21,6 +21,8 @@ Rules:
 
 # Game guide
 
+# Lemon game guide
+
 Plain-words mechanics Lemon may explain freely. Draft seeded from the owner
 decisions log (AUDIT_2026-09.md section 11); the owner corrects and extends it.
 Keep each entry to what a player needs, in the words Lemon would use.
@@ -263,7 +265,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ### L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
 
-- **Status:** owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
+- **Status:** owed, 2026-10-07-1.md: still not exercised (no priced edge taken), but the currency has moved to scrap: a side-branch refusal "2 scrap short" was seen live (PD-162: it names the gap, not the holding). This row's shard wording is stale. Earlier: owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
 - **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
 - **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
@@ -271,7 +273,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ### L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
 
-- **Status:** owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
+- **Status:** owed, 2026-10-07-1.md: he cleared two Act 2 dungeons tonight (Copper Works, Cow Pits), so Act 2 is open for him, but whether that came from a legitimate capstone clear or bypassed gating is unverified (no /dungeon map opened, dungeonsFinished unread). Neither capstone was entered. Earlier: owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
 - **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
 - **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
 - **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
@@ -301,14 +303,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** off: the companion can; on: refused with "The party leader has limited who decides here"; listed: allowed. Watch whether a companion ends a trip the leader wanted to continue.
 - **Fail signs:** a refused leader; a companion who can still pull a lever with the whitelist on; the door screen not saying why.
 
-### L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
-
-- **Status:** owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
-- **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
-- **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
-- **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
-- **Fail signs:** an infinite cow loop; durability not a real cost so the resource dungeon is farmed; a shard or vault from a resource dungeon.
-
 ### L36. 2026-10-05: Endless Mine seal and the deepest floor
 
 - **Status:** owed, 2026-10-05-1.md: not seen; the Mine only appears on door 3 once Act 2 is unlocked, and the Act 1 capstone was not cleared.
@@ -316,6 +310,78 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** with act 2 open, enter the Mine and go down to floors 6, 12 and 18 as the acts allow; read the sealed line and the history board.
 - **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
 - **Fail signs:** the Mine on door 3 before act 2; a shaft that lets you past a sealed layer; the Mine hiding the capstone door.
+
+### L38. 2026-10-06: the Store is one row you click
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-159, `StoreNPC.openShop`): the Store opens a one row shop; a click takes one, the stock is claimed with the delivery, and a bought stack is the plain item.
+- **Do:** Open a Store. Left click and right click an item. Buy a log twice with a log already in the pack. Stand with too little of the currency. Buy a line out.
+- **Pass:** Both clicks buy one and hand it over; the log stacks with the one you had; the price reads red when you cannot pay; a sold out line becomes a gray pane named sold out and refuses.
+- **Fail signs:** An item that does not arrive but costs stock; a bought stack that will not stack; a price that stays gold when short.
+
+### L39. 2026-10-06: diary entry 8 reads whole
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-157, `BookPages`): a long diary page is split over as many book pages as it needs, at a paragraph, then a sentence, then a word.
+- **Do:** Finish the Mineshaft (or have the owner hand over entry 8, The First Pick) and open the book.
+- **Pass:** Every sentence is there, none cut off at the foot of a page, no blank page.
+- **Fail signs:** Text that stops at the bottom of page 1; a blank page.
+
+### L40. 2026-10-06: a Mineshaft floor 1 has ore
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-149, `LayoutPlanner.plan`): a resource floor whose plan fits none of its ore rooms retries the next seed.
+- **Do:** Start the Mineshaft three times and read the floor_complete line of floor 1 each time.
+- **Pass:** `nodes_total` is above 0 on floor 1 every time, and the player can see ore.
+- **Fail signs:** A floor 1 of only generic halls with `nodes_total` 0.
+
+### L41. 2026-10-06: a flooded hall entered from outside
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, `IronDoorLatch`): the flooded hall's containment doors are latches. The button they used to have sat in the water and was washed off.
+- **Do:** Bias to `flooded_hall` and enter it from the west door, then from the east. Click the iron door from the dry side.
+- **Pass:** Both leaves open on a click from either side, stay open about three seconds, then close; no button anywhere; the water stays in.
+- **Fail signs:** A door that will not open from outside; water pouring out through an open door for longer than three seconds.
+
+### L42. 2026-10-06: the connector lever is on another wall
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, PD-55, `ConnectorStamper.applyIronDoor`): a connector iron door's lever moves off the frame to another wall of the near room, and the far room gets a stone button.
+- **Do:** Find a connector iron door (about one door edge in ten). Look for the lever in the room before it; walk through, turn round and find the button.
+- **Pass:** The lever is on a different wall at head height and works the door; the stone button on the far side opens it too; clicking the shut door with neither says The lever is in this room.
+- **Fail signs:** A lever on the frame again; a lever in water or inside a wall; a far side with no way to open.
+
+### L43. 2026-10-06: the omen bar is full and red at 4/4
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-158, `OmenBar.sync`): during a floor the bar fills by floor omen over 4 and colours green (0 to 1), yellow (2 to 3), red (4).
+- **Do:** Raise the floor omen to 2, 3 and 4 by dying, eating and lingering, and watch the bar.
+- **Pass:** The fill steps in quarters and is full at 4/4; the colour goes green, yellow, red; one more fall ends the run shows from omen 3.
+- **Fail signs:** A part filled bar at 4/4.
+
+### L47. 2026-10-06: hidden ore is found by digging
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 7, `HiddenOrePlanner`): Mineshaft rock holds a few buried pockets of one to three ore blocks, counted as nodes.
+- **Do:** Dig into the walls of mineshaft_seam and other Mineshaft rooms with the right pick.
+- **Pass:** Some digs find a pocket of 1 to 3 ore; none shows from the corridor before it is dug; `nodes_total` counts it and `nodes_mined` rises when it is mined.
+- **Fail signs:** Ore visible from inside the room before digging; ore in the wall ring.
+
+### L49. 2026-10-06: five bags at the lectern
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (L1, `BagIds.CORE`): the bag picker offers Guard, Ranger, Sapper, Lumberjack and Innkeeper. Pilgrim, Shepherd, Mason, Magician and Plumber sit behind the `extra_bags` content module, off by default.
+- **Do:** Open the bag lectern on a fresh world and read the five blurbs. Kit out as each bag and check the kit matches the blurb.
+- **Pass:** Exactly five bags; Sapper's kit holds a stone pickaxe, Lumberjack's an axe and oak logs, Innkeeper's a Rolling Pin named item; no module, no cut bag appears.
+- **Fail signs:** Nine or ten bags; a missing kit item; Plumber in the list.
+
+### L51. 2026-10-06: the stations that remain
+
+- **Status:** owed, 2026-10-07-1.md: not exercised (no station used this session). Incidental: the safe room's station list showed crafting_table, damaged_anvil, furnace, grindstone, smithing_table and no enchanting table; if reroll lives at an enchanting table the home set may be missing it (unconfirmed, the list may only count placed blocks). Earlier: owed
+- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the anvil, Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
+- **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
+- **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
+- **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
 
 # Rooms (id: roles, tier, depth, requirements)
 

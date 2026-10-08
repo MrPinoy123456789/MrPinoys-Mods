@@ -1,6 +1,7 @@
 {
   "name": "The Spawner Dungeon",
   "act": 1,
+  "baseLevel": 5,
   "kind": "capstone",
   "mainTheme": "spawner_dungeon",
   "lootBand": {

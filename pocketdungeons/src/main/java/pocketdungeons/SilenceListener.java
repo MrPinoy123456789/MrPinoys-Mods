@@ -10,7 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 /**
- * Silenced's curse: a member of a Silenced run pays omen for the consumables they use
+ * Silenced's curse: a member of a Silenced run pays for the consumables they use
  * (playtest 2026-10-02-1; it used to block them outright).
  *
  * <p>The kiss is the same sentence and lives entirely in
@@ -56,10 +56,10 @@ final class SilenceListener {
             return InteractionResult.PASS;
         }
         // Playtest 2026-10-02-1: Silenced no longer blocks the item. The use
-        // goes through and feeds the omen instead (every few uses).
+        // goes through and answers with a wave instead (every few uses).
         InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
         if (record != null) {
-            OmenSources.silencedUse(serverPlayer.level().getServer(), record, serverPlayer.getUUID());
+            PressureSources.silencedUse(serverPlayer.level().getServer(), record, serverPlayer.getUUID());
         }
         return InteractionResult.PASS;
     }

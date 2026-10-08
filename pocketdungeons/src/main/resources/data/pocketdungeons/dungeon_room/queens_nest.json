@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/queens_nest",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["infestation"],
+  "dungeons": ["infestation"],
+  "acts": [1],
+  "graphRole": ["final"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "infestation",
+  "nodes": [
+    { "block": "minecraft:iron_ore", "from": [5, 1, 1], "to": [10, 2, 1], "count": 3 },
+    { "block": "minecraft:coal_ore", "from": [5, 1, 14], "to": [10, 2, 14], "count": 3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

@@ -15,18 +15,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:snowball",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 16
-            }
-          ],
-          "weight": 5
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:ice",
+          "name": "minecraft:cobblestone",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -41,7 +30,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:packed_ice",
+          "name": "minecraft:cobblestone",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -56,7 +45,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:blue_ice",
+          "name": "minecraft:cobblestone",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -71,19 +60,21 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:powder_snow_bucket",
+          "name": "minecraft:lapis_lazuli",
+          "weight": 4,
           "functions": [
             {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 2
               }
             }
-          ],
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cake",
           "weight": 1
         }
       ]

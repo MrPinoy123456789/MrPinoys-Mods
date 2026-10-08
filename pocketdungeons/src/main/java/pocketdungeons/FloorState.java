@@ -198,4 +198,19 @@ final class FloorState {
 
     /** How many nodes have been mined on this floor, any member. */
     int nodesMined;
+
+    // ---- J3: pressure, not omen ------------------------------------------------
+
+    /**
+     * Extra levels this floor fights at, on top of the layout's keystone
+     * level: the Ominous Bargain's +2, or the +2 a capstone's final floor
+     * opens with (J3; {@code PressureSources} and {@code CapstoneStart}).
+     */
+    int levelBonus;
+
+    /**
+     * Sculk sensor pulses counted on this floor, Ancient City only: the
+     * fourth on the final floor wakes the Warden ({@link SculkOmen}).
+     */
+    int sculkPulses;
 }

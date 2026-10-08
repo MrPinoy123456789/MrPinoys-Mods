@@ -2,8 +2,10 @@ package pocketdungeons;
 
 /**
  * The salvage bench's payout arithmetic, pure JDK so {@code SalvageMathTest}
- * runs headless like {@code GambleMathTest}. {@link SalvageStation} sorts the
- * items and hands the counts here; nothing in this class touches an item.
+ * runs headless. {@link SalvageStation} sorts the items and hands the counts
+ * here; nothing in this class touches an item. J7: the key rates moved to
+ * the floor clear ({@link RunLifecycle#redeemKeys}), which reuses
+ * {@link #keyEmeralds}.
  * The rates and why they sit where they do are in
  * {@code docs/reference/SALVAGE_PROPOSAL.md}.
  */
@@ -76,17 +78,4 @@ final class SalvageMath {
         return Math.max(0, keys) * Math.max(0, perKey);
     }
 
-    /**
-     * Fuel for {@code keys} keys at {@code keysPerFuel} keys a unit, or 0 when
-     * the trade is off ({@code keysPerFuel <= 0}). Whole units only: the
-     * remainder is not bought, see {@link #keysForFuel}.
-     */
-    static int keyFuel(int keys, int keysPerFuel) {
-        return keysPerFuel <= 0 ? 0 : Math.max(0, keys) / keysPerFuel;
-    }
-
-    /** How many keys {@link #keyFuel} actually takes; the rest stay with the player. */
-    static int keysForFuel(int keys, int keysPerFuel) {
-        return keyFuel(keys, keysPerFuel) * Math.max(0, keysPerFuel);
-    }
 }

@@ -51,7 +51,7 @@ public class NodePaletteTest {
     }
 
     private static void testValidatorFinding() {
-        String json = "{\"name\": \"T\", \"act\": 1, \"kind\": \"story\", \"mainTheme\": \"infestation\","
+        String json = "{\"name\": \"T\", \"act\": 1, \"baseLevel\": 1, \"kind\": \"dungeon\", \"mainTheme\": \"infestation\","
                 + " \"lootBand\": {\"min\": 1, \"max\": 2}, \"nodePalette\": [\"coal_ore\", \"stone\", \"oak_planks\"],"
                 + " \"nodes\": [{\"id\": \"a\", \"name\": \"A\", \"layer\": 1}, {\"id\": \"b\", \"name\": \"B\", \"layer\": 2},"
                 + " {\"id\": \"c\", \"name\": \"C\", \"layer\": 3, \"final\": true}],"
@@ -99,7 +99,8 @@ public class NodePaletteTest {
                     }
                     check(block.endsWith("_ore") || block.endsWith("_log") || block.endsWith("_stem")
                                     || block.endsWith("_wart_block") || block.equals("ancient_debris") || block.equals("gilded_blackstone")
-                                    || block.equals("clay") || block.equals("amethyst_cluster"),
+                                    || block.equals("clay") || block.equals("amethyst_cluster")
+                                    || block.equals("sand") || block.equals("red_sand"),
                             name + " palette entry is not a known resource shape: " + block);
                 }
             }

@@ -1,7 +1,8 @@
 {
   "name": "Frostworks",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 10,
+  "kind": "dungeon",
   "mainTheme": "frostworks",
   "lootBand": {
     "min": 2,
@@ -51,7 +52,8 @@
       "name": "Powder Snow Fields",
       "layer": 3,
       "roomBias": [
-        "powder_snow_field"
+        "powder_snow_field",
+        "frost_snowdrift"
       ]
     },
     {
@@ -63,7 +65,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 3
         }
       ]
@@ -71,7 +73,11 @@
     {
       "id": "cold_storage",
       "name": "Cold Storage",
-      "layer": 4
+      "layer": 4,
+      "roomBias": [
+        "frost_cold_store",
+        "frost_ice_vault"
+      ]
     },
     {
       "id": "ice_run",
@@ -85,7 +91,8 @@
       "id": "big_freeze",
       "name": "The Big Freeze",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["big_freeze"]
     }
   ],
   "edges": [
@@ -112,7 +119,7 @@
     {
       "from": "glaze_furnaces",
       "to": "glaze_vault",
-      "cost": 2
+      "lives": 2
     },
     {
       "from": "stray_barracks",

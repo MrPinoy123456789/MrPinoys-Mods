@@ -1,0 +1,23 @@
+{
+  "template": "pocketdungeons:rooms/deep_shaft_landing",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["deepslate"],
+  "dungeons": ["deepslate"],
+  "acts": [2],
+  "light": "dark",
+  "corridor": "wide",
+  "biome": "deepslate",
+  "nodes": [
+    { "block": "minecraft:deepslate_iron_ore", "from": [11, 2, 2], "to": [13, 2, 4], "count": 3 },
+    { "block": "minecraft:deepslate_lapis_ore", "from": [11, 2, 12], "to": [13, 2, 13], "count": 2 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

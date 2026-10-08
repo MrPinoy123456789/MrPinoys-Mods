@@ -43,7 +43,9 @@ final class ResourceBiomeSpecs {
         List<RoomSpec> specs = new ArrayList<>();
         specs.add(mineshaftTunnel());
         specs.add(mineshaftCrossing());
+        specs.add(mineshaftJunction());
         specs.add(mineshaftSeam());
+        specs.add(mineshaftDeadEnd());
         specs.add(mineshaftCollapse());
         specs.add(lushHollow());
         specs.add(lushRootGallery());
@@ -153,6 +155,54 @@ final class ResourceBiomeSpecs {
                 });
     }
 
+    /**
+     * Junction: two hallways cross straight through each other, leaving four separate rock
+     * masses in the corners. Each mass has an ore pocket facing each of its two hallways
+     * (eight pockets, filled by the metadata nodes), so the crossing is a small mining
+     * stop and not only a way through. Rails run both ways; the centre is a beam ring.
+     */
+    private static RoomSpec mineshaftJunction() {
+        return new RoomSpec("mineshaft_junction", HORIZONTALS)
+                .chests(new BlockPos(13, 1, 6))
+                .spawns(new BlockPos(3, 1, 8), new BlockPos(12, 1, 6), new BlockPos(6, 1, 3), new BlockPos(8, 1, 12))
+                .decor((level, o) -> {
+                    fill(level, o, 1, 1, 1, 5, 5, 5, STONE);
+                    fill(level, o, 9, 1, 1, 14, 5, 5, STONE);
+                    fill(level, o, 1, 1, 9, 5, 5, 14, STONE);
+                    fill(level, o, 9, 1, 9, 14, 5, 14, STONE);
+                    // Eight pockets, one deep, each facing a hallway; nodes are declared in the metadata.
+                    fill(level, o, 5, 1, 2, 5, 3, 4, AIR);
+                    fill(level, o, 2, 1, 5, 4, 3, 5, AIR);
+                    fill(level, o, 9, 1, 2, 9, 3, 4, AIR);
+                    fill(level, o, 11, 1, 5, 13, 3, 5, AIR);
+                    fill(level, o, 5, 1, 11, 5, 3, 13, AIR);
+                    fill(level, o, 2, 1, 9, 4, 3, 9, AIR);
+                    fill(level, o, 9, 1, 11, 9, 3, 13, AIR);
+                    fill(level, o, 11, 1, 9, 13, 3, 9, AIR);
+                    // Rails: the west to east line is continuous; the north to south line stops either side of it.
+                    railLine(level, o, 1, 14, 7);
+                    BlockState northSouth = Blocks.RAIL.defaultBlockState()
+                            .setValue(BlockStateProperties.RAIL_SHAPE, RailShape.NORTH_SOUTH);
+                    for (int z = 1; z <= 14; z++) {
+                        if (z != 7) {
+                            put(level, o, 7, 1, z, northSouth);
+                        }
+                    }
+                    for (int x : new int[]{6, 8}) {
+                        for (int z : new int[]{6, 8}) {
+                            put(level, o, x, 1, z, FENCE);
+                            put(level, o, x, 2, z, FENCE);
+                        }
+                    }
+                    fill(level, o, 6, 3, 6, 8, 3, 6, PLANKS);
+                    fill(level, o, 6, 3, 8, 8, 3, 8, PLANKS);
+                    put(level, o, 6, 3, 7, PLANKS);
+                    put(level, o, 8, 3, 7, PLANKS);
+                    put(level, o, 6, 4, 6, WEB);
+                    put(level, o, 9, 4, 8, WEB);
+                });
+    }
+
     /** Ore seam gallery: one deep notches in the rock either side of the path, filled by the metadata nodes. */
     private static RoomSpec mineshaftSeam() {
         return new RoomSpec("mineshaft_seam", EnumSet.of(Direction.WEST, Direction.EAST))
@@ -167,6 +217,29 @@ final class ResourceBiomeSpecs {
                     fill(level, o, 9, 1, 9, 11, 3, 9, AIR);
                     railLine(level, o, 1, 14, 7);
                     supportFrame(level, o, 7);
+                });
+    }
+
+    /**
+     * Dead end: a narrow tunnel opens into a small mining chamber that ends in an ore face.
+     * The end-face pocket and the two side notches are left as air for the metadata nodes.
+     */
+    private static RoomSpec mineshaftDeadEnd() {
+        return new RoomSpec("mineshaft_dead_end", EnumSet.of(Direction.WEST))
+                .chests(new BlockPos(13, 1, 9))
+                .spawns(new BlockPos(3, 1, 8), new BlockPos(6, 1, 6), new BlockPos(11, 1, 5), new BlockPos(12, 1, 9))
+                .decor((level, o) -> {
+                    fill(level, o, 1, 1, 1, 14, 5, 14, STONE);
+                    fill(level, o, 1, 1, 6, 9, 4, 8, AIR);
+                    fill(level, o, 10, 1, 4, 13, 4, 10, AIR);
+                    fill(level, o, 14, 1, 5, 14, 3, 9, AIR);
+                    fill(level, o, 11, 1, 3, 13, 3, 3, AIR);
+                    fill(level, o, 11, 1, 11, 13, 3, 11, AIR);
+                    railLine(level, o, 1, 12, 7);
+                    supportFrame(level, o, 4);
+                    supportFrame(level, o, 9);
+                    put(level, o, 6, 4, 8, WEB);
+                    put(level, o, 12, 4, 6, WEB);
                 });
     }
 
@@ -379,7 +452,11 @@ final class ResourceBiomeSpecs {
         for (String room : CowPits.ROOM_COWS.keySet()) {
             Situations.register(room, (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
                                        voidedFloor, content) -> {
-                CowPits.spawnCows(level, o, CowPits.ROOM_COWS.get(content), spawns, seed);
+                if (content.equals("cow_ward")) {
+                    CowPits.spawnWard(level, o, spawns, seed);
+                } else {
+                    CowPits.spawnCows(level, o, CowPits.ROOM_COWS.get(content), spawns, seed);
+                }
                 return null;
             });
         }

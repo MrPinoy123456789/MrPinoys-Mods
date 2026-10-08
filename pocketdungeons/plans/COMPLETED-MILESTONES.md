@@ -4494,3 +4494,46 @@ reload removed or renamed (`FloorState.previewDoorKey`).
 ### Pending human checks
 
 See `docs/reference/LIVE_TEST_PASS.md` section 51.
+
+## Simplification (steps 1 to 18, verified in step 19)
+
+Built on branch `feature/simplification` from `docs/plan-2026-10-06-1.md`,
+`docs/plan-2026-10-06-2.md` and `docs/plan-2026-10-06-3.md`. Goal: one progress
+bar, one spending currency (emeralds), one risk meter (lives); every change
+removes a rule or a screen line. Not yet playtested on this branch; the live
+checks owed are L45 to L53 in `docs/playtests/LIVE_CHECKS.md`.
+
+### What changed in one paragraph
+
+Legacy `story` and `resource` kinds became ordinary `dungeon` data (no adapter).
+Floors pay scrap on each clear; over-level floors pay emeralds instead. The
+door board prices side branches in scrap, not echo shards, and the GO HOME
+board reads scrap carried against what it comes to. Five bags remain (Guard,
+Ranger, Sapper, Lumberjack, Innkeeper); the five cut bags sit behind the
+`extra_bags` content module. Stations are Salvage, Reroll (enchanting table),
+Home Vendor and Bag Chest with no level gates; Gamble, Blacksmith and Lock In
+are gone. The Store is a tagged villager with real `MerchantOffer`s, journaled
+by `MerchantTradeMixin`. The home librarian sells rolled gear tiers (act gated,
+never tier IV), Mending for 64 emeralds, and buys surplus drops; stock rerolls
+on each homecoming. Dungeon Storage is a 27 slot log-backed chest that opens
+from any ender chest in a live instance's rooms and survives teardown and
+failure. Mobs drop no gear in the dungeon; trial keys are refused at salvage
+and redeem at floor clear (1 emerald, ominous 3). Hidden ore carries no copper;
+sand pockets are in; diamond and netherite pickaxes are capped at 32 and 48
+durability. Pocket2 and `/dungeon memento` are hidden from players. The
+Herobrine Cube is unregistered (J8 stays design-only). The kit top-up, its
+journal event and its config and zone knobs are deleted; `kit_baseline` is
+pack-validation data only.
+
+### Verification (step 19)
+
+`gradlew test`, `runGameTest` (175 tests), `dungeonIntegrationTest` and
+`gradlew build dist` all pass. `build` gates on `packValidationTest` and
+`dungeonIntegrationTest`, both clean; `dungeon admin validate` on the booted
+server reports no findings. The jar lands at `dist/MrPinoys_Pocket_Dungeons-0.1.0.jar`.
+Old saves need no migration beyond defaults for new fields.
+
+### Pending human checks
+
+See `docs/playtests/LIVE_CHECKS.md` sections L45 to L53. Deployment to the
+Kinetic test server is an owner step.

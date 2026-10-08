@@ -15,18 +15,22 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:snowball",
+          "name": "minecraft:cooked_beef",
           "functions": [
             {
               "function": "minecraft:set_count",
-              "count": 16
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ],
           "weight": 5
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:ice",
+          "name": "minecraft:cobblestone",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -41,7 +45,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:packed_ice",
+          "name": "minecraft:torch",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -52,26 +56,17 @@
               }
             }
           ],
-          "weight": 3
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:blue_ice",
-          "functions": [
+          "weight": 3,
+          "conditions": [
             {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 2
-              }
+              "condition": "minecraft:random_chance",
+              "chance": 0.34
             }
-          ],
-          "weight": 2
+          ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:powder_snow_bucket",
+          "name": "minecraft:flint_and_steel",
           "functions": [
             {
               "function": "minecraft:set_components",
@@ -81,6 +76,14 @@
                     "bag": 1
                   }
                 }
+              }
+            },
+            {
+              "function": "minecraft:set_damage",
+              "damage": {
+                "type": "minecraft:uniform",
+                "min": 0.1,
+                "max": 0.6
               }
             }
           ],

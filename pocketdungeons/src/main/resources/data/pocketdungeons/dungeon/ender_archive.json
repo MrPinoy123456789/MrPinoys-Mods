@@ -1,7 +1,8 @@
 {
   "name": "Ender Archive",
   "act": 5,
-  "kind": "story",
+  "baseLevel": 21,
+  "kind": "dungeon",
   "mainTheme": "ender_archive",
   "lootBand": {
     "min": 4,
@@ -31,22 +32,26 @@
       "name": "Shelf Labyrinth",
       "layer": 2,
       "roomBias": [
-        "rotation_lock"
+        "rotation_lock",
+        "archive_stacks",
+        "archive_reading_nook"
       ]
     },
     {
       "id": "chorus_stacks",
       "name": "Chorus Stacks",
-      "layer": 2
+      "layer": 2,
+      "roomBias": ["archive_stacks", "archive_catalog"]
     },
     {
       "id": "reading_rooms",
       "name": "Reading Rooms",
       "layer": 3,
       "theme": "blackstone",
+      "roomBias": ["archive_reading_nook", "archive_catalog"],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -63,7 +68,8 @@
       "id": "last_index",
       "name": "The Last Index",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["last_index"]
     }
   ],
   "edges": [
@@ -90,7 +96,7 @@
     {
       "from": "shelf_labyrinth",
       "to": "reading_rooms",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "purpur_vault",

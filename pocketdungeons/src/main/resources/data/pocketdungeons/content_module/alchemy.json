@@ -1,0 +1,23 @@
+{
+  "id": "alchemy",
+  "label": "Alchemy",
+  "description": "Nether wart, blaze powder and the brewing stand.",
+  "default": false,
+  "loot": {
+    "chests/tier_1": "modules/alchemy/chests/alchemy",
+    "chests/tier_2": "modules/alchemy/chests/alchemy",
+    "chests/tier_3": "modules/alchemy/chests/alchemy",
+    "chests/tier_4": "modules/alchemy/chests/alchemy",
+    "chests/tier_1_ominous": "modules/alchemy/chests/alchemy",
+    "chests/tier_2_ominous": "modules/alchemy/chests/alchemy",
+    "chests/tier_3_ominous": "modules/alchemy/chests/alchemy",
+    "chests/tier_4_ominous": "modules/alchemy/chests/alchemy",
+    "chests/supply_tier_1": "modules/alchemy/chests/alchemy",
+    "chests/supply_tier_2": "modules/alchemy/chests/alchemy",
+    "chests/supply_tier_3": "modules/alchemy/chests/alchemy",
+    "chests/supply_tier_4": "modules/alchemy/chests/alchemy"
+  },
+  "allow": ["nether_wart", "blaze_powder", "blaze_rod", "magma_cream", "glass_bottle"],
+  "stations": ["brewing_stand"],
+  "merchantStock": ["nether_wart"]
+}

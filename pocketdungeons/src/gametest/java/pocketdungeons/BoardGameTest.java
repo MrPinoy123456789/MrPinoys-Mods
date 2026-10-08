@@ -56,4 +56,119 @@ public final class BoardGameTest {
         helper.assertTrue(shown.size() == 1 && bodies(shown) == 0, "a title only board leaves no body display");
         helper.succeed();
     }
+
+    /**
+     * A selected door's board is two sheets side by side: the floor info (three
+     * displays: dungeon, floor, notes) on the viewer's left and the deal on the
+     * right, symmetric about the old board's centre, each at most 70 percent of
+     * the old 8 block width, the notes the smallest text. An update reuses them,
+     * and a single board afterwards takes them down.
+     */
+    @GameTest(maxTicks = 100)
+    public void aSelectedDoorIsTwoSheetsCentredOnTheOldBoard(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
+        DoorMask.Direction wall = DoorMask.Direction.NORTH;
+
+        DungeonScreen.Sheets sheets = new DungeonScreen.Sheets(
+                Component.literal("Ossuary").withStyle(ChatFormatting.YELLOW),
+                Component.literal("Floor 1 of 3").withStyle(ChatFormatting.YELLOW),
+                Component.literal("Pitch dark. Bring torches.").withStyle(ChatFormatting.GRAY),
+                Component.literal("Charnel Steps\n1 scrap\nloot \u00d73"));
+        DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
+                Component.literal("t"), Component.literal("b"), sheets));
+        List<Display.TextDisplay> shown = displays(level, origin);
+        helper.assertTrue(shown.size() == 4, "dungeon, floor, notes and deal (found " + shown.size() + ")");
+        helper.assertTrue(shown.stream().allMatch(e -> e.entityTags().contains(DungeonScreen.SHEET_TAG)),
+                "every one is tagged as a sheet");
+
+        // Centred on the old board: the info sheet and the deal sit equally far either side of along 8.0.
+        double centre = origin.getX() + 8.0;
+        double info = shown.stream().filter(e -> e.getText().getString().equals("Ossuary")).findFirst()
+                .orElseThrow().getX();
+        double deal = shown.stream().filter(e -> e.getText().getString().startsWith("Charnel")).findFirst()
+                .orElseThrow().getX();
+        helper.assertTrue(Math.abs((centre - info) - (deal - centre)) < 1.0e-6,
+                "the sheets are symmetric about the old board's centre (" + info + ", " + deal + ")");
+        helper.assertTrue(info < centre && deal > centre, "the info sheet is on the viewer's left on a NORTH wall");
+
+        // Sizes: each sheet is at most 70 percent of the old 8 blocks, and the notes are the smallest text.
+        helper.assertTrue(DungeonScreen.SHEET_WIDTH <= 0.7 * 8.0 + 1.0e-9,
+                "a sheet is at most 70 percent of the old board's width");
+        helper.assertTrue(DungeonScreen.SHEET_NOTES_SCALE < DungeonScreen.SHEET_FLOOR_SCALE
+                && DungeonScreen.SHEET_NOTES_SCALE < DungeonScreen.SHEET_DEAL_SCALE
+                && DungeonScreen.SHEET_NOTES_SCALE < DungeonScreen.SHEET_DUNGEON_SCALE, "the notes are the smallest text");
+        helper.assertTrue(DungeonScreen.SHEET_OFFSET + DungeonScreen.SHEET_WIDTH / 2.0 <= 5.0 + 1.0e-9,
+                "the pair stays inside the backdrop, blocks 3 to 12");
+
+        // An update reuses the four displays, never doubles them.
+        DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
+                Component.literal("t"), Component.literal("b"), new DungeonScreen.Sheets(
+                        Component.literal("Ossuary"), Component.literal("Floor 2 of 3"),
+                        Component.literal("Dim light. Torches help."), Component.literal("Bone Hall\n2 scrap"))));
+        shown = displays(level, origin);
+        helper.assertTrue(shown.size() == 4, "an update keeps four sheets (found " + shown.size() + ")");
+
+        // A single board afterwards takes the sheets down.
+        DungeonScreen.summonDoor(level, origin, wall, DungeonScreen.refusalContent("Select a door first"));
+        shown = displays(level, origin);
+        helper.assertTrue(shown.size() == 1 && !shown.get(0).entityTags().contains(DungeonScreen.SHEET_TAG),
+                "a single board leaves no sheets (found " + shown.size() + ")");
+        helper.succeed();
+    }
+
+
+    /**
+     * PD-161: the board only promises ore the plan can deliver. A dungeon that
+     * buries hidden ore (the Mineshaft) always can; a palette-only dungeon
+     * (Copper Works) can only through a placed room that declares nodes, and
+     * across a sweep of floors some plans hold none, which must read as false.
+     */
+    @GameTest(maxTicks = 200)
+    public void theBoardOnlyPromisesOreThePlanCanDeliver(GameTestHelper helper) {
+        DungeonDef mineshaft = DungeonDefs.current().byId("pocketdungeons:mineshaft");
+        DungeonDef copper = DungeonDefs.current().byId("pocketdungeons:copper_works");
+        helper.assertTrue(mineshaft != null && copper != null, "both dungeons are loaded");
+        helper.assertTrue(mineshaft.hiddenOre() != null && copper.hiddenOre() == null,
+                "the Mineshaft buries ore and Copper Works declares none");
+        // Two palette-only dungeons: Copper Works (which now has enough ore rooms that every sampled floor
+        // holds some) and the Ancient City (which declares none, so its plans must read as quiet).
+        DungeonDef ancientCity = DungeonDefs.current().byId("pocketdungeons:ancient_city");
+        helper.assertTrue(ancientCity != null && ancientCity.hiddenOre() == null,
+                "the Ancient City is loaded and declares no hidden ore");
+        int silent = 0;
+        int loud = 0;
+        String[] themes = {"copper_works", "ancient_city"};
+        DungeonDef[] defs = {copper, ancientCity};
+        for (int which = 0; which < themes.length; which++) {
+            DungeonDef def = defs[which];
+            for (long seed = 1; seed <= 80; seed++) {
+                LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                        LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                        LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                        LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                        LayoutPlanner.DEFAULT_MAX_GRID_SPAN, themes[which], null);
+                if (outcome.plan() == null) {
+                    continue;
+                }
+                helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), mineshaft),
+                        "a hidden ore dungeon always holds nodes");
+                boolean declared = outcome.plan().rooms().values().stream().anyMatch(r -> {
+                    RoomManifest.Entry entry = RoomManifest.current().byName(r.name());
+                    return entry != null && !entry.meta.nodes.isEmpty();
+                });
+                helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), def) == declared,
+                        "a palette-only plan holds nodes exactly when a placed room declares them ("
+                                + themes[which] + " seed " + seed + ")");
+                if (declared) {
+                    loud++;
+                } else {
+                    silent++;
+                }
+            }
+        }
+        helper.assertTrue(loud > 0, "some palette-only plans hold nodes, and the board promises ore");
+        helper.assertTrue(silent > 0, "some palette-only plans hold no nodes, and the board stays quiet about ore");
+        helper.succeed();
+    }
 }

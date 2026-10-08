@@ -15,13 +15,15 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Design 2026-10-06-1 item 5: Dungeon Storage is a 27 slot container backed by {@link DungeonLog}.
  * It persists on every change, survives a teardown, takes what an old per-run storage still held,
- * and an omen death closes an open menu before rolling it back.
+ * and a failed run leaves it alone (J2). J6: it opens from any ender chest in the
+ * safe room or at the Doors, run or no run.
  */
 public final class DungeonStorageGameTest {
 
@@ -166,7 +168,7 @@ public final class DungeonStorageGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void anOmenDeathClosesTheMenuThenRollsTheStorageBack(GameTestHelper helper) {
+    public void aFailedRunLeavesTheStorageAlone(GameTestHelper helper) {
         ServerPlayer player = player(helper);
         MinecraftServer server = player.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
@@ -182,25 +184,77 @@ public final class DungeonStorageGameTest {
             log.setStorage(id, before);
 
             helper.assertTrue(RunStorage.onUse(player, RunStorage.stationState(Direction.NORTH), true), "it opens");
-            helper.assertTrue(record.interval.storageSnapshot.containsKey(id), "the first open took the interval snapshot");
             // Unbanked loot stashed during the interval.
             player.containerMenu.getSlot(2).set(new ItemStack(Items.DIAMOND, 7));
             helper.assertTrue(log.storageOf(id).get(2).is(Items.DIAMOND), "the loot is in the storage");
 
-            RunStorage.rollBackToInterval(server, record);
-            helper.assertTrue(!(player.containerMenu instanceof ChestMenu), "the open menu was closed first");
+            // J2: failure costs only the stake, so nothing rolls back.
+            Instances.failRunOmen(server, record, player, player.damageSources().generic());
             List<ItemStack> after = log.storageOf(id);
             helper.assertTrue(after.get(1).is(Items.IRON_INGOT) && after.get(1).getCount() == 9,
-                    "what was stored before the interval is safe");
-            helper.assertTrue(after.get(2).isEmpty(), "what was stashed during the interval is gone");
-            // A stale menu closing late must not write the old stacks back (no duplication).
-            helper.assertTrue(log.storageOf(id).stream().noneMatch(s -> s.is(Items.DIAMOND)),
-                    "no diamond survived the rollback");
+                    "what was stored before is safe");
+            helper.assertTrue(after.get(2).is(Items.DIAMOND) && after.get(2).getCount() == 7,
+                    "what was stashed during the run is kept");
         } finally {
             player.closeContainer();
             log.setStorage(id, List.of());
             unregister(player);
         }
+        helper.succeed();
+    }
+
+    /**
+     * J6 (D38, owner amendment): any ender chest in the dungeon world opens
+     * the player's storage, in a room, at the Doors or on a floor, with no
+     * run and no instance of the player's own. Outside the dungeon nothing
+     * opens, so the vanilla ender chest is untouched there.
+     */
+    @GameTest(maxTicks = 20)
+    public void anyDungeonEnderChestOpensTheStorage(GameTestHelper helper) {
+        ServerPlayer visitor = player(helper);
+        MinecraftServer server = visitor.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = visitor.getUUID();
+        try {
+            helper.assertTrue(RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH), true),
+                    "an ender chest in the dungeon opens the storage with no run up");
+            visitor.containerMenu.getSlot(0).set(new ItemStack(Items.IRON_INGOT, 4));
+            visitor.closeContainer();
+            helper.assertTrue(log.storageOf(id).get(0).is(Items.IRON_INGOT),
+                    "the player's own storage took the stack");
+
+            helper.assertTrue(RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH), true),
+                    "a second chest elsewhere opens it too");
+            helper.assertTrue(visitor.containerMenu.getSlot(0).getItem().is(Items.IRON_INGOT),
+                    "the same storage, not a new one");
+            visitor.closeContainer();
+
+            helper.assertTrue(!RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH), false),
+                    "nothing opens outside the dungeon at all");
+        } finally {
+            visitor.closeContainer();
+            log.setStorage(id, List.of());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Playtest 2026-10-02-1: the run storage drains once. {@link RunStorage#drain}
+     * returns the containers while a caller empties the station; the storage
+     * keeps coming back empty rather than re-paying.
+     */
+    @GameTest
+    public void runStorageDrainsItsContentsOnce(GameTestHelper helper) {
+        InstanceRecord record = new InstanceRecord(0, new BlockPos(0, 0, 0), 0L, null, Set.of(),
+                UUID.randomUUID(), false);
+        UUID id = UUID.randomUUID();
+        SimpleContainer box = new SimpleContainer(RunStorage.SLOTS);
+        box.setItem(0, new ItemStack(Items.COBBLESTONE, 64));
+        box.setItem(5, new ItemStack(Items.TORCH, 3));
+        record.runStorage.put(id, box);
+        Map<UUID, List<ItemStack>> drained = RunStorage.drain(record);
+        helper.assertValueEqual(drained.get(id).size(), 2, "both stacks come out");
+        helper.assertTrue(RunStorage.drain(record).isEmpty(), "a second drain finds nothing");
         helper.succeed();
     }
 }

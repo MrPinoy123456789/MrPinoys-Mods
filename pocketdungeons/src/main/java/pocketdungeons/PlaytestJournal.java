@@ -251,7 +251,7 @@ final class PlaytestJournal {
     /**
      * Dungeon structure W2: a door was committed inside a dungeon. Written for every
      * member present: {@code dungeon_chosen} on the first door of a trip,
-     * {@code edge_taken} (with the step dealt and the shard cost) on every later one,
+     * {@code edge_taken} (with the step dealt and the scrap cost) on every later one,
      * then {@code node_entered} for the floor now opening. The trip state on
      * {@code record.interval} is already updated.
      */
@@ -289,18 +289,18 @@ final class PlaytestJournal {
 
     /**
      * Dungeon structure W2: a final floor was cleared. One line per member present;
-     * {@code shards} and {@code vault_chests} are what the finish paid, {@code first}
+     * {@code emeralds} and {@code vault_chests} are what the finish paid, {@code first}
      * whether it was this player's first finish of the dungeon, {@code diary} the page
      * id handed over (empty for none).
      */
-    static void dungeonFinished(ServerPlayer player, InstanceRecord record, int shards, int vaultChests,
+    static void dungeonFinished(ServerPlayer player, InstanceRecord record, int emeralds, int vaultChests,
                                 boolean first, String diary) {
         safely("dungeon_finished", () -> {
             Map<String, Object> extras = new LinkedHashMap<>();
             extras.put("dungeon", record.interval.dungeonId);
             extras.put("node", record.interval.nodeId);
             extras.put("floors", record.interval.path.size());
-            extras.put("shards", shards);
+            extras.put("emeralds", emeralds);
             extras.put("vault_chests", vaultChests);
             extras.put("first", first);
             extras.put("diary", diary == null ? "" : diary);
@@ -344,8 +344,7 @@ final class PlaytestJournal {
     static void omenRise(MinecraftServer s, InstanceRecord record, Omen.Source source, int amount,
                          int total, BlockPos at) {
         safely("omen_rise", () -> {
-            String sourceName = source == Omen.Source.DEPTH ? "headstart"
-                    : source.name().toLowerCase(java.util.Locale.ROOT);
+            String sourceName = source.name().toLowerCase(java.util.Locale.ROOT);
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = s.getPlayerList().getPlayer(member);
                 if (player == null) {
@@ -357,6 +356,28 @@ final class PlaytestJournal {
                 extras.put("total", total);
                 extras.put("room", FloorRooms.roomAt(record, at != null ? at : player.blockPosition()));
                 record(player, record, "omen_rise", extras);
+            }
+        });
+    }
+
+    /**
+     * A pressure trigger answered (J3: dwell, a sensor pulse, a shriek, the
+     * Ominous Bargain, a Silenced consumable, a Barred Vault clear): written
+     * for every member present. {@code at} is where it fired or null for a
+     * floor-wide trigger, in which case each member's own room is named.
+     */
+    static void hazard(MinecraftServer s, InstanceRecord record, Omen.Source source, BlockPos at) {
+        safely("hazard", () -> {
+            String sourceName = source.name().toLowerCase(java.util.Locale.ROOT);
+            for (UUID member : record.members.keySet()) {
+                ServerPlayer player = s.getPlayerList().getPlayer(member);
+                if (player == null) {
+                    continue;
+                }
+                Map<String, Object> extras = new LinkedHashMap<>();
+                extras.put("source", sourceName);
+                extras.put("room", FloorRooms.roomAt(record, at != null ? at : player.blockPosition()));
+                record(player, record, "hazard", extras);
             }
         });
     }
@@ -437,6 +458,20 @@ final class PlaytestJournal {
         });
     }
 
+    /** A floor's pay to one member: scrap into the haul, and the emeralds their unused trial keys settled for. */
+    static void floorPay(ServerPlayer player, InstanceRecord record, int scrap, int emeralds) {
+        safely("floor_pay", () -> record(player, record, "floor_pay",
+                Map.of("scrap", scrap, "emeralds", emeralds)));
+    }
+
+    /** A haul banked (home, finish, fail or orphan): what made it into the compass bar and what was lost. */
+    static void haulBanked(ServerPlayer player, InstanceRecord record, String context, int banked, int lost,
+                           int compass, int progress) {
+        safely("haul_banked", () -> record(player, record, "haul_banked",
+                Map.of("context", context, "banked", banked, "lost", lost, "compass", compass,
+                        "progress", progress)));
+    }
+
     /** The interval settled for this member. */
     static void bank(ServerPlayer player, InstanceRecord record, String trigger, int floors,
                      IntervalBanking.Settlement settled, int chests, int depthBonus, int keyLevel) {
@@ -444,32 +479,13 @@ final class PlaytestJournal {
             Map<String, Object> extras = new LinkedHashMap<>();
             extras.put("trigger", trigger);
             extras.put("floors", floors);
-            extras.put("band", settled.band());
+
             extras.put("levels_gained", settled.levels());
             extras.put("scrap_left", settled.scrapLeft());
             extras.put("chests", chests);
             extras.put("depth_bonus", depthBonus);
             extras.put("key_level", keyLevel);
             record(player, record, "bank", extras);
-        });
-    }
-
-    /** A kit top-up was applied (even one that granted nothing). */
-    static void kitTopUp(ServerPlayer player, InstanceRecord record, int band, KitTopUp.Plan plan) {
-        safely("kit_topup", () -> {
-            Map<String, Integer> granted = new LinkedHashMap<>();
-            List<String> tools = new ArrayList<>();
-            for (KitTopUp.Grant grant : plan.grants()) {
-                granted.merge(grant.item(), grant.count(), Integer::sum);
-                if (grant.durability()) {
-                    tools.add(grant.item());
-                }
-            }
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("band", band);
-            extras.put("granted", granted);
-            extras.put("tools_replaced", tools);
-            record(player, record, "kit_topup", extras);
         });
     }
 
@@ -569,12 +585,7 @@ final class PlaytestJournal {
         safely("diary_handed", () -> record(player, "diary_handed", Map.of("band", band, "count", count)));
     }
 
-    /** Gear was locked in at the librarian: which item and the emerald price. */
-    static void lockIn(ServerPlayer player, String item, int cost) {
-        safely("lock_in", () -> record(player, "lock_in", Map.of("item", item, "cost", cost)));
-    }
-
-    /** A Store sale (PD-142): what was bought, what it cost, in which item, and from whom. */
+    /** A vendor trade the player bought (J4): the item out, the emeralds it cost, and from whom. */
     static void shopPurchase(ServerPlayer player, net.minecraft.world.item.Item item, String name, int price,
                              net.minecraft.world.item.Item currency, String vendor) {
         safely("shop_purchase", () -> record(player, "shop_purchase", Map.of(
@@ -585,14 +596,24 @@ final class PlaytestJournal {
                 "vendor", vendor)));
     }
 
+    /** A vendor trade the player sold into (J4): which drop, how many, the emeralds paid, and to whom. */
+    static void shopSale(ServerPlayer player, net.minecraft.world.item.Item item, int count, int emeralds,
+                         String vendor) {
+        safely("shop_sale", () -> record(player, "shop_sale", Map.of(
+                "item", net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),
+                "count", count,
+                "emeralds", emeralds,
+                "vendor", vendor)));
+    }
+
     /** A dead-end fountain was drunk: which boon it held. */
     static void fountain(ServerPlayer player, String boon) {
         safely("fountain", () -> record(player, "fountain", Map.of("boon", boon)));
     }
 
-    /** Echo shards granted outside the free door and salvage: how many and from what. */
-    static void echoShards(ServerPlayer player, int amount, String source) {
-        safely("echo_shards", () -> record(player, "echo_shards", Map.of("amount", amount, "source", source)));
+    /** Emeralds granted as a dungeon reward (J1): how many and from what. */
+    static void emeralds(ServerPlayer player, int amount, String source) {
+        safely("emeralds", () -> record(player, "emeralds", Map.of("amount", amount, "source", source)));
     }
 
     /** One salvage at the bench: what went in and what came out (A3, the surplus sink). */
