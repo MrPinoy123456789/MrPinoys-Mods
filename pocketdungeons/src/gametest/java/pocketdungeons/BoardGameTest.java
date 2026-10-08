@@ -117,4 +117,46 @@ public final class BoardGameTest {
         helper.succeed();
     }
 
+
+    /**
+     * PD-161: the board only promises ore the plan can deliver. A dungeon that
+     * buries hidden ore (the Mineshaft) always can; a palette-only dungeon
+     * (Copper Works) can only through a placed room that declares nodes, and
+     * across a sweep of floors some plans hold none, which must read as false.
+     */
+    @GameTest(maxTicks = 200)
+    public void theBoardOnlyPromisesOreThePlanCanDeliver(GameTestHelper helper) {
+        DungeonDef mineshaft = DungeonDefs.current().byId("pocketdungeons:mineshaft");
+        DungeonDef copper = DungeonDefs.current().byId("pocketdungeons:copper_works");
+        helper.assertTrue(mineshaft != null && copper != null, "both dungeons are loaded");
+        helper.assertTrue(mineshaft.hiddenOre() != null && copper.hiddenOre() == null,
+                "the Mineshaft buries ore and Copper Works declares none");
+        int silent = 0;
+        int loud = 0;
+        for (long seed = 1; seed <= 80; seed++) {
+            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                    LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                    LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                    LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                    LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "copper_works", null);
+            if (outcome.plan() == null) {
+                continue;
+            }
+            helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), mineshaft),
+                    "a hidden ore dungeon always holds nodes");
+            boolean declared = outcome.plan().rooms().values().stream().anyMatch(r -> {
+                RoomManifest.Entry entry = RoomManifest.current().byName(r.name());
+                return entry != null && !entry.meta.nodes.isEmpty();
+            });
+            helper.assertTrue(DungeonScreen.planHoldsNodes(outcome.plan(), copper) == declared,
+                    "a palette-only plan holds nodes exactly when a placed room declares them (seed " + seed + ")");
+            if (declared) {
+                loud++;
+            } else {
+                silent++;
+            }
+        }
+        helper.assertTrue(silent > 0, "some Copper Works plans hold no nodes, and the board stays quiet about ore");
+        helper.succeed();
+    }
 }

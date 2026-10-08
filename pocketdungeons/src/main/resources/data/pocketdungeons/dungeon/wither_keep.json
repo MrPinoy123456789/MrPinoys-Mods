@@ -105,7 +105,7 @@
     {
       "from": "fortress_bridges",
       "to": "blaze_spire",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "warped_grove",

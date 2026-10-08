@@ -108,7 +108,7 @@
     {
       "from": "slag_channels",
       "to": "gilded_annex",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "crucible_row",

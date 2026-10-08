@@ -32,7 +32,7 @@ final class Omen {
      * {@code DEATH} is the only source that raises omen; the rest name wave
      * triggers on the bar and in the journal.
      */
-    enum Source { DEATH, DWELL, SENSOR, SHRIEK, BARGAIN, SILENCE, VAULT }
+    enum Source { DEATH, DWELL, SENSOR, SHRIEK, BARGAIN, SILENCE, VAULT, DOOR }
 
     // ---- lives (J3) ------------------------------------------------------
 

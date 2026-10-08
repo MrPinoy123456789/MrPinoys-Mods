@@ -132,7 +132,7 @@
     {
       "from": "deep_quarry",
       "to": "collapsed_landing",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "pale_gallery",

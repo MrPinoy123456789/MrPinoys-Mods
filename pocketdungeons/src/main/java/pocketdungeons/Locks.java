@@ -60,7 +60,13 @@ final class Locks {
         /** One specific item in the cell's chest. Frame Lock. */
         ITEM_KEY,
         /** Every pressure plate in the cell pressed at once. Plate Pair's AND. */
-        PLATES_ALL
+        PLATES_ALL,
+        /**
+         * One specific item dropped into the cell's hopper, which takes it as
+         * the toll (Barred Vault, Ominous Bargain; PD-164). An optional room:
+         * it never counts as an unsolved cell for the dwell clock.
+         */
+        HOPPER_KEY
     }
 
     private record Lock(ServerLevel level, Kind kind, Item key,
@@ -101,9 +107,11 @@ final class Locks {
                     BlockState state = level.getBlockState(pos);
                     if (state.is(Blocks.IRON_DOOR)) {
                         doors.add(pos.immutable());
-                    } else if (kind == Kind.PLATES_ALL
-                            ? state.is(Blocks.STONE_PRESSURE_PLATE)
-                            : state.is(Blocks.CHEST)) {
+                    } else if (switch (kind) {
+                        case PLATES_ALL -> state.is(Blocks.STONE_PRESSURE_PLATE);
+                        case HOPPER_KEY -> state.is(Blocks.HOPPER);
+                        default -> state.is(Blocks.CHEST);
+                    }) {
                         triggers.add(pos.immutable());
                     }
                 }
@@ -121,7 +129,8 @@ final class Locks {
     /** Whether the cell still has an unsatisfied lock, which is what makes its
      *  situation "unsolved" for the dwell clock (spec 5.4). */
     static boolean isArmed(BlockPos cellOrigin) {
-        return ACTIVE.containsKey(cellOrigin);
+        Lock lock = ACTIVE.get(cellOrigin);
+        return lock != null && lock.kind() != Kind.HOPPER_KEY;
     }
 
     /** Drops one cell's lock. Called from teardown, per cell of the layout. */
@@ -142,6 +151,8 @@ final class Locks {
             case ITEM_ANY -> "Put any item in the chest to open it.";
             case ITEM_KEY -> "Put " + Component.translatable(lock.key().getDescriptionId()).getString() + " in the chest to open it.";
             case PLATES_ALL -> "Hold every pressure plate down at once.";
+            case HOPPER_KEY -> "Drop " + Component.translatable(lock.key().getDescriptionId()).getString()
+                    + " in the hopper to open the door.";
         };
     }
 
@@ -178,7 +189,7 @@ final class Locks {
         return switch (lock.kind()) {
             case ITEM_ANY -> lock.triggers().stream()
                     .anyMatch(pos -> !containerEmpty(lock.level(), pos));
-            case ITEM_KEY -> lock.triggers().stream()
+            case ITEM_KEY, HOPPER_KEY -> lock.triggers().stream()
                     .anyMatch(pos -> holdsKey(lock.level(), pos, lock.key()));
             // The AND: every plate at once, which is what a lead, a second
             // player or a wolf told to sit is for.
@@ -204,6 +215,24 @@ final class Locks {
         return false;
     }
 
+    /** The hopper keeps one of the toll item; the rest of a stack is left in it. */
+    private static void takeToll(Lock lock) {
+        for (BlockPos pos : lock.triggers()) {
+            if (!(lock.level().getBlockEntity(pos) instanceof Container container)) {
+                continue;
+            }
+            for (int i = 0; i < container.getContainerSize(); i++) {
+                ItemStack stack = container.getItem(i);
+                if (!stack.isEmpty() && stack.is(lock.key())) {
+                    stack.shrink(1);
+                    container.setItem(i, stack.isEmpty() ? ItemStack.EMPTY : stack);
+                    container.setChanged();
+                    return;
+                }
+            }
+        }
+    }
+
     private static boolean pressed(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         return state.is(Blocks.STONE_PRESSURE_PLATE)
@@ -213,6 +242,9 @@ final class Locks {
 
     /** Latches every door of the cell open, once. */
     private static void open(Lock lock) {
+        if (lock.kind() == Kind.HOPPER_KEY) {
+            takeToll(lock);
+        }
         for (BlockPos pos : lock.doors()) {
             BlockState state = lock.level().getBlockState(pos);
             if (state.is(Blocks.IRON_DOOR) && !state.getValue(DoorBlock.OPEN)) {

@@ -302,14 +302,18 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
     }
 
-    /** A directed edge between two nodes; {@code cost} is scrap (0 is a main path edge). */
+    /**
+     * A directed edge between two nodes; {@code cost} is the lives a side door takes from the party
+     * (0 is a main path edge, 1 or 2 a side branch). The file key is {@code lives}.
+     */
     record Edge(String from, String to, int cost) {
         Edge {
             if (from == null || from.isBlank() || to == null || to.isBlank()) {
                 throw new IllegalArgumentException("edge endpoints must not be blank");
             }
-            if (cost < 0) {
-                throw new IllegalArgumentException("edge cost must be >= 0: " + from + " to " + to);
+            if (cost < 0 || cost > DoorLives.MAX_LIVES) {
+                throw new IllegalArgumentException("edge lives must be 0 to " + DoorLives.MAX_LIVES + ": "
+                        + from + " to " + to);
             }
         }
 
@@ -737,8 +741,11 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {
             JsonObject edge = element.getAsJsonObject();
+            if (edge.has("cost")) {
+                throw new IllegalArgumentException("edge 'cost' was scrap and is gone; a side door costs 'lives' (1 or 2)");
+            }
             edges.add(new Edge(requiredString(edge, "from"), requiredString(edge, "to"),
-                    edge.has("cost") ? requiredInt(edge, "cost") : 0));
+                    edge.has("lives") ? requiredInt(edge, "lives") : 0));
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
                 deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel);

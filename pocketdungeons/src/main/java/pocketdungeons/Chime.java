@@ -101,6 +101,7 @@ public final class Chime {
             case BARGAIN -> play(player, SoundEvents.OMINOUS_BOTTLE_DISPOSE, 0.5f, 0.8f);
             case VAULT -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.35f);
             case DEATH -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.4f, 0.3f);
+            case DOOR -> play(player, SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.25f);
             case SILENCE -> play(player, Holder.direct(SoundEvents.WARDEN_AMBIENT), 0.5f, 1.2f);
         }
     }

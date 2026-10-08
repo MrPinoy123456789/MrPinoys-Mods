@@ -126,14 +126,12 @@ final class SpurSpecs {
         set(level, o, x, y, z, Blocks.REDSTONE_WIRE.defaultBlockState());
     }
 
-    /** Fills 4 of a hopper's 5 slots with 64 of {@code item}, leaving slot 4 empty (vanilla item filter). */
-    private static void fillFilter(ServerLevel level, BlockPos o, int x, int y, int z, ItemStack item) {
-        BlockEntity be = level.getBlockEntity(o.offset(x, y, z));
-        if (be instanceof HopperBlockEntity hopper) {
-            for (int i = 0; i < 4; i++) {
-                hopper.setItem(i, new ItemStack(item.getItem(), 64));
+    /** A wall across the whole room at z={@code zLine}, floor to the last interior row (the door replaces its part). */
+    private static void placePartition(ServerLevel level, BlockPos o, int zLine) {
+        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+            for (int y = 1; y < RoomGeometry.CEILING_Y; y++) {
+                set(level, o, x, y, zLine, RoomBuilder.WALL);
             }
-            hopper.setChanged();
         }
     }
 
@@ -191,19 +189,14 @@ final class SpurSpecs {
         return new RoomSpec("barred_vault", EnumSet.of(DOOR))
                 .spawner(new BlockPos(8, 1, 4))
                 .decor((level, o) -> {
-                    // Iron door across the room at z=8.
+                    // PD-164: a full partition at z=8 with the iron door as the only way
+                    // through, an empty toll hopper before it (Locks.Kind.HOPPER_KEY opens
+                    // the door when a trial key is dropped in), and the reward chest behind.
+                    // SpurToll repairs older baked templates the same way at every stamp.
+                    placePartition(level, o, 8);
                     placeInteriorDoor(level, o, 8);
-                    // Filter hopper at z=7 facing south into the chest. Four
-                    // slots pre-filled with trial keys make it a trial-key filter.
                     placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
-                    fillFilter(level, o, 8, 1, 7, new ItemStack(Items.TRIAL_KEY));
-                    // Chest behind the door at z=10, facing north (toward the
-                    // player coming through). Draws from the spur vault table.
                     placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_barred_vault");
-                    // Comparator reads the chest, outputs north to power the door.
-                    placeComparator(level, o, 9, 1, 10, Direction.NORTH);
-                    placeDust(level, o, 9, 1, 9);
-                    placeDust(level, o, 9, 1, 8);
                 });
     }
 
@@ -232,17 +225,12 @@ final class SpurSpecs {
                         dropper.setItem(0, new ItemStack(Items.OMINOUS_BOTTLE));
                         dropper.setChanged();
                     }
-                    // Iron door across the room at z=8.
+                    // PD-164: partition, empty toll hopper (a gold ingot opens the door)
+                    // and the reward chest, as in the Barred Vault.
+                    placePartition(level, o, 8);
                     placeInteriorDoor(level, o, 8);
-                    // Filter hopper at z=7 facing south; gold ingot filter.
                     placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
-                    fillFilter(level, o, 8, 1, 7, new ItemStack(Items.GOLD_INGOT));
-                    // Chest behind the door with the ominous reward table.
                     placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_ominous_bargain");
-                    // Comparator reads the chest, powers the door.
-                    placeComparator(level, o, 9, 1, 10, Direction.NORTH);
-                    placeDust(level, o, 9, 1, 9);
-                    placeDust(level, o, 9, 1, 8);
                 });
     }
 

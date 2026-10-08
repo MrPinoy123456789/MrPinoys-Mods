@@ -74,9 +74,9 @@ final class DungeonProgress {
             String label = ActProgress.label(next) + " is open";
             member.sendSystemMessage(Component.literal(label + ". Its dungeons now appear at the first door.")
                     .withStyle(ChatFormatting.GOLD));
-            StaggeredTitle.show(server, id, Component.literal(label).withStyle(ChatFormatting.GOLD),
-                    java.util.List.of("Act " + act + " complete"), ChatFormatting.GRAY);
-            celebrate(member);
+            StaggeredTitle.showMilestone(server, id, Component.literal(label).withStyle(ChatFormatting.GOLD),
+                    java.util.List.of("Act " + act + " complete"), ChatFormatting.GRAY,
+                    DungeonProgress::celebrate);
             PlaytestJournal.actUnlocked(member, record, dungeonId, next, false);
             opened = next;
         }
@@ -123,21 +123,21 @@ final class DungeonProgress {
         if (finishCall) {
             DungeonDef def = record == null ? null : DungeonDefs.current().byId(record.interval.dungeonId);
             if (newFinish && def != null) {
-                StaggeredTitle.show(server, id,
+                StaggeredTitle.showMilestone(server, id,
                         Component.literal(def.name() + " cleared").withStyle(ChatFormatting.GOLD),
                         java.util.List.of("Act " + def.act() + ": "
                                 + ActProgress.progressLine(def.act(), finished, depth, all)),
-                        ChatFormatting.GRAY);
+                        ChatFormatting.GRAY, Chime::keystoneLevelUp);
             }
             return;
         }
         for (int act = DungeonDef.MIN_ACT; act < DungeonDef.MAX_ACT; act++) {
             if (ActProgress.mineTarget(act) > 0 && depth == ActProgress.mineTarget(act)) {
-                StaggeredTitle.show(server, id,
+                StaggeredTitle.showMilestone(server, id,
                         Component.literal("Mine floor " + depth + " reached").withStyle(ChatFormatting.GOLD),
                         java.util.List.of("Act " + act + ": "
                                 + ActProgress.progressLine(act, finished, depth, all)),
-                        ChatFormatting.GRAY);
+                        ChatFormatting.GRAY, Chime::keystoneLevelUp);
                 return;
             }
         }
@@ -183,13 +183,13 @@ final class DungeonProgress {
             }
             if (ActProgress.capstoneReady(act, finished, depth, all)
                     && !ActProgress.capstoneReady(act, before, depthBefore, all)) {
-                StaggeredTitle.show(server, member.getUUID(),
+                StaggeredTitle.showMilestone(server, member.getUUID(),
                         Component.literal("Act " + act + " trials complete").withStyle(ChatFormatting.GOLD),
-                        java.util.List.of(capstone.name() + " is unlocked"), ChatFormatting.GRAY);
+                        java.util.List.of(capstone.name() + " is unlocked"), ChatFormatting.GRAY,
+                        DungeonProgress::celebrate);
                 member.sendSystemMessage(Component.literal("The trials of Act " + act + " are done. "
                         + capstone.name() + " now appears at the first door; clear it to open the next act.")
                         .withStyle(ChatFormatting.GOLD));
-                celebrate(member);
                 return true;
             }
         }

@@ -290,7 +290,7 @@ final class Keystone {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Right-click a lodestone to use it."));
         if (ordered.isEmpty()) {
-            lore.add(grey("Clear floors to earn scrap and raise your compass."));
+            lore.add(grey("Clear floors for scrap. Bring it home to raise your compass."));
         } else {
             for (AffixDefinition def : ordered) {
                 lore.add(grey(def.blurb));
@@ -301,13 +301,15 @@ final class Keystone {
     }
 
     /**
-     * J1: shows the member's scrap on every compass they carry, as a lore line
-     * {@code Scrap 3/5 to chart 4 (13 held)}. Replaces the previous scrap line,
-     * leaves the rest of the lore alone. Call after scrap is earned or spent.
+     * Shows the member's standing on every compass they carry, as lore lines: the compass level
+     * with the bar to the next ({@code Compass 12: 3/5 scrap to 13}) and, during a trip, the haul
+     * ({@code Haul 5 scrap. Home banks it; a failed dungeon keeps half.}). Replaces those two lines
+     * and leaves the rest of the lore alone. Call after the haul or the bar changes.
      */
-    static void showScrap(ServerPlayer player, int scrap) {
-        String line = "Scrap " + ScrapMath.scrapIntoChart(scrap) + "/" + ScrapMath.SCRAP_PER_CHART
-                + " to chart " + (ScrapMath.chartLevel(scrap) + 1) + " (" + scrap + " held)";
+    static void showCompass(ServerPlayer player, DungeonLog.Entry entry, boolean duringTrip) {
+        String compass = "Compass " + entry.highestCharts() + ": " + entry.chartProgress() + "/"
+                + ScrapMath.SCRAP_PER_CHART + " scrap to " + (entry.highestCharts() + 1);
+        String haul = "Haul " + entry.haul() + " scrap. Home banks it; a failed dungeon keeps half.";
         net.minecraft.world.entity.player.Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
@@ -318,12 +320,16 @@ final class Keystone {
             List<Component> lines = new ArrayList<>();
             if (existing != null) {
                 for (Component component : existing.lines()) {
-                    if (!component.getString().startsWith("Scrap ")) {
+                    String text = component.getString();
+                    if (!text.startsWith("Compass ") && !text.startsWith("Haul ") && !text.startsWith("Scrap ")) {
                         lines.add(component);
                     }
                 }
             }
-            lines.add(grey(line));
+            lines.add(grey(compass));
+            if (duringTrip) {
+                lines.add(grey(haul));
+            }
             stack.set(DataComponents.LORE, new ItemLore(lines));
         }
     }

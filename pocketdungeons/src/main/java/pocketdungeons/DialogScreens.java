@@ -210,8 +210,9 @@ final class DialogScreens {
      */
     static Dialog goHomeConfirm(MinecraftServer server, InstanceRecord record) {
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
-        // J1: scrap is paid at the floor clear, so going home forfeits nothing.
-        String keeps = "You keep your pack and the scrap you earned. "
+        // Going home banks the haul into the compass; nothing is lost.
+        int haul = DungeonLog.forServer(server).haulOf(record.owner);
+        String keeps = "You keep your pack and bank " + haul + " scrap into your compass. "
                 + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         boolean finished = record.interval.finished;
         String dungeon = TripView.dungeonName(record);

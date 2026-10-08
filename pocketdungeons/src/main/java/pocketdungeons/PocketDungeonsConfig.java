@@ -158,8 +158,8 @@ public final class PocketDungeonsConfig {
     private static int finishEmeralds = 8;
     /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
     private static int finishVaultChests = 2;
-    /** Emeralds per scrap a member above the floor's level is paid instead of scrap (D27). */
-    private static int overlevelEmeraldsPerScrap = 2;
+    /** The share of a haul a failed dungeon still banks, in percent (Haul and Blood Doors). */
+    private static int failHaulKeepPercent = ScrapMath.FAIL_KEEP_PERCENT;
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
     private static double ordealEmeraldChance = 0.25;
@@ -514,8 +514,8 @@ public final class PocketDungeonsConfig {
         return finishVaultChests;
     }
 
-    public static int overlevelEmeraldsPerScrap() {
-        return overlevelEmeraldsPerScrap;
+    public static int failHaulKeepPercent() {
+        return failHaulKeepPercent;
     }
 
 
@@ -701,7 +701,7 @@ public final class PocketDungeonsConfig {
         fountainChance = 0.15;
         finishEmeralds = 8;
         finishVaultChests = 2;
-        overlevelEmeraldsPerScrap = 2;
+        failHaulKeepPercent = ScrapMath.FAIL_KEEP_PERCENT;
         ordealEmeraldChance = 0.25;
         silencedPlayerRange = 6;
         moltenHazardsPerCell = 4;
@@ -759,7 +759,9 @@ public final class PocketDungeonsConfig {
             "lockInEmeralds", "lockInUnlockLevel", "gambleEmeraldsPerTier",
             "gambleSlotMultiplier", "gambleWeightedSlot", "gambleUnlockLevel",
             "rerollUnlockLevel", "salvageUnlockLevel", "cubeBlock", "cubeUnlockLevel",
-            "imbueMaterial", "imbueCost", "extractionReversible");
+            "imbueMaterial", "imbueCost", "extractionReversible",
+            // Haul and Blood Doors: side doors cost a life, and floors below your level pay scrap.
+            "overlevelEmeraldsPerScrap");
 
     private static void apply(JsonObject root) {
         List<String> retired = RETIRED_KEYS.stream().filter(root::has).toList();
@@ -893,7 +895,8 @@ public final class PocketDungeonsConfig {
                 "must be between 0 and 1");
         finishEmeralds = readInt(root, "finishEmeralds", 8, v -> v >= 0, "must be >= 0");
         finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
-        overlevelEmeraldsPerScrap = readInt(root, "overlevelEmeraldsPerScrap", 2, v -> v >= 0, "must be >= 0");
+        failHaulKeepPercent = readInt(root, "failHaulKeepPercent", ScrapMath.FAIL_KEEP_PERCENT,
+                v -> v >= 0 && v <= 100, "must be between 0 and 100");
         ordealEmeraldChance = readDouble(root, "ordealEmeraldChance", 0.25, v -> v >= 0 && v <= 1,
                 "must be between 0 and 1");
         moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
@@ -1215,7 +1218,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("fountainChance", 0.15);
         root.addProperty("finishEmeralds", 8);
         root.addProperty("finishVaultChests", 2);
-        root.addProperty("overlevelEmeraldsPerScrap", 2);
+        root.addProperty("failHaulKeepPercent", ScrapMath.FAIL_KEEP_PERCENT);
         root.addProperty("ordealEmeraldChance", 0.25);
         root.addProperty("moltenHazardsPerCell", 4);
         root.addProperty("feralWolvesPerCell", 2);

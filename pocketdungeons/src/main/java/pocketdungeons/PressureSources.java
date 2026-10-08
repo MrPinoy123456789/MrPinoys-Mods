@@ -113,6 +113,11 @@ final class PressureSources {
      * sensor pulse answers. Spur chests stay owned by rooms that declare {@code pressure: "omen"}.
      */
     static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta, String themeId) {
+        // PD-164: the toll rooms are repaired and locked as they are stamped.
+        net.minecraft.world.item.Item toll = meta == null ? null : SpurToll.tollFor(meta.content);
+        if (toll != null) {
+            SpurToll.apply(level, origin, toll);
+        }
         boolean ancient = SculkOmen.armsAllSculk(themeId);
         boolean pressure = meta != null && "omen".equals(meta.pressure);
         if (meta == null || (!pressure && !ancient)) {

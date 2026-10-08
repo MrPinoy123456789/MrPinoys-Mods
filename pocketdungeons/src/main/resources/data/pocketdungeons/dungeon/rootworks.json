@@ -102,7 +102,7 @@
     {
       "from": "tangled_hollow",
       "to": "sapping_den",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "heartwood",

@@ -95,7 +95,7 @@
     {
       "from": "silverfish_nests",
       "to": "hollow_walls",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "hollow_walls",

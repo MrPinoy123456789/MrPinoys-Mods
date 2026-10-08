@@ -261,6 +261,12 @@ final class Instances {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 InventorySwap.reconcile(handler.getPlayer()));
 
+        // A haul carried out of a trip that ended while the member was away (a server restart, a
+        // grace expiry that missed them) comes home when they next join; the one time message
+        // tells a migrated player what scrap is now.
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                RunLifecycle.onJoinHaul(server, handler.getPlayer()));
+
         // Without this the manifest stays empty until an operator runs
         // `admin manifest reload` by hand, which means every /dungeon on a
         // freshly started server silently gets the static fallback. This is the
@@ -2016,6 +2022,10 @@ final class Instances {
                                   net.minecraft.world.damagesource.DamageSource source) {
         clearMobTargets(server, record);
         FloorHistory.failed(server, record, deadPlayer, source);
+        // A failed dungeon keeps half of every member's haul, present or detached, and loses the rest.
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
+        }
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {

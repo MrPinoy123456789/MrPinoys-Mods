@@ -89,7 +89,7 @@
     {
       "from": "boiler_hall",
       "to": "gear_loft",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "verdigris_foundry",

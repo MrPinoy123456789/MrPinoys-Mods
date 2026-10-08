@@ -77,7 +77,7 @@
     {
       "from": "charnel_steps",
       "to": "sealed_reliquary",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "skull_galleries",

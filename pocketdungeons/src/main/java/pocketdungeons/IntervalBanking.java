@@ -19,52 +19,14 @@ final class IntervalBanking {
 
     private IntervalBanking() {}
 
-    /** How much chart scrap makes one chart. */
-    static final int SCRAP_PER_CHART = 5;
-
     /**
      * One member's settlement.
      *
-     * @param levels    compass levels gained: whole charts brought home
-     * @param scrapLeft the scrap below a whole chart, lost on the way out
+     * @param levels    always 0: the haul is banked by {@code DungeonLog#bankHaul}, not here
+     * @param scrapLeft always 0, for the same reason
      * @param chests    the chest count the trip's loot roll pays
      */
     record Settlement(int levels, int scrapLeft, int chests) {}
-
-    /** The dealt scrap a list of cleared floors adds up to, before any level discount. */
-    static int stepSum(List<Integer> floorSteps) {
-        int sum = 0;
-        for (int step : floorSteps) {
-            sum += Math.max(0, step);
-        }
-        return sum;
-    }
-
-    /**
-     * The scrap one floor actually pays a member whose compass is
-     * {@code memberLevel}: the dealt scrap minus how far the member stands
-     * above the floor's level, floored at 0. Superseded at the floor clear by
-     * {@link FloorPay}; kept for the go-home screen's "what would a chart be"
-     * read.
-     */
-    static int effectiveScrap(int dealt, int floorLevel, int memberLevel) {
-        return Math.max(0, Math.max(0, dealt) - Math.max(0, memberLevel - floorLevel));
-    }
-
-    /** The scrap a member's cleared floors total: the effective scrap of each. */
-    static int effectiveScrap(List<Integer> floorSteps, List<Integer> floorLevels, int memberLevel) {
-        int scrap = 0;
-        for (int i = 0; i < floorSteps.size(); i++) {
-            int floorLevel = i < floorLevels.size() ? floorLevels.get(i) : memberLevel;
-            scrap += effectiveScrap(floorSteps.get(i), floorLevel, memberLevel);
-        }
-        return scrap;
-    }
-
-    /** The whole charts {@code scrap} converts to. */
-    static int chartsOf(int scrap) {
-        return Math.max(0, scrap) / SCRAP_PER_CHART;
-    }
 
     /**
      * Settles an interval for one member. Identical for the home lever, a
@@ -79,12 +41,7 @@ final class IntervalBanking {
      */
     static Settlement settle(List<Integer> floorSteps, List<Integer> floorLevels,
                              int memberLevel, int bonusChests) {
-        int chests = Omen.baseRewardChests() + Math.max(0, bonusChests);
-        if (floorSteps.isEmpty()) {
-            return new Settlement(0, 0, chests);
-        }
-        int scrap = effectiveScrap(floorSteps, floorLevels, memberLevel);
-        return new Settlement(chartsOf(scrap), scrap % SCRAP_PER_CHART, chests);
+        return new Settlement(0, 0, Omen.baseRewardChests() + Math.max(0, bonusChests));
     }
 
     // ---- words (pure strings; callers wrap them in components) ---------------
@@ -105,38 +62,71 @@ final class IntervalBanking {
     }
 
     /**
-     * The go-home board, J1 amended (plan 2026-10-06-2 item 4): always
-     * {@code GO HOME} (gold, or green once {@code finished}, the moment the
-     * dungeon's final floor is cleared), the lives the trip has left, and
-     * what leaving forfeits. Scrap never appears: J1 already paid it at
-     * each floor clear, so the old {@code carried} table is gone.
+     * The go-home board (Haul and Blood Doors): always {@code GO HOME} (gold, or green once
+     * {@code finished}), what the party carries, the lives the trip has left, and what leaving
+     * forfeits.
      *
+     * @param haulLine   solo {@code "Haul 7 scrap"}; a party {@code "Haul: Kris 7, Bob 4"}
      * @param livesLine  {@code "Lives 3"}, the risk meter's reading
      * @param unfinished the promises the trip still holds, {@code vault} and
      *                   {@code page}; rendered {@code Unfinished: vault, page}
      *                   and absent once the dungeon is cleared
+     * @param footer     {@code "A failed dungeon keeps half."} while some haul is at risk, else empty
      */
-    record HomeScreen(String title, boolean finished, String livesLine, List<String> unfinished) {
+    record HomeScreen(String title, boolean finished, String haulLine, String livesLine,
+                      List<String> unfinished, String footer) {
 
         /** The forfeit line, or empty when nothing is left to lose. */
         String unfinishedLine() {
             return unfinished.isEmpty() ? "" : "Unfinished: " + String.join(", ", unfinished);
         }
 
-        /** The board as plain text: the lives line, then the forfeit line (when any). */
+        /** The board as plain text: the haul, the lives, the forfeit line (when any), the footer (when any). */
         String body() {
-            String line = unfinishedLine();
-            return line.isEmpty() ? livesLine : livesLine + '\n' + line;
+            StringBuilder out = new StringBuilder(haulLine).append('\n').append(livesLine);
+            String forfeit = unfinishedLine();
+            if (!forfeit.isEmpty()) {
+                out.append('\n').append(forfeit);
+            }
+            if (!footer.isEmpty()) {
+                out.append('\n').append(footer);
+            }
+            return out.toString();
         }
     }
 
+    /** The most names the shared board lists before it summarises. */
+    static final int MAX_BOARD_NAMES = 4;
+
     /**
-     * The go-home board for pulling the lever right now. {@code omen} is the
-     * trip's deaths (J3: the board reads lives); {@code unfinished} is what
-     * going home forfeits, which the caller reads off the live record.
+     * The go-home board for pulling the lever right now. {@code omen} is the trip's deaths (the
+     * board reads lives); {@code hauls} is each member's name and haul in party order;
+     * {@code unfinished} is what going home forfeits, which the caller reads off the live record.
      */
-    static HomeScreen homeScreen(int omen, boolean finished, List<String> unfinished) {
-        return new HomeScreen("GO HOME", finished, OmenBarText.livesText(omen),
-                List.copyOf(unfinished));
+    static HomeScreen homeScreen(int omen, boolean finished, List<String> unfinished,
+                                 java.util.Map<String, Integer> hauls) {
+        String haulLine;
+        boolean atRisk = false;
+        for (int haul : hauls.values()) {
+            atRisk |= haul > 0;
+        }
+        if (hauls.size() <= 1) {
+            int haul = hauls.isEmpty() ? 0 : hauls.values().iterator().next();
+            haulLine = "Haul " + scrapText(haul);
+        } else {
+            StringBuilder names = new StringBuilder("Haul: ");
+            int shown = 0;
+            for (java.util.Map.Entry<String, Integer> entry : hauls.entrySet()) {
+                if (shown == MAX_BOARD_NAMES) {
+                    names.append(", +").append(hauls.size() - shown);
+                    break;
+                }
+                names.append(shown == 0 ? "" : ", ").append(entry.getKey()).append(' ').append(entry.getValue());
+                shown++;
+            }
+            haulLine = names.toString();
+        }
+        return new HomeScreen("GO HOME", finished, haulLine, OmenBarText.livesText(omen),
+                List.copyOf(unfinished), !finished && atRisk ? "A failed dungeon keeps half." : "");
     }
 }

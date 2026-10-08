@@ -37,7 +37,7 @@ final class DungeonMapText {
         List<Line> out = new ArrayList<>();
         out.add(new Line(def.name().toUpperCase(), Tone.TITLE));
         out.add(new Line("Act " + def.act() + ", " + def.layers() + " layers. "
-                + "You are here: >> <<. Visited: *. Some doors cost scrap.", Tone.NOTE));
+                + "You are here: >> <<. Visited: *. Some doors cost a life.", Tone.NOTE));
 
         Set<String> ahead = TripDoors.reachableFrom(def, current);
         for (int layer = 1; layer <= def.layers(); layer++) {
@@ -203,6 +203,6 @@ final class DungeonMapText {
     }
 
     static String scrap(int cost) {
-        return cost + " scrap";
+        return cost + (cost == 1 ? " life" : " lives");
     }
 }

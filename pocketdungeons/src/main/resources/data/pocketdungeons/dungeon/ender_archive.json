@@ -91,7 +91,7 @@
     {
       "from": "shelf_labyrinth",
       "to": "reading_rooms",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "purpur_vault",

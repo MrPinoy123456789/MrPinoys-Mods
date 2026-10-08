@@ -458,10 +458,18 @@ final class PlaytestJournal {
         });
     }
 
-    /** A floor's pay to one member (J1): scrap earned, or emeralds when over-level. */
+    /** A floor's pay to one member: scrap into the haul, and the emeralds their unused trial keys settled for. */
     static void floorPay(ServerPlayer player, InstanceRecord record, int scrap, int emeralds) {
         safely("floor_pay", () -> record(player, record, "floor_pay",
                 Map.of("scrap", scrap, "emeralds", emeralds)));
+    }
+
+    /** A haul banked (home, finish, fail or orphan): what made it into the compass bar and what was lost. */
+    static void haulBanked(ServerPlayer player, InstanceRecord record, String context, int banked, int lost,
+                           int compass, int progress) {
+        safely("haul_banked", () -> record(player, record, "haul_banked",
+                Map.of("context", context, "banked", banked, "lost", lost, "compass", compass,
+                        "progress", progress)));
     }
 
     /** The interval settled for this member. */

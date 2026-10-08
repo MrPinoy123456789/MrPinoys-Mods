@@ -149,7 +149,7 @@ public class DungeonDefTest {
                 {"id": "z", "name": "Freeze", "layer": 3, "final": true}
               ],
               "edges": [
-                {"from": "a", "to": "b"}, {"from": "a", "to": "c", "cost": 2},
+                {"from": "a", "to": "b"}, {"from": "a", "to": "c", "lives": 2},
                 {"from": "b", "to": "z"}, {"from": "c", "to": "z"}
               ]
             }
@@ -290,7 +290,11 @@ public class DungeonDefTest {
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
                 JSON.replace("\"id\": \"c\"", "\"id\": \"b\"")).getAsJsonObject()), "duplicate node id");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
-                JSON.replace("\"cost\": 2", "\"cost\": -1")).getAsJsonObject()), "negative cost");
+                JSON.replace("\"lives\": 2", "\"lives\": -1")).getAsJsonObject()), "negative lives");
+        expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
+                JSON.replace("\"lives\": 2", "\"lives\": 3")).getAsJsonObject()), "three lives is too many");
+        expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
+                JSON.replace("\"lives\": 2", "\"cost\": 2")).getAsJsonObject()), "the old cost key, scrap, is gone");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
                 JSON.replace("\"chance\": 0.25", "\"chance\": 1.5")).getAsJsonObject()), "deviation chance above 1");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
@@ -794,8 +798,8 @@ public class DungeonDefTest {
         DungeonDef frost = loaded.byId("frostworks");
         check(frost.layers() == 5 && frost.nodes().size() == 9, "frostworks follows the design example");
         check(frost.node("glaze_furnaces").signatureAffix().equals(T + "molten"), "glaze furnaces is molten");
-        check(frost.edgesFrom("glaze_furnaces").stream().anyMatch(x -> x.to().equals("glaze_vault") && x.cost() == 4),
-                "glaze vault is a 4 scrap side branch");
+        check(frost.edgesFrom("glaze_furnaces").stream().anyMatch(x -> x.to().equals("glaze_vault") && x.cost() == 2),
+                "glaze vault is a two life side branch");
     }
 
     private static Set<String> ids(Path dir) throws IOException {

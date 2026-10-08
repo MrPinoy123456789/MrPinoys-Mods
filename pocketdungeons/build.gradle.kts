@@ -305,7 +305,7 @@ for ((taskName, testClass) in mapOf(
     "resourceNodeTest" to "ResourceNodeTest",
     // Dungeon structure W5: five kits with hidden bags, the side branch payer, structural palette blocks and room eligibility.
     "kitHiddenBagTest" to "KitHiddenBagTest",
-    "sideBranchPayTest" to "SideBranchPayTest",
+    "doorLivesTest" to "DoorLivesTest",
     "nodePaletteTest" to "NodePaletteTest",
     "roomEligibilityTest" to "RoomEligibilityTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
@@ -383,8 +383,7 @@ for ((taskName, testClass) in mapOf(
     "boardTextTest" to "BoardTextTest",
     // Design item 7: hidden ore pockets are buried, bounded and seeded.
     "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
-    // Simplification step 3b: floor pay split and the scrap ledger.
-    "floorPayTest" to "FloorPayTest",
+    // Haul and Blood Doors (2026-10-07): the haul ledger.
     "scrapMathTest" to "ScrapMathTest",
     // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
     "contentModulesTest" to "ContentModulesTest",
@@ -408,7 +407,7 @@ tasks.test {
     dependsOn("actUnlockTest")
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
-    dependsOn("sideBranchPayTest")
+    dependsOn("doorLivesTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
     dependsOn("bossRulesTest")
@@ -476,7 +475,6 @@ tasks.test {
     dependsOn("doorAffixesTest")
     dependsOn("boardTextTest")
     dependsOn("hiddenOrePlannerTest")
-    dependsOn("floorPayTest")
     dependsOn("scrapMathTest")
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")

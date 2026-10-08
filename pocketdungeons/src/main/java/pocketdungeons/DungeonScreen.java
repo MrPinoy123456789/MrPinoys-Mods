@@ -375,6 +375,9 @@ final class DungeonScreen {
                 || EndlessMineRules.isMineOffer(offer);
         DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        // PD-161: the board only promises ore the committed plan can deliver. The plan is the one the
+        // preview just stamped; with none yet there is nothing to contradict, so the promise stands.
+        boolean oreHonest = record.floor.previewPlan == null || planHoldsNodes(record.floor.previewPlan, def);
         String dungeonName = def == null ? "" : def.name();
         int floorNumber = record.interval.floorIndex + 1;
 
@@ -404,15 +407,12 @@ final class DungeonScreen {
         // over-level rate (permanent charts, not the compass reading).
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
-            FloorPay.Payout pay = FloorPay.of(offer.step(), offer.level(), entry.highestCharts(),
-                    PocketDungeonsConfig.overlevelEmeraldsPerScrap());
-            if (pay.scrap() > 0) {
-                addPart(gets, IntervalBanking.scrapText(pay.scrap()), ChatFormatting.AQUA);
-            } else if (pay.emeralds() > 0) {
-                addPart(gets, pay.emeralds() + " emeralds", ChatFormatting.AQUA);
+            int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts());
+            if (pay > 0) {
+                addPart(gets, IntervalBanking.scrapText(pay), ChatFormatting.AQUA);
             }
         }
-        if (def != null && showsNodes(def, node)) {
+        if (def != null && showsNodes(def, node) && oreHonest) {
             for (String word : BoardText.paletteWords(def.nodePalette())) {
                 addPart(gets, word, ChatFormatting.AQUA);
             }
@@ -440,7 +440,7 @@ final class DungeonScreen {
         int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
         MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
         if (offer.cost() > 0) {
-            loot.append(Component.literal(BoardText.SEP + BoardText.costText(offer.cost()))
+            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(offer.cost()))
                     .withStyle(ChatFormatting.YELLOW));
         }
         lines.add(loot);
@@ -499,8 +499,8 @@ final class DungeonScreen {
         boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
         List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
         String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
-                node != null && node.isFinal(), def != null && showsNodes(def, node) ? ores : List.of(),
-                def != null && showsNodes(def, node));
+                node != null && node.isFinal(), def != null && showsNodes(def, node) && oreHonest ? ores : List.of(),
+                def != null && showsNodes(def, node) && oreHonest);
         Sheets sheets = new Sheets(
                 dungeonLine.copy().withStyle(ChatFormatting.YELLOW),
                 floorLine.copy().withStyle(ChatFormatting.YELLOW),
@@ -526,6 +526,24 @@ final class DungeonScreen {
             out.append(lines.get(i));
         }
         return out;
+    }
+
+    /**
+     * Whether the plan can deliver mineable ore: the dungeon buries hidden ore in every room, or
+     * a placed room declares nodes of its own. A palette-only dungeon whose rooms hold no nodes
+     * (Copper Works, PD-161) answers false, so its board stops advertising ore.
+     */
+    static boolean planHoldsNodes(DungeonPlan plan, DungeonDef def) {
+        if (def != null && def.hiddenOre() != null) {
+            return true;
+        }
+        for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
+            RoomManifest.Entry entry = RoomManifest.current().byName(room.name());
+            if (entry != null && !entry.meta.nodes.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -576,14 +594,24 @@ final class DungeonScreen {
                 unfinished.add("page");
             }
         }
+        java.util.Map<String, Integer> hauls = new java.util.LinkedHashMap<>();
+        DungeonLog haulLog = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer present = server.getPlayerList().getPlayer(member);
+            hauls.put(present == null ? "?" : present.getName().getString(), haulLog.haulOf(member));
+        }
         IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen,
-                record.interval.finished, unfinished);
+                record.interval.finished, unfinished, hauls);
         Component title = Component.literal(screen.title())
                 .withStyle(screen.finished() ? ChatFormatting.GREEN : ChatFormatting.GOLD);
-        MutableComponent body = Component.literal(screen.livesLine()).withStyle(ChatFormatting.AQUA);
+        MutableComponent body = Component.literal(screen.haulLine()).withStyle(ChatFormatting.AQUA)
+                .append("\n").append(Component.literal(screen.livesLine()).withStyle(ChatFormatting.AQUA));
         String forfeit = screen.unfinishedLine();
         if (!forfeit.isEmpty()) {
             body.append("\n").append(Component.literal(forfeit).withStyle(ChatFormatting.GRAY));
+        }
+        if (!screen.footer().isEmpty()) {
+            body.append("\n").append(Component.literal(screen.footer()).withStyle(ChatFormatting.GRAY));
         }
         return new Board(title, body);
     }

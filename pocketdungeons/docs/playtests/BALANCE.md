@@ -117,3 +117,9 @@ playtest journal once it exists; blank means not recorded.
 - Full Mineshaft clear paid 0 charts under the no-scrap-on-resource rule; owner decided resource floors should pay like normal floors.
 - Mineshaft floor 1 again generated with nodes_total 0 (PD-149 reopened). Floor 2 placed mineshaft_seam; floor 3 mined 5/8 nodes.
 - Player noted diamond pick durability (max 20) feels too low with interiors mineable.
+| 2026-10-07 | copper_works | 1 | 1 | 119 | 0 | 0 | 0 | 76 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 2 | 1 | 77 | 0 | 0 | 2 | 30 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 3 | 1 | 81 | 0 | 0 | 0 | 46 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works (master_furnace) | 4 (final) | 1 | 187 | 0 | 0 | 1 | 476 | 4 | banked 00:43, first clear | entry_13 diary, +8 em | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits | 1 | 1 | ~272 | 0 | 0 | n/a | n/a | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits (the_big_barn) | 2 (final) | 1 | 200 | 0 | 0 | 9 | 0 | 3 | finished 00:53, first clear | entry_15 diary, +8 em | 2026-10-07-1.md |

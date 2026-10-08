@@ -91,7 +91,7 @@
     {
       "from": "kelp_tunnels",
       "to": "rusted_pumps",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "sunken_archives",

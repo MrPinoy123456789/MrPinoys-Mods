@@ -52,29 +52,44 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.chartText(1), "1 chart");
         checkEquals(IntervalBanking.chartText(2), "2 charts");
         checkEquals(IntervalBanking.chests(1), "1 chest");
-        // The go-home board (J1 amended): GO HOME over Lives N, then what
-        // leaving forfeits. Scrap never appears: it was paid at each clear.
-        checkEquals(home(0, List.of()), "Lives 5");
-        checkEquals(home(3, List.of()), "Lives 2");
-        checkEquals(home(1, List.of("vault", "page")), "Lives 4\nUnfinished: vault, page");
-        checkEquals(home(2, List.of("vault")), "Lives 3\nUnfinished: vault");
-        IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, true, List.of());
+        // The go-home board (Haul and Blood Doors): GO HOME over the haul, Lives N, then what
+        // leaving forfeits, then a footer while some haul is at risk.
+        checkEquals(home(0, List.of(), solo(0)), "Haul 0 scrap\nLives 5");
+        checkEquals(home(3, List.of(), solo(7)), "Haul 7 scrap\nLives 2\nA failed dungeon keeps half.");
+        checkEquals(home(1, List.of("vault", "page"), solo(2)),
+                "Haul 2 scrap\nLives 4\nUnfinished: vault, page\nA failed dungeon keeps half.");
+        checkEquals(home(2, List.of("vault"), solo(0)), "Haul 0 scrap\nLives 3\nUnfinished: vault");
+        java.util.Map<String, Integer> party = new java.util.LinkedHashMap<>();
+        party.put("Kris", 7);
+        party.put("Bob", 4);
+        checkEquals(home(3, List.of(), party), "Haul: Kris 7, Bob 4\nLives 2\nA failed dungeon keeps half.");
+        java.util.Map<String, Integer> crowd = new java.util.LinkedHashMap<>();
+        for (String name : new String[]{"A", "B", "C", "D", "E", "F"}) {
+            crowd.put(name, 1);
+        }
+        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), crowd).haulLine(), "Haul: A 1, B 1, C 1, D 1, +2");
+        IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, true, List.of(), solo(6));
         checkEquals(cleared.title(), "GO HOME");
         check(cleared.finished(), "finished flag");
-        check(!IntervalBanking.homeScreen(0, false, List.of()).finished(), "not finished flag");
-        checkEquals(IntervalBanking.homeScreen(4, false, List.of("page")).unfinishedLine(),
+        check(cleared.footer().isEmpty(), "a finished dungeon has nothing at risk, so no footer");
+        check(!IntervalBanking.homeScreen(0, false, List.of(), solo(0)).finished(), "not finished flag");
+        checkEquals(IntervalBanking.homeScreen(4, false, List.of("page"), solo(0)).unfinishedLine(),
                 "Unfinished: page");
-        check(IntervalBanking.homeScreen(0, true, List.of()).unfinishedLine().isEmpty(),
+        check(IntervalBanking.homeScreen(0, true, List.of(), solo(0)).unfinishedLine().isEmpty(),
                 "a cleared dungeon forfeits nothing");
-        for (String line : List.of(IntervalBanking.scrapText(1), home(0, List.of()),
-                home(1, List.of("vault", "page")))) {
+        for (String line : List.of(IntervalBanking.scrapText(1), home(0, List.of(), solo(1)),
+                home(1, List.of("vault", "page"), party))) {
             check(!line.contains("--") && !line.contains("\u2014"), "no dash punctuation: " + line);
         }
     }
 
     /** The go-home board's body with the trip at {@code omen} deaths and {@code unfinished} left. */
-    private static String home(int omen, List<String> unfinished) {
-        return IntervalBanking.homeScreen(omen, false, unfinished).body();
+    private static String home(int omen, List<String> unfinished, java.util.Map<String, Integer> hauls) {
+        return IntervalBanking.homeScreen(omen, false, unfinished, hauls).body();
+    }
+
+    private static java.util.Map<String, Integer> solo(int haul) {
+        return java.util.Map.of("Kris", haul);
     }
 
     private static IntervalBanking.Settlement settle(List<Integer> steps) {

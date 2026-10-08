@@ -1320,6 +1320,33 @@ public final class HandlerGameTest {
     }
 
     /**
+     * PD-165: a milestone title is queued behind the floor clear's own title,
+     * not shown at once (a new sequence replaces a running one, which is how the
+     * first-clear title was overwritten unseen). It waits, and when due it leaves
+     * the queue, shows and calls its fanfare.
+     */
+    @GameTest(maxTicks = 160)
+    public void aMilestoneTitleWaitsBehindTheFloorClear(GameTestHelper helper) {
+        net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        boolean[] fanfare = {false};
+        StaggeredTitle.showMilestone(helper.getLevel().getServer(), player.getUUID(),
+                net.minecraft.network.chat.Component.literal("Copper Works cleared"),
+                java.util.List.of("Act 1: 1 of 5 dungeons"), net.minecraft.ChatFormatting.GRAY,
+                p -> fanfare[0] = true);
+        helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 1, "queued at once");
+        helper.assertFalse(StaggeredTitle.isRunning(player.getUUID()), "and not shown at once");
+        helper.runAfterDelay(StaggeredTitle.MILESTONE_DELAY_TICKS / 2, () -> {
+            helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 1, "still waiting halfway");
+            helper.assertFalse(fanfare[0], "no fanfare before it is due");
+        });
+        helper.runAfterDelay(StaggeredTitle.MILESTONE_DELAY_TICKS + 20, () -> {
+            helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 0, "out of the queue when due");
+            helper.assertTrue(fanfare[0], "the fanfare played when it showed");
+            helper.succeed();
+        });
+    }
+
+    /**
      * Playtest 2026-10-03 (A9): the room scan reads what a real capture writes.
      * A grindstone, a crafting table and a chest of planks are captured the way
      * {@link RoomStore#capture} captures a room, and the summary must name them.

@@ -99,7 +99,7 @@
     {
       "from": "drowned_nave",
       "to": "coral_ruins",
-      "cost": 2
+      "lives": 1
     },
     {
       "from": "barnacled_vaults",

@@ -543,11 +543,11 @@ final class RitualListener {
         }
         int cost = offers[Math.min(step - 1, offers.length - 1)].cost();
         if (cost > 0) {
-            int carried = DungeonLog.forServer(player.level().getServer())
-                    .get(player.getUUID()).scrap();
+            // The price is the party's lives, so the line names the lives that are left.
+            int livesLeft = Omen.lives(record.interval.omen);
             player.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
-                    SideBranchPay.balanceLine(cost, carried))
-                    .withStyle(SideBranchPay.affordable(cost, carried) ? ChatFormatting.GRAY : ChatFormatting.RED)));
+                    DoorLives.costText(cost) + ". Lives " + livesLeft + ".")
+                    .withStyle(DoorLives.affordable(livesLeft, cost) ? ChatFormatting.GRAY : ChatFormatting.RED)));
         }
     }
 
@@ -579,11 +579,10 @@ final class RitualListener {
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         int cost = offer.cost();
         if (cost > 0) {
-            // The viewing player's own scrap pool, never the owner's.
-            int carried = DungeonLog.forServer(player.level().getServer())
-                    .get(player.getUUID()).scrap();
-            if (!SideBranchPay.affordable(cost, carried)) {
-                return SideBranchPay.screenRefusal(cost, carried);
+            // The price is lives, the party's (the trip's omen), and the last one is never for sale.
+            int livesLeft = Omen.lives(record.interval.omen);
+            if (!DoorLives.affordable(livesLeft, cost)) {
+                return DoorLives.screenRefusal(livesLeft, cost);
             }
         }
         return null;

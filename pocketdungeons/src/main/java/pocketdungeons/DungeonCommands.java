@@ -333,6 +333,28 @@ final class DungeonCommands {
                             .then(Commands.literal("coverage")
                                     .executes(ctx -> coverage(ctx.getSource())))
 
+                            // Playtest tooling: scrap is a log value, not an item. The compass may be set
+                            // to any level (even lower) with the bar; the haul is what a trip carries.
+                            .then(Commands.literal("compass")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .then(Commands.literal("set")
+                                                    .then(Commands.argument("level", IntegerArgumentType.integer(0, 1000))
+                                                            .executes(ctx -> adminCompass(ctx.getSource(),
+                                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                                    IntegerArgumentType.getInteger(ctx, "level"), 0))
+                                                            .then(Commands.argument("progress", IntegerArgumentType.integer(0, 4))
+                                                                    .executes(ctx -> adminCompass(ctx.getSource(),
+                                                                            EntityArgument.getPlayer(ctx, "target"),
+                                                                            IntegerArgumentType.getInteger(ctx, "level"),
+                                                                            IntegerArgumentType.getInteger(ctx, "progress"))))))))
+                            .then(Commands.literal("haul")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .then(Commands.literal("set")
+                                                    .then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000))
+                                                            .executes(ctx -> adminHaul(ctx.getSource(),
+                                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                                    IntegerArgumentType.getInteger(ctx, "amount")))))))
+
                             // L2 (D41): content module listing and toggles.
                             // The toggle writes pocketdungeons.json and lands
                             // on the next /reload for manifest surfaces.
@@ -789,6 +811,31 @@ final class DungeonCommands {
             names.add(def == null ? "?" : def.name());
         }
         Instances.announce(server, record, "The doors shift: " + String.join(", ", names) + ".", null);
+        return 1;
+    }
+
+    /** {@code /dungeon admin compass <player> set <level> [progress]}: the compass and its bar, up or down. */
+    private static int adminCompass(net.minecraft.commands.CommandSourceStack source, ServerPlayer target,
+                                    int level, int progress) {
+        net.minecraft.server.MinecraftServer server = source.getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        java.util.UUID id = target.getUUID();
+        log.setCompass(id, level, progress);
+        DungeonLog.Entry entry = log.get(id);
+        // The keystone item follows the compass in either direction, like a grant.
+        Keystones.grantLevel(server, id, target, Math.max(1, entry.highestCharts()));
+        Keystone.showCompass(target, entry, InstanceRegistry.byMember.containsKey(id));
+        source.sendSuccess(() -> Component.literal(target.getName().getString() + " is at compass "
+                + entry.highestCharts() + ", " + entry.chartProgress() + "/" + ScrapMath.SCRAP_PER_CHART + "."), true);
+        return 1;
+    }
+
+    /** {@code /dungeon admin haul <player> set <n>}: the scrap a trip carries. */
+    private static int adminHaul(net.minecraft.commands.CommandSourceStack source, ServerPlayer target, int amount) {
+        DungeonLog log = DungeonLog.forServer(source.getServer());
+        log.setHaul(target.getUUID(), amount);
+        Keystone.showCompass(target, log.get(target.getUUID()), InstanceRegistry.byMember.containsKey(target.getUUID()));
+        source.sendSuccess(() -> Component.literal(target.getName().getString() + " carries a haul of " + amount + "."), true);
         return 1;
     }
 

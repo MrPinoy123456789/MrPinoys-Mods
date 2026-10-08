@@ -469,15 +469,11 @@ final class RunLifecycle {
             return false;
         }
 
-        // A side branch costs scrap (design J1). The door screen names the
-        // shortfall (RitualListener.doorRefusal); re-check here for safety.
+        // A side branch costs lives (Haul and Blood Doors): the party's, never the last one.
+        // The door screen names it (RitualListener.doorRefusal); re-check here for safety.
         int previewCost = offer.cost();
-        if (previewCost > 0) {
-            // The member who right-clicks the door is the one who would pay.
-            int carried = DungeonLog.forServer(server).get(player.getUUID()).scrap();
-            if (!SideBranchPay.affordable(previewCost, carried)) {
-                return false;
-            }
+        if (previewCost > 0 && !DoorLives.affordable(Omen.lives(record.interval.omen), previewCost)) {
+            return false;
         }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -575,15 +571,14 @@ final class RunLifecycle {
         }
         Keystone.Offer offer = offers[step - 1];
 
-        // Re-check the side branch's scrap cost at commit time, since the
-        // player's pool may have changed since the preview. The member who commits
-        // (the one pulling the lever) pays from their own pool, never the owner's
-        // (dungeon structure W5, SideBranchPay).
+        // Re-check the side branch's life cost at commit time, since a death may have
+        // happened since the preview. Lives are the party's (the trip's omen), so whoever
+        // pulls the lever spends everyone's life, and the last life is never for sale.
         int doorCost = offer.cost();
         if (doorCost > 0) {
-            int carried = log.get(player.getUUID()).scrap();
-            if (!SideBranchPay.affordable(doorCost, carried)) {
-                player.sendSystemMessage(Component.literal(SideBranchPay.refusal(doorCost, carried))
+            int livesLeft = Omen.lives(record.interval.omen);
+            if (!DoorLives.affordable(livesLeft, doorCost)) {
+                player.sendSystemMessage(Component.literal(DoorLives.refusal(livesLeft, doorCost))
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
@@ -667,11 +662,16 @@ final class RunLifecycle {
             CubeRecipe.clearCatalystEscrow(keystone);
         }
 
-        // The spend happens only once the commit has actually succeeded,
-        // straight from the member's scrap pool; the gate above checked it.
+        // The price is paid only once the commit has actually succeeded: the door takes
+        // its lives from the trip (omen, the same lives a death spends), the gate above
+        // checked there is one to spare.
         if (doorCost > 0) {
-            log.spendScrap(player.getUUID(), doorCost);
-            Keystone.showScrap(player, log.get(player.getUUID()).scrap());
+            record.interval.omen = Omen.add(record.interval.omen, doorCost);
+            int livesLeft = Omen.lives(record.interval.omen);
+            PlaytestJournal.omenRise(server, record, Omen.Source.DOOR, doorCost, record.interval.omen,
+                    player.blockPosition());
+            OmenBar.cue(server, record, Omen.Source.DOOR);
+            Instances.announce(server, record, DoorLives.paidLine(player.getName().getString(), livesLeft), null);
         }
 
         // A trip has begun (the first door of a dungeon): count it for the leader, which
@@ -1348,6 +1348,10 @@ final class RunLifecycle {
                                       ThemeManifest.Entry completionTheme) {
         int vaultChests = PocketDungeonsConfig.finishVaultChests();
         DungeonLog log = DungeonLog.forServer(server);
+        // The finish banks the haul before anything else, present members and absent ones alike.
+        for (UUID member : record.members.keySet()) {
+            bankHaul(server, record, member, BankContext.FINISH);
+        }
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
@@ -1429,64 +1433,113 @@ final class RunLifecycle {
      * ({@link InstanceRecord#beginInterval}).
      */
     /**
-     * J1: pays every member present for the floor just cleared. At or below the
-     * floor's level the dealt step lands as scrap on the member's log entry, and
-     * a new chart level cues the level up chime; a member whose permanent chart
-     * high already stands above the floor is paid emeralds instead. The journal
-     * gets a {@code floor_pay} event per member.
+     * Pays every member present for the floor just cleared into their haul
+     * ({@link ScrapMath#floorPay}): the dealt step at or above their compass, 1 below it. The haul
+     * is banked at home or a finish and half lost to a failed dungeon. Unused trial keys settle
+     * for emeralds on the same line (J7). The journal gets a {@code floor_pay} event per member.
      */
     private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
         DungeonLog log = DungeonLog.forServer(server);
         int step = record.floor.chosenStep;
         int floorLevel = record.floor.chosenLevel;
-        int rate = PocketDungeonsConfig.overlevelEmeraldsPerScrap();
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
                 continue;
             }
-            FloorPay.Payout pay = FloorPay.of(step, floorLevel, log.get(member).highestCharts(), rate);
-            if (pay.scrap() > 0) {
-                boolean newChart = log.addScrap(member, pay.scrap());
-                if (newChart) {
-                    int chartLevel = ScrapMath.chartLevel(log.get(member).scrap());
-                    if (chartLevel > log.get(member).keystoneLevel()) {
-                        Keystones.grantLevel(server, member, memberPlayer, chartLevel);
-                    } else {
-                        Chime.keystoneLevelUp(memberPlayer);
-                    }
-                } else {
-                    Chime.scrapEarned(memberPlayer);
-                }
-                Keystone.showScrap(memberPlayer, log.get(member).scrap());
-            } else if (pay.emeralds() > 0) {
-                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, pay.emeralds()));
+            int compass = log.get(member).highestCharts();
+            int pay = ScrapMath.floorPay(step, floorLevel, compass);
+            log.addHaul(member, pay);
+            if (pay > 0) {
+                Chime.scrapEarned(memberPlayer);
             }
+            Keystone.showCompass(memberPlayer, log.get(member), true);
             // J7: unused trial keys never leave their floor; they settle for
             // emeralds on the same clear line at the salvage rates.
             int keyEmeralds = redeemKeys(memberPlayer);
             StringBuilder line = new StringBuilder();
-            if (pay.scrap() > 0 || pay.emeralds() > 0) {
-                line.append(pay.line());
-                if (pay.scrap() > 0) {
-                    int held = log.get(member).scrap();
-                    line.append(" (").append(ScrapMath.scrapIntoChart(held)).append("/")
-                            .append(ScrapMath.SCRAP_PER_CHART).append(" to the next chart)");
-                }
+            if (pay > 0) {
+                line.append(floorLevel >= compass ? "+" + pay + " scrap."
+                        : "+" + pay + " scrap (you are above this floor).");
+                line.append(" Haul ").append(log.get(member).haul()).append(".");
             }
             if (keyEmeralds > 0) {
                 if (!line.isEmpty()) {
-                    line.append(", ");
+                    line.append(" ");
                 }
                 line.append("+").append(keyEmeralds).append(keyEmeralds == 1 ? " emerald" : " emeralds")
-                        .append(" for vault keys");
+                        .append(" for vault keys.");
             }
             if (!line.isEmpty()) {
                 memberPlayer.sendSystemMessage(Component.literal(line.toString())
                         .withStyle(ChatFormatting.AQUA));
             }
-            PlaytestJournal.floorPay(memberPlayer, record, pay.scrap(), pay.emeralds() + keyEmeralds);
+            PlaytestJournal.floorPay(memberPlayer, record, pay, keyEmeralds);
         }
+    }
+
+    /**
+     * On join: an orphaned haul (scrap carried by a member who is in no live trip) banks in full;
+     * a migrated player is told once what scrap is now; the compass lore is repainted.
+     */
+    static void onJoinHaul(MinecraftServer server, ServerPlayer player) {
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = player.getUUID();
+        boolean inTrip = InstanceRegistry.byMember.containsKey(id);
+        if (!inTrip && log.haulOf(id) > 0) {
+            bankHaul(server, null, id, BankContext.ORPHAN);
+        }
+        DungeonLog.Entry entry = log.get(id);
+        if (log.markHaulIntroSeen(id) && entry.highestCharts() > 0) {
+            player.sendSystemMessage(Component.literal("Your compass keeps its level " + entry.highestCharts()
+                    + ". Scrap now rides in your haul and fills your compass when you bring it home."
+                    + " Side doors cost a life.").withStyle(ChatFormatting.GOLD));
+        }
+        Keystone.showCompass(player, log.get(id), inTrip);
+    }
+
+    /** Which exit is banking a haul; picks the member's message. */
+    enum BankContext { HOME, FINISH, FAIL, ORPHAN }
+
+    /**
+     * Banks one member's haul (see {@link DungeonLog#bankHaul}): {@code keepPercent} 100 for going
+     * home or finishing, {@link ScrapMath#FAIL_KEEP_PERCENT} for a failed dungeon. Works from the log
+     * alone, so a member who is not online banks too; a raised compass is granted to the keystone,
+     * and an online member is told what happened. A member with nothing carried is told nothing.
+     */
+    static DungeonLog.BankResult bankHaul(MinecraftServer server, InstanceRecord record, UUID member,
+                                          BankContext context) {
+        DungeonLog log = DungeonLog.forServer(server);
+        int keep = context == BankContext.FAIL ? PocketDungeonsConfig.failHaulKeepPercent() : 100;
+        DungeonLog.BankResult result = log.bankHaul(member, keep);
+        ServerPlayer player = server.getPlayerList().getPlayer(member);
+        if (result.compassAfter() > log.get(member).keystoneLevel()) {
+            Keystones.grantLevel(server, member, player, result.compassAfter());
+        }
+        if (player == null) {
+            return result;
+        }
+        int total = result.banked() + result.lost();
+        if (total > 0) {
+            String bar = "compass " + result.compassAfter() + ", " + result.progress() + "/"
+                    + ScrapMath.SCRAP_PER_CHART + " to " + (result.compassAfter() + 1);
+            String text = switch (context) {
+                case HOME -> "Home. Banked " + result.banked() + " scrap: " + bar + ".";
+                case FINISH -> "Dungeon finished. Banked " + result.banked() + " scrap: " + bar + ".";
+                case ORPHAN -> "Your last trip's haul came home: banked " + result.banked() + " scrap.";
+                case FAIL -> result.banked() > 0
+                        ? "Half your haul made it out: banked " + result.banked() + " of " + total + " scrap."
+                        : "Your haul was lost: " + total + " scrap.";
+            };
+            player.sendSystemMessage(Component.literal(text)
+                    .withStyle(context == BankContext.FAIL ? ChatFormatting.RED : ChatFormatting.GOLD));
+        }
+        if (record != null) {
+            PlaytestJournal.haulBanked(player, record, context.name().toLowerCase(java.util.Locale.ROOT),
+                    result.banked(), result.lost(), result.compassAfter(), result.progress());
+        }
+        Keystone.showCompass(player, log.get(member), false);
+        return result;
     }
 
     /**
@@ -1611,6 +1664,12 @@ final class RunLifecycle {
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
                 interval.floorLevels, 0, bonusChests);
 
+        // Every way home banks the haul (D24), for members who are not online too.
+        java.util.Map<UUID, DungeonLog.BankResult> banked = new java.util.HashMap<>();
+        for (UUID member : record.members.keySet()) {
+            banked.put(member, bankHaul(server, record, member, BankContext.HOME));
+        }
+
         // Per-member settlement: the journal row, payout, prestige, diary.
         DungeonLog log = DungeonLog.forServer(server);
         for (UUID member : record.members.keySet()) {
@@ -1618,9 +1677,7 @@ final class RunLifecycle {
             if (memberPlayer == null) {
                 continue;
             }
-            // J1: each floor paid its scrap at the clear, so going home
-            // converts nothing. The settlement supplies the chest count for
-            // the journal and the home title.
+            // The settlement supplies the chest count for the journal and the home title.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
                 IntervalBanking.Settlement settled = new IntervalBanking.Settlement(
@@ -1628,8 +1685,12 @@ final class RunLifecycle {
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
                         bonusChests, memberEntry.keystoneLevel());
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
-                memberPlayer.sendSystemMessage(Component.literal("Home.")
-                        .withStyle(ChatFormatting.GOLD));
+                DungeonLog.BankResult homeBank = banked.get(member);
+                if (homeBank == null || homeBank.banked() + homeBank.lost() == 0) {
+                    // bankHaul said what it banked; with nothing carried the line is just the word.
+                    memberPlayer.sendSystemMessage(Component.literal("Home.")
+                            .withStyle(ChatFormatting.GOLD));
+                }
                 if ("home_lever".equals(trigger)) {
                     showHomeTitle(memberPlayer, settled);
                 }

@@ -147,6 +147,7 @@ final class OmenBarText {
             case SILENCE -> "The silence hears you use that; it is sending company.";
             case VAULT -> "The vault's hoard buys off the dungeon's attention. A life back.";
             case DEATH -> "A bad omen.";
+            case DOOR -> "The door takes a life.";
         };
     }
 
@@ -162,7 +163,7 @@ final class OmenBarText {
             case SENSOR -> 20 * 10;
             case SHRIEK -> 20 * 3;
             case SILENCE -> 20 * 2;
-            case BARGAIN, VAULT, DEATH -> 0;
+            case BARGAIN, VAULT, DEATH, DOOR -> 0;
         };
     }
 
