@@ -111,6 +111,8 @@ final class SidebarDisplay {
         DungeonLog log = DungeonLog.forServer(server);
         DungeonLog.Entry entry = log.get(member);
         int total = record.floor.spawnersTotal;
+        ServerPlayer present = server.getPlayerList().getPlayer(member);
+        int[] heard = present == null ? null : PressureSources.heardAt(record, present.blockPosition());
         return new SidebarLines.Facts(TripView.dungeonName(record), EndlessMineRules.isMine(record),
                 active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex),
                 node == null ? "" : node.name(), record.floor.affixes.contains(AffixIds.OMINOUS),
@@ -119,7 +121,8 @@ final class SidebarDisplay {
                 DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
                 record.interval.finished, log.haulOf(member),
                 record.interval.finishBanked.getOrDefault(member, 0), entry.keystoneLevel(),
-                entry.chartProgress(), ScrapMath.levelCost(entry.highestCharts()));
+                entry.chartProgress(), ScrapMath.levelCost(entry.highestCharts()),
+                heard == null ? 0 : heard[0], heard == null ? 0 : heard[1]);
     }
 
     private static void paint(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
@@ -178,6 +181,7 @@ final class SidebarDisplay {
             case "aqua" -> ChatFormatting.AQUA;
             case "gray" -> ChatFormatting.GRAY;
             case "dark_purple" -> ChatFormatting.DARK_PURPLE;
+            case "dark_aqua" -> ChatFormatting.DARK_AQUA;
             default -> ChatFormatting.WHITE;
         };
     }

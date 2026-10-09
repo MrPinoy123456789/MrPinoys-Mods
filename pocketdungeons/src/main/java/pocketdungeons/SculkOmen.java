@@ -8,7 +8,7 @@ package pocketdungeons;
  * and only the rooms that declare {@code pressure: "omen"} are armed. On an
  * Ancient City floor every sculk sensor and shrieker is armed whatever the
  * room says and every pulse answers. On the final floor the pulses are
- * counted: the {@link #WARDEN_PULSES}-th summons a real vanilla Warden, once.
+ * counted as room answers: the {@code ancientWardenAnswers}-th summons a real vanilla Warden, once.
  * It is the only Warden the mod ever spawns.
  */
 final class SculkOmen {
@@ -22,8 +22,31 @@ final class SculkOmen {
     static final int NORMAL_PULSES_PER_WAVE = 5;
     /** Sensor pulses per wave inside the Ancient City: every activation answers. */
     static final int ANCIENT_PULSES_PER_WAVE = 1;
-    /** The final-floor pulse count that wakes the Warden. */
-    static final int WARDEN_PULSES = 4;
+    /** The Ancient City's final-floor answers that wake the Warden (default; the knob is ancientWardenAnswers). */
+    static final int WARDEN_ANSWERS = 2;
+
+    /** The Heard meter after {@code pulses} more sensor pulses (design pass 2026-10-09, Q3). */
+    static int heardAfter(int heard, int pulses) {
+        return Math.max(0, heard) + Math.max(0, pulses);
+    }
+
+    /** Whether a room whose meter reads {@code heard} of {@code max} answers now. */
+    static boolean answers(int heard, int max) {
+        return max > 0 && heard >= max;
+    }
+
+    /** The meter's ceiling for a room: shorter in the Ancient City, where every sound counts. */
+    static int heardMax(boolean ancientCity) {
+        return ancientCity ? PocketDungeonsConfig.sculkHeardMaxAncient() : PocketDungeonsConfig.sculkHeardMax();
+    }
+
+    /**
+     * Whether crossing a sculk room unheard pays: it has a spawner, the spawner is cleared, the room never
+     * answered, and it has not paid yet.
+     */
+    static boolean unheardPays(boolean hadSpawner, boolean spawnerCleared, boolean everHeard, boolean alreadyPaid) {
+        return hadSpawner && spawnerCleared && !everHeard && !alreadyPaid;
+    }
 
     /** Whether {@code id} (a bare or namespaced dungeon or theme id) is the Ancient City. */
     static boolean isAncientCity(String id) {
@@ -37,12 +60,13 @@ final class SculkOmen {
 
     /**
      * Whether the Warden should be summoned now: an Ancient City dungeon, its
-     * final floor, at least {@link #WARDEN_PULSES} sensor pulses counted, and
+     * final floor, at least {@code ancientWardenAnswers} room answers counted, and
      * none summoned yet this floor.
      */
-    static boolean shouldSummonWarden(boolean ancientCity, boolean finalFloor, int pulses,
+    static boolean shouldSummonWarden(boolean ancientCity, boolean finalFloor, int answers,
                                       boolean alreadySummoned) {
-        return ancientCity && finalFloor && !alreadySummoned && pulses >= WARDEN_PULSES;
+        return ancientCity && finalFloor && !alreadySummoned
+                && answers >= PocketDungeonsConfig.ancientWardenAnswers();
     }
 
     /** Whether a Warden may be spawned for a dungeon at all: only the Ancient City ever does. */

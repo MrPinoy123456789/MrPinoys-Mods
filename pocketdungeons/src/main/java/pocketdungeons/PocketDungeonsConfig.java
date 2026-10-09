@@ -334,6 +334,16 @@ public final class PocketDungeonsConfig {
      * grows for each member past the first. {@code mobUniformEnabled} turns the per-dungeon mob uniform on.
      */
     private static boolean finaleEnabled = true;
+    /**
+     * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
+     * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
+     * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
+     * the haul. The ancientWardenAnswers-th answer on the Ancient City's final floor wakes the Warden.
+     */
+    private static int sculkHeardMax = 4;
+    private static int sculkHeardMaxAncient = 2;
+    private static int sculkUnheardScrap = 1;
+    private static int ancientWardenAnswers = 2;
     private static int finaleRewardChests = 1;
     private static int finaleCountdownSeconds = 3;
     private static int finaleEliteHealthPercentPerMember = 50;
@@ -722,6 +732,22 @@ public final class PocketDungeonsConfig {
         return endlessDepthMax;
     }
 
+    public static int sculkHeardMax() {
+        return sculkHeardMax;
+    }
+
+    public static int sculkHeardMaxAncient() {
+        return sculkHeardMaxAncient;
+    }
+
+    public static int sculkUnheardScrap() {
+        return sculkUnheardScrap;
+    }
+
+    public static int ancientWardenAnswers() {
+        return ancientWardenAnswers;
+    }
+
     public static boolean finaleEnabled() {
         return finaleEnabled;
     }
@@ -896,6 +922,10 @@ public final class PocketDungeonsConfig {
         witherMaxSeconds = 8;
         sidebarEnabled = true;
         hallEnabled = true;
+        sculkHeardMax = 4;
+        sculkHeardMaxAncient = 2;
+        sculkUnheardScrap = 1;
+        ancientWardenAnswers = 2;
         finaleEnabled = true;
         finaleRewardChests = 1;
         finaleCountdownSeconds = 3;
@@ -1143,6 +1173,10 @@ public final class PocketDungeonsConfig {
         belowCompassPercent = readInt(root, "belowCompassPercent", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
         endlessDepthEvery = readInt(root, "endlessDepthEvery", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
         endlessDepthMax = readInt(root, "endlessDepthMax", 4, v -> v >= 0 && v <= 10, "must be 0 to 10");
+        sculkHeardMax = readInt(root, "sculkHeardMax", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
+        sculkHeardMaxAncient = readInt(root, "sculkHeardMaxAncient", 2, v -> v >= 1 && v <= 10, "must be 1 to 10");
+        sculkUnheardScrap = readInt(root, "sculkUnheardScrap", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
+        ancientWardenAnswers = readInt(root, "ancientWardenAnswers", 2, v -> v >= 1 && v <= 5, "must be 1 to 5");
         finaleEnabled = readBoolean(root, "finaleEnabled", true);
         finaleRewardChests = readInt(root, "finaleRewardChests", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
         finaleCountdownSeconds = readInt(root, "finaleCountdownSeconds", 3, v -> v >= 0 && v <= 10, "must be 0 to 10");
@@ -1482,6 +1516,10 @@ public final class PocketDungeonsConfig {
         root.addProperty("belowCompassPercent", 50);
         root.addProperty("endlessDepthEvery", 4);
         root.addProperty("endlessDepthMax", 4);
+        root.addProperty("sculkHeardMax", 4);
+        root.addProperty("sculkHeardMaxAncient", 2);
+        root.addProperty("sculkUnheardScrap", 1);
+        root.addProperty("ancientWardenAnswers", 2);
         root.addProperty("finaleEnabled", true);
         root.addProperty("finaleRewardChests", 1);
         root.addProperty("finaleCountdownSeconds", 3);

@@ -45,7 +45,7 @@ import java.util.UUID;
  *
  * <h2>The Ancient City (Warden)</h2>
  * Every sculk sensor and shrieker answers ({@link PressureSources}). On the final floor, the
- * {@link SculkOmen#WARDEN_PULSES}-th sensor pulse summons one real vanilla Warden, set on the
+ * {@code ancientWardenAnswers}-th answer of a sculk room summons one real vanilla Warden, set on the
  * nearest member. It is the only Warden the mod ever spawns. It has no part in the gate: the floor
  * completes by reaching the terminal pad, and the Warden is discarded when the floor ends or the
  * instance is torn down.
@@ -401,7 +401,7 @@ final class CapstoneFights {
 
     private static void tickWarden(MinecraftServer server, ServerLevel level, InstanceRecord record, State state) {
         state.initialised = true;
-        if (!SculkOmen.shouldSummonWarden(true, true, record.floor.sculkPulses, state.wardenSummoned)) {
+        if (!SculkOmen.shouldSummonWarden(true, true, record.floor.sculkAnswers, state.wardenSummoned)) {
             return;
         }
         List<ServerPlayer> members = onlineMembers(server, record);

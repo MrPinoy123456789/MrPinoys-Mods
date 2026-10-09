@@ -36,7 +36,14 @@ public class SidebarLinesTest {
         eq(SidebarLines.title(new SidebarLines.Facts("", false, 1, "", false, 5, 1, false, 0, 0, 0, false, 0, 0,
                 1, 0, 5)), "Pocket Dungeons");
 
-        for (SidebarLines.Facts f : List.of(mid, low, done, dark, mine)) {
+        // In a sculk room the meter shows under the spawners (design pass 2026-10-09, Q3).
+        SidebarLines.Facts heard = new SidebarLines.Facts("Deepslate", false, 2, "Sculk Shallows", false, 4, 1,
+                true, 0, 1, 1, false, 2, 0, 8, 1, 6, 2, 4);
+        eq(texts(SidebarLines.lines(heard)), List.of("Floor 2: Sculk Shallows", "Lives 4", "Spawners 0/1", "Heard 2/4", " ",
+                "Haul 2 scrap", "Compass 8: 1/6"));
+        eq(SidebarLines.lines(heard).get(3).colour(), "dark_aqua");
+
+        for (SidebarLines.Facts f : List.of(mid, low, done, dark, mine, heard)) {
             for (SidebarLines.Line line : SidebarLines.lines(f)) {
                 if (line.text().contains("--") || line.text().contains("\u2014")) {
                     throw new AssertionError("dash punctuation: " + line.text());

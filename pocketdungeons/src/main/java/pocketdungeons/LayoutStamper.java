@@ -165,7 +165,7 @@ final class LayoutStamper {
         RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
                 depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
                 voidedCells.contains(entranceCell), false, entry.meta.content);
-            PressureSources.arm(level, cellOrigin, entry.meta, theme);
+            PressureSources.arm(level, cellOrigin, entry.meta, theme, affixes.contains(AffixIds.OMINOUS));
         NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
                 plan.seed() ^ cellOrigin.asLong(), nodesOut);
 
@@ -300,7 +300,7 @@ final class LayoutStamper {
                     depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
                     isAnomalyCell && !"store".equals(entry.meta.content) ? null : theme,
                     voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
-            PressureSources.arm(level, cellOrigin, entry.meta, theme);
+            PressureSources.arm(level, cellOrigin, entry.meta, theme, affixes.contains(AffixIds.OMINOUS));
             trialSpawners.addAll(spawnerAnchors);
             if ("flooded_hall".equals(entry.meta.content)) {
                 latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));

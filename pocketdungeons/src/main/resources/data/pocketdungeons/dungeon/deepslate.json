@@ -45,7 +45,7 @@
       "notes": "Sculk sensors in the halls. Quiet feet.",
       "layer": 2,
       "roomBias": [
-        "sensor_gallery"
+        "hush_gallery"
       ]
     },
     {

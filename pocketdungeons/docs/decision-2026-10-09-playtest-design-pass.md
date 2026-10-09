@@ -34,7 +34,7 @@ order. If the two disagree, the reply wins until this file says otherwise.
 | B | Astrolabe Room (Q1): BUILT 2026-10-09, see PD-181 in `BUGS.md` for the list of deviations from the reply | played before C |
 | C | scrap curve (Q2): BUILT 2026-10-09, see PD-182 in `BUGS.md` | levels per trip |
 | D | finales and uniforms (Q4, Q5): BUILT 2026-10-09, see PD-184 and PD-185 in `BUGS.md` | Copper Works finish |
-| E | sculk and toll rooms (Q3, Q6) | Hush Gallery, vault |
+| E | sculk and toll rooms (Q3, Q6): BUILT 2026-10-09, see PD-183 and PD-186 in `BUGS.md` | Hush Gallery, vault |
 | F | wolves and Restless (Q8) | |
 | G | ore (Q9) | |
 

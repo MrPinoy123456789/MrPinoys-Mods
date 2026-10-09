@@ -65,7 +65,7 @@
       "layer": 3,
       "light": "dark",
       "roomBias": [
-        "sensor_gallery",
+        "hush_gallery",
         "sculk_causeway",
         "sculk_nave"
       ]

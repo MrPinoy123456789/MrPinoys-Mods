@@ -547,3 +547,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 - In a party, does the wave grow without becoming a slog? Does a won finale pay the extra chest?
 - Copper Works mobs: do zombies and husks wear one copper piece and a copper sword, skeletons two pieces, and does nothing drop?
 - Does the copper gear lengthen a Copper Works clear noticeably?
+
+## L58: sculk and the vault (wave E, 2026-10-09)
+- Does `Heard 2/4` on the sidebar read as stealth? Does a full meter (darkness, a wave, the Heard title) feel like the sculk answering?
+- Hush Gallery: can the wool ring be crossed without filling the meter? Is the straight dripstone way noisy enough to tempt and punish? Does clearing it unheard pay +1 scrap?
+- Ancient City: does the Warden wake on the second answer, and is crossing the final floor unheard a win?
+- Barred Vault: does the trial key work on the vault with no explanation, and does an ominous floor's vault want the ominous key? Does it give the relief life?
+- Ominous Bargain: is taking from the open chest still readable as the bargain?

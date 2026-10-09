@@ -189,14 +189,18 @@ final class SpurSpecs {
         return new RoomSpec("barred_vault", EnumSet.of(DOOR))
                 .spawner(new BlockPos(8, 1, 4))
                 .decor((level, o) -> {
-                    // PD-164: a full partition at z=8 with the iron door as the only way
-                    // through, an empty toll hopper before it (Locks.Kind.HOPPER_KEY opens
-                    // the door when a trial key is dropped in), and the reward chest behind.
-                    // SpurToll repairs older baked templates the same way at every stamp.
-                    placePartition(level, o, 8);
-                    placeInteriorDoor(level, o, 8);
-                    placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
-                    placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_barred_vault");
+                    // Design pass 2026-10-09 (Q6): a vanilla vault block on a dais at the back of the room, with
+                    // iron bars either side. It already means "use a trial key here"; SpurVault sets its key and
+                    // reward at each stamp. No door, hopper or partition: the room is open.
+                    for (int x = 7; x <= 9; x++) {
+                        set(level, o, x, 1, 11, Blocks.CHISELED_STONE_BRICKS.defaultBlockState());
+                    }
+                    set(level, o, 8, 1, 10, Blocks.VAULT.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.VaultBlock.FACING, Direction.NORTH));
+                    for (int y = 1; y <= 2; y++) {
+                        set(level, o, 7, y, 10, Blocks.IRON_BARS.defaultBlockState());
+                        set(level, o, 9, y, 10, Blocks.IRON_BARS.defaultBlockState());
+                    }
                 });
     }
 
@@ -225,11 +229,9 @@ final class SpurSpecs {
                         dropper.setItem(0, new ItemStack(Items.OMINOUS_BOTTLE));
                         dropper.setChanged();
                     }
-                    // PD-164: partition, empty toll hopper (a gold ingot opens the door)
-                    // and the reward chest, as in the Barred Vault.
-                    placePartition(level, o, 8);
-                    placeInteriorDoor(level, o, 8);
-                    placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
+                    // Design pass 2026-10-09 (Q6): the gold toll is gone (gold is scarce, and a toll in a scarce
+                    // resource is what the scarcity rule forbids). The chest stands open behind the bottle;
+                    // taking from it is the bargain.
                     placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_ominous_bargain");
                 });
     }

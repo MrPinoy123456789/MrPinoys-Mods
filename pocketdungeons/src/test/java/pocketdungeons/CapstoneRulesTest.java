@@ -116,11 +116,11 @@ public class CapstoneRulesTest {
 
     private static void testWardenSummonRule() {
         // J3: the Warden counts the final floor's pulses and wakes on the fourth.
-        check(SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES, false), "the fourth pulse summons");
-        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES - 1, false), "the third does not");
-        check(!SculkOmen.shouldSummonWarden(true, false, SculkOmen.WARDEN_PULSES, false), "not on an earlier floor");
-        check(!SculkOmen.shouldSummonWarden(false, true, SculkOmen.WARDEN_PULSES, false), "not in another dungeon");
-        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_PULSES, true), "only once");
+        check(SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS, false), "the fourth pulse summons");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS - 1, false), "the third does not");
+        check(!SculkOmen.shouldSummonWarden(true, false, SculkOmen.WARDEN_ANSWERS, false), "not on an earlier floor");
+        check(!SculkOmen.shouldSummonWarden(false, true, SculkOmen.WARDEN_ANSWERS, false), "not in another dungeon");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS, true), "only once");
     }
 
     private static void testWardenOnlyInAncientCity() {

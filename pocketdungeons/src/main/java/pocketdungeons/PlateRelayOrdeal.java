@@ -44,7 +44,7 @@ import java.util.UUID;
  * the charges needed ({@link #needed}) so a party cannot split and finish at solo speed, and
  * the waves grow with the party. The template carries a single centre plate from the old
  * design; {@link #arm} clears it and places the four corner plates (repair at stamp, like
- * {@link SpurToll}), and a plate a player breaks is put back on the next tick.
+ * the old toll rooms), and a plate a player breaks is put back on the next tick.
  *
  * <p>Waves reuse the old design's machinery: they come out of the room's trial spawner through
  * {@link TrialSpawner#spawnMob}, never join its tally, and are held by {@link #ALIVE_CAP} and

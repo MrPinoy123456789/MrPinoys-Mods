@@ -266,6 +266,7 @@ final class RoomTemplateGenerator {
         specs.addAll(GenericHallVariantSpecs.list());
         specs.addAll(FinalFloorSpecs.list());
         specs.addAll(NetherEndSpecs.list());
+        specs.addAll(SculkRoomSpecs.list());
         return specs;
     }
 

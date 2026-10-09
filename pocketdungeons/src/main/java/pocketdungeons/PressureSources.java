@@ -63,8 +63,16 @@ final class PressureSources {
         boolean spurFired;
         /** Rising-edge memory, parallel to the lists above. */
         final Map<BlockPos, Boolean> wasActive = new HashMap<>();
-        /** Pulses counted but not yet worth a wave: one per five outside the Ancient City ({@link SculkOmen}). */
-        int pendingPulses;
+        /** The Heard meter: sensor pulses since the room last answered ({@link SculkOmen#heardAfter}). */
+        int heard;
+        /** Whether the room has ever answered (a full meter or a shriek), which forfeits the unheard pay. */
+        boolean everHeard;
+        /** Whether the room held a spawner when it was armed, and whether it has paid for being crossed unheard. */
+        boolean hadSpawner;
+        boolean unheardPaid;
+        /** The Barred Vault's vault block, for the one-shot relief when it pays out. */
+        BlockPos vault;
+        boolean vaultFired;
         /** Ancient City: every sculk block was armed and every pulse answers. */
         boolean ancientCity;
     }
@@ -113,15 +121,19 @@ final class PressureSources {
      * sensor pulse answers. Spur chests stay owned by rooms that declare {@code pressure: "omen"}.
      */
     static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta, String themeId) {
-        // PD-164: the toll rooms are repaired and locked as they are stamped.
-        net.minecraft.world.item.Item toll = meta == null ? null : SpurToll.tollFor(meta.content);
-        if (toll != null) {
-            SpurToll.apply(level, origin, toll);
-        }
+        arm(level, origin, meta, themeId, false);
+    }
+
+    /** {@link #arm(ServerLevel, BlockPos, DungeonRoomMeta, String)} on a floor that is, or is not, ominous. */
+    static void arm(ServerLevel level, BlockPos origin, DungeonRoomMeta meta, String themeId, boolean ominousFloor) {
         boolean ancient = SculkOmen.armsAllSculk(themeId);
         boolean pressure = meta != null && "omen".equals(meta.pressure);
-        if (meta == null || (!pressure && !ancient)) {
+        if (meta == null) {
             return;
+        }
+        // The Barred Vault is a real vault block (design pass 2026-10-09, Q6): it opens with the floor's trial key.
+        if ("barred_vault".equals(meta.content)) {
+            SpurVault.apply(level, origin, ominousFloor);
         }
         Armed armed = new Armed();
         armed.ancientCity = ancient;
@@ -140,13 +152,19 @@ final class PressureSources {
                             && isSpur(meta.content)) {
                         armed.spurChest = pos.immutable();
                         armed.spurKind = meta.content;
+                    } else if (state.is(Blocks.VAULT) && "barred_vault".equals(meta.content)) {
+                        armed.vault = pos.immutable();
                     }
                 }
             }
         }
-        if (armed.sensors.isEmpty() && armed.shriekers.isEmpty() && armed.spurChest == null) {
+        // Design pass 2026-10-09 (Q3): any room that holds a sculk sensor or a shrieker listens, whether or not its
+        // metadata asks for pressure; the other triggers still need the room to ask for them.
+        boolean sculk = !armed.sensors.isEmpty() || !armed.shriekers.isEmpty();
+        if (!sculk && armed.spurChest == null && armed.vault == null) {
             return;
         }
+        armed.hadSpawner = TrialContent.hasActiveSpawner(level, origin);
         ARMED.put(origin.immutable(), armed);
     }
 
@@ -194,28 +212,42 @@ final class PressureSources {
                 armed.wasActive.put(pos, now);
             }
             if (pulses > 0) {
-                armed.pendingPulses += pulses;
-                if (armed.ancientCity) {
-                    // The Ancient City counts every pulse; the Warden reads
-                    // the final floor's total (J3).
-                    record.floor.sculkPulses += pulses;
-                }
-                // The formula is one wave per five pulses (every pulse in the
-                // Ancient City), so bank the remainder rather than rounding
-                // every poll down to nothing.
-                int waves = Omen.wavesFromPulses(armed.pendingPulses, armed.ancientCity);
-                for (int i = 0; i < waves; i++) {
+                // Sculk hears you (design pass 2026-10-09, Q3): each pulse fills the room's meter; a full meter
+                // is an answer, and the meter starts again.
+                armed.heard = SculkOmen.heardAfter(armed.heard, pulses);
+                if (SculkOmen.answers(armed.heard, SculkOmen.heardMax(armed.ancientCity))) {
+                    armed.heard = 0;
+                    armed.everHeard = true;
+                    record.floor.sculkAnswers++;
+                    darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
                     trigger(server, record, Omen.Source.SENSOR, origin);
+                    announceHeard(server, record);
                 }
-                armed.pendingPulses = Omen.remainingPulses(armed.pendingPulses, waves, armed.ancientCity);
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
                 if (now && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
+                    // A shriek is the room answering at once.
+                    armed.heard = 0;
+                    armed.everHeard = true;
+                    record.floor.sculkAnswers++;
                     darken(level, record, pos);
                     trigger(server, record, Omen.Source.SHRIEK, pos);
+                    announceHeard(server, record);
                 }
                 armed.wasActive.put(pos, now);
+            }
+            if ((!armed.sensors.isEmpty() || !armed.shriekers.isEmpty())
+                    && SculkOmen.unheardPays(armed.hadSpawner, !TrialContent.hasActiveSpawner(level, origin),
+                    armed.everHeard, armed.unheardPaid)) {
+                armed.unheardPaid = true;
+                payUnheard(server, level, record, origin);
+            }
+            if (armed.vault != null && !armed.vaultFired && vaultPaid(level, armed.vault)) {
+                armed.vaultFired = true;
+                // The Barred Vault is relief: a life back, never below zero.
+                relieve(server, record, 1);
+                PlaytestJournal.hazard(server, record, Omen.Source.VAULT, armed.vault);
             }
             if (armed.spurChest != null && !armed.spurFired && spurTaken(level, armed.spurChest)) {
                 armed.spurFired = true;
@@ -225,13 +257,71 @@ final class PressureSources {
                     record.floor.levelBonus += BARGAIN_LEVELS;
                     PlaytestJournal.hazard(server, record, Omen.Source.BARGAIN, armed.spurChest);
                     OmenBar.cue(server, record, Omen.Source.BARGAIN);
-                } else {
-                    // Barred Vault is relief: a life back, never below zero.
-                    relieve(server, record, 1);
-                    PlaytestJournal.hazard(server, record, Omen.Source.VAULT, armed.spurChest);
                 }
             }
         }
+    }
+
+    /** The room answered: a title so the player sees it, since the meter is only a number until it fills. */
+    private static void announceHeard(MinecraftServer server, InstanceRecord record) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                StaggeredTitle.show(server, member, net.minecraft.network.chat.Component.literal("Heard")
+                        .withStyle(net.minecraft.ChatFormatting.DARK_AQUA),
+                        List.of("The sculk heard you."), net.minecraft.ChatFormatting.GRAY);
+            }
+        }
+    }
+
+    /** A sculk room with a spawner was cleared without the sculk ever answering: scrap into each haul in the room. */
+    private static void payUnheard(MinecraftServer server, ServerLevel level, InstanceRecord record, BlockPos origin) {
+        int scrap = PocketDungeonsConfig.sculkUnheardScrap();
+        if (scrap <= 0) {
+            return;
+        }
+        net.minecraft.world.phys.AABB room = CellGeometry.cellBounds(origin);
+        DungeonLog log = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null && room.contains(player.position())) {
+                log.addHaul(member, scrap);
+                player.sendOverlayMessage(net.minecraft.network.chat.Component.literal("Unheard. +" + scrap + " scrap")
+                        .withStyle(net.minecraft.ChatFormatting.AQUA));
+                Keystone.showCompass(player, log.get(member), true);
+            }
+        }
+    }
+
+    /**
+     * The Heard meter of the sculk room {@code at} stands in, as {@code {heard, max}}, or {@code null} when the
+     * room has no sensor or the position is not in an armed room. For the sidebar.
+     */
+    static int[] heardAt(InstanceRecord record, BlockPos at) {
+        if (record == null || record.layout == null) {
+            return null;
+        }
+        PlanCell cell = record.layout.geometry().cellAt(at);
+        if (cell == null) {
+            return null;
+        }
+        Armed armed = ARMED.get(record.layout.geometry().cellOrigin(cell));
+        if (armed == null || armed.sensors.isEmpty()) {
+            return null;
+        }
+        return new int[]{armed.heard, SculkOmen.heardMax(armed.ancientCity)};
+    }
+
+    /** Whether the vault at {@code pos} has been opened with its key: it is unlocking or ejecting. */
+    static boolean vaultPaid(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(Blocks.VAULT)) {
+            return false;
+        }
+        net.minecraft.world.level.block.entity.vault.VaultState phase =
+                state.getValue(net.minecraft.world.level.block.VaultBlock.STATE);
+        return phase == net.minecraft.world.level.block.entity.vault.VaultState.UNLOCKING
+                || phase == net.minecraft.world.level.block.entity.vault.VaultState.EJECTING;
     }
 
     /** Vanilla's shrieker answer: darkness on every member close enough to have been heard. */

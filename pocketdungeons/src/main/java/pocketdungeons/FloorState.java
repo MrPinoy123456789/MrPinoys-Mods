@@ -225,5 +225,5 @@ final class FloorState {
      * Sculk sensor pulses counted on this floor, Ancient City only: the
      * fourth on the final floor wakes the Warden ({@link SculkOmen}).
      */
-    int sculkPulses;
+    int sculkAnswers;
 }

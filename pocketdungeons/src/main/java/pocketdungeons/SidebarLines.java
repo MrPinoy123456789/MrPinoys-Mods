@@ -21,7 +21,17 @@ final class SidebarLines {
     /** Everything the sidebar reads, gathered by the caller so this class stays pure. */
     record Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives,
                  int party, boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded,
-                 boolean finished, int haul, int banked, int compass, int progress, int levelCost) {}
+                 boolean finished, int haul, int banked, int compass, int progress, int levelCost,
+                 int heard, int heardMax) {
+
+        /** A floor with no sculk room under the player: the shape before the Heard meter. */
+        Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
+              boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
+              int haul, int banked, int compass, int progress, int levelCost) {
+            this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, 0, 0);
+        }
+    }
 
     /** The title: the dungeon's name, or {@code Endless Mine} on a mine trip, or the mod's name outside a dungeon. */
     static String title(Facts f) {
@@ -54,6 +64,9 @@ final class SidebarLines {
         if (f.onFloor() && f.spawnersTotal() > 0 && !f.finished()) {
             boolean done = f.spawnersCleared() >= f.spawnersNeeded();
             out.add(new Line("Spawners " + f.spawnersCleared() + "/" + f.spawnersTotal(), done ? "green" : "white"));
+        }
+        if (f.heardMax() > 0 && f.onFloor() && !f.finished()) {
+            out.add(new Line("Heard " + f.heard() + "/" + f.heardMax(), "dark_aqua"));
         }
         out.add(new Line(" ", "white"));
         // PD-179: once the dungeon is finished the haul is already paid, so the line says what it banked.
