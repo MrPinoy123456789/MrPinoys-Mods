@@ -90,6 +90,23 @@ final class DialogScreens {
     /** Playtest 2026-10-03 (A2): the menu's Reset Key option opens {@link #resetKeyConfirm}. */
     static final String ACTION_RESET_KEY = "reset_key";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
+    /** Manage Party (2026-10-09). */
+    static final String ACTION_MANAGE_PARTY = "manage_party";
+    static final String ACTION_PARTY_PERSON = "party_person";
+    static final String ACTION_PARTY_INVITE_LIST = "party_invite_list";
+    static final String ACTION_PARTY_INVITE = "party_invite";
+    static final String ACTION_PARTY_BUILD_ASK = "party_build_ask";
+    static final String ACTION_PARTY_BUILD_SET = "party_build_set";
+    static final String ACTION_PARTY_BAN_ASK = "party_ban_ask";
+    static final String ACTION_PARTY_BAN = "party_ban";
+    static final String ACTION_PARTY_BANNED = "party_banned";
+    static final String ACTION_PARTY_UNBAN = "party_unban";
+    /** The menu's View Lobbies: a hub for the public and friends' directories. */
+    static final String ACTION_VIEW_LOBBIES = "view_lobbies";
+    /** Reset Room, behind a warning. */
+    static final String ACTION_RESET_ROOM_ASK = "reset_room_ask";
+    static final String ACTION_RESET_ROOM = "reset_room";
+    static final String ACTION_VISITORS = "visitors";
     static final String ACTION_TOGGLE_PUBLIC = "toggle_public";
 
     /** M24: which shell palette a shell action's button chose. */
@@ -467,9 +484,14 @@ final class DialogScreens {
      * already prints for an offline entry -- a shortened UUID -- rather than
      * inventing a second name-resolution path this mod does not otherwise have.
      */
-    private static String displayName(MinecraftServer server, UUID id) {
+    static String displayName(MinecraftServer server, UUID id) {
         ServerPlayer online = server.getPlayerList().getPlayer(id);
-        return online != null ? online.getName().getString() : id.toString().substring(0, 8);
+        if (online != null) {
+            return online.getName().getString();
+        }
+        return server.services().nameToIdCache().get(id)
+                .map(net.minecraft.server.players.NameAndId::name)
+                .orElse(id.toString().substring(0, 8));
     }
 
     // ---- section 6: admin baserestore confirmation --------------------------
@@ -587,7 +609,9 @@ final class DialogScreens {
         List<OnlinePlayer> online = server.getPlayerList().getPlayers().stream()
                 .map(p -> new OnlinePlayer(p.getUUID(), p.getName().getString()))
                 .toList();
-        return lobbyBrowserDialog(lobbyRows(DungeonLog.forServer(server), online), clicker, notice);
+        RoomBans bans = RoomBans.forServer(server);
+        return lobbyBrowserDialog(lobbyRows(DungeonLog.forServer(server), online).stream()
+                .filter(row -> !bans.isBanned(row.owner(), clicker)).toList(), clicker, notice);
     }
 
     /**
@@ -621,8 +645,10 @@ final class DialogScreens {
         List<OnlinePlayer> online = server.getPlayerList().getPlayers().stream()
                 .map(p -> new OnlinePlayer(p.getUUID(), p.getName().getString()))
                 .toList();
+        RoomBans bans = RoomBans.forServer(server);
         return friendBrowserDialog(
-                friendRows(RoomWhitelist.forServer(server), DungeonLog.forServer(server), online, clicker),
+                friendRows(RoomWhitelist.forServer(server), DungeonLog.forServer(server), online, clicker).stream()
+                        .filter(row -> !bans.isBanned(row.owner(), clicker)).toList(),
                 clicker, notice);
     }
 
@@ -719,7 +745,7 @@ final class DialogScreens {
     static List<MenuOption> menuOptions(boolean inDungeon, boolean roomOwner, boolean doorChosen) {
         if (inDungeon) {
             List<MenuOption> options = new ArrayList<>();
-            options.add(new MenuOption("Leave", "Exit the dungeon", ACTION_LEAVE_DUNGEON));
+            options.add(new MenuOption("Leave", null, ACTION_LEAVE_DUNGEON));
             if (roomOwner && doorChosen) {
                 options.add(new MenuOption("Quit Door",
                         "Fail the dungeon, downgrade your compass, pick a new door",
@@ -727,33 +753,19 @@ final class DialogScreens {
             }
             if (roomOwner) {
                 options.add(new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM));
-                // M24: the shell swap needs the room's live cell, so it is an
-                // in-dungeon, owner-only option: the frame only exists while
-                // the room is stamped, and only its owner gets to reframe it.
-                options.add(new MenuOption("Change Shell", "Swap your room's frame",
-                        ACTION_CHANGE_SHELL));
             }
             options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
-            options.add(new MenuOption("Diaries", null, ACTION_DIARIES));
-            // The key is the room owner's; a visitor has no say over it.
             if (roomOwner) {
-                options.add(resetKeyOption());
+                options.add(new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY));
             }
             return options;
         }
         return List.of(
-                new MenuOption("Start Dungeon", "Requires a compass in your inventory",
-                        ACTION_START_DUNGEON),
-                new MenuOption("Browse Lobbies", null, ACTION_BROWSE_LOBBIES),
-                // M75: the private visit channel. Lists rooms whose owner has
-                // whitelisted this player, the counterpart of the public lobby
-                // directory. Same routing service, separate admit check.
-                new MenuOption("Visit a Friend", "Rooms you have been invited to",
-                        ACTION_BROWSE_FRIENDS),
+                new MenuOption("Start Dungeon", null, ACTION_START_DUNGEON),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
-                new MenuOption("Diaries", null, ACTION_DIARIES),
-                resetKeyOption());
+                new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY),
+                new MenuOption("View Lobbies", null, ACTION_VIEW_LOBBIES));
     }
 
     /**
@@ -761,8 +773,7 @@ final class DialogScreens {
      * feature to let me reset the run myself"). Last in the menu, behind a confirm.
      */
     private static MenuOption resetKeyOption() {
-        return new MenuOption("Reset Compass", "Start again from compass 1, with a confirm first",
-                ACTION_RESET_KEY);
+        return new MenuOption("Reset Compass", null, ACTION_RESET_KEY);
     }
 
     /**
@@ -774,15 +785,13 @@ final class DialogScreens {
      */
     static Dialog resetKeyConfirm() {
         return DialogKit.confirm("Reset your compass?",
-                List.of(DialogKit.text(Component.literal("This starts you over from compass 1.")
+                List.of(DialogKit.text(Component.literal("Back to compass 1.")
                                 .withStyle(ChatFormatting.YELLOW)),
-                        DialogKit.text("Your compass progress, bag and any run in progress are cleared. "
-                                + "A fresh compass [1] is put in your hand."),
-                        DialogKit.text(Component.literal(
-                                "Your shells, diary entries and room settings are kept.")
+                        DialogKit.text("Your compass, haul and any run in progress are gone."),
+                        DialogKit.text(Component.literal("Shells, diaries and room settings stay.")
                                 .withStyle(ChatFormatting.GRAY))),
                 DialogKit.command("Reset Compass", null, "/dungeon resetkey"),
-                DialogKit.closeButton("Cancel"));
+                DialogKit.closeButton("Keep it"));
     }
 
     /**
@@ -812,17 +821,22 @@ final class DialogScreens {
      */
     static Dialog lodestoneMenuDialog(List<MenuOption> options, UUID owner, boolean inDungeon) {
         List<DialogBody> body = new ArrayList<>();
-        body.add(DialogKit.text(inDungeon
-                ? "Leave the dungeon, manage your room, or inspect your compass."
-                : "Start a dungeon, visit a lobby, or manage your room."));
         List<ActionButton> buttons = new ArrayList<>();
+        // Leave sits alone in the footer, away from the list, so a stray tap does not end the run.
+        ActionButton leave = null;
         for (MenuOption option : options) {
             CompoundTag context = new CompoundTag();
             context.putString(KEY_OWNER, owner.toString());
-            buttons.add(DialogKit.button(option.label(), option.tooltip(),
-                    DialogKit.submit(option.action(), context)));
+            ActionButton button = DialogKit.button(option.label(), option.tooltip(),
+                    DialogKit.submit(option.action(), context));
+            if (option.action().equals(ACTION_LEAVE_DUNGEON)) {
+                leave = button;
+            } else {
+                buttons.add(button);
+            }
         }
-        return DialogKit.list(inDungeon ? "Dungeon" : "Pocket Dungeons", body, buttons, "Close");
+        return DialogKit.list(inDungeon ? "Dungeon" : "Home", body, buttons,
+                leave != null ? leave : DialogKit.closeButton("Close"));
     }
 
     /**
@@ -879,31 +893,193 @@ final class DialogScreens {
         List<DialogBody> body = new ArrayList<>();
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         String name = entry.roomName().isBlank() ? "Unnamed" : entry.roomName();
-        body.add(DialogKit.text("Room " + name + ". " + listingLine(entry.publicListed())));
-        List<UUID> entries = new ArrayList<>(RoomWhitelist.forServer(server).get(owner));
-        entries.sort(Comparator.comparing(UUID::toString));
-        body.add(DialogKit.text(whitelistLine(entries.size())));
+        body.add(DialogKit.text(Component.literal(name).withStyle(ChatFormatting.AQUA)));
 
         List<ActionButton> buttons = new ArrayList<>();
-        for (UUID id : entries) {
-            CompoundTag context = new CompoundTag();
-            context.putString(KEY_OWNER, owner.toString());
-            context.putString(KEY_TARGET, id.toString());
-            buttons.add(DialogKit.button("Remove " + displayName(server, id), null,
-                    DialogKit.submit(ACTION_WHITELIST_REMOVE, context)));
-        }
-        buttons.add(showDialogButton("Add a player...", whitelistAdd(owner, ACTION_MANAGE_ROOM)));
-        buttons.add(showDialogButton("Set room name...", roomNameInput(owner)));
+        buttons.add(showDialogButton("Name", roomNameInput(owner)));
         CompoundTag toggle = new CompoundTag();
         toggle.putString(KEY_OWNER, owner.toString());
-        buttons.add(DialogKit.button(entry.publicListed() ? "Room is public" : "Room is private",
-                "Click to flip the lobby listing", DialogKit.submit(ACTION_TOGGLE_PUBLIC, toggle)));
-        // M27 27.2: host-visible only, so this lives behind Manage Room rather
-        // than the plain lodestone menu; a visitor never opens this screen at
-        // all, since Manage Room itself is owner-only.
-        buttons.add(showDialogButton("Recent visitors...", recentVisitors(server, owner)));
+        buttons.add(DialogKit.button(entry.publicListed() ? "Public" : "Private",
+                entry.publicListed() ? "Anyone can visit. Tap to make it private."
+                        : "Only you and your party. Tap to make it public.",
+                DialogKit.submit(ACTION_TOGGLE_PUBLIC, toggle)));
+        InstanceRecord home = InstanceRegistry.byMember.get(owner);
+        if (home != null && owner.equals(home.owner) && home.roomCellOrigin != null && !home.visitInstance) {
+            buttons.add(DialogKit.button("Shell", null, DialogKit.submit(ACTION_CHANGE_SHELL, toggle)));
+        }
+        buttons.add(DialogKit.button("Visitors", null, DialogKit.submit(ACTION_VISITORS, toggle)));
+        buttons.add(DialogKit.button("Reset Room", null, DialogKit.submit(ACTION_RESET_ROOM_ASK, toggle)));
+        return DialogKit.list("Your room", body, buttons, backToMenuButton(owner));
+    }
 
-        return DialogKit.list("Manage room", body, buttons, backToMenuButton(owner));
+    /** The warning behind Reset Room. */
+    static Dialog resetRoomConfirm(UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        return DialogKit.confirm("Reset your room?",
+                List.of(DialogKit.text(Component.literal("Back to bare walls.").withStyle(ChatFormatting.YELLOW)),
+                        DialogKit.text("Everything you built is gone."),
+                        DialogKit.text(Component.literal("This can't be undone.").withStyle(ChatFormatting.RED))),
+                DialogKit.button("Reset Room", null, DialogKit.submit(ACTION_RESET_ROOM, context)),
+                backButton("Keep it", ACTION_MANAGE_ROOM, owner));
+    }
+
+    // ---- Inspect Compass, View Lobbies and Manage Party (2026-10-09) -------------------------
+
+    /** Your compass, with the diaries and the reset one tap away. */
+    static Dialog compassScreen(ServerPlayer player, boolean roomOwner) {
+        ItemStack held = Keystone.findHeld(player);
+        DungeonLog.Entry entry = DungeonLog.forServer(player.level().getServer()).get(player.getUUID());
+        net.minecraft.server.dialog.NoticeDialog info =
+                (net.minecraft.server.dialog.NoticeDialog) keystoneInfo(held, entry, DialogKit.closeButton("Close"));
+        UUID id = player.getUUID();
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, id.toString());
+        List<ActionButton> buttons = new ArrayList<>();
+        buttons.add(DialogKit.button("Diaries", null, DialogKit.submit(ACTION_DIARIES, context)));
+        if (roomOwner) {
+            buttons.add(DialogKit.button("Reset Compass", null, DialogKit.submit(ACTION_RESET_KEY, context)));
+        }
+        return new net.minecraft.server.dialog.MultiActionDialog(info.common(), buttons,
+                Optional.of(backToMenuButton(id)), 1);
+    }
+
+    /** Public rooms and friends' rooms, one tap each. */
+    static Dialog lobbiesHub(UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        return DialogKit.list("Lobbies", List.of(),
+                List.of(DialogKit.button("Public rooms", null, DialogKit.submit(ACTION_BROWSE_LOBBIES, context)),
+                        DialogKit.button("Friends' rooms", null, DialogKit.submit(ACTION_BROWSE_FRIENDS, context))),
+                backToMenuButton(owner));
+    }
+
+    private static CompoundTag partyContext(UUID owner, UUID target) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        if (target != null) {
+            context.putString(KEY_TARGET, target.toString());
+        }
+        return context;
+    }
+
+    /**
+     * The party: everyone in it now, then everyone who was, builders first. Green is here now, gray was here
+     * before, and a yellow star marks a builder.
+     */
+    static Dialog manageParty(MinecraftServer server, UUID owner) {
+        RoomWhitelist builders = RoomWhitelist.forServer(server);
+        RoomBans bans = RoomBans.forServer(server);
+        List<UUID> now = new ArrayList<>(PartyService.currentParty(owner));
+        List<UUID> before = new ArrayList<>(RoomCompany.forServer(server).get(owner));
+        before.removeAll(now);
+        now.removeIf(id -> bans.isBanned(owner, id));
+        before.removeIf(id -> bans.isBanned(owner, id));
+        Comparator<UUID> buildersFirst = Comparator.comparing((UUID id) -> !builders.isPermitted(owner, id))
+                .thenComparing(id -> displayName(server, id).toLowerCase(java.util.Locale.ROOT));
+        now.sort(buildersFirst);
+        before.sort(buildersFirst);
+
+        List<DialogBody> body = new ArrayList<>();
+        if (now.isEmpty() && before.isEmpty()) {
+            body.add(DialogKit.text(Component.literal("Nobody yet.").withStyle(ChatFormatting.GRAY)));
+        }
+        List<ActionButton> buttons = new ArrayList<>();
+        buttons.add(DialogKit.button("Invite", null,
+                DialogKit.submit(ACTION_PARTY_INVITE_LIST, partyContext(owner, null))));
+        buttons.add(DialogKit.button("Banned" + (bans.get(owner).isEmpty() ? "" : " (" + bans.get(owner).size() + ")"),
+                null, DialogKit.submit(ACTION_PARTY_BANNED, partyContext(owner, null))));
+        int shown = 0;
+        for (UUID id : now) {
+            if (shown++ < LOBBY_ROW_CAP * 3) {
+                buttons.add(partyRow(server, owner, id, builders, true));
+            }
+        }
+        for (UUID id : before) {
+            if (shown++ < LOBBY_ROW_CAP * 3) {
+                buttons.add(partyRow(server, owner, id, builders, false));
+            }
+        }
+        return DialogKit.list("Party", body, buttons, backToMenuButton(owner));
+    }
+
+    private static ActionButton partyRow(MinecraftServer server, UUID owner, UUID id, RoomWhitelist builders,
+                                         boolean here) {
+        String label = (here ? "\u00a7a" : "\u00a77") + displayName(server, id)
+                + (builders.isPermitted(owner, id) ? " \u00a7e\u2605" : "");
+        return DialogKit.button(label, null, DialogKit.submit(ACTION_PARTY_PERSON, partyContext(owner, id)));
+    }
+
+    /** One person: whether they build, and the ban. */
+    static Dialog partyPerson(MinecraftServer server, UUID owner, UUID target) {
+        boolean builds = RoomWhitelist.forServer(server).isPermitted(owner, target);
+        boolean here = PartyService.currentParty(owner).contains(target);
+        List<DialogBody> body = List.of(DialogKit.text(Component.literal(here ? "In your party" : "Played with you")
+                .withStyle(here ? ChatFormatting.GREEN : ChatFormatting.GRAY)));
+        List<ActionButton> buttons = List.of(
+                DialogKit.button(builds ? "Can build" : "Cannot build",
+                        builds ? "Tap to take building away." : "Tap to let them build in your room.",
+                        DialogKit.submit(builds ? ACTION_PARTY_BUILD_SET : ACTION_PARTY_BUILD_ASK,
+                                partyContext(owner, target))),
+                DialogKit.button("Ban", null, DialogKit.submit(ACTION_PARTY_BAN_ASK, partyContext(owner, target))));
+        return DialogKit.list(displayName(server, target), body, buttons,
+                backButton("Back", ACTION_MANAGE_PARTY, owner));
+    }
+
+    /** The warning before someone is allowed to build. */
+    static Dialog buildConfirm(MinecraftServer server, UUID owner, UUID target) {
+        CompoundTag allow = partyContext(owner, target);
+        allow.putBoolean("pd_value", true);
+        return DialogKit.confirm("Let " + displayName(server, target) + " build?",
+                List.of(DialogKit.text("They can place and break blocks in your room."),
+                        DialogKit.text(Component.literal("Only give this to people you trust.")
+                                .withStyle(ChatFormatting.GRAY))),
+                DialogKit.button("Allow", null, DialogKit.submit(ACTION_PARTY_BUILD_SET, allow)),
+                DialogKit.button("Not now", null, DialogKit.submit(ACTION_PARTY_PERSON, partyContext(owner, target))));
+    }
+
+    /** The warning before a ban. */
+    static Dialog banConfirm(MinecraftServer server, UUID owner, UUID target) {
+        return DialogKit.confirm("Ban " + displayName(server, target) + "?",
+                List.of(DialogKit.text("They leave your party and can't come back."),
+                        DialogKit.text(Component.literal("You can unban them any time.")
+                                .withStyle(ChatFormatting.GRAY))),
+                DialogKit.button("Ban", null, DialogKit.submit(ACTION_PARTY_BAN, partyContext(owner, target))),
+                DialogKit.button("Cancel", null, DialogKit.submit(ACTION_PARTY_PERSON, partyContext(owner, target))));
+    }
+
+    /** Who can be invited right now: anyone online who is not already here or banned. */
+    static Dialog inviteList(MinecraftServer server, UUID owner) {
+        RoomBans bans = RoomBans.forServer(server);
+        List<UUID> here = PartyService.currentParty(owner);
+        List<ActionButton> buttons = new ArrayList<>();
+        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
+            UUID id = online.getUUID();
+            if (!id.equals(owner) && !here.contains(id) && !bans.isBanned(owner, id)
+                    && buttons.size() < LOBBY_ROW_CAP * 3) {
+                buttons.add(DialogKit.button(online.getName().getString(), null,
+                        DialogKit.submit(ACTION_PARTY_INVITE, partyContext(owner, id))));
+            }
+        }
+        List<DialogBody> body = buttons.isEmpty()
+                ? List.of(DialogKit.text(Component.literal("Nobody else is online.").withStyle(ChatFormatting.GRAY)))
+                : List.of();
+        return DialogKit.list("Invite", body, buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
+    }
+
+    /** Everyone banned, one tap to unban. */
+    static Dialog bannedList(MinecraftServer server, UUID owner) {
+        List<UUID> banned = new ArrayList<>(RoomBans.forServer(server).get(owner));
+        banned.sort(Comparator.comparing(id -> displayName(server, id).toLowerCase(java.util.Locale.ROOT)));
+        List<ActionButton> buttons = new ArrayList<>();
+        for (UUID id : banned) {
+            buttons.add(DialogKit.button("Unban " + displayName(server, id), null,
+                    DialogKit.submit(ACTION_PARTY_UNBAN, partyContext(owner, id))));
+        }
+        List<DialogBody> body = banned.isEmpty()
+                ? List.of(DialogKit.text(Component.literal("Nobody is banned.").withStyle(ChatFormatting.GRAY)))
+                : List.of();
+        return DialogKit.list("Banned", body, buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
     }
 
     /**

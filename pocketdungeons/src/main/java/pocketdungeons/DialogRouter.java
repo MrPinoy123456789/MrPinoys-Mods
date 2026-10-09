@@ -88,6 +88,27 @@ public final class DialogRouter {
             case DialogScreens.ACTION_START_DUNGEON -> startDungeon(player);
             case DialogScreens.ACTION_BROWSE_LOBBIES -> browseLobbies(player, server);
             case DialogScreens.ACTION_MANAGE_ROOM -> manageRoom(player, server);
+            case DialogScreens.ACTION_VISITORS -> DialogKit.show(player, DialogScreens.recentVisitors(server, owner));
+            case DialogScreens.ACTION_RESET_ROOM_ASK -> DialogKit.show(player, DialogScreens.resetRoomConfirm(owner));
+            case DialogScreens.ACTION_RESET_ROOM -> resetRoom(player, server);
+            case DialogScreens.ACTION_VIEW_LOBBIES -> DialogKit.show(player, DialogScreens.lobbiesHub(owner));
+            case DialogScreens.ACTION_MANAGE_PARTY -> DialogKit.show(player, DialogScreens.manageParty(server, owner));
+            case DialogScreens.ACTION_PARTY_PERSON -> DialogKit.show(player, DialogScreens.partyPerson(server, owner,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, ""))));
+            case DialogScreens.ACTION_PARTY_INVITE_LIST -> DialogKit.show(player, DialogScreens.inviteList(server, owner));
+            case DialogScreens.ACTION_PARTY_INVITE -> partyInvite(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
+            case DialogScreens.ACTION_PARTY_BUILD_ASK -> DialogKit.show(player, DialogScreens.buildConfirm(server, owner,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, ""))));
+            case DialogScreens.ACTION_PARTY_BUILD_SET -> partyBuild(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")), tag.getBooleanOr("pd_value", false));
+            case DialogScreens.ACTION_PARTY_BAN_ASK -> DialogKit.show(player, DialogScreens.banConfirm(server, owner,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, ""))));
+            case DialogScreens.ACTION_PARTY_BAN -> partyBan(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
+            case DialogScreens.ACTION_PARTY_BANNED -> DialogKit.show(player, DialogScreens.bannedList(server, owner));
+            case DialogScreens.ACTION_PARTY_UNBAN -> partyUnban(player, server,
+                    uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             case DialogScreens.ACTION_INSPECT_KEYSTONE -> inspectKeystone(player);
             case DialogScreens.ACTION_LEAVE_DUNGEON ->
                     RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
@@ -263,8 +284,72 @@ public final class DialogRouter {
             DialogKit.show(player, DialogScreens.noKeystone(player.getUUID()));
             return;
         }
-        DialogKit.show(player, DialogScreens.inspectKeystone(player,
-                DialogScreens.backToMenuButton(player.getUUID())));
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        boolean roomOwner = record == null || record.owner.equals(player.getUUID());
+        DialogKit.show(player, DialogScreens.compassScreen(player, roomOwner));
+    }
+
+    private static void partyInvite(ServerPlayer owner, MinecraftServer server, UUID target) {
+        ServerPlayer invitee = target == null ? null : server.getPlayerList().getPlayer(target);
+        if (invitee == null) {
+            Chime.refused(owner);
+            DialogKit.show(owner, DialogScreens.inviteList(server, owner.getUUID()));
+            return;
+        }
+        if (InstanceRegistry.hasInstance(owner)) {
+            PartyService.invite(owner, invitee);
+        } else {
+            PartyService.party(owner, invitee);
+        }
+        DialogKit.show(owner, DialogScreens.manageParty(server, owner.getUUID()));
+    }
+
+    /** Lets someone build in the room, or takes it away. A banned player cannot be given it. */
+    private static void partyBuild(ServerPlayer owner, MinecraftServer server, UUID target, boolean allow) {
+        if (target == null || target.equals(owner.getUUID())) {
+            DialogKit.show(owner, DialogScreens.manageParty(server, owner.getUUID()));
+            return;
+        }
+        if (allow) {
+            if (!RoomBans.forServer(server).isBanned(owner.getUUID(), target)) {
+                RoomWhitelist.forServer(server).add(owner.getUUID(), target);
+            }
+        } else {
+            RoomWhitelist.forServer(server).remove(owner.getUUID(), target);
+        }
+        DialogKit.show(owner, DialogScreens.partyPerson(server, owner.getUUID(), target));
+    }
+
+    /** A ban: off the builders list, out of the party, out of the room, and shut out until unbanned. */
+    private static void partyBan(ServerPlayer owner, MinecraftServer server, UUID target) {
+        if (target != null && !target.equals(owner.getUUID())) {
+            RoomBans.forServer(server).ban(owner.getUUID(), target);
+            RoomWhitelist.forServer(server).remove(owner.getUUID(), target);
+            PartyService.evict(server, owner.getUUID(), target);
+        }
+        DialogKit.show(owner, DialogScreens.manageParty(server, owner.getUUID()));
+    }
+
+    private static void partyUnban(ServerPlayer owner, MinecraftServer server, UUID target) {
+        if (target != null) {
+            RoomBans.forServer(server).unban(owner.getUUID(), target);
+        }
+        DialogKit.show(owner, DialogScreens.bannedList(server, owner.getUUID()));
+    }
+
+    /** Reset Room, as {@code /dungeon admin resetroom} does it, refused while a run is on. */
+    private static void resetRoom(ServerPlayer owner, MinecraftServer server) {
+        InstanceRecord record = InstanceRegistry.byMember.get(owner.getUUID());
+        if (record != null && RunSession.isActive(record)) {
+            Chime.refused(owner);
+            owner.sendOverlayMessage(Component.literal("Finish or leave your dungeon first.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        Instances.adminPurgeByOwner(server, owner.getUUID());
+        RoomStore.reset(server, owner.getUUID());
+        DungeonLog.forServer(server).setRoomCompletions(owner.getUUID(), 0);
+        owner.sendOverlayMessage(Component.literal("Room reset.").withStyle(ChatFormatting.YELLOW));
     }
 
     /**

@@ -39,6 +39,11 @@ final class VisitService {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
+        if (PartyService.bannedFrom(visitor.level().getServer(), owner, visitor.getUUID())) {
+            visitor.sendSystemMessage(Component.literal("That room is closed to you.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
         if (InstanceRegistry.hasInstance(visitor)) {
             visitor.sendSystemMessage(Component.literal("You are already in a dungeon.")
                     .withStyle(ChatFormatting.RED));
