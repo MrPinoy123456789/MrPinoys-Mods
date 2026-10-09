@@ -12,14 +12,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * PD-191 and PD-192 (owner ruling 2026-10-09): leaving a party, including to join another, forfeits the haul
- * mid-floor and pays it in full between floors. A rider who leaves a floor in progress, joins another party or
- * drops out gets nothing; an owner who leaves mid-floor forfeits and the members still here keep the fail share.
+ * PD-191 and PD-192 (owner ruling 2026-10-09): leaving a party for any reason, including to join another,
+ * cashes the haul out in full between floors and fails it (the fail share) on a floor. An owner who leaves a
+ * floor in progress fails the dungeon for everyone.
  */
 public final class JoinFromDungeonGameTest {
 
     @GameTest(maxTicks = 20)
-    public void aRiderWhoJoinsAnotherPartyMidFloorForfeitsTheirHaul(GameTestHelper helper) {
+    public void aRiderWhoJoinsAnotherPartyMidFloorFailsTheirHaul(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -35,7 +35,7 @@ public final class JoinFromDungeonGameTest {
             helper.assertTrue(InstanceRegistry.byMember.get(owner.getUUID()) == record, "the owner's run goes on");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the rider's haul is settled");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 10, "the owner's haul is untouched");
-            helper.assertValueEqual(banked(log, rider), bankedBefore, "mid-floor the haul is forfeit: nothing banked");
+            helper.assertValueEqual(banked(log, rider) - bankedBefore, 5, "on a floor it fails: half of 10 banks");
         } finally {
             unregister(slot, owner, rider);
         }
@@ -61,17 +61,17 @@ public final class JoinFromDungeonGameTest {
             helper.assertTrue(!InstanceRegistry.byMember.containsKey(rider.getUUID()), "and so is the rider");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 0, "the owner's haul is settled");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "so is the rider's");
-            helper.assertValueEqual(banked(log, owner), ownerBefore, "the owner forfeits");
-            helper.assertValueEqual(banked(log, rider) - riderBefore, 3, "the rider keeps the fail share: half of 6");
+            helper.assertValueEqual(banked(log, owner) - ownerBefore, 5, "the owner fails too: half of 10");
+            helper.assertValueEqual(banked(log, rider) - riderBefore, 3, "and so does the rider: half of 6");
         } finally {
             unregister(slot, owner, rider);
         }
         helper.succeed();
     }
 
-    /** A rider who walks out of a floor in progress forfeits their haul; the run goes on. */
+    /** A rider who walks out of a floor in progress fails their haul; the run goes on. */
     @GameTest(maxTicks = 20)
-    public void aRiderLeavingMidFloorForfeitsTheirHaul(GameTestHelper helper) {
+    public void aRiderLeavingMidFloorFailsTheirHaul(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -84,7 +84,7 @@ public final class JoinFromDungeonGameTest {
         try {
             helper.assertTrue(RunLifecycle.exit(rider, RunLifecycle.ExitReason.COMMAND), "the rider leaves");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the haul is settled at once, not at next login");
-            helper.assertValueEqual(banked(log, rider), before, "and forfeit: nothing banked");
+            helper.assertValueEqual(banked(log, rider) - before, 5, "on a floor it fails: half of 10 banks");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 10, "the owner's haul is untouched");
             helper.assertTrue(InstanceRegistry.byMember.get(owner.getUUID()) == record, "the run goes on");
         } finally {
@@ -161,9 +161,9 @@ public final class JoinFromDungeonGameTest {
         helper.succeed();
     }
 
-    /** A rider who loses their connection mid-floor is not in the party when the owner ends the run: no pay. */
+    /** A rider who loses their connection on a floor fails, like any other way of leaving. */
     @GameTest(maxTicks = 20)
-    public void aRiderWhoDropsMidFloorForfeits(GameTestHelper helper) {
+    public void aRiderWhoDropsMidFloorFails(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -175,7 +175,7 @@ public final class JoinFromDungeonGameTest {
         try {
             RunLifecycle.dropMember(server, record, rider.getUUID(), rider, "member disconnected", true);
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the haul is gone");
-            helper.assertValueEqual(banked(log, rider), before, "and not banked");
+            helper.assertValueEqual(banked(log, rider) - before, 5, "half of 10 banks, the rest is lost");
             helper.assertTrue(!record.members.containsKey(rider.getUUID()), "the rider is out of the party");
         } finally {
             unregister(slot, owner, rider);
@@ -205,9 +205,9 @@ public final class JoinFromDungeonGameTest {
         helper.succeed();
     }
 
-    /** An owner who never comes back mid-floor forfeits; the riders still here keep the fail share. */
+    /** An owner who never comes back on a floor fails the dungeon for everyone. */
     @GameTest(maxTicks = 20)
-    public void anOwnerWhoNeverReturnsMidFloorForfeits(GameTestHelper helper) {
+    public void anOwnerWhoNeverReturnsMidFloorFailsTheDungeon(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -222,9 +222,9 @@ public final class JoinFromDungeonGameTest {
         int riderBefore = banked(log, rider);
         try {
             helper.assertTrue(RunLifecycle.watchOwnerGrace(server, record, Long.MAX_VALUE), "the run ends");
-            helper.assertValueEqual(banked(log, owner), ownerBefore, "the owner forfeits");
+            helper.assertValueEqual(banked(log, owner) - ownerBefore, 5, "the owner fails: half of 10");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 0, "their haul is gone");
-            helper.assertValueEqual(banked(log, rider) - riderBefore, 4, "the rider keeps the fail share: half of 8");
+            helper.assertValueEqual(banked(log, rider) - riderBefore, 4, "the rider fails: half of 8");
         } finally {
             unregister(slot, owner, rider);
         }
