@@ -1,5 +1,6 @@
 {
   "name": "Prismarine",
+  "token": { "mat": "minecraft:prismarine" },
   "act": 3,
   "baseLevel": 13,
   "kind": "dungeon",

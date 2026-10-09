@@ -316,6 +316,9 @@ for ((taskName, testClass) in mapOf(
     "effectCapsTest" to "EffectCapsTest",
     // Design pass 2026-10-09 (Q7): the trip sidebar lines.
     "sidebarLinesTest" to "SidebarLinesTest",
+    // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
+    "hallLayoutTest" to "HallLayoutTest",
+    "hallDataTest" to "HallDataTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
@@ -429,6 +432,8 @@ tasks.test {
     dependsOn("floorNotesTest")
     dependsOn("effectCapsTest")
     dependsOn("sidebarLinesTest")
+    dependsOn("hallLayoutTest")
+    dependsOn("hallDataTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
     dependsOn("plateRelayTest")

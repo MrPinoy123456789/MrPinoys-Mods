@@ -1,5 +1,6 @@
 {
   "name": "Copper Works",
+  "token": { "mat": "minecraft:copper_block" },
   "notes": "A copper forge full of coal and iron. Smelt as you go.",
   "act": 2,
   "baseLevel": 8,

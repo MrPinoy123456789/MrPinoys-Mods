@@ -323,6 +323,13 @@ public final class PocketDungeonsConfig {
     private static int witherMaxSeconds = 8;
     /** The trip sidebar (Q7): shown at all, and the ticks between repaints. */
     private static boolean sidebarEnabled = true;
+    /**
+     * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
+     * to pick an act and open any of its dungeons. Off restores the old three random doors.
+     */
+    private static boolean hallEnabled = true;
+    /** What a repeat finish of a dungeon pays of the finish emeralds, as a percent (the first finish pays all). */
+    private static int repeatFinishEmeraldPercent = 50;
     private static int sidebarRepaintTicks = 20;
     private static int slownessMaxSeconds = 6;
     private static int miningFatigueMaxSeconds = 30;
@@ -662,6 +669,14 @@ public final class PocketDungeonsConfig {
         return witherMaxSeconds;
     }
 
+    public static boolean hallEnabled() {
+        return hallEnabled;
+    }
+
+    public static int repeatFinishEmeraldPercent() {
+        return repeatFinishEmeraldPercent;
+    }
+
     public static boolean sidebarEnabled() {
         return sidebarEnabled;
     }
@@ -807,6 +822,8 @@ public final class PocketDungeonsConfig {
         poisonMaxSeconds = 10;
         witherMaxSeconds = 8;
         sidebarEnabled = true;
+        hallEnabled = true;
+        repeatFinishEmeraldPercent = 50;
         sidebarRepaintTicks = 20;
         slownessMaxSeconds = 6;
         miningFatigueMaxSeconds = 30;
@@ -1034,6 +1051,9 @@ public final class PocketDungeonsConfig {
         witherMaxSeconds = readInt(root, "witherMaxSeconds", 8, v -> v >= 0 && v <= 600,
                 "must be 0 (off) to 600");
         sidebarEnabled = readBoolean(root, "sidebarEnabled", true);
+        hallEnabled = readBoolean(root, "hallEnabled", true);
+        repeatFinishEmeraldPercent = readInt(root, "repeatFinishEmeraldPercent", 50, v -> v >= 0 && v <= 100,
+                "must be 0 to 100");
         sidebarRepaintTicks = readInt(root, "sidebarRepaintTicks", 20, v -> v >= 5 && v <= 100,
                 "must be 5 to 100");
         slownessMaxSeconds = readInt(root, "slownessMaxSeconds", 6, v -> v >= 0 && v <= 600,
@@ -1357,6 +1377,8 @@ public final class PocketDungeonsConfig {
         root.addProperty("poisonMaxSeconds", 10);
         root.addProperty("witherMaxSeconds", 8);
         root.addProperty("sidebarEnabled", true);
+        root.addProperty("hallEnabled", true);
+        root.addProperty("repeatFinishEmeraldPercent", 50);
         root.addProperty("sidebarRepaintTicks", 20);
         root.addProperty("slownessMaxSeconds", 6);
         root.addProperty("miningFatigueMaxSeconds", 30);

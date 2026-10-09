@@ -477,18 +477,33 @@ final class RitualListener {
             Chime.refused(player);
             return;
         }
+        boolean hall = HallRoom.isHallStaging(record);
+        if (hall) {
+            // A locked door answers with why, and nothing is selected or previewed.
+            String lock = HallOffers.lockedMessage(player.level().getServer(), record, step);
+            if (lock != null) {
+                Chime.doorLocked(player);
+                DungeonScreen.updateDoor((ServerLevel) player.level(), record, DungeonScreen.refusalContent(lock));
+                player.sendOverlayMessage(Component.literal(lock).withStyle(ChatFormatting.YELLOW));
+                return;
+            }
+        }
         int previous = record.floor.selectedStep;
         record.floor.selectedStep = step;
         ServerLevel level = (ServerLevel) player.level();
         BlockPos o = record.stagingCellOrigin;
         DoorMask.Direction wall = record.roomDungeonDoor;
-        if (previous >= 1 && previous <= 3 && previous != step) {
-            RoomTemplateGenerator.setBulb(level, o, wall,
-                    RoomTemplateGenerator.bulbAlongForStep(previous), false);
-        }
-        if (step != previous) {
-            RoomTemplateGenerator.setBulb(level, o, wall,
-                    RoomTemplateGenerator.bulbAlongForStep(step), true);
+        if (hall) {
+            HallRoom.paintBulbs(player.level().getServer(), level, record);
+        } else {
+            if (previous >= 1 && previous <= 3 && previous != step) {
+                RoomTemplateGenerator.setBulb(level, o, wall,
+                        RoomTemplateGenerator.bulbAlongForStep(previous), false);
+            }
+            if (step != previous) {
+                RoomTemplateGenerator.setBulb(level, o, wall,
+                        RoomTemplateGenerator.bulbAlongForStep(step), true);
+            }
         }
         // M56: generate the physical preview for this door. The preview
         // stamps only the entrance cell and replaces the door with a window.
@@ -496,13 +511,17 @@ final class RitualListener {
         if (!RunLifecycle.previewDoor(player, step)) {
             // Restore the previous selection state if the preview failed.
             record.floor.selectedStep = previous;
-            if (previous >= 1 && previous <= 3 && previous != step) {
-                RoomTemplateGenerator.setBulb(level, o, wall,
-                        RoomTemplateGenerator.bulbAlongForStep(previous), true);
-            }
-            if (step != previous) {
-                RoomTemplateGenerator.setBulb(level, o, wall,
-                        RoomTemplateGenerator.bulbAlongForStep(step), false);
+            if (hall) {
+                HallRoom.paintBulbs(player.level().getServer(), level, record);
+            } else {
+                if (previous >= 1 && previous <= 3 && previous != step) {
+                    RoomTemplateGenerator.setBulb(level, o, wall,
+                            RoomTemplateGenerator.bulbAlongForStep(previous), true);
+                }
+                if (step != previous) {
+                    RoomTemplateGenerator.setBulb(level, o, wall,
+                            RoomTemplateGenerator.bulbAlongForStep(step), false);
+                }
             }
             // Show why this door cannot be previewed. The doorRefusal
             // method knows the exact reason (a scrap cost or a finished run).
@@ -517,11 +536,15 @@ final class RitualListener {
                         DungeonScreen.refusalContent(refusal));
             } else {
                 DungeonScreen.updateDoor(level, record,
-                        previous >= 1 && previous <= 3
+                        previous >= 1
                                 ? DungeonScreen.previewContent(level, record, previous)
                                 : DungeonScreen.idleContent(level, record.owner));
             }
             return;
+        }
+        if (hall) {
+            // The preview re-armed the row on its way in, so draw the selection again.
+            HallRoom.paintBulbs(player.level().getServer(), level, record);
         }
         DungeonScreen.updateDoor(level, record, DungeonScreen.previewContent(level, record, step));
         Chime.doorSelected(player, step);
@@ -575,6 +598,12 @@ final class RitualListener {
         }
         if (record.interval.finished || offers.length == 0) {
             return "The dungeon is cleared. Pull the HOME lever.";
+        }
+        if (HallRoom.isHallStaging(record)) {
+            String lock = HallOffers.lockedMessage(player.level().getServer(), record, step);
+            if (lock != null) {
+                return lock;
+            }
         }
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
         int cost = offer.cost();

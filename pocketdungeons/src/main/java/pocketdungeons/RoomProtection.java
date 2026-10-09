@@ -405,6 +405,20 @@ final class RoomProtection {
         if (perp == doorPlane && along >= 7 && along <= 9 && (y == 1 || y == 2)) {
             return true;
         }
+        // The Astrolabe Room's row (design pass 2026-10-09, Q1): its doors, the name sign standing in front of
+        // each and its bulb. Their places are fixed, so the protection does not need to know which are in use.
+        if (HallLayout.isHallAlong(RoomGeometry.mirrorsAlong(wall), along)) {
+            int inwardPlane = (doorPlane == 1) ? 2 : RoomGeometry.CELL - 3;
+            if (perp == doorPlane && (y == 1 || y == 2)) {
+                return true;
+            }
+            if (perp == inwardPlane && y == 1) {
+                return true;
+            }
+            if (perp == wallPlane && y == 3) {
+                return true;
+            }
+        }
         // PD-70: the levers and the go-home control are placed viewer-relative
         // (RoomGeometry.viewerAlong), so test them in the same frame.
         int seen = RoomGeometry.viewerAlong(wall, along);

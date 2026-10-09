@@ -1,5 +1,6 @@
 {
   "name": "Basalt Foundry",
+  "token": { "mat": "minecraft:polished_basalt" },
   "act": 4,
   "baseLevel": 16,
   "kind": "dungeon",

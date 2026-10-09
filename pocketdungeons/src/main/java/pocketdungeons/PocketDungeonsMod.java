@@ -48,6 +48,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         PressureSources.register();
         EffectCaps.register();
         SidebarDisplay.register();
+        HallRoom.register();
         CapstoneFights.register();
         DungeonDrops.register();
         ContentModuleLoader.register();

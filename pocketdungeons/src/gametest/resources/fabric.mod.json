@@ -34,6 +34,7 @@
       "pocketdungeons.DurabilityKnobGameTest",
       "pocketdungeons.EffectCapsGameTest",
       "pocketdungeons.JoinFromDungeonGameTest",
+      "pocketdungeons.HallRoomGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

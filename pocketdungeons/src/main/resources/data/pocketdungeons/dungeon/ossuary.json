@@ -1,5 +1,6 @@
 {
   "name": "Ossuary",
+  "token": { "mat": "minecraft:bone_block" },
   "notes": "A catacomb of skeletons. Bone meal, coal and iron.",
   "act": 1,
   "baseLevel": 4,

@@ -1,5 +1,6 @@
 {
   "name": "The Spawner Dungeon",
+  "token": { "mat": "minecraft:mossy_cobblestone" },
   "notes": "Spawners everywhere. Three floors to the brood.",
   "act": 1,
   "baseLevel": 5,

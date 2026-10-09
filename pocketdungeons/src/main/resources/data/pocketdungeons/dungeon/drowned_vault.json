@@ -1,5 +1,6 @@
 {
   "name": "Drowned Vault",
+  "token": { "mat": "minecraft:dark_prismarine" },
   "act": 3,
   "baseLevel": 15,
   "kind": "capstone",

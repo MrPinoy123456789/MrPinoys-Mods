@@ -453,12 +453,137 @@ final class RoomTemplateGenerator {
         }
     }
 
-    /** Clears the three selector doors placed by {@link #placeSelectorDoors}. */
+    /** Clears the three selector doors placed by {@link #placeSelectorDoors}, and the Astrolabe Room's row if one stood. */
     static void clearSelectorDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         for (int pos : SELECTOR_DOORS) {
             BlockPos lower = selectorDoorPos(o, wall, pos);
             RoomBuilder.set(level, lower, Blocks.AIR.defaultBlockState());
             RoomBuilder.set(level, lower.above(), Blocks.AIR.defaultBlockState());
+        }
+        clearHallRow(level, o, wall, false);
+    }
+
+    // ---- the Astrolabe Room's door row (design pass 2026-10-09, Q1) -------------------------------
+
+    private static final Identifier DOOR_LOCKED = Identifier.parse("minecraft:iron_door");
+    private static final BlockState BULB_OXIDIZED_LIT = BuiltInRegistries.BLOCK.getValue(
+            Identifier.parse("minecraft:oxidized_copper_bulb")).defaultBlockState()
+            .setValue(CopperBulbBlock.LIT, true);
+    private static final Identifier SIGN_BLOCK = Identifier.parse("minecraft:oak_sign");
+
+    /** What a hall door is made of: an oak door, an iron door while it is locked, a crimson door for an operator's offer. */
+    enum HallDoorKind { OPEN, LOCKED, EXPERIMENTAL }
+
+    /** A hall bulb's look: dark, lit copper, or lit oxidized copper (a finished dungeon wears patina). */
+    enum HallBulb { DARK, LIT, PATINA }
+
+    /** Every absolute position along the wall a hall door or a default selector door may stand on. */
+    static int[] hallCandidateAlongs(DoorMask.Direction wall) {
+        int[] out = new int[SELECTOR_DOORS.length + HallLayout.DOOR_SPACES.length + HallLayout.SPECIAL_SPACES.length];
+        int n = 0;
+        for (int along : SELECTOR_DOORS) {
+            out[n++] = along;
+        }
+        for (int rel : HallLayout.DOOR_SPACES) {
+            out[n++] = viewerAlong(wall, rel);
+        }
+        for (int rel : HallLayout.SPECIAL_SPACES) {
+            out[n++] = viewerAlong(wall, rel);
+        }
+        return out;
+    }
+
+    /** Whether {@code along} is a place a hall door can stand on this wall. */
+    static boolean isHallAlong(DoorMask.Direction wall, int along) {
+        return HallLayout.isHallAlong(RoomGeometry.mirrorsAlong(wall), along);
+    }
+
+    /** The lower half of the hall door at {@code along}. */
+    static BlockPos hallDoorPos(BlockPos o, DoorMask.Direction wall, int along) {
+        return selectorDoorPos(o, wall, along);
+    }
+
+    /** One block in front of the hall door, at height {@code y}: where its doormat (y 0) and name sign (y 1) go. */
+    static BlockPos hallFrontPos(BlockPos o, DoorMask.Direction wall, int along, int y) {
+        return doorPlanePos(o, wall, along, y).relative(CellGeometry.facingIntoRoom(wall));
+    }
+
+    static void placeHallDoor(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, HallDoorKind kind) {
+        Identifier block = switch (kind) {
+            case OPEN -> DOOR_NONE;
+            case LOCKED -> DOOR_LOCKED;
+            case EXPERIMENTAL -> DOOR_OMINOUS;
+        };
+        placeDoor(level, hallDoorPos(o, wall, along), block, CellGeometry.facingIntoRoom(wall), DoorHingeSide.LEFT);
+    }
+
+    /** Sets the bulb over the hall door at {@code along}. */
+    static void setHallBulb(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, HallBulb bulb) {
+        RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), switch (bulb) {
+            case DARK -> BULB;
+            case LIT -> BULB_LIT;
+            case PATINA -> BULB_OXIDIZED_LIT;
+        });
+    }
+
+    /** The doormat: the dungeon's token block in the floor in front of its door. */
+    static void placeHallMat(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, BlockState mat) {
+        RoomBuilder.set(level, hallFrontPos(o, wall, along, 0), mat);
+    }
+
+    /** The name sign standing on the doormat, facing into the room, waxed so it cannot be edited. */
+    static void placeHallSign(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along, Component[] lines) {
+        BlockPos pos = hallFrontPos(o, wall, along, 1);
+        Direction facing = CellGeometry.facingIntoRoom(wall);
+        int rotation = switch (facing) {
+            case SOUTH -> 0;
+            case WEST -> 4;
+            case NORTH -> 8;
+            default -> 12;
+        };
+        BlockState state = BuiltInRegistries.BLOCK.getValue(SIGN_BLOCK).defaultBlockState()
+                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.ROTATION_16, rotation);
+        RoomBuilder.set(level, pos, state);
+        if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign)) {
+            PocketDungeonsMod.LOG.warn("The hall sign at {} did not come with a block entity", pos);
+            return;
+        }
+        SignText text = new SignText().setColor(DyeColor.WHITE).setHasGlowingText(true);
+        for (int i = 0; i < Math.min(4, lines.length); i++) {
+            text = text.setMessage(i, lines[i]);
+        }
+        sign.setText(text, true);
+        sign.setWaxed(true);
+        sign.setChanged();
+    }
+
+    /**
+     * Takes the Astrolabe Room's row out: every candidate door (air), the bulb above it (back to wall), the
+     * sign in front of it (air) and the doormat (back to floor). {@code bulbsToo} false leaves the bulb course
+     * alone, for the callers that clear the doors on their own.
+     */
+    static void clearHallRow(ServerLevel level, BlockPos o, DoorMask.Direction wall, boolean bulbsToo) {
+        BlockState wallBlock = RoomBuilder.shellWallAt(level, o);
+        for (int along : hallCandidateAlongs(wall)) {
+            if (!isHallAlong(wall, along) && !(along >= 7 && along <= 9)) {
+                continue;
+            }
+            BlockPos lower = hallDoorPos(o, wall, along);
+            if (isHallAlong(wall, along)) {
+                // Only the hall's own places: the default doors at 7 to 9 are the caller's.
+                RoomBuilder.set(level, lower, RoomBuilder.AIR);
+                RoomBuilder.set(level, lower.above(), RoomBuilder.AIR);
+                if (level.getBlockState(hallFrontPos(o, wall, along, 1)).getBlock() instanceof net.minecraft.world.level.block.StandingSignBlock) {
+                    RoomBuilder.set(level, hallFrontPos(o, wall, along, 1), RoomBuilder.AIR);
+                    level.removeBlockEntity(hallFrontPos(o, wall, along, 1));
+                }
+                if (!level.getBlockState(hallFrontPos(o, wall, along, 0)).equals(RoomBuilder.FLOOR)) {
+                    RoomBuilder.set(level, hallFrontPos(o, wall, along, 0), RoomBuilder.FLOOR);
+                }
+            }
+            if (bulbsToo) {
+                RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), wallBlock);
+            }
         }
     }
 
@@ -764,6 +889,13 @@ final class RoomTemplateGenerator {
         BlockState wallBlock = RoomBuilder.shellWallAt(level, o);
         for (int along : SELECTOR_DOORS) {
             RoomBuilder.set(level, wallRingPos(o, wall, along, BULB_Y), wallBlock);
+        }
+        // The Astrolabe Room's bulbs stand on the same course (design pass 2026-10-09, Q1).
+        for (int rel : HallLayout.DOOR_SPACES) {
+            RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, rel), BULB_Y), wallBlock);
+        }
+        for (int rel : HallLayout.SPECIAL_SPACES) {
+            RoomBuilder.set(level, wallRingPos(o, wall, viewerAlong(wall, rel), BULB_Y), wallBlock);
         }
     }
 

@@ -1,5 +1,6 @@
 {
   "name": "Blackstone",
+  "token": { "mat": "minecraft:gilded_blackstone" },
   "act": 4,
   "baseLevel": 18,
   "kind": "dungeon",

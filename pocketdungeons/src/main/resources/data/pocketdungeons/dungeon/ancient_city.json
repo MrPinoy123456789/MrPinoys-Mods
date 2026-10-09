@@ -1,5 +1,6 @@
 {
   "name": "Ancient City",
+  "token": { "mat": "minecraft:sculk" },
   "notes": "Sculk hears every step. Deepslate ore for the quiet.",
   "act": 2,
   "baseLevel": 12,

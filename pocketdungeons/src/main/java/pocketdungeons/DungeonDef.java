@@ -42,7 +42,19 @@ import java.util.function.ToIntFunction;
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
                   List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
-                  int baseLevel, String notes) {
+                  int baseLevel, String notes, String hall, String tokenMat) {
+
+    /**
+     * A dungeon that stands in its act's row (hall {@code act}) with no doormat token: the shape this record
+     * had before the Astrolabe Room.
+     */
+    DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
+               List<String> nodePalette, String merchant, String diary, Deviation deviation,
+               List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
+               int baseLevel, String notes) {
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
+                hiddenOre, minNodeRooms, baseLevel, notes, HallLayout.HALL_ACT, "");
+    }
 
     /** A dungeon with no note: the shape this record had before dungeon notes. */
     DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
@@ -719,6 +731,17 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
         String merchant = optionalString(obj, "merchant");
         String diary = optionalString(obj, "diary");
+        String hall = optionalString(obj, "hall");
+        if (hall == null || hall.isBlank()) {
+            hall = HallLayout.HALL_ACT;
+        }
+        if (!hall.equals(HallLayout.HALL_ACT) && !hall.equals(HallLayout.HALL_SPECIAL)) {
+            throw new IllegalArgumentException(id + ": hall must be act or special: " + hall);
+        }
+        String tokenMat = "";
+        if (obj.has("token") && obj.get("token").isJsonObject()) {
+            tokenMat = blockId(requiredString(obj.getAsJsonObject("token"), "mat"));
+        }
         int minNodeRooms = obj.has("minNodeRooms") ? requiredInt(obj, "minNodeRooms") : 0;
         int baseLevel = requiredInt(obj, "baseLevel");
 
@@ -790,7 +813,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
                 deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel,
-                checkedNotes(optionalString(obj, "notes"), "dungeon " + id));
+                checkedNotes(optionalString(obj, "notes"), "dungeon " + id), hall, tokenMat);
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */

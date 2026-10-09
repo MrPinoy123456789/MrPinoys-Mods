@@ -1,5 +1,6 @@
 {
   "name": "The End",
+  "token": { "mat": "minecraft:end_stone" },
   "act": 5,
   "baseLevel": 23,
   "kind": "dungeon",

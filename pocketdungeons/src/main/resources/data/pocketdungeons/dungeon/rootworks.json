@@ -1,5 +1,6 @@
 {
   "name": "Lush Caves",
+  "token": { "mat": "minecraft:moss_block" },
   "notes": "Sand, clay, wood and iron under glowing roots.",
   "act": 1,
   "baseLevel": 1,

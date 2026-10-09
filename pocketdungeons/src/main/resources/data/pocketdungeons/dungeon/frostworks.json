@@ -1,5 +1,6 @@
 {
   "name": "Frostworks",
+  "token": { "mat": "minecraft:blue_ice" },
   "notes": "Ice and powder snow. Iron, lapis and diamond.",
   "act": 2,
   "baseLevel": 10,

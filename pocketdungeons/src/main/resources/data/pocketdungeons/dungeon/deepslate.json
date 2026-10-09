@@ -1,5 +1,6 @@
 {
   "name": "Deepslate",
+  "token": { "mat": "minecraft:polished_deepslate" },
   "notes": "Deep ore: iron, lapis, redstone and a chance of diamond.",
   "act": 2,
   "baseLevel": 6,

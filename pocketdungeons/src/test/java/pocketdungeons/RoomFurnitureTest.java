@@ -94,18 +94,20 @@ public class RoomFurnitureTest {
                 && RoomTemplateGenerator.HOME_BULB_Y == 4, "placement constants match the protected positions");
         check(isFurniture(doorPlane(wall, seen(wall, 2), 2), wall), "home lever " + wall);
         check(isFurniture(doorPlane(wall, seen(wall, 2), 3), wall), "home sign " + wall);
-        check(!isFurniture(doorPlane(wall, seen(wall, 2), 1), wall), "nothing under the home lever " + wall);
-        // Playtest 2026-09-29 (A5): the door row between the home lever and
-        // the nearest selector door is empty, at least three blocks of it on
-        // every wall, so reaching for a door never lands on the lever.
-        for (int along = 3; along <= 5; along++) {
-            check(!isFurniture(doorPlane(wall, seen(wall, along), 2), wall),
-                    "the clear row between the home lever and the doors " + wall + " " + along);
-        }
+        // The Astrolabe Room's row (design pass 2026-10-09) protects its own door places, which include the
+        // ones the home control uses in a cleared floor's staging room. The two never stand in the same room
+        // (the row is only in a trip's first staging room), so the protection does not tell them apart.
+        // Playtest 2026-09-29 (A5): the door row between the home lever and the nearest three-door selector
+        // door is still empty, at least four blocks of it on every wall, so a misclick never lands on the lever.
         int nearestDoor = RoomGeometry.mirrorsAlong(wall) ? seen(wall, 9) : 7;
         check(nearestDoor - RoomTemplateGenerator.HOME_LEVER_ALONG >= 4,
                 "home lever well clear of the doors " + wall);
-        check(!isFurniture(doorPlane(wall, seen(wall, 1), 2), wall), "beyond the home lever " + wall);
+        // The hall row: its doors (Y1..2), the sign in front of each (Y1, one block inward) and the bulbs (Y3).
+        for (int rel : HallLayout.DOOR_SPACES) {
+            check(isFurniture(doorPlane(wall, seen(wall, rel), 1), wall), "hall door " + wall + " " + rel);
+            check(isFurniture(doorPlane(wall, seen(wall, rel), 2), wall), "hall door top " + wall + " " + rel);
+            check(isFurniture(wallRing(wall, seen(wall, rel), 3), wall), "hall bulb " + wall + " " + rel);
+        }
         for (int along = 3; along <= 5; along++) {
             for (int y = 1; y <= 3; y++) {
                 check(isFurniture(wallRing(wall, seen(wall, along), y), wall), "home screen " + wall + " " + along + " " + y);
@@ -156,7 +158,12 @@ public class RoomFurnitureTest {
                         boolean selectorDoor = onDoorPlane && (y == 1 || y == 2) && along >= 7 && along <= 9;
                         boolean lever = onDoorPlane && y == 2 && (seenAlong == 10 || seenAlong == 2);
                         boolean sign = onDoorPlane && y == 3 && (seenAlong == 10 || seenAlong == 2);
-                        if (!selectorDoor && !lever && !sign) {
+                        // The Astrolabe Room's row: its doors on the door plane and the sign one block inward.
+                        boolean hallAlong = HallLayout.isHallAlong(RoomGeometry.mirrorsAlong(wall), along);
+                        boolean hallDoor = onDoorPlane && (y == 1 || y == 2) && hallAlong;
+                        int inward = doorPlaneOf(wall) == 1 ? 2 : RoomGeometry.CELL - 3;
+                        boolean hallSign = perp == inward && y == 1 && hallAlong;
+                        if (!selectorDoor && !lever && !sign && !hallDoor && !hallSign) {
                             throw new AssertionError("interior should never be furniture: "
                                     + wall + " at " + x + "," + y + "," + z);
                         }
@@ -176,9 +183,11 @@ public class RoomFurnitureTest {
     private static void testPreviewSideWindowIsClear(DoorMask.Direction wall) {
         int along = RoomBuilder.PREVIEW_WINDOW_ALONG;
         check(along < RoomGeometry.DOOR_MIN, "side window beside the door slot, not in it");
-        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
+        // The Astrolabe Room's row (design pass 2026-10-09) stands a door and a bulb at this column on every
+        // wall (space 6 or 9 of its pattern), so the window's top course holds a bulb and a door stands in
+        // front of it. The wall column below the bulb stays clear, and the doorway slot itself is the view.
+        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT - 1; y++) {
             check(!isFurniture(wallRing(wall, along, y), wall), "side window clear in the wall " + wall + " " + y);
-            check(!isFurniture(doorPlane(wall, along, y), wall), "side window clear in front " + wall + " " + y);
         }
     }
 

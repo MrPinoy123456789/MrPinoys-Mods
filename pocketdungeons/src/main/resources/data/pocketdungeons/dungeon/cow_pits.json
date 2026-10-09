@@ -1,5 +1,6 @@
 {
   "name": "Cow Pits",
+  "token": { "mat": "minecraft:hay_block" },
   "notes": "A barn of numbered cows: beef, leather and a mine below.",
   "act": 2,
   "baseLevel": 6,

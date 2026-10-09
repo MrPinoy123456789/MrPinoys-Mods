@@ -290,7 +290,9 @@ final class DungeonScreen {
                     Component.literal("Cleared\nPull the HOME lever").withStyle(ChatFormatting.GREEN));
         }
         Component title = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD);
-        String hint = "Right-click a door to preview\nPull the lever to start";
+        String hint = tripRecord != null && HallRoom.isHallStaging(tripRecord)
+                ? "Right-click a door to look inside\nTurn the astrolabe to change act\nPull the lever to start"
+                : "Right-click a door to preview\nPull the lever to start";
         if (tripRecord != null && TripView.def(tripRecord) != null) {
             title = Component.literal(TripView.dungeonName(tripRecord).toUpperCase()).withStyle(ChatFormatting.GOLD);
         } else if (level != null && owner != null
@@ -339,7 +341,7 @@ final class DungeonScreen {
                 continue;
             }
             int step = record.floor.selectedStep;
-            updateDoor(level, record, step >= 1 && step <= 3 && record.floor.previewPlan != null
+            updateDoor(level, record, step >= 1 && step <= 8 && record.floor.previewPlan != null
                     ? previewContent(level, record, step)
                     : idleContent(level, record.owner));
         }
@@ -918,7 +920,7 @@ final class DungeonScreen {
      * back with, so the encoded shape is correct by construction. Since 1.21.5
      * this field is an NBT object, not a JSON string.
      */
-    private static Tag encodeText(ServerLevel level, Component message) {
+    static Tag encodeText(ServerLevel level, Component message) {
         DynamicOps<Tag> ops = level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
         return ComponentSerialization.CODEC.encodeStart(ops, message)
                 .resultOrPartial(err -> PocketDungeonsMod.LOG.warn(
@@ -927,7 +929,7 @@ final class DungeonScreen {
     }
 
     /** The 4x4 matrix form of a uniform scale, row-major as {@code MATRIX4F} expects. */
-    private static ListTag scaleTransformation(float scale) {
+    static ListTag scaleTransformation(float scale) {
         ListTag matrix = new ListTag();
         for (int i = 0; i < 16; i++) {
             int row = i >> 2;

@@ -1,5 +1,7 @@
 {
   "name": "Endless Mine",
+  "hall": "special",
+  "token": { "mat": "minecraft:cobbled_deepslate" },
   "act": 1,
   "baseLevel": 1,
   "kind": "endless",

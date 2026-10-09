@@ -806,6 +806,13 @@ final class DungeonCommands {
         if (level == null) {
             return 0;
         }
+        if (HallRoom.isHallStaging(record)) {
+            // Doors are chosen now, not dealt.
+            player.sendSystemMessage(Component.literal(
+                    "The doors are no longer dealt. Turn the astrolabe to change act, then open a door.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
         Instances.clearPreview(level, record, true);
         record.floor.selectedStep = 0;
         record.interval.doorReroll++;

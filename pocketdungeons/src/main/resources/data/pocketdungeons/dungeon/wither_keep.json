@@ -1,5 +1,6 @@
 {
   "name": "The Wither's Keep",
+  "token": { "mat": "minecraft:soul_sand" },
   "act": 4,
   "baseLevel": 20,
   "kind": "capstone",

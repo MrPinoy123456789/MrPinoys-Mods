@@ -626,7 +626,9 @@ final class Instances {
         DungeonScreen.updateHistory(level, record);
 
         player.sendSystemMessage(Component.literal(
-                "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
+                PocketDungeonsConfig.hallEnabled()
+                        ? "Choose a dungeon. Turn the astrolabe to change act."
+                        : "Three doors. Choose one to open a run.").withStyle(ChatFormatting.GOLD));
 
         return true;
     }
@@ -979,6 +981,9 @@ final class Instances {
                 return null;
             }
         }
+        if (HallRoom.isHallStaging(record)) {
+            return HallRoom.slotAt(player.level().getServer(), record, along);
+        }
         return switch (along) {
             case 7 -> 1;
             case 8 -> 2;
@@ -1011,6 +1016,10 @@ final class Instances {
      */
     static void hideLockedDoors(ServerLevel level, BlockPos o, DoorMask.Direction wall, UUID owner) {
         if (level == null || o == null || wall == null || owner == null) {
+            return;
+        }
+        // The first staging room of a trip is the Astrolabe Room: its own row replaces the three doors.
+        if (HallRoom.armFor(level, o, wall, owner)) {
             return;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(owner);
@@ -1348,9 +1357,11 @@ final class Instances {
         // the slot back to wall (the clear already put the bedrock behind it).
         RoomBuilder.sealDoor(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor));
         sealPreviewSideWindow(level, record.stagingCellOrigin, record.roomDungeonDoor);
-        RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
-                record.roomDungeonDoor);
-        hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
+        if (!HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner)) {
+            RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
+                    record.roomDungeonDoor);
+            hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
+        }
         record.floor.previewPlan = null;
         record.floor.previewCellOrigin = null;
         record.floor.previewNodes.clear();
@@ -1633,6 +1644,7 @@ final class Instances {
         RoomBuilder.sealPreviewSideWindowLikeBeside(level, entranceOrigin,
                 mcDirection(CellGeometry.opposite(dungeonDoor)));
         RoomTemplateGenerator.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
+        HallRoom.dismantle(level, stagingOrigin, dungeonDoor);
         RoomTemplateGenerator.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
         // The choosing is over, and so is the way home from this checkpoint.
         RoomTemplateGenerator.clearHomeControl(level, stagingOrigin, dungeonDoor);
@@ -1767,6 +1779,11 @@ final class Instances {
         // interval and floor, and no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(lobbyLayout(safeOrigin));
+        // The interval is fresh now, so the staging room is a first staging room again.
+        if (record.stagingCellOrigin != null) {
+            HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
+            DungeonScreen.updateDoor(level, record, DungeonScreen.idleContent(level, record.owner));
+        }
     }
 
     // ---- exit ---------------------------------------------------------------

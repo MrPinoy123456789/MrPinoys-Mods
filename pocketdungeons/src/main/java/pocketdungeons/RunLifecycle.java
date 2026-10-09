@@ -425,7 +425,7 @@ final class RunLifecycle {
         if (server == null) {
             return false;
         }
-        if (step < 1 || step > 3) {
+        if (step < 1 || step > HallLayout.MAX_ACT_DOORS + HallLayout.MAX_SPECIALS) {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -570,6 +570,15 @@ final class RunLifecycle {
             return false;
         }
         Keystone.Offer offer = offers[step - 1];
+
+        // The Astrolabe Room: a locked door (compass short, capstone not yet open) cannot be committed.
+        if (HallRoom.isHallStaging(record)) {
+            String lock = HallOffers.lockedMessage(server, record, step);
+            if (lock != null) {
+                player.sendSystemMessage(Component.literal(lock).withStyle(ChatFormatting.RED));
+                return false;
+            }
+        }
 
         // Re-check the side branch's life cost at commit time, since a death may have
         // happened since the preview. Lives are the party's (the trip's omen), so whoever
@@ -1383,6 +1392,11 @@ final class RunLifecycle {
             DungeonProgress.onProgress(server, record, memberPlayer, true, first);
             // J1: the finish pays emeralds now; the echo shard is retired.
             int emeralds = PocketDungeonsConfig.finishEmeralds();
+            if (!first) {
+                // Design pass 2026-10-09 (Q1): the picker lets a player replay a favourite, so a repeat finish
+                // pays a share of the emeralds. The vault and the diary page are first finish only.
+                emeralds = emeralds * PocketDungeonsConfig.repeatFinishEmeraldPercent() / 100;
+            }
             String diaryId = "";
             if (emeralds > 0) {
                 Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, emeralds));
@@ -1424,6 +1438,7 @@ final class RunLifecycle {
         BlockPos oldStagingOrigin = record.stagingCellOrigin;
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
         RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
+        HallRoom.dismantle(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
                 e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
             leftover.discard();
@@ -2002,6 +2017,7 @@ final class RunLifecycle {
         // the doorway is the way home now, and nothing here chooses a floor.
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
         RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
+        HallRoom.dismantle(level, record.stagingCellOrigin, dungeonDir);
         RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
         DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
 

@@ -63,6 +63,8 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 - **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
 - **Effect caps:** `poisonMaxSeconds` 10, `witherMaxSeconds` 8, `slownessMaxSeconds` 6, `miningFatigueMaxSeconds` 30 (0 = off): the longest
   each effect lasts on a player inside a dungeon (`EffectCaps`). Darkness is not capped (the shrieker uses it).
+- **Astrolabe Room:** `hallEnabled` true (off restores the three random doors at the first door), `repeatFinishEmeraldPercent` 50
+  (what a repeat finish of a dungeon pays of the finish emeralds; the first finish pays all).
 - **Trip sidebar:** `sidebarEnabled` true, `sidebarRepaintTicks` 20 (`SidebarDisplay`; players hide theirs with `/dungeon display off`).
 - **Capacity:** `maxPartyMembers` 6, `maxConcurrentInstances` 32, `maxConcurrentVisits` 16, `maxConcurrentPreviews` 16.
 - **Lemon timings:** `lemonFallbackSeconds` 45, `lemonThinkSeconds` 90, `lemonLlmLapseSeconds` 300, `lemonIdleSeconds` 20.

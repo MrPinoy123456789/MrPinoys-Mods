@@ -1,5 +1,6 @@
 {
   "name": "Infestation",
+  "token": { "mat": "minecraft:mossy_stone_bricks" },
   "notes": "Silverfish, webs and string. Coal and iron in gnawed veins.",
   "act": 1,
   "baseLevel": 2,

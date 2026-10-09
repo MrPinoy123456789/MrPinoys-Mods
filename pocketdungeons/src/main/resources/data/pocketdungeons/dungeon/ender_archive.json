@@ -1,5 +1,6 @@
 {
   "name": "Ender Archive",
+  "token": { "mat": "minecraft:bookshelf" },
   "act": 5,
   "baseLevel": 21,
   "kind": "dungeon",

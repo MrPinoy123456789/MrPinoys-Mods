@@ -168,6 +168,10 @@ final class Keystone {
                 && dungeons.byId(record.interval.dungeonId) != null) {
             DungeonDef def = dungeons.byId(record.interval.dungeonId);
             doors = TripDoors.dealNext(owner, def, record.interval.nodeId, record.interval.path.size());
+        } else if (PocketDungeonsConfig.hallEnabled()) {
+            // Design pass 2026-10-09 (Q1): the first staging room shows the dungeons of one act, chosen at the
+            // astrolabe, instead of three random doors.
+            return HallOffers.offers(server, record, owner, level);
         } else {
             DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
             java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
@@ -237,7 +241,7 @@ final class Keystone {
                 set -> NodeStamper.dealtAffixes(set, dungeonId, nodeId));
     }
 
-    private static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
+    static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
         DungeonDef def = dungeons.byId(door.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(door.nodeId());
         String theme = node == null ? null : node.overridesTheme() ? node.theme() : def.mainTheme();

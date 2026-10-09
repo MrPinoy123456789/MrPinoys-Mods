@@ -34,6 +34,14 @@ twice as likely), `nodes[]`, `edges[]`.
 - Resource-poor dungeons (Infestation, Ossuary, Lush Caves) get `hiddenOre` or ore rooms; a dungeon with
   neither never buries anything in walls, and its palette nodes are invisible (PD-161, PD-147 family).
 
+## Where a dungeon stands in the Astrolabe Room
+
+The first staging room shows one act's dungeons as a row of doors, in order of `baseLevel` (the compass they need),
+then by id. Every dungeon JSON carries `"token": { "mat": "minecraft:<block>" }`, the doormat laid in front of its
+door; give each dungeon a block nobody else uses (`HallDataTest` checks it is present and distinct). The row holds
+at most six dungeons per act. `"hall": "special"` (the Endless Mine only today) puts a dungeon at an end of the row
+once its own rule opens it, instead of in its act's row. A capstone shows an iron door until its act is finished.
+
 ## Dungeon and floor notes (the reason to choose a door)
 
 The small grey line at the bottom of the door board is the reason a player would pick this door over another

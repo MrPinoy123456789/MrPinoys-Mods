@@ -21,6 +21,13 @@ import java.util.UUID;
  */
 final class IntervalState {
 
+    /**
+     * The act the Astrolabe Room is showing (design pass 2026-10-09, Q1), or 0 before it has chosen one. Only
+     * the first staging room reads it; a new interval starts it at zero and the room opens on the act that
+     * holds the next door to take.
+     */
+    int hallAct;
+
     /** Floors cleared since the last safe visit. The next floor is {@code floorIndex + 1}. */
     int floorIndex;
 
