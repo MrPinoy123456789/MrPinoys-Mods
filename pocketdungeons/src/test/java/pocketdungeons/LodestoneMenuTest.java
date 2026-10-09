@@ -37,12 +37,13 @@ public class LodestoneMenuTest {
 
         // In-dungeon owner, no door chosen yet (lobby): Leave, Manage Room, Inspect Compass, Manage Party.
         List<DialogScreens.MenuOption> owner = DialogScreens.menuOptions(true, true, false);
-        check(owner.size(), 4, "in-dungeon owner menu (lobby) has four options");
+        check(owner.size(), 5, "in-dungeon owner menu (lobby) has five options");
         check(owner.get(0).label(), "Leave", "in-dungeon first is Leave");
         check(owner.get(0).action(), DialogScreens.ACTION_LEAVE_DUNGEON, "Leave carries its action id");
         check(owner.get(1).label(), "Manage Room", "the room's own owner sees Manage Room");
         check(owner.get(2).label(), "Inspect Compass", "in-dungeon third is Inspect Compass");
         check(owner.get(3).label(), "Manage Party", "the room's own owner sees Manage Party");
+        check(owner.get(4).label(), "View Lobbies", "a lobby owner can view lobbies");
 
         // In-dungeon owner, door chosen (mid-run): Quit Door appears after Leave.
         List<DialogScreens.MenuOption> ownerRun = DialogScreens.menuOptions(true, true, true);
@@ -77,8 +78,8 @@ public class LodestoneMenuTest {
         net.minecraft.server.dialog.Dialog dungeonDialog = DialogScreens.lodestoneMenuDialog(owner, player, true);
         check(dungeonDialog instanceof net.minecraft.server.dialog.MultiActionDialog, true,
                 "in-dungeon menu is a MultiActionDialog");
-        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 3,
-                "one button per in-dungeon owner option, Leave being the footer");
+        check(((net.minecraft.server.dialog.MultiActionDialog) dungeonDialog).actions().size(), 5,
+                "one button per in-dungeon owner option, Leave last");
 
         // PD-130: the listing and the whitelist are two lines, and a public
         // room never claims that nobody may enter.

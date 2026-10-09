@@ -85,6 +85,7 @@ final class DialogScreens {
     static final String ACTION_MANAGE_ROOM = "manage_room";
     static final String ACTION_INSPECT_KEYSTONE = "inspect_keystone";
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
+    static final String ACTION_LEAVE_CONFIRM = "leave_confirm";
     static final String ACTION_QUIT_DUNGEON = "quit_dungeon";
     static final String ACTION_QUIT_DUNGEON_CONFIRM = "quit_dungeon_confirm";
     /** Playtest 2026-10-03 (A2): the menu's Reset Key option opens {@link #resetKeyConfirm}. */
@@ -757,6 +758,10 @@ final class DialogScreens {
             options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
             if (roomOwner) {
                 options.add(new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY));
+                // From your own lobby you can look in on other rooms; mid-run you cannot.
+                if (!doorChosen) {
+                    options.add(new MenuOption("View Lobbies", null, ACTION_VIEW_LOBBIES));
+                }
             }
             return options;
         }
@@ -822,7 +827,7 @@ final class DialogScreens {
     static Dialog lodestoneMenuDialog(List<MenuOption> options, UUID owner, boolean inDungeon) {
         List<DialogBody> body = new ArrayList<>();
         List<ActionButton> buttons = new ArrayList<>();
-        // Leave sits alone in the footer, away from the list, so a stray tap does not end the run.
+        // Leave is last in the list and asks first; Esc only closes the menu.
         ActionButton leave = null;
         for (MenuOption option : options) {
             CompoundTag context = new CompoundTag();
@@ -835,8 +840,10 @@ final class DialogScreens {
                 buttons.add(button);
             }
         }
-        return DialogKit.list(inDungeon ? "Dungeon" : "Home", body, buttons,
-                leave != null ? leave : DialogKit.closeButton("Close"));
+        if (leave != null) {
+            buttons.add(leave);
+        }
+        return DialogKit.list(inDungeon ? "Dungeon" : "Home", body, buttons, DialogKit.closeButton("Close"));
     }
 
     /**
@@ -910,6 +917,15 @@ final class DialogScreens {
         buttons.add(DialogKit.button("Visitors", null, DialogKit.submit(ACTION_VISITORS, toggle)));
         buttons.add(DialogKit.button("Reset Room", null, DialogKit.submit(ACTION_RESET_ROOM_ASK, toggle)));
         return DialogKit.list("Your room", body, buttons, backToMenuButton(owner));
+    }
+
+    /** Leave asks first, so a stray tap does not end the run. */
+    static Dialog leaveConfirm(UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        return DialogKit.confirm("Leave?", List.of(),
+                DialogKit.button("Leave", null, DialogKit.submit(ACTION_LEAVE_CONFIRM, context)),
+                DialogKit.closeButton("Stay"));
     }
 
     /** The warning behind Reset Room. */
@@ -1061,10 +1077,13 @@ final class DialogScreens {
                         DialogKit.submit(ACTION_PARTY_INVITE, partyContext(owner, id))));
             }
         }
-        List<DialogBody> body = buttons.isEmpty()
-                ? List.of(DialogKit.text(Component.literal("Nobody else is online.").withStyle(ChatFormatting.GRAY)))
-                : List.of();
-        return DialogKit.list("Invite", body, buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
+        if (buttons.isEmpty()) {
+            // A dialog with no buttons cannot be sent at all, so an empty list is a plain notice.
+            return DialogKit.notice("Invite", List.of(DialogKit.text(
+                    Component.literal("Nobody else is online.").withStyle(ChatFormatting.GRAY))),
+                    backButton("Back", ACTION_MANAGE_PARTY, owner));
+        }
+        return DialogKit.list("Invite", List.of(), buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
     }
 
     /** Everyone banned, one tap to unban. */
@@ -1076,10 +1095,12 @@ final class DialogScreens {
             buttons.add(DialogKit.button("Unban " + displayName(server, id), null,
                     DialogKit.submit(ACTION_PARTY_UNBAN, partyContext(owner, id))));
         }
-        List<DialogBody> body = banned.isEmpty()
-                ? List.of(DialogKit.text(Component.literal("Nobody is banned.").withStyle(ChatFormatting.GRAY)))
-                : List.of();
-        return DialogKit.list("Banned", body, buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
+        if (buttons.isEmpty()) {
+            return DialogKit.notice("Banned", List.of(DialogKit.text(
+                    Component.literal("Nobody is banned.").withStyle(ChatFormatting.GRAY))),
+                    backButton("Back", ACTION_MANAGE_PARTY, owner));
+        }
+        return DialogKit.list("Banned", List.of(), buttons, backButton("Back", ACTION_MANAGE_PARTY, owner));
     }
 
     /**
@@ -1175,6 +1196,7 @@ final class DialogScreens {
 
         String heldUnlock = RoomBuilder.shellUnlockOf(player.getMainHandItem());
         List<ActionButton> buttons = new ArrayList<>();
+        List<ActionButton> lockedShells = new ArrayList<>();
         for (RoomBuilder.ShellPalette palette : RoomBuilder.shellOrder()) {
             String name = palette.name();
             if (RoomBuilder.isDefaultShell(name) || unlocked.contains(name)) {
@@ -1185,12 +1207,19 @@ final class DialogScreens {
                 buttons.add(shellButton(player.getUUID(), palette, "Unlock ",
                         "Consumes the token you are holding", ACTION_UNLOCK_SHELL));
             } else {
-                body.add(DialogKit.text(Component.literal(
-                        palette.displayName() + ": " + palette.unlockHint())
-                        .withStyle(ChatFormatting.GRAY)));
+                lockedShells.add(lockedButton(palette.displayName(), palette.unlockHint(), ACTION_CHANGE_SHELL,
+                        player.getUUID()));
             }
         }
+        buttons.addAll(lockedShells);
         return DialogKit.list("Change shell", body, buttons, backToMenuButton(player.getUUID()));
+    }
+
+    /** A grey button for something not found yet: it shows the hint and only re-opens its own screen. */
+    private static ActionButton lockedButton(String label, String hint, String action, UUID owner) {
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        return DialogKit.button("\u00a77" + label, hint, DialogKit.submit(action, context));
     }
 
     /** One shell button: Apply for an available palette, Unlock for a held token. */
@@ -1230,6 +1259,7 @@ final class DialogScreens {
         List<DialogBody> body = new ArrayList<>();
         body.add(DialogKit.text("Alex's diaries. Found out of order, on purpose."));
         List<ActionButton> buttons = new ArrayList<>();
+        List<String> locked = new ArrayList<>();
         for (Diaries.Entry diaryEntry : Diaries.current().entries()) {
             if (seen.contains(diaryEntry.band())) {
                 // Playtest 2026-10-02-1: reading opens the book screen, as if the
@@ -1240,8 +1270,7 @@ final class DialogScreens {
                 buttons.add(DialogKit.button("Entry " + diaryEntry.number() + ": " + diaryEntry.title(), null,
                         DialogKit.submit(ACTION_READ_DIARY, context)));
             } else {
-                body.add(DialogKit.text(Component.literal("Entry " + diaryEntry.number() + ": ???")
-                        .withStyle(ChatFormatting.GRAY)));
+                locked.add("Entry " + diaryEntry.number() + ": ???");
             }
         }
         // MultiActionDialog rejects an empty actions list ("List must have
@@ -1249,7 +1278,14 @@ final class DialogScreens {
         // with the Back button as its one action, the same shape the lobby
         // directory uses when nobody is listing a room.
         if (buttons.isEmpty()) {
+            for (String line : locked) {
+                body.add(DialogKit.text(Component.literal(line).withStyle(ChatFormatting.GRAY)));
+            }
             return DialogKit.notice("Diaries", body, backToMenuButton(owner));
+        }
+        // Found entries first; the ones still to find follow, grey, and only re-show this list.
+        for (String line : locked) {
+            buttons.add(lockedButton(line, null, ACTION_DIARIES, owner));
         }
         return DialogKit.list("Diaries", body, buttons, backToMenuButton(owner));
     }

@@ -111,6 +111,8 @@ public final class DialogRouter {
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             case DialogScreens.ACTION_INSPECT_KEYSTONE -> inspectKeystone(player);
             case DialogScreens.ACTION_LEAVE_DUNGEON ->
+                    DialogKit.show(player, DialogScreens.leaveConfirm(owner));
+            case DialogScreens.ACTION_LEAVE_CONFIRM ->
                     RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
             case DialogScreens.ACTION_QUIT_DUNGEON ->
                     DialogKit.show(player, DialogScreens.quitDoorConfirm());
@@ -524,10 +526,22 @@ public final class DialogRouter {
             reshowLobby(clicker, server, "The room owner is offline.");
             return;
         }
+        leaveOwnLobby(clicker);
         if (VisitService.visit(clicker, target)) {
             return; // teleported; the visit's own chat line is the confirmation
         }
         reshowLobby(clicker, server, "That room is not open any more.");
+    }
+
+    /**
+     * Visiting from your own lobby or party: a visit starts from outside a dungeon, so a player standing in
+     * a lobby (no run on) steps out of it first. A run in progress is left alone and the visit refuses.
+     */
+    private static void leaveOwnLobby(ServerPlayer clicker) {
+        InstanceRecord record = InstanceRegistry.byMember.get(clicker.getUUID());
+        if (record != null && !RunSession.isActive(record)) {
+            RunLifecycle.exit(clicker, RunLifecycle.ExitReason.COMMAND);
+        }
     }
 
     /** Rebuilds the lobby directory from current state and sends it back, with a reason line. */
@@ -564,6 +578,7 @@ public final class DialogRouter {
             reshowFriends(clicker, server, "The room owner is offline.");
             return;
         }
+        leaveOwnLobby(clicker);
         if (VisitService.visit(clicker, target)) {
             return; // teleported; the visit's own chat line is the confirmation
         }
