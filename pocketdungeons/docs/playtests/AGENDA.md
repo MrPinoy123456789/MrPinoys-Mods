@@ -54,6 +54,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-01-2.md:** three voluntary home-lever banks: after floor 4 (band 0), after floor 3 (band 0), and after one overclocked floor cleared at max omen 4 (band 2). The last one may be the first exit driven by the omen rather than routine (medium).
 - **2026-10-02-1.md:** player said outright "I really see no need to continue descending after I've completed 3 floors. The new 'Go Home' UI/UX should illustrate this." The desired stop point is now 3 floors, and the screen should show it with diagrams, a progress bar, and rewards at nodes rather than paragraphs (high).
 - **2026-10-02-2.md:** two more voluntary home-lever banks, both after floor 3 (band 1, then band 0), no comment on the screen itself. The Go Home redesign is still untested in play (low).
+- **2026-10-08-1.md:** the pull home is now the finish itself: three full dungeon finishes in one session (Infestation, Spawner Dungeon, Copper Works), all unprompted, plus two mid-trip lever banks. The friction moved to the end screens: "Haul 0 scrap" after the finish auto-bank (PD-179) and the unreadable "Home 4 chests" line (PD-180) (high).
 
 ## A3. Does the strict resource economy feel tense or tedious?
 - **Why:** scarcity of blocks and durability is a core strength (owner). It
@@ -77,6 +78,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-02-1.md:** economy feedback exploded into concrete asks: remove custom stack caps; too much trimmed armour and armour in general; spawners mixing mob types; bones/blaze/string/endstone/ender chests/ominous banners all dead loot without sinks; need more echo shards (1 per interval + 50% chance per floor, ordeals too); staging-room storage; dead-end fountain boon; guard kit; set-bonus trims. The scarcity/surplus balance is now the dominant design problem (high).
 - **2026-10-02-2.md:** the shard rule is settled: one guaranteed shard per third floor plus random Ordeal rewards, no plain floor chance (he disliked a `floor` shard). Stations should be crafted, not handed out by Lemon; reroll moves to the enchanting table (pick a property); Mending is sold as a book by the librarian, not "locked in"; tridents cannot be salvaged; piglin trading should draw from a dungeon loot table; mending should cost more XP or repair slower (high).
 - **2026-10-07-1.md:** the scrap model itself is the friction now: six Lemon asks in ten minutes reconstructing pool vs chart vs level, ending in his verdict that overleveled players can never earn scrap but must spend it on branches (he wants it thought through). Owner follow-up after the session: functionally sound but very confusing, and he expects it to stay confusing even with UI/UX fixes. Emeralds visibly flood (+8 per finish, emerald pay on underleveled floors; 44 in the pack, 251 idle at home). Scarcity is solved; currency legibility is the open problem (high).
+- **2026-10-08-1.md:** merchant sinks are used unprompted now: 7 shop_sales on one floor plus junk sold to the home Librarian (rotten flesh, string for emeralds). Owner's new economy proposal: each level requires more scrap than the previous and higher floors pay more (PD-182) (high).
 
 ## A4. Does the kit top-up feel fair and understood?
 - **Why:** the top-up by band ties the economy to omen. It only works if players
@@ -102,6 +104,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-09-29-2.md:** PD-84 verified in game: two deliberate `home_lever` banks with the confirm dialog in the pull path, no misclick all session. New readability issue surfaced instead: the preview glass sits behind the doors (PD-85) (medium).
 - **2026-10-02-1.md:** staging room feedback: the ender chest should be a staging-room run storage; HOME screen needs diagrams not text, a progress bar, and no "3 reward chests" pitch; "Going home pays" sign is too wordy. The staging room is now the focus of UI confusion, not the levers (high).
 - **2026-10-02-2.md:** selecting a door replaces its light with the preview glass on the two low doors, and the third door has no glass (PD-116). His fix: the selected door vanishes while its light stays on, restored when the selection changes. Discovery gap: he did not know the station picker held the Lectern (medium).
+- **2026-10-08-1.md:** lever mechanics are fine now (three clean home-lever banks), wording is the remaining gap: the end-screen "Home 4 chests" line had to be explained and "Haul 0 scrap" after a finish read as a bug (PD-179, PD-180) (medium).
 
 ## A6. Do door choices feel meaningful?
 - **Why:** each floor now banks its own door step (averaged). Door 1 is free,
@@ -122,6 +125,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-01-2.md:** door 2 unlock verified in words, not just logs: "Yes, I've been getting second floors and they work." At keystone 9-10 the selector offers real options each descent (high).
 - **2026-10-02-1.md:** echo-shard subtraction on Greater doors verified "Good"; player proposed a clear shard economy (1 per interval, 50% per floor, ordeals chance). Doors are now meaningful, but the resource pacing needs tuning (medium).
 - **2026-10-02-2.md:** doors ran at keystone 12 to 15 with step 2 and step 3 offers each descent (Molten, Overclocked, Feral); no door choice was questioned. The staging door preview itself is the friction (PD-116) (low).
+- **2026-10-08-1.md:** the deepest door verdict yet: "The 3 random doors doesn't really work with the new dungeon act system", "players should be able to choose the act and dungeon", repeated as his top "first thing you'd change" at wrap. The random-offer model itself is now on the table (PD-181) (high).
 
 ## A7. What pulls a player into another session?
 - **Why:** the game has to stand on its own and hold people for hours.
@@ -134,6 +138,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Evidence:** 2026-09-27-1.md: the imagined pull is a stocked home and feeling "kitted out" (tree farm, many chests) (low).
 - **2026-09-30-2.md:** the strongest pull remains economy and progression utility: salvage, merchant rooms, emerald sinks, workstation limits, and Lemon-granted generation perks were all proposed as reasons to keep collecting (medium).
 - **2026-10-02-2.md:** the pull he described is narrative: a campaign with a boss floor (Herobrine or Steve nearly kills the player, Alex rescues them, he escapes), after which the other modes become the search for him. Plus a vertical endless mode (endless mines as the inverse of regular floors, more Ordeals). Strongest A7 evidence so far (high).
+- **2026-10-08-1.md:** three dungeon finishes in one session including the Spawner capstone, which rolled straight into Copper Works; the campaign loop pulls. New expectation matching his narrative pull: each dungeon's last floor should end in a bigger challenge (PD-184) (high).
 
 ## A8. Where does a session drag, and where does it spike?
 - **Why:** pacing across a floor and an interval. Long floors, repeated rooms and
@@ -146,6 +151,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Evidence:** 2026-09-27-1.md: "doesn't feel like it's getting too risky"; only the pillager floor spiked; floor 2 took 4 to 6.5 min (low).
 - **2026-09-30-2.md:** good spikes came from surprise slimes, dungeon-wide endermen, darkness that made the player pause before moving, and varied ominous enemies and rooms. The level 7 ominous floors still did not feel much harder than the prior level (medium).
 - **2026-10-01-1.md:** basalt_foundry's identity produced the spike this time: fire damage was heavy enough to rescue twice and the player framed preparation as part of the theme. That is good pressure, but it ended in a run failure before any floor completed (medium).
+- **2026-10-08-1.md:** the Spawner capstone produced the session's peak: floor omen 4, lives 1, "just barely enough resources to succeed. Including enough pet dogs for the initial wave". Drags: ~30 s poison downtime ("hide for 30 seconds", PD-178) and the hopper-key toll room he named worst of the night (PD-186) (medium).
 
 ## A9. Does the room (home) matter to the player?
 - **Why:** the room is the long-term product: decorating, trophies, showing it
@@ -210,3 +216,13 @@ item when it recurs or the owner says it matters.
 - **Merchant economy:** redstone (witch drops) is the new dump material with no buyer; player explicitly asked for a merchant sink "like the other dump materials". Confirms the existing thread.
 - **Visible-ore rooms carry the mining fantasy:** he wants more mineshaft_seam-style rooms; Rootworks's palette nodes (existing template blocks) were invisible across three floors while seam rooms got mined. Relates to "Mineable interiors are the game's feel".
 - **Fail UX wants a beat:** on failure, land at Home with a "Wasted" screen, not a boot out of the world.
+
+### Session 2026-10-08-1 (see docs/playtests/2026-10-08-1.md)
+
+- **The random-door front offer is rejected.** Strongest structural verdict of the session: "The 3 random doors doesn't really work with the new dungeon act system", "players should be able to choose the act and dungeon", and it was his answer to "first thing you'd change" at wrap (PD-181). Supersedes the door-screen polish thread (L28).
+- **Chat is a log, not a channel.** "I never read any of the run messages in chat, I usually use them as a log if I think I've missed some information" (PD-190). He also accepted a persistent text display as enough HUD ("persistent text should be more than enough", PD-187). Critical state belongs on titles, boards and displays.
+- **Capstones want a finale.** "There wasn't a boss for copper works", "There should be some extra challenge in the last floor" (PD-184). Matches his earlier campaign pull: endings should escalate.
+- **Sculk wants one language.** Sensors feeding omen while shriekers spawn mobs reads as two systems; he wants both to mean stealth, and wants sensor_gallery replaced (PD-183).
+- **The toll room is the worst room.** Asked for the worst room of the night at wrap: "the room with the key in the hopper to open the iron doors" (PD-186).
+- **Interviewer reliability, again:** the watcher held the loop and auto-thinks every ask, but five asks still hit the fallback and journaled `llm_late`, all agent-side poll latency. The harness needs the watcher to send a canned hold reply itself.
+- **Theme promotion candidate: copper theming.** "could we thematically make it so that all mobs wear two pieces of copper, including weapons?" scoped to Copper Works (PD-185). Same instinct as "themed and funny rooms": rooms and dungeons should commit to their bit.

@@ -25,6 +25,7 @@
       "pocketdungeons.PiglinBarterGameTest",
       "pocketdungeons.VendorGameTest",
       "pocketdungeons.VaultRoomGameTest",
+      "pocketdungeons.SculkShriekGameTest",
       "pocketdungeons.HaulGameTest",
       "pocketdungeons.RescueGameTest",
       "pocketdungeons.HerdGameTest",

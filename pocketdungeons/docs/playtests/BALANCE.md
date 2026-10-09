@@ -143,3 +143,22 @@ playtest journal once it exists; blank means not recorded.
 - 2026-10-08 haul session: every exit kind observed (home lever x2, finish, fifth-death fail, quit, purge). Fail is the only one that halves; quit and purge move the whole haul.
 - Deaths: 1 owner death ended a run early (PD-167); ~4 member/non-fatal deaths cost a life each correctly; the fifth death failed the run as designed.
 - Emerald sources seen: J7 key redemption on clear lines (3, 4, 1), +8 finish, merchant buys (he spent 3em bow, 18em leggings). No emerald floor pay.
+| 2026-10-08 | infestation | 1 | 1 | ~300 | 0 | 0 | n/a | n/a | 3 | cleared | burrow_tunnel start | 2026-10-08-1.md |
+| 2026-10-08 | infestation | 2 | 1 | ~2416 | 0 | 0 | n/a | n/a | 3 | cleared | includes Store visit and chat | 2026-10-08-1.md |
+| 2026-10-08 | infestation (deviated rootworks) | 3 | 1 | ~768 | 0 | 0 | n/a | n/a | 3 | cleared | sensor_gallery rejected; 7 shop_sales | 2026-10-08-1.md |
+| 2026-10-08 | infestation (queens_nest) | 4 (final) | 1 | ~400 | 0 | 0 | n/a | n/a | n/a | FINISHED, auto-bank | compass 5 to 6; "Haul 0 scrap" confusion | 2026-10-08-1.md |
+| 2026-10-08 | endless_mine | 1 | 1 | ~570 | 1 | 1 | n/a | n/a | 3 | cleared | Plate Relay ordeal; hidden ore expected | 2026-10-08-1.md |
+| 2026-10-08 | endless_mine | 2 | 1 | ~660 | 3 | 2 | n/a | n/a | 3 | cleared at lives 2 | "definitely pressure" | 2026-10-08-1.md |
+| 2026-10-08 | mineshaft | 1 | 1 | 527 | 0 | 0 | n/a | n/a | n/a | cleared, home bank | nodes 25/31 mined, L40 pass | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon | 1 | 1 | 431 | 0 | 0 | n/a | n/a | 3 | cleared | 4/4 spawners | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon (bone_gallery, Feral) | 2 | 1 | ~420 | 1 | 1 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon | 3 (capstone) | 1 | ~800 | 4 | ~3 | n/a | n/a | 3 | FINISHED at lives 1 | brood wave; milestone title seen | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 1 | 1 | ~600 | 0 | 0 | n/a | n/a | 3 | cleared | forge = "coolest room so far" | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 2 | 1 | ~727 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 3 | 1 | ~600 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 4 (final) | 1 | ~440 | 0 | 0 | n/a | n/a | 4 | FINISHED, banked | compass 8 to 10; no finale (PD-184) | 2026-10-08-1.md |
+| 2026-10-08 | frostworks | 1 | 1 | n/a | 0 | 0 | n/a | n/a | n/a | in progress at wrap | | 2026-10-08-1.md |
+
+- 2026-10-08-1 session: five runs, three full finishes (Infestation 4f, Spawner Dungeon 3f capstone, Copper Works 4f). Keystone 5 to 10. Blood-door pressure confirmed at lives 2. No run failed; ~4 rescues all session, none fatal.
+- Economy: merchant sinks heavily used (7 shop_sales one floor, junk to Librarian at home). Compass gains: +1 (Infestation finish), +2 (Copper Works finish w/ depth bonus).
+- Difficulty peak: Spawner capstone at floor omen 4 and lives 1; player verdict "barely enough resources", dogs mattered.

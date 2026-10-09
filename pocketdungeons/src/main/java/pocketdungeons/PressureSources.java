@@ -217,11 +217,16 @@ final class PressureSources {
                 armed.heard = SculkOmen.heardAfter(armed.heard, pulses);
                 if (SculkOmen.answers(armed.heard, SculkOmen.heardMax(armed.ancientCity))) {
                     armed.heard = 0;
-                    armed.everHeard = true;
-                    record.floor.sculkAnswers++;
-                    darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
-                    trigger(server, record, Omen.Source.SENSOR, origin);
-                    announceHeard(server, record);
+                    // The sensors fill the meter and the room's own shrieker answers, the vanilla way: it is
+                    // made to scream, and the shriek below is what darkens the party and sends the wave. A room
+                    // with no shrieker answers itself.
+                    if (!screamViaShrieker(level, record, armed, origin)) {
+                        armed.everHeard = true;
+                        record.floor.sculkAnswers++;
+                        darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
+                        trigger(server, record, Omen.Source.SENSOR, origin);
+                        announceHeard(server, record);
+                    }
                 }
             }
             for (BlockPos pos : armed.shriekers) {
@@ -260,6 +265,48 @@ final class PressureSources {
                 }
             }
         }
+    }
+
+    /**
+     * Makes the room's shrieker nearest the party scream when the Heard meter fills (design pass 2026-10-09,
+     * Q3: sensors and shriekers should read as one system). Vanilla sensors and shriekers are separate
+     * listeners that never talk to each other, so this is the link: the shrieker plays its own shriek and
+     * animation, and the shriek is then answered like any other.
+     *
+     * @return whether a shrieker screamed
+     */
+    private static boolean screamViaShrieker(ServerLevel level, InstanceRecord record, Armed armed, BlockPos origin) {
+        if (armed.shriekers.isEmpty()) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB room = CellGeometry.cellBounds(origin);
+        ServerPlayer hearer = null;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = serverOf(level).getPlayerList().getPlayer(member);
+            if (player != null && player.level() == level && room.contains(player.position())) {
+                hearer = player;
+                break;
+            }
+        }
+        if (hearer == null) {
+            return false;
+        }
+        BlockPos nearest = armed.shriekers.get(0);
+        for (BlockPos pos : armed.shriekers) {
+            if (pos.distSqr(hearer.blockPosition()) < nearest.distSqr(hearer.blockPosition())) {
+                nearest = pos;
+            }
+        }
+        return shriekAt(level, nearest, hearer);
+    }
+
+    /** Makes the shrieker at {@code pos} shriek at {@code player}, as it would for their own footsteps; whether it did. */
+    static boolean shriekAt(ServerLevel level, BlockPos pos, ServerPlayer player) {
+        if (!(level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.SculkShriekerBlockEntity shrieker)) {
+            return false;
+        }
+        shrieker.tryShriek(level, player);
+        return shrieking(level.getBlockState(pos));
     }
 
     /** The room answered: a title so the player sees it, since the meter is only a number until it fills. */

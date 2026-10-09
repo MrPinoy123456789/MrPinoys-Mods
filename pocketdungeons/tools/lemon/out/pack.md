@@ -271,14 +271,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
 - **Fail signs:** a branch is never affordable (raise income); every branch is always taken (raise the cost); the action bar balance line is missed.
 
-### L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
-
-- **Status:** owed, 2026-10-07-1.md: he cleared two Act 2 dungeons tonight (Copper Works, Cow Pits), so Act 2 is open for him, but whether that came from a legitimate capstone clear or bypassed gating is unverified (no /dungeon map opened, dungeonsFinished unread). Neither capstone was entered. Earlier: owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
-- **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
-- **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
-- **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
-- **Fail signs:** the pad opens early or never opens; the Warden spawns twice or elsewhere; a brood that is trivial or unwinnable for two.
-
 ### L32. 2026-10-05: the Wither and the Herobrine fight
 
 - **Status:** owed, 2026-10-05-1.md: unreachable; Acts 4 and 5 stay locked until the earlier capstones are cleared and there is no admin command to unlock acts.
@@ -311,14 +303,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
 - **Fail signs:** the Mine on door 3 before act 2; a shaft that lets you past a sealed layer; the Mine hiding the capstone door.
 
-### L38. 2026-10-06: the Store is one row you click
-
-- **Status:** owed
-- **Changed:** 2026-10-06 (PD-159, `StoreNPC.openShop`): the Store opens a one row shop; a click takes one, the stock is claimed with the delivery, and a bought stack is the plain item.
-- **Do:** Open a Store. Left click and right click an item. Buy a log twice with a log already in the pack. Stand with too little of the currency. Buy a line out.
-- **Pass:** Both clicks buy one and hand it over; the log stacks with the one you had; the price reads red when you cannot pay; a sold out line becomes a gray pane named sold out and refuses.
-- **Fail signs:** An item that does not arrive but costs stock; a bought stack that will not stack; a price that stays gold when short.
-
 ### L39. 2026-10-06: diary entry 8 reads whole
 
 - **Status:** owed
@@ -326,14 +310,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** Finish the Mineshaft (or have the owner hand over entry 8, The First Pick) and open the book.
 - **Pass:** Every sentence is there, none cut off at the foot of a page, no blank page.
 - **Fail signs:** Text that stops at the bottom of page 1; a blank page.
-
-### L40. 2026-10-06: a Mineshaft floor 1 has ore
-
-- **Status:** owed
-- **Changed:** 2026-10-06 (PD-149, `LayoutPlanner.plan`): a resource floor whose plan fits none of its ore rooms retries the next seed.
-- **Do:** Start the Mineshaft three times and read the floor_complete line of floor 1 each time.
-- **Pass:** `nodes_total` is above 0 on floor 1 every time, and the player can see ore.
-- **Fail signs:** A floor 1 of only generic halls with `nodes_total` 0.
 
 ### L41. 2026-10-06: a flooded hall entered from outside
 
@@ -385,24 +361,37 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 # Rooms (id: roles, tier, depth, requirements)
 
+- archive_catalog: encounter/loot/corridor, tier 1, depth 1+
+- archive_reading_nook: encounter/loot/corridor, tier 1, depth 1+
+- archive_stacks: encounter/loot/corridor, tier 1, depth 1+
 - barred_vault: loot, tier 2, depth 2+, needs trial_key, pressure omen
 - basalt_foundry_crucible: loot, depth 1+
+- bastion_keep: encounter/loot/corridor, tier 1, depth 0+
 - bazaar: corridor, tier 2, depth 1+
+- big_freeze: encounter/loot/corridor, tier 1, depth 0+
 - blaze_cellar: encounter, tier 3, depth 2+
 - blaze_loft: corridor, tier 2, depth 1+
 - bogged_marsh: encounter, tier 2, depth 1+
 - breeze_arena: encounter, tier 2, depth 1+, access gated
 - brood_chamber: exit, tier 1, depth 0+
 - burrow_tunnel: encounter/loot/corridor, tier 1, depth 0+
+- charnel_niches: encounter/loot/corridor, tier 1, depth 0+
 - chasm: corridor, tier 1, depth 0+
 - collapsing_bridge: corridor, tier 2, depth 2+, pressure local
+- copper_boiler: encounter/loot/corridor, tier 1, depth 1+
+- copper_ore_chute: encounter/loot/corridor, tier 1, depth 1+
+- copper_pipe_hall: encounter/loot/corridor, tier 1, depth 1+
 - copper_works_forge: encounter, depth 1+
 - cow_pens: corridor, tier 1, depth 0+
+- cow_ward: corridor, tier 1, depth 1+
 - cow_yard: corridor, tier 1, depth 0+
 - creeper_kennel: encounter, tier 2, depth 1+
 - crimson_forest: encounter/loot/corridor, tier 2, depth 0+
 - crypt_corner: encounter, depth 1+
 - deep_dark_landing: corridor, tier 3, depth 2+, pressure omen
+- deep_fossil_gallery: encounter/loot/corridor, tier 1, depth 1+
+- deep_geode: encounter/loot/corridor, tier 1, depth 1+
+- deep_shaft_landing: encounter/loot/corridor, tier 1, depth 1+
 - dont_look: corridor, tier 2, depth 1+
 - elders_chamber: corridor, tier 3, depth 2+, access gated
 - encounter_zombie: encounter, depth 0+
@@ -416,13 +405,24 @@ tool on the MCP server (`mcp.mjs --admin`).
 - flow_puzzle: corridor, tier 2, depth 0+, access gated
 - fracture_hall: exit, tier 1, depth 0+
 - frame_lock: corridor, tier 1, depth 0+, pressure omen, access gated
+- frost_cold_store: encounter/loot/corridor, tier 1, depth 1+
+- frost_ice_vault: encounter/loot/corridor, tier 1, depth 1+
+- frost_snowdrift: encounter/loot/corridor, tier 1, depth 1+
 - frostworks_glaze: corridor, depth 1+
 - gallery: corridor, tier 2, depth 0+
+- gnawed_vein: encounter/loot/corridor, tier 1, depth 0+
+- great_crucible: encounter/loot/corridor, tier 1, depth 0+
+- great_drip_cavern: encounter/loot/corridor, tier 1, depth 0+
 - grove: corridor, depth 1+
+- grove_glade: loot/corridor, depth 1+
+- grove_path: corridor/encounter/loot, depth 1+
 - hall_corner: encounter/loot/corridor, depth 0+
 - hall_cross: encounter/loot/corridor, depth 0+
+- hall_cross_rotunda: encounter/loot/corridor, tier 1, depth 0+
 - hall_dead_end: encounter/loot/corridor, depth 0+
+- hall_dead_end_alcoves: encounter/loot/corridor, tier 1, depth 0+
 - hall_straight: encounter/loot/corridor, depth 0+
+- hall_straight_colonnade: encounter/loot/corridor, tier 1, depth 0+
 - hall_tee: encounter/loot/corridor, depth 0+
 - hay_loft: corridor, tier 1, depth 0+
 - hold_the_plate: corridor, tier 1, depth 1+, pressure local, access gated
@@ -430,15 +430,21 @@ tool on the MCP server (`mcp.mjs --admin`).
 - infested_wall: corridor, tier 2, depth 1+, access gated
 - item_plate: corridor, tier 1, depth 0+, access gated
 - kennel_crossing: encounter, tier 2, depth 1+
+- last_index: encounter/loot/corridor, tier 1, depth 0+
+- last_rest: encounter/loot/corridor, tier 1, depth 0+
 - ledge_archers: encounter, tier 1, depth 0+
 - loot_vault: loot, depth 0+
 - lush_clay_pool: encounter/loot/corridor, tier 1, depth 1+
 - lush_hollow: encounter/loot/corridor, tier 1, depth 0+
 - lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
+- master_furnace: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_collapse: encounter/loot/corridor, tier 1, depth 1+
 - mineshaft_crossing: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_dead_end: encounter/loot/corridor, tier 1, depth 1+
+- mineshaft_junction: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_seam: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_tunnel: encounter/loot/corridor, tier 1, depth 0+
+- monument_heart: encounter/loot/corridor, tier 1, depth 0+
 - mossy_tee: encounter/corridor, depth 2+
 - ominous_bargain: loot, tier 3, depth 3+, pressure omen
 - ossuary_crypt: encounter, depth 1+
@@ -447,13 +453,18 @@ tool on the MCP server (`mcp.mjs --admin`).
 - plate_pair: corridor, tier 1, depth 0+, needs mob, access gated
 - pot_room: corridor, tier 1, depth 0+, pressure omen
 - powder_snow_field: corridor, tier 2, depth 0+, pressure local
+- queens_nest: encounter/loot/corridor, tier 1, depth 0+
 - rising_lava: corridor, tier 2, depth 2+, pressure local
+- root_sandbar: encounter/loot/corridor, tier 1, depth 0+
 - rootworks_grove: corridor, depth 1+
+- rootworks_grove_glade: loot/corridor, depth 1+
+- rootworks_grove_path: corridor/encounter/loot, depth 1+
 - ropewalk: corridor, tier 1, depth 0+
 - rotation_lock: corridor, tier 2, depth 0+, access gated
 - sculk_causeway: corridor, tier 2, depth 0+
 - sculk_nave: corridor, tier 2, depth 0+
 - sensor_gallery: encounter, tier 2, depth 1+, access gated
+- silent_deep: encounter/loot/corridor, tier 1, depth 0+
 - slime_pit: encounter, tier 1, depth 0+
 - sorting_floor: corridor, tier 2, depth 0+, access gated
 - soul_sand_valley: encounter/corridor, tier 2, depth 0+
@@ -467,6 +478,8 @@ tool on the MCP server (`mcp.mjs --admin`).
 - treasure_alcove: loot, depth 1+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local
 - warden_hall: exit, tier 1, depth 0+
+- wardens_deep: encounter/loot/corridor, tier 1, depth 0+
 - warped_forest: encounter/loot/corridor, tier 2, depth 0+
 - wither_hall: exit, tier 1, depth 0+
 - wither_loft: encounter, tier 3, depth 2+, access gated
+- world_rim: encounter/loot/corridor, tier 1, depth 0+
