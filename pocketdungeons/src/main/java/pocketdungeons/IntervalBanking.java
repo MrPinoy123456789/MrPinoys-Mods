@@ -59,6 +59,11 @@ final class IntervalBanking {
         return "Banked " + scrapText(Math.max(0, scrap)) + ". " + chests(chests) + " in your reward barrel.";
     }
 
+    /** The line under a dungeon-finished title: what the finish banked. */
+    static String finishLine(int scrap) {
+        return "Banked " + scrapText(Math.max(0, scrap));
+    }
+
     /** {@code "3 scrap"}: the boards' scrap part ("scrap" is a mass noun). */
     static String scrapText(int scrap) {
         return scrap + " scrap";
@@ -137,7 +142,7 @@ final class IntervalBanking {
             }
             haulLine = names.toString();
         }
-        return new HomeScreen("GO HOME", finished, haulLine, OmenBarText.livesText(omen),
+        return new HomeScreen(finished ? "LEAVE" : "GO HOME", finished, haulLine, OmenBarText.livesText(omen),
                 List.copyOf(unfinished), !finished && atRisk ? "A failed dungeon keeps half." : "");
     }
 }

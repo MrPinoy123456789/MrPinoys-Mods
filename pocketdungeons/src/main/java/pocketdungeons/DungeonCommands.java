@@ -117,6 +117,13 @@ final class DungeonCommands {
                     .then(Commands.literal("map")
                             .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
 
+                    // The trip sidebar (Q7): floor, lives, spawners, haul and compass down the right edge.
+                    .then(Commands.literal("display")
+                            .then(Commands.literal("on")
+                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), false)))
+                            .then(Commands.literal("off")
+                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), true))))
+
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
                             // replacement: before this there was no way to see a party at
@@ -836,6 +843,14 @@ final class DungeonCommands {
         log.setHaul(target.getUUID(), amount);
         Keystone.showCompass(target, log.get(target.getUUID()), InstanceRegistry.byMember.containsKey(target.getUUID()));
         source.sendSuccess(() -> Component.literal(target.getName().getString() + " carries a haul of " + amount + "."), true);
+        return 1;
+    }
+
+    private static int setDisplay(ServerPlayer player, boolean hidden) {
+        SidebarDisplay.setHidden(player, hidden);
+        player.sendSystemMessage(Component.literal(hidden
+                ? "The trip sidebar is hidden. /dungeon display on brings it back."
+                : "The trip sidebar is on. /dungeon display off hides it.").withStyle(ChatFormatting.GRAY));
         return 1;
     }
 

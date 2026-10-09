@@ -122,12 +122,20 @@ final class DungeonProgress {
                                        boolean newFinish, boolean finishCall) {
         if (finishCall) {
             DungeonDef def = record == null ? null : DungeonDefs.current().byId(record.interval.dungeonId);
-            if (newFinish && def != null) {
+            if (def != null) {
+                // Playtest 2026-10-08-1: the Infestation finish title went unnoticed while the capstone's
+                // (which carried the fanfare) landed. Every finish is its own beat: the banked scrap, the
+                // act's progress on a first finish, and the fanfare either way.
+                int banked = record.interval.finishBanked.getOrDefault(id, 0);
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                lines.add(IntervalBanking.finishLine(banked));
+                if (newFinish) {
+                    lines.add("Act " + def.act() + ": "
+                            + ActProgress.progressLine(def.act(), finished, depth, all));
+                }
                 StaggeredTitle.showMilestone(server, id,
-                        Component.literal(def.name() + " cleared").withStyle(ChatFormatting.GOLD),
-                        java.util.List.of("Act " + def.act() + ": "
-                                + ActProgress.progressLine(def.act(), finished, depth, all)),
-                        ChatFormatting.GRAY, Chime::keystoneLevelUp);
+                        Component.literal(def.name() + " finished").withStyle(ChatFormatting.GOLD),
+                        lines, ChatFormatting.GRAY, DungeonProgress::celebrate);
             }
             return;
         }

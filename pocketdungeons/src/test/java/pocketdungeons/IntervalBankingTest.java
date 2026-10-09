@@ -69,7 +69,8 @@ public class IntervalBankingTest {
         }
         checkEquals(IntervalBanking.homeScreen(0, false, List.of(), crowd).haulLine(), "Haul: A 1, B 1, C 1, D 1, +2");
         IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, true, List.of(), solo(6));
-        checkEquals(cleared.title(), "GO HOME");
+        checkEquals(cleared.title(), "LEAVE");
+        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), solo(1)).title(), "GO HOME");
         check(cleared.finished(), "finished flag");
         check(cleared.footer().isEmpty(), "a finished dungeon has nothing at risk, so no footer");
         // PD-179: a finished dungeon already paid the haul, so the board says what was banked.
@@ -80,6 +81,7 @@ public class IntervalBankingTest {
         checkEquals(IntervalBanking.homeSubtitle(7, 4), "Banked 7 scrap. 4 chests in your reward barrel.");
         checkEquals(IntervalBanking.homeSubtitle(0, 1), "Banked 0 scrap. 1 chest in your reward barrel.");
         check(!IntervalBanking.homeSubtitle(7, 4).contains("--"), "no dash punctuation");
+        checkEquals(IntervalBanking.finishLine(9), "Banked 9 scrap");
         check(!IntervalBanking.homeScreen(0, false, List.of(), solo(0)).finished(), "not finished flag");
         checkEquals(IntervalBanking.homeScreen(4, false, List.of("page"), solo(0)).unfinishedLine(),
                 "Unfinished: page");

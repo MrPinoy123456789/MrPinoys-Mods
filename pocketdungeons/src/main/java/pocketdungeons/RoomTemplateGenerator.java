@@ -410,6 +410,8 @@ final class RoomTemplateGenerator {
     static final int HOME_BULB_Y = 4;
     /** The go-home lever's sign: a verb, like DESCEND (playtest 2026-09-27, A5). */
     private static final String HOME_SIGN_WORD = "GO HOME";
+    /** Once the dungeon is finished the haul is already banked, so the lever only leaves (PD-179, Q10a). */
+    private static final String LEAVE_SIGN_WORD = "LEAVE";
 
     /**
      * The floor history board on the wall to the left of the selector wall
@@ -704,7 +706,7 @@ final class RoomTemplateGenerator {
         }
         setHomeBulb(level, o, wall, goodTime);
         RoomBuilder.set(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), 2), leverState(wall));
-        placeSign(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), SIGN_Y), wall, HOME_SIGN_WORD);
+        placeSign(level, doorPlanePos(o, wall, viewerAlong(wall, HOME_LEVER_ALONG), SIGN_Y), wall, goodTime ? LEAVE_SIGN_WORD : HOME_SIGN_WORD);
     }
 
     /** Lights or darkens the bulb over the go-home screen. */

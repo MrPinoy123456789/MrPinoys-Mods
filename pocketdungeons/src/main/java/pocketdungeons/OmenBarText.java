@@ -99,7 +99,7 @@ final class OmenBarText {
     /** The line under the floor clear title: what the party can do next. */
     static String clearedSubtitle(boolean finished, boolean finalAhead) {
         if (finished) {
-            return "GO HOME";
+            return "LEAVE";
         }
         return finalAhead ? "Final floor ahead: GO HOME or DESCEND" : "GO HOME or DESCEND";
     }

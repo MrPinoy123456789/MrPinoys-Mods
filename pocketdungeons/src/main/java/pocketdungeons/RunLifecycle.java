@@ -1533,6 +1533,16 @@ final class RunLifecycle {
             };
             player.sendSystemMessage(Component.literal(text)
                     .withStyle(context == BankContext.FAIL ? ChatFormatting.RED : ChatFormatting.GOLD));
+            // PD-190: the player never reads chat live. A failed dungeon says what it cost on a title, and a
+            // bank says what it paid on the action bar (chat stays the log).
+            if (context == BankContext.FAIL) {
+                showBigTitle(player, "The dungeon claims you", result.banked() > 0
+                        ? "Kept " + result.banked() + " of " + total + " scrap" : "Lost " + total + " scrap");
+            } else if (context == BankContext.HOME || context == BankContext.ORPHAN) {
+                player.sendOverlayMessage(Component.literal("Banked " + result.banked() + " scrap. Compass "
+                        + result.compassAfter() + ", " + result.progress() + "/" + ScrapMath.SCRAP_PER_CHART)
+                        .withStyle(ChatFormatting.GOLD));
+            }
         }
         if (record != null) {
             PlaytestJournal.haulBanked(player, record, context.name().toLowerCase(java.util.Locale.ROOT),

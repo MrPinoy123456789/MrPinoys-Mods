@@ -312,8 +312,10 @@ for ((taskName, testClass) in mapOf(
     "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
     // Floor and dungeon notes (2026-10-08): the reason to choose a door, present, distinct and honest about ore.
     "floorNotesTest" to "FloorNotesTest",
-    // Playtest 2026-10-08-1 (PD-178): poison never lasts past the cap.
-    "poisonCapTest" to "PoisonCapTest",
+    // Playtest 2026-10-08-1 (PD-178, Q10e): poison, wither, slowness and mining fatigue never last past their caps.
+    "effectCapsTest" to "EffectCapsTest",
+    // Design pass 2026-10-09 (Q7): the trip sidebar lines.
+    "sidebarLinesTest" to "SidebarLinesTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
@@ -425,7 +427,8 @@ tasks.test {
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
-    dependsOn("poisonCapTest")
+    dependsOn("effectCapsTest")
+    dependsOn("sidebarLinesTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
     dependsOn("plateRelayTest")

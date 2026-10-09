@@ -61,7 +61,9 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 - **Pacing and progress:** `floorsPerSafeVisit` 3, `endlessMineUnlockLevel` 3, `timedOutDepletion` (superseded by the quit
   rule; kept for old files), `afkSeconds` 300, `ownerReconnectGraceSeconds` 120, `rewardRoomGraceSeconds` 600.
 - **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
-- **Poison:** `poisonMaxSeconds` 10 (0 = off): the longest any poison lasts on a player inside a dungeon (`PoisonCap`).
+- **Effect caps:** `poisonMaxSeconds` 10, `witherMaxSeconds` 8, `slownessMaxSeconds` 6, `miningFatigueMaxSeconds` 30 (0 = off): the longest
+  each effect lasts on a player inside a dungeon (`EffectCaps`). Darkness is not capped (the shrieker uses it).
+- **Trip sidebar:** `sidebarEnabled` true, `sidebarRepaintTicks` 20 (`SidebarDisplay`; players hide theirs with `/dungeon display off`).
 - **Capacity:** `maxPartyMembers` 6, `maxConcurrentInstances` 32, `maxConcurrentVisits` 16, `maxConcurrentPreviews` 16.
 - **Lemon timings:** `lemonFallbackSeconds` 45, `lemonThinkSeconds` 90, `lemonLlmLapseSeconds` 300, `lemonIdleSeconds` 20.
 

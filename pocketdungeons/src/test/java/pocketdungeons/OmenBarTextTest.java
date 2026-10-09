@@ -77,7 +77,7 @@ public class OmenBarTextTest {
         checkEquals(OmenBarText.clearedScreenTitle(4, "Frostworks", false, false), "Floor 4 of Frostworks cleared");
         checkEquals(OmenBarText.clearedSubtitle(false, true), "Final floor ahead: GO HOME or DESCEND");
         checkEquals(OmenBarText.clearedSubtitle(false, false), "GO HOME or DESCEND");
-        checkEquals(OmenBarText.clearedSubtitle(true, false), "GO HOME");
+        checkEquals(OmenBarText.clearedSubtitle(true, false), "LEAVE");
         for (String line : new String[] {
                 OmenBarText.clearedTitle(4, "Ancient City", false, false, true, 0, 3),
                 OmenBarText.clearedScreenTitle(4, "Ancient City", false, false)}) {

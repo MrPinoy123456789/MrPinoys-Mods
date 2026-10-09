@@ -316,6 +316,16 @@ public final class PocketDungeonsConfig {
      * 2026-10-08: "10 seconds at the most"). 0 turns the cap off.
      */
     private static int poisonMaxSeconds = 10;
+    /**
+     * Longest wither, slowness and mining fatigue last on a player inside a dungeon, in seconds (design pass
+     * 2026-10-09, Q10e: the same "hide for 30 seconds" complaint as poison). 0 turns a cap off.
+     */
+    private static int witherMaxSeconds = 8;
+    /** The trip sidebar (Q7): shown at all, and the ticks between repaints. */
+    private static boolean sidebarEnabled = true;
+    private static int sidebarRepaintTicks = 20;
+    private static int slownessMaxSeconds = 6;
+    private static int miningFatigueMaxSeconds = 30;
 
     // ---- Powers (M17) --------------------------------------------------------
     // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
@@ -648,6 +658,26 @@ public final class PocketDungeonsConfig {
         return poisonMaxSeconds;
     }
 
+    public static int witherMaxSeconds() {
+        return witherMaxSeconds;
+    }
+
+    public static boolean sidebarEnabled() {
+        return sidebarEnabled;
+    }
+
+    public static int sidebarRepaintTicks() {
+        return sidebarRepaintTicks;
+    }
+
+    public static int slownessMaxSeconds() {
+        return slownessMaxSeconds;
+    }
+
+    public static int miningFatigueMaxSeconds() {
+        return miningFatigueMaxSeconds;
+    }
+
     public static int salvageOminousKeyEmeralds() {
         return salvageOminousKeyEmeralds;
     }
@@ -775,6 +805,11 @@ public final class PocketDungeonsConfig {
         lootDurabilityPercent = 110;
         craftedDurabilityPercent = 110;
         poisonMaxSeconds = 10;
+        witherMaxSeconds = 8;
+        sidebarEnabled = true;
+        sidebarRepaintTicks = 20;
+        slownessMaxSeconds = 6;
+        miningFatigueMaxSeconds = 30;
 
         powerBonuses = defaultPowerBonuses();
         equipCap = 3;
@@ -995,6 +1030,15 @@ public final class PocketDungeonsConfig {
         craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
                 "must be 10 to 1000");
         poisonMaxSeconds = readInt(root, "poisonMaxSeconds", 10, v -> v >= 0 && v <= 600,
+                "must be 0 (off) to 600");
+        witherMaxSeconds = readInt(root, "witherMaxSeconds", 8, v -> v >= 0 && v <= 600,
+                "must be 0 (off) to 600");
+        sidebarEnabled = readBoolean(root, "sidebarEnabled", true);
+        sidebarRepaintTicks = readInt(root, "sidebarRepaintTicks", 20, v -> v >= 5 && v <= 100,
+                "must be 5 to 100");
+        slownessMaxSeconds = readInt(root, "slownessMaxSeconds", 6, v -> v >= 0 && v <= 600,
+                "must be 0 (off) to 600");
+        miningFatigueMaxSeconds = readInt(root, "miningFatigueMaxSeconds", 30, v -> v >= 0 && v <= 600,
                 "must be 0 (off) to 600");
 
         powerBonuses = readPowerBonuses(root);
@@ -1311,6 +1355,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("lootDurabilityPercent", 110);
         root.addProperty("craftedDurabilityPercent", 110);
         root.addProperty("poisonMaxSeconds", 10);
+        root.addProperty("witherMaxSeconds", 8);
+        root.addProperty("sidebarEnabled", true);
+        root.addProperty("sidebarRepaintTicks", 20);
+        root.addProperty("slownessMaxSeconds", 6);
+        root.addProperty("miningFatigueMaxSeconds", 30);
 
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {
