@@ -51,6 +51,14 @@ final class IntervalBanking {
         return chests + (chests == 1 ? " chest" : " chests");
     }
 
+    /**
+     * The HOME title's small line (PD-180): what the trip put in the bank and the reward barrel, with
+     * verbs, e.g. {@code "Banked 7 scrap. 4 chests in your reward barrel."}.
+     */
+    static String homeSubtitle(int scrap, int chests) {
+        return "Banked " + scrapText(Math.max(0, scrap)) + ". " + chests(chests) + " in your reward barrel.";
+    }
+
     /** {@code "3 scrap"}: the boards' scrap part ("scrap" is a mass noun). */
     static String scrapText(int scrap) {
         return scrap + " scrap";
@@ -66,7 +74,9 @@ final class IntervalBanking {
      * {@code finished}), what the party carries, the lives the trip has left, and what leaving
      * forfeits.
      *
-     * @param haulLine   solo {@code "Haul 7 scrap"}; a party {@code "Haul: Kris 7, Bob 4"}
+     * @param haulLine   solo {@code "Haul 7 scrap"}; a party {@code "Haul: Kris 7, Bob 4"}; once the
+     *                   dungeon is finished the haul is already paid, so {@code "Banked 7 scrap"} and
+     *                   {@code "Banked: Kris 7, Bob 4"} (PD-179)
      * @param livesLine  {@code "Lives 3"}, the risk meter's reading
      * @param unfinished the promises the trip still holds, {@code vault} and
      *                   {@code page}; rendered {@code Unfinished: vault, page}
@@ -102,6 +112,7 @@ final class IntervalBanking {
      * The go-home board for pulling the lever right now. {@code omen} is the trip's deaths (the
      * board reads lives); {@code hauls} is each member's name and haul in party order;
      * {@code unfinished} is what going home forfeits, which the caller reads off the live record.
+     * Once {@code finished}, {@code hauls} is what the finish banked.
      */
     static HomeScreen homeScreen(int omen, boolean finished, List<String> unfinished,
                                  java.util.Map<String, Integer> hauls) {
@@ -112,9 +123,9 @@ final class IntervalBanking {
         }
         if (hauls.size() <= 1) {
             int haul = hauls.isEmpty() ? 0 : hauls.values().iterator().next();
-            haulLine = "Haul " + scrapText(haul);
+            haulLine = (finished ? "Banked " : "Haul ") + scrapText(haul);
         } else {
-            StringBuilder names = new StringBuilder("Haul: ");
+            StringBuilder names = new StringBuilder(finished ? "Banked: " : "Haul: ");
             int shown = 0;
             for (java.util.Map.Entry<String, Integer> entry : hauls.entrySet()) {
                 if (shown == MAX_BOARD_NAMES) {

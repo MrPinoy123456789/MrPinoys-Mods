@@ -213,9 +213,13 @@ final class DialogScreens {
         IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner);
         // Going home banks the haul into the compass; nothing is lost.
         int haul = DungeonLog.forServer(server).haulOf(record.owner);
-        String keeps = "You keep your pack and bank " + haul + " scrap into your compass. "
-                + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         boolean finished = record.interval.finished;
+        // PD-179: a finish has already banked the haul, so say so instead of "bank 0 scrap".
+        String keeps = (finished
+                ? "You keep your pack. The finish already banked your " + record.interval.finishBanked
+                        .getOrDefault(record.owner, 0) + " scrap. "
+                : "You keep your pack and bank " + haul + " scrap into your compass. ")
+                + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         String dungeon = TripView.dungeonName(record);
         String ends = record.interval.mineSealedAct > 0
                 ? EndlessMineRules.sealedMessage(record.interval.mineSealedAct) + " Ends this run and takes the party home."

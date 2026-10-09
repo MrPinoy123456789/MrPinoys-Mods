@@ -5599,7 +5599,7 @@ Tests: `IronDoorGameTest.floodedHallDoorsAreLatchesThatOpenAndClose` (every door
 
 ### PD-165: First-clear milestone title not noticed on either finish (Medium)
 **Reported:** 2026-10-07-1, 00:54. Asked right after two first-time clears (`dungeon_finished first:true` for copper_works at 00:42:25 and cow_pits at 00:52:59): "I don't think I see the dungeon completion message, maybe I just didn't notice it." The build spec calls for a big "<Dungeon> cleared" title with "Act N: x of y dungeons, Mine floor a of b" under it.
-**Status:** Fixed (2026-10-07). The title did fire, but it was shown in the same tick as the floor clear's own title and a new `StaggeredTitle` sequence replaces a running one, so it was overwritten unseen. Milestones (dungeon cleared, Mine depth, trials complete, act open) now go through `StaggeredTitle.showMilestone`: queued 100 ticks, shown with a 90 tick stay (a floor start holds 50), with the chime or fanfare played at that moment. Tests: `HandlerGameTest.aMilestoneTitleWaitsBehindTheFloorClear`. Live check owed: the first clear of a dungeon.
+**Status:** Fixed, verified live 2026-10-08 (`2026-10-08-1.md`): on the Spawner Dungeon capstone finish he reported "'The Spawner Dungeon Cleared Go Home' worked". Caveat: he did not notice the Infestation milestone earlier in the same session ("No I didn't notice a Big Ingestation cleared"), so the title lands but is still missable. The title did fire, but it was shown in the same tick as the floor clear's own title and a new `StaggeredTitle` sequence replaces a running one, so it was overwritten unseen. Milestones (dungeon cleared, Mine depth, trials complete, act open) now go through `StaggeredTitle.showMilestone`: queued 100 ticks, shown with a 90 tick stay (a floor start holds 50), with the chime or fanfare played at that moment. Tests: `HandlerGameTest.aMilestoneTitleWaitsBehindTheFloorClear`.
 
 ### PD-166: No admin command can grant or set scrap (Low, harness)
 **Reported:** 2026-10-07-1, 00:32. The player asked "can you give me the 60 scrap?"; there is no command path. `DungeonLog.addScrap` is only called from floor pay and `spendScrap` only from door commits.
@@ -5650,3 +5650,57 @@ Tests: `IronDoorGameTest.floodedHallDoorsAreLatchesThatOpenAndClose` (every door
 ### PD-177: pdmark marker commands error in latest.log (Low, harness)
 **Reported:** 2026-10-07-2. `latest.log` on the remote server repeatedly shows `Unknown or incomplete command` for `pdmark-*` commands (04:03:25, 05:41:31, 05:41:40). If these markers belong to the remote command-reply reader, they may explain PD-163's resolution failures.
 **Status:** Not a bug (2026-10-08). `pdserver.mjs remoteCommand` sends an unknown `pdmark-*` command after each command whose reply it reads, on purpose (PD-148), to find the end of the reply in `latest.log`; the server logs it as unknown. It is filtered from replies and from wait events. It did not cause PD-163's "No player was found", which is the server's answer to a player argument that did not resolve. Silencing it would need a harmless command that echoes a unique string.
+
+## 2026-10-09 (session 2026-10-08-1, post-Haul build)
+
+### PD-178: Witch poison still lasts about 30 seconds (Medium)
+**Reported:** 2026-10-08-1, 02:16 (repeat of 2026-10-07-2): "Poison still lasts way too long, I end up having to hide for 30 seconds every time I get poisoned. Poison should last 10 seconds at the most." The earlier report's tuning note was never acted on; vanilla witch poison duration is unchanged.
+**Status:** Fixed 2026-10-08 (code, awaiting live check). New `PoisonCap` polls every 5 ticks and replaces any poison longer than `poisonMaxSeconds` (config knob, default 10, 0 = off) on a player in the dungeon dimension with a copy at the cap and the same amplifier; witch splashes, cave spiders and the rest all use the vanilla effect, so one clamp covers them. A fresh hit can run at full length for up to 5 ticks. Tests: `PoisonCapTest` (pure), `PoisonCapGameTest` (clamp keeps amplifier, short poison untouched). Unverified live: the feel of the capped poison from a real witch.
+
+### PD-179: GO HOME board shows "Haul 0 scrap" after the finish auto-bank (Medium)
+**Reported:** 2026-10-08-1, 02:35: "This 'Haul 0 scrap' is very misleading, it should say how much scrap I've collected in the dungeon" and "a player gets to the Go home and sees that they have 0 scrap, of course they'll think it's a bug". `dungeon_finished` banks the haul in the same tick, so the end-of-dungeon board reads an empty haul the player just earned. Confirmed live: he pulled the lever at 02:36 and journaled `scrap_left: 0`.
+**Status:** Fixed 2026-10-08 (code, awaiting live check). Instant payout kept. The finish now records what it banked per member (`IntervalState.finishBanked`); the finished GO HOME board reads "Banked 7 scrap" (party: "Banked: Kris 7, Bob 4") instead of "Haul 0 scrap", the lever confirm says the finish already banked N scrap, and the HOME title shows the scrap banked on that pull. Tests: `IntervalBankingTest` (Banked wording, Haul wording unchanged before a finish). Unverified live: the board on a real finish.
+
+### PD-180: "Home 4 chests" end line is unreadable (Low)
+**Reported:** 2026-10-08-1, 05:17: "'Home 4 chests' what does that mean?" The dungeon-finished screen's Home line names the chest count with no units or verb.
+**Status:** Fixed 2026-10-08 (code, awaiting live check). The HOME title subtitle is now "Banked 7 scrap. 4 chests in your reward barrel." (`IntervalBanking.homeSubtitle`). Test: `IntervalBankingTest`. Unverified live: the title on screen.
+
+### PD-181: Three random doors conflict with the act system; players want to choose act and dungeon (High, design)
+**Reported:** 2026-10-08-1, 04:00: "The 3 random doors doesn't really work with the new dungeon act system" then "players should be able to choose the act and dungeon". Confirmed as his single top pick at wrap (05:43): asked for "the first thing you'd change", he answered "Redesigning the dungeon selection." The random-offer model predates the act graph; under acts the offer can hide the dungeon he wants or push a dungeon he has finished, and the Spawner-Dungeon-first-door rule is a band-aid over the same problem.
+**Status:** Open, design. Successor to L24/L28/L29's door-screen questions. Proposal needed before coding: a picker over unlocked acts and dungeons (with per-dungeon status: uncleared, cleared, capstone), keeping per-floor door deals inside the trip. Costs (echo shards, lives) and the "Same as door" affix system may survive as per-door modifiers or move elsewhere; decide.
+
+### PD-182: Scrap progression is flat; owner proposes rising costs and scaled rewards (Medium, design)
+**Reported:** 2026-10-08-1, 05:02: "make it so each level requires more scrap than the previous and then make higher level floors reward more scrap appropriately." Current model charges a flat scrap-per-chart and pays flat per floor, so high-level floors feel identical to floor 1 and deep runs are not better paid.
+**Status:** Open, design. Tune `scrapPerLevel`-style constants and `floor_pay` scaling by floor depth and dungeon tier; keep the haul mechanics unchanged.
+
+### PD-183: Sculk mechanics read as two systems; sensor_gallery should be replaced (Medium, design)
+**Reported:** 2026-10-08-1, 02:20: "two things, I don't like how these sculks act differently then the ones that spawn enemies, two this room needs to be replaced with something else" and "sculk-like things like the shrieker and sensor should read as stealth mechanics I think". The sensor gallery's sensors feed the omen bar while shriekers elsewhere spawn mobs; one block family does two unrelated things and the room itself did not land.
+**Status:** Open, design. Unify sculk into one stealth language (sensors and shriekers both mean "be quiet or it gets worse") and replace `sensor_gallery` with a room built on that rule.
+
+### PD-184: Capstone floors end flat; no finale fight (Medium, design)
+**Reported:** 2026-10-08-1, 05:17: "There wasn't a boss for copper works" and 05:28: "There should be some extra challenge in the last floor". The Spawner Dungeon has its brood wave, but ordinary story dungeons (Copper Works cleared at 05:16) end on a normal floor with no escalation.
+**Status:** Open, design. Options: a per-dungeon capstone ordeal on the final node, a themed miniboss, or a horde wave. Player was asked boss-or-horde; no answer before wrap.
+
+### PD-185: Copper Works mobs should wear copper gear (Low, content)
+**Reported:** 2026-10-08-1, 04:55: "could we thematically make it so that all mobs wear two pieces of copper, including weapons?" scoped at 04:55: "just in this copper dungeon".
+**Status:** Open, content. Copper Works spawner mobs could spawn with two copper-themed equipment pieces (copper armour where it exists, or copper-toned leather/chainmail plus a copper-ish weapon). Check how spawner mob equipment is currently rolled before scoping.
+
+### PD-186: Hopper-key toll room named worst room of the session (Low, design)
+**Reported:** 2026-10-08-1, 05:43, in answer to "worst room tonight?": "The room with the key in the hopper to open the iron doors." That describes the `SpurToll` HOPPER_KEY rooms (barred_vault, ominous_bargain) or the Frame Lock room; all three ask the player to throw a specific item into a hopper to open an iron door.
+**Status:** Open, design. Identify which room he means (likely the vault toll) and whether the problem is the mechanism's readability, the fiction, or the room around it. The 2026-10-07 SpurToll repair made it functional; functional is not the same as liked.
+
+### PD-187: Player wants a persistent floor/scrap display, not chat (Medium, design)
+**Reported:** 2026-10-08-1, 02:14: "Is it possible to create a HUD? like maybe having the floor information and Chart/scrap information in the top left or right corner of the screen?" then 02:22: "persistent text should be more than enough". Same session at 02:12: "I never read any of the run messages in chat, I usually use them as a log if I think I've missed some information."
+**Status:** Open, design. Server-side options: a scoreboard sidebar, a boss-bar style persistent text display, or an in-world display at the player. A real HUD needs a client mod; the player ruled persistent text sufficient.
+
+### PD-188: Feral affix feels out of place; wants wolf-themed content and a replacement (Low, design)
+**Reported:** 2026-10-08-1, 02:31: "Feral seems out of place, we should instead make a wolf themed dungeon, make a wolf/pet themed floor for another dungeon, and create a rare generic wolf themed room. And then create a new affix to replace feral."
+**Status:** Open, design. Feral currently summons wolves; the player wants the wolves promoted to themed content (a wolf dungeon or floor, a rare wolf room) and a different affix in the slot.
+
+### PD-189: Mine-themed floors set an ore expectation the content does not meet (Low, design)
+**Reported:** 2026-10-08-1, 02:49 on Endless Mine floor 1: "Still yet to see any hidden ores in this room." Hidden ore is Mineshaft-only (`hiddenOre` in the dungeon def); the player generalises it to anything that looks like a mine. Also 02:43 on `deep_shaft_landing`: "This room is very good, but it didn't have enough ore in it."
+**Status:** Open, design. Either extend `hiddenOre` to other mine-flavoured dungeons (Endless Mine at least) or tune ore density in rooms like deep_shaft_landing so the fiction pays off.
+
+### PD-190: Players do not read run messages in chat live (Medium, design)
+**Reported:** 2026-10-08-1, 02:12: "I never read any of the run messages in chat, I usually use them as a log if I think I've missed some information." Every system that delivers critical state through chat lines (floor pay, key redemption, omen notices, milestone fanfare) is invisible in the moment for this player.
+**Status:** Open, design. Audit which critical lines are chat-only and move them to titles, the omen bar, action bar, boards or the persistent display from PD-187. Chat stays as the log, by his own framing.

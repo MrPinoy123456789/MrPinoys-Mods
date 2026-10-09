@@ -602,7 +602,10 @@ final class DungeonScreen {
         DungeonLog haulLog = DungeonLog.forServer(server);
         for (UUID member : record.members.keySet()) {
             ServerPlayer present = server.getPlayerList().getPlayer(member);
-            hauls.put(present == null ? "?" : present.getName().getString(), haulLog.haulOf(member));
+            // PD-179: a finished dungeon has already banked the haul; show what it paid.
+            int shown = record.interval.finished
+                    ? record.interval.finishBanked.getOrDefault(member, 0) : haulLog.haulOf(member);
+            hauls.put(present == null ? "?" : present.getName().getString(), shown);
         }
         IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen,
                 record.interval.finished, unfinished, hauls);

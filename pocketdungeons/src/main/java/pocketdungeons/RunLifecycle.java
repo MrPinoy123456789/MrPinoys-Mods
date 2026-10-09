@@ -1350,7 +1350,7 @@ final class RunLifecycle {
         DungeonLog log = DungeonLog.forServer(server);
         // The finish banks the haul before anything else, present members and absent ones alike.
         for (UUID member : record.members.keySet()) {
-            bankHaul(server, record, member, BankContext.FINISH);
+            record.interval.finishBanked.put(member, bankHaul(server, record, member, BankContext.FINISH).banked());
         }
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
@@ -1609,8 +1609,8 @@ final class RunLifecycle {
      * 2026-09-29: the player liked the floor-clear title as a channel and
      * asked for the same at the moment of going home.
      */
-    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled) {
-        showBigTitle(player, "HOME", IntervalBanking.chests(settled.chests()));
+    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled, int scrap) {
+        showBigTitle(player, "HOME", IntervalBanking.homeSubtitle(scrap, settled.chests()));
     }
 
     /**
@@ -1692,7 +1692,9 @@ final class RunLifecycle {
                             .withStyle(ChatFormatting.GOLD));
                 }
                 if ("home_lever".equals(trigger)) {
-                    showHomeTitle(memberPlayer, settled);
+                    int scrap = (homeBank == null ? 0 : homeBank.banked())
+                            + interval.finishBanked.getOrDefault(member, 0);
+                    showHomeTitle(memberPlayer, settled, scrap);
                 }
             }
 

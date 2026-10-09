@@ -32,6 +32,7 @@
       "pocketdungeons.RoomLibraryGameTest",
       "pocketdungeons.FloorSoakGameTest",
       "pocketdungeons.DurabilityKnobGameTest",
+      "pocketdungeons.PoisonCapGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

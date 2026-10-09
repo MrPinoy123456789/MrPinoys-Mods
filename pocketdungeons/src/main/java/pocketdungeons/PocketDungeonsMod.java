@@ -46,6 +46,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         Locks.register();
         AltarOffering.register();
         PressureSources.register();
+        PoisonCap.register();
         CapstoneFights.register();
         DungeonDrops.register();
         ContentModuleLoader.register();

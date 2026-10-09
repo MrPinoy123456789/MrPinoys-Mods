@@ -72,6 +72,14 @@ public class IntervalBankingTest {
         checkEquals(cleared.title(), "GO HOME");
         check(cleared.finished(), "finished flag");
         check(cleared.footer().isEmpty(), "a finished dungeon has nothing at risk, so no footer");
+        // PD-179: a finished dungeon already paid the haul, so the board says what was banked.
+        checkEquals(cleared.haulLine(), "Banked 6 scrap");
+        checkEquals(IntervalBanking.homeScreen(0, true, List.of(), party).haulLine(), "Banked: Kris 7, Bob 4");
+        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), solo(6)).haulLine(), "Haul 6 scrap");
+        // PD-180: the HOME title's small line has verbs.
+        checkEquals(IntervalBanking.homeSubtitle(7, 4), "Banked 7 scrap. 4 chests in your reward barrel.");
+        checkEquals(IntervalBanking.homeSubtitle(0, 1), "Banked 0 scrap. 1 chest in your reward barrel.");
+        check(!IntervalBanking.homeSubtitle(7, 4).contains("--"), "no dash punctuation");
         check(!IntervalBanking.homeScreen(0, false, List.of(), solo(0)).finished(), "not finished flag");
         checkEquals(IntervalBanking.homeScreen(4, false, List.of("page"), solo(0)).unfinishedLine(),
                 "Unfinished: page");

@@ -53,6 +53,12 @@ final class IntervalState {
      */
     final List<Integer> floorLevels = new ArrayList<>();
 
+    /**
+     * What the dungeon finish banked for each member (PD-179): the finish pays the haul at once, so
+     * the go-home board and title read this instead of an emptied haul.
+     */
+    final Map<UUID, Integer> finishBanked = new HashMap<>();
+
     // ---- the dungeon trip (dungeon structure W2) -----------------------------------------
     //
     // One trip is one dungeon (design D1). The interval is the trip, so this state is

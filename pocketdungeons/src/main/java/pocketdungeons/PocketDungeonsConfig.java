@@ -311,6 +311,12 @@ public final class PocketDungeonsConfig {
      */
     private static int craftedDurabilityPercent = 110;
 
+    /**
+     * The longest any poison lasts on a player inside a dungeon, in seconds (PD-178, owner ruling
+     * 2026-10-08: "10 seconds at the most"). 0 turns the cap off.
+     */
+    private static int poisonMaxSeconds = 10;
+
     // ---- Powers (M17) --------------------------------------------------------
     // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
     // imbueMaterial, imbueCost and extractionReversible knobs went with it; the
@@ -638,6 +644,10 @@ public final class PocketDungeonsConfig {
         return craftedDurabilityPercent;
     }
 
+    public static int poisonMaxSeconds() {
+        return poisonMaxSeconds;
+    }
+
     public static int salvageOminousKeyEmeralds() {
         return salvageOminousKeyEmeralds;
     }
@@ -764,6 +774,7 @@ public final class PocketDungeonsConfig {
         salvageMaterialBonus = 1;
         lootDurabilityPercent = 110;
         craftedDurabilityPercent = 110;
+        poisonMaxSeconds = 10;
 
         powerBonuses = defaultPowerBonuses();
         equipCap = 3;
@@ -983,6 +994,8 @@ public final class PocketDungeonsConfig {
                 "must be 10 to 1000");
         craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
                 "must be 10 to 1000");
+        poisonMaxSeconds = readInt(root, "poisonMaxSeconds", 10, v -> v >= 0 && v <= 600,
+                "must be 0 (off) to 600");
 
         powerBonuses = readPowerBonuses(root);
         equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
@@ -1297,6 +1310,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("salvageMaterialBonus", 1);
         root.addProperty("lootDurabilityPercent", 110);
         root.addProperty("craftedDurabilityPercent", 110);
+        root.addProperty("poisonMaxSeconds", 10);
 
         JsonArray powerBonusesJson = new JsonArray();
         for (PowerBonusEntry entry : defaultPowerBonuses()) {

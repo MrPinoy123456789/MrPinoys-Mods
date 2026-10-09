@@ -15,7 +15,7 @@ import java.util.Map;
 
 /**
  * Dungeon structure W6: the Cow Pits finite rule (plan default). The floor is a finite
- * larder: 6 to 10 adult cows across its rooms, no wheat, seeds, carrots or potatoes in any
+ * larder: 6 to 13 adult cows across its rooms, no wheat, seeds, carrots or potatoes in any
  * loot (the Cow Pits loot tables are filtered copies, see {@code tools/gen_resource_content.py}),
  * and breeding blocked here as a second lock: a cow of the floor refuses wheat, and any baby
  * cow that still appears in the dungeon dimension is removed.
