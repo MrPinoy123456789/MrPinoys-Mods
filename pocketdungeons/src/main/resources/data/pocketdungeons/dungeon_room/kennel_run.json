@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/kennel_run",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "content": "kennel_run",
+  "dungeons": ["kennels", "rootworks"],
+  "acts": [1],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim"
+}

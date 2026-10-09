@@ -54,6 +54,17 @@
       "light": "dim"
     },
     {
+      "id": "wolf_hollow",
+      "name": "Wolf Hollow",
+      "notes": "Wolves in the roots. Feed what trusts you.",
+      "layer": 2,
+      "signatureAffix": "pocketdungeons:feral",
+      "roomBias": [
+        "kennel_run"
+      ],
+      "light": "dim"
+    },
+    {
       "id": "heartwood",
       "name": "The Heartwood",
       "notes": "Clay pools and a tree grove. Clay, wood and iron.",
@@ -98,6 +109,14 @@
     {
       "from": "root_gate",
       "to": "mossy_burrow"
+    },
+    {
+      "from": "root_gate",
+      "to": "wolf_hollow"
+    },
+    {
+      "from": "wolf_hollow",
+      "to": "heartwood"
     },
     {
       "from": "tangled_hollow",

@@ -71,7 +71,7 @@ final class BoardText {
     static String notesLine(boolean mine, boolean ancientCity, String light, boolean finalFloor,
                             List<String> ores, boolean hasNodes, String authored) {
         if (mine) {
-            return "The shaft runs deeper with every floor.";
+            return "Ore hides in the walls. Deeper pays better.";
         }
         if (authored != null && !authored.isBlank()) {
             return authored.trim();

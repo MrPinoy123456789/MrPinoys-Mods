@@ -240,13 +240,36 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      * {@code nodePalette} when none are declared); a block listed twice is twice as likely.
      * {@link HiddenOrePlanner} picks where.
      */
-    record HiddenOre(int pocketsMin, int pocketsMax, int sizeMin, int sizeMax, List<String> blocks) {
+    record HiddenOre(int pocketsMin, int pocketsMax, int sizeMin, int sizeMax, List<String> blocks,
+                     List<String> deepBlocks, int deepEvery) {
 
         static final int MAX_POCKETS = 6;
         static final int MAX_SIZE = 6;
 
         HiddenOre {
             blocks = List.copyOf(blocks);
+            deepBlocks = List.copyOf(deepBlocks);
+        }
+
+        /** Hidden ore that does not deepen. */
+        HiddenOre(int pocketsMin, int pocketsMax, int sizeMin, int sizeMax, List<String> blocks) {
+            this(pocketsMin, pocketsMax, sizeMin, sizeMax, blocks, List.of(), 0);
+        }
+
+        /**
+         * The same declaration for a floor {@code floor} deep (design pass 2026-10-09, Q9): every
+         * {@code deepEvery} floors down the mix gains the {@code deepBlocks} and each room may bury one more
+         * pocket, up to two more. A declaration with no {@code deepEvery} does not change.
+         */
+        HiddenOre atDepth(int floor) {
+            if (deepEvery <= 0 || floor < deepEvery) {
+                return this;
+            }
+            int steps = floor / deepEvery;
+            List<String> mix = new ArrayList<>(blocks);
+            mix.addAll(deepBlocks);
+            return new HiddenOre(pocketsMin, Math.min(MAX_POCKETS, pocketsMax + Math.min(2, steps)), sizeMin, sizeMax,
+                    mix, deepBlocks, deepEvery);
         }
 
         /** The blocks a pocket may be made of: the declared ones, else the non-structural palette. */
@@ -815,12 +838,16 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             for (JsonElement element : optionalArray(hidden, "blocks")) {
                 blocks.add(blockId(element.getAsString()));
             }
+            List<String> deepBlocks = new ArrayList<>();
+            for (JsonElement element : optionalArray(hidden, "deepBlocks")) {
+                deepBlocks.add(blockId(element.getAsString()));
+            }
             hiddenOre = new HiddenOre(
                     hidden.has("pocketsMin") ? requiredInt(hidden, "pocketsMin") : 0,
                     hidden.has("pocketsMax") ? requiredInt(hidden, "pocketsMax") : 2,
                     hidden.has("sizeMin") ? requiredInt(hidden, "sizeMin") : 1,
                     hidden.has("sizeMax") ? requiredInt(hidden, "sizeMax") : 3,
-                    blocks);
+                    blocks, deepBlocks, hidden.has("deepEvery") ? requiredInt(hidden, "deepEvery") : 0);
         }
 
         List<Node> nodes = new ArrayList<>();

@@ -267,6 +267,7 @@ final class RoomTemplateGenerator {
         specs.addAll(FinalFloorSpecs.list());
         specs.addAll(NetherEndSpecs.list());
         specs.addAll(SculkRoomSpecs.list());
+        specs.addAll(KennelSpecs.list());
         return specs;
     }
 

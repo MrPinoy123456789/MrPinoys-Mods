@@ -192,6 +192,7 @@ final class FinaleWave {
             for (int n = 0; n < counts[i]; n++) {
                 Mob mob = spawn(level, finale.mobs().get(i).type(), around, random);
                 if (mob != null) {
+                    provoke(mob, members.get(0));
                     state.mobs.add(mob.getUUID());
                 }
             }
@@ -200,6 +201,7 @@ final class FinaleWave {
             DungeonDef.Elite elite = finale.elite();
             Mob mob = spawn(level, elite.type(), around, random);
             if (mob != null) {
+                provoke(mob, members.get(0));
                 int health = FinaleRules.eliteHealth(elite.health(), party,
                         PocketDungeonsConfig.finaleEliteHealthPercentPerMember());
                 mob.setCustomName(Component.literal(elite.name()).withStyle(ChatFormatting.GOLD));
@@ -242,6 +244,17 @@ final class FinaleWave {
         mob.setPersistenceRequired();
         mob.addTag(TAG);
         return mob;
+    }
+
+    /**
+     * A finale\u0027s wolves are the pack\u0027s last stand, not strays: a neutral mob (a wolf) is angered at the party so
+     * it fights, and any mob is pointed at a member.
+     */
+    private static void provoke(Mob mob, ServerPlayer target) {
+        if (mob instanceof net.minecraft.world.entity.NeutralMob neutral) {
+            neutral.startPersistentAngerTimer();
+        }
+        mob.setTarget(target);
     }
 
     /** A standing spot three to eight blocks from {@code around}: air at feet and head, solid below. */

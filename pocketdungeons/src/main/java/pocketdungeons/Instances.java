@@ -1279,7 +1279,7 @@ final class Instances {
         Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
         // Dungeon structure W4: the entrance cell's light and resource nodes, kept for the commit.
         NodeStamper.Context nodeCtx = NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(),
-                mineFloor);
+                mineFloor, record.interval.floorIndex + 1);
         record.floor.previewNodes.clear();
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
@@ -1532,7 +1532,8 @@ final class Instances {
             layout = LayoutStamper.stampBehindLobby(level, planOrigin, plan, offer.level(), affixes,
                     null, effectiveThemeId, Set.of(record.stagingCellOrigin),
                     LootBands.forFloor(record, offer, openingMine || record.interval.endlessMine),
-                    NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(), openingMine || record.interval.endlessMine));
+                    NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(), openingMine || record.interval.endlessMine,
+                            record.interval.floorIndex + 1));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Commit stamp failed behind the staging room at {}",
                     record.stagingCellOrigin.toShortString(), e);

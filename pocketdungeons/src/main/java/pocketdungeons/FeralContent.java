@@ -118,6 +118,16 @@ final class FeralContent {
         if (count <= 0) {
             count = 1;
         }
+        applyCount(level, cellOrigin, spawns, lootTier, keystoneLevel, seed, count);
+    }
+
+    /**
+     * {@link #apply} with the number of wolves given: the wolf rooms of the Kennels, the Hound Crypt and the
+     * Lost Dog (design pass 2026-10-09, Q8) put their own wolves in their own pens.
+     */
+    static List<Wolf> applyCount(ServerLevel level, BlockPos cellOrigin, List<BlockPos> spawns,
+                                 int lootTier, int keystoneLevel, long seed, int count) {
+        List<Wolf> out = new java.util.ArrayList<>();
         BlockPos centre = cellOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
         List<BlockPos> anchors = spawns.isEmpty() ? List.of(centre) : spawns;
 
@@ -140,6 +150,8 @@ final class FeralContent {
             Optional<Holder.Reference<WolfVariant>> coat =
                     variants.get(coats.get(coatRandom.nextInt(coats.size())));
             coat.ifPresent(holder -> wolf.setComponent(DataComponents.WOLF_VARIANT, holder));
+            out.add(wolf);
         });
+        return out;
     }
 }

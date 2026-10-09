@@ -59,7 +59,7 @@ public class FinaleDataTest {
                 if (act >= 2) {
                     check(f.has("elite"), id + ": from Act 2 the finale has a named elite");
                 } else {
-                    check(!f.has("elite"), id + ": Act 1 finales have no elite");
+                    check(!f.has("elite") || id.equals("kennels"), id + ": Act 1 finales have no elite, except the Alpha");
                 }
                 if (f.has("elite")) {
                     JsonObject elite = f.getAsJsonObject("elite");
@@ -69,7 +69,7 @@ public class FinaleDataTest {
                 }
             }
         }
-        check(finales >= 7, "found only " + finales + " finales");
+        check(finales >= 8, "found only " + finales + " finales");
         JsonObject copper;
         try (Reader reader = Files.newBufferedReader(DUNGEONS.resolve("copper_works.json"))) {
             copper = JsonParser.parseReader(reader).getAsJsonObject();

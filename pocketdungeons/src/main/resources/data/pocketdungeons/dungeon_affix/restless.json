@@ -1,0 +1,1 @@
+{"version": 1, "label": "Restless", "short_name": "Rest", "blurb": "Restless: the dead get up once. Burn them.", "order": 10, "min_level": 3, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"undead_rise_chance": 0.3, "undead_rise_chance_ominous": 0.5}}

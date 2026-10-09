@@ -33,6 +33,7 @@ package pocketdungeons;
  *   <li>extra trial bodies (Loaded)</li>
  *   <li>bonus tool pool (Loaded)</li>
  *   <li>decor pool (Loaded, optional)</li>
+ *   <li>undead rise chance (Restless; a runtime effect, read when an undead mob dies)</li>
  * </ol>
  *
  * <p>A field left at its default (no-op) means the affix does not touch that
@@ -103,10 +104,21 @@ final class AffixEffects {
     /** A namespaced loot table id for a decor pool, or {@code null}. */
     final String decorPool;
 
+    /**
+     * Restless (design pass 2026-10-09, Q8): the chance a slain undead mob rises once more where it fell, and
+     * the same chance on an ominous floor. Fire keeps them down. {@code 0} (the default) is no rise. Bounded
+     * to {@code [0, 1]}.
+     */
+    final double undeadRiseChance;
+    final double undeadRiseChanceOminous;
+
     private AffixEffects(boolean ominous, double trialCountMultiplier, double cooldownFactor,
                          int playerRange, ConsumableRule consumableRule, boolean neutralWolfSpawn,
                          HazardKind hazardKind, int hazardsPerCell, boolean voidedFloor,
-                         boolean extraTrialBodies, String bonusToolPool, String decorPool) {
+                         boolean extraTrialBodies, String bonusToolPool, String decorPool,
+                         double undeadRiseChance, double undeadRiseChanceOminous) {
+        this.undeadRiseChance = undeadRiseChance;
+        this.undeadRiseChanceOminous = undeadRiseChanceOminous;
         this.ominous = ominous;
         this.trialCountMultiplier = trialCountMultiplier;
         this.cooldownFactor = cooldownFactor;
@@ -124,7 +136,7 @@ final class AffixEffects {
     /** The no-op effects: an affix that does nothing. Used only as the build baseline. */
     static AffixEffects none() {
         return new AffixEffects(false, 1.0, 1.0, 14, ConsumableRule.ALLOW, false,
-                HazardKind.NONE, 0, false, false, null, null);
+                HazardKind.NONE, 0, false, false, null, null, 0.0, 0.0);
     }
 
     /**
@@ -155,7 +167,17 @@ final class AffixEffects {
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange,
                 consumableRule == null ? ConsumableRule.ALLOW : consumableRule, neutralWolfSpawn,
                 hazardKind == null ? HazardKind.NONE : hazardKind, hazardsPerCell, voidedFloor,
-                extraTrialBodies, bonusToolPool, decorPool);
+                extraTrialBodies, bonusToolPool, decorPool, 0.0, 0.0);
+    }
+
+    /** These effects with an undead rise chance (Restless), each in {@code [0, 1]}. */
+    AffixEffects withUndeadRise(double chance, double ominousChance) {
+        if (chance < 0.0 || chance > 1.0 || ominousChance < 0.0 || ominousChance > 1.0) {
+            throw new IllegalArgumentException("undead_rise_chance must be in [0.0, 1.0]");
+        }
+        return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange, consumableRule,
+                neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, extraTrialBodies, bonusToolPool,
+                decorPool, chance, ominousChance);
     }
 
     /**
@@ -167,6 +189,7 @@ final class AffixEffects {
         return ominous || trialCountMultiplier != 1.0 || cooldownFactor != 1.0
                 || playerRange != 14 || consumableRule != ConsumableRule.ALLOW
                 || neutralWolfSpawn || hazardKind != HazardKind.NONE || voidedFloor
-                || extraTrialBodies || bonusToolPool != null || decorPool != null;
+                || extraTrialBodies || bonusToolPool != null || decorPool != null || undeadRiseChance > 0.0
+                || undeadRiseChanceOminous > 0.0;
     }
 }

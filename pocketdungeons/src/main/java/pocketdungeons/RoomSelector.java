@@ -299,7 +299,7 @@ final class RoomSelector {
     static final Set<String> ENCOUNTER_ROOMS = Set.of(
             "breeze_arena", "bogged_marsh", "ledge_archers", "the_raid", "slime_pit", "wither_loft",
             "creeper_kennel", "hold_the_plate", "sensor_gallery", "kennel_crossing", "blaze_cellar",
-            "barred_vault");
+            "barred_vault", "lost_dog");
 
     /** Whether a room (by name, or by the situation id its manifest entry names) holds a spawner. */
     static boolean hostsEncounter(String name, String content) {

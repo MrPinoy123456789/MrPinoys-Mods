@@ -16,6 +16,15 @@
     "deepslate_coal_ore",
     "deepslate_iron_ore"
   ],
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": ["coal_ore", "coal_ore", "iron_ore"],
+    "deepBlocks": ["deepslate_iron_ore", "gold_ore"],
+    "deepEvery": 4
+  },
   "nodes": [
     {
       "id": "working_face",

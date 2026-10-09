@@ -334,6 +334,8 @@ public final class PocketDungeonsConfig {
      * grows for each member past the first. {@code mobUniformEnabled} turns the per-dungeon mob uniform on.
      */
     private static boolean finaleEnabled = true;
+    /** The most tamed wolves one player keeps standing with them in a dungeon; the extras sit (design pass 2026-10-09, Q8). */
+    private static int petCap = 3;
     /**
      * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
      * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
@@ -748,6 +750,10 @@ public final class PocketDungeonsConfig {
         return ancientWardenAnswers;
     }
 
+    public static int petCap() {
+        return petCap;
+    }
+
     public static boolean finaleEnabled() {
         return finaleEnabled;
     }
@@ -926,6 +932,7 @@ public final class PocketDungeonsConfig {
         sculkHeardMaxAncient = 2;
         sculkUnheardScrap = 1;
         ancientWardenAnswers = 2;
+        petCap = 3;
         finaleEnabled = true;
         finaleRewardChests = 1;
         finaleCountdownSeconds = 3;
@@ -1177,6 +1184,7 @@ public final class PocketDungeonsConfig {
         sculkHeardMaxAncient = readInt(root, "sculkHeardMaxAncient", 2, v -> v >= 1 && v <= 10, "must be 1 to 10");
         sculkUnheardScrap = readInt(root, "sculkUnheardScrap", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
         ancientWardenAnswers = readInt(root, "ancientWardenAnswers", 2, v -> v >= 1 && v <= 5, "must be 1 to 5");
+        petCap = readInt(root, "petCap", 3, v -> v >= 0 && v <= 8, "must be 0 to 8");
         finaleEnabled = readBoolean(root, "finaleEnabled", true);
         finaleRewardChests = readInt(root, "finaleRewardChests", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
         finaleCountdownSeconds = readInt(root, "finaleCountdownSeconds", 3, v -> v >= 0 && v <= 10, "must be 0 to 10");
@@ -1520,6 +1528,7 @@ public final class PocketDungeonsConfig {
         root.addProperty("sculkHeardMaxAncient", 2);
         root.addProperty("sculkUnheardScrap", 1);
         root.addProperty("ancientWardenAnswers", 2);
+        root.addProperty("petCap", 3);
         root.addProperty("finaleEnabled", true);
         root.addProperty("finaleRewardChests", 1);
         root.addProperty("finaleCountdownSeconds", 3);

@@ -325,6 +325,10 @@ for ((taskName, testClass) in mapOf(
     "finaleDataTest" to "FinaleDataTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
+    // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
+    "restlessRulesTest" to "RestlessRulesTest",
+    // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
+    "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
@@ -444,6 +448,8 @@ tasks.test {
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
     dependsOn("sculkHeardTest")
+    dependsOn("restlessRulesTest")
+    dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
     dependsOn("plateRelayTest")

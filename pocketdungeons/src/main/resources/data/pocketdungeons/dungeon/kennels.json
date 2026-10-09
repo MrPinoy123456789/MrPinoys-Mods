@@ -1,0 +1,106 @@
+{
+  "name": "The Kennels",
+  "token": {
+    "mat": "minecraft:spruce_planks"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:wolf",
+        "count": 5
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:wolf",
+      "name": "The Alpha",
+      "health": 40
+    }
+  },
+  "notes": "An old hunting lodge. Wolves, bones and a pack to win.",
+  "act": 1,
+  "baseLevel": 3,
+  "kind": "dungeon",
+  "mainTheme": "kennels",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [
+    "coal_ore"
+  ],
+  "nodes": [
+    {
+      "id": "lodge_gate",
+      "name": "Lodge Gate",
+      "layer": 1
+    },
+    {
+      "id": "kennel_rows",
+      "name": "Kennel Rows",
+      "notes": "Cages full of strays. Bring bones.",
+      "layer": 2,
+      "roomBias": [
+        "kennel_run"
+      ],
+      "light": "dim"
+    },
+    {
+      "id": "hunting_grounds",
+      "name": "Hunting Grounds",
+      "notes": "Wolves in the halls. Feed them, do not hit them.",
+      "layer": 2,
+      "signatureAffix": "pocketdungeons:feral",
+      "light": "dim"
+    },
+    {
+      "id": "bone_yard",
+      "name": "Bone Yard",
+      "notes": "Skeletons drop the bones the hounds want.",
+      "layer": 2,
+      "roomBias": [
+        "charnel_niches"
+      ],
+      "light": "dim",
+      "theme": "ossuary"
+    },
+    {
+      "id": "alphas_den",
+      "name": "The Alpha's Den",
+      "notes": "The last floor. The pack's leader waits.",
+      "layer": 3,
+      "final": true,
+      "roomBias": [
+        "alphas_den"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "lodge_gate",
+      "to": "kennel_rows"
+    },
+    {
+      "from": "lodge_gate",
+      "to": "hunting_grounds"
+    },
+    {
+      "from": "lodge_gate",
+      "to": "bone_yard",
+      "lives": 1
+    },
+    {
+      "from": "kennel_rows",
+      "to": "alphas_den"
+    },
+    {
+      "from": "hunting_grounds",
+      "to": "alphas_den"
+    },
+    {
+      "from": "bone_yard",
+      "to": "alphas_den"
+    }
+  ],
+  "diary": "entry_26"
+}

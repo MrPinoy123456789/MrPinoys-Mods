@@ -63,6 +63,10 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 - **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
 - **Effect caps:** `poisonMaxSeconds` 10, `witherMaxSeconds` 8, `slownessMaxSeconds` 6, `miningFatigueMaxSeconds` 30 (0 = off): the longest
   each effect lasts on a player inside a dungeon (`EffectCaps`). Darkness is not capped (the shrieker uses it).
+- **Wolves (`PetCap`):** `petCap` 3 (tamed wolves a player keeps standing with them in a dungeon; the extras sit). Restless's rise chance
+  is data: `dungeon_affix/restless.json` `undead_rise_chance` 0.3 and `undead_rise_chance_ominous` 0.5.
+- **Hidden ore:** a dungeon's `hiddenOre` takes `deepBlocks` and `deepEvery` (the Endless Mine: every 4 floors down the mix gains the deep
+  blocks and a room may bury one more pocket).
 - **Sculk (`PressureSources`, `SculkOmen`):** `sculkHeardMax` 4 and `sculkHeardMaxAncient` 2 (pulses that fill a room's Heard meter before it
   answers), `sculkUnheardScrap` 1 (paid for clearing a sculk room's spawner without it answering), `ancientWardenAnswers` 2 (answers on the Ancient
   City's final floor that wake the Warden).

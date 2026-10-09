@@ -554,3 +554,13 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Ancient City: does the Warden wake on the second answer, and is crossing the final floor unheard a win?
 - Barred Vault: does the trial key work on the vault with no explanation, and does an ominous floor's vault want the ominous key? Does it give the relief life?
 - Ominous Bargain: is taking from the open chest still readable as the bargain?
+
+## L59: wolves and Restless (wave F, 2026-10-09)
+- Does Restless read from the door board ("the dead get up once. Burn them.")? Do you see the souls and hear the groan before the mob stands? Is fire reachable as counterplay?
+- The Kennels: is it worth choosing before the Spawner Dungeon? Do the Kennel Run's stray wolves take bones without being hit? Does The Alpha's finale land?
+- Wolf Hollow (Rootworks) and the Lost Dog: does clearing the camp tame the dog with no bones? Does a fourth wolf sit with the pack-full message?
+- Does the Spawner Dungeon capstone now correctly wait for the Kennels?
+
+## L60: ore (wave G, 2026-10-09)
+- Endless Mine: do the walls hide coal and iron, and does digging find it? Is it richer four floors down?
+- Deepslate: does `deep_shaft_landing` show enough ore on the landing?

@@ -80,9 +80,11 @@ final class AffixMeta {
         String bonusToolPool = stringOrNull(e.get("bonus_tool_pool"));
         String decorPool = stringOrNull(e.get("decor_pool"));
 
+        double riseChance = doubleOr(e, "undead_rise_chance", 0.0);
+        double riseChanceOminous = doubleOr(e, "undead_rise_chance_ominous", riseChance);
         return AffixEffects.build(ominous, trialCountMultiplier, cooldownFactor, playerRange,
                 consumableRule, neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor,
-                extraTrialBodies, bonusToolPool, decorPool);
+                extraTrialBodies, bonusToolPool, decorPool).withUndeadRise(riseChance, riseChanceOminous);
     }
 
     private static String requiredString(JsonObject obj, String key, String fileIdentity) {

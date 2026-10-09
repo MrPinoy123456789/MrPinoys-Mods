@@ -77,19 +77,28 @@ final class NodeStamper {
      * through. An unknown dungeon gives {@link Context#NONE}.
      */
     static Context contextFor(String dungeonId, String nodeId, boolean mine) {
+        return contextFor(dungeonId, nodeId, mine, 0);
+    }
+
+    /**
+     * As {@link #contextFor(String, String, boolean)} for a floor {@code floorNumber} deep (1 for the first):
+     * the hidden ore of a dungeon that deepens ({@link DungeonDef.HiddenOre#atDepth}) is richer the deeper it goes.
+     */
+    static Context contextFor(String dungeonId, String nodeId, boolean mine, int floorNumber) {
         DungeonDefs dungeons = DungeonDefs.current();
         DungeonDef def = dungeons == null ? null : dungeons.byId(mine ? ENDLESS_MINE : dungeonId);
         if (def == null) {
             return Context.NONE;
         }
         DungeonDef.Node node = mine ? null : def.node(nodeId);
+        DungeonDef.HiddenOre hidden = def.hiddenOre() == null ? null : def.hiddenOre().atDepth(floorNumber);
         // A structural block in a palette (a third-party pack that skipped the validator) would
         // make walls mineable, so it is never a node.
         return new Context(def.nodePalette().stream().filter(b -> !DungeonDef.isStructuralBlock(b))
                 .collect(java.util.stream.Collectors.toUnmodifiableSet()),
                 node == null ? DungeonRoomMeta.LIGHT_LIT : node.light(),
-                def.hiddenOre(),
-                def.hiddenOre() == null ? List.of() : def.hiddenOre().blocksOr(def.nodePalette()).stream()
+                hidden,
+                hidden == null ? List.of() : hidden.blocksOr(def.nodePalette()).stream()
                         .filter(b -> !DungeonDef.isStructuralBlock(b)).toList());
     }
 
