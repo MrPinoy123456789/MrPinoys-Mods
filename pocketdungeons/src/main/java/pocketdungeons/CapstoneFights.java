@@ -470,6 +470,7 @@ final class CapstoneFights {
             discardTagged(level, record.layout.bounds());
         }
         STATES.remove(record.slot);
+        Whelp.clear(level, record.slot);
         FinaleWave.floorEnded(level, record);
         WitherFight.floorEnded(level, record);
         HerobrineFight.floorEnded(level, record);
@@ -481,6 +482,7 @@ final class CapstoneFights {
             discardTagged(level, layout.bounds());
         }
         STATES.remove(slot);
+        Whelp.clear(level, slot);
         FinaleWave.teardown(level, slot);
         WitherFight.teardown(level, slot, layout);
         HerobrineFight.teardown(level, slot, layout);

@@ -2199,7 +2199,7 @@ final class Instances {
         }
     }
 
-    private static Vec3 randomSpawnNear(ServerPlayer player, ServerLevel level, Random random,
+    static Vec3 randomSpawnNear(ServerPlayer player, ServerLevel level, Random random,
                                         int minRadius, int maxRadius) {
         Vec3 center = player.position();
         for (int attempt = 0; attempt < 8; attempt++) {

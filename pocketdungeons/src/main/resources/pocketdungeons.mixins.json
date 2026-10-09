@@ -13,6 +13,7 @@
     "TextDisplayAccessor",
     "DisplayAccessor",
     "OmenWaveNoDropsMixin",
+    "SonicBoomWhelpMixin",
     "SculkSensorPlayersOnlyMixin",
     "CalibratedSculkSensorPlayersOnlyMixin",
     "MerchantTradeMixin",

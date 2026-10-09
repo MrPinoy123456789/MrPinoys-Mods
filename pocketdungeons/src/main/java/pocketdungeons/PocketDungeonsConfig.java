@@ -346,6 +346,15 @@ public final class PocketDungeonsConfig {
     private static int sculkHeardMaxAncient = 2;
     private static int sculkUnheardScrap = 1;
     private static int ancientWardenAnswers = 2;
+    /**
+     * The Warden whelp a sculk answer sends (design pass 2026-10-09): a small melee-only Warden that always
+     * knows where the party is, one at a time, gone after whelpSeconds. Health, melee damage and speed are
+     * its own; the speed is a movement attribute (a player walks at 0.1, a zombie 0.23, a Warden 0.3).
+     */
+    private static double whelpHealth = 20.0;
+    private static double whelpDamage = 4.0;
+    private static double whelpSpeed = 0.3;
+    private static int whelpSeconds = 15;
     private static int finaleRewardChests = 1;
     private static int finaleCountdownSeconds = 3;
     private static int finaleEliteHealthPercentPerMember = 50;
@@ -742,6 +751,22 @@ public final class PocketDungeonsConfig {
         return sculkHeardMaxAncient;
     }
 
+    public static double whelpHealth() {
+        return whelpHealth;
+    }
+
+    public static double whelpDamage() {
+        return whelpDamage;
+    }
+
+    public static double whelpSpeed() {
+        return whelpSpeed;
+    }
+
+    public static int whelpSeconds() {
+        return whelpSeconds;
+    }
+
     public static int sculkUnheardScrap() {
         return sculkUnheardScrap;
     }
@@ -931,6 +956,10 @@ public final class PocketDungeonsConfig {
         sculkHeardMax = 4;
         sculkHeardMaxAncient = 2;
         sculkUnheardScrap = 1;
+        whelpHealth = 20.0;
+        whelpDamage = 4.0;
+        whelpSpeed = 0.3;
+        whelpSeconds = 15;
         ancientWardenAnswers = 2;
         petCap = 3;
         finaleEnabled = true;
@@ -1182,6 +1211,10 @@ public final class PocketDungeonsConfig {
         endlessDepthMax = readInt(root, "endlessDepthMax", 4, v -> v >= 0 && v <= 10, "must be 0 to 10");
         sculkHeardMax = readInt(root, "sculkHeardMax", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
         sculkHeardMaxAncient = readInt(root, "sculkHeardMaxAncient", 2, v -> v >= 1 && v <= 10, "must be 1 to 10");
+        whelpHealth = readDouble(root, "whelpHealth", 20.0, v -> v >= 1.0 && v <= 200.0, "must be 1 to 200");
+        whelpDamage = readDouble(root, "whelpDamage", 4.0, v -> v >= 0.0 && v <= 30.0, "must be 0 to 30");
+        whelpSpeed = readDouble(root, "whelpSpeed", 0.3, v -> v >= 0.1 && v <= 0.6, "must be 0.1 to 0.6");
+        whelpSeconds = readInt(root, "whelpSeconds", 15, v -> v >= 3 && v <= 120, "must be 3 to 120");
         sculkUnheardScrap = readInt(root, "sculkUnheardScrap", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
         ancientWardenAnswers = readInt(root, "ancientWardenAnswers", 2, v -> v >= 1 && v <= 5, "must be 1 to 5");
         petCap = readInt(root, "petCap", 3, v -> v >= 0 && v <= 8, "must be 0 to 8");
@@ -1527,6 +1560,10 @@ public final class PocketDungeonsConfig {
         root.addProperty("sculkHeardMax", 4);
         root.addProperty("sculkHeardMaxAncient", 2);
         root.addProperty("sculkUnheardScrap", 1);
+        root.addProperty("whelpHealth", 20.0);
+        root.addProperty("whelpDamage", 4.0);
+        root.addProperty("whelpSpeed", 0.3);
+        root.addProperty("whelpSeconds", 15);
         root.addProperty("ancientWardenAnswers", 2);
         root.addProperty("petCap", 3);
         root.addProperty("finaleEnabled", true);

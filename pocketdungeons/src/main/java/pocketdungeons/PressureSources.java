@@ -191,6 +191,7 @@ final class PressureSources {
             if (level == null) {
                 return;
             }
+            Whelp.tick(server, level, record);
             pollCells(server, level, record);
             pollDwell(server, level, record);
         }
@@ -203,6 +204,8 @@ final class PressureSources {
             if (armed == null) {
                 continue;
             }
+            // While a whelp is out the room is not listening: its meter cannot rise and nothing answers.
+            boolean hushed = Whelp.active(level, record);
             int pulses = 0;
             for (BlockPos pos : armed.sensors) {
                 boolean now = sensorActive(level.getBlockState(pos));
@@ -211,7 +214,7 @@ final class PressureSources {
                 }
                 armed.wasActive.put(pos, now);
             }
-            if (pulses > 0) {
+            if (pulses > 0 && !hushed) {
                 // Sculk hears you (design pass 2026-10-09, Q3): each pulse fills the room's meter; a full meter
                 // is an answer, and the meter starts again.
                 armed.heard = SculkOmen.heardAfter(armed.heard, pulses);
@@ -224,20 +227,20 @@ final class PressureSources {
                         armed.everHeard = true;
                         record.floor.sculkAnswers++;
                         darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
-                        trigger(server, record, Omen.Source.SENSOR, origin);
+                        answer(server, level, record, Omen.Source.SENSOR, origin);
                         announceHeard(server, record);
                     }
                 }
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
-                if (now && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
+                if (now && !hushed && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
                     // A shriek is the room answering at once.
                     armed.heard = 0;
                     armed.everHeard = true;
                     record.floor.sculkAnswers++;
                     darken(level, record, pos);
-                    trigger(server, record, Omen.Source.SHRIEK, pos);
+                    answer(server, level, record, Omen.Source.SHRIEK, pos);
                     announceHeard(server, record);
                 }
                 armed.wasActive.put(pos, now);
@@ -457,6 +460,24 @@ final class PressureSources {
                                 BlockPos at) {
         PlaytestJournal.hazard(server, record, source, at);
         Instances.spawnOmenWave(server, record, Math.max(1, Omen.clamp(record.interval.omen) + 1));
+        OmenBar.cue(server, record, source);
+    }
+
+    /** A sculk room answers: a Warden whelp goes after the nearest member in it, in place of an omen wave. */
+    private static void answer(MinecraftServer server, ServerLevel level, InstanceRecord record, Omen.Source source,
+                               BlockPos at) {
+        PlaytestJournal.hazard(server, record, source, at);
+        ServerPlayer hearer = null;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null && player.level() == level && player.isAlive()
+                    && (hearer == null || player.blockPosition().distSqr(at) < hearer.blockPosition().distSqr(at))) {
+                hearer = player;
+            }
+        }
+        if (hearer != null) {
+            Whelp.spawn(level, record, hearer);
+        }
         OmenBar.cue(server, record, source);
     }
 
