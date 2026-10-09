@@ -320,16 +320,16 @@ final class PartyService {
 
     /**
      * PD-191 (owner ruling 2026-10-09): joining another party counts as having left one's own dungeon
-     * first. The owner fails the dungeon for the whole party; anyone else loses their haul to the fail
-     * share and walks out, as a failed dungeon.
+     * first, so the same leaving rules apply: between floors the haul is kept, mid-floor it is forfeit.
      */
     static void leaveOwnDungeon(MinecraftServer server, ServerPlayer player, InstanceRecord own) {
-        if (own.isKeystoneRun() && player.getUUID().equals(own.owner)) {
+        // Joining another party is leaving this one, so the leaving rules apply (owner ruling 2026-10-09):
+        // between floors a member keeps their haul, mid-floor they forfeit it. An owner between floors
+        // ends the run as at a checkpoint; mid-floor they fail it for the party.
+        if (own.isKeystoneRun() && player.getUUID().equals(own.owner)
+                && !RunLifecycle.betweenFloors(own)) {
             Instances.failRunLeft(server, own, player);
             return;
-        }
-        if (own.isKeystoneRun()) {
-            RunLifecycle.bankHaul(server, own, player.getUUID(), RunLifecycle.BankContext.FAIL);
         }
         RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
     }

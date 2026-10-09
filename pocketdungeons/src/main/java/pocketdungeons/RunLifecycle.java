@@ -937,7 +937,7 @@ final class RunLifecycle {
                 return true;
             }
             if (!isOwner) {
-                bankHaul(server, record, player.getUUID(), between ? BankContext.HOME : BankContext.FAIL);
+                leaveSettle(server, record, player.getUUID());
             }
         }
         PlaytestJournal.inventorySnapshot(player, record, "exit");
@@ -1503,6 +1503,33 @@ final class RunLifecycle {
      * a migrated player is told once what scrap is now; the compass lore is repainted.
      */
     /**
+     * The leaving rule for a rider (owner ruling 2026-10-09, PD-191 and PD-192): a member who walks out,
+     * joins another party, loses their connection or leaves the dimension between floors is paid in full,
+     * as at the home lever; the same mid-floor forfeits the haul. Works from the log alone. The owner is
+     * not covered: an owner leaving ends the run ({@link #settleLeaderLeft}).
+     */
+    static void leaveSettle(MinecraftServer server, InstanceRecord record, UUID member) {
+        if (!record.isKeystoneRun() || !record.inFloorLoop() || record.visitInstance || record.tearingDown
+                || member.equals(record.owner)) {
+            return;
+        }
+        bankHaul(server, record, member, betweenFloors(record) ? BankContext.HOME : BankContext.FORFEIT);
+    }
+
+    /**
+     * An owner has left a floor in progress and the run is ending: they forfeit, the members still in the
+     * party keep the fail share, exactly as a failed dungeon.
+     */
+    static void settleLeaderLeft(MinecraftServer server, InstanceRecord record, UUID leaver) {
+        bankHaul(server, record, leaver, BankContext.FORFEIT);
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            if (!member.equals(leaver)) {
+                bankHaul(server, record, member, BankContext.FAIL);
+            }
+        }
+    }
+
+    /**
      * Whether {@code id} owns a run that is still standing and can be re-entered (free re-entry, or the
      * reconnect grace). Their haul is still at risk in it, so it is not an orphan to bank in full.
      */
@@ -1534,7 +1561,7 @@ final class RunLifecycle {
     }
 
     /** Which exit is banking a haul; picks the member's message. */
-    enum BankContext { HOME, FINISH, FAIL, ORPHAN }
+    enum BankContext { HOME, FINISH, FAIL, ORPHAN, FORFEIT }
 
     /**
      * Banks one member's haul (see {@link DungeonLog#bankHaul}): {@code keepPercent} 100 for going
@@ -1545,7 +1572,9 @@ final class RunLifecycle {
     static DungeonLog.BankResult bankHaul(MinecraftServer server, InstanceRecord record, UUID member,
                                           BankContext context) {
         DungeonLog log = DungeonLog.forServer(server);
-        int keep = context == BankContext.FAIL ? PocketDungeonsConfig.failHaulKeepPercent() : 100;
+        // FORFEIT (owner ruling 2026-10-09): a member who leaves a floor in progress keeps nothing.
+        int keep = context == BankContext.FAIL ? PocketDungeonsConfig.failHaulKeepPercent()
+                : context == BankContext.FORFEIT ? 0 : 100;
         DungeonLog.BankResult result = log.bankHaul(member, keep);
         ServerPlayer player = server.getPlayerList().getPlayer(member);
         if (result.compassAfter() > log.get(member).keystoneLevel()) {
@@ -1562,17 +1591,22 @@ final class RunLifecycle {
                 case HOME -> "Home. Banked " + result.banked() + " scrap: " + bar + ".";
                 case FINISH -> "Dungeon finished. Banked " + result.banked() + " scrap: " + bar + ".";
                 case ORPHAN -> "Your last trip's haul came home: banked " + result.banked() + " scrap.";
+                case FORFEIT -> "You left a floor in progress. Your haul of " + total + " scrap is forfeit.";
                 case FAIL -> result.banked() > 0
                         ? "Half your haul made it out: banked " + result.banked() + " of " + total + " scrap."
                         : "Your haul was lost: " + total + " scrap.";
             };
             player.sendSystemMessage(Component.literal(text)
-                    .withStyle(context == BankContext.FAIL ? ChatFormatting.RED : ChatFormatting.GOLD));
+                    .withStyle(context == BankContext.FAIL || context == BankContext.FORFEIT
+                            ? ChatFormatting.RED : ChatFormatting.GOLD));
             // PD-190: the player never reads chat live. A failed dungeon says what it cost on a title, and a
             // bank says what it paid on the action bar (chat stays the log).
             if (context == BankContext.FAIL) {
                 showBigTitle(player, "The dungeon claims you", result.banked() > 0
                         ? "Kept " + result.banked() + " of " + total + " scrap" : "Lost " + total + " scrap");
+            } else if (context == BankContext.FORFEIT) {
+                player.sendOverlayMessage(Component.literal("Haul forfeit: " + total + " scrap")
+                        .withStyle(ChatFormatting.RED));
             } else if (context == BankContext.HOME || context == BankContext.ORPHAN) {
                 player.sendOverlayMessage(Component.literal("Banked " + result.banked() + " scrap. Compass "
                         + result.compassAfter() + ", " + result.progress() + "/" + ScrapMath.SCRAP_PER_CHART)
@@ -2122,6 +2156,9 @@ final class RunLifecycle {
         // an instance died with its last member; U8 made instances outlive
         // everyone, so what detach also clears (onPad, Trial Omen)
         // matters for the rest of the run, not just at teardown.
+        // Owner ruling 2026-10-09: a rider who drops out (disconnect, left the dimension) settles by the
+        // leaving rule; one who is not in the party when the owner ends the run is not paid.
+        leaveSettle(server, record, member);
         Instances.detach(server, record, member, player);
 
         // record.members has already had `member` removed above, so a non-empty
@@ -2129,6 +2166,14 @@ final class RunLifecycle {
         if (leadershipChanged(record, member, !record.members.isEmpty())) {
             if (disconnected && holdForOwner(server, record)) {
                 return;
+            }
+            if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+                if (betweenFloors(record)) {
+                    bankHaul(server, record, member, BankContext.HOME);
+                    settleOnce(server, record, "owner_left_checkpoint");
+                } else {
+                    settleLeaderLeft(server, record, member);
+                }
             }
             InstanceTeardown.purge(server, record, "party leader left", member);
             return;
@@ -2196,6 +2241,10 @@ final class RunLifecycle {
                 Instances.clearPreview(level, record, true);
             }
             settleOnce(server, record, "grace_expiry");
+        } else if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+            // The owner is not in the party at the end of a floor in progress: they forfeit, the members
+            // still here keep the fail share.
+            settleLeaderLeft(server, record, record.owner);
         }
         Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
         InstanceTeardown.purge(server, record, "party leader did not reconnect");

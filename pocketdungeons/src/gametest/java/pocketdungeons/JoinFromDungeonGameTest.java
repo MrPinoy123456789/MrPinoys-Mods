@@ -12,14 +12,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * PD-191 (owner ruling 2026-10-09): joining another party from inside your own dungeon counts as having left
- * your own first, as a failed dungeon. A rider loses their haul to the fail share and walks out; the owner
- * fails the dungeon for the whole party.
+ * PD-191 and PD-192 (owner ruling 2026-10-09): leaving a party, including to join another, forfeits the haul
+ * mid-floor and pays it in full between floors. A rider who leaves a floor in progress, joins another party or
+ * drops out gets nothing; an owner who leaves mid-floor forfeits and the members still here keep the fail share.
  */
 public final class JoinFromDungeonGameTest {
 
     @GameTest(maxTicks = 20)
-    public void aRiderWhoJoinsAnotherPartyFailsTheirHaulAndLeaves(GameTestHelper helper) {
+    public void aRiderWhoJoinsAnotherPartyMidFloorForfeitsTheirHaul(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -28,15 +28,14 @@ public final class JoinFromDungeonGameTest {
         InstanceRecord record = record(helper, server, slot, owner, rider);
         log.setHaul(owner.getUUID(), 10);
         log.setHaul(rider.getUUID(), 10);
-        int compassBefore = log.get(rider.getUUID()).keystoneLevel();
+        int bankedBefore = banked(log, rider);
         try {
             PartyService.leaveOwnDungeon(server, rider, record);
             helper.assertTrue(!InstanceRegistry.byMember.containsKey(rider.getUUID()), "the rider is out of the dungeon");
             helper.assertTrue(InstanceRegistry.byMember.get(owner.getUUID()) == record, "the owner's run goes on");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the rider's haul is settled");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 10, "the owner's haul is untouched");
-            int gained = log.get(rider.getUUID()).keystoneLevel() - compassBefore;
-            helper.assertTrue(gained <= 1, "half of 10 scrap is at most one level, got " + gained);
+            helper.assertValueEqual(banked(log, rider), bankedBefore, "mid-floor the haul is forfeit: nothing banked");
         } finally {
             unregister(slot, owner, rider);
         }
@@ -53,6 +52,8 @@ public final class JoinFromDungeonGameTest {
         InstanceRecord record = record(helper, server, slot, owner, rider);
         log.setHaul(owner.getUUID(), 10);
         log.setHaul(rider.getUUID(), 6);
+        int ownerBefore = banked(log, owner);
+        int riderBefore = banked(log, rider);
         try {
             PartyService.leaveOwnDungeon(server, owner, record);
             helper.assertTrue(InstanceRegistry.bySlot.get(slot) != record, "the dungeon is closed");
@@ -60,15 +61,17 @@ public final class JoinFromDungeonGameTest {
             helper.assertTrue(!InstanceRegistry.byMember.containsKey(rider.getUUID()), "and so is the rider");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 0, "the owner's haul is settled");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "so is the rider's");
+            helper.assertValueEqual(banked(log, owner), ownerBefore, "the owner forfeits");
+            helper.assertValueEqual(banked(log, rider) - riderBefore, 3, "the rider keeps the fail share: half of 6");
         } finally {
             unregister(slot, owner, rider);
         }
         helper.succeed();
     }
 
-    /** A rider who walks out of a floor in progress fails their own haul, like a quit; the run goes on. */
+    /** A rider who walks out of a floor in progress forfeits their haul; the run goes on. */
     @GameTest(maxTicks = 20)
-    public void aRiderLeavingMidFloorFailsTheirHaul(GameTestHelper helper) {
+    public void aRiderLeavingMidFloorForfeitsTheirHaul(GameTestHelper helper) {
         ServerPlayer owner = standInALoadedChunk(helper);
         ServerPlayer rider = standInALoadedChunk(helper);
         MinecraftServer server = owner.level().getServer();
@@ -77,11 +80,11 @@ public final class JoinFromDungeonGameTest {
         InstanceRecord record = record(helper, server, slot, owner, rider);
         log.setHaul(owner.getUUID(), 10);
         log.setHaul(rider.getUUID(), 10);
-        int before = log.get(rider.getUUID()).keystoneLevel();
+        int before = banked(log, rider);
         try {
             helper.assertTrue(RunLifecycle.exit(rider, RunLifecycle.ExitReason.COMMAND), "the rider leaves");
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the haul is settled at once, not at next login");
-            helper.assertTrue(log.get(rider.getUUID()).keystoneLevel() - before <= 1, "at the fail share: at most one level");
+            helper.assertValueEqual(banked(log, rider), before, "and forfeit: nothing banked");
             helper.assertValueEqual(log.haulOf(owner.getUUID()), 10, "the owner's haul is untouched");
             helper.assertTrue(InstanceRegistry.byMember.get(owner.getUUID()) == record, "the run goes on");
         } finally {
@@ -102,12 +105,11 @@ public final class JoinFromDungeonGameTest {
         record.phase = RunSession.Phase.FLOOR_CLEARED;
         record.floor.completed.add(owner.getUUID());
         log.setHaul(rider.getUUID(), 10);
-        int before = log.get(rider.getUUID()).keystoneLevel();
+        int before = banked(log, rider);
         try {
             RunLifecycle.exit(rider, RunLifecycle.ExitReason.COMMAND);
             helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the haul is settled");
-            helper.assertTrue(log.get(rider.getUUID()).keystoneLevel() - before == 2, "10 scrap is two levels, in full: "
-                    + (log.get(rider.getUUID()).keystoneLevel() - before));
+            helper.assertValueEqual(banked(log, rider) - before, 10, "all 10 scrap is banked, in full");
         } finally {
             unregister(slot, owner, rider);
         }
@@ -157,6 +159,82 @@ public final class JoinFromDungeonGameTest {
             unregister(slot, owner, rider);
         }
         helper.succeed();
+    }
+
+    /** A rider who loses their connection mid-floor is not in the party when the owner ends the run: no pay. */
+    @GameTest(maxTicks = 20)
+    public void aRiderWhoDropsMidFloorForfeits(GameTestHelper helper) {
+        ServerPlayer owner = standInALoadedChunk(helper);
+        ServerPlayer rider = standInALoadedChunk(helper);
+        MinecraftServer server = owner.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        int slot = 9987;
+        InstanceRecord record = record(helper, server, slot, owner, rider);
+        log.setHaul(rider.getUUID(), 10);
+        int before = banked(log, rider);
+        try {
+            RunLifecycle.dropMember(server, record, rider.getUUID(), rider, "member disconnected", true);
+            helper.assertValueEqual(log.haulOf(rider.getUUID()), 0, "the haul is gone");
+            helper.assertValueEqual(banked(log, rider), before, "and not banked");
+            helper.assertTrue(!record.members.containsKey(rider.getUUID()), "the rider is out of the party");
+        } finally {
+            unregister(slot, owner, rider);
+        }
+        helper.succeed();
+    }
+
+    /** A rider who drops between floors is paid in full. */
+    @GameTest(maxTicks = 20)
+    public void aRiderWhoDropsAtACheckpointIsPaidInFull(GameTestHelper helper) {
+        ServerPlayer owner = standInALoadedChunk(helper);
+        ServerPlayer rider = standInALoadedChunk(helper);
+        MinecraftServer server = owner.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        int slot = 9988;
+        InstanceRecord record = record(helper, server, slot, owner, rider);
+        record.phase = RunSession.Phase.FLOOR_CLEARED;
+        record.floor.completed.add(owner.getUUID());
+        log.setHaul(rider.getUUID(), 10);
+        int before = banked(log, rider);
+        try {
+            RunLifecycle.dropMember(server, record, rider.getUUID(), rider, "member disconnected", true);
+            helper.assertValueEqual(banked(log, rider) - before, 10, "banked in full");
+        } finally {
+            unregister(slot, owner, rider);
+        }
+        helper.succeed();
+    }
+
+    /** An owner who never comes back mid-floor forfeits; the riders still here keep the fail share. */
+    @GameTest(maxTicks = 20)
+    public void anOwnerWhoNeverReturnsMidFloorForfeits(GameTestHelper helper) {
+        ServerPlayer owner = standInALoadedChunk(helper);
+        ServerPlayer rider = standInALoadedChunk(helper);
+        MinecraftServer server = owner.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        int slot = 9989;
+        InstanceRecord record = record(helper, server, slot, owner, rider);
+        record.members.remove(owner.getUUID());
+        InstanceRegistry.byMember.remove(owner.getUUID());
+        log.setHaul(owner.getUUID(), 10);
+        log.setHaul(rider.getUUID(), 8);
+        int ownerBefore = banked(log, owner);
+        int riderBefore = banked(log, rider);
+        try {
+            helper.assertTrue(RunLifecycle.watchOwnerGrace(server, record, Long.MAX_VALUE), "the run ends");
+            helper.assertValueEqual(banked(log, owner), ownerBefore, "the owner forfeits");
+            helper.assertValueEqual(log.haulOf(owner.getUUID()), 0, "their haul is gone");
+            helper.assertValueEqual(banked(log, rider) - riderBefore, 4, "the rider keeps the fail share: half of 8");
+        } finally {
+            unregister(slot, owner, rider);
+        }
+        helper.succeed();
+    }
+
+    /** Banked scrap as a single number: the compass's levels at five scrap each, plus the bar. */
+    private static int banked(DungeonLog log, ServerPlayer player) {
+        DungeonLog.Entry entry = log.get(player.getUUID());
+        return entry.highestCharts() * ScrapMath.SCRAP_PER_CHART + entry.chartProgress();
     }
 
     private static InstanceRecord record(GameTestHelper helper, MinecraftServer server, int slot,

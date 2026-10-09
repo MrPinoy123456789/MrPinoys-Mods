@@ -2063,9 +2063,7 @@ final class Instances {
     /** {@link #failRunLeft(MinecraftServer, InstanceRecord, ServerPlayer)} with the leaver's reason ("left the dungeon."). */
     static void failRunLeft(MinecraftServer server, InstanceRecord record, ServerPlayer leaver, String why) {
         clearMobTargets(server, record);
-        for (UUID member : new ArrayList<>(record.members.keySet())) {
-            RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
-        }
+        RunLifecycle.settleLeaderLeft(server, record, leaver.getUUID());
         announce(server, record, leaver.getName().getString()
                 + " " + why + " The dungeon fails; you keep what you carry.", leaver.getUUID());
         for (UUID member : new ArrayList<>(record.members.keySet())) {
