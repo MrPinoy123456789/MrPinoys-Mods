@@ -231,6 +231,26 @@ public final class JoinFromDungeonGameTest {
         helper.succeed();
     }
 
+    /** A failed dungeon sends the party back to the Home room when there is a room to regroup in. */
+    @GameTest(maxTicks = 20)
+    public void aFailedDungeonWithARoomReturnsTheParty(GameTestHelper helper) {
+        ServerPlayer owner = standInALoadedChunk(helper);
+        ServerPlayer rider = standInALoadedChunk(helper);
+        MinecraftServer server = owner.level().getServer();
+        int slot = 9990;
+        InstanceRecord record = record(helper, server, slot, owner, rider);
+        try {
+            helper.assertTrue(!Instances.failReturnsHome(record), "no staging room yet: the old exit");
+            record.stagingCellOrigin = helper.absolutePos(new BlockPos(0, 0, 0));
+            helper.assertTrue(Instances.failReturnsHome(record), "with a staging room to regroup in: home");
+            record.visitInstance = true;
+            helper.assertTrue(!Instances.failReturnsHome(record), "a visit copy keeps the old exit");
+        } finally {
+            unregister(slot, owner, rider);
+        }
+        helper.succeed();
+    }
+
     /** Banked scrap as a single number: the compass's levels at five scrap each, plus the bar. */
     private static int banked(DungeonLog log, ServerPlayer player) {
         DungeonLog.Entry entry = log.get(player.getUUID());

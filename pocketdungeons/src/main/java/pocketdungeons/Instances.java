@@ -1901,6 +1901,25 @@ final class Instances {
         }
     }
 
+    /** Cancelling a death leaves the player standing at zero hearts; this resets them so they live. */
+    private static void revive(ServerPlayer player) {
+        player.setHealth(player.getMaxHealth());
+        player.removeAllEffects();
+        player.clearFire();
+        player.resetFallDistance();
+        player.setDeltaMovement(Vec3.ZERO);
+    }
+
+    /**
+     * Whether a failed dungeon sends the party back to the Home room (owner ruling 2026-10-09: reopening
+     * the lobby after a fail was annoying) instead of closing the run and sending everyone out. True for a
+     * floor-loop keystone run that still has its staging room to regroup in; admin, untimed and visit runs
+     * keep the old exit.
+     */
+    static boolean failReturnsHome(InstanceRecord record) {
+        return record.isKeystoneRun() && record.stagingCellOrigin != null && !record.visitInstance;
+    }
+
     /**
      * Pulls a player out of an instance in place of killing them. Health and
      * status are reset first: cancelling the death leaves them standing at zero
@@ -1917,11 +1936,7 @@ final class Instances {
             return;
         }
 
-        player.setHealth(player.getMaxHealth());
-        player.removeAllEffects();
-        player.clearFire();
-        player.resetFallDistance();
-        player.setDeltaMovement(Vec3.ZERO);
+        revive(player);
 
         // PD-74: a mob that was chasing the player (endermen especially) must
         // not follow into the staging room.
@@ -2025,8 +2040,8 @@ final class Instances {
     }
 
     /**
-     * A death at the last life fails the run: everyone is sent home with what
-     * they carry, unbanked floors pay nothing, and the dungeon's finish is not
+     * A death at the last life fails the run: everyone is sent home (the Home room, see
+     * {@link #failReturnsHome}) with what they carry, unbanked floors pay nothing, and the dungeon's finish is not
      * paid (J2). Keystone level and home room are untouched.
      */
     static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,
@@ -2036,6 +2051,21 @@ final class Instances {
         // A failed dungeon keeps half of every member's haul, present or detached, and loses the rest.
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
+        }
+        if (failReturnsHome(record)) {
+            // Back to the Home room with the pack as carried, the party intact, and the doors re-armed. If
+            // the owner later leaves the lobby the leader-left rule closes it for everyone.
+            for (UUID member : new ArrayList<>(record.members.keySet())) {
+                ServerPlayer player = server.getPlayerList().getPlayer(member);
+                if (player != null) {
+                    revive(player);
+                }
+                RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+            }
+            PlaytestJournal.runFailed(server, record, deadPlayer, source);
+            announce(server, record, "The dungeon claims you. You are back home with what you carry.", null);
+            resetToLobby(server, record);
+            return;
         }
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
