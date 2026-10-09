@@ -22,6 +22,10 @@ House rule for everything you write: no em dashes and no spaced double hyphens a
    boots them. Zero players means go ahead.
 5. Deploy only when asked. Committing, deploying and restarting are separate decisions the owner makes.
 6. Never kill the server process; `stop` saves the world first.
+7. **`deploy` uploads whatever is already in `dist/`; it never builds.** Skipping `gradlew dist` silently ships the
+   previous jar (it happened twice on 2026-10-09: the owner saw the old menu and the new content was never live,
+   and a passing `validate` on that stale jar proved nothing). Run `gradlew dist` in the same command chain as the
+   deploy, and check the jar in `dist/` is newer than your last edit before uploading.
 
 ## Steps
 

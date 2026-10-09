@@ -126,3 +126,10 @@ A change to a dungeon's economy or rules updates `docs/reference/` (the relevant
 for a model change, a dated `docs/decision-<date>-<topic>.md`. The Lemon knowledge pack
 (`tools/lemon/out/pack.md`) and `docs/INTEGRATION.md` still describe the pre-haul scrap model until someone
 updates them; do not copy their scrap wording.
+
+## A new dungeon needs an adventure node and a way in
+
+Every `dungeon_theme` needs a `dungeon_adventure/<id>.json` (a `kind` and a `next` list), and some other node's
+`next` must lead to it, or the server validator reports "theme has no adventure node" or "node is not reachable".
+Neither finding shows in `gradlew test runGameTest`; only `dungeon admin validate` on a fresh deploy catches it
+(the Kennels shipped without one until 2026-10-09). Add the node and an inbound transition in the same change.
