@@ -203,6 +203,8 @@ final class CapstoneFights {
         }
         Fight fight = fightOf(record);
         if (fight == Fight.NONE) {
+            // An ordinary dungeon\u0027s final floor ends in its finale, if it has one (design pass 2026-10-09, Q4).
+            FinaleWave.tick(server, record);
             return;
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -373,6 +375,9 @@ final class CapstoneFights {
         if (fight == Fight.HEROBRINE) {
             return HerobrineFight.padRefusal(server, record);
         }
+        if (fight == Fight.NONE) {
+            return FinaleWave.padRefusal(server, record);
+        }
         if (fight != Fight.BROOD) {
             return null;
         }
@@ -465,6 +470,7 @@ final class CapstoneFights {
             discardTagged(level, record.layout.bounds());
         }
         STATES.remove(record.slot);
+        FinaleWave.floorEnded(level, record);
         WitherFight.floorEnded(level, record);
         HerobrineFight.floorEnded(level, record);
     }
@@ -475,6 +481,7 @@ final class CapstoneFights {
             discardTagged(level, layout.bounds());
         }
         STATES.remove(slot);
+        FinaleWave.teardown(level, slot);
         WitherFight.teardown(level, slot, layout);
         HerobrineFight.teardown(level, slot, layout);
     }

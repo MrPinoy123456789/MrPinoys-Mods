@@ -328,6 +328,16 @@ public final class PocketDungeonsConfig {
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
      */
     private static boolean hallEnabled = true;
+    /**
+     * The finale (design pass 2026-10-09, Q4): whether a dungeon\u0027s final floor ends in a wave, the extra
+     * reward chests it pays, the seconds between the title and the wave, and the percent an elite\u0027s health
+     * grows for each member past the first. {@code mobUniformEnabled} turns the per-dungeon mob uniform on.
+     */
+    private static boolean finaleEnabled = true;
+    private static int finaleRewardChests = 1;
+    private static int finaleCountdownSeconds = 3;
+    private static int finaleEliteHealthPercentPerMember = 50;
+    private static boolean mobUniformEnabled = true;
     /** What a repeat finish of a dungeon pays of the finish emeralds, as a percent (the first finish pays all). */
     private static int repeatFinishEmeraldPercent = 50;
     /**
@@ -712,6 +722,26 @@ public final class PocketDungeonsConfig {
         return endlessDepthMax;
     }
 
+    public static boolean finaleEnabled() {
+        return finaleEnabled;
+    }
+
+    public static int finaleRewardChests() {
+        return finaleRewardChests;
+    }
+
+    public static int finaleCountdownSeconds() {
+        return finaleCountdownSeconds;
+    }
+
+    public static int finaleEliteHealthPercentPerMember() {
+        return finaleEliteHealthPercentPerMember;
+    }
+
+    public static boolean mobUniformEnabled() {
+        return mobUniformEnabled;
+    }
+
     public static boolean hallEnabled() {
         return hallEnabled;
     }
@@ -866,6 +896,11 @@ public final class PocketDungeonsConfig {
         witherMaxSeconds = 8;
         sidebarEnabled = true;
         hallEnabled = true;
+        finaleEnabled = true;
+        finaleRewardChests = 1;
+        finaleCountdownSeconds = 3;
+        finaleEliteHealthPercentPerMember = 50;
+        mobUniformEnabled = true;
         repeatFinishEmeraldPercent = 50;
         scrapCostBase = 4;
         scrapCostEvery = 3;
@@ -1108,6 +1143,12 @@ public final class PocketDungeonsConfig {
         belowCompassPercent = readInt(root, "belowCompassPercent", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
         endlessDepthEvery = readInt(root, "endlessDepthEvery", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
         endlessDepthMax = readInt(root, "endlessDepthMax", 4, v -> v >= 0 && v <= 10, "must be 0 to 10");
+        finaleEnabled = readBoolean(root, "finaleEnabled", true);
+        finaleRewardChests = readInt(root, "finaleRewardChests", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
+        finaleCountdownSeconds = readInt(root, "finaleCountdownSeconds", 3, v -> v >= 0 && v <= 10, "must be 0 to 10");
+        finaleEliteHealthPercentPerMember = readInt(root, "finaleEliteHealthPercentPerMember", 50,
+                v -> v >= 0 && v <= 100, "must be 0 to 100");
+        mobUniformEnabled = readBoolean(root, "mobUniformEnabled", true);
         hallEnabled = readBoolean(root, "hallEnabled", true);
         repeatFinishEmeraldPercent = readInt(root, "repeatFinishEmeraldPercent", 50, v -> v >= 0 && v <= 100,
                 "must be 0 to 100");
@@ -1441,6 +1482,11 @@ public final class PocketDungeonsConfig {
         root.addProperty("belowCompassPercent", 50);
         root.addProperty("endlessDepthEvery", 4);
         root.addProperty("endlessDepthMax", 4);
+        root.addProperty("finaleEnabled", true);
+        root.addProperty("finaleRewardChests", 1);
+        root.addProperty("finaleCountdownSeconds", 3);
+        root.addProperty("finaleEliteHealthPercentPerMember", 50);
+        root.addProperty("mobUniformEnabled", true);
         root.addProperty("hallEnabled", true);
         root.addProperty("repeatFinishEmeraldPercent", 50);
         root.addProperty("sidebarRepaintTicks", 20);

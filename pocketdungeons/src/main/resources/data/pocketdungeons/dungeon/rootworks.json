@@ -1,6 +1,7 @@
 {
   "name": "Lush Caves",
   "token": { "mat": "minecraft:moss_block" },
+  "finale": {"mobs": [{"type": "minecraft:drowned", "count": 4}, {"type": "minecraft:slime", "count": 2}], "perMemberPercent": 50},
   "notes": "Sand, clay, wood and iron under glowing roots.",
   "act": 1,
   "baseLevel": 1,

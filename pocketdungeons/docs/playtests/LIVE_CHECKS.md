@@ -540,3 +540,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Does a floor below your compass reading `+1 scrap (below your compass)` feel fair rather than an insult?
 - Does a final floor pay a visible extra scrap, and a deeper act pay more than Act 1?
 - Does an Endless Mine trip pay more the deeper it goes?
+
+## L57: finales and uniforms (wave D, 2026-10-09)
+- Copper Works: clearing the last floor\u0027s spawners brings the title, then The Foreman and his crew; does it land like the brood wave ("barely enough"), and does the boss bar read?
+- An Act 1 dungeon (Infestation, Ossuary): is a wave with no elite enough of an ending? Does the pad refuse until it is dead, saying why?
+- In a party, does the wave grow without becoming a slog? Does a won finale pay the extra chest?
+- Copper Works mobs: do zombies and husks wear one copper piece and a copper sword, skeletons two pieces, and does nothing drop?
+- Does the copper gear lengthen a Copper Works clear noticeably?

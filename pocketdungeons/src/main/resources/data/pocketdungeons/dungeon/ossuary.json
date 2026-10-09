@@ -1,6 +1,7 @@
 {
   "name": "Ossuary",
   "token": { "mat": "minecraft:bone_block" },
+  "finale": {"mobs": [{"type": "minecraft:skeleton", "count": 5}, {"type": "minecraft:zombie", "count": 2}], "perMemberPercent": 50},
   "notes": "A catacomb of skeletons. Bone meal, coal and iron.",
   "act": 1,
   "baseLevel": 4,

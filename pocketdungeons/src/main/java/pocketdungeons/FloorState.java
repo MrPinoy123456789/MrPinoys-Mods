@@ -173,6 +173,9 @@ final class FloorState {
      */
     final Map<BlockPos, BlockState> previewWallOriginal = new HashMap<>();
 
+    /** Whether this floor\u0027s finale was won, so the floor count pays its extra chest. */
+    boolean finaleWon;
+
     /** The door step (1, 2 or 3) of the current preview, or {@code 0}. */
     int previewOfferStep;
 

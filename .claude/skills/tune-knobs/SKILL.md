@@ -63,6 +63,9 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 - **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
 - **Effect caps:** `poisonMaxSeconds` 10, `witherMaxSeconds` 8, `slownessMaxSeconds` 6, `miningFatigueMaxSeconds` 30 (0 = off): the longest
   each effect lasts on a player inside a dungeon (`EffectCaps`). Darkness is not capped (the shrieker uses it).
+- **Finale and mob uniform:** `finaleEnabled` true, `finaleRewardChests` 1, `finaleCountdownSeconds` 3,
+  `finaleEliteHealthPercentPerMember` 50 (`FinaleWave`, `FinaleRules`); `mobUniformEnabled` true (`MobUniforms`). Per dungeon, in its
+  JSON: `finale.mobs[].count`, `finale.perMemberPercent`, `finale.elite.health`; `mobUniform.armourPieces`, `rangedArmourPieces`, `chance`.
 - **Scrap curve (`ScrapMath`):** `scrapCostBase` 4 and `scrapCostEvery` 3 (going from compass c to c+1 costs
   `base + floor(c / every)` scrap: compass 1 costs 4, 10 costs 7, 25 costs 12, 50 costs 20), `scrapPerAct` 1 (a floor pays +1
   for each act above the first), `scrapFinalBonus` 1 (+1 on a dungeon's final floor), `belowCompassPercent` 50 (a floor below

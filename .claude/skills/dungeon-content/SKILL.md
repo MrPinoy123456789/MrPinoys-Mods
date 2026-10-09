@@ -34,6 +34,15 @@ twice as likely), `nodes[]`, `edges[]`.
 - Resource-poor dungeons (Infestation, Ossuary, Lush Caves) get `hiddenOre` or ore rooms; a dungeon with
   neither never buries anything in walls, and its palette nodes are invisible (PD-161, PD-147 family).
 
+## The finale and the mob uniform
+
+- `"finale": { "mobs": [ { "type": "minecraft:husk", "count": 4 } ], "perMemberPercent": 50, "elite": { ... } }` makes the
+  dungeon\u0027s final floor end in a last stand (the pad shuts until the wave and its elite are dead). Counts are for a party of one
+  (at most 30 in all); `elite` is `{ "type", "name" ("The Foreman"), "health" (20 to 200), "mainhand" }` and is for Act 2 and up.
+  A capstone takes none. `FinaleDataTest` checks every Act 1 and 2 dungeon has one except the short Cow Pits.
+- `"mobUniform": { "armour": [four item ids], "armourPieces": 1, "rangedArmourPieces": 2, "weapon": "...", "chance": 1.0 }`
+  dresses the dungeon\u0027s mobs; nothing drops. Only melee and ranged humanoids wear it (`MobUniforms.kindOf`).
+
 ## Where a dungeon stands in the Astrolabe Room
 
 The first staging room shows one act's dungeons as a row of doors, in order of `baseLevel` (the compass they need),

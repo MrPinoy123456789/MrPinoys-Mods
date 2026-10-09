@@ -1,6 +1,8 @@
 {
   "name": "Copper Works",
   "token": { "mat": "minecraft:copper_block" },
+  "finale": {"mobs": [{"type": "minecraft:husk", "count": 4}, {"type": "minecraft:skeleton", "count": 2}], "perMemberPercent": 50, "elite": {"type": "minecraft:vindicator", "name": "The Foreman", "health": 60, "mainhand": "minecraft:copper_axe"}},
+  "mobUniform": {"armour": ["minecraft:copper_helmet", "minecraft:copper_chestplate", "minecraft:copper_leggings", "minecraft:copper_boots"], "armourPieces": 1, "rangedArmourPieces": 2, "weapon": "minecraft:copper_sword", "chance": 1.0},
   "notes": "A copper forge full of coal and iron. Smelt as you go.",
   "act": 2,
   "baseLevel": 8,

@@ -215,6 +215,11 @@ final class Instances {
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
                 applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                // The dungeon\u0027s uniform (design pass 2026-10-09, Q5): the Copper Works crew wears copper.
+                DungeonDef uniformOf = TripView.def(record);
+                if (uniformOf != null && uniformOf.mobUniform() != null) {
+                    MobUniforms.apply(mob, uniformOf.mobUniform());
+                }
             }
         });
 

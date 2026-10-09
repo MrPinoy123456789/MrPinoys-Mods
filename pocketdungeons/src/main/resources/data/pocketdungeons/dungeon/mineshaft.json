@@ -1,6 +1,7 @@
 {
   "name": "Mineshaft",
   "token": { "mat": "minecraft:oak_planks" },
+  "finale": {"mobs": [{"type": "minecraft:zombie", "count": 4}, {"type": "minecraft:cave_spider", "count": 3}], "perMemberPercent": 50},
   "notes": "Coal, iron, gold and sand. Dig the rails and seams for ore.",
   "act": 1,
   "baseLevel": 1,

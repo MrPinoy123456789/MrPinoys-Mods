@@ -42,7 +42,57 @@ import java.util.function.ToIntFunction;
 record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
                   List<String> nodePalette, String merchant, String diary, Deviation deviation,
                   List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
-                  int baseLevel, String notes, String hall, String tokenMat) {
+                  int baseLevel, String notes, String hall, String tokenMat, Finale finale,
+                  MobUniform mobUniform) {
+
+    /**
+     * The last stand a dungeon's final floor ends in (design pass 2026-10-09, Q4): a wave of {@code mobs}
+     * that grows {@code perMemberPercent} for each member past the first, and from Act 2 a named
+     * {@code elite} with a boss bar. Never on a capstone, which has its own fight.
+     */
+    record Finale(List<FinaleMob> mobs, int perMemberPercent, Elite elite) {
+
+        Finale {
+            mobs = List.copyOf(mobs);
+        }
+
+        int total() {
+            int total = 0;
+            for (FinaleMob mob : mobs) {
+                total += mob.count();
+            }
+            return total;
+        }
+    }
+
+    /** One kind of mob in a finale wave, by entity type id. */
+    record FinaleMob(String type, int count) {}
+
+    /** The named leader of a finale: a mob type, its name, its health at a party of one, and what it holds. */
+    record Elite(String type, String name, int health, String mainhand) {}
+
+    /**
+     * What the mobs of a dungeon wear (design pass 2026-10-09, Q5): {@code armourPieces} random pieces of
+     * {@code armour} on melee mobs, {@code rangedArmourPieces} on ranged ones, and {@code weapon} in the
+     * hand of a melee mob, each mob wearing it with probability {@code chance}. Nothing it wears drops.
+     */
+    record MobUniform(List<String> armour, int armourPieces, int rangedArmourPieces, String weapon,
+                      double chance) {
+
+        MobUniform {
+            armour = List.copyOf(armour);
+            weapon = weapon == null ? "" : weapon;
+        }
+    }
+
+    /** A dungeon with no finale and no mob uniform: the shape this record had before wave D. */
+    DungeonDef(String id, String name, int act, Kind kind, String mainTheme, LootBand lootBand,
+               List<String> nodePalette, String merchant, String diary, Deviation deviation,
+               List<Node> nodes, List<Edge> edges, HiddenOre hiddenOre, int minNodeRooms,
+               int baseLevel, String notes, String hall, String tokenMat) {
+        this(id, name, act, kind, mainTheme, lootBand, nodePalette, merchant, diary, deviation, nodes, edges,
+                hiddenOre, minNodeRooms, baseLevel, notes, hall, tokenMat, null, null);
+    }
 
     /**
      * A dungeon that stands in its act's row (hall {@code act}) with no doormat token: the shape this record
@@ -742,6 +792,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         if (obj.has("token") && obj.get("token").isJsonObject()) {
             tokenMat = blockId(requiredString(obj.getAsJsonObject("token"), "mat"));
         }
+        Finale finale = parseFinale(obj, id, kind);
+        MobUniform mobUniform = parseUniform(obj, id);
         int minNodeRooms = obj.has("minNodeRooms") ? requiredInt(obj, "minNodeRooms") : 0;
         int baseLevel = requiredInt(obj, "baseLevel");
 
@@ -813,7 +865,80 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         }
         return new DungeonDef(id, name, act, kind, mainTheme, lootBand, palette, merchant, diary,
                 deviation, nodes, edges, hiddenOre, minNodeRooms, baseLevel,
-                checkedNotes(optionalString(obj, "notes"), "dungeon " + id), hall, tokenMat);
+                checkedNotes(optionalString(obj, "notes"), "dungeon " + id), hall, tokenMat, finale, mobUniform);
+    }
+
+    /** Entity and item ids default to the minecraft namespace; this is the same rule as {@link #blockId}. */
+    private static String gameId(String raw) {
+        String id = raw == null ? "" : raw.trim();
+        if (id.isEmpty()) {
+            throw new IllegalArgumentException("an id must not be empty");
+        }
+        return id.indexOf(':') >= 0 ? id : "minecraft:" + id;
+    }
+
+    private static Finale parseFinale(JsonObject obj, String id, Kind kind) {
+        if (!obj.has("finale") || !obj.get("finale").isJsonObject()) {
+            return null;
+        }
+        if (kind == Kind.CAPSTONE) {
+            throw new IllegalArgumentException(id + ": a capstone has its own fight and takes no finale");
+        }
+        JsonObject f = obj.getAsJsonObject("finale");
+        List<FinaleMob> mobs = new ArrayList<>();
+        for (JsonElement element : optionalArray(f, "mobs")) {
+            JsonObject mob = element.getAsJsonObject();
+            int count = requiredInt(mob, "count");
+            if (count < 1 || count > 20) {
+                throw new IllegalArgumentException(id + ": a finale mob count must be 1 to 20: " + count);
+            }
+            mobs.add(new FinaleMob(gameId(requiredString(mob, "type")), count));
+        }
+        if (mobs.isEmpty()) {
+            throw new IllegalArgumentException(id + ": a finale needs at least one mob");
+        }
+        int perMember = f.has("perMemberPercent") ? requiredInt(f, "perMemberPercent") : 50;
+        if (perMember < 0 || perMember > 100) {
+            throw new IllegalArgumentException(id + ": perMemberPercent must be 0 to 100: " + perMember);
+        }
+        Elite elite = null;
+        if (f.has("elite") && f.get("elite").isJsonObject()) {
+            JsonObject e = f.getAsJsonObject("elite");
+            int health = requiredInt(e, "health");
+            if (health < 20 || health > 200) {
+                throw new IllegalArgumentException(id + ": elite health must be 20 to 200: " + health);
+            }
+            String name = checkedNotes(requiredString(e, "name"), "elite of " + id);
+            elite = new Elite(gameId(requiredString(e, "type")), name, health,
+                    e.has("mainhand") ? gameId(requiredString(e, "mainhand")) : "");
+        }
+        Finale finale = new Finale(mobs, perMember, elite);
+        if (finale.total() > 30) {
+            throw new IllegalArgumentException(id + ": a finale for one holds at most 30 mobs: " + finale.total());
+        }
+        return finale;
+    }
+
+    private static MobUniform parseUniform(JsonObject obj, String id) {
+        if (!obj.has("mobUniform") || !obj.get("mobUniform").isJsonObject()) {
+            return null;
+        }
+        JsonObject u = obj.getAsJsonObject("mobUniform");
+        List<String> armour = new ArrayList<>();
+        for (JsonElement element : optionalArray(u, "armour")) {
+            armour.add(gameId(element.getAsString()));
+        }
+        int pieces = u.has("armourPieces") ? requiredInt(u, "armourPieces") : 1;
+        int ranged = u.has("rangedArmourPieces") ? requiredInt(u, "rangedArmourPieces") : 2;
+        if (pieces < 0 || pieces > 4 || ranged < 0 || ranged > 4) {
+            throw new IllegalArgumentException(id + ": armour piece counts must be 0 to 4");
+        }
+        double chance = u.has("chance") ? u.get("chance").getAsDouble() : 1.0;
+        if (chance < 0.0 || chance > 1.0) {
+            throw new IllegalArgumentException(id + ": uniform chance must be 0 to 1: " + chance);
+        }
+        String weapon = u.has("weapon") ? gameId(requiredString(u, "weapon")) : "";
+        return new MobUniform(armour, pieces, ranged, weapon, chance);
     }
 
     /** Bare ids belong to the pocketdungeons namespace, same rule as {@code JsonPackSupport.qualify}. */

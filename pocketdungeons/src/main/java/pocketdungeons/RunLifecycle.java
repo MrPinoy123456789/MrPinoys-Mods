@@ -1281,7 +1281,8 @@ final class RunLifecycle {
         // deeper floors.
         ZoneRules rules = ZoneRules.of(record);
         bankFloorOmen(record);
-        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
+        // A won finale pays one more chest (design pass 2026-10-09, Q4).
+        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared) + FinaleWave.rewardChests(record);
         record.floor.rewardChests = chests;
 
         // The reward corner on the far side of the terminal cell: one barrel

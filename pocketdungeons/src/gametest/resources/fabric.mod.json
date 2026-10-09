@@ -35,6 +35,7 @@
       "pocketdungeons.EffectCapsGameTest",
       "pocketdungeons.JoinFromDungeonGameTest",
       "pocketdungeons.HallRoomGameTest",
+      "pocketdungeons.FinaleWaveGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
