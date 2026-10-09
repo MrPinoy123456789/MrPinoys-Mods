@@ -651,11 +651,11 @@ public final class CubeRecipeGameTest {
             helper.fail("Keystone + string should match bounded_supply, got " + matched.id);
             return;
         }
-        // BONE matches FERAL (fixed catalyst).
+        // Feral is retired (design pass 2026-10-09): its recipe is gated out, so a bone matches nothing.
         ItemStack boneStack = new ItemStack(net.minecraft.world.item.Items.BONE);
         CubeRecipeDefinition boneMatched = CubeRecipe.match(keystone, boneStack, 5);
-        if (boneMatched == null || !RecipeIds.FERAL.equals(boneMatched.id)) {
-            helper.fail("BONE should match FERAL, got " + (boneMatched == null ? "null" : boneMatched.id));
+        if (boneMatched != null) {
+            helper.fail("BONE should match nothing now that Feral is retired, got " + boneMatched.id);
             return;
         }
         helper.succeed();

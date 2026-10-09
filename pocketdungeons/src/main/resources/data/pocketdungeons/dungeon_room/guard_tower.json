@@ -1,11 +1,11 @@
 {
-  "template": "pocketdungeons:rooms/kennel_run",
+  "template": "pocketdungeons:rooms/guard_tower",
   "footprint": [1, 1],
   "roles": ["corridor"],
   "weight": 4,
   "minDepth": 0,
   "maxPerDungeon": 2,
-  "content": "kennel_run",
+  "content": "guard_tower",
   "dungeons": ["kennels"],
   "acts": [1],
   "tier": 1,

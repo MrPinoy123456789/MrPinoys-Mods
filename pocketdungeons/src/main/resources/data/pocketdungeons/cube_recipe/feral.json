@@ -1,1 +1,1 @@
-{"version": 1, "confirmation": "The next run is Feral.", "catalyst": "minecraft:bone", "cost": 1, "priority": 0, "min_level": 0, "effects": {"feral": true}}
+{"version": 1, "confirmation": "The next run is Feral.", "catalyst": "minecraft:bone", "cost": 1, "priority": 0, "min_level": 999, "effects": {"feral": true}}

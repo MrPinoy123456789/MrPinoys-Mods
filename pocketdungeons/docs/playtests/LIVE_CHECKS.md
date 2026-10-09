@@ -564,3 +564,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L60: ore (wave G, 2026-10-09)
 - Endless Mine: do the walls hide coal and iron, and does digging find it? Is it richer four floors down?
 - Deepslate: does `deep_shaft_landing` show enough ore on the landing?
+
+## L61: the Kennels rework (2026-10-09)
+- Do the Kennel Run wolves charge as you enter? Is the room survivable at Act 1 level?
+- Guard Tower: can you run past, shoot the guard, and does "The pack goes quiet." fire when it falls? Does the ladder climb work with wolves biting?
+- Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?
+- Lost wolves (Wolf Hollow, Lost Dog): still friendly and tameable?
+- Warden whelp (L58): does it skip the roar, is 0.3 speed about the player, does the Heard meter hold while it is out?

@@ -1,0 +1,45 @@
+{
+  "spawn_range": 4,
+  "total_mobs": 8.0,
+  "simultaneous_mobs": 4.0,
+  "total_mobs_added_per_player": 2.0,
+  "simultaneous_mobs_added_per_player": 1.0,
+  "ticks_between_spawn": 30,
+  "spawn_potentials": [
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:pillager"
+        }
+      },
+      "weight": 3
+    },
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:wolf"
+        }
+      },
+      "weight": 2
+    },
+    {
+      "data": {
+        "entity": {
+          "id": "minecraft:vindicator"
+        }
+      },
+      "weight": 1
+    }
+  ],
+  "loot_tables_to_eject": [
+    {
+      "data": "pocketdungeons:spawners/ominous_trial_key",
+      "weight": 6
+    },
+    {
+      "data": "pocketdungeons:spawners/emeralds",
+      "weight": 4
+    }
+  ],
+  "items_to_drop_when_ominous": "minecraft:spawners/trial_chamber/items_to_drop_when_ominous"
+}

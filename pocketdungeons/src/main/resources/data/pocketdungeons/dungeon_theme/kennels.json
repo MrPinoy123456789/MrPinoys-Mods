@@ -1,7 +1,7 @@
 {
   "name": "Kennels",
   "processors": "pocketdungeons:theme_kennels",
-  "spawner_prefix": "ossuary",
+  "spawner_prefix": "kennels",
   "loot_suffix": "ossuary",
   "room_theme": "kennels"
 }

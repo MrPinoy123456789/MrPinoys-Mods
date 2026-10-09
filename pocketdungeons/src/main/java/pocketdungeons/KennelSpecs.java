@@ -15,16 +15,20 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * The wolf rooms (design pass 2026-10-09, Q8; PD-188): the Kennels\u0027 pens, its leader\u0027s den, and the Lost
- * Dog, a rare room any early dungeon can hold. Wolves here are neutral and tameable with bones, exactly the
- * Feral affix\u0027s wolves ({@link FeralContent}); the Lost Dog is the exception, tamed by clearing the room.
+ * The wolf rooms (design pass 2026-10-09, Q8; PD-188): the Kennels\u0027 pens, the guard tower, its leader\u0027s
+ * den, and the Lost Dog, a rare room any early dungeon can hold. The Kennels\u0027 wolves are bred to be
+ * aggressive ({@link HostileWolves}); the Lost Dog is the exception, tamed by clearing the room, and a guard
+ * tower\u0027s pack goes quiet when its guard falls.
  */
 final class KennelSpecs {
 
@@ -39,6 +43,7 @@ final class KennelSpecs {
     static List<RoomSpec> list() {
         List<RoomSpec> specs = new ArrayList<>();
         specs.add(kennelRun());
+        specs.add(guardTower());
         specs.add(alphasDen());
         specs.add(lostDog());
         return specs;
@@ -55,7 +60,7 @@ final class KennelSpecs {
 
     /**
      * The Kennel Run: a path between two rows of fenced pens, a two wide gate to each, hay in the corners and a
-     * stray wolf in each pen. The wolves are neutral: do not hit them, feed them bones. West and east doors.
+     * wolf in each pen. The gates stand open and the wolves charge. West and east doors.
      */
     private static RoomSpec kennelRun() {
         return new RoomSpec("kennel_run", EnumSet.of(Direction.WEST, Direction.EAST))
@@ -65,8 +70,8 @@ final class KennelSpecs {
                         for (int x = 1; x <= 14; x++) {
                             RoomDsl.put(level, o, x, 1, z, fence(x < 14, x > 1, false, false));
                         }
-                        RoomDsl.put(level, o, 7, 1, z, gate(Direction.NORTH));
-                        RoomDsl.put(level, o, 8, 1, z, gate(Direction.NORTH));
+                        RoomDsl.put(level, o, 7, 1, z, gate(Direction.NORTH).setValue(FenceGateBlock.OPEN, true));
+                        RoomDsl.put(level, o, 8, 1, z, gate(Direction.NORTH).setValue(FenceGateBlock.OPEN, true));
                         RoomDsl.put(level, o, 1, 2, z, LOG);
                         RoomDsl.put(level, o, 14, 2, z, LOG);
                     }
@@ -77,6 +82,37 @@ final class KennelSpecs {
                     RoomDsl.put(level, o, 6, 1, 3, BONES);
                     RoomDsl.put(level, o, 9, 1, 12, BONES);
                     RoomDsl.put(level, o, 3, 4, 7, WEB);
+                });
+    }
+
+    /**
+     * The Guard Tower: wolves loose on the floor and a pillager with a crossbow on a fenced tower at the north
+     * wall, a ladder up its south side. Run past, or put the guard down (an arrow, or the ladder) and the pack
+     * goes quiet. West and east doors; the tower stays off the door lanes.
+     */
+    private static RoomSpec guardTower() {
+        return new RoomSpec("guard_tower", EnumSet.of(Direction.WEST, Direction.EAST))
+                .spawns(new BlockPos(4, 1, 6), new BlockPos(11, 1, 6), new BlockPos(4, 1, 11), new BlockPos(11, 1, 11))
+                .decor((level, o) -> {
+                    // The tower: a solid base two high, so a guard stands at y3.
+                    RoomDsl.box(level, o, 6, 1, 2, 9, 2, 4, LOG);
+                    // A fence round its top, open at the ladder.
+                    for (int x = 6; x <= 9; x++) {
+                        RoomDsl.put(level, o, x, 3, 2, fence(x < 9, x > 6, false, false));
+                        if (x != 7) {
+                            RoomDsl.put(level, o, x, 3, 4, fence(x < 9, x > 6, false, false));
+                        }
+                    }
+                    RoomDsl.put(level, o, 6, 3, 3, fence(false, false, true, true));
+                    RoomDsl.put(level, o, 9, 3, 3, fence(false, false, true, true));
+                    // The ladder, up the south face.
+                    RoomDsl.put(level, o, 7, 1, 5, Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.SOUTH));
+                    RoomDsl.put(level, o, 7, 2, 5, Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.SOUTH));
+                    // Hay and bones on the floor: the pack\u0027s yard.
+                    RoomDsl.put(level, o, 2, 1, 13, HAY);
+                    RoomDsl.put(level, o, 13, 1, 13, HAY);
+                    RoomDsl.put(level, o, 5, 1, 9, BONES);
+                    RoomDsl.put(level, o, 12, 1, 4, BONES);
                 });
     }
 
@@ -147,9 +183,45 @@ final class KennelSpecs {
             return;
         }
         handlersRegistered = true;
+        HostileWolves.register();
         Situations.register("kennel_run", (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
                                            voidedFloor, content) -> {
-            FeralContent.applyCount(level, o, spawns, profile.lootTier(), profile.keystoneLevel(), seed, 3);
+            for (Wolf wolf : FeralContent.applyCount(level, o, spawns, profile.lootTier(), profile.keystoneLevel(), seed, 4)) {
+                HostileWolves.mark(wolf);
+            }
+            return null;
+        });
+        Situations.register("guard_tower", (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
+                                            voidedFloor, content) -> {
+            // The guard stands where the tower's fence closes in on three sides (the cell may be rotated, so
+            // it is found by the fence, never by a fixed offset).
+            BlockPos perch = null;
+            for (int x = 1; x <= 14 && perch == null; x++) {
+                for (int z = 1; z <= 14 && perch == null; z++) {
+                    BlockPos at = o.offset(x, 3, z);
+                    if (!level.getBlockState(at).isAir() || level.getBlockState(at.below()).isAir()) {
+                        continue;
+                    }
+                    int fences = 0;
+                    for (Direction d : Direction.Plane.HORIZONTAL) {
+                        if (level.getBlockState(at.relative(d)).getBlock() instanceof FenceBlock) {
+                            fences++;
+                        }
+                    }
+                    if (fences >= 3) {
+                        perch = at;
+                    }
+                }
+            }
+            List<BlockPos> floor = new ArrayList<>(spawns);
+            if (perch != null) {
+                RoomContent.spawnMobs(level, o, EntityTypes.PILLAGER, 1, List.of(perch), seed, guard -> {
+                    if (guard instanceof net.minecraft.world.entity.Mob mob) {
+                        Instances.applyMobScale(mob, profile.keystoneLevel());
+                        HostileWolves.guard(o, mob);
+                    }
+                });
+            }
             return null;
         });
         Situations.register("lost_dog", (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
@@ -179,6 +251,7 @@ final class KennelSpecs {
                 List<Wolf> dogs = FeralContent.applyCount(level, o, List.of(pen), profile.lootTier(),
                         profile.keystoneLevel(), seed, 1);
                 if (!dogs.isEmpty()) {
+                    HostileWolves.calm(dogs.get(0));
                     LOST_DOGS.put(o.immutable(), dogs.get(0).getUUID());
                 }
             }

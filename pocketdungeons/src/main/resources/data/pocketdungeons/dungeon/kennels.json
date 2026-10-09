@@ -8,6 +8,10 @@
       {
         "type": "minecraft:wolf",
         "count": 5
+      },
+      {
+        "type": "minecraft:pillager",
+        "count": 1
       }
     ],
     "perMemberPercent": 50,
@@ -17,7 +21,7 @@
       "health": 40
     }
   },
-  "notes": "An old hunting lodge. Wolves, bones and a pack to win.",
+  "notes": "Pillagers raise wolves here, and raise them cruel. Nothing in the pens is friendly.",
   "act": 1,
   "baseLevel": 3,
   "kind": "dungeon",
@@ -38,7 +42,7 @@
     {
       "id": "kennel_rows",
       "name": "Kennel Rows",
-      "notes": "Cages full of strays. Bring bones.",
+      "notes": "Cages, and every wolf in them wants out.",
       "layer": 2,
       "roomBias": [
         "kennel_run"
@@ -48,10 +52,12 @@
     {
       "id": "hunting_grounds",
       "name": "Hunting Grounds",
-      "notes": "Wolves in the halls. Feed them, do not hit them.",
+      "notes": "Wolves in the halls. Guards on the towers.",
       "layer": 2,
-      "signatureAffix": "pocketdungeons:feral",
-      "light": "dim"
+      "light": "dim",
+      "roomBias": [
+        "guard_tower"
+      ]
     },
     {
       "id": "bone_yard",
@@ -67,7 +73,7 @@
     {
       "id": "alphas_den",
       "name": "The Alpha's Den",
-      "notes": "The last floor. The pack's leader waits.",
+      "notes": "The last floor. The breeder's best dog waits.",
       "layer": 3,
       "final": true,
       "roomBias": [

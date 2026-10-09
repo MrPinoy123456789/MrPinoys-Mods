@@ -251,6 +251,9 @@ final class FinaleWave {
      * it fights, and any mob is pointed at a member.
      */
     private static void provoke(Mob mob, ServerPlayer target) {
+        if (mob instanceof net.minecraft.world.entity.animal.wolf.Wolf wolf) {
+            HostileWolves.mark(wolf);
+        }
         if (mob instanceof net.minecraft.world.entity.NeutralMob neutral) {
             neutral.startPersistentAngerTimer();
         }

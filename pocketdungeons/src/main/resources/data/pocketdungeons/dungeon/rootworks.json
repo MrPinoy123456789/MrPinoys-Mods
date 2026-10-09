@@ -56,11 +56,10 @@
     {
       "id": "wolf_hollow",
       "name": "Wolf Hollow",
-      "notes": "Wolves in the roots. Feed what trusts you.",
+      "notes": "Lost wolves in the roots. They are not the Kennels\u0027 kind.",
       "layer": 2,
-      "signatureAffix": "pocketdungeons:feral",
       "roomBias": [
-        "kennel_run"
+        "lost_dog"
       ],
       "light": "dim"
     },

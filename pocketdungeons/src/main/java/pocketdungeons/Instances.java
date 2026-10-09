@@ -3011,7 +3011,13 @@ final class Instances {
      * {@link InstanceLayout#bounds()} is already the exact box teardown itself
      * trusts.
      */
-    private static InstanceRecord instanceAt(BlockPos pos) {
+    /** Whether {@code pos} is inside a running instance of the dungeon {@code dungeonId}. */
+    static boolean inDungeon(BlockPos pos, String dungeonId) {
+        InstanceRecord record = instanceAt(pos);
+        return record != null && dungeonId.equals(record.interval.dungeonId);
+    }
+
+    static InstanceRecord instanceAt(BlockPos pos) {
         Vec3 centre = Vec3.atCenterOf(pos);
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
             if (record.layout.bounds().contains(centre)) {
