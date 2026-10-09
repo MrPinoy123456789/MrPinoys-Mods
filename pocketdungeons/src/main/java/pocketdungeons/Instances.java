@@ -2052,6 +2052,30 @@ final class Instances {
     }
 
     /**
+     * PD-191 (owner ruling 2026-10-09): the owner of a dungeon leaves it to join another party, which
+     * counts as failing it. Every member's haul banks at the fail share, everyone is sent home, and the
+     * run closes; the keystone is untouched, exactly as a fifth death.
+     */
+    static void failRunLeft(MinecraftServer server, InstanceRecord record, ServerPlayer leaver) {
+        clearMobTargets(server, record);
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
+        }
+        announce(server, record, leaver.getName().getString()
+                + " left to join another party. The dungeon fails; you keep what you carry.", leaver.getUUID());
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                eject(server, record, player);
+            } else {
+                detach(server, record, member, null);
+            }
+            RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
+        }
+        InstanceTeardown.purge(server, record, "owner left to join another party", leaver.getUUID());
+    }
+
+    /**
      * Rising omen sends a small loot-less wave after each member who is still in
      * the dungeon. The number of mobs scales with the new omen value, and they
      * are tagged so their drops are suppressed.

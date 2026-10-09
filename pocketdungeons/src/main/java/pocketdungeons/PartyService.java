@@ -277,9 +277,11 @@ final class PartyService {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        if (InstanceRegistry.byMember.containsKey(target.getUUID())) {
+        // PD-191: a player inside a different dungeon may be invited; joining ends their own as a fail.
+        InstanceRecord targetRecord = InstanceRegistry.byMember.get(target.getUUID());
+        if (targetRecord == record) {
             inviter.sendSystemMessage(Component.literal(
-                    target.getName().getString() + " is already in a dungeon.")
+                    target.getName().getString() + " is already in this dungeon.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -306,10 +308,30 @@ final class PartyService {
         target.sendSystemMessage(Component.literal(
                 inviterName + " invites you into their dungeon. "
                         + "Run /dungeon join " + inviterName
-                        + " within two minutes to go in.")
+                        + " within two minutes to go in."
+                        + (targetRecord == null ? "" : " Joining ends your own dungeon as a failed dungeon: "
+                                + "your haul keeps " + PocketDungeonsConfig.failHaulKeepPercent() + " percent"
+                                + (target.getUUID().equals(targetRecord.owner)
+                                        && targetRecord.members.size() > 1 ? ", and your party is sent home." : ".")))
                 .withStyle(s -> s.withColor(ChatFormatting.GOLD)
                         .withClickEvent(DialogKit.open(DialogScreens.inviteOffer(inviterName)))));
         return true;
+    }
+
+    /**
+     * PD-191 (owner ruling 2026-10-09): joining another party counts as having left one's own dungeon
+     * first. The owner fails the dungeon for the whole party; anyone else loses their haul to the fail
+     * share and walks out, as a failed dungeon.
+     */
+    static void leaveOwnDungeon(MinecraftServer server, ServerPlayer player, InstanceRecord own) {
+        if (own.isKeystoneRun() && player.getUUID().equals(own.owner)) {
+            Instances.failRunLeft(server, own, player);
+            return;
+        }
+        if (own.isKeystoneRun()) {
+            RunLifecycle.bankHaul(server, own, player.getUUID(), RunLifecycle.BankContext.FAIL);
+        }
+        RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
     }
 
     /** @return whether the player actually joined (PD-38). */
@@ -318,9 +340,9 @@ final class PartyService {
         if (server == null) {
             return false;
         }
-        if (InstanceRegistry.hasInstance(player)) {
-            player.sendSystemMessage(Component.literal(
-                    "You are already in a dungeon. Use /dungeon exit first.")
+        InstanceRecord own = InstanceRegistry.byMember.get(player.getUUID());
+        if (own != null && own.members.containsKey(leader.getUUID())) {
+            player.sendSystemMessage(Component.literal("You are already in that dungeon.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -350,6 +372,10 @@ final class PartyService {
         }
 
         invites.remove(player.getUUID());
+        // PD-191: the invite is good, so leave the player's own dungeon first, as a failed one.
+        if (own != null) {
+            leaveOwnDungeon(server, player, own);
+        }
         PlaytestJournal.hintEnter(player.getUUID(), "invite");
         record.guests.remove(player.getUUID());
         Instances.admit(server, record, player);
