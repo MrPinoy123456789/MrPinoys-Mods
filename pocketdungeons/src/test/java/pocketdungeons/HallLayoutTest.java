@@ -83,6 +83,21 @@ public class HallLayoutTest {
         eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> a <= 2), 2);
         eq(HallLayout.openingAct(Set.of(1, 2), a -> false), 2);
         eq(HallLayout.openingAct(Set.of(), a -> true), 1);
+        // The lever stands beside the selected door, never in a door's place.
+        for (int rel : HallLayout.DOOR_SPACES) {
+            check(!HallLayout.isLeverAlong(rel), "a lever place is not a door space: " + rel);
+        }
+        check(!HallLayout.isLeverAlong(7) && !HallLayout.isLeverAlong(8), "and not the doorway slot");
+        Set<Integer> full = Set.of(2, 4, 6, 9, 11, 13);
+        eq(HallLayout.leverAlongFor(2, full), 3);   // the next one along
+        eq(HallLayout.leverAlongFor(4, full), 5);
+        eq(HallLayout.leverAlongFor(6, full), 5);   // 7 is the doorway slot, so the one before
+        eq(HallLayout.leverAlongFor(9, full), 10);
+        eq(HallLayout.leverAlongFor(11, full), 12);
+        eq(HallLayout.leverAlongFor(13, full), 12);
+        eq(HallLayout.leverAlongFor(14, Set.of(2, 4, 6, 9, 11, 13, 14)), 12);   // a special at the end: nearest free
+        eq(HallLayout.leverAlongFor(1, Set.of(2, 4, 6, 9, 11, 13, 1)), 3);
+        eq(HallLayout.leverAlongFor(6, Set.of(6)), 5);
         System.out.println("HallLayoutTest passed");
     }
 

@@ -477,6 +477,28 @@ final class RoomTemplateGenerator {
     /** A hall bulb's look: dark, lit copper, or lit oxidized copper (a finished dungeon wears patina). */
     enum HallBulb { DARK, LIT, PATINA }
 
+    /** The lever's place in the door row for the Astrolabe Room, beside the selected door at {@code along}. */
+    static BlockPos hallLeverPos(BlockPos o, DoorMask.Direction wall, int along) {
+        return doorPlanePos(o, wall, along, 2);
+    }
+
+    /** Places the DESCEND lever at {@code along} with its sign above it. */
+    static void placeHallLever(ServerLevel level, BlockPos o, DoorMask.Direction wall, int along) {
+        RoomBuilder.set(level, doorPlanePos(o, wall, along, 2), leverState(wall));
+        placeSign(level, doorPlanePos(o, wall, along, SIGN_Y), wall, LEVER_SIGN_WORD);
+    }
+
+    /** Takes the DESCEND lever and its sign out of every place they may stand, including the fixed one of the three-door room. */
+    static void clearHallLevers(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int along : HallLayout.LEVER_SPACES) {
+            for (int y : new int[]{2, SIGN_Y}) {
+                BlockPos pos = doorPlanePos(o, wall, along, y);
+                RoomBuilder.set(level, pos, RoomBuilder.AIR);
+                level.removeBlockEntity(pos);
+            }
+        }
+    }
+
     /** Every absolute position along the wall a hall door or a default selector door may stand on. */
     static int[] hallCandidateAlongs(DoorMask.Direction wall) {
         int[] out = new int[SELECTOR_DOORS.length + HallLayout.DOOR_SPACES.length + HallLayout.SPECIAL_SPACES.length];

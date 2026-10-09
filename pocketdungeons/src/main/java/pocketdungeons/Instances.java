@@ -1003,6 +1003,11 @@ final class Instances {
         if (record == null || !RunSession.canChooseDoor(record) || record.stagingCellOrigin == null) {
             return false;
         }
+        if (HallRoom.isHallStaging(record)) {
+            // The Astrolabe Room's lever stands beside the selected door, wherever that is.
+            return record.interval.hallLeverAlong > 0 && RoomTemplateGenerator.hallLeverPos(
+                    record.stagingCellOrigin, record.roomDungeonDoor, record.interval.hallLeverAlong).equals(pos);
+        }
         return RoomTemplateGenerator.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 

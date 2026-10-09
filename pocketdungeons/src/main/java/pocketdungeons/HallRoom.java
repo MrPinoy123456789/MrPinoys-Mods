@@ -109,6 +109,11 @@ final class HallRoom {
         }
         RoomTemplateGenerator.clearSelectorDoors(level, o, wall);
         RoomTemplateGenerator.clearBulbs(level, o, wall);
+        // The lever and its sign belong to a selected door: none stands until a door is chosen.
+        RoomTemplateGenerator.clearHallLevers(level, o, wall);
+        if (record != null) {
+            record.interval.hallLeverAlong = 0;
+        }
 
         int experimental = ExperimentalDungeon.current() != null
                 && hall.specials().size() < HallLayout.MAX_SPECIALS ? 1 : 0;
@@ -168,6 +173,20 @@ final class HallRoom {
         for (int slot = 1; slot <= alongs.length; slot++) {
             RoomTemplateGenerator.setHallBulb(level, record.stagingCellOrigin, record.roomDungeonDoor,
                     alongs[slot - 1], bulbFor(hall.dungeon(slot), hall.status(slot), selected > 0, slot == selected));
+        }
+        // The DESCEND lever and its sign stand beside the selected door and nowhere else (owner, 2026-10-09).
+        RoomTemplateGenerator.clearHallLevers(level, record.stagingCellOrigin, record.roomDungeonDoor);
+        record.interval.hallLeverAlong = 0;
+        if (selected >= 1 && selected <= alongs.length) {
+            java.util.Set<Integer> occupied = new java.util.HashSet<>();
+            for (int along : alongs) {
+                occupied.add(along);
+            }
+            int leverAlong = HallLayout.leverAlongFor(alongs[selected - 1], occupied);
+            if (leverAlong > 0) {
+                RoomTemplateGenerator.placeHallLever(level, record.stagingCellOrigin, record.roomDungeonDoor, leverAlong);
+                record.interval.hallLeverAlong = leverAlong;
+            }
         }
     }
 
@@ -320,6 +339,7 @@ final class HallRoom {
     /** Takes the astrolabe, its plinth and the hall's row down, when a door is committed or the room is left. */
     static void dismantle(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         clearAstrolabeEntities(level, o);
+        RoomTemplateGenerator.clearHallLevers(level, o, wall);
         BlockPos plinth = o.offset(CORE_X, 1, CORE_Z);
         if (BuiltInRegistries.BLOCK.getKey(level.getBlockState(plinth).getBlock()).getPath().equals("waxed_cut_copper")) {
             level.setBlock(plinth, RoomBuilder.AIR, 3);

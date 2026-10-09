@@ -419,6 +419,10 @@ final class RoomProtection {
                 return true;
             }
         }
+        // The Astrolabe Room's DESCEND lever and its sign stand at one of four places beside the selected door.
+        if (perp == doorPlane && (y == 2 || y == 3) && HallLayout.isLeverAlong(along)) {
+            return true;
+        }
         // PD-70: the levers and the go-home control are placed viewer-relative
         // (RoomGeometry.viewerAlong), so test them in the same frame.
         int seen = RoomGeometry.viewerAlong(wall, along);

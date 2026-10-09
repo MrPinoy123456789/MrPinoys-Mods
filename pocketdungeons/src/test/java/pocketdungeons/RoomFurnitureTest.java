@@ -163,7 +163,8 @@ public class RoomFurnitureTest {
                         boolean hallDoor = onDoorPlane && (y == 1 || y == 2) && hallAlong;
                         int inward = doorPlaneOf(wall) == 1 ? 2 : RoomGeometry.CELL - 3;
                         boolean hallSign = perp == inward && y == 1 && hallAlong;
-                        if (!selectorDoor && !lever && !sign && !hallDoor && !hallSign) {
+                        boolean hallLever = onDoorPlane && (y == 2 || y == 3) && HallLayout.isLeverAlong(along);
+                        if (!selectorDoor && !lever && !sign && !hallDoor && !hallSign && !hallLever) {
                             throw new AssertionError("interior should never be furniture: "
                                     + wall + " at " + x + "," + y + "," + z);
                         }

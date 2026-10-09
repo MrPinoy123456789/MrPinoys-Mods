@@ -38,6 +38,46 @@ final class HallLayout {
         return false;
     }
 
+    /**
+     * The places the DESCEND lever and its sign may stand beside a selected door (owner, 2026-10-09: they
+     * appear only next to the door that is selected). Absolute positions along the wall; the set is the same
+     * mirrored, and none is a door space, so the lever never stands in a door's place.
+     */
+    static final int[] LEVER_SPACES = {3, 5, 10, 12};
+
+    /** Whether {@code along} is one of the places the lever may stand. */
+    static boolean isLeverAlong(int along) {
+        for (int space : LEVER_SPACES) {
+            if (space == along) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Where the lever stands for the door at {@code doorAlong}: the free lever place directly beside it
+     * (the next one along first, then the one before), otherwise the nearest free lever place. {@code occupied}
+     * holds the places doors stand on. Returns 0 only if no place is free.
+     */
+    static int leverAlongFor(int doorAlong, Set<Integer> occupied) {
+        for (int beside : new int[]{doorAlong + 1, doorAlong - 1}) {
+            if (isLeverAlong(beside) && !occupied.contains(beside)) {
+                return beside;
+            }
+        }
+        int best = 0;
+        for (int space : LEVER_SPACES) {
+            if (occupied.contains(space)) {
+                continue;
+            }
+            if (best == 0 || Math.abs(space - doorAlong) < Math.abs(best - doorAlong)) {
+                best = space;
+            }
+        }
+        return best;
+    }
+
     /** The order the spaces fill, middle outward. */
     static final int[] FILL_ORDER = {6, 9, 4, 11, 2, 13};
     /** The ends of the row, where doors that belong to no act stand, in the order they appear. */

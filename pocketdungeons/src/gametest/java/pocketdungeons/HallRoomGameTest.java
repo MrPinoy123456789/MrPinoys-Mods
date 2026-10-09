@@ -179,6 +179,65 @@ public final class HallRoomGameTest {
         helper.succeed();
     }
 
+    /** The DESCEND lever and its sign appear beside the selected door only (owner, 2026-10-09). */
+    @GameTest(maxTicks = 60)
+    public void theLeverStandsBesideTheSelectedDoorOnly(GameTestHelper helper) {
+        for (DoorMask.Direction wall : List.of(DoorMask.Direction.SOUTH, DoorMask.Direction.NORTH)) {
+            ServerLevel level = helper.getLevel();
+            MinecraftServer server = level.getServer();
+            UUID owner = UUID.randomUUID();
+            BlockPos staging = helper.absolutePos(new BlockPos(0, 1, 0));
+            InstanceRecord record = new InstanceRecord(9972, staging, server.getTickCount(), null, Set.of(), owner, false);
+            record.stagingCellOrigin = staging;
+            record.roomDungeonDoor = wall;
+            InstanceRegistry.bySlot.put(9972, record);
+            InstanceRegistry.usedSlots.add(9972);
+            InstanceRegistry.byMember.put(owner, record);
+            try {
+                HallRoom.arm(server, level, staging, wall, owner, record);
+                helper.assertValueEqual(record.interval.hallLeverAlong, 0, wall + ": no lever before a door is selected");
+                for (int along : HallLayout.LEVER_SPACES) {
+                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along)).isAir(),
+                            wall + ": no lever at " + along + " with nothing selected");
+                }
+                HallOffers.Hall hall = HallOffers.of(server, record);
+                int slots = hall.size();
+                helper.assertTrue(slots >= 1, "the room shows a door");
+                for (int slot = 1; slot <= slots; slot++) {
+                    record.floor.selectedStep = slot;
+                    HallRoom.paintBulbs(server, level, record);
+                    int along = record.interval.hallLeverAlong;
+                    helper.assertTrue(HallLayout.isLeverAlong(along), wall + " slot " + slot + ": the lever stands at a lever place");
+                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along))
+                            .getBlock() instanceof net.minecraft.world.level.block.LeverBlock, wall + " slot " + slot + ": a lever");
+                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along).above())
+                            .getBlock() instanceof net.minecraft.world.level.block.WallSignBlock, wall + " slot " + slot + ": a sign above it");
+                    int levers = 0;
+                    for (int other : HallLayout.LEVER_SPACES) {
+                        if (level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, other)).getBlock()
+                                instanceof net.minecraft.world.level.block.LeverBlock) {
+                            levers++;
+                        }
+                    }
+                    helper.assertValueEqual(levers, 1, wall + " slot " + slot + ": exactly one lever in the room");
+                }
+                record.floor.selectedStep = 0;
+                HallRoom.paintBulbs(server, level, record);
+                helper.assertValueEqual(record.interval.hallLeverAlong, 0, wall + ": deselecting takes the lever away");
+                for (int along : HallLayout.LEVER_SPACES) {
+                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along)).isAir(),
+                            wall + ": the lever place " + along + " is empty again");
+                }
+            } finally {
+                HallRoom.dismantle(level, staging, wall);
+                InstanceRegistry.bySlot.remove(9972);
+                InstanceRegistry.usedSlots.remove(9972);
+                InstanceRegistry.byMember.remove(owner);
+            }
+        }
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 40)
     public void aRepeatFinishPaysAShare(GameTestHelper helper) {
         helper.assertValueEqual(PocketDungeonsConfig.repeatFinishEmeraldPercent(), 50, "the default is half");

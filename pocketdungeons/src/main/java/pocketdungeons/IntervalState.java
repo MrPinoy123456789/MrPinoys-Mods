@@ -28,6 +28,9 @@ final class IntervalState {
      */
     int hallAct;
 
+    /** Where the DESCEND lever stands along the selector wall in the Astrolabe Room, or 0 with no door selected. */
+    int hallLeverAlong;
+
     /** Floors cleared since the last safe visit. The next floor is {@code floorIndex + 1}. */
     int floorIndex;
 
