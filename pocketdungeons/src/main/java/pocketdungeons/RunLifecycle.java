@@ -920,6 +920,26 @@ final class RunLifecycle {
                 && betweenFloors(record)) {
             return leaveAtCheckpoint(server, record, player);
         }
+        // Design pass 2026-10-09 (PD-191 ruling, applied to every voluntary leave): walking out of a
+        // floor in progress is a failed dungeon for what the leaver carries, so leaving can never beat
+        // failing. A rider banks their own haul (the fail share mid-floor, in full at a checkpoint); an
+        // owner with a party still inside fails the dungeon for everyone. A solo owner just steps out of
+        // a run that waits for them (free re-entry), and their haul stays at risk in it.
+        if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+            boolean between = betweenFloors(record);
+            boolean isOwner = player.getUUID().equals(record.owner);
+            boolean othersRemainHere = record.members.keySet().stream()
+                    .anyMatch(m -> !m.equals(player.getUUID()));
+            if (isOwner && !between && othersRemainHere) {
+                PlaytestJournal.inventorySnapshot(player, record, "exit");
+                PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
+                Instances.failRunLeft(server, record, player, "left the dungeon.");
+                return true;
+            }
+            if (!isOwner) {
+                bankHaul(server, record, player.getUUID(), between ? BankContext.HOME : BankContext.FAIL);
+            }
+        }
         PlaytestJournal.inventorySnapshot(player, record, "exit");
         PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
 
@@ -1482,10 +1502,25 @@ final class RunLifecycle {
      * On join: an orphaned haul (scrap carried by a member who is in no live trip) banks in full;
      * a migrated player is told once what scrap is now; the compass lore is repainted.
      */
+    /**
+     * Whether {@code id} owns a run that is still standing and can be re-entered (free re-entry, or the
+     * reconnect grace). Their haul is still at risk in it, so it is not an orphan to bank in full.
+     */
+    static boolean ownsLiveRun(UUID id) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            if (id.equals(record.owner) && record.isKeystoneRun() && record.inFloorLoop()
+                    && !record.tearingDown && !record.visitInstance
+                    && record.phase != RunSession.Phase.HOME) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static void onJoinHaul(MinecraftServer server, ServerPlayer player) {
         DungeonLog log = DungeonLog.forServer(server);
         UUID id = player.getUUID();
-        boolean inTrip = InstanceRegistry.byMember.containsKey(id);
+        boolean inTrip = InstanceRegistry.byMember.containsKey(id) || ownsLiveRun(id);
         if (!inTrip && log.haulOf(id) > 0) {
             bankHaul(server, null, id, BankContext.ORPHAN);
         }

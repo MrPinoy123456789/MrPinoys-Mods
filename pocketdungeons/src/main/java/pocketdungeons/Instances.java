@@ -2057,12 +2057,17 @@ final class Instances {
      * run closes; the keystone is untouched, exactly as a fifth death.
      */
     static void failRunLeft(MinecraftServer server, InstanceRecord record, ServerPlayer leaver) {
+        failRunLeft(server, record, leaver, "left to join another party.");
+    }
+
+    /** {@link #failRunLeft(MinecraftServer, InstanceRecord, ServerPlayer)} with the leaver's reason ("left the dungeon."). */
+    static void failRunLeft(MinecraftServer server, InstanceRecord record, ServerPlayer leaver, String why) {
         clearMobTargets(server, record);
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
         }
         announce(server, record, leaver.getName().getString()
-                + " left to join another party. The dungeon fails; you keep what you carry.", leaver.getUUID());
+                + " " + why + " The dungeon fails; you keep what you carry.", leaver.getUUID());
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
