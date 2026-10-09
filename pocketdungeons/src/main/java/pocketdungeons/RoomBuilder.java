@@ -397,6 +397,37 @@ final class RoomBuilder {
         }
     }
 
+    /**
+     * The Astrolabe Room's wide preview window (owner, 2026-10-09): fills the whole interior width of
+     * {@code wall} (along 1 to {@code CELL - 2}) at Y=1..{@link RoomGeometry#DOOR_HEIGHT} with {@code state},
+     * glass while a preview stands. {@code skip} leaves a place alone (the copper bulbs in the staging
+     * wall's top course, the doorway lane at a commit); {@code capture}, when given, records what each
+     * filled place held first, so the far wall of the entrance cell can be given back.
+     */
+    static void previewWall(ServerLevel level, BlockPos cellOrigin, Direction wall, BlockState state,
+                            java.util.function.BiPredicate<Integer, Integer> skip,
+                            java.util.Map<BlockPos, BlockState> capture) {
+        for (int along = 1; along <= CELL - 2; along++) {
+            for (int y = 1; y <= DOOR_HEIGHT; y++) {
+                if (skip != null && skip.test(along, y)) {
+                    continue;
+                }
+                BlockPos pos = sideWindowPos(cellOrigin, wall, along, y);
+                if (capture != null) {
+                    capture.putIfAbsent(pos, level.getBlockState(pos));
+                }
+                set(level, pos, state);
+            }
+        }
+    }
+
+    /** Gives back the blocks {@link #previewWall} captured. */
+    static void restoreWall(ServerLevel level, java.util.Map<BlockPos, BlockState> originals) {
+        for (java.util.Map.Entry<BlockPos, BlockState> entry : originals.entrySet()) {
+            set(level, entry.getKey(), entry.getValue());
+        }
+    }
+
     private static BlockPos sideWindowPos(BlockPos cellOrigin, Direction wall, int along, int y) {
         return switch (wall) {
             case NORTH -> cellOrigin.offset(along, y, 0);

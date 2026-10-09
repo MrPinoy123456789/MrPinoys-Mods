@@ -3,7 +3,11 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -162,6 +166,12 @@ final class FloorState {
      * does not farm a new entrance. {@code null} with no preview.
      */
     RunRecipePlan previewRecipePlan;
+
+    /**
+     * The Astrolabe Room's wide preview window (owner, 2026-10-09): the entrance cell's wall blocks the glass
+     * replaced, so the commit can give them back. Empty with no preview and outside the Astrolabe Room.
+     */
+    final Map<BlockPos, BlockState> previewWallOriginal = new HashMap<>();
 
     /** The door step (1, 2 or 3) of the current preview, or {@code 0}. */
     int previewOfferStep;

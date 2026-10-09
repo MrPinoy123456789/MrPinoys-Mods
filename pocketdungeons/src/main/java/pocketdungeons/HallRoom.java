@@ -131,6 +131,19 @@ final class HallRoom {
         placeAstrolabe(level, o, hall);
     }
 
+    /** The absolute positions along the selector wall where a door, and so a bulb, stands right now. */
+    static java.util.Set<Integer> bulbAlongs(MinecraftServer server, InstanceRecord record) {
+        HallOffers.Hall hall = HallOffers.of(server, record);
+        int experimental = ExperimentalDungeon.current() != null
+                && hall.specials().size() < HallLayout.MAX_SPECIALS ? 1 : 0;
+        java.util.Set<Integer> out = new java.util.HashSet<>();
+        for (int along : HallOffers.absoluteAlongs(record.roomDungeonDoor, hall.doors().size(),
+                hall.specials().size() + experimental)) {
+            out.add(along);
+        }
+        return out;
+    }
+
     /** Which bulb a door shows, given whether another door is selected and whether this one is. */
     static RoomTemplateGenerator.HallBulb bulbFor(DungeonDef def, HallLayout.Status status, boolean someoneSelected,
                                                   boolean thisSelected) {
@@ -177,8 +190,10 @@ final class HallRoom {
         Component second;
         switch (status.state()) {
             case FINISHED -> {
-                first = Component.literal(name).withStyle(ChatFormatting.GREEN);
-                second = Component.literal("Finished").withStyle(ChatFormatting.GREEN);
+                // Owner, 2026-10-09: "Finished" reads as nothing left to do. The door is open to be played
+                // again, so the sign says that; the oxidized bulb already says it has been done.
+                first = Component.literal(name).withStyle(ChatFormatting.WHITE);
+                second = Component.literal("Play again").withStyle(ChatFormatting.AQUA);
             }
             case CAPSTONE_LOCKED -> {
                 first = Component.literal(name).withStyle(ChatFormatting.GRAY);

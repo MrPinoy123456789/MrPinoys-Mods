@@ -1318,6 +1318,18 @@ final class Instances {
         // window beside the doors, cut through both walls. The slot glass
         // stays: it is the seal, and its top course is still a view.
         BlockState glass = Blocks.GLASS.defaultBlockState();
+        if (HallRoom.isHallStaging(record)) {
+            // The Astrolabe Room (owner, 2026-10-09): the whole 14 by 3 wall behind the doors is the window,
+            // in both cells' walls, leaving the copper bulbs in the staging wall's top course alone.
+            java.util.Set<Integer> bulbs = HallRoom.bulbAlongs(level.getServer(), record);
+            record.floor.previewWallOriginal.clear();
+            RoomBuilder.previewWall(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass,
+                    (along, y) -> y == RoomGeometry.DOOR_HEIGHT && bulbs.contains(along), null);
+            RoomBuilder.previewWall(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)), glass,
+                    (along, y) -> along >= RoomGeometry.DOOR_MIN && along <= RoomGeometry.DOOR_MAX,
+                    record.floor.previewWallOriginal);
+            return;
+        }
         RoomBuilder.previewSideWindow(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass);
         RoomBuilder.previewSideWindow(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)), glass);
     }
@@ -1357,6 +1369,11 @@ final class Instances {
         // the slot back to wall (the clear already put the bedrock behind it).
         RoomBuilder.sealDoor(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor));
         sealPreviewSideWindow(level, record.stagingCellOrigin, record.roomDungeonDoor);
+        if (HallRoom.isHallStaging(record)) {
+            RoomBuilder.previewWall(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor),
+                    RoomBuilder.shellWallAt(level, record.stagingCellOrigin), null, null);
+        }
+        record.floor.previewWallOriginal.clear();
         if (!HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner)) {
             RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
                     record.roomDungeonDoor);
@@ -1517,6 +1534,15 @@ final class Instances {
 
         connectStagingToEntrance(level, record.stagingCellOrigin, geometry.cellOrigin(plan.entrance()),
                 dungeonDoor);
+        if (!record.floor.previewWallOriginal.isEmpty()) {
+            // The wide window comes out: the staging wall is wall again, bar the doorway lane the commit
+            // just opened, and the entrance cell gets back the blocks the glass replaced.
+            RoomBuilder.previewWall(level, record.stagingCellOrigin, mcDirection(dungeonDoor),
+                    RoomBuilder.shellWallAt(level, record.stagingCellOrigin),
+                    (along, y) -> along >= RoomGeometry.DOOR_MIN && along <= RoomGeometry.DOOR_MAX, null);
+            RoomBuilder.restoreWall(level, record.floor.previewWallOriginal);
+            record.floor.previewWallOriginal.clear();
+        }
 
         // The new floor's state replaces the cleared one's wholesale: its
         // completions, pad edges, spawner cues, reward chests, grace window
