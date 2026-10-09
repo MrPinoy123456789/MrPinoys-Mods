@@ -330,6 +330,21 @@ public final class PocketDungeonsConfig {
     private static boolean hallEnabled = true;
     /** What a repeat finish of a dungeon pays of the finish emeralds, as a percent (the first finish pays all). */
     private static int repeatFinishEmeraldPercent = 50;
+    /**
+     * The scrap curve (design pass 2026-10-09, Q2). Going from compass {@code c} to {@code c + 1} costs
+     * {@code scrapCostBase + floor(c / scrapCostEvery)} scrap. A cleared floor pays its dealt step plus
+     * {@code scrapPerAct} for every act above the first plus {@code scrapFinalBonus} on a dungeon's final
+     * floor; below the player's compass it pays {@code belowCompassPercent} of that, at least 1. An Endless
+     * Mine floor adds 1 for every {@code endlessDepthEvery} floors down, up to {@code endlessDepthMax}, in
+     * place of the act bonus.
+     */
+    private static int scrapCostBase = 4;
+    private static int scrapCostEvery = 3;
+    private static int scrapPerAct = 1;
+    private static int scrapFinalBonus = 1;
+    private static int belowCompassPercent = 50;
+    private static int endlessDepthEvery = 4;
+    private static int endlessDepthMax = 4;
     private static int sidebarRepaintTicks = 20;
     private static int slownessMaxSeconds = 6;
     private static int miningFatigueMaxSeconds = 30;
@@ -669,6 +684,34 @@ public final class PocketDungeonsConfig {
         return witherMaxSeconds;
     }
 
+    public static int scrapCostBase() {
+        return scrapCostBase;
+    }
+
+    public static int scrapCostEvery() {
+        return scrapCostEvery;
+    }
+
+    public static int scrapPerAct() {
+        return scrapPerAct;
+    }
+
+    public static int scrapFinalBonus() {
+        return scrapFinalBonus;
+    }
+
+    public static int belowCompassPercent() {
+        return belowCompassPercent;
+    }
+
+    public static int endlessDepthEvery() {
+        return endlessDepthEvery;
+    }
+
+    public static int endlessDepthMax() {
+        return endlessDepthMax;
+    }
+
     public static boolean hallEnabled() {
         return hallEnabled;
     }
@@ -824,6 +867,13 @@ public final class PocketDungeonsConfig {
         sidebarEnabled = true;
         hallEnabled = true;
         repeatFinishEmeraldPercent = 50;
+        scrapCostBase = 4;
+        scrapCostEvery = 3;
+        scrapPerAct = 1;
+        scrapFinalBonus = 1;
+        belowCompassPercent = 50;
+        endlessDepthEvery = 4;
+        endlessDepthMax = 4;
         sidebarRepaintTicks = 20;
         slownessMaxSeconds = 6;
         miningFatigueMaxSeconds = 30;
@@ -1051,6 +1101,13 @@ public final class PocketDungeonsConfig {
         witherMaxSeconds = readInt(root, "witherMaxSeconds", 8, v -> v >= 0 && v <= 600,
                 "must be 0 (off) to 600");
         sidebarEnabled = readBoolean(root, "sidebarEnabled", true);
+        scrapCostBase = readInt(root, "scrapCostBase", 4, v -> v >= 2 && v <= 10, "must be 2 to 10");
+        scrapCostEvery = readInt(root, "scrapCostEvery", 3, v -> v >= 1 && v <= 10, "must be 1 to 10");
+        scrapPerAct = readInt(root, "scrapPerAct", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
+        scrapFinalBonus = readInt(root, "scrapFinalBonus", 1, v -> v >= 0 && v <= 5, "must be 0 to 5");
+        belowCompassPercent = readInt(root, "belowCompassPercent", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
+        endlessDepthEvery = readInt(root, "endlessDepthEvery", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
+        endlessDepthMax = readInt(root, "endlessDepthMax", 4, v -> v >= 0 && v <= 10, "must be 0 to 10");
         hallEnabled = readBoolean(root, "hallEnabled", true);
         repeatFinishEmeraldPercent = readInt(root, "repeatFinishEmeraldPercent", 50, v -> v >= 0 && v <= 100,
                 "must be 0 to 100");
@@ -1377,6 +1434,13 @@ public final class PocketDungeonsConfig {
         root.addProperty("poisonMaxSeconds", 10);
         root.addProperty("witherMaxSeconds", 8);
         root.addProperty("sidebarEnabled", true);
+        root.addProperty("scrapCostBase", 4);
+        root.addProperty("scrapCostEvery", 3);
+        root.addProperty("scrapPerAct", 1);
+        root.addProperty("scrapFinalBonus", 1);
+        root.addProperty("belowCompassPercent", 50);
+        root.addProperty("endlessDepthEvery", 4);
+        root.addProperty("endlessDepthMax", 4);
         root.addProperty("hallEnabled", true);
         root.addProperty("repeatFinishEmeraldPercent", 50);
         root.addProperty("sidebarRepaintTicks", 20);

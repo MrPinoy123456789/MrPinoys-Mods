@@ -32,7 +32,7 @@ order. If the two disagree, the reply wins until this file says otherwise.
 |---|---|---|
 | A | sidebar, chat audit moves, Leave wording, finish title beat, effect caps | one trip: can he say his floor and haul unprompted |
 | B | Astrolabe Room (Q1): BUILT 2026-10-09, see PD-181 in `BUGS.md` for the list of deviations from the reply | played before C |
-| C | scrap curve (Q2) | levels per trip |
+| C | scrap curve (Q2): BUILT 2026-10-09, see PD-182 in `BUGS.md` | levels per trip |
 | D | finales and uniforms (Q4, Q5) | Copper Works finish |
 | E | sculk and toll rooms (Q3, Q6) | Hush Gallery, vault |
 | F | wolves and Restless (Q8) | |

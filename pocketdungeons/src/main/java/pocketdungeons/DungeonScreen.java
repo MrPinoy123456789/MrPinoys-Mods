@@ -409,7 +409,9 @@ final class DungeonScreen {
         // over-level rate (permanent charts, not the compass reading).
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
-            int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts());
+            int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
+                    FloorPay.bonus(def, offer.nodeId(), record.interval.endlessMine || EndlessMineRules.isMineOffer(offer),
+                            record.interval.floorIndex + 1));
             if (pay > 0) {
                 addPart(gets, IntervalBanking.scrapText(pay), ChatFormatting.AQUA);
             }

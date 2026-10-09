@@ -119,7 +119,7 @@ final class SidebarDisplay {
                 DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
                 record.interval.finished, log.haulOf(member),
                 record.interval.finishBanked.getOrDefault(member, 0), entry.keystoneLevel(),
-                entry.chartProgress(), ScrapMath.SCRAP_PER_CHART);
+                entry.chartProgress(), ScrapMath.levelCost(entry.highestCharts()));
     }
 
     private static void paint(MinecraftServer server, InstanceRecord record, ServerPlayer player) {

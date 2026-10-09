@@ -26,8 +26,9 @@ public final class HaulGameTest {
         DungeonLog.BankResult result = RunLifecycle.bankHaul(server, null, id, RunLifecycle.BankContext.HOME);
         helper.assertValueEqual(result.banked(), 5, "home banks the whole haul");
         helper.assertValueEqual(result.lost(), 0, "and loses none");
-        helper.assertValueEqual(log.get(id).highestCharts(), 13, "3 + 5 = 8 crosses a level: compass 13");
-        helper.assertValueEqual(log.get(id).chartProgress(), 3, "with 3 left in the bar");
+        helper.assertValueEqual(ScrapMath.levelCost(12), 8, "a level at compass 12 costs 8");
+        helper.assertValueEqual(log.get(id).highestCharts(), 13, "3 + 5 = 8 pays the price: compass 13");
+        helper.assertValueEqual(log.get(id).chartProgress(), 0, "with the bar empty");
         helper.assertValueEqual(log.haulOf(id), 0, "the haul is empty");
         helper.assertValueEqual(log.get(id).keystoneLevel(), 13, "the keystone item's level follows the compass");
         helper.succeed();

@@ -312,7 +312,7 @@ final class Keystone {
      */
     static void showCompass(ServerPlayer player, DungeonLog.Entry entry, boolean duringTrip) {
         String compass = "Compass " + entry.highestCharts() + ": " + entry.chartProgress() + "/"
-                + ScrapMath.SCRAP_PER_CHART + " scrap to " + (entry.highestCharts() + 1);
+                + ScrapMath.levelCost(entry.highestCharts()) + " scrap to " + (entry.highestCharts() + 1);
         String haul = "Haul " + entry.haul() + " scrap. Home banks it; a failed dungeon keeps half.";
         net.minecraft.world.entity.player.Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {

@@ -206,7 +206,11 @@ final class DungeonLog extends SavedData {
             dungeonsFinished = Set.copyOf(dungeonsFinished);
             campaign = campaign == null ? Campaign.FRESH : campaign;
             highestCharts = Math.max(0, highestCharts);
-            chartProgress = Math.max(0, Math.min(ScrapMath.SCRAP_PER_CHART - 1, chartProgress));
+            // A bar can never hold a full level (design pass 2026-10-09: the price of a level changed, so a
+            // saved bar can already meet it). Settle any whole levels it holds; the compass only rises.
+            ScrapMath.Banked settled = ScrapMath.bank(highestCharts, chartProgress, 0);
+            highestCharts = settled.compass();
+            chartProgress = settled.progress();
             haul = Math.max(0, haul);
         }
 

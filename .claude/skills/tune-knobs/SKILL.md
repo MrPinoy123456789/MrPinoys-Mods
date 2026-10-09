@@ -63,6 +63,11 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 - **Durability and salvage:** `lootDurabilityPercent` 110, `craftedDurabilityPercent` 110, `salvageMaterialBonus` 1.
 - **Effect caps:** `poisonMaxSeconds` 10, `witherMaxSeconds` 8, `slownessMaxSeconds` 6, `miningFatigueMaxSeconds` 30 (0 = off): the longest
   each effect lasts on a player inside a dungeon (`EffectCaps`). Darkness is not capped (the shrieker uses it).
+- **Scrap curve (`ScrapMath`):** `scrapCostBase` 4 and `scrapCostEvery` 3 (going from compass c to c+1 costs
+  `base + floor(c / every)` scrap: compass 1 costs 4, 10 costs 7, 25 costs 12, 50 costs 20), `scrapPerAct` 1 (a floor pays +1
+  for each act above the first), `scrapFinalBonus` 1 (+1 on a dungeon's final floor), `belowCompassPercent` 50 (a floor below
+  the player's compass pays this share of its pay, at least 1), `endlessDepthEvery` 4 and `endlessDepthMax` 4 (an Endless Mine
+  floor pays +1 per 4 floors down, up to 4, in place of the act bonus).
 - **Astrolabe Room:** `hallEnabled` true (off restores the three random doors at the first door), `repeatFinishEmeraldPercent` 50
   (what a repeat finish of a dungeon pays of the finish emeralds; the first finish pays all).
 - **Trip sidebar:** `sidebarEnabled` true, `sidebarRepaintTicks` 20 (`SidebarDisplay`; players hide theirs with `/dungeon display off`).

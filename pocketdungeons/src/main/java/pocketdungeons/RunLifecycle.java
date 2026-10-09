@@ -1483,7 +1483,9 @@ final class RunLifecycle {
                 continue;
             }
             int compass = log.get(member).highestCharts();
-            int pay = ScrapMath.floorPay(step, floorLevel, compass);
+            // advanceFloor has already counted this floor, so floorIndex is how many floors deep it was.
+            int pay = ScrapMath.floorPay(step, floorLevel, compass, FloorPay.bonus(TripView.def(record),
+                    record.interval.nodeId, EndlessMineRules.isMine(record), record.interval.floorIndex));
             log.addHaul(member, pay);
             if (pay > 0) {
                 Chime.scrapEarned(memberPlayer);
@@ -1495,7 +1497,7 @@ final class RunLifecycle {
             StringBuilder line = new StringBuilder();
             if (pay > 0) {
                 line.append(floorLevel >= compass ? "+" + pay + " scrap."
-                        : "+" + pay + " scrap (you are above this floor).");
+                        : "+" + pay + " scrap (below your compass).");
                 line.append(" Haul ").append(log.get(member).haul()).append(".");
             }
             if (keyEmeralds > 0) {
@@ -1600,7 +1602,7 @@ final class RunLifecycle {
         int total = result.banked() + result.lost();
         if (total > 0) {
             String bar = "compass " + result.compassAfter() + ", " + result.progress() + "/"
-                    + ScrapMath.SCRAP_PER_CHART + " to " + (result.compassAfter() + 1);
+                    + ScrapMath.levelCost(result.compassAfter()) + " to " + (result.compassAfter() + 1);
             String text = switch (context) {
                 case HOME -> "Home. Banked " + result.banked() + " scrap: " + bar + ".";
                 case FINISH -> "Dungeon finished. Banked " + result.banked() + " scrap: " + bar + ".";
@@ -1619,7 +1621,7 @@ final class RunLifecycle {
 
             } else if (context == BankContext.HOME || context == BankContext.ORPHAN) {
                 player.sendOverlayMessage(Component.literal("Banked " + result.banked() + " scrap. Compass "
-                        + result.compassAfter() + ", " + result.progress() + "/" + ScrapMath.SCRAP_PER_CHART)
+                        + result.compassAfter() + ", " + result.progress() + "/" + ScrapMath.levelCost(result.compassAfter()))
                         .withStyle(ChatFormatting.GOLD));
             }
         }

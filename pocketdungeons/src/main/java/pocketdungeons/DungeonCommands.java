@@ -840,7 +840,7 @@ final class DungeonCommands {
         Keystones.grantLevel(server, id, target, Math.max(1, entry.highestCharts()));
         Keystone.showCompass(target, entry, InstanceRegistry.byMember.containsKey(id));
         source.sendSuccess(() -> Component.literal(target.getName().getString() + " is at compass "
-                + entry.highestCharts() + ", " + entry.chartProgress() + "/" + ScrapMath.SCRAP_PER_CHART + "."), true);
+                + entry.highestCharts() + ", " + entry.chartProgress() + "/" + ScrapMath.levelCost(entry.highestCharts()) + "."), true);
         return 1;
     }
 

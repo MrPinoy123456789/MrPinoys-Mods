@@ -236,15 +236,17 @@ public class DungeonLogTest {
         check(homeBank.banked(), 4, "home banks the whole haul");
         check(homeBank.lost(), 0, "and loses none of it");
         check(haulLog.haulOf(player), 0, "the haul is empty after a bank");
-        check(haulLog.get(player).chartProgress(), 4, "4 scrap fills the bar to 4");
-        check(homeBank.raisedCompass(), false, "4 scrap is not a level");
+        // The scrap curve (design pass 2026-10-09): a new player's first level costs 4, and compass 1 costs 4 too.
+        check(haulLog.get(player).highestCharts(), 1, "4 scrap is the first level at the new price");
+        check(haulLog.get(player).chartProgress(), 0, "and leaves the bar empty");
+        check(homeBank.raisedCompass(), true, "the home bank raised the compass");
         haulLog.addHaul(player, 7);
         DungeonLog.BankResult failBank = haulLog.bankHaul(player, ScrapMath.FAIL_KEEP_PERCENT);
         check(failBank.banked(), 3, "a failed dungeon keeps half of 7, rounded down");
         check(failBank.lost(), 4, "and loses the rest");
-        check(haulLog.get(player).highestCharts(), 1, "4 + 3 = 7 is one level with 2 in the bar");
-        check(haulLog.get(player).chartProgress(), 2, "carried into the bar");
-        check(failBank.raisedCompass(), true, "the fail bank raised the compass");
+        check(haulLog.get(player).highestCharts(), 1, "3 is not a level at compass 1 (4 to go)");
+        check(haulLog.get(player).chartProgress(), 3, "it fills the bar to 3");
+        check(failBank.raisedCompass(), false, "so the fail bank did not raise the compass");
         check(haulLog.bankHaul(player, 100).banked(), 0, "banking an empty haul banks nothing");
         haulLog.setCompass(player, 0, 0);
         check(haulLog.get(player).highestCharts(), 0, "an operator may lower the compass");

@@ -533,3 +533,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Does the Endless Mine door appear at an end of the row when its compass is reached?
 - Is a repeat finish paying half the emeralds, and does `/dungeon reroll` explain itself?
 - With `hallEnabled` false, do the three random doors come back?
+
+## L56: the scrap curve (wave C, 2026-10-09)
+- Does the compass lore read `Compass N: p/price`, and does the price rise as the compass climbs?
+- At compass 10 to 15, does one trip through a dungeon of the right act gain about 2 levels?
+- Does a floor below your compass reading `+1 scrap (below your compass)` feel fair rather than an insult?
+- Does a final floor pay a visible extra scrap, and a deeper act pay more than Act 1?
+- Does an Endless Mine trip pay more the deeper it goes?

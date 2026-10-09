@@ -254,7 +254,7 @@ public final class JoinFromDungeonGameTest {
     /** Banked scrap as a single number: the compass's levels at five scrap each, plus the bar. */
     private static int banked(DungeonLog log, ServerPlayer player) {
         DungeonLog.Entry entry = log.get(player.getUUID());
-        return entry.highestCharts() * ScrapMath.SCRAP_PER_CHART + entry.chartProgress();
+        return ScrapMath.totalScrap(entry.highestCharts(), entry.chartProgress());
     }
 
     private static InstanceRecord record(GameTestHelper helper, MinecraftServer server, int slot,
