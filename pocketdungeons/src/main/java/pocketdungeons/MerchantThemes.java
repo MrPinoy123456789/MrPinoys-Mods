@@ -48,6 +48,8 @@ final class MerchantThemes {
     private static final Currency SLIME_BALL = new Currency(Items.SLIME_BALL, "slimeballs", 1.0, "Slime Broker");
     private static final Currency BLAZE_POWDER = new Currency(Items.BLAZE_POWDER, "blaze powder", 2.0, "Powder Trader");
     private static final Currency MAGMA_CREAM = new Currency(Items.MAGMA_CREAM, "magma cream", 1.0, "Cream Dealer");
+    /** Lapis lazuli: the resource nodes give plenty, so the librarian and the Act 2 merchants buy the surplus. */
+    private static final Currency LAPIS = new Currency(Items.LAPIS_LAZULI, "lapis lazuli", 4.0, "Lapis Trader");
     private static final Currency END_STONE = new Currency(Items.END_STONE, "end stone", 4.0, "End Broker");
 
     /** A merchant for {@code currencies}, named for the first thing it buys. */
@@ -57,9 +59,9 @@ final class MerchantThemes {
 
     private static final Map<String, Merchant> BY_THEME = Map.of(
             "ossuary", buying(BONE),
-            "deepslate", buying(BONE, ROTTEN_FLESH),
+            "deepslate", buying(BONE, ROTTEN_FLESH, LAPIS),
             "endless_mine", buying(BONE, ROTTEN_FLESH),
-            "frostworks", buying(BONE, ROTTEN_FLESH),
+            "frostworks", buying(BONE, ROTTEN_FLESH, LAPIS),
             "basalt_foundry", buying(BLAZE_POWDER, MAGMA_CREAM),
             "copper_works", buying(ROTTEN_FLESH),
             "ender_archive", buying(END_STONE),
@@ -72,7 +74,7 @@ final class MerchantThemes {
      * list (J5a), offered at half the dungeon merchants' rate.
      */
     static final List<Currency> ALL_BUYS = List.of(BONE, ROTTEN_FLESH, STRING, SPIDER_EYE,
-            LEATHER, SLIME_BALL, BLAZE_POWDER, MAGMA_CREAM, END_STONE);
+            LEATHER, SLIME_BALL, BLAZE_POWDER, MAGMA_CREAM, END_STONE, LAPIS);
 
     private MerchantThemes() {}
 
