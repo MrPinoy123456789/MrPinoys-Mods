@@ -1140,6 +1140,17 @@ final class DungeonLog extends SavedData {
      * at the level the run was finished at; cleared the moment {@code /dungeon
      * choose} settles it (T13), whatever door was taken.
      */
+    /** Sets the key progress steps; used by the save-compatibility tests. */
+    void setKeyProgress(UUID player, int steps) {
+        Entry previous = get(player);
+        int clamped = Math.max(0, steps);
+        if (previous.keyProgress() == clamped) {
+            return;
+        }
+        entries.put(player, previous.withKeyProgress(clamped));
+        setDirty();
+    }
+
     void setPendingOffer(UUID player, int level) {
         Entry previous = get(player);
         entries.put(player, previous.withPendingOfferLevel(Math.max(0, level)));
