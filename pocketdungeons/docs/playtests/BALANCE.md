@@ -162,3 +162,12 @@ playtest journal once it exists; blank means not recorded.
 - 2026-10-08-1 session: five runs, three full finishes (Infestation 4f, Spawner Dungeon 3f capstone, Copper Works 4f). Keystone 5 to 10. Blood-door pressure confirmed at lives 2. No run failed; ~4 rescues all session, none fatal.
 - Economy: merchant sinks heavily used (7 shop_sales one floor, junk to Librarian at home). Compass gains: +1 (Infestation finish), +2 (Copper Works finish w/ depth bonus).
 - Difficulty peak: Spawner capstone at floor omen 4 and lives 1; player verdict "barely enough resources", dogs mattered.
+| 2026-10-10 | deepslate | 2 | 1 | ~160 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 3 | 1 | ~162 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 4 | 1 | ~511 | 0 | 0 | n/a | n/a | 4 | cleared | "new build is very good" | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 5 | 1 | ~440 | 0 | 0 | n/a | n/a | 5 | cleared | banked at home: compass 13 to 14, depth bonus 1 | 2026-10-09-1.md |
+| 2026-10-10 | kennels | 1 | 1 | ~1050 | 0 | 0 | n/a | n/a | 3 | cleared w/ admin unstick | wolf spawner soft-lock (PD-194); grass+light proved cause | 2026-10-09-1.md |
+| 2026-10-10 | infestation | 1 | 1 | n/a | 0 | 0 | n/a | n/a | 3 | banked 1 floor | second 1-floor bank in a row | 2026-10-09-1.md |
+| 2026-10-10 | kennels | 1 (second trip) | 1 | ~250 | 0 | 0 | n/a | n/a | 0 | abandoned | fire spread destroyed rooms; player left (PD-195) | 2026-10-09-1.md |
+
+- 2026-10-09-1 session: one real delve (deepslate to floor 5, banked), plus short trips. Keystone 13 to 14. Two sessions of evidence now that wolf-potential spawners need spawnable ground or a spawn-rule bypass; fire spread inside authored wooden rooms is a build integrity problem, not a balance one.

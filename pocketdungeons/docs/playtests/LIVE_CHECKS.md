@@ -504,7 +504,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L52. 2026-10-06: the librarian sells rolled gear
 
-- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): he built the lectern (and enchanting table, grindstone, smithing table) in his safe room and bought rolled gear from the Librarian: `shop_purchase` diamond_leggings for 18 emeralds. Offer count, Mending price and restock-on-homecoming still unverified. Earlier: owed, 2026-10-07-1.md: not exercised
+- **Status:** partial 2026-10-10 (`2026-10-09-1.md`): Mending offer confirmed live: `shop_purchase` enchanted_book from the home Librarian for 64 emeralds (the L52 price point). Buy-back used heavily same trip (40 rotten flesh, 8 lapis). Offer count and restock-on-homecoming still unverified. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): he built the lectern (and enchanting table, grindstone, smithing table) in his safe room and bought rolled gear from the Librarian: `shop_purchase` diamond_leggings for 18 emeralds. Offer count, Mending price and restock-on-homecoming still unverified. Earlier: owed, 2026-10-07-1.md: not exercised
 - **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
 - **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
 - **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
@@ -566,6 +566,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Deepslate: does `deep_shaft_landing` show enough ore on the landing?
 
 ## L61: the Kennels rework (2026-10-09)
+- **Status:** failed 2026-10-10 (`2026-10-09-1.md`): the Kennels cannot be played through. A `kennels_tier_2` spawner queued wolves it could never place on a stone hall floor and soft-locked the gate (PD-194; admin removed it, grass+light proved the cause), and on the second trip fire spread burned the wooden kennel rooms (PD-195). Session ended on his call. Kennel Run, Guard Tower, the calm line, strays and The Alpha all remain owed.
 - Do the Kennel Run wolves charge as you enter? Is the room survivable at Act 1 level?
 - Guard Tower: can you run past, shoot the guard, and does "The pack goes quiet." fire when it falls? Does the ladder climb work with wolves biting?
 - Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?

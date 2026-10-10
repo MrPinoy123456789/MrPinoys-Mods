@@ -28,6 +28,7 @@
       "pocketdungeons.SculkShriekGameTest",
       "pocketdungeons.PartyScreensGameTest",
       "pocketdungeons.WhelpGameTest",
+      "pocketdungeons.DungeonWorldRulesGameTest",
       "pocketdungeons.HaulGameTest",
       "pocketdungeons.RescueGameTest",
       "pocketdungeons.HerdGameTest",

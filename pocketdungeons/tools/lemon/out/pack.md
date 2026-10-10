@@ -361,6 +361,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 # Rooms (id: roles, tier, depth, requirements)
 
+- alphas_den: encounter, tier 2, depth 0+
 - archive_catalog: encounter/loot/corridor, tier 1, depth 1+
 - archive_reading_nook: encounter/loot/corridor, tier 1, depth 1+
 - archive_stacks: encounter/loot/corridor, tier 1, depth 1+
@@ -416,6 +417,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - grove: corridor, depth 1+
 - grove_glade: loot/corridor, depth 1+
 - grove_path: corridor/encounter/loot, depth 1+
+- guard_tower: corridor, tier 1, depth 0+
 - hall_corner: encounter/loot/corridor, depth 0+
 - hall_cross: encounter/loot/corridor, depth 0+
 - hall_cross_rotunda: encounter/loot/corridor, tier 1, depth 0+
@@ -426,14 +428,17 @@ tool on the MCP server (`mcp.mjs --admin`).
 - hall_tee: encounter/loot/corridor, depth 0+
 - hay_loft: corridor, tier 1, depth 0+
 - hold_the_plate: corridor, tier 1, depth 1+, pressure local, access gated
+- hush_gallery: encounter, tier 2, depth 1+
 - ice_run: corridor, tier 2, depth 0+, pressure local
 - infested_wall: corridor, tier 2, depth 1+, access gated
 - item_plate: corridor, tier 1, depth 0+, access gated
 - kennel_crossing: encounter, tier 2, depth 1+
+- kennel_run: corridor, tier 1, depth 0+
 - last_index: encounter/loot/corridor, tier 1, depth 0+
 - last_rest: encounter/loot/corridor, tier 1, depth 0+
 - ledge_archers: encounter, tier 1, depth 0+
 - loot_vault: loot, depth 0+
+- lost_dog: encounter, tier 1, depth 1+
 - lush_clay_pool: encounter/loot/corridor, tier 1, depth 1+
 - lush_hollow: encounter/loot/corridor, tier 1, depth 0+
 - lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
@@ -463,7 +468,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - rotation_lock: corridor, tier 2, depth 0+, access gated
 - sculk_causeway: corridor, tier 2, depth 0+
 - sculk_nave: corridor, tier 2, depth 0+
-- sensor_gallery: encounter, tier 2, depth 1+, access gated
 - silent_deep: encounter/loot/corridor, tier 1, depth 0+
 - slime_pit: encounter, tier 1, depth 0+
 - sorting_floor: corridor, tier 2, depth 0+, access gated

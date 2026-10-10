@@ -226,3 +226,11 @@ item when it recurs or the owner says it matters.
 - **The toll room is the worst room.** Asked for the worst room of the night at wrap: "the room with the key in the hopper to open the iron doors" (PD-186).
 - **Interviewer reliability, again:** the watcher held the loop and auto-thinks every ask, but five asks still hit the fallback and journaled `llm_late`, all agent-side poll latency. The harness needs the watcher to send a canned hold reply itself.
 - **Theme promotion candidate: copper theming.** "could we thematically make it so that all mobs wear two pieces of copper, including weapons?" scoped to Copper Works (PD-185). Same instinct as "themed and funny rooms": rooms and dungeons should commit to their bit.
+
+### Session 2026-10-09-1 (see docs/playtests/2026-10-09-1.md)
+
+- **The Kennels cannot be played.** First trip: a `kennels_tier_2` spawner queued wolves that can never satisfy their spawn rules on a stone hall floor and the floor soft-locked (PD-194). Second trip: fire spread burned the wooden kennel rooms and he ended the session on it (PD-195). Both broke inside 20 minutes of the rework reaching him.
+- **Spawn rules are a theme/system contract, not a detail.** Any trial-spawner config whose potentials include a mob with restrictive spawn rules (wolves need spawnable ground and light) can stall a floor the same way wherever it lands. The fix belongs where configs meet rooms, not in one room.
+- **Keys as a run resource.** "Vault keys should last the dungeon lifespan, not the floor's": carrying a key forward into the same dungeon is an expectation he already has (PD-196). Tension with J7's never-leave-the-floor rule needs a ruling.
+- **Interviewer pacing:** "We're doing a playtest, right? You haven't asked much." Watch for the interview going quiet during long investigations; he wants the questions too.
+- **Mood:** "New build is very good compared to just a couple days ago." The design pass is landing; the Kennels is the visible exception.
