@@ -337,6 +337,8 @@ for ((taskName, testClass) in mapOf(
     "disconnectHandlerTest" to "DisconnectHandlerTest",
     // PD-199: leaving an instance forgets the Silenced consumable count.
     "pressureForgetTest" to "PressureForgetTest",
+    // Code audit 2026-10-10: each DungeonLog.Entry wither changes only the components it names.
+    "entryWitherTest" to "EntryWitherTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -458,6 +460,7 @@ tasks.test {
     dependsOn("rubbleRulesTest")
     dependsOn("disconnectHandlerTest")
     dependsOn("pressureForgetTest")
+    dependsOn("entryWitherTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
