@@ -249,11 +249,11 @@ final class FloorHistory {
         return floor == layers ? ChatFormatting.GREEN : ChatFormatting.YELLOW;
     }
 
-    /** "CLEARED", "FAILED Sump", "QUIT Thicket": the ending with its room, for the board's narrow column. */
+    /** "CLEARED", "FAILED" or "QUIT" for the board's narrow column; the room it happened in is not a word a player knows. */
     static String endingShort(Entry e) {
         return switch (e.outcome()) {
-            case FAILED -> "FAILED" + (e.room().isEmpty() ? "" : " " + words(e.room()));
-            case QUIT -> "QUIT" + (e.room().isEmpty() ? "" : " " + words(e.room()));
+            case FAILED -> "FAILED";
+            case QUIT -> "QUIT";
             default -> "CLEARED";
         };
     }

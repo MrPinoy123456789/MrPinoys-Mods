@@ -58,10 +58,20 @@ final class Whelp {
         if (at == null) {
             return false;
         }
+        Warden whelp = create(level, at, target);
+        if (whelp == null) {
+            return false;
+        }
+        ACTIVE.put(record.slot, whelp.getUUID());
+        return true;
+    }
+
+    /** A whelp standing at {@code at}, angry at {@code target}; {@code null} if one could not be made. */
+    static Warden create(ServerLevel level, Vec3 at, net.minecraft.world.entity.LivingEntity target) {
         // COMMAND, not TRIGGERED: a triggered Warden spends seconds climbing out of the floor.
         Warden whelp = EntityTypes.WARDEN.create(level, EntitySpawnReason.COMMAND);
         if (whelp == null) {
-            return false;
+            return null;
         }
         whelp.setPos(at.x, at.y, at.z);
         whelp.getAttribute(Attributes.SCALE).setBaseValue(SCALE);
@@ -72,10 +82,12 @@ final class Whelp {
         whelp.addTag(TAG);
         whelp.addTag(NO_LOOT_TAG);
         whelp.setPersistenceRequired();
+        // A Warden finalised the vanilla way starts with a dig cooldown; without it the brain digs in at once.
+        whelp.getBrain().setMemoryWithExpiry(MemoryModuleType.DIG_COOLDOWN, net.minecraft.util.Unit.INSTANCE,
+                PocketDungeonsConfig.whelpSeconds() * 20L + 200L);
         level.addFreshEntity(whelp);
         point(whelp, target);
-        ACTIVE.put(record.slot, whelp.getUUID());
-        return true;
+        return whelp;
     }
 
     /** Keeps the whelp on the party's nearest member and sends it away when its time is up. */
@@ -109,7 +121,7 @@ final class Whelp {
     }
 
     /** The whelp always knows where the party is: it is angry at {@code target} and has them as its prey. */
-    private static void point(Warden whelp, ServerPlayer target) {
+    static void point(Warden whelp, net.minecraft.world.entity.LivingEntity target) {
         whelp.increaseAngerAt(target, 150, false);
         whelp.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, target);
     }

@@ -1723,6 +1723,11 @@ final class Instances {
         // true cancel, so the escrowed catalyst is refunded and the armed
         // recipe tags are dropped.
         clearPreview(level, record, true);
+        // Whatever the floor had running (a finale and its boss bar, a capstone fight, a whelp) ends with it;
+        // a failed dungeon used to leave the elite's health bar on the party's screens.
+        if (level != null) {
+            CapstoneFights.floorEnded(level, record);
+        }
         // F9: transition to HOME regardless of whether the dungeon level is
         // loaded. clearPreview may have already transitioned a PREVIEW run
         // to HOME or FLOOR_CLEARED; an ACTIVE run stayed ACTIVE because

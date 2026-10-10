@@ -220,22 +220,22 @@ final class PressureSources {
                 armed.heard = SculkOmen.heardAfter(armed.heard, pulses);
                 if (SculkOmen.answers(armed.heard, SculkOmen.heardMax(armed.ancientCity))) {
                     armed.heard = 0;
-                    // The sensors fill the meter and the room's own shrieker answers, the vanilla way: it is
-                    // made to scream, and the shriek below is what darkens the party and sends the wave. A room
-                    // with no shrieker answers itself.
-                    if (!screamViaShrieker(level, record, armed, origin)) {
-                        armed.everHeard = true;
-                        record.floor.sculkAnswers++;
-                        darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
-                        answer(server, level, record, Omen.Source.SENSOR, origin);
-                        announceHeard(server, record);
-                    }
+                    // The shrieker screams for the sound and the look (vanilla's own sensor relay may already have
+                    // made it), but the answer is the meter filling, never the shriek.
+                    screamViaShrieker(level, record, armed, origin);
+                    armed.everHeard = true;
+                    record.floor.sculkAnswers++;
+                    darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
+                    answer(server, level, record, Omen.Source.SENSOR, origin);
+                    announceHeard(server, record);
                 }
             }
             for (BlockPos pos : armed.shriekers) {
                 boolean now = shrieking(level.getBlockState(pos));
-                if (now && !hushed && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
-                    // A shriek is the room answering at once.
+                if (now && !hushed && armed.sensors.isEmpty() && !Boolean.TRUE.equals(armed.wasActive.get(pos))) {
+                    // In a room with no sensors a shriek is the room answering at once. With sensors it is only the
+                    // shrieker voicing what its sensors heard (vanilla relays a sensor to a shrieker within 8 blocks),
+                    // so it does not answer for them.
                     armed.heard = 0;
                     armed.everHeard = true;
                     record.floor.sculkAnswers++;
