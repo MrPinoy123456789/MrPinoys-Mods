@@ -118,3 +118,66 @@ Line counts are physical lines. Caller counts are other classes that reference t
 - **PD-200.** The atomic move on the real host. `ATOMIC_MOVE` with `REPLACE_EXISTING` is used the same way by `RoomStore` on the Kinetic host today; a kill mid-write cannot be staged.
 - **The two tag constants.** Wave mobs and whelps still drop nothing and a whelp still never sonic booms. Mixins apply at launch with `defaultRequire: 1`, and the gametest server starts with them, so a missing mixin target would have failed the suite; whether the tag test still holds on a real wave is a play check.
 - **Dead code removal.** A removed method cannot change behaviour unless it was reached by reflection or a string, and none was (each name occurred once across main, test and gametest sources, and every build and test run is green), but a play session would be the only proof for rooms whose builders lost a helper (`barred_vault` and the pressure and knowledge families).
+
+## Follow-up pass
+
+Requested after the first report. Same branch, same rules. Where this section and the lists above disagree, this section is newer.
+
+### Tests before and after the follow-up
+
+| | Pure `*Test` tasks | Gametests |
+|---|---|---|
+| Tip of the first pass (`28608f5`) | 99, all pass | 241 of 241 pass |
+| Tip of the follow-up | 101, all pass | 241 of 241 pass |
+
+### 1. Regression review of the first pass
+
+Each first-pass commit re-read against the risks the coordinator named.
+
+- **Removed code reached by reflection, a mixin or data.** Every removed method was `private` or package level and had no string, reflection or data reference: the removed `ACTION_QUIT_DUNGEON_CONFIRM` ("quit_dungeon_confirm") appears in no `DialogRouter` case and no resource; `ENCOUNTER_WEIGHT` and `LOOT_WEIGHT` were superseded by the role definitions; the `*Specs` helpers were private. Mixins are not affected (the two mixins I touched only swapped a literal for a constant). No regression found.
+- **A constant shared between two meanings.** `OMEN_WAVE_TAG` is read by `Whelp` as its no-loot tag on purpose (the whelp is meant to drop nothing, as before) and written by `Instances` for wave mobs; one meaning, three uses. `WHELP_TAG` is separate from it and from `CapstoneFights.WAVE_TAG` (`.brood_wave`). Both are compile time constants, so `MOD_ID + ".whelp"` is the same string as before. No regression.
+- **The atomic config write on Windows.** Found a real weakness, now fixed: the move cannot replace a file another program holds open (an editor), and the failure threw into `load`'s catch, which resets every knob to defaults and so discards the operator's values `load` had just applied. The old truncate-and-write failed the same way when the file was locked, so this is not new, but the move makes a locked file the likelier failure. The rewrite now has its own try block that logs a warning and keeps the applied values. The first pass already moved the read to finish before the write, which the move needs.
+- **The deferred disconnect handlers.** `server.execute` runs the removal at the next server tick, and a rejoin is set up on the server thread, so the queued removal runs before the new `ServerPlayer` is created; even if it ran after, the effect would be one redundant re-apply, because the attribute modifiers are transient. No regression found.
+- **PD-199 `forget` is called from `detach` only**, so the Silenced count now resets whenever a member leaves an instance, including between runs on the same life of the process. That is the intended reading of "per run" and matches the dwell timer.
+
+### 2. The static maps named in the prompt
+
+| Map | Torn down | Floor end | Disconnect | Server stop |
+|---|---|---|---|---|
+| `HostileWolves.GUARDS` | **not before; now yes** (`forgetCellState`) | **now yes** | n/a (keyed by cell) | covered by the stop hook's purge of every slot |
+| `KennelSpecs.LOST_DOGS` | **not before; now yes** | **now yes** | n/a (keyed by cell) | covered as above |
+| `PressureSources.ARMED` | yes | **not before; now yes** | n/a | covered |
+| `PressureSources.DWELL` / `SILENCED_USES` | n/a | n/a | yes (`detach`; `SILENCED_USES` since PD-199) | process end only |
+| `Whelp.ACTIVE` | yes (`CapstoneFights.teardown`) | yes (`CapstoneFights.floorEnded`, called from `advanceFloor` and `resetToLobby`) | n/a (keyed by slot) | covered by the purge |
+| `CapstoneFights.STATES`, `FinaleWave.STATES`, `WitherFight.STATES`, `HerobrineFight.STATES` | yes | yes | n/a (keyed by slot) | covered by the purge; all four tolerate a null level |
+| `LibrarianNPC` | holds no static collection (only the `findAllLibrarians` method); its librarians are entities in the cell, discarded by the clear | n/a | n/a | n/a |
+| `Locks.ACTIVE`, `AltarOffering.ACTIVE`, `Ordeals.ACTIVE` | yes | **not before; now yes** | n/a | covered |
+
+So the gap was in the floor-end column: the floor-to-floor path (`RunLifecycle.resetForNextDungeon` to `Instances.clearCells`) cleared blocks and entities but not the cell keyed maps. That is **PD-201** (new bug, Medium), fixed by routing both paths through `InstanceTeardown.forgetCellState`. `CellStateForgetTest` fails if a class gains a cell keyed `clear(BlockPos)` that `forgetCellState` does not call, or if either path stops calling it.
+
+Other statics checked and found sound: `DiaryReading.reading` drains in its own tick loop; `StaggeredTitle`, `RoomScan` and `Lemon` clear at stop; `PlaytestJournal` clears at disconnect; `PartyService` clears per player. Still not cleared at stop (matters only if one JVM loads a second world): `Restless.PENDING`, `PartyRewards.PENDING`, `RoomEditorHistory`/`RoomEditorMetadata` (operator tools, cleared on save), `SidebarDisplay.HIDDEN`. Left as reported: S, low value.
+
+### 3. S items from "proposed, not done" done now
+
+| Item | Commit | Change | Covered by |
+|---|---|---|---|
+| 8, per-player hint maps | `8ede6a9` | `Locks.NEAR_HINTED`, `IronDoorLatch.lastHint`, `PlacementNotice.LAST_SOUND` now forgotten in `Instances.handleDisconnect` | compiler plus suite |
+| 8, stop hook | in PD-201 | `Instances` stop hook clears `pendingReturns` and `pendingJoinRecoveries` | compiler plus suite |
+| 11, `StagingSpecs` | `4a115f1` | empty placeholder family and its one call removed | `RoomSpecRegistryTest` (23 families now) |
+| 13, `ENCOUNTER_ROOMS` against manifests | `b3f5db2` | new `EncounterRoomsShipTest`; `sensor_gallery` is the single listed retirement | itself |
+
+Left, because they are M or L or need a ruling: items 2, 4, 5, 6, 7, 9, 10, 12 and 14, and the rest of item 11. Item 11's `SITUATION_SPAWNERS` in `TrialContent` is a further finding: a write-only map (four `put`s, no read, keyed by a finite set of spawner positions, so bounded). A pure removal, but its javadoc says it is kept for future gating, so it is the owner's call.
+
+### 4. `config/pocketdungeons.default.json` and `salvageEmeraldsPerTier`, re-verified
+
+- **The default JSON.** Re-checked: no Java, test or gradle file reads `pocketdungeons.default.json` (only docs name it). It still has 27 keys against the code's 100, 7 drifted values and 5 retired keys. Not fixed: correcting it is a data edit (changing values and adding dozens of keys), not a pure removal, and a test tying it to the code defaults would fail until that edit is made. The edit plus the tie test is one small change for the owner to approve: regenerate the file from `defaultsJson()` and assert equality.
+- **`salvageEmeraldsPerTier`.** Re-checked: the accessor has no caller in main, test or gametest; the key is read, validated, saved and documented but changes nothing. Not removed: dropping a key from `pocketdungeons.json` means adding it to `RETIRED_KEYS` (every existing file then logs a "retired keys" warning), changes what operators see, and `SALVAGE_PROPOSAL.md` lists it. Owner ruling.
+
+### 5. Parts of the tree the first pass covered only by script
+
+The ten-class map stands. For the other roughly 245 classes the sweeps were the same scripts run tree-wide: names referenced once (twice, once with qualified static references), unused imports and private fields, loops over live collections that remove members (none), `catch` blocks (all log or are commented as deliberate), `getPlayer`/`getLevel`/`getBlockEntity` chains (all guarded or proven non-null by the preceding `instanceof`), threading (no thread, executor or delayed callback exists in main; `ThreadLocal` is used only in `BlockItemPlaceMixin` and `PlaytestBias`, both within one call), file writes (the config was the only in-place rewrite of operator data). Mixins: all 18 re-read; every injector that changes world behaviour is gated on the dungeon dimension, `CustomClickMixin` hands off to the server thread, the four accessors only read or write named fields.
+
+### New bug numbers
+
+- **PD-201** (Medium): a finished floor's per-cell state outlived its cells. Fixed.
+- PD-200 amended in place with the "keep the applied values" change; no new number.
