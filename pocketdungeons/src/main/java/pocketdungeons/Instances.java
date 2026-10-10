@@ -74,7 +74,7 @@ final class Instances {
     // kick-confirmation state live on PartyService (M9 C3 #3).
 
     /** Return points for players who left the world while inside, keyed by UUID. */
-    private static final Map<UUID, PendingReturn> pendingReturns = new HashMap<>();
+    private static final Map<UUID, PendingReturn> pendingReturns = SessionState.clearedAtStop(new HashMap<>());
 
     /**
      * PD-44: a game-time expiry alongside the point itself, so a player who
@@ -102,7 +102,7 @@ final class Instances {
     private static final int TRIAL_OMEN_TICKS = 20 * 60 * 90;
 
     private static final int JOIN_RECOVERY_DELAY_TICKS = 20;
-    private static final List<PendingJoinRecovery> pendingJoinRecoveries = new ArrayList<>();
+    private static final List<PendingJoinRecovery> pendingJoinRecoveries = SessionState.clearedAtStop(new ArrayList<>());
 
     // Teardown's own PendingClear queue lives on InstanceTeardown now (M9 C3 #4).
 
@@ -310,9 +310,9 @@ final class Instances {
             // now. A force-load ticket that never gets released pins its chunks
             // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
-            // Statics outlive a server in one JVM (an integrated server loading a second world).
-            pendingReturns.clear();
-            pendingJoinRecoveries.clear();
+            // Statics outlive a server in one JVM (an integrated server loading a second world):
+            // everything registered with SessionState (pendingReturns and pendingJoinRecoveries among it).
+            SessionState.clearAll();
         });
     }
 
@@ -323,9 +323,7 @@ final class Instances {
      */
     private static void handleDisconnect(MinecraftServer server, ServerPlayer player) {
         PartyService.clearFor(player.getUUID());
-        Locks.forgetPlayer(player.getUUID());
-        IronDoorLatch.forgetPlayer(player.getUUID());
-        PlacementNotice.forgetPlayer(player.getUUID());
+        SessionState.forgetPlayer(player.getUUID());
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             return;

@@ -186,12 +186,7 @@ final class Locks {
     private static final long NEAR_HINT_COOLDOWN = 200;
     /** How close to a toll hopper a player must stand to be told what it wants. */
     private static final double NEAR_HINT_RANGE = 7.0;
-    private static final Map<UUID, Long> NEAR_HINTED = new HashMap<>();
-
-    /** Forgets when a player was last given the toll hint, for a logout. */
-    static void forgetPlayer(UUID player) {
-        NEAR_HINTED.remove(player);
-    }
+    private static final Map<UUID, Long> NEAR_HINTED = SessionState.perPlayer(new HashMap<>());
 
     /**
      * PD-170: the hint line only came with using the iron door, and a player who never

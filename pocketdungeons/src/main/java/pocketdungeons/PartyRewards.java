@@ -51,7 +51,7 @@ final class PartyRewards {
 
     private record Pending(ServerLevel level, BlockPos pos, UUID opener, int ticks) {}
 
-    private static final List<Pending> PENDING = new ArrayList<>();
+    private static final List<Pending> PENDING = SessionState.clearedAtStop(new ArrayList<>());
 
     /** Ticks between spawner checks: well inside the 40 ticks a beaten spawner waits before it ejects. */
     private static final int SPAWNER_CHECK_TICKS = 5;

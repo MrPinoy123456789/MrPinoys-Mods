@@ -347,6 +347,8 @@ for ((taskName, testClass) in mapOf(
     "encounterRoomsShipTest" to "EncounterRoomsShipTest",
     // Cleanup sweep: no production code compares a dimension to DUNGEON_LEVEL outside DungeonWorldRules.
     "dimensionCheckTest" to "DimensionCheckTest",
+    // Cleanup sweep: per player and per slot statics register with SessionState (disconnect and server stop).
+    "sessionStateTest" to "SessionStateTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",

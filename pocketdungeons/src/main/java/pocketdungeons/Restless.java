@@ -32,7 +32,7 @@ final class Restless {
 
     private record Pending(long dueTick, int slot, BlockPos pos, String typeId) {}
 
-    private static final List<Pending> PENDING = new ArrayList<>();
+    private static final List<Pending> PENDING = SessionState.clearedAtStop(new ArrayList<>());
 
     private Restless() {}
 

@@ -33,7 +33,7 @@ final class HostileWolves {
     private static final double SIGHT = 20.0;
 
     /** Guard tower rooms: the cell origin to the guard that drives the pack. */
-    private static final Map<BlockPos, UUID> GUARDS = new HashMap<>();
+    private static final Map<BlockPos, UUID> GUARDS = SessionState.clearedAtStop(new HashMap<>());
     private static boolean registered;
 
     private HostileWolves() {}

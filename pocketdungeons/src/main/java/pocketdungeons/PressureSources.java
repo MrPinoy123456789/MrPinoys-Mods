@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -85,8 +86,8 @@ final class PressureSources {
         int wavesPaid;
     }
 
-    private static final Map<BlockPos, Armed> ARMED = new LinkedHashMap<>();
-    private static final Map<UUID, Dwell> DWELL = new HashMap<>();
+    private static final Map<BlockPos, Armed> ARMED = SessionState.clearedAtStop(new LinkedHashMap<>());
+    private static final Map<UUID, Dwell> DWELL = SessionState.clearedAtStop(new HashMap<>());
 
     /** One poll per second. Dwell is measured in 90 second steps; this is ample. */
     private static final int PERIOD = 20;
@@ -169,8 +170,11 @@ final class PressureSources {
         ARMED.put(origin.immutable(), armed);
     }
 
+    /** Content ids of the rooms whose chest is a spur (taking from it spends the room's patience). */
+    static final Set<String> SPUR_ROOMS = Set.of("ominous_bargain", "barred_vault");
+
     private static boolean isSpur(String content) {
-        return "ominous_bargain".equals(content) || "barred_vault".equals(content);
+        return content != null && SPUR_ROOMS.contains(content);
     }
 
     /** Drops the triggers for one cell. Called from teardown alongside {@link Locks#clear}. */
@@ -442,7 +446,7 @@ final class PressureSources {
     }
 
     /** Consumables used so far by each Silenced player; every {@code silencedConsumablesPerOmen}-th spawns a wave. */
-    private static final Map<UUID, Integer> SILENCED_USES = new HashMap<>();
+    private static final Map<UUID, Integer> SILENCED_USES = SessionState.clearedAtStop(new HashMap<>());
 
     /**
      * A Silenced member used a consumable (playtest 2026-10-02-1: Silence no
