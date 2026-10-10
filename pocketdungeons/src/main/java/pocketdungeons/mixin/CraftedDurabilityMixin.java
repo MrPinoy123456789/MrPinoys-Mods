@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import pocketdungeons.DungeonTools;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 
 /**
  * PD-89: caps a crafting result's durability on every craft path, not only
@@ -32,7 +32,7 @@ public class CraftedDurabilityMixin {
     @Inject(method = "onCraftedBy", at = @At("HEAD"))
     private void pocketdungeons$capCraftedDurability(ItemStack stack, Player player, CallbackInfo ci) {
         if (player instanceof ServerPlayer serverPlayer
-                && serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                && DungeonWorldRules.inDungeon(serverPlayer.level())) {
             DungeonTools.capInPlace(stack);
         }
     }

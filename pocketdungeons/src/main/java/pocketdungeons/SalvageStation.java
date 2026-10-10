@@ -256,7 +256,7 @@ final class SalvageStation {
     static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
                          ContainerLevelAccess access) {
         return onUse(player, state, hand, access,
-                player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL));
+                DungeonWorldRules.inDungeon(player.level()));
     }
 
     /** As above, with the dimension test supplied so a gametest can stand in the dungeon. */

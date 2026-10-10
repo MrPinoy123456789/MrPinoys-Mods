@@ -35,7 +35,7 @@ final class SpiderUnstick {
 
     static void register() {
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            if (entity instanceof Spider spider && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (entity instanceof Spider spider && DungeonWorldRules.inDungeon(level)) {
                 synchronized (TRACKED) {
                     TRACKED.put(spider, Boolean.TRUE);
                 }

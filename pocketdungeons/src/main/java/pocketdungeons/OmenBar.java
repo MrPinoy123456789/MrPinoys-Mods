@@ -102,13 +102,13 @@ final class OmenBar {
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                 bar.event.addPlayer(player);
             }
         }
         for (ServerPlayer watching : new ArrayList<>(bar.event.getPlayers())) {
             if (!record.members.containsKey(watching.getUUID())
-                    || !watching.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(watching.level())) {
                 bar.event.removePlayer(watching);
             }
         }
@@ -130,7 +130,7 @@ final class OmenBar {
         bar.lastRepaintTick = now;
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                 player.sendOverlayMessage(bar.heldLine);
             }
         }
@@ -199,7 +199,7 @@ final class OmenBar {
             }
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
-                if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                     player.sendOverlayMessage(line);
                     Chime.omenRises(player, source);
                 }
@@ -210,7 +210,7 @@ final class OmenBar {
             bar.lastSoundTick = now;
             for (UUID member : record.members.keySet()) {
                 ServerPlayer player = server.getPlayerList().getPlayer(member);
-                if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                     Chime.omenRises(player, source);
                 }
             }

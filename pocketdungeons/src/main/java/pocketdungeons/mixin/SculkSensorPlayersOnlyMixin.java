@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 
 /**
  * Dungeon sculk sensors only hear players. A mob standing or walking in a room
@@ -30,7 +30,7 @@ public abstract class SculkSensorPlayersOnlyMixin {
     private void pocketdungeons$onlyPlayersAreHeard(ServerLevel level, BlockPos pos,
                                                     Holder<GameEvent> event, GameEvent.Context context,
                                                     CallbackInfoReturnable<Boolean> cir) {
-        if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(level)) {
             return;
         }
         Entity source = context.sourceEntity();

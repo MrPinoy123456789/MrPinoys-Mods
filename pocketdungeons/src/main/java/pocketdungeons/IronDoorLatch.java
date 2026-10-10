@@ -81,7 +81,7 @@ final class IronDoorLatch {
         if (level.isClientSide() || hand != InteractionHand.MAIN_HAND
                 || !(player instanceof ServerPlayer serverPlayer)
                 || !(level instanceof ServerLevel serverLevel)
-                || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                || !DungeonWorldRules.inDungeon(level)) {
             return InteractionResult.PASS;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());

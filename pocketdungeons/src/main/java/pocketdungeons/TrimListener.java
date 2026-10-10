@@ -159,7 +159,7 @@ final class TrimListener {
     /** Reads every armour slot's trim and reconciles this player's four modifier slots against it. */
     private static void reconcile(ServerPlayer player) {
         boolean dungeonOnly = PocketDungeonsConfig.trimBonusDungeonOnly();
-        boolean inDungeon = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean inDungeon = DungeonWorldRules.inDungeon(player.level());
         EnumMap<EquipmentSlot, Holder<Attribute>> current = applied.computeIfAbsent(
                 player.getUUID(), id -> new EnumMap<>(EquipmentSlot.class));
 

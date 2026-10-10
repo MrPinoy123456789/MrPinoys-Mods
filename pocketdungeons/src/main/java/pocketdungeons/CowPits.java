@@ -112,7 +112,7 @@ final class CowPits {
         registered = true;
         UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
             if (level.isClientSide() || entity.getType() != EntityTypes.COW
-                    || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(level)) {
                 return InteractionResult.PASS;
             }
             if (refusesFood(player.getItemInHand(hand).is(Items.WHEAT))) {
@@ -122,7 +122,7 @@ final class CowPits {
         });
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity.getType() == EntityTypes.COW
-                    && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    && DungeonWorldRules.inDungeon(level)
                     && entity instanceof LivingEntity living && living.isBaby()) {
                 // Deferred: an entity is not removed from inside its own add callback.
                 level.getServer().execute(entity::discard);

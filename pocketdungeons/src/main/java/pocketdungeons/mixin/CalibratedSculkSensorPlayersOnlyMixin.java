@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 
 /**
  * The calibrated sensor overrides {@code canReceiveVibration} itself, so the
@@ -25,7 +25,7 @@ public abstract class CalibratedSculkSensorPlayersOnlyMixin {
     private void pocketdungeons$onlyPlayersAreHeard(ServerLevel level, BlockPos pos,
                                                     Holder<GameEvent> event, GameEvent.Context context,
                                                     CallbackInfoReturnable<Boolean> cir) {
-        if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(level)) {
             return;
         }
         Entity source = context.sourceEntity();

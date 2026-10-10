@@ -39,7 +39,7 @@ final class Restless {
     static void register() {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (!(entity instanceof Mob mob) || !(entity.level() instanceof ServerLevel level)
-                    || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(level)) {
                 return;
             }
             InstanceRecord record = Instances.dungeonRecordAt(entity.blockPosition());
