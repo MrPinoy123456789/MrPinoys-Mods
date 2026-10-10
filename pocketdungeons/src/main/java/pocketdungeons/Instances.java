@@ -2084,7 +2084,7 @@ final class Instances {
 
     /**
      * A death at the last life fails the run: everyone is sent home (the Home room, see
-     * {@link #failReturnsHome}) with what they carry, unbanked floors pay nothing, and the dungeon's finish is not
+     * {@link #failReturnsHome}) with what they carry, the haul banked at the fail share, and the dungeon's finish is not
      * paid (J2). Keystone level and home room are untouched.
      */
     static void failRunOmen(MinecraftServer server, InstanceRecord record, ServerPlayer deadPlayer,

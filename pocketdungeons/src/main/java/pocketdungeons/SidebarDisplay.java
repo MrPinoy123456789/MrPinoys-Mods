@@ -58,11 +58,6 @@ final class SidebarDisplay {
         });
     }
 
-    /** Whether the member has hidden their sidebar. */
-    static boolean isHidden(UUID member) {
-        return HIDDEN.contains(member);
-    }
-
     /** {@code /dungeon display on|off}. */
     static void setHidden(ServerPlayer player, boolean hidden) {
         if (hidden) {

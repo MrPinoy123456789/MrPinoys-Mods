@@ -107,31 +107,6 @@ final class Bags {
     }
 
     /**
-     * The headline items resolved against the item registry, for whoever
-     * fills the door's frames. An id that does not resolve is skipped with a
-     * log line rather than silently becoming air: a bag table and this list
-     * are edited separately and can drift.
-     */
-    static List<Item> headlineItems(String bagId) {
-        BagDefinition bag = byId(bagId);
-        if (bag == null) {
-            return List.of();
-        }
-        List<Item> out = new ArrayList<>(bag.headline.size());
-        for (String itemId : bag.headline) {
-            Identifier parsed = Identifier.tryParse(itemId);
-            Item item = parsed == null ? null : BuiltInRegistries.ITEM.getOptional(parsed).orElse(null);
-            if (item == null) {
-                PocketDungeonsMod.LOG.error("Bag {} lists headline item {}, which is not a registered item",
-                        bagId, itemId);
-                continue;
-            }
-            out.add(item);
-        }
-        return out;
-    }
-
-    /**
      * The display name for this bag, or the raw id if the bag is unknown.
      */
     static Component displayName(String bagId) {

@@ -138,21 +138,6 @@ final class PowerListener {
         }
     }
 
-    /**
-     * The power ids currently active on {@code player}'s worn gear, capped at
-     * {@link PocketDungeonsConfig#equipCap()} the same way {@link #reconcile}
-     * applies the attributes for them. Exposed for
-     * {@link CubeStation#sortedUnlocked}, which needs the same answer to
-     * decide what the imbue picker should offer.
-     */
-    static List<String> activePowersOf(ServerPlayer player) {
-        List<String> presentInSlotOrder = new ArrayList<>(POWER_SLOTS.length);
-        for (EquipmentSlot slot : POWER_SLOTS) {
-            presentInSlotOrder.add(CubeStation.powerOf(player.getItemBySlot(slot)));
-        }
-        return PowerEquipMath.activePowers(presentInSlotOrder, PocketDungeonsConfig.equipCap());
-    }
-
     private static void reconcile(ServerPlayer player) {
         EnumMap<EquipmentSlot, Holder<Attribute>> current = applied.computeIfAbsent(
                 player.getUUID(), id -> new EnumMap<>(EquipmentSlot.class));

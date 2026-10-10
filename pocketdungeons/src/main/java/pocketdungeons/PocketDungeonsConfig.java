@@ -283,13 +283,6 @@ public final class PocketDungeonsConfig {
      * grindstone.
      */
     private static String salvageBlock = "minecraft:grindstone";
-    /**
-     * Superseded 2026-10-03 (owner request): scrapped gear pays the
-     * grindstone's XP and its materials, never emeralds, so this is no longer
-     * read. Kept so existing pocketdungeons.json files still load. It was the
-     * emeralds per tier for one piece of tagged gear.
-     */
-    private static int salvageEmeraldsPerTier = 1;
     /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */
     private static int salvageKeyEmeralds = 1;
     /** Emeralds per ominous vault key. */
@@ -705,10 +698,6 @@ public final class PocketDungeonsConfig {
         return salvageBlock;
     }
 
-    public static int salvageEmeraldsPerTier() {
-        return salvageEmeraldsPerTier;
-    }
-
     public static int salvageKeyEmeralds() {
         return salvageKeyEmeralds;
     }
@@ -961,7 +950,6 @@ public final class PocketDungeonsConfig {
         storageBlock = "minecraft:ender_chest";
 
         salvageBlock = "minecraft:grindstone";
-        salvageEmeraldsPerTier = 1;
         salvageKeyEmeralds = 1;
         salvageOminousKeyEmeralds = 3;
         salvageMaterialBonus = 1;
@@ -1011,7 +999,7 @@ public final class PocketDungeonsConfig {
      * the next save.
      */
     private static final List<String> RETIRED_KEYS = List.of(
-            "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds",
+            "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds", "salvageEmeraldsPerTier",
             "threeChestPercent", "twoChestPercent", "lateCompletionDepletion",
             // J1: the Fuel (echo shard) currency is gone; scrap and emeralds took its places.
             "fuelItem", "fuelCostPerGreaterDoor", "fuelPerFreeRun",
@@ -1207,7 +1195,6 @@ public final class PocketDungeonsConfig {
             storageBlock = "minecraft:ender_chest";
         }
         salvageBlock = readString(root, "salvageBlock", "minecraft:grindstone", false);
-        salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
         salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
         salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
         salvageMaterialBonus = readInt(root, "salvageMaterialBonus", 1, v -> v >= 0 && v <= 20, "must be 0 to 20");
@@ -1557,7 +1544,6 @@ public final class PocketDungeonsConfig {
         root.addProperty("storageBlock", "minecraft:ender_chest");
 
         root.addProperty("salvageBlock", "minecraft:grindstone");
-        root.addProperty("salvageEmeraldsPerTier", 1);
         root.addProperty("salvageKeyEmeralds", 1);
         root.addProperty("salvageOminousKeyEmeralds", 3);
         root.addProperty("salvageMaterialBonus", 1);

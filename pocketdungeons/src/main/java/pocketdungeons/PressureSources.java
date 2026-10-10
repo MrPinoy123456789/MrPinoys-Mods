@@ -23,21 +23,22 @@ import java.util.UUID;
 /**
  * J3 (plan 2026-10-06-2): the floor's pressure triggers, reworked off omen.
  * Death is the only thing that raises omen; everything else here answers in
- * the dungeon's own coin: a lootless wave after the player, darkness on a
- * shriek, a harder floor for the Ominous Bargain.
+ * the dungeon's own coin: a lootless wave after the player, darkness and a
+ * Warden whelp when a sculk room answers, a harder floor for the Ominous Bargain.
  *
- * <p>Five triggers, all polled rather than hooked, which keeps the mod's
- * one-mixin budget intact:
+ * <p>Five triggers, all polled rather than hooked:
  *
  * <ul>
  *   <li><strong>Dwell.</strong> Time a player spends in an unsolved cell: a
  *       wave per 90 seconds past the first 60. A cleared cell and the
  *       staging room are free (spec 5.4).</li>
  *   <li><strong>Sensor pulses.</strong> Sculk sensors going active, counted
- *       on the rising edge: a wave per five pulses, or per pulse on an
- *       Ancient City floor ({@link SculkOmen}), where the final floor's
- *       fourth pulse wakes the Warden.</li>
- *   <li><strong>Shrieks.</strong> Sculk shriekers: darkness, then a wave.</li>
+ *       on the rising edge into the room's Heard meter; a full meter
+ *       ({@code sculkHeardMax}, fewer in the Ancient City, see {@link SculkOmen})
+ *       is an answer: darkness and a Warden whelp. The Ancient City's final
+ *       floor wakes the real Warden at its second answer.</li>
+ *   <li><strong>Shrieks.</strong> Sculk shriekers in a room with no sensors: an
+ *       answer at once. In a room with sensors a shriek only voices them.</li>
  *   <li><strong>The Ominous Bargain.</strong> Once, when its reward is taken:
  *       +2 level for the rest of the floor.</li>
  *   <li><strong>Barred Vault.</strong> Once, when its reward is taken: relief,

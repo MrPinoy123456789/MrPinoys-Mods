@@ -5,7 +5,7 @@ package pocketdungeons;
  * Three numbers live on a member's log entry:
  * <ul>
  *   <li>the <b>compass</b> ({@code highestCharts}): the permanent level, which only ever rises;</li>
- *   <li>the <b>chart progress</b>: banked scrap toward the next level, 0 to 4;</li>
+ *   <li>the <b>chart progress</b>: banked scrap toward the next level (the cost rises with the compass, see {@link #levelCost});</li>
  *   <li>the <b>haul</b>: scrap carried on the current trip, at risk until it is banked.</li>
  * </ul>
  * Floors pay into the haul. Going home or finishing banks it (100 percent); a failed dungeon

@@ -404,6 +404,8 @@ for ((taskName, testClass) in mapOf(
     "cowPitsTest" to "CowPitsTest",
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
+    // The shipped default config file matches the defaults the code writes.
+    "defaultConfigFileTest" to "DefaultConfigFileTest",
     "zoneRulesTest" to "ZoneRulesTest",
     "intervalBankingTest" to "IntervalBankingTest",
     // Lemon steps 1 and 2: the playtest journal line format, the context
@@ -530,6 +532,7 @@ tasks.test {
     dependsOn("capstoneRulesTest")
     dependsOn("cowPitsTest")
     dependsOn("configSaveTest")
+    dependsOn("defaultConfigFileTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
     dependsOn("journalFormatTest")

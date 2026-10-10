@@ -1042,21 +1042,6 @@ final class DungeonLog extends SavedData {
     }
 
     /**
-     * Stores the door steps {@code player} carries toward their next keystone
-     * level, the remainder an interval's settlement leaves
-     * ({@link IntervalBanking}).
-     */
-    void setKeyProgress(UUID player, int steps) {
-        Entry previous = get(player);
-        int clamped = Math.max(0, steps);
-        if (previous.keyProgress() == clamped) {
-            return;
-        }
-        entries.put(player, previous.withKeyProgress(clamped));
-        setDirty();
-    }
-
-    /**
      * Records a completed run's unclaimed door offer. Set in {@code completeRun}
      * at the level the run was finished at; cleared the moment {@code /dungeon
      * choose} settles it (T13), whatever door was taken.

@@ -748,7 +748,7 @@ final class DialogScreens {
             options.add(new MenuOption("Leave", null, ACTION_LEAVE_DUNGEON));
             if (roomOwner && doorChosen) {
                 options.add(new MenuOption("Quit Door",
-                        "Fail the dungeon, downgrade your compass, pick a new door",
+                        "Fail this dungeon and pick a new door",
                         ACTION_QUIT_DUNGEON));
             }
             if (roomOwner) {
@@ -1279,24 +1279,6 @@ final class DialogScreens {
             buttons.add(lockedButton(line, null, ACTION_DIARIES, owner));
         }
         return DialogKit.list("Diaries", body, buttons, backToMenuButton(owner));
-    }
-
-    /**
-     * (M26) One diary's reader: its pages in their canonical, unshuffled
-     * order -- the source {@link DiaryDelivery} itself shuffles for the
-     * physical book, never this screen, so a player who lost the book can
-     * still read the real thing here. Back re-opens the list through
-     * {@link DialogRouter} rather than a stored reference to it, so a diary
-     * found while this screen was open shows up discovered the moment the
-     * player backs out.
-     */
-    static Dialog diaryReader(Diaries.Entry entry, UUID owner) {
-        List<DialogBody> body = new ArrayList<>();
-        for (String page : entry.pages()) {
-            body.add(DialogKit.text(page));
-        }
-        return DialogKit.notice("Entry " + entry.number() + ": " + entry.title(), body,
-                backButton("Back", ACTION_DIARIES, owner));
     }
 
     /** A button that swaps to another screen on the client, committing nothing. */
