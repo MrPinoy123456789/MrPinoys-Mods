@@ -163,9 +163,11 @@ final class LayoutStamper {
         int depth = plan.depths().getOrDefault(entranceCell, 0);
         String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
         String lootTableOverride = runTheme == null ? null : runTheme.meta().lootTable;
-        RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
-                depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
-                voidedCells.contains(entranceCell), false, entry.meta.content);
+        RoomContent.apply(
+                new RoomContent.CellSite(level, cellOrigin, plan.roles().get(entranceCell), depth, spawns,
+                        plan.seed(), entry.meta.content),
+                new RoomContent.CellRules(profile, affixes, lootSuffix, lootTableOverride, theme),
+                voidedCells.contains(entranceCell), false);
             PressureSources.arm(level, cellOrigin, entry.meta, theme, affixes.contains(AffixIds.OMINOUS));
         NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
                 plan.seed() ^ cellOrigin.asLong(), nodesOut);
@@ -327,10 +329,12 @@ final class LayoutStamper {
         int depth = plan.depths().getOrDefault(cell, 0);
         String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
         String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
-        List<BlockPos> spawnerAnchors = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                depth, run.profile, spawns, plan.seed(), p.affixes(), lootSuffix, lootTableOverride,
-                isAnomalyCell && !"store".equals(entry.meta.content) ? null : p.theme(),
-                run.voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
+        List<BlockPos> spawnerAnchors = RoomContent.apply(
+                new RoomContent.CellSite(level, cellOrigin, plan.roles().get(cell), depth, spawns,
+                        plan.seed(), entry.meta.content),
+                new RoomContent.CellRules(run.profile, p.affixes(), lootSuffix, lootTableOverride,
+                        isAnomalyCell && !"store".equals(entry.meta.content) ? null : p.theme()),
+                run.voidedCells.contains(cell), isAnomalyCell);
         PressureSources.arm(level, cellOrigin, entry.meta, p.theme(), p.affixes().contains(AffixIds.OMINOUS));
         run.trialSpawners.addAll(spawnerAnchors);
         if ("flooded_hall".equals(entry.meta.content)) {

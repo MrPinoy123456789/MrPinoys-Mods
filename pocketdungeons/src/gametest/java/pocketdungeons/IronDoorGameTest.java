@@ -44,8 +44,9 @@ public final class IronDoorGameTest {
         java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
                 origin, Identifier.parse("pocketdungeons:rooms/flooded_hall"), 0, 1L,
                 Identifier.parse("pocketdungeons:theme_deepslate"));
-        Situations.apply(level, origin, RoleIds.CORRIDOR, 1, DifficultyProfile.of(5, 1), spawns, 1L,
-                Set.of(), "", null, false, "flooded_hall");
+        Situations.apply(
+                new RoomContent.CellSite(level, origin, RoleIds.CORRIDOR, 1, spawns, 1L, "flooded_hall"),
+                new RoomContent.CellRules(DifficultyProfile.of(5, 1), Set.of(), "", null, null), false);
 
         List<BlockPos> latches = TraversalSpecs.latchDoorsAt(level, origin);
         helper.assertTrue(latches.size() >= 4 && latches.size() % 2 == 0,

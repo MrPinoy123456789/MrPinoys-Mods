@@ -109,10 +109,8 @@ final class Situations {
      *         dispatch; a non-null return means the handler owns the cell and
      *         the anchor should be collected into the layout's spawner set.
      */
-    static BlockPos apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
-                         DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                         Set<String> affixes, String lootSuffix, String theme,
-                         boolean voidedFloor, String content) {
+    static BlockPos apply(RoomContent.CellSite site, RoomContent.CellRules rules, boolean voidedFloor) {
+        String content = site.content();
         if (content == null) {
             return null;
         }
@@ -120,7 +118,8 @@ final class Situations {
         if (handler == null) {
             return null;
         }
-        return handler.apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
-                lootSuffix, theme, voidedFloor, content);
+        return handler.apply(site.level(), site.cellOrigin(), site.role(), site.depth(),
+                rules.profile(), site.spawns(), site.seed(), rules.affixes(),
+                rules.lootSuffix(), rules.theme(), voidedFloor, content);
     }
 }

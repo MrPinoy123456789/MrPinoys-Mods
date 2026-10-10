@@ -103,6 +103,36 @@ final class RoomContent {
     }
 
     /**
+     * Where and what: the cell being furnished, as the content pass and the
+     * situation handlers both read it.
+     *
+     * @param level      the dungeon level
+     * @param cellOrigin floor corner of the cell
+     * @param role       the role the planner assigned
+     * @param depth      cells from the entrance along the critical path
+     * @param spawns     the template's authored spawn points, cell-absolute
+     * @param seed       the run seed, mixed per cell by the caller
+     * @param content    the room's {@code content} field, or {@code null}
+     */
+    record CellSite(ServerLevel level, BlockPos cellOrigin, String role, int depth,
+                    List<BlockPos> spawns, long seed, String content) {}
+
+    /**
+     * The run's rules for the cell.
+     *
+     * @param profile          the run's difficulty profile
+     * @param affixes          the affixes riding on this run
+     * @param lootSuffix       the loot table suffix the run resolved to
+     * @param lootTableOverride M68: a namespaced loot table carried from the run
+     *                         theme's {@code loot_table} field, or {@code null}; it
+     *                         flows down to {@link TrialContent#applyLoot} so a third
+     *                         party theme can point at its own namespace's vault table
+     * @param theme            the run's theme id, or {@code null} for an unthemed run
+     */
+    record CellRules(DifficultyProfile profile, Set<String> affixes, String lootSuffix,
+                     String lootTableOverride, String theme) {}
+
+    /**
      * @return the trial spawner anchors placed for an {@code encounter} cell
      *         (one or more for authored spawners, one for legacy placement),
      *         or an empty list for every other role. M10: the caller collects
@@ -110,41 +140,39 @@ final class RoomContent {
      *         ROOM_AUTHORING_SPEC Phase A: returns a list to support multiple
      *         authored trial spawners per cell.
      */
-    static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
-                      DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<String> affixes, String lootSuffix, String theme, boolean voidedFloor,
-                      boolean anomalyCell, String content) {
-        return apply(level, cellOrigin, role, depth, profile, spawns, seed, affixes,
-                lootSuffix, null, theme, voidedFloor, anomalyCell, content);
+    static List<BlockPos> apply(CellSite site, CellRules rules, boolean voidedFloor, boolean anomalyCell) {
+        if (anomalyCell && "store".equals(site.content())) {
+            // M35 store anomaly: build a village shop interior and spawn a
+            // shopkeeper villager. No chest, no spawner, no combat: the
+            // store is a safe room the player finds along the critical path.
+            StoreShop.build(site.level(), site.cellOrigin(), site.seed());
+            StoreNPC.spawn(site.level(), site.cellOrigin(), site.seed(), rules.theme());
+            return List.of();
+        }
+        List<BlockPos> spawnerAnchors = placeContent(site, rules, voidedFloor, anomalyCell);
+        applyAffixHazards(site, rules, voidedFloor);
+        return spawnerAnchors;
     }
 
-    /**
-     * M68: apply with an optional namespaced loot table override carried from
-     * the run theme's {@code loot_table} field. The override flows down to
-     * {@link TrialContent#applyLoot} so a third party theme can point at its
-     * own namespace's vault table.
-     */
-    static List<BlockPos> apply(ServerLevel level, BlockPos cellOrigin, String role, int depth,
-                      DifficultyProfile profile, List<BlockPos> spawns, long seed,
-                      Set<String> affixes, String lootSuffix, String lootTableOverride,
-                      String theme, boolean voidedFloor, boolean anomalyCell, String content) {
+    /** The anomaly chest, the situation handler or the role's operation: whichever owns the cell. */
+    private static List<BlockPos> placeContent(CellSite site, CellRules rules, boolean voidedFloor,
+                                               boolean anomalyCell) {
+        ServerLevel level = site.level();
+        BlockPos cellOrigin = site.cellOrigin();
+        String role = site.role();
+        List<BlockPos> spawns = site.spawns();
+        DifficultyProfile profile = rules.profile();
+        Set<String> affixes = rules.affixes();
+        String theme = rules.theme();
         List<BlockPos> spawnerAnchors = new ArrayList<>();
         if (anomalyCell) {
-            if ("store".equals(content)) {
-                // M35 store anomaly: build a village shop interior and spawn a
-                // shopkeeper villager. No chest, no spawner, no combat: the
-                // store is a safe room the player finds along the critical path.
-                StoreShop.build(level, cellOrigin, seed);
-                StoreNPC.spawn(level, cellOrigin, seed, theme);
-                return List.of();
-            }
             // M35: a loose chest off the anomaly table regardless of role; never
             // a vault, never a keystone or a completion pad. An encounter-role
             // anomaly cell still gets its trial spawner (the fight is real; the
             // room around it is what is wrong), themeless like the chest. M70:
             // the check reads the role's operation, so a third-party role with
             // operation TRIAL_ENCOUNTER also stamps a spawner here.
-            applyAnomalyChest(level, cellOrigin, seed);
+            applyAnomalyChest(level, cellOrigin, site.seed());
             if (isEncounterOperation(role)) {
                 BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
                         profile.lootTier(), affixes, null);
@@ -152,7 +180,7 @@ final class RoomContent {
                     spawnerAnchors.add(anchor);
                 }
             }
-        } else if (Situations.isRegistered(content)) {
+        } else if (Situations.isRegistered(site.content())) {
             // M45: the one branch this class carries for the situation
             // catalogue. A registered handler owns its cell outright, so the
             // role switch below never sees it. The handler returns the trial
@@ -164,8 +192,7 @@ final class RoomContent {
             // returning early, so a Molten/Explosive/Voided run still stamps
             // its hazards in a situation cell. The handler's anchor is
             // collected into spawnerAnchors.
-            BlockPos anchor = Situations.apply(level, cellOrigin, role, depth, profile, spawns, seed,
-                    affixes, lootSuffix, theme, voidedFloor, content);
+            BlockPos anchor = Situations.apply(site, rules, voidedFloor);
             if (anchor != null) {
                 spawnerAnchors.add(anchor);
             }
@@ -190,10 +217,22 @@ final class RoomContent {
                     }
                 }
                 case TOOL_CACHE -> TrialContent.applyLoot(level, cellOrigin, profile.lootTier(),
-                        affixes.contains(AffixIds.OMINOUS), seed, lootSuffix, lootTableOverride);
+                        affixes.contains(AffixIds.OMINOUS), site.seed(), rules.lootSuffix(),
+                        rules.lootTableOverride());
                 case NONE -> removeChests(level, cellOrigin);
             }
         }
+        return spawnerAnchors;
+    }
+
+    /** The run's affix hazards: Molten, Explosive, Voided, Feral and Loaded, in that order. */
+    private static void applyAffixHazards(CellSite site, CellRules rules, boolean voidedFloor) {
+        ServerLevel level = site.level();
+        BlockPos cellOrigin = site.cellOrigin();
+        String role = site.role();
+        List<BlockPos> spawns = site.spawns();
+        long seed = site.seed();
+        Set<String> affixes = rules.affixes();
         // Molten (M4 T4.5): lava underfoot, and the only source of lava in the
         // game; a sealed dungeon has none otherwise, and it gates furnace fuel
         // and, with water, obsidian (docs/VISION.md 3.7). Entrance and exit are
@@ -227,7 +266,8 @@ final class RoomContent {
         // check reads the role's operation, so a third-party role with operation
         // TOOL_CACHE or NONE is also eligible.
         if (affixes.contains(AffixIds.FERAL) && isFeralEligible(role)) {
-            FeralContent.apply(level, cellOrigin, spawns, profile.lootTier(), profile.keystoneLevel(), seed);
+            FeralContent.apply(level, cellOrigin, spawns, rules.profile().lootTier(),
+                    rules.profile().keystoneLevel(), seed);
         }
         // M69 Loaded: a guaranteed bonus tool cache in loot cells, drawn from
         // the affix's namespaced bonus_tool_pool loot table. The gift that pays
@@ -239,7 +279,6 @@ final class RoomContent {
         if (affixes.contains(AffixIds.LOADED) && isLootOperation(role)) {
             placeLoadedToolCache(level, cellOrigin, seed);
         }
-        return spawnerAnchors;
     }
 
     /**
