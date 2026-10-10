@@ -434,9 +434,16 @@ public final class PocketDungeonsConfig {
             // would undo every edit on the next boot.
             JsonObject rewrite = effectiveForSave(parsed);
             if (rewrite != null) {
-                writeAtomically(file, rewrite);
-                PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
-                        + "their defaults, retired keys dropped, every other value kept");
+                try {
+                    writeAtomically(file, rewrite);
+                    PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
+                            + "their defaults, retired keys dropped, every other value kept");
+                } catch (IOException e) {
+                    // The values just applied are the operator's; a file another program holds open
+                    // (the move cannot replace it) must not send the server back to defaults.
+                    PocketDungeonsMod.LOG.warn("pocketdungeons.json could not be updated with the missing "
+                            + "keys; running on the values it holds", e);
+                }
             }
         } catch (Exception e) {
             // Defaults in memory, file untouched -- an operator's broken-but-
