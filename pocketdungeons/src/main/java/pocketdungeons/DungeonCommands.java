@@ -47,477 +47,538 @@ final class DungeonCommands {
     /** Registers player-facing dungeon commands and the operator diagnostics subtree. */
     static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
-            dispatcher.register(Commands.literal("dungeon")
-                    .executes(ctx -> enter(ctx.getSource().getPlayerOrException()))
+            LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("dungeon")
+                    .executes(ctx -> enter(ctx.getSource().getPlayerOrException()));
+            registerPlayerVerbs(root);
+            registerPartyVerbs(root);
+            registerRoomVerbs(root);
+            registerAdmin(root);
+            dispatcher.register(root);
+        });
+    }
 
-                    .then(Commands.literal("exit")
-                            .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
+    /** The operator subtree, built whole before it is attached (Brigadier snapshots a child when it is added). */
+    private static void registerAdmin(LiteralArgumentBuilder<CommandSourceStack> root) {
+        LiteralArgumentBuilder<CommandSourceStack> admin = Commands.literal("admin")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+        registerAdminReports(admin);
+        registerAdminBuilds(admin);
+        registerAdminRoomTools(admin);
+        registerAdminPlayerTools(admin);
+        registerAdminModulesAndBias(admin);
+        registerAdminPlansAndPacks(admin);
+        registerAdminSaves(admin);
+        registerAdminManifestAndExperiment(admin);
+        root.then(admin);
+    }
 
-                    // Instantly fails the caller's own door instead of making them
-                    // wait out the real-time clock for the same downgrade. All the
-                    // logic lives in RunLifecycle.quitDoor; see its own javadoc.
-                    .then(Commands.literal("quit")
-                            .executes(ctx -> quit(ctx.getSource().getPlayerOrException())))
+    /** The player verbs: exit, quit, abandon, resetkey, key, choose, cashout, reroll, map, display. */
+    private static void registerPlayerVerbs(LiteralArgumentBuilder<CommandSourceStack> root) {
+        root
+            .then(Commands.literal("exit")
+                    .executes(ctx -> exit(ctx.getSource().getPlayerOrException())))
 
-                    // Self-service despawn of the caller's own run, owner only.
-                    // Distinct from exit/quit, neither of which tears the
-                    // instance down: a solo run left behind stays live and
-                    // free-re-enterable (U8 Stage 1), which is exactly the
-                    // problem for a run that is stuck rather than merely
-                    // unfinished. See abandon's own javadoc.
-                    .then(Commands.literal("abandon")
-                            .executes(ctx -> abandon(ctx.getSource().getPlayerOrException())))
+            // Instantly fails the caller's own door instead of making them
+            // wait out the real-time clock for the same downgrade. All the
+            // logic lives in RunLifecycle.quitDoor; see its own javadoc.
+            .then(Commands.literal("quit")
+                    .executes(ctx -> quit(ctx.getSource().getPlayerOrException())))
 
-                    // Self-service /dungeon admin resetkey: resets the caller's own
-                    // progress and hands them a fresh keystone [1], safe to run
-                    // mid-run (quits the door first if one is active). See
-                    // resetOwnKey's own javadoc for how it differs from the admin
-                    // command it is named after.
-                    .then(Commands.literal("resetkey")
-                            .executes(ctx -> resetOwnKey(ctx.getSource().getPlayerOrException())))
+            // Self-service despawn of the caller's own run, owner only.
+            // Distinct from exit/quit, neither of which tears the
+            // instance down: a solo run left behind stays live and
+            // free-re-enterable (U8 Stage 1), which is exactly the
+            // problem for a run that is stuck rather than merely
+            // unfinished. See abandon's own javadoc.
+            .then(Commands.literal("abandon")
+                    .executes(ctx -> abandon(ctx.getSource().getPlayerOrException())))
 
-                    .then(Commands.literal("key")
-                            .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException()))
-                            // Read-only companion to the lore tooltip and /dungeon log,
-                            // in one screen. A chat trigger rather than a sneak-right-click
-                            // because RitualListener's use handler is already carrying the
-                            // ritual and the exit pad, and it does not
-                            // need a fourth meaning for the same gesture.
-                            .then(Commands.literal("info")
-                                    .executes(ctx -> keyInfo(ctx.getSource().getPlayerOrException()))))
+            // Self-service /dungeon admin resetkey: resets the caller's own
+            // progress and hands them a fresh keystone [1], safe to run
+            // mid-run (quits the door first if one is active). See
+            // resetOwnKey's own javadoc for how it differs from the admin
+            // command it is named after.
+            .then(Commands.literal("resetkey")
+                    .executes(ctx -> resetOwnKey(ctx.getSource().getPlayerOrException())))
 
-                    .then(Commands.literal("choose")
-                            .then(Commands.argument("step", IntegerArgumentType.integer(1, 3))
-                                    .executes(ctx -> choose(ctx.getSource().getPlayerOrException(),
-                                            IntegerArgumentType.getInteger(ctx, "step")))))
+            .then(Commands.literal("key")
+                    .executes(ctx -> mintKey(ctx.getSource().getPlayerOrException()))
+                    // Read-only companion to the lore tooltip and /dungeon log,
+                    // in one screen. A chat trigger rather than a sneak-right-click
+                    // because RitualListener's use handler is already carrying the
+                    // ritual and the exit pad, and it does not
+                    // need a fourth meaning for the same gesture.
+                    .then(Commands.literal("info")
+                            .executes(ctx -> keyInfo(ctx.getSource().getPlayerOrException()))))
 
-                    // The HOME lever, typed: banks the interval and takes the
-                    // party home from any checkpoint, in any zone. The name is
-                    // the Endless Mine's, which had this before every staging
-                    // room did. See RunLifecycle.goHome. The lever's confirm
-                    // dialog runs this too, so the chime the lever used to
-                    // play lives here now.
-                    .then(Commands.literal("cashout")
-                            .executes(ctx -> {
-                                ServerPlayer home = ctx.getSource().getPlayerOrException();
-                                if (RunLifecycle.goHome(home)) {
-                                    Chime.runComplete(home);
-                                    return 1;
-                                }
-                                return 0;
-                            }))
+            .then(Commands.literal("choose")
+                    .then(Commands.argument("step", IntegerArgumentType.integer(1, 3))
+                            .executes(ctx -> choose(ctx.getSource().getPlayerOrException(),
+                                    IntegerArgumentType.getInteger(ctx, "step")))))
 
-                    // The staging room's dungeon map, typed (also opened by clicking
-                    // the floor history board). Read only.
-                    // Re-deals the first staging room's dungeons (the owner, before a door is taken).
-                    .then(Commands.literal("reroll")
-                            .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
+            // The HOME lever, typed: banks the interval and takes the
+            // party home from any checkpoint, in any zone. The name is
+            // the Endless Mine's, which had this before every staging
+            // room did. See RunLifecycle.goHome. The lever's confirm
+            // dialog runs this too, so the chime the lever used to
+            // play lives here now.
+            .then(Commands.literal("cashout")
+                    .executes(ctx -> {
+                        ServerPlayer home = ctx.getSource().getPlayerOrException();
+                        if (RunLifecycle.goHome(home)) {
+                            Chime.runComplete(home);
+                            return 1;
+                        }
+                        return 0;
+                    }))
 
-                    .then(Commands.literal("map")
-                            .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
+            // The staging room's dungeon map, typed (also opened by clicking
+            // the floor history board). Read only.
+            // Re-deals the first staging room's dungeons (the owner, before a door is taken).
+            .then(Commands.literal("reroll")
+                    .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
 
-                    // The trip sidebar (Q7): floor, lives, spawners, haul and compass down the right edge.
-                    .then(Commands.literal("display")
-                            .then(Commands.literal("on")
-                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), false)))
-                            .then(Commands.literal("off")
-                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), true))))
+            .then(Commands.literal("map")
+                    .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
 
-                    .then(Commands.literal("party")
-                            // Bare /dungeon party opens the roster. New surface, not a
-                            // replacement: before this there was no way to see a party at
-                            // all, only to name somebody you already remembered. Adding an
-                            // executes() to a literal that had none cannot shadow anything.
-                            .executes(ctx -> partyRoster(ctx.getSource().getPlayerOrException()))
-                            // Literals are matched before arguments, so "kick" and
-                            // "kickconfirm" win over a player who happens to be
-                            // named either.
-                            .then(Commands.literal("kick")
-                                    .then(Commands.literal("all")
-                                            .executes(ctx -> kickAll(
-                                                    ctx.getSource().getPlayerOrException())))
+            // The trip sidebar (Q7): floor, lives, spawners, haul and compass down the right edge.
+            .then(Commands.literal("display")
+                    .then(Commands.literal("on")
+                            .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), false)))
+                    .then(Commands.literal("off")
+                            .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), true))));
+    }
+
+    /** The party verbs, plus invite, log and join. */
+    private static void registerPartyVerbs(LiteralArgumentBuilder<CommandSourceStack> root) {
+        root
+            .then(Commands.literal("party")
+                    // Bare /dungeon party opens the roster. New surface, not a
+                    // replacement: before this there was no way to see a party at
+                    // all, only to name somebody you already remembered. Adding an
+                    // executes() to a literal that had none cannot shadow anything.
+                    .executes(ctx -> partyRoster(ctx.getSource().getPlayerOrException()))
+                    // Literals are matched before arguments, so "kick" and
+                    // "kickconfirm" win over a player who happens to be
+                    // named either.
+                    .then(Commands.literal("kick")
+                            .then(Commands.literal("all")
+                                    .executes(ctx -> kickAll(
+                                            ctx.getSource().getPlayerOrException())))
+                            .then(Commands.argument("target", EntityArgument.player())
+                                    .executes(ctx -> kick(
+                                            ctx.getSource().getPlayerOrException(),
+                                            EntityArgument.getPlayer(ctx, "target")))))
+                    .then(Commands.literal("kickconfirm")
+                            .executes(ctx -> kickConfirm(
+                                    ctx.getSource().getPlayerOrException())))
+                    // D15: who in the party may pick doors and pull HOME. Off by
+                    // default (any member may); the whitelist is the leader's own.
+                    .then(Commands.literal("decide")
+                            .then(Commands.literal("whitelist")
+                                    .then(Commands.literal("on")
+                                            .executes(ctx -> decideWhitelist(
+                                                    ctx.getSource().getPlayerOrException(), true)))
+                                    .then(Commands.literal("off")
+                                            .executes(ctx -> decideWhitelist(
+                                                    ctx.getSource().getPlayerOrException(), false))))
+                            .then(Commands.literal("add")
                                     .then(Commands.argument("target", EntityArgument.player())
-                                            .executes(ctx -> kick(
+                                            .executes(ctx -> decideAdd(
                                                     ctx.getSource().getPlayerOrException(),
                                                     EntityArgument.getPlayer(ctx, "target")))))
-                            .then(Commands.literal("kickconfirm")
-                                    .executes(ctx -> kickConfirm(
-                                            ctx.getSource().getPlayerOrException())))
-                            // D15: who in the party may pick doors and pull HOME. Off by
-                            // default (any member may); the whitelist is the leader's own.
-                            .then(Commands.literal("decide")
-                                    .then(Commands.literal("whitelist")
-                                            .then(Commands.literal("on")
-                                                    .executes(ctx -> decideWhitelist(
-                                                            ctx.getSource().getPlayerOrException(), true)))
-                                            .then(Commands.literal("off")
-                                                    .executes(ctx -> decideWhitelist(
-                                                            ctx.getSource().getPlayerOrException(), false))))
-                                    .then(Commands.literal("add")
-                                            .then(Commands.argument("target", EntityArgument.player())
-                                                    .executes(ctx -> decideAdd(
-                                                            ctx.getSource().getPlayerOrException(),
-                                                            EntityArgument.getPlayer(ctx, "target")))))
-                                    .then(Commands.literal("remove")
-                                            .then(Commands.argument("target", EntityArgument.player())
-                                                    .executes(ctx -> decideRemove(
-                                                            ctx.getSource().getPlayerOrException(),
-                                                            EntityArgument.getPlayer(ctx, "target")))))
-                                    .then(Commands.literal("list")
-                                            .executes(ctx -> decideList(
-                                                    ctx.getSource().getPlayerOrException()))))
-                            .then(Commands.argument("target", EntityArgument.player())
-                                    .executes(ctx -> party(ctx.getSource().getPlayerOrException(),
-                                            EntityArgument.getPlayer(ctx, "target")))))
-
-                    .then(Commands.literal("invite")
-                            .then(Commands.argument("target", EntityArgument.player())
-                                    .executes(ctx -> invite(ctx.getSource().getPlayerOrException(),
-                                            EntityArgument.getPlayer(ctx, "target")))))
-
-                    .then(Commands.literal("log")
-                            .executes(ctx -> log(ctx.getSource(),
-                                    ctx.getSource().getPlayerOrException().getUUID(),
-                                    ctx.getSource().getPlayerOrException().getName().getString()))
-                            .then(Commands.argument("target", EntityArgument.player())
-                                    .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                                    .executes(ctx -> {
-                                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
-                                        return log(ctx.getSource(), target.getUUID(),
-                                                target.getName().getString());
-                                    })))
-
-                    .then(Commands.literal("join")
-                            .then(Commands.argument("leader", EntityArgument.player())
-                                    .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
-                                            EntityArgument.getPlayer(ctx, "leader")))))
-
-                    // J7: /dungeon memento is hidden for now (no playtest has
-                    // met it). The minting method stays, the command does not
-                    // register.
-
-                    // M2 T2.2: an owner's own guest list for their room.
-                    // M20: the lobby directory replaces the calling card, so the
-                    // room subtree gains the visibility toggle and the display
-                    // name, and loses the card-minting command.
-                    .then(Commands.literal("room")
-                            .then(Commands.literal("public")
-                                    .executes(ctx -> roomPublic(ctx.getSource().getPlayerOrException())))
-                            .then(Commands.literal("private")
-                                    .executes(ctx -> roomPrivate(ctx.getSource().getPlayerOrException())))
-                            .then(Commands.literal("name")
-                                    .then(Commands.argument("text", StringArgumentType.greedyString())
-                                            .executes(ctx -> roomName(ctx.getSource().getPlayerOrException(),
-                                                    StringArgumentType.getString(ctx, "text")))))
-                            .then(Commands.literal("whitelist")
-                                    // Bare form opens the manager; add/remove/list keep
-                                    // working exactly as they did, for console and for
-                                    // anyone who prefers typing.
-                                    .executes(ctx -> roomWhitelistScreen(
-                                            ctx.getSource().getPlayerOrException()))
-                                    .then(Commands.literal("add")
-                                            .then(Commands.argument("target", EntityArgument.player())
-                                                    .executes(ctx -> roomWhitelistAdd(
-                                                            ctx.getSource().getPlayerOrException(),
-                                                            EntityArgument.getPlayer(ctx, "target")))))
-                                    .then(Commands.literal("remove")
-                                            .then(Commands.argument("target", EntityArgument.player())
-                                                    .executes(ctx -> roomWhitelistRemove(
-                                                            ctx.getSource().getPlayerOrException(),
-                                                            EntityArgument.getPlayer(ctx, "target")))))
-                                    .then(Commands.literal("list")
-                                            .executes(ctx -> roomWhitelistList(
-                                                    ctx.getSource().getPlayerOrException())))))
-
-                    // M67: room builder commands for creating, editing, loading
-                    // and deleting room templates from inside the game.
-                    .then(RoomBuilderCommands.branch())
-
-                    // A note for the playtest journal (docs/PLAYTEST_EVENTS.md).
-                    .then(LemonCommands.reportNode())
-
-                    // The agent's console driver for Lemon (docs/LEMON_SPEC.md 5).
-                    .then(LemonCommands.driverNode())
-
-                    .then(Commands.literal("admin")
-                            .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-
-                            // The player's context snapshot as one line of JSON
-                            // (docs/LEMON_SPEC.md 3), for agents over RCON.
-                            .then(LemonCommands.contextNode())
-
+                            .then(Commands.literal("remove")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .executes(ctx -> decideRemove(
+                                                    ctx.getSource().getPlayerOrException(),
+                                                    EntityArgument.getPlayer(ctx, "target")))))
                             .then(Commands.literal("list")
-                                    .executes(ctx -> list(ctx.getSource())))
+                                    .executes(ctx -> decideList(
+                                            ctx.getSource().getPlayerOrException()))))
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .executes(ctx -> party(ctx.getSource().getPlayerOrException(),
+                                    EntityArgument.getPlayer(ctx, "target")))))
 
-                            // M76: operator-facing operating envelope read. No
-                            // player spam, no external telemetry: a single
-                            // command an operator runs to see how close the
-                            // server is to its declared caps.
-                            .then(Commands.literal("diagnostics")
-                                    .executes(ctx -> diagnostics(ctx.getSource())))
+            .then(Commands.literal("invite")
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .executes(ctx -> invite(ctx.getSource().getPlayerOrException(),
+                                    EntityArgument.getPlayer(ctx, "target")))))
 
-                            .then(Commands.literal("build")
-                                    .executes(ctx -> build(ctx.getSource(), null, 0, false))
-                                    .then(Commands.argument("seed", LongArgumentType.longArg())
+            .then(Commands.literal("log")
+                    .executes(ctx -> log(ctx.getSource(),
+                            ctx.getSource().getPlayerOrException().getUUID(),
+                            ctx.getSource().getPlayerOrException().getName().getString()))
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                return log(ctx.getSource(), target.getUUID(),
+                                        target.getName().getString());
+                            })))
+
+            .then(Commands.literal("join")
+                    .then(Commands.argument("leader", EntityArgument.player())
+                            .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
+                                    EntityArgument.getPlayer(ctx, "leader")))));
+    }
+
+    /** The room verbs and the room builder, report and Lemon driver branches. */
+    private static void registerRoomVerbs(LiteralArgumentBuilder<CommandSourceStack> root) {
+        root
+            // J7: /dungeon memento is hidden for now (no playtest has
+            // met it). The minting method stays, the command does not
+            // register.
+
+            // M2 T2.2: an owner's own guest list for their room.
+            // M20: the lobby directory replaces the calling card, so the
+            // room subtree gains the visibility toggle and the display
+            // name, and loses the card-minting command.
+            .then(Commands.literal("room")
+                    .then(Commands.literal("public")
+                            .executes(ctx -> roomPublic(ctx.getSource().getPlayerOrException())))
+                    .then(Commands.literal("private")
+                            .executes(ctx -> roomPrivate(ctx.getSource().getPlayerOrException())))
+                    .then(Commands.literal("name")
+                            .then(Commands.argument("text", StringArgumentType.greedyString())
+                                    .executes(ctx -> roomName(ctx.getSource().getPlayerOrException(),
+                                            StringArgumentType.getString(ctx, "text")))))
+                    .then(Commands.literal("whitelist")
+                            // Bare form opens the manager; add/remove/list keep
+                            // working exactly as they did, for console and for
+                            // anyone who prefers typing.
+                            .executes(ctx -> roomWhitelistScreen(
+                                    ctx.getSource().getPlayerOrException()))
+                            .then(Commands.literal("add")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .executes(ctx -> roomWhitelistAdd(
+                                                    ctx.getSource().getPlayerOrException(),
+                                                    EntityArgument.getPlayer(ctx, "target")))))
+                            .then(Commands.literal("remove")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .executes(ctx -> roomWhitelistRemove(
+                                                    ctx.getSource().getPlayerOrException(),
+                                                    EntityArgument.getPlayer(ctx, "target")))))
+                            .then(Commands.literal("list")
+                                    .executes(ctx -> roomWhitelistList(
+                                            ctx.getSource().getPlayerOrException())))))
+
+            // M67: room builder commands for creating, editing, loading
+            // and deleting room templates from inside the game.
+            .then(RoomBuilderCommands.branch())
+
+            // A note for the playtest journal (docs/PLAYTEST_EVENTS.md).
+            .then(LemonCommands.reportNode())
+
+            // The agent's console driver for Lemon (docs/LEMON_SPEC.md 5).
+            .then(LemonCommands.driverNode());
+    }
+
+    /** Context snapshot, list and diagnostics. */
+    private static void registerAdminReports(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            // The player's context snapshot as one line of JSON
+            // (docs/LEMON_SPEC.md 3), for agents over RCON.
+            .then(LemonCommands.contextNode())
+
+            .then(Commands.literal("list")
+                    .executes(ctx -> list(ctx.getSource())))
+
+            // M76: operator-facing operating envelope read. No
+            // player spam, no external telemetry: a single
+            // command an operator runs to see how close the
+            // server is to its declared caps.
+            .then(Commands.literal("diagnostics")
+                    .executes(ctx -> diagnostics(ctx.getSource())));
+    }
+
+    /** Seeded builds and untimed runs. */
+    private static void registerAdminBuilds(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            .then(Commands.literal("build")
+                    .executes(ctx -> build(ctx.getSource(), null, 0, false))
+                    .then(Commands.argument("seed", LongArgumentType.longArg())
+                            .executes(ctx -> build(ctx.getSource(),
+                                    LongArgumentType.getLong(ctx, "seed"), 0, false))
+                            .then(Commands.argument("keystoneLevel",
+                                            IntegerArgumentType.integer(0, 1000))
+                                    .executes(ctx -> build(ctx.getSource(),
+                                            LongArgumentType.getLong(ctx, "seed"),
+                                            IntegerArgumentType.getInteger(
+                                                    ctx, "keystoneLevel"), false))
+                                    .then(Commands.argument("ominous",
+                                                    com.mojang.brigadier.arguments
+                                                            .BoolArgumentType.bool())
                                             .executes(ctx -> build(ctx.getSource(),
-                                                    LongArgumentType.getLong(ctx, "seed"), 0, false))
-                                            .then(Commands.argument("keystoneLevel",
-                                                            IntegerArgumentType.integer(0, 1000))
-                                                    .executes(ctx -> build(ctx.getSource(),
-                                                            LongArgumentType.getLong(ctx, "seed"),
-                                                            IntegerArgumentType.getInteger(
-                                                                    ctx, "keystoneLevel"), false))
-                                                    .then(Commands.argument("ominous",
-                                                                    com.mojang.brigadier.arguments
-                                                                            .BoolArgumentType.bool())
-                                                            .executes(ctx -> build(ctx.getSource(),
-                                                                    LongArgumentType.getLong(ctx, "seed"),
-                                                                    IntegerArgumentType.getInteger(
-                                                                            ctx, "keystoneLevel"),
-                                                                    com.mojang.brigadier.arguments
-                                                                            .BoolArgumentType.getBool(
-                                                                            ctx, "ominous")))))))
+                                                    LongArgumentType.getLong(ctx, "seed"),
+                                                    IntegerArgumentType.getInteger(
+                                                            ctx, "keystoneLevel"),
+                                                    com.mojang.brigadier.arguments
+                                                            .BoolArgumentType.getBool(
+                                                            ctx, "ominous")))))))
 
-                            .then(Commands.literal("untimed")
-                                    .executes(ctx -> untimed(ctx.getSource(), 1, false, null))
-                                    .then(Commands.argument("keystoneLevel",
-                                                    IntegerArgumentType.integer(1, 1000))
+            .then(Commands.literal("untimed")
+                    .executes(ctx -> untimed(ctx.getSource(), 1, false, null))
+                    .then(Commands.argument("keystoneLevel",
+                                    IntegerArgumentType.integer(1, 1000))
+                            .executes(ctx -> untimed(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(
+                                            ctx, "keystoneLevel"), false, null))
+                            .then(Commands.argument("ominous",
+                                            com.mojang.brigadier.arguments
+                                                    .BoolArgumentType.bool())
+                                    .executes(ctx -> untimed(ctx.getSource(),
+                                            IntegerArgumentType.getInteger(
+                                                    ctx, "keystoneLevel"),
+                                            com.mojang.brigadier.arguments
+                                                    .BoolArgumentType.getBool(
+                                                    ctx, "ominous"), null))
+                                    .then(Commands.argument("theme",
+                                                    com.mojang.brigadier.arguments
+                                                            .StringArgumentType.string())
                                             .executes(ctx -> untimed(ctx.getSource(),
                                                     IntegerArgumentType.getInteger(
-                                                            ctx, "keystoneLevel"), false, null))
-                                            .then(Commands.argument("ominous",
-                                                            com.mojang.brigadier.arguments
-                                                                    .BoolArgumentType.bool())
-                                                    .executes(ctx -> untimed(ctx.getSource(),
-                                                            IntegerArgumentType.getInteger(
-                                                                    ctx, "keystoneLevel"),
-                                                            com.mojang.brigadier.arguments
-                                                                    .BoolArgumentType.getBool(
-                                                                    ctx, "ominous"), null))
-                                                    .then(Commands.argument("theme",
-                                                                    com.mojang.brigadier.arguments
-                                                                            .StringArgumentType.string())
-                                                            .executes(ctx -> untimed(ctx.getSource(),
-                                                                    IntegerArgumentType.getInteger(
-                                                                            ctx, "keystoneLevel"),
-                                                                    com.mojang.brigadier.arguments
-                                                                            .BoolArgumentType.getBool(
-                                                                            ctx, "ominous"),
-                                                                    com.mojang.brigadier.arguments
-                                                                            .StringArgumentType.getString(
-                                                                            ctx, "theme")))))))
+                                                            ctx, "keystoneLevel"),
+                                                    com.mojang.brigadier.arguments
+                                                            .BoolArgumentType.getBool(
+                                                            ctx, "ominous"),
+                                                    com.mojang.brigadier.arguments
+                                                            .StringArgumentType.getString(
+                                                            ctx, "theme")))))));
+    }
 
-                            .then(Commands.literal("gentemplates")
-                                    .executes(ctx -> generateTemplates(ctx.getSource(), null))
-                                    // One room by name, so a spec fix rewrites
-                                    // only its own .nbt, not the whole library.
-                                    .then(Commands.argument("room", StringArgumentType.word())
-                                            .executes(ctx -> generateTemplates(ctx.getSource(),
-                                                    StringArgumentType.getString(ctx, "room")))))
+    /** Template and room tooling, stamp tests, cell reports, purge and coverage. */
+    private static void registerAdminRoomTools(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            .then(Commands.literal("gentemplates")
+                    .executes(ctx -> generateTemplates(ctx.getSource(), null))
+                    // One room by name, so a spec fix rewrites
+                    // only its own .nbt, not the whole library.
+                    .then(Commands.argument("room", StringArgumentType.word())
+                            .executes(ctx -> generateTemplates(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "room")))))
 
-                            .then(Commands.literal("buildroom")
-                                    .executes(ctx -> buildRoom(ctx.getSource())))
+            .then(Commands.literal("buildroom")
+                    .executes(ctx -> buildRoom(ctx.getSource())))
 
-                            .then(Commands.literal("saveroom")
-                                    .then(Commands.argument("name", StringArgumentType.string())
-                                            .executes(ctx -> saveRoom(ctx.getSource(),
-                                                    StringArgumentType.getString(ctx, "name")))))
+            .then(Commands.literal("saveroom")
+                    .then(Commands.argument("name", StringArgumentType.string())
+                            .executes(ctx -> saveRoom(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "name")))))
 
-                            .then(Commands.literal("stamptest")
-                                    .executes(ctx -> stampTest(ctx.getSource())))
+            .then(Commands.literal("stamptest")
+                    .executes(ctx -> stampTest(ctx.getSource())))
 
-                            .then(Commands.literal("cellreport")
-                                    .then(Commands.argument("slot", IntegerArgumentType.integer(0))
-                                            .executes(ctx -> cellReport(ctx.getSource(),
-                                                    IntegerArgumentType.getInteger(ctx, "slot")))))
+            .then(Commands.literal("cellreport")
+                    .then(Commands.argument("slot", IntegerArgumentType.integer(0))
+                            .executes(ctx -> cellReport(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "slot")))))
 
-                            .then(Commands.literal("purge")
-                                    .then(Commands.argument("slot", IntegerArgumentType.integer(0))
-                                            .executes(ctx -> purge(ctx.getSource(),
-                                                    IntegerArgumentType.getInteger(ctx, "slot")))))
+            .then(Commands.literal("purge")
+                    .then(Commands.argument("slot", IntegerArgumentType.integer(0))
+                            .executes(ctx -> purge(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "slot")))))
 
-                            .then(Commands.literal("coverage")
-                                    .executes(ctx -> coverage(ctx.getSource())))
+            .then(Commands.literal("coverage")
+                    .executes(ctx -> coverage(ctx.getSource())));
+    }
 
-                            // Playtest tooling: scrap is a log value, not an item. The compass may be set
-                            // to any level (even lower) with the bar; the haul is what a trip carries.
-                            .then(Commands.literal("compass")
-                                    .then(Commands.argument("target", EntityArgument.player())
-                                            .then(Commands.literal("set")
-                                                    .then(Commands.argument("level", IntegerArgumentType.integer(0, 1000))
-                                                            .executes(ctx -> adminCompass(ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "target"),
-                                                                    IntegerArgumentType.getInteger(ctx, "level"), 0))
-                                                            .then(Commands.argument("progress", IntegerArgumentType.integer(0, 4))
-                                                                    .executes(ctx -> adminCompass(ctx.getSource(),
-                                                                            EntityArgument.getPlayer(ctx, "target"),
-                                                                            IntegerArgumentType.getInteger(ctx, "level"),
-                                                                            IntegerArgumentType.getInteger(ctx, "progress"))))))))
-                            .then(Commands.literal("haul")
-                                    .then(Commands.argument("target", EntityArgument.player())
-                                            .then(Commands.literal("set")
-                                                    .then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000))
-                                                            .executes(ctx -> adminHaul(ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "target"),
-                                                                    IntegerArgumentType.getInteger(ctx, "amount")))))))
+    /** Playtest tooling for a player's compass and haul. */
+    private static void registerAdminPlayerTools(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            // Playtest tooling: scrap is a log value, not an item. The compass may be set
+            // to any level (even lower) with the bar; the haul is what a trip carries.
+            .then(Commands.literal("compass")
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .then(Commands.literal("set")
+                                    .then(Commands.argument("level", IntegerArgumentType.integer(0, 1000))
+                                            .executes(ctx -> adminCompass(ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                    IntegerArgumentType.getInteger(ctx, "level"), 0))
+                                            .then(Commands.argument("progress", IntegerArgumentType.integer(0, 4))
+                                                    .executes(ctx -> adminCompass(ctx.getSource(),
+                                                            EntityArgument.getPlayer(ctx, "target"),
+                                                            IntegerArgumentType.getInteger(ctx, "level"),
+                                                            IntegerArgumentType.getInteger(ctx, "progress"))))))))
+            .then(Commands.literal("haul")
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .then(Commands.literal("set")
+                                    .then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000))
+                                            .executes(ctx -> adminHaul(ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                    IntegerArgumentType.getInteger(ctx, "amount")))))));
+    }
 
-                            // L2 (D41): content module listing and toggles.
-                            // The toggle writes pocketdungeons.json and lands
-                            // on the next /reload for manifest surfaces.
-                            .then(Commands.literal("modules")
-                                    .executes(ctx -> contentModules(ctx.getSource())))
-                            .then(Commands.literal("module")
-                                    .then(Commands.argument("id", StringArgumentType.word())
-                                            .then(Commands.literal("on")
-                                                    .executes(ctx -> contentModuleSet(
-                                                            ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "id"),
-                                                            true)))
-                                            .then(Commands.literal("off")
-                                                    .executes(ctx -> contentModuleSet(
-                                                            ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "id"),
-                                                            false)))))
+    /** Content modules and the room selection bias. */
+    private static void registerAdminModulesAndBias(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            // L2 (D41): content module listing and toggles.
+            // The toggle writes pocketdungeons.json and lands
+            // on the next /reload for manifest surfaces.
+            .then(Commands.literal("modules")
+                    .executes(ctx -> contentModules(ctx.getSource())))
+            .then(Commands.literal("module")
+                    .then(Commands.argument("id", StringArgumentType.word())
+                            .then(Commands.literal("on")
+                                    .executes(ctx -> contentModuleSet(
+                                            ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "id"),
+                                            true)))
+                            .then(Commands.literal("off")
+                                    .executes(ctx -> contentModuleSet(
+                                            ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "id"),
+                                            false)))))
 
-                            // Playtest tooling: steer room selection toward rooms under test.
-                            .then(Commands.literal("bias")
-                                    .executes(ctx -> listBias(ctx.getSource()))
-                                    .then(Commands.literal("clear")
-                                            .executes(ctx -> clearBias(ctx.getSource())))
-                                    // PD-90: hold a player's doors while a bias is set up.
-                                    .then(Commands.literal("hold")
-                                            .then(Commands.argument("player", StringArgumentType.word())
-                                                    .executes(ctx -> holdBias(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "player"),
-                                                            PlaytestBias.DEFAULT_HOLD_SECONDS))
-                                                    .then(Commands.argument("seconds",
-                                                                    IntegerArgumentType.integer(0,
-                                                                            PlaytestBias.MAX_HOLD_SECONDS))
-                                                            .executes(ctx -> holdBias(ctx.getSource(),
-                                                                    StringArgumentType.getString(ctx, "player"),
-                                                                    IntegerArgumentType.getInteger(ctx, "seconds"))))))
-                                    .then(Commands.argument("room", StringArgumentType.string())
-                                            .then(Commands.argument("multiplier",
-                                                            IntegerArgumentType.integer(1, PlaytestBias.MAX_MULTIPLIER))
-                                                    .executes(ctx -> setBias(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "room"),
-                                                            IntegerArgumentType.getInteger(ctx, "multiplier"))))))
+            // Playtest tooling: steer room selection toward rooms under test.
+            .then(Commands.literal("bias")
+                    .executes(ctx -> listBias(ctx.getSource()))
+                    .then(Commands.literal("clear")
+                            .executes(ctx -> clearBias(ctx.getSource())))
+                    // PD-90: hold a player's doors while a bias is set up.
+                    .then(Commands.literal("hold")
+                            .then(Commands.argument("player", StringArgumentType.word())
+                                    .executes(ctx -> holdBias(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "player"),
+                                            PlaytestBias.DEFAULT_HOLD_SECONDS))
+                                    .then(Commands.argument("seconds",
+                                                    IntegerArgumentType.integer(0,
+                                                            PlaytestBias.MAX_HOLD_SECONDS))
+                                            .executes(ctx -> holdBias(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "player"),
+                                                    IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                    .then(Commands.argument("room", StringArgumentType.string())
+                            .then(Commands.argument("multiplier",
+                                            IntegerArgumentType.integer(1, PlaytestBias.MAX_MULTIPLIER))
+                                    .executes(ctx -> setBias(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "room"),
+                                            IntegerArgumentType.getInteger(ctx, "multiplier"))))));
+    }
 
-                            .then(Commands.literal("plan")
-                                    .then(Commands.argument("seed", LongArgumentType.longArg())
-                                            .executes(ctx -> plan(ctx.getSource(),
-                                                    LongArgumentType.getLong(ctx, "seed")))))
+    /** Layout plans, data export and the pack authoring surface. */
+    private static void registerAdminPlansAndPacks(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            .then(Commands.literal("plan")
+                    .then(Commands.argument("seed", LongArgumentType.longArg())
+                            .executes(ctx -> plan(ctx.getSource(),
+                                    LongArgumentType.getLong(ctx, "seed")))))
 
-                            .then(Commands.literal("plansurvey")
-                                    .then(Commands.argument("count", IntegerArgumentType.integer(1, 1000))
-                                            .executes(ctx -> planSurvey(ctx.getSource(),
-                                                    IntegerArgumentType.getInteger(ctx, "count")))))
+            .then(Commands.literal("plansurvey")
+                    .then(Commands.argument("count", IntegerArgumentType.integer(1, 1000))
+                            .executes(ctx -> planSurvey(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "count")))))
 
-                            .then(Commands.literal("exportdata")
-                                    .executes(ctx -> DatapackExporter.export(ctx.getSource())))
+            .then(Commands.literal("exportdata")
+                    .executes(ctx -> DatapackExporter.export(ctx.getSource())))
 
-                            // M72: pack authoring surface. validate runs every
-                            // cross-resource check and reports file, field, cause
-                            // and a reproducible seed; exportstarter writes a
-                            // small namespaced starter; exportworkspace ships the
-                            // rooms an author captured with buildroom/saveroom.
-                            // Both exports refuse overwrite unless "confirm" is
-                            // passed, and back the existing destination up first.
-                            .then(Commands.literal("validate")
-                                    .executes(ctx -> validatePack(ctx.getSource(), null))
-                                    .then(Commands.argument("seed", LongArgumentType.longArg())
-                                            .executes(ctx -> validatePack(ctx.getSource(),
-                                                    LongArgumentType.getLong(ctx, "seed")))))
+            // M72: pack authoring surface. validate runs every
+            // cross-resource check and reports file, field, cause
+            // and a reproducible seed; exportstarter writes a
+            // small namespaced starter; exportworkspace ships the
+            // rooms an author captured with buildroom/saveroom.
+            // Both exports refuse overwrite unless "confirm" is
+            // passed, and back the existing destination up first.
+            .then(Commands.literal("validate")
+                    .executes(ctx -> validatePack(ctx.getSource(), null))
+                    .then(Commands.argument("seed", LongArgumentType.longArg())
+                            .executes(ctx -> validatePack(ctx.getSource(),
+                                    LongArgumentType.getLong(ctx, "seed")))))
 
-                            .then(Commands.literal("exportstarter")
-                                    .then(Commands.argument("packname", StringArgumentType.string())
+            .then(Commands.literal("exportstarter")
+                    .then(Commands.argument("packname", StringArgumentType.string())
+                            .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "packname"),
+                                    StringArgumentType.getString(ctx, "packname"), false))
+                            .then(Commands.argument("namespace", StringArgumentType.string())
+                                    .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "packname"),
+                                            StringArgumentType.getString(ctx, "namespace"), false))
+                                    .then(Commands.literal("confirm")
                                             .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
                                                     StringArgumentType.getString(ctx, "packname"),
-                                                    StringArgumentType.getString(ctx, "packname"), false))
-                                            .then(Commands.argument("namespace", StringArgumentType.string())
-                                                    .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "packname"),
-                                                            StringArgumentType.getString(ctx, "namespace"), false))
-                                                    .then(Commands.literal("confirm")
-                                                            .executes(ctx -> PackValidator.exportStarter(ctx.getSource(),
-                                                                    StringArgumentType.getString(ctx, "packname"),
-                                                                    StringArgumentType.getString(ctx, "namespace"), true))))))
+                                                    StringArgumentType.getString(ctx, "namespace"), true))))))
 
-                            .then(Commands.literal("exportworkspace")
-                                    .then(Commands.argument("name", StringArgumentType.string())
-                                            .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
-                                                    StringArgumentType.getString(ctx, "name"), false))
-                                            .then(Commands.literal("confirm")
-                                                    .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "name"), true)))))
+            .then(Commands.literal("exportworkspace")
+                    .then(Commands.argument("name", StringArgumentType.string())
+                            .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "name"), false))
+                            .then(Commands.literal("confirm")
+                                    .executes(ctx -> PackValidator.exportAuthorWorkspace(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "name"), true)))));
+    }
 
-                            // M2 T2.1: not optional for a room blob. Restores this
-                            // owner's live room from its backup file -- for a
-                            // corrupted or accidentally-deleted live blob, or a
-                            // player who wants their previous save back.
-                            // A room blob is somebody's build, not disposable run state,
-                            // and restoring one overwrites whatever is there now. The bare
-                            // form asks first when a player ran it; "confirm" is the form
-                            // that actually restores, and the one the console (which has no
-                            // screen to be asked on) and the dialog's own button both use.
-                            .then(Commands.literal("baserestore")
-                                    .then(Commands.argument("target",
-                                                    net.minecraft.commands.arguments.GameProfileArgument
-                                                            .gameProfile())
-                                            .executes(ctx -> baseRestoreAsk(ctx.getSource(),
-                                                    net.minecraft.commands.arguments.GameProfileArgument
-                                                            .getGameProfiles(ctx, "target")))
-                                            .then(Commands.literal("confirm")
-                                                    .executes(ctx -> baseRestore(ctx.getSource(),
-                                                            net.minecraft.commands.arguments.GameProfileArgument
-                                                                    .getGameProfiles(ctx, "target"))))))
+    /** Room blob restore and reset, and the keystone reset. */
+    private static void registerAdminSaves(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            // M2 T2.1: not optional for a room blob. Restores this
+            // owner's live room from its backup file -- for a
+            // corrupted or accidentally-deleted live blob, or a
+            // player who wants their previous save back.
+            // A room blob is somebody's build, not disposable run state,
+            // and restoring one overwrites whatever is there now. The bare
+            // form asks first when a player ran it; "confirm" is the form
+            // that actually restores, and the one the console (which has no
+            // screen to be asked on) and the dialog's own button both use.
+            .then(Commands.literal("baserestore")
+                    .then(Commands.argument("target",
+                                    net.minecraft.commands.arguments.GameProfileArgument
+                                            .gameProfile())
+                            .executes(ctx -> baseRestoreAsk(ctx.getSource(),
+                                    net.minecraft.commands.arguments.GameProfileArgument
+                                            .getGameProfiles(ctx, "target")))
+                            .then(Commands.literal("confirm")
+                                    .executes(ctx -> baseRestore(ctx.getSource(),
+                                            net.minecraft.commands.arguments.GameProfileArgument
+                                                    .getGameProfiles(ctx, "target"))))))
 
-                            // Wipes a player's saved room and closes anything of theirs
-                            // still open in the world -- their lobby, an active run,
-                            // any visit copy of the room. Offline-
-                            // capable via GameProfileArgument, same as baserestore:
-                            // the operator reaching for this may be doing it because
-                            // the owner cannot fix it themselves.
-                            .then(Commands.literal("resetroom")
-                                    .then(Commands.argument("target",
-                                                    net.minecraft.commands.arguments.GameProfileArgument
-                                                            .gameProfile())
-                                            .executes(ctx -> resetRoom(ctx.getSource(),
-                                                    net.minecraft.commands.arguments.GameProfileArgument
-                                                            .getGameProfiles(ctx, "target")))))
+            // Wipes a player's saved room and closes anything of theirs
+            // still open in the world -- their lobby, an active run,
+            // any visit copy of the room. Offline-
+            // capable via GameProfileArgument, same as baserestore:
+            // the operator reaching for this may be doing it because
+            // the owner cannot fix it themselves.
+            .then(Commands.literal("resetroom")
+                    .then(Commands.argument("target",
+                                    net.minecraft.commands.arguments.GameProfileArgument
+                                            .gameProfile())
+                            .executes(ctx -> resetRoom(ctx.getSource(),
+                                    net.minecraft.commands.arguments.GameProfileArgument
+                                            .getGameProfiles(ctx, "target")))))
 
-                            // Debug / moderation: reset a player's keystone progress to 0
-                            // and confiscate any held keystones so the next /dungeon key gives
-                            // a fresh level 1.
-                            .then(Commands.literal("resetkey")
-                                    .then(Commands.argument("target", EntityArgument.player())
-                                            .executes(ctx -> resetKey(ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "target")))))
+            // Debug / moderation: reset a player's keystone progress to 0
+            // and confiscate any held keystones so the next /dungeon key gives
+            // a fresh level 1.
+            .then(Commands.literal("resetkey")
+                    .then(Commands.argument("target", EntityArgument.player())
+                            .executes(ctx -> resetKey(ctx.getSource(),
+                                    EntityArgument.getPlayer(ctx, "target")))));
+    }
 
-                            .then(manifestBranch())
-                            .then(Commands.literal("theme")
-                                    .then(Commands.literal("list")
-                                            .executes(ctx -> themeList(ctx.getSource()))))
+    /** Manifest, theme and the experiment offer. */
+    private static void registerAdminManifestAndExperiment(LiteralArgumentBuilder<CommandSourceStack> admin) {
+        admin
+            .then(manifestBranch())
+            .then(Commands.literal("theme")
+                    .then(Commands.literal("list")
+                            .executes(ctx -> themeList(ctx.getSource()))))
 
-                            // M27 27.1: the fixed test offer that stands in for door 3.
-                            .then(Commands.literal("experiment")
-                                    .then(Commands.literal("clear")
-                                            .executes(ctx -> experimentClear(ctx.getSource())))
-                                    .then(Commands.argument("theme", StringArgumentType.string())
+            // M27 27.1: the fixed test offer that stands in for door 3.
+            .then(Commands.literal("experiment")
+                    .then(Commands.literal("clear")
+                            .executes(ctx -> experimentClear(ctx.getSource())))
+                    .then(Commands.argument("theme", StringArgumentType.string())
+                            .executes(ctx -> experimentSet(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "theme"), "", null))
+                            .then(Commands.argument("affixes", StringArgumentType.string())
+                                    .executes(ctx -> experimentSet(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "theme"),
+                                            StringArgumentType.getString(ctx, "affixes"), null))
+                                    .then(Commands.argument("lootOverride",
+                                                    IntegerArgumentType.integer(1))
                                             .executes(ctx -> experimentSet(ctx.getSource(),
-                                                    StringArgumentType.getString(ctx, "theme"), "", null))
-                                            .then(Commands.argument("affixes", StringArgumentType.string())
-                                                    .executes(ctx -> experimentSet(ctx.getSource(),
-                                                            StringArgumentType.getString(ctx, "theme"),
-                                                            StringArgumentType.getString(ctx, "affixes"), null))
-                                                    .then(Commands.argument("lootOverride",
-                                                                    IntegerArgumentType.integer(1))
-                                                            .executes(ctx -> experimentSet(ctx.getSource(),
-                                                                    StringArgumentType.getString(ctx, "theme"),
-                                                                    StringArgumentType.getString(ctx, "affixes"),
-                                                                    IntegerArgumentType.getInteger(
-                                                                            ctx, "lootOverride")))))))));
-        });
+                                                    StringArgumentType.getString(ctx, "theme"),
+                                                    StringArgumentType.getString(ctx, "affixes"),
+                                                    IntegerArgumentType.getInteger(
+                                                            ctx, "lootOverride")))))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> manifestBranch() {
