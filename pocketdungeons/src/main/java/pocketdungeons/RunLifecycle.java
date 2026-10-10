@@ -236,17 +236,7 @@ final class RunLifecycle {
             return false;
         }
 
-        // An instance of this owner's with a completed floor that free
-        // re-entry did not take them back into is closed before a second one
-        // is built, so it does not sit orphaned holding its slot until its
-        // grace window runs out.
-        for (InstanceRecord candidate : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (!candidate.floor.completed.isEmpty()
-                    && player.getUUID().equals(candidate.owner)) {
-                InstanceTeardown.purge(server, candidate, "new run started");
-                break;
-            }
-        }
+        closeFinishedRunOf(server, player);
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
@@ -262,17 +252,7 @@ final class RunLifecycle {
         List<ServerPlayer> companions = PartyService.resolveParty(server, player);
         int partySize = 1 + companions.size();
 
-        // M76: refuse a new run once the server is at the declared instance
-        // cap, before any keystone, fuel or generation work is spent. The
-        // purge loop above already freed this player's own finished instance,
-        // so a re-entry is not blocked by the instance it just replaced.
-        int cap = PocketDungeonsConfig.maxConcurrentInstances();
-        if (cap > 0 && InstanceRegistry.liveInstanceCount() >= cap) {
-            player.sendSystemMessage(Component.literal(
-                    "The dungeon is at capacity (" + cap + " concurrent runs). Try again shortly.")
-                    .withStyle(ChatFormatting.RED));
-            PocketDungeonsMod.LOG.warn("Refused /dungeon for {}: instance cap {} reached",
-                    player.getName().getString(), cap);
+        if (refuseAtInstanceCap(player)) {
             return false;
         }
 
@@ -310,6 +290,65 @@ final class RunLifecycle {
             return false;
         }
 
+        InstanceRecord record = registerUntimedRun(player, level, slot, origin, layout, affixes, untimed);
+
+        Instances.admit(server, record, player);
+        for (ServerPlayer companion : companions) {
+            Instances.admit(server, record, companion);
+        }
+
+        announceUntimedEntry(player, companions, layout, record);
+
+        PocketDungeonsMod.LOG.info(
+                "Opened dungeon slot {} for {} ({} rooms, tier {}, party {}, keystone {}, "
+                        + "ominous {}, seed {})",
+                slot, player.getName().getString(), layout.roomCount(),
+                layout.lootTier(), partySize, layout.keystoneLevel(), layout.ominous(),
+                layout.seed());
+        return true;
+    }
+
+    /**
+     * An instance of this owner's with a completed floor that free
+     * re-entry did not take them back into is closed before a second one
+     * is built, so it does not sit orphaned holding its slot until its
+     * grace window runs out.
+     */
+    private static void closeFinishedRunOf(MinecraftServer server, ServerPlayer player) {
+        for (InstanceRecord candidate : new ArrayList<>(InstanceRegistry.bySlot.values())) {
+            if (!candidate.floor.completed.isEmpty()
+                    && player.getUUID().equals(candidate.owner)) {
+                InstanceTeardown.purge(server, candidate, "new run started");
+                break;
+            }
+        }
+    }
+
+    /**
+     * M76: refuses a new run once the server is at the declared instance
+     * cap, before any keystone, fuel or generation work is spent. The
+     * purge loop above already freed this player's own finished instance,
+     * so a re-entry is not blocked by the instance it just replaced.
+     *
+     * @return whether the player was refused
+     */
+    private static boolean refuseAtInstanceCap(ServerPlayer player) {
+        int cap = PocketDungeonsConfig.maxConcurrentInstances();
+        if (cap > 0 && InstanceRegistry.liveInstanceCount() >= cap) {
+            player.sendSystemMessage(Component.literal(
+                    "The dungeon is at capacity (" + cap + " concurrent runs). Try again shortly.")
+                    .withStyle(ChatFormatting.RED));
+            PocketDungeonsMod.LOG.warn("Refused /dungeon for {}: instance cap {} reached",
+                    player.getName().getString(), cap);
+            return true;
+        }
+        return false;
+    }
+
+    /** Builds and registers the record of an untimed run whose layout is already stamped. */
+    private static InstanceRecord registerUntimedRun(ServerPlayer player, ServerLevel level, int slot,
+                                                     BlockPos origin, InstanceLayout layout,
+                                                     Set<String> affixes, boolean untimed) {
         InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout, affixes,
                 player.getUUID(), untimed);
         // M2 T2.1/T2.4: the entrance cell is the room, for every keystone run
@@ -330,12 +369,12 @@ final class RunLifecycle {
                     slot, player.getName().getString(), layout.keystoneLevel(),
                     layout.roomCount(), layout.seed(), slot);
         }
+        return record;
+    }
 
-        Instances.admit(server, record, player);
-        for (ServerPlayer companion : companions) {
-            Instances.admit(server, record, companion);
-        }
-
+    /** What an untimed entrant and their companions read once they are admitted. */
+    private static void announceUntimedEntry(ServerPlayer player, List<ServerPlayer> companions,
+                                             InstanceLayout layout, InstanceRecord record) {
         player.sendSystemMessage(Component.literal("You step into the dungeon.")
                 .withStyle(ChatFormatting.GOLD));
         player.sendSystemMessage(Component.literal(
@@ -386,14 +425,6 @@ final class RunLifecycle {
                             + "floor is lost when the dungeon closes; pick it up.")
                     .withStyle(ChatFormatting.GRAY));
         }
-
-        PocketDungeonsMod.LOG.info(
-                "Opened dungeon slot {} for {} ({} rooms, tier {}, party {}, keystone {}, "
-                        + "ominous {}, seed {})",
-                slot, player.getName().getString(), layout.roomCount(),
-                layout.lootTier(), partySize, layout.keystoneLevel(), layout.ominous(),
-                layout.seed());
-        return true;
     }
 
     // ---- the door choice out of the lobby --------------------------------
@@ -517,27 +548,63 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
+        DoorCommit commit = checkCommitGates(player, server, record);
+        if (commit == null) {
+            return false;
+        }
+
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return false;
+        }
+
+        // M55: the safe room is saved and despawned before the dungeon is committed.
+        boolean leavingRoom = record.roomCellOrigin != null && !record.visitInstance;
+        if (leavingRoom && !saveAndDespawnRoom(player, server, level, record)) {
+            return false;
+        }
+
+        ItemStack keystone = armedKeystone(player);
+        if (!stampDoor(player, server, level, record, commit.offer(), commit.step(), keystone, leavingRoom)) {
+            return false;
+        }
+        settleCommit(player, server, record, commit, keystone);
+        return true;
+    }
+
+    /** What the commit gates settled on: the door's offer and step, its life cost, and the journal's edge facts. */
+    private record DoorCommit(Keystone.Offer offer, int step, int doorCost, boolean firstDoorOfTrip,
+                              String fromNode, DungeonLog log) {}
+
+    /**
+     * The validate phase of {@link #commitDoor}: every refusal that spends nothing and changes nothing.
+     * Each one tells the player why.
+     *
+     * @return the door to commit, or {@code null} when a gate refused
+     */
+    private static DoorCommit checkCommitGates(ServerPlayer player, MinecraftServer server,
+                                               InstanceRecord record) {
         // D15: any member may commit unless the leader's decide whitelist is on.
         if (!PartyDecide.mayOrRefuse(server, record, player)) {
-            return false;
+            return null;
         }
         if (record.floor.selectedStep == 0 || record.floor.previewPlan == null) {
             player.sendSystemMessage(Component.literal("Select and preview a door first.")
                     .withStyle(ChatFormatting.RED));
-            return false;
+            return null;
         }
         int step = record.floor.selectedStep;
 
         // PD-90: no commit while Lemon holds the doors, and none on a preview
         // planned before the bias last changed: that floor would not carry it.
         if (refuseWhileHeld(player, record)) {
-            return false;
+            return null;
         }
         if (record.floor.previewBiasGeneration != PlaytestBias.generation()) {
             player.sendSystemMessage(Component.literal(
                     "The next floor changed while this door was open. Right-click the door again to see it.")
                     .withStyle(ChatFormatting.YELLOW));
-            return false;
+            return null;
         }
 
         // M55/M65: the beginRun gate. Every party member must be standing
@@ -553,7 +620,7 @@ final class RunLifecycle {
                 player.sendSystemMessage(Component.literal(
                         "Waiting at the Doors for: " + String.join(", ", missing))
                         .withStyle(ChatFormatting.YELLOW));
-                return false;
+                return null;
             }
         }
 
@@ -563,7 +630,7 @@ final class RunLifecycle {
         if (record.interval.finished || step > offers.length) {
             player.sendSystemMessage(Component.literal("There is no door there. Pull the HOME lever.")
                     .withStyle(ChatFormatting.RED));
-            return false;
+            return null;
         }
         Keystone.Offer offer = offers[step - 1];
 
@@ -572,7 +639,7 @@ final class RunLifecycle {
             String lock = HallOffers.lockedMessage(server, record, step);
             if (lock != null) {
                 player.sendSystemMessage(Component.literal(lock).withStyle(ChatFormatting.RED));
-                return false;
+                return null;
             }
         }
 
@@ -585,58 +652,65 @@ final class RunLifecycle {
             if (!DoorLives.affordable(livesLeft, doorCost)) {
                 player.sendSystemMessage(Component.literal(DoorLives.refusal(livesLeft, doorCost))
                         .withStyle(ChatFormatting.RED));
-                return false;
+                return null;
             }
         }
         // Where the trip stood before this door, for the journal's edge event.
         boolean firstDoorOfTrip = record.interval.dungeonId.isEmpty();
         String fromNode = record.interval.nodeId;
+        return new DoorCommit(offer, step, doorCost, firstDoorOfTrip, fromNode, log);
+    }
 
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
+    /**
+     * The first irreversible step of {@link #commitDoor}: saves and despawns the safe room (M55).
+     * The room is sealed first so the blob carries a closed wall on the
+     * staging side. One save, checked before anything is despawned or
+     * spent: if it fails, the seal is undone, the room stays standing and
+     * the commit is refused. No envelope goes on the room here: its ring
+     * on the staging side would replace the staging room's wall.
+     *
+     * @return whether the room was despawned; {@code false} means the commit is refused and the room stands
+     */
+    private static boolean saveAndDespawnRoom(ServerPlayer player, MinecraftServer server, ServerLevel level,
+                                              InstanceRecord record) {
+        DoorMask.Direction dungeonDir = record.roomDungeonDoor;
+        RoomBuilder.sealDoor(level, record.roomCellOrigin,
+                Instances.mcDirection(dungeonDir));
+        if (!saveRoom(level, server, record)) {
+            RoomBuilder.openDoor(level, record.roomCellOrigin, Instances.mcDirection(dungeonDir));
+            PocketDungeonsMod.LOG.error("Refused the door commit for {}: their room could not be saved",
+                    player.getName().getString());
+            player.sendSystemMessage(Component.literal(
+                    "Your room could not be saved, so the door stays shut. Nothing was spent. "
+                            + "Tell an operator.")
+                    .withStyle(ChatFormatting.RED));
             return false;
         }
+        // Playtest 2026-10-03 (A9): read the room once as the player leaves it,
+        // from the blob just saved, before it is despawned.
+        RoomScan.onExit(server, record, player);
+        despawnRoomBehindStaging(level, record);
+        return true;
+    }
 
-        // M55: save and despawn the safe room before committing the dungeon.
-        // The room is sealed first so the blob carries a closed wall on the
-        // staging side. One save, checked before anything is despawned or
-        // spent: if it fails, the seal is undone, the room stays standing and
-        // the commit is refused. No envelope goes on the room here: its ring
-        // on the staging side would replace the staging room's wall.
-        if (record.roomCellOrigin != null && !record.visitInstance) {
-            DoorMask.Direction dungeonDir = record.roomDungeonDoor;
-            RoomBuilder.sealDoor(level, record.roomCellOrigin,
-                    Instances.mcDirection(dungeonDir));
-            if (!saveRoom(level, server, record)) {
-                RoomBuilder.openDoor(level, record.roomCellOrigin, Instances.mcDirection(dungeonDir));
-                PocketDungeonsMod.LOG.error("Refused the door commit for {}: their room could not be saved",
-                        player.getName().getString());
-                player.sendSystemMessage(Component.literal(
-                        "Your room could not be saved, so the door stays shut. Nothing was spent. "
-                                + "Tell an operator.")
-                        .withStyle(ChatFormatting.RED));
-                return false;
-            }
-            // Playtest 2026-10-03 (A9): read the room once as the player leaves it,
-            // from the blob just saved, before it is despawned.
-            RoomScan.onExit(server, record, player);
-            despawnRoomBehindStaging(level, record);
-        }
-
-        // M66: the recipe tags were read in previewDoor and resolved into
-        // previewRecipePlan. The keystone still carries them (preview does
-        // not clear them). Legacy BAG_OVERRIDE is no longer a bag swap; it
-        // is a pending legacy operation for owner-approved refund. The new
-        // BOUNDED_SUPPLY recipe does not touch the bag. Do NOT clear recipe
-        // tags or the catalyst escrow yet: a failed commit must restore the
-        // catalyst, not charge for nothing.
+    /**
+     * M66: the recipe tags were read in previewDoor and resolved into
+     * previewRecipePlan. The keystone still carries them (preview does
+     * not clear them). Legacy BAG_OVERRIDE is no longer a bag swap; it
+     * is a pending legacy operation for owner-approved refund. The new
+     * BOUNDED_SUPPLY recipe does not touch the bag. Do NOT clear recipe
+     * tags or the catalyst escrow yet: a failed commit must restore the
+     * catalyst, not charge for nothing.
+     *
+     * @return the keystone the player holds, or {@code null}
+     */
+    private static ItemStack armedKeystone(ServerPlayer player) {
         ItemStack keystone = Keystone.findHeld(player);
-        String legacyBagOverrideId = null;
         if (keystone != null) {
             // M66: detect a legacy BAG_OVERRIDE tag. It is a pending legacy
             // operation: notify the owner and offer a refund, but do not
             // silently reinterpret it as a bag swap.
-            legacyBagOverrideId = CubeRecipe.bagOverrideId(keystone);
+            String legacyBagOverrideId = CubeRecipe.bagOverrideId(keystone);
             if (legacyBagOverrideId != null) {
                 player.sendSystemMessage(Component.literal(
                         "Legacy bag_override detected (bag: " + legacyBagOverrideId
@@ -646,20 +720,44 @@ final class RunLifecycle {
                         .withStyle(ChatFormatting.YELLOW));
             }
         }
+        return keystone;
+    }
 
-        if (!Instances.commitDoor(server, level, record, offer, step)) {
-            // M66: commit failed. Restore the catalyst so the player is not
-            // charged for nothing.
-            if (keystone != null) {
-                CubeRecipe.restoreCatalyst(player, keystone);
-                CubeRecipe.clearRecipes(keystone);
-            }
-            player.sendSystemMessage(Component.literal(
-                    "The dungeon failed to build. Try another door.")
-                    .withStyle(ChatFormatting.RED));
-            return false;
+    /**
+     * The stamp phase of {@link #commitDoor}: builds the dungeon through {@link Instances#commitDoor}.
+     * On failure the catalyst is restored (M66: the player is not charged for nothing) and the player is
+     * told so.
+     *
+     * @param leavingRoom whether {@link #saveAndDespawnRoom} despawned the safe room for this commit
+     * @return whether the dungeon was stamped and the run started
+     */
+    static boolean stampDoor(ServerPlayer player, MinecraftServer server, ServerLevel level,
+                             InstanceRecord record, Keystone.Offer offer, int step, ItemStack keystone,
+                             boolean leavingRoom) {
+        if (Instances.commitDoor(server, level, record, offer, step)) {
+            return true;
         }
+        // M66: commit failed. Restore the catalyst so the player is not
+        // charged for nothing.
+        if (keystone != null) {
+            CubeRecipe.restoreCatalyst(player, keystone);
+            CubeRecipe.clearRecipes(keystone);
+        }
+        player.sendSystemMessage(Component.literal(
+                "The dungeon failed to build. Try another door.")
+                .withStyle(ChatFormatting.RED));
+        return false;
+    }
 
+    /**
+     * The spend and announce phases of {@link #commitDoor}, once the dungeon stands: the catalyst is spent
+     * for good, the door takes its lives, the journal and the trip counter are told, and the player reads
+     * the door's name.
+     */
+    private static void settleCommit(ServerPlayer player, MinecraftServer server, InstanceRecord record,
+                                     DoorCommit commit, ItemStack keystone) {
+        Keystone.Offer offer = commit.offer();
+        int doorCost = commit.doorCost();
         // M66: commit succeeded. The catalyst is permanently spent: clear
         // the recipe tags and the catalyst escrow from the keystone.
         if (keystone != null) {
@@ -681,12 +779,13 @@ final class RunLifecycle {
 
         // A trip has begun (the first door of a dungeon): count it for the leader, which
         // changes the first door's deal for their next trip even if this one is quit early.
-        if (firstDoorOfTrip && !record.interval.dungeonId.isEmpty() && record.owner != null) {
-            log.beginTrip(record.owner);
+        if (commit.firstDoorOfTrip() && !record.interval.dungeonId.isEmpty() && record.owner != null) {
+            commit.log().beginTrip(record.owner);
         }
         PlaytestJournal.doorCommit(server, record, offer.step(), doorCost);
         if (!record.interval.dungeonId.isEmpty()) {
-            PlaytestJournal.tripDoor(server, record, firstDoorOfTrip, fromNode, offer.step(), doorCost);
+            PlaytestJournal.tripDoor(server, record, commit.firstDoorOfTrip(), commit.fromNode(), offer.step(),
+                    doorCost);
         }
 
         Set<String> granted = Keystone.dealtAffixes(record.owner, offer);
@@ -696,7 +795,6 @@ final class RunLifecycle {
                 .withStyle(Keystone.colourOf(
                         AffixMath.ordered(granted, AffixManifest.current().definitions())
                                 .stream().map(d -> d.id).findFirst().orElse(null))));
-        return true;
     }
 
     /**
@@ -1075,39 +1173,8 @@ final class RunLifecycle {
         if (!lateArrival && !RunSession.require(record, RunSession.Phase.ACTIVE)) {
             return;
         }
-        if (!lateArrival && record.isKeystoneRun()) {
-            // M67: every trial spawner on the floor counts toward the
-            // completion gate, not just gated encounter cells. The threshold
-            // (default 0.75) lets the player skip some spawners without
-            // letting them sprint past the entire floor.
-            Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
-            int cleared = TrialContent.countCleared(player.level(), spawners);
-            if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
-                    PocketDungeonsConfig.spawnerClearThreshold())) {
-                int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
-                        PocketDungeonsConfig.spawnerClearThreshold());
-                player.sendSystemMessage(Component.literal(
-                        "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
-                        .withStyle(ChatFormatting.YELLOW));
-                return;
-            }
-            // M11: the boss is the ultimate gated completion for a zone whose
-            // capstone is the boss, the same shape as the spawner gate above
-            // but for a single mob instead of a fraction of many.
-            if (ZoneRules.bossCapstone(record.floor.theme)
-                    && BossContent.bossAlive(player.level(), record.layout.terminal())) {
-                player.sendSystemMessage(Component.literal(
-                        "The Drowned Warden still stands. Finish it first.")
-                        .withStyle(ChatFormatting.YELLOW));
-                return;
-            }
-            // Dungeon structure W7a: the Spawner Dungeon's brood gates the pad the same way (the
-            // spawners, then the final wave). The Ancient City never gates its pad.
-            String broodRefusal = CapstoneFights.padRefusal(server, record);
-            if (broodRefusal != null) {
-                player.sendSystemMessage(Component.literal(broodRefusal).withStyle(ChatFormatting.YELLOW));
-                return;
-            }
+        if (!lateArrival && record.isKeystoneRun() && padGatesRefuse(server, record, player)) {
+            return;
         }
 
         boolean firstCompletion = record.floor.completed.isEmpty();
@@ -1144,6 +1211,54 @@ final class RunLifecycle {
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.floor.theme);
 
+        announceFloorCleared(player, record, firstCompletion);
+        journalFloorComplete(server, record, player, entry);
+    }
+
+    /**
+     * The gate phase of {@link #completeRun} for a keystone run: the pad refuses until the floor's
+     * spawners, its boss and its brood are done, and tells the player what is left.
+     *
+     * @return whether the pad refused
+     */
+    private static boolean padGatesRefuse(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+        // M67: every trial spawner on the floor counts toward the
+        // completion gate, not just gated encounter cells. The threshold
+        // (default 0.75) lets the player skip some spawners without
+        // letting them sprint past the entire floor.
+        Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
+        int cleared = TrialContent.countCleared(player.level(), spawners);
+        if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
+                PocketDungeonsConfig.spawnerClearThreshold())) {
+            int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
+                    PocketDungeonsConfig.spawnerClearThreshold());
+            player.sendSystemMessage(Component.literal(
+                    "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
+                    .withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
+        // M11: the boss is the ultimate gated completion for a zone whose
+        // capstone is the boss, the same shape as the spawner gate above
+        // but for a single mob instead of a fraction of many.
+        if (ZoneRules.bossCapstone(record.floor.theme)
+                && BossContent.bossAlive(player.level(), record.layout.terminal())) {
+            player.sendSystemMessage(Component.literal(
+                    "The Drowned Warden still stands. Finish it first.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
+        // Dungeon structure W7a: the Spawner Dungeon's brood gates the pad the same way (the
+        // spawners, then the final wave). The Ancient City never gates its pad.
+        String broodRefusal = CapstoneFights.padRefusal(server, record);
+        if (broodRefusal != null) {
+            player.sendSystemMessage(Component.literal(broodRefusal).withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
+        return false;
+    }
+
+    /** The announce phase of {@link #completeRun}: the verdict line, the floor title and the compass study list. */
+    private static void announceFloorCleared(ServerPlayer player, InstanceRecord record, boolean firstCompletion) {
         int floorsCleared = record.interval.floorIndex;
         ZoneRules rules = ZoneRules.of(record);
         // J3: the verdict is lives, not a band; omen is danger only.
@@ -1192,6 +1307,11 @@ final class RunLifecycle {
                     "Completion study list: " + studyList + ".")
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
+    }
+
+    /** The record phase of {@link #completeRun}: the log line, the journal, the board and the chime. */
+    private static void journalFloorComplete(MinecraftServer server, InstanceRecord record, ServerPlayer player,
+                                             DungeonLog.Entry entry) {
         PocketDungeonsMod.LOG.info("{} completed floor {} of slot {} (run #{}, chests {}, tier {})",
                 player.getName().getString(), record.interval.floorIndex, record.slot,
                 entry.runsCompleted(), record.floor.rewardChests, record.layout.lootTier());
@@ -1251,27 +1371,63 @@ final class RunLifecycle {
         if (finishedNow) {
             record.interval.finished = true;
         }
-        // D13: record the deepest Mine floor, and seal the shaft at a layer boundary the
-        // leader's unlocked acts do not reach (the staging room then offers only HOME).
-        if (EndlessMineRules.isMine(record)) {
-            DungeonLog mineLog = DungeonLog.forServer(server);
-            for (UUID member : record.members.keySet()) {
-                if (mineLog.recordMineFloor(member, floorsCleared)) {
-                    // D29: a new deepest floor may complete the act's Mine leg.
-                    ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
-                    if (memberPlayer != null) {
-                        DungeonProgress.onProgress(server, record, memberPlayer, false);
-                    }
+        recordMineDepth(server, record, floorsCleared);
+
+        placeFloorRewards(server, level, record, tripDef, finishedNow, terminalOrigin, entranceDir, floorsCleared);
+
+        // Sealed door in the far wall, behind the chests.
+        CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
+
+        // M55: the old staging room is cleared to a liminal cell and a new
+        // one stamped behind the terminal's far wall for the next door choice.
+        BlockPos newStagingOrigin = moveStagingBeyondTerminal(level, record, terminalOrigin, farWall);
+
+        // M67: no sound for room movement. VISION.md §4: "No message, no
+        // sound, no lore entry." The room relocation is the trick; the
+        // silence is the effect. The previous Chime.roomRelocated call is
+        // removed to honour both the vision and this milestone's constraint.
+
+        summonNextStaging(server, level, record, newStagingOrigin, farWall);
+
+        // M65: transition to FLOOR_CLEARED. The party is now in the
+        // staging room, choosing the next door or the way home.
+        RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
+    }
+
+    /**
+     * D13: records the deepest Mine floor, and seals the shaft at a layer boundary the
+     * leader's unlocked acts do not reach (the staging room then offers only HOME).
+     * Does nothing outside an Endless Mine run.
+     */
+    private static void recordMineDepth(MinecraftServer server, InstanceRecord record, int floorsCleared) {
+        if (!EndlessMineRules.isMine(record)) {
+            return;
+        }
+        DungeonLog mineLog = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            if (mineLog.recordMineFloor(member, floorsCleared)) {
+                // D29: a new deepest floor may complete the act's Mine leg.
+                ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+                if (memberPlayer != null) {
+                    DungeonProgress.onProgress(server, record, memberPlayer, false);
                 }
             }
-            int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
-                    DungeonProgress.unlockedActs(server, record.owner));
-            if (sealed > 0) {
-                record.interval.finished = true;
-                record.interval.mineSealedAct = sealed;
-            }
         }
+        int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
+                DungeonProgress.unlockedActs(server, record.owner));
+        if (sealed > 0) {
+            record.interval.finished = true;
+            record.interval.mineSealedAct = sealed;
+        }
+    }
 
+    /**
+     * The spend phase of {@link #advanceFloor}: the floor's chest count, its omen banked, and the reward
+     * corner on the far side of the terminal cell (plus the dungeon's finish, when this floor ends it).
+     */
+    private static void placeFloorRewards(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                                          DungeonDef tripDef, boolean finishedNow, BlockPos terminalOrigin,
+                                          DoorMask.Direction entranceDir, int floorsCleared) {
         // J3: omen adds danger only, never reward cuts. The
         // base reward is always three chests, plus the zone's depth bonus on
         // deeper floors.
@@ -1301,19 +1457,11 @@ final class RunLifecycle {
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
         }
+    }
 
-        // Sealed door in the far wall, behind the chests.
-        CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall);
-
-        // M55: the old staging room is cleared to a liminal cell and a new
-        // one stamped behind the terminal's far wall for the next door choice.
-        BlockPos newStagingOrigin = moveStagingBeyondTerminal(level, record, terminalOrigin, farWall);
-
-        // M67: no sound for room movement. VISION.md §4: "No message, no
-        // sound, no lore entry." The room relocation is the trick; the
-        // silence is the effect. The previous Chime.roomRelocated call is
-        // removed to honour both the vision and this milestone's constraint.
-
+    /** The stamp phase of {@link #advanceFloor}'s last step: fresh screens and the way home at the new staging room. */
+    private static void summonNextStaging(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                                          BlockPos newStagingOrigin, DoorMask.Direction farWall) {
         // Summon fresh screens at the new staging room.
         record.floor.selectedStep = 0;
         Instances.hideLockedDoors(level, newStagingOrigin, farWall, record.owner);
@@ -1327,10 +1475,6 @@ final class RunLifecycle {
         // length.
         StagingFurniture.placeHomeControl(level, newStagingOrigin, farWall, record.interval.finished);
         DungeonScreen.summonHome(level, newStagingOrigin, farWall, DungeonScreen.homeContent(server, record));
-
-        // M65: transition to FLOOR_CLEARED. The party is now in the
-        // staging room, choosing the next door or the way home.
-        RunSession.transition(record, RunSession.Phase.FLOOR_CLEARED);
     }
 
     /**
