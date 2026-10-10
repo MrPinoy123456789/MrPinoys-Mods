@@ -196,11 +196,16 @@ final class HallRoom {
      * a door is chosen.
      */
     static void leverGlow(ServerLevel level, InstanceRecord record) {
-        if (record.interval.hallLeverAlong <= 0 || record.stagingCellOrigin == null || record.roomDungeonDoor == null) {
+        if (record.interval.hallLeverAlong <= 0 || record.stagingCellOrigin == null || record.roomDungeonDoor == null
+                || !RunSession.canChooseDoor(record)) {
             return;
         }
         BlockPos lever = RoomTemplateGenerator.hallLeverPos(record.stagingCellOrigin, record.roomDungeonDoor,
                 record.interval.hallLeverAlong);
+        // Only while the lever is really standing and can still be pulled; once the trip starts it is a stale marker.
+        if (!level.getBlockState(lever).is(net.minecraft.world.level.block.Blocks.LEVER)) {
+            return;
+        }
         double x = lever.getX() + 0.5;
         double y = lever.getY() + 0.5;
         double z = lever.getZ() + 0.5;
