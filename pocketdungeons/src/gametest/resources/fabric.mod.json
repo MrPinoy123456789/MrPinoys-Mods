@@ -19,6 +19,7 @@
       "pocketdungeons.OrdealGameTest",
       "pocketdungeons.OmenGameTest",
       "pocketdungeons.FloorLoopGameTest",
+      "pocketdungeons.DoorCommitGameTest",
       "pocketdungeons.CubeRecipeGameTest",
       "pocketdungeons.ContentReloadGameTest",
       "pocketdungeons.ContentModuleGameTest",
