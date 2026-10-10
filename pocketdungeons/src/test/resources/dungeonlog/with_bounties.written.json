@@ -1,20 +1,4 @@
 {
-  "bounties": [
-    {
-      "bounties": [
-        {
-          "bounty": "slay_ten",
-          "progress": 7,
-          "week": "2026-W30"
-        },
-        {
-          "bounty": "dive_deep",
-          "week": "2026-W31"
-        }
-      ],
-      "player": "00000000-0000-0000-0000-00000000000a"
-    }
-  ],
   "players": [
     {
       "entry": {

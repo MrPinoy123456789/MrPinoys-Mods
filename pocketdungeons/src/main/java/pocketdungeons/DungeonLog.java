@@ -577,31 +577,9 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, Map<String, Integer>> taskProgress = new HashMap<>();
 
     /**
-     * (M34) Per-owner, weekly bounty states.
-     *
-     * <p>Superseded 2026-10-02: weekly bounties were removed (weekly floors
-     * and rooms will replace them). Nothing reads or writes this any more; the
-     * codec field is kept so a {@code dungeon_log.dat} that carries bounty
-     * states loads and saves them unchanged (CONVENTIONS.md, codec migration
-     * discipline). Delete it in a later pass.
-     */
-    private final Map<UUID, List<LegacyBountyState>> bounties = new HashMap<>();
-
-    /** (M34) One stored weekly bounty. Superseded with {@link #bounties}; kept only for its codec. */
-    private record LegacyBountyState(String weekKey, String bountyId, int progress, boolean completed) {
-
-        static final Codec<LegacyBountyState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                Codec.STRING.fieldOf("week").forGetter(LegacyBountyState::weekKey),
-                Codec.STRING.fieldOf("bounty").forGetter(LegacyBountyState::bountyId),
-                Codec.INT.optionalFieldOf("progress", 0).forGetter(LegacyBountyState::progress),
-                Codec.BOOL.optionalFieldOf("completed", false).forGetter(LegacyBountyState::completed)
-        ).apply(instance, LegacyBountyState::new));
-    }
-
-    /**
      * (M46) Per-player stashed survival inventories for {@link InventorySwap}.
      * A sidecar map for the same reason {@link #taskProgress} and
-     * {@link #bounties} are ones, only more so: the value is a 42 stack list,
+     * the removed {@code bounties} were ones, only more so: the value is a 42 stack list,
      * and {@link Entry} is a record whose {@code withX} helpers copy every
      * field on every fuel change. Spec 11.4 put these two values on
      * {@code Entry}; {@code SITUATIONS_PLAN}'s M46 section overrides that in
@@ -638,7 +616,7 @@ final class DungeonLog extends SavedData {
 
     /**
      * (M71) Per-player Cube recipe discovery state. A sidecar map for the
-     * same reason {@link #taskProgress} and {@link #bounties} are ones: the
+     * same reason {@link #taskProgress} is one: the
      * discovery state is read and written on the Cube interaction path, has
      * nothing in common with a player's run-completion history, and would
      * push {@link Entry}'s codec past its two-group split for no benefit.
@@ -870,17 +848,6 @@ final class DungeonLog extends SavedData {
                     .forGetter(PlayerTaskProgress::progress)
     ).apply(instance, PlayerTaskProgress::new));
 
-    /** (M34) One owner's bounty states, keyed the same way {@link PlayerEntry} is. Superseded; see {@link #bounties}. */
-    private record PlayerBounties(UUID player, List<LegacyBountyState> bounties) {}
-
-    private static final Codec<PlayerBounties> PLAYER_BOUNTIES_CODEC = RecordCodecBuilder.create(
-            instance -> instance.group(
-            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
-                    .forGetter(PlayerBounties::player),
-            LegacyBountyState.CODEC.listOf().fieldOf("bounties")
-                    .forGetter(PlayerBounties::bounties)
-    ).apply(instance, PlayerBounties::new));
-
     /** (M46) One player's stashed survival inventory, keyed the same way {@link PlayerEntry} is. */
     private record PlayerStash(UUID player, InventorySwap.StashRecord stash) {}
 
@@ -973,12 +940,10 @@ final class DungeonLog extends SavedData {
             PLAYER_TASK_PROGRESS_CODEC.listOf().optionalFieldOf("task_progress", List.of())
                     .forGetter(log -> log.taskProgress.entrySet().stream()
                             .map(e -> new PlayerTaskProgress(e.getKey(), e.getValue())).toList()),
-            // M34: optional so a dungeon_log.dat written before this milestone
-            // loads unchanged, every player simply starting with no bounty
-            // progress recorded.
-            PLAYER_BOUNTIES_CODEC.listOf().optionalFieldOf("bounties", List.of())
-                    .forGetter(log -> log.bounties.entrySet().stream()
-                            .map(e -> new PlayerBounties(e.getKey(), e.getValue())).toList()),
+            // M34, retired 2026-10-02 (weekly bounties were removed): a dungeon_log.dat written
+            // while they existed still carries a "bounties" list. It is accepted whatever it
+            // holds and dropped, so such a save loads and is written back without it.
+            Codec.PASSTHROUGH.optionalFieldOf("bounties").forGetter(log -> java.util.Optional.empty()),
             // M46: optional so a dungeon_log.dat written before this milestone
             // loads unchanged, every player simply starting unstashed, which is
             // the correct reading of "this player is not inside a dungeon".
@@ -1025,7 +990,8 @@ final class DungeonLog extends SavedData {
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
-                                          List<PlayerBounties> bounties, List<PlayerStash> stashes,
+                                          java.util.Optional<com.mojang.serialization.Dynamic<?>> retiredBounties,
+                                          List<PlayerStash> stashes,
                                           List<PlayerOrphan> orphans,
                                           List<PlayerRecipeDiscovery> recipeDiscoveries,
                                           List<PlayerRunRecords> runRecords,
@@ -1039,9 +1005,6 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerTaskProgress progress : taskProgress) {
             log.taskProgress.put(progress.player(), new HashMap<>(progress.progress()));
-        }
-        for (PlayerBounties b : bounties) {
-            log.bounties.put(b.player(), new ArrayList<>(b.bounties()));
         }
         for (PlayerStash s : stashes) {
             log.stashes.put(s.player(), s.stash());
@@ -1822,7 +1785,7 @@ final class DungeonLog extends SavedData {
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
      * {@code publicListed}, {@code recentVisitors}. The sidecar maps
-     * ({@code taskProgress}, {@code bounties}, {@code recipeDiscoveries})
+     * ({@code taskProgress}, {@code recipeDiscoveries})
      * are untouched: a task's count, a weekly bounty, and a discovered
      * recipe are meta-progression, not keystone progress.
      *

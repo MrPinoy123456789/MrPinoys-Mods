@@ -129,6 +129,20 @@ public class DungeonLogGoldenTest {
                 "whitelist=false", "decideList=[]", "deepestMine=0"));
         check(log.taskProgress(PLAYER, "station_a"), 2, "task progress survives next to bounties");
         check(log.taskProgress(PLAYER, "station_b"), 1, "second task progress survives");
+
+        // The weekly bounties were retired (2026-10-02) and the in memory sidecar is gone: a
+        // save that still carries them loads, and is written back without them (the retired
+        // storage_returns list likewise). Nothing else about the save changes.
+        JsonObject written = encode(log).getAsJsonObject();
+        check(written.has("bounties"), false, "a loaded save is written without the dead bounties list");
+        check(written.has("storage_returns"), false, "and without the retired storage returns");
+        check(written.has("task_progress"), true, "the live sidecars are still written");
+
+        // Whatever the old field held is ignored, even a shape no version ever wrote.
+        JsonObject odd = read("with_bounties.json").getAsJsonObject();
+        odd.add("bounties", new com.google.gson.JsonPrimitive("not a list"));
+        check(snapshot(decode(odd).get(PLAYER)), snapshot(log.get(PLAYER)),
+                "a malformed bounties field does not stop the save loading");
     }
 
     /**
