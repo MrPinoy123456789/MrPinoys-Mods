@@ -580,6 +580,23 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
     List<String> problems(ToIntFunction<String> actOfTheme) {
         List<String> out = new ArrayList<>();
         boolean endless = kind == Kind.ENDLESS;
+
+        layerProblems(out, endless);
+        edgeProblems(out);
+        List<Node> finals = finals();
+        exitProblems(out, endless, finals);
+        themeProblems(out, actOfTheme);
+
+        if (hiddenOre != null) {
+            out.addAll(hiddenOre.problems(nodePalette));
+        }
+
+        reachabilityProblems(out, endless, finals);
+        return out;
+    }
+
+    /** Layer count, layer contiguity and the single entry node. */
+    private void layerProblems(List<String> out, boolean endless) {
         int layerCount = layers();
 
         // D12 (revised): every dungeon but the endless one is 2 to 6 floors; length is flavour.
@@ -607,7 +624,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         if (entries != 1) {
             out.add("exactly one entry node is required on layer 1 but found " + entries);
         }
+    }
 
+    /** Duplicate edges, layer steps, fan out, level order and cycles. */
+    private void edgeProblems(List<String> out) {
         Map<String, Node> byId = new HashMap<>();
         for (Node node : nodes) {
             byId.put(node.id(), node);
@@ -649,8 +669,11 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         if (hasCycle()) {
             out.add("the graph has a cycle");
         }
+    }
 
-        List<Node> finals = finals();
+    /** Final nodes, and the free exit every non final node needs. */
+    private void exitProblems(List<String> out, boolean endless, List<Node> finals) {
+        int layerCount = layers();
         if (!endless && finals.isEmpty()) {
             out.add("dungeon " + id + " needs a final node");
         }
@@ -674,7 +697,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 out.add("non-final node " + node.id() + " needs at least one cost 0 edge out");
             }
         }
+    }
 
+    /** Theme overrides on nodes and the deviation theme list: each must resolve, at this act or earlier. */
+    private void themeProblems(List<String> out, ToIntFunction<String> actOfTheme) {
         for (Node node : nodes) {
             if ((node.layer() == 1 || node.isFinal()) && node.overridesTheme()) {
                 out.add((node.layer() == 1 ? "entry" : "final") + " node " + node.id()
@@ -702,11 +728,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 }
             }
         }
+    }
 
-        if (hiddenOre != null) {
-            out.addAll(hiddenOre.problems(nodePalette));
-        }
-
+    /** Every node reachable from the entry, and (but for the endless dungeon) able to reach a final. */
+    private void reachabilityProblems(List<String> out, boolean endless, List<Node> finals) {
         Node entry = entry();
         if (entry != null) {
             Set<String> fromEntry = reach(entry.id(), false);
@@ -727,7 +752,6 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 }
             }
         }
-        return out;
     }
 
     private Set<String> reach(String start, boolean backwards) {
