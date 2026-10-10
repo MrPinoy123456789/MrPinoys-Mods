@@ -119,14 +119,13 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
-    /** PD-108: plain mob armour is salvageable; trimmed armour is refused with a reason the player can read. */
+    /** Owner ruling 2026-10-09: trimmed armour is scrapped like any other armour. */
     @GameTest
-    public void plainDiamondLeggingsSalvageAndTrimmedAreExplained(GameTestHelper helper) {
+    public void trimmedArmourSalvagesLikePlainArmour(GameTestHelper helper) {
         ItemStack plain = new ItemStack(Items.DIAMOND_LEGGINGS);
         helper.assertTrue(SalvageStation.classify(plain).takes(), "plain diamond leggings are taken");
         SalvageStation.Verdict trimmed = SalvageStation.classify(trimmedLeggings(helper));
-        helper.assertTrue(!trimmed.takes() && trimmed.reason().contains("trimmed"),
-                "trimmed leggings are refused and the reason says why: " + trimmed);
+        helper.assertTrue(trimmed.takes(), "trimmed leggings are taken too: " + trimmed);
         helper.succeed();
     }
 

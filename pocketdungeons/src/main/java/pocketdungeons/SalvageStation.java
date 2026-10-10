@@ -50,8 +50,8 @@ import java.util.Map;
  * click at a time is the chore the player complained about, so the bench is
  * an 18-slot SGUI chest with a summary button underneath. A plain use only
  * opens it and leaves the held stack alone (PD-101); the player drops items
- * in from the inventory. Things the bench refuses (imbued or
- * trimmed gear, anything that goes home with the player, anything that is
+ * in from the inventory. Things the bench refuses (imbued gear,
+ * anything that goes home with the player, anything that is
  * not gear) may be dropped in but stay put and are named on the
  * summary. Closing the screen by any path, disconnect included, hands back
  * whatever is still in it.
@@ -98,8 +98,8 @@ final class SalvageStation {
 
     /**
      * Sorts one stack. Order matters: the keep-safe refusals come before any
-     * payout, so an imbued or trimmed piece of tagged gear is refused rather
-     * than scrapped for its tier.
+     * payout, so an imbued piece of tagged gear is refused rather than scrapped for its tier.
+     * Trimmed armour is scrapped like any other (owner ruling 2026-10-09).
      */
     static Verdict classify(ItemStack stack) {
         if (stack.isEmpty()) {
@@ -121,9 +121,6 @@ final class SalvageStation {
         }
         if (!CubeStation.rewardOf(stack).isBlank()) {
             return refuse("a rare Cube reward, kept safe");
-        }
-        if (stack.has(DataComponents.TRIM)) {
-            return refuse("trimmed armour is kept safe, never scrapped");
         }
         if (RerollStation.tierOf(stack) > 0) {
             return take(Kind.GEAR);

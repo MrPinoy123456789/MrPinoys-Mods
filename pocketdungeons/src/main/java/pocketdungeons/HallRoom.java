@@ -190,6 +190,24 @@ final class HallRoom {
         }
     }
 
+    /**
+     * The DESCEND lever glints while a door is selected, so the next step is the thing the eye finds first
+     * (owner, 2026-10-09). Runs a few times a second from the server tick; nothing stands to glint until
+     * a door is chosen.
+     */
+    static void leverGlow(ServerLevel level, InstanceRecord record) {
+        if (record.interval.hallLeverAlong <= 0 || record.stagingCellOrigin == null || record.roomDungeonDoor == null) {
+            return;
+        }
+        BlockPos lever = RoomTemplateGenerator.hallLeverPos(record.stagingCellOrigin, record.roomDungeonDoor,
+                record.interval.hallLeverAlong);
+        double x = lever.getX() + 0.5;
+        double y = lever.getY() + 0.5;
+        double z = lever.getZ() + 0.5;
+        level.sendParticles(ParticleTypes.END_ROD, x, y + 0.2, z, 2, 0.25, 0.25, 0.25, 0.01);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 3, 0.35, 0.35, 0.35, 0.05);
+    }
+
     /** The doormat block for a dungeon: its token, or nothing for an operator's offer. */
     private static BlockState matFor(DungeonDef def) {
         if (def == null || def.tokenMat().isEmpty()) {

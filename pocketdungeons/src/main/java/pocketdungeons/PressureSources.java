@@ -192,6 +192,9 @@ final class PressureSources {
                 return;
             }
             Whelp.tick(server, level, record);
+            if (server.getTickCount() % 6 == 0) {
+                HallRoom.leverGlow(level, record);
+            }
             pollCells(server, level, record);
             pollDwell(server, level, record);
         }
