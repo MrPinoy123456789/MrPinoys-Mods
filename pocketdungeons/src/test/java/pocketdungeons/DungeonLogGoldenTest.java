@@ -160,7 +160,7 @@ public class DungeonLogGoldenTest {
     }
 
     /** Every accessor of an entry as text, sets sorted, so one comparison covers them all. */
-    private static String snapshot(DungeonLog.Entry e) {
+    static String snapshot(DungeonLog.Entry e) {
         List<String> visitors = new ArrayList<>();
         for (DungeonLog.VisitorEntry v : e.recentVisitors()) {
             visitors.add(v.name() + "@" + v.timestamp());
