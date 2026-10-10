@@ -64,7 +64,8 @@ final class LayoutStamper {
      */
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                 int keystoneLevel, Set<String> affixes, UUID owner) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, false);
+        return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, owner, false, null,
+                Set.of(), null, NodeStamper.Context.NONE));
     }
 
     /**
@@ -100,8 +101,8 @@ final class LayoutStamper {
                                            int keystoneLevel, Set<String> affixes, UUID owner,
                                            String theme, Set<BlockPos> standingCells,
                                            DungeonDef.LootBand lootBand, NodeStamper.Context nodeCtx) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, true, theme, standingCells,
-                lootBand, nodeCtx);
+        return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, owner, true, theme,
+                standingCells, lootBand, nodeCtx));
     }
 
     /**
@@ -162,9 +163,11 @@ final class LayoutStamper {
         int depth = plan.depths().getOrDefault(entranceCell, 0);
         String lootSuffix = runTheme == null ? null : runTheme.meta().lootSuffix;
         String lootTableOverride = runTheme == null ? null : runTheme.meta().lootTable;
-        RoomContent.apply(level, cellOrigin, plan.roles().get(entranceCell),
-                depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride, theme,
-                voidedCells.contains(entranceCell), false, entry.meta.content);
+        RoomContent.apply(
+                new RoomContent.CellSite(level, cellOrigin, plan.roles().get(entranceCell), depth, spawns,
+                        plan.seed(), entry.meta.content),
+                new RoomContent.CellRules(profile, affixes, lootSuffix, lootTableOverride, theme),
+                voidedCells.contains(entranceCell), false);
             PressureSources.arm(level, cellOrigin, entry.meta, theme, affixes.contains(AffixIds.OMINOUS));
         NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
                 plan.seed() ^ cellOrigin.asLong(), nodesOut);
@@ -197,166 +200,219 @@ final class LayoutStamper {
         }
     }
 
-    private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                        int keystoneLevel, Set<String> affixes, UUID owner,
-                                        boolean entranceAlreadyStamped) {
-        return stamp(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, null, Set.of(), null,
-                NodeStamper.Context.NONE);
-    }
+    /**
+     * The inputs of one stamp pass, in the order the public overloads feed them.
+     * {@code entranceAlreadyStamped} skips the entrance cell (the lobby already
+     * stands there); {@code theme}, {@code lootBand} and {@code nodeCtx} may be
+     * null or {@link NodeStamper.Context#NONE} for a run with none.
+     */
+    private record StampParams(ServerLevel level, BlockPos origin, DungeonPlan plan,
+                               int keystoneLevel, Set<String> affixes, UUID owner,
+                               boolean entranceAlreadyStamped, String theme,
+                               Set<BlockPos> standingCells, DungeonDef.LootBand lootBand,
+                               NodeStamper.Context nodeCtx) {}
 
-    private static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
-                                        int keystoneLevel, Set<String> affixes, UUID owner,
-                                        boolean entranceAlreadyStamped, String theme,
-                                        Set<BlockPos> standingCells, DungeonDef.LootBand lootBand,
-                                        NodeStamper.Context nodeCtx) {
-        StructureTemplateManager manager = level.getStructureManager();
-        RoomManifest manifest = RoomManifest.current();
-        // M61: the deepest any room in this layout reaches below its own cell
-        // floor, so PlanGeometry.bounds can extend down to cover lower stories
-        // for teardown, entity sweeps and protection.
-        Map<PlanCell, Integer> spanYByCell = cellSpanY(plan, manifest);
-        int storyFloorOffset = maxStoryOffset(spanYByCell);
-        PlanGeometry geometry = PlanGeometry.of(origin, plan.cells(), storyFloorOffset);
-        DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel, lootBand);
-        PlanCell entranceCell = plan.entrance();
+    /**
+     * What one stamp pass reads and accumulates, so the per-cell phase takes one
+     * argument. The constructor does the up-front work in the order the pass
+     * always did it.
+     */
+    private static final class StampRun {
+        final StampParams params;
+        final StructureTemplateManager manager;
+        final RoomManifest manifest;
+        final Map<PlanCell, Integer> spanYByCell;
+        final PlanGeometry geometry;
+        final DifficultyProfile profile;
+        final PlanCell entranceCell;
         // M10: every trial spawner this stamp places, for the spawner-clear
         // completion gate. Collected here rather than passed an InstanceRecord,
         // since one does not exist yet this early; it travels on the returned
         // layout instead, the way everything else about this run's shape does.
-        Set<BlockPos> trialSpawners = new LinkedHashSet<>();
+        final Set<BlockPos> trialSpawners = new LinkedHashSet<>();
         // Dungeon structure W4: the resource node positions every cell registers, and the
         // soft mechanic gates the directional gate pass places.
-        Set<BlockPos> nodePositions = new LinkedHashSet<>();
-        Set<BlockPos> softGates = new LinkedHashSet<>();
+        final Set<BlockPos> nodePositions = new LinkedHashSet<>();
+        final Set<BlockPos> softGates = new LinkedHashSet<>();
         // PD-160: the flooded hall's containment doors (latches) and the connector
         // iron doors' levers and buttons, each mapped to the door it opens.
-        Set<BlockPos> latchDoors = new LinkedHashSet<>();
-        Map<BlockPos, Set<BlockPos>> doorOpeners = new HashMap<>();
-        // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
-        // in the first cleared encounter cell; carried on the layout so the
-        // right-click handler can find it without scanning the world.
-        // Rolled once per run off the plan seed, and gated on the adventure
-        // graph: a theme that has no node in it (an unthemed run, or a datapack
-        // that never declared one) never hosts a pocket door.
-        // J7: Pocket2 is hidden from players for now; no playtest has met it.
-        // The machinery stays, the roll is pinned off until it does.
-        boolean pocket2Rolled = Pocket2.DOORS_LIVE
-                && theme != null
-                && AdventureGraphs.current().graph().node(theme) != null
-                && RandomSource.create(plan.seed()).nextDouble()
-                < PocketDungeonsConfig.pocket2DoorChance();
+        final Set<BlockPos> latchDoors = new LinkedHashSet<>();
+        final Map<BlockPos, Set<BlockPos>> doorOpeners = new HashMap<>();
+        final boolean pocket2Rolled;
         BlockPos pocket2Door = null;
-
         // Voided affix: select which cells get voided floor before stamping.
         // Entrance and terminal cells always excluded: lobby door and
         // lodestone pad need solid floor. Seeded from plan seed for
         // reproducibility.
-        Set<PlanCell> voidedCells = computeVoidedCells(plan, affixes);
+        final Set<PlanCell> voidedCells;
 
-        for (PlanCell cell : stampOrder(plan)) {
-            if (entranceAlreadyStamped && cell.equals(entranceCell)) {
+        StampRun(StampParams p) {
+            this.params = p;
+            DungeonPlan plan = p.plan();
+            this.manager = p.level().getStructureManager();
+            this.manifest = RoomManifest.current();
+            // M61: the deepest any room in this layout reaches below its own cell
+            // floor, so PlanGeometry.bounds can extend down to cover lower stories
+            // for teardown, entity sweeps and protection.
+            this.spanYByCell = cellSpanY(plan, manifest);
+            int storyFloorOffset = maxStoryOffset(spanYByCell);
+            this.geometry = PlanGeometry.of(p.origin(), plan.cells(), storyFloorOffset);
+            this.profile = DifficultyProfile.of(plan.criticalPath().size(), p.keystoneLevel(), p.lootBand());
+            this.entranceCell = plan.entrance();
+            // M25: the rare door to a Pocket2 child, if this run rolled one. Placed
+            // in the first cleared encounter cell; carried on the layout so the
+            // right-click handler can find it without scanning the world.
+            // Rolled once per run off the plan seed, and gated on the adventure
+            // graph: a theme that has no node in it (an unthemed run, or a datapack
+            // that never declared one) never hosts a pocket door.
+            // J7: Pocket2 is hidden from players for now; no playtest has met it.
+            // The machinery stays, the roll is pinned off until it does.
+            this.pocket2Rolled = Pocket2.DOORS_LIVE
+                    && p.theme() != null
+                    && AdventureGraphs.current().graph().node(p.theme()) != null
+                    && RandomSource.create(plan.seed()).nextDouble()
+                    < PocketDungeonsConfig.pocket2DoorChance();
+            this.voidedCells = computeVoidedCells(plan, p.affixes());
+        }
+    }
+
+    private static InstanceLayout stamp(StampParams p) {
+        StampRun run = new StampRun(p);
+        for (PlanCell cell : stampOrder(p.plan())) {
+            if (p.entranceAlreadyStamped() && cell.equals(run.entranceCell)) {
                 continue;
             }
-            DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
-            if (placed == null) {
-                throw new IllegalStateException("plan has no room for cell " + cell);
-            }
-            RoomManifest.Entry entry = entryAt(manifest, plan, cell);
-            if (entry == null) {
-                throw new IllegalStateException("manifest has no room named " + placed.name());
-            }
-
-            BlockPos cellOrigin = geometry.cellOrigin(cell);
-            // M35: the anomaly cell keeps whatever processors and content its own
-            // room carries and never picks up the run theme's -- that is the whole
-            // point of the swap. A room whose own processors field is null simply
-            // stamps untinted rather than falling back to the theme around it.
-            boolean isAnomalyCell = cell.equals(plan.anomalyCell());
-            ThemeManifest.Entry runTheme = ThemeManifest.current().byId(theme);
-            String processors = entry.meta.processors != null ? entry.meta.processors
-                    : (isAnomalyCell || runTheme == null) ? null : runTheme.meta().processors;
-            List<BlockPos> spawns = TemplateStamper.place(
-                    level, manager, cellOrigin, Identifier.parse(entry.meta.template),
-                    placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
-                    processors == null ? null : Identifier.parse(processors));
-
-            // M61 (spec 13.4): a multi-story room must have a climbable route
-            // from its lowest story back to the upper floor. The lower story
-            // has no doorways, so a room without a return path traps the player.
-            // The check is structural: it reads the blocks the template just
-            // placed, not the metadata. A failure refuses the stamp.
-            if (entry.meta.spanY > 1
-                    && !ReturnPathValidator.validate(level, cellOrigin, entry.meta.spanY)) {
-                throw new IllegalStateException("room " + placed.name()
-                        + " has spanY " + entry.meta.spanY
-                        + " but no climbable return path from its lower story"
-                        + " to the upper floor (spec 13.4)");
-            }
-
-            int depth = plan.depths().getOrDefault(cell, 0);
-            String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
-            String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
-            List<BlockPos> spawnerAnchors = RoomContent.apply(level, cellOrigin, plan.roles().get(cell),
-                    depth, profile, spawns, plan.seed(), affixes, lootSuffix, lootTableOverride,
-                    isAnomalyCell && !"store".equals(entry.meta.content) ? null : theme,
-                    voidedCells.contains(cell), isAnomalyCell, entry.meta.content);
-            PressureSources.arm(level, cellOrigin, entry.meta, theme, affixes.contains(AffixIds.OMINOUS));
-            trialSpawners.addAll(spawnerAnchors);
-            if ("flooded_hall".equals(entry.meta.content)) {
-                latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));
-            }
-            // A dead end that holds no fight (a vault, a chest, a wall) may hold a fountain.
-            if (!isAnomalyCell && spawnerAnchors.isEmpty() && !cell.equals(plan.entrance())
-                    && !cell.equals(plan.terminal())
-                    && plan.doors().stream().filter(edge -> edge.touches(cell)).count() == 1) {
-                Fountain.maybePlace(level, cellOrigin, plan.seed());
-            }
-            // Dungeon structure W4: darkness, then the room's resource nodes (D17, D19).
-            NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, nodeCtx,
-                    plan.seed() ^ cellOrigin.asLong(), nodePositions);
-            // A sealed two-story room: rubble over its way down, after the
-            // return-path check above has read the room as built. The seal is
-            // its own Ordeal, keyed under the cell so the room's stays armed.
-            if (plan.sealedCells().contains(cell)) {
-                RubbleOrdeal.sealFloor(level, cellOrigin);
-                Ordeals.armAt(RubbleOrdeal.FLOOR, level, cellOrigin, cellOrigin.below());
-            }
-
-            // M25: the pocket door lives in the run's first cleared encounter
-            // cell. A cell with no sealed wall cannot host one (every wall
-            // leads to a neighbour), so the roll falls through to the next
-            // encounter cell rather than failing the run. M70: the check
-            // reads the role's operation, so a third-party role with
-            // operation TRIAL_ENCOUNTER also hosts a pocket door.
-            if (pocket2Rolled && pocket2Door == null
-                    && isEncounterOperation(plan.roles().get(cell))) {
-                pocket2Door = Pocket2.placeDoor(level, cellOrigin, geometry);
-            }
-
-            // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
-            // ordinary content pass rather than skipping it keeps RoomSelector's
-            // mask/role resolution completely unchanged -- entrance_hall is still
-            // exactly what validates and gets picked, and this just re-skins it
-            // with whatever the owner captured last time.
-            if (cell.equals(entranceCell) && owner != null) {
-                MinecraftServer server = level.getServer();
-                boolean placedRoom = server != null && RoomStore.place(level, server, owner,
-                        cellOrigin, placed.rotation(), RandomSource.create(plan.seed()));
-                if (placedRoom) {
-                    PocketDungeonsMod.LOG.debug("Placed {}'s saved room at the entrance cell", owner);
-                }
-            }
+            stampCell(run, cell);
         }
 
         Set<BlockPos> ironDoorFarSideSlots = new LinkedHashSet<>();
-        applyConnectors(level, geometry, plan, entranceCell, manifest, ironDoorFarSideSlots, doorOpeners);
+        applyConnectors(p.level(), run.geometry, p.plan(), run.entranceCell, run.manifest,
+                ironDoorFarSideSlots, run.doorOpeners);
 
-        applyDirectionalGates(level, geometry, plan, manifest, softGates);
+        applyDirectionalGates(p.level(), run.geometry, p.plan(), run.manifest, run.softGates);
 
-        BedrockEnvelope.apply(level, geometry, voidedCells, spanYByCell, standingCells);
+        BedrockEnvelope.apply(p.level(), run.geometry, run.voidedCells, run.spanYByCell, p.standingCells());
 
+        return layoutOf(run, ironDoorFarSideSlots);
+    }
+
+    /** Places one cell: its template, the return path check, its content, then the per-cell extras. */
+    private static void stampCell(StampRun run, PlanCell cell) {
+        StampParams p = run.params;
+        ServerLevel level = p.level();
+        DungeonPlan plan = p.plan();
+        DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
+        if (placed == null) {
+            throw new IllegalStateException("plan has no room for cell " + cell);
+        }
+        RoomManifest.Entry entry = entryAt(run.manifest, plan, cell);
+        if (entry == null) {
+            throw new IllegalStateException("manifest has no room named " + placed.name());
+        }
+
+        BlockPos cellOrigin = run.geometry.cellOrigin(cell);
+        // M35: the anomaly cell keeps whatever processors and content its own
+        // room carries and never picks up the run theme's -- that is the whole
+        // point of the swap. A room whose own processors field is null simply
+        // stamps untinted rather than falling back to the theme around it.
+        boolean isAnomalyCell = cell.equals(plan.anomalyCell());
+        ThemeManifest.Entry runTheme = ThemeManifest.current().byId(p.theme());
+        String processors = entry.meta.processors != null ? entry.meta.processors
+                : (isAnomalyCell || runTheme == null) ? null : runTheme.meta().processors;
+        List<BlockPos> spawns = TemplateStamper.place(
+                level, run.manager, cellOrigin, Identifier.parse(entry.meta.template),
+                placed.rotation(), plan.seed() ^ cellOrigin.asLong(),
+                processors == null ? null : Identifier.parse(processors));
+
+        requireReturnPath(level, cellOrigin, placed, entry);
+
+        int depth = plan.depths().getOrDefault(cell, 0);
+        String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
+        String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
+        List<BlockPos> spawnerAnchors = RoomContent.apply(
+                new RoomContent.CellSite(level, cellOrigin, plan.roles().get(cell), depth, spawns,
+                        plan.seed(), entry.meta.content),
+                new RoomContent.CellRules(run.profile, p.affixes(), lootSuffix, lootTableOverride,
+                        isAnomalyCell && !"store".equals(entry.meta.content) ? null : p.theme()),
+                run.voidedCells.contains(cell), isAnomalyCell);
+        PressureSources.arm(level, cellOrigin, entry.meta, p.theme(), p.affixes().contains(AffixIds.OMINOUS));
+        run.trialSpawners.addAll(spawnerAnchors);
+        if ("flooded_hall".equals(entry.meta.content)) {
+            run.latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));
+        }
+        // A dead end that holds no fight (a vault, a chest, a wall) may hold a fountain.
+        if (!isAnomalyCell && spawnerAnchors.isEmpty() && !cell.equals(plan.entrance())
+                && !cell.equals(plan.terminal())
+                && plan.doors().stream().filter(edge -> edge.touches(cell)).count() == 1) {
+            Fountain.maybePlace(level, cellOrigin, plan.seed());
+        }
+        // Dungeon structure W4: darkness, then the room's resource nodes (D17, D19).
+        NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, p.nodeCtx(),
+                plan.seed() ^ cellOrigin.asLong(), run.nodePositions);
+        // A sealed two-story room: rubble over its way down, after the
+        // return-path check above has read the room as built. The seal is
+        // its own Ordeal, keyed under the cell so the room's stays armed.
+        if (plan.sealedCells().contains(cell)) {
+            RubbleOrdeal.sealFloor(level, cellOrigin);
+            Ordeals.armAt(RubbleOrdeal.FLOOR, level, cellOrigin, cellOrigin.below());
+        }
+
+        // M25: the pocket door lives in the run's first cleared encounter
+        // cell. A cell with no sealed wall cannot host one (every wall
+        // leads to a neighbour), so the roll falls through to the next
+        // encounter cell rather than failing the run. M70: the check
+        // reads the role's operation, so a third-party role with
+        // operation TRIAL_ENCOUNTER also hosts a pocket door.
+        if (run.pocket2Rolled && run.pocket2Door == null
+                && isEncounterOperation(plan.roles().get(cell))) {
+            run.pocket2Door = Pocket2.placeDoor(level, cellOrigin, run.geometry);
+        }
+
+        // M2 T2.1/T2.4: the entrance cell is the room. Overlaying after the
+        // ordinary content pass rather than skipping it keeps RoomSelector's
+        // mask/role resolution completely unchanged -- entrance_hall is still
+        // exactly what validates and gets picked, and this just re-skins it
+        // with whatever the owner captured last time.
+        if (cell.equals(run.entranceCell) && p.owner() != null) {
+            overlayOwnerRoom(level, plan, p.owner(), cellOrigin, placed);
+        }
+    }
+
+    // M61 (spec 13.4): a multi-story room must have a climbable route
+    // from its lowest story back to the upper floor. The lower story
+    // has no doorways, so a room without a return path traps the player.
+    // The check is structural: it reads the blocks the template just
+    // placed, not the metadata. A failure refuses the stamp.
+    private static void requireReturnPath(ServerLevel level, BlockPos cellOrigin,
+                                          DungeonPlan.PlacedRoom placed, RoomManifest.Entry entry) {
+        if (entry.meta.spanY > 1
+                && !ReturnPathValidator.validate(level, cellOrigin, entry.meta.spanY)) {
+            throw new IllegalStateException("room " + placed.name()
+                    + " has spanY " + entry.meta.spanY
+                    + " but no climbable return path from its lower story"
+                    + " to the upper floor (spec 13.4)");
+        }
+    }
+
+    /** Re-skins the entrance cell with the owner's saved room, if they have one. */
+    private static void overlayOwnerRoom(ServerLevel level, DungeonPlan plan, UUID owner,
+                                         BlockPos cellOrigin, DungeonPlan.PlacedRoom placed) {
+        MinecraftServer server = level.getServer();
+        boolean placedRoom = server != null && RoomStore.place(level, server, owner,
+                cellOrigin, placed.rotation(), RandomSource.create(plan.seed()));
+        if (placedRoom) {
+            PocketDungeonsMod.LOG.debug("Placed {}'s saved room at the entrance cell", owner);
+        }
+    }
+
+    /** The layout record the finished pass hands back, built from what the pass accumulated. */
+    private static InstanceLayout layoutOf(StampRun run, Set<BlockPos> ironDoorFarSideSlots) {
+        StampParams p = run.params;
+        DungeonPlan plan = p.plan();
+        PlanGeometry geometry = run.geometry;
+        PlanCell entranceCell = run.entranceCell;
         return new InstanceLayout(
-                origin,
+                p.origin(),
                 geometry,
                 geometry.cellCentre(entranceCell),
                 InstanceLayout.yawFor(entranceDoor(plan, entranceCell)),
@@ -365,20 +421,20 @@ final class LayoutStamper {
                 plan.seed(),
                 plan.criticalPath().size(),
                 plan.cells().size(),
-                profile.lootTier(),
+                run.profile.lootTier(),
                 true,
-                affixes,
-                keystoneLevel,
+                p.affixes(),
+                p.keystoneLevel(),
                 geometry.cellOrigin(plan.terminal()),
                 plan.rooms().get(entranceCell).rotation(),
                 plan.rooms().get(plan.terminal()).rotation(),
-                Set.copyOf(trialSpawners),
-                pocket2Door,
+                Set.copyOf(run.trialSpawners),
+                run.pocket2Door,
                 Set.copyOf(ironDoorFarSideSlots),
-                Set.copyOf(nodePositions),
-                Set.copyOf(softGates),
-                Set.copyOf(latchDoors),
-                Map.copyOf(doorOpeners));
+                Set.copyOf(run.nodePositions),
+                Set.copyOf(run.softGates),
+                Set.copyOf(run.latchDoors),
+                Map.copyOf(run.doorOpeners));
     }
 
     /**

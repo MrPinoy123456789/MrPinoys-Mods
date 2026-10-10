@@ -33,8 +33,10 @@ public final class PlaytestFixGameTest {
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
         java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
                 origin, Identifier.parse(entry.meta.template), q, seed);
-        RoomContent.apply(level, origin, RoleIds.CORRIDOR, 1, DifficultyProfile.of(3, 1), spawns, seed,
-                Set.of(), null, null, null, false, false, entry.meta.content);
+        RoomContent.apply(
+                new RoomContent.CellSite(level, origin, RoleIds.CORRIDOR, 1, spawns, seed, entry.meta.content),
+                new RoomContent.CellRules(DifficultyProfile.of(3, 1), Set.of(), null, null, null),
+                false, false);
         return origin;
     }
 
@@ -357,8 +359,10 @@ public final class PlaytestFixGameTest {
                     level.getServer().getStructureManager(), origin,
                     Identifier.parse("pocketdungeons:rooms/kennel_crossing"), 0, 1L,
                     processors == null ? null : Identifier.parse(processors));
-            anchors[i] = Situations.apply(level, origin, "encounter", 1, DifficultyProfile.of(5, 1), spawns,
-                    1L, Set.of(), "", themes.get(i).id(), false, "kennel_crossing");
+            anchors[i] = Situations.apply(
+                    new RoomContent.CellSite(level, origin, "encounter", 1, spawns, 1L, "kennel_crossing"),
+                    new RoomContent.CellRules(DifficultyProfile.of(5, 1), Set.of(), "", null, themes.get(i).id()),
+                    false);
         }
         helper.runAfterDelay(150, () -> {
             List<String> failures = new ArrayList<>();

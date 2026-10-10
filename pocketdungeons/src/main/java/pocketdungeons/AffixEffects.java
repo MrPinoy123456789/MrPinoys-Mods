@@ -140,15 +140,33 @@ final class AffixEffects {
     }
 
     /**
+     * The first four operations in the frozen order: the ominous blockstate, the
+     * trial count multiplier, the cooldown factor and the player range.
+     */
+    record TrialTuning(boolean ominous, double countMultiplier, double cooldownFactor, int playerRange) {}
+
+    /** The interior hazard and how many blocks of it go in a cell. */
+    record Hazard(HazardKind kind, int perCell) {}
+
+    /** The optional bonus tool pool and decor pool loot table ids, either of which may be {@code null}. */
+    record Pools(String bonusToolPool, String decorPool) {}
+
+    /**
      * Builds effects from validated parameters. Bounds are enforced here and
      * a violation throws, naming the field, so the manifest loader can catch
      * it and report the file. This is the single chokepoint for the
      * "supported operations and extension limits" gate.
      */
-    static AffixEffects build(boolean ominous, double trialCountMultiplier, double cooldownFactor,
-                              int playerRange, ConsumableRule consumableRule, boolean neutralWolfSpawn,
-                              HazardKind hazardKind, int hazardsPerCell, boolean voidedFloor,
-                              boolean extraTrialBodies, String bonusToolPool, String decorPool) {
+    static AffixEffects build(TrialTuning trial, ConsumableRule consumableRule, boolean neutralWolfSpawn,
+                              Hazard hazard, boolean voidedFloor, boolean extraTrialBodies, Pools pools) {
+        boolean ominous = trial.ominous();
+        double trialCountMultiplier = trial.countMultiplier();
+        double cooldownFactor = trial.cooldownFactor();
+        int playerRange = trial.playerRange();
+        HazardKind hazardKind = hazard.kind();
+        int hazardsPerCell = hazard.perCell();
+        String bonusToolPool = pools.bonusToolPool();
+        String decorPool = pools.decorPool();
         if (trialCountMultiplier < 1.0 || trialCountMultiplier > 4.0) {
             throw new IllegalArgumentException("trial_count_multiplier must be in [1.0, 4.0]");
         }

@@ -524,9 +524,10 @@ public final class HandlerGameTest {
                             level.getServer().getStructureManager(), origin,
                             net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/" + id),
                             q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
-                    BlockPos anchor = Situations.apply(level, origin, "encounter", 1,
-                            DifficultyProfile.of(5, 1), spawns, 1L, java.util.Set.of(), "", null,
-                            false, id);
+                    BlockPos anchor = Situations.apply(
+                            new RoomContent.CellSite(level, origin, "encounter", 1, spawns, 1L, id),
+                            new RoomContent.CellRules(DifficultyProfile.of(5, 1), java.util.Set.of(), "", null, null),
+                            false);
                     if (anchor == null || !(level.getBlockEntity(anchor)
                             instanceof net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity)) {
                         failures.add(id + " at " + q + " quarter turns placed no trial spawner");
@@ -562,9 +563,10 @@ public final class HandlerGameTest {
                         level.getServer().getStructureManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/kennel_crossing"),
                         q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
-                BlockPos anchor = Situations.apply(level, origin, "encounter", 1,
-                        DifficultyProfile.of(5, 1), spawns, 1L, java.util.Set.of(), "", null,
-                        false, "kennel_crossing");
+                BlockPos anchor = Situations.apply(
+                        new RoomContent.CellSite(level, origin, "encounter", 1, spawns, 1L, "kennel_crossing"),
+                        new RoomContent.CellRules(DifficultyProfile.of(5, 1), java.util.Set.of(), "", null, null),
+                        false);
                 helper.assertTrue(anchor != null, "kennel_crossing placed a spawner at " + q + " quarter turns");
                 int spots = 0;
                 for (int dx = -1; dx <= 1; dx++) {
@@ -886,8 +888,10 @@ public final class HandlerGameTest {
         try {
             java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
                     origin, net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), 1, 1L);
-            Situations.apply(level, origin, RoleIds.CORRIDOR, 1, DifficultyProfile.of(5, 1), spawns, 1L,
-                    java.util.Set.of(), "", null, false, "tripwire_hall");
+            Situations.apply(
+                    new RoomContent.CellSite(level, origin, RoleIds.CORRIDOR, 1, spawns, 1L, "tripwire_hall"),
+                    new RoomContent.CellRules(DifficultyProfile.of(5, 1), java.util.Set.of(), "", null, null),
+                    false);
             int dispensers = 0;
             for (int x = 0; x < cell; x++) {
                 for (int y = 0; y <= 4; y++) {
@@ -1181,8 +1185,9 @@ public final class HandlerGameTest {
         if (level.getBlockEntity(spawnerPos) instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity spawner) {
             spawner.setEntityId(net.minecraft.world.entity.EntityTypes.ZOMBIE, level.getRandom());
         }
-        Situations.apply(level, origin, "corridor", 0, null, java.util.List.of(), 0L,
-                java.util.Set.of(), "", null, false, "thicket");
+        Situations.apply(
+                new RoomContent.CellSite(level, origin, "corridor", 0, java.util.List.of(), 0L, "thicket"),
+                new RoomContent.CellRules(null, java.util.Set.of(), "", null, null), false);
         var tag = level.getBlockEntity(spawnerPos).saveWithoutMetadata(level.registryAccess());
         var spawnData = tag.getCompoundOrEmpty("SpawnData");
         helper.assertTrue("minecraft:cave_spider".equals(

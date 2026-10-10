@@ -82,9 +82,11 @@ final class AffixMeta {
 
         double riseChance = doubleOr(e, "undead_rise_chance", 0.0);
         double riseChanceOminous = doubleOr(e, "undead_rise_chance_ominous", riseChance);
-        return AffixEffects.build(ominous, trialCountMultiplier, cooldownFactor, playerRange,
-                consumableRule, neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor,
-                extraTrialBodies, bonusToolPool, decorPool).withUndeadRise(riseChance, riseChanceOminous);
+        return AffixEffects.build(
+                new AffixEffects.TrialTuning(ominous, trialCountMultiplier, cooldownFactor, playerRange),
+                consumableRule, neutralWolfSpawn, new AffixEffects.Hazard(hazardKind, hazardsPerCell),
+                voidedFloor, extraTrialBodies, new AffixEffects.Pools(bonusToolPool, decorPool))
+                .withUndeadRise(riseChance, riseChanceOminous);
     }
 
     private static String requiredString(JsonObject obj, String key, String fileIdentity) {

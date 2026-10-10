@@ -36,9 +36,18 @@ final class BaseRoomSpecs {
     private BaseRoomSpecs() {}
 
     /** The base library, in the order it was authored. */
+    /** The base library, in the order it was authored. */
     static List<RoomSpec> list() {
         List<RoomSpec> specs = new ArrayList<>();
+        addEndCaps(specs);
+        addCoverageFloor(specs);
+        addFlavourLayer(specs);
+        addAuthoringReference(specs);
+        return specs;
+    }
 
+    /** The single-door, single-role end caps. */
+    private static void addEndCaps(List<RoomSpec> specs) {
         // --- end caps: single-door, single-role. One template each covers all
         //     four single-door masks by rotation, which is only true because the
         //     graph generator holds the entrance and terminal cells to one door.
@@ -52,7 +61,10 @@ final class BaseRoomSpecs {
                 }));
 
         specs.add(new RoomSpec("exit_hall", EnumSet.of(Direction.WEST)).exitPad());
+    }
 
+    /** The coverage floor: every mask family, all three content roles. */
+    private static void addCoverageFloor(List<RoomSpec> specs) {
         // --- coverage floor: every mask family, all three content roles.
 
         specs.add(new RoomSpec("hall_dead_end", EnumSet.of(Direction.NORTH))
@@ -110,7 +122,10 @@ final class BaseRoomSpecs {
                     column(level, o, 5, 1, WALL_HEIGHT, 10, RoomBuilder.WALL);
                     column(level, o, 10, 1, WALL_HEIGHT, 10, RoomBuilder.WALL);
                 }));
+    }
 
+    /** The flavour layer: same shapes, higher weight, themed. */
+    private static void addFlavourLayer(List<RoomSpec> specs) {
         // --- flavour layer: same shapes, higher weight, themed.
 
         specs.add(new RoomSpec("encounter_zombie", EnumSet.of(Direction.WEST, Direction.EAST))
@@ -197,11 +212,12 @@ final class BaseRoomSpecs {
                         }
                     }
                 }));
+    }
 
+    /** The M1 authoring reference. */
+    private static void addAuthoringReference(List<RoomSpec> specs) {
         // The authoring reference from M1: an empty sealed box with all four
         // doors and nothing else. Never selected, no metadata file.
         specs.add(new RoomSpec("jig_room", HORIZONTALS));
-
-        return specs;
     }
 }

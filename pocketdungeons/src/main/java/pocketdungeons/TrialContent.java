@@ -837,8 +837,8 @@ final class TrialContent {
     static void placeCompletionChests(ServerLevel level, BlockPos origin,
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix) {
-        placeRewardContainers(level, origin, entranceDir, chests, tier, 0, 0, ominous, seed,
-                lootSuffix, null, List.of());
+        placeRewardContainers(level, origin, entranceDir, new RewardRolls(chests, tier, 0, 0),
+                new RewardLoot(ominous, seed, lootSuffix, null), List.of());
     }
 
     /**
@@ -849,8 +849,33 @@ final class TrialContent {
                                         DoorMask.Direction entranceDir, int chests,
                                         int tier, boolean ominous, long seed, String lootSuffix,
                                         String lootTableOverride) {
-        placeRewardContainers(level, origin, entranceDir, chests, tier, 0, 0, ominous, seed,
-                lootSuffix, lootTableOverride, List.of());
+        placeRewardContainers(level, origin, entranceDir, new RewardRolls(chests, tier, 0, 0),
+                new RewardLoot(ominous, seed, lootSuffix, lootTableOverride), List.of());
+    }
+
+    /**
+     * What a reward corner pays: the floor's loot rolls at its tier, and a finished
+     * dungeon's vault rolls at the band's top tier (D11).
+     */
+    record RewardRolls(int rolls, int tier, int vaultRolls, int vaultTier) {}
+
+    /**
+     * How the rolls are drawn: ominous or plain tables, the run seed, and the run
+     * theme's loot table suffix and optional table override.
+     */
+    record RewardLoot(boolean ominous, long seed, String lootSuffix, String lootTableOverride) {}
+
+    /**
+     * As the record form, from the loose parameters {@code RunLifecycle} still
+     * passes; the record form is the one to call from anywhere else.
+     */
+    static void placeRewardContainers(ServerLevel level, BlockPos origin,
+                                        DoorMask.Direction entranceDir, int rolls,
+                                        int tier, int vaultRolls, int vaultTier,
+                                        boolean ominous, long seed, String lootSuffix,
+                                        String lootTableOverride, List<ItemStack> promised) {
+        placeRewardContainers(level, origin, entranceDir, new RewardRolls(rolls, tier, vaultRolls, vaultTier),
+                new RewardLoot(ominous, seed, lootSuffix, lootTableOverride), promised);
     }
 
     /**
@@ -867,11 +892,8 @@ final class TrialContent {
      * overflow rare, and any that still does not fit drops at the barrel's
      * feet rather than voiding.
      */
-    static void placeRewardContainers(ServerLevel level, BlockPos origin,
-                                        DoorMask.Direction entranceDir, int rolls,
-                                        int tier, int vaultRolls, int vaultTier,
-                                        boolean ominous, long seed, String lootSuffix,
-                                        String lootTableOverride, List<ItemStack> promised) {
+    static void placeRewardContainers(ServerLevel level, BlockPos origin, DoorMask.Direction entranceDir,
+                                        RewardRolls rolls, RewardLoot loot, List<ItemStack> promised) {
         BlockPos[] spots = completionSpots(entranceDir);
         Direction facing = completionFacing(entranceDir);
         BlockPos barrelPos = origin.offset(spots[1]);
@@ -881,30 +903,47 @@ final class TrialContent {
 
         level.setBlock(barrelPos, Blocks.BARREL.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.BarrelBlock.FACING, facing), FLAGS);
+        fillBarrel(level, barrelPos, mergeStacks(rollBarrelLoot(level, barrelPos, rolls, loot)));
+
+        level.setBlock(copperPos, copperChestBlock().defaultBlockState()
+                .setValue(ChestBlock.FACING, facing), FLAGS);
+        fillCopperChest(level, copperPos, promised);
+    }
+
+    /** Draws the floor's rolls, then the vault's, off the run's tier tables. */
+    private static List<ItemStack> rollBarrelLoot(ServerLevel level, BlockPos barrelPos,
+                                                  RewardRolls rolls, RewardLoot loot) {
         List<ItemStack> rolled = new ArrayList<>();
         if (level.getServer() != null) {
             LootParams.Builder params = new LootParams.Builder(level)
                     .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(barrelPos));
-            if (rolls > 0) {
+            if (rolls.rolls() > 0) {
                 ResourceKey<LootTable> table = resolveLootTable(level,
-                        LootTables.tierTable(tier, ominous), lootSuffix, lootTableOverride);
-                LootTable loot = level.getServer().reloadableRegistries().getLootTable(table);
-                for (int i = 0; i < rolls; i++) {
-                    rolled.addAll(loot.getRandomItems(params.create(LootContextParamSets.CHEST),
-                            level.getRandom().nextLong() ^ seed ^ (long) i));
+                        LootTables.tierTable(rolls.tier(), loot.ominous()), loot.lootSuffix(),
+                        loot.lootTableOverride());
+                LootTable drawn = level.getServer().reloadableRegistries().getLootTable(table);
+                for (int i = 0; i < rolls.rolls(); i++) {
+                    rolled.addAll(drawn.getRandomItems(params.create(LootContextParamSets.CHEST),
+                            level.getRandom().nextLong() ^ loot.seed() ^ (long) i));
                 }
             }
             // The finished dungeon's vault pays at the band's top tier (D11).
-            if (vaultRolls > 0) {
+            if (rolls.vaultRolls() > 0) {
                 LootTable vault = level.getServer().reloadableRegistries()
-                        .getLootTable(resolveLootTable(level, LootTables.tierTable(vaultTier, ominous),
-                                lootSuffix, lootTableOverride));
-                for (int i = 0; i < vaultRolls; i++) {
+                        .getLootTable(resolveLootTable(level,
+                                LootTables.tierTable(rolls.vaultTier(), loot.ominous()),
+                                loot.lootSuffix(), loot.lootTableOverride()));
+                for (int i = 0; i < rolls.vaultRolls(); i++) {
                     rolled.addAll(vault.getRandomItems(params.create(LootContextParamSets.CHEST),
-                            level.getRandom().nextLong() ^ seed ^ 0x7A17L ^ (long) i));
+                            level.getRandom().nextLong() ^ loot.seed() ^ 0x7A17L ^ (long) i));
                 }
             }
         }
+        return rolled;
+    }
+
+    /** Joins rolled stacks of the same item into as few stacks as fit. */
+    private static List<ItemStack> mergeStacks(List<ItemStack> rolled) {
         List<ItemStack> merged = new ArrayList<>();
         for (ItemStack stack : rolled) {
             boolean joined = false;
@@ -920,6 +959,11 @@ final class TrialContent {
                 merged.add(stack);
             }
         }
+        return merged;
+    }
+
+    /** Puts the merged stacks in the barrel; any that does not fit drops at its feet. */
+    private static void fillBarrel(ServerLevel level, BlockPos barrelPos, List<ItemStack> merged) {
         if (level.getBlockEntity(barrelPos) instanceof net.minecraft.world.Container container) {
             for (ItemStack stack : merged) {
                 boolean placed = false;
@@ -945,9 +989,10 @@ final class TrialContent {
                 }
             }
         }
+    }
 
-        level.setBlock(copperPos, copperChestBlock().defaultBlockState()
-                .setValue(ChestBlock.FACING, facing), FLAGS);
+    /** Puts the floor's promised rewards in the copper chest, one stack to an empty slot. */
+    private static void fillCopperChest(ServerLevel level, BlockPos copperPos, List<ItemStack> promised) {
         if (!promised.isEmpty()
                 && level.getBlockEntity(copperPos) instanceof net.minecraft.world.Container container) {
             for (ItemStack stack : promised) {

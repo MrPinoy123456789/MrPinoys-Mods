@@ -158,8 +158,31 @@ final class LayoutPlanner {
     }
 
     /**
+     * The shape generator's settings: how long the critical path runs, how often
+     * it branches and loops, and the widest grid span a plan may take.
+     */
+    record PathProfile(int minPath, int maxPath, double branchProbability, double loopProbability,
+                       int maxGridSpan) {}
+
+    /**
+     * Everything one plan asks for; the long {@code plan} overloads below build
+     * one and delegate to {@link #plan(PlanRequest)}.
+     *
+     * @param requiredEntranceDirection rotates the shape so its entrance faces this way, or {@code null}
+     * @param bagTags                   the depth-0 solvability seed, from {@link BagTags#seed}
+     * @param recipePlan                the recipe effects to wire into the selector, or {@code null}
+     * @param maxEncounters             caps the encounter cells; 0 means no cap
+     * @param floor                     the floor's dungeon context, or {@code null} for the legacy theme-only filter
+     */
+    record PlanRequest(long seed, RoomManifest manifest, int attemptBudget, PathProfile path, String theme,
+                       DoorMask.Direction requiredEntranceDirection, Set<String> bagTags,
+                       RunRecipePlan recipePlan, int maxEncounters, RoomEligibility.Floor floor) {}
+
+    /**
      * Dungeon structure W5: as above, with the floor's dungeon context so room selection reads
      * the room metadata ({@link RoomEligibility}); {@code null} is the legacy theme-only filter.
+     * The loose parameters are kept for the callers that still pass them; the
+     * record form is {@link #plan(PlanRequest)}.
      */
     static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
                         int minPath, int maxPath,
@@ -167,6 +190,18 @@ final class LayoutPlanner {
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters,
                         RoomEligibility.Floor floor) {
+        return plan(new PlanRequest(seed, manifest, attemptBudget,
+                new PathProfile(minPath, maxPath, branchProbability, loopProbability, maxGridSpan),
+                theme, requiredEntranceDirection, bagTags, recipePlan, maxEncounters, floor));
+    }
+
+    /** Plans one request, trying consecutive seeds up to its attempt budget. */
+    static Outcome plan(PlanRequest request) {
+        long seed = request.seed();
+        RoomManifest manifest = request.manifest();
+        int attemptBudget = request.attemptBudget();
+        PathProfile path = request.path();
+        String theme = request.theme();
         String lastReason = "no attempts were made";
         // PD-149: a floor whose layout fits none of its promised node rooms is a valid
         // plan, but a poor one. Keep the first as a last resort and try further seeds.
@@ -181,15 +216,16 @@ final class LayoutPlanner {
             // manifest's.
             List<RoomRoleDefinition> populationRoles = RoleManifest.current().definitions();
             DungeonShape shape = LayoutGraphGenerator.generate(
-                    attemptSeed, minPath, maxPath, branchProbability, loopProbability, populationRoles);
+                    attemptSeed, path.minPath(), path.maxPath(), path.branchProbability(),
+                    path.loopProbability(), populationRoles);
             if (shape == null) {
                 lastReason = "shape generation exhausted its backtracking budget";
                 continue;
             }
-            if (requiredEntranceDirection != null) {
-                shape = rotateToEntranceDirection(shape, requiredEntranceDirection);
+            if (request.requiredEntranceDirection() != null) {
+                shape = rotateToEntranceDirection(shape, request.requiredEntranceDirection());
             }
-            shape = LayoutGraphGenerator.capEncounters(shape, maxEncounters);
+            shape = LayoutGraphGenerator.capEncounters(shape, request.maxEncounters());
 
             List<String> shapeProblems = LayoutGraphGenerator.validate(shape);
             if (!shapeProblems.isEmpty()) {
@@ -211,7 +247,8 @@ final class LayoutPlanner {
                 continue;
             }
 
-            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme, bagTags, recipePlan, floor);
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, theme,
+                    request.bagTags(), request.recipePlan(), request.floor());
             if (result.plan() == null) {
                 RoomSelector.Failure failure = result.failure();
                 lastReason = "no room satisfies cell " + failure.cell()
@@ -221,7 +258,7 @@ final class LayoutPlanner {
                 continue;
             }
 
-            List<String> planProblems = RoomSelector.validate(result.plan(), maxGridSpan);
+            List<String> planProblems = RoomSelector.validate(result.plan(), path.maxGridSpan());
             if (!planProblems.isEmpty()) {
                 lastReason = "plan failed validation: " + String.join("; ", planProblems);
                 continue;
