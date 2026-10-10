@@ -1,155 +1,110 @@
 package pocketdungeons;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
-import java.lang.reflect.Type;
+import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Code audit 2026-10-10: {@link DungeonLog.Entry} has 27 components and every {@code withX} method
- * restates all of them by hand, several of them {@code int}s in a row, so a swapped pair compiles
- * and silently moves a value into the wrong field. This builds an entry with a distinct value in
- * every component, runs each wither, and fails unless exactly the components the wither names
- * changed and every other one came through untouched. A wither added without an entry in
- * {@link #CHANGES} fails too, so the table cannot fall behind the record.
+ * Pins what each {@code withX} method on {@link DungeonLog.Entry} changes: exactly the
+ * accessors it is named for and nothing else, however the record is laid out inside.
+ * Starts from the fully populated golden fixture, so every field holds a distinct,
+ * non default value and a wither that dropped or crossed a field shows up as a diff.
  */
 public class EntryWitherTest {
 
-    /** Each wither and the components it is meant to change, in parameter order. */
-    private static final Map<String, List<String>> CHANGES = Map.ofEntries(
-            Map.entry("withRunStats", List.of("runsCompleted", "bestPathLength", "bestKeystoneLevel")),
-            Map.entry("withKeystone", List.of("keystoneLevel", "keystoneAffix")),
-            Map.entry("withPendingOfferLevel", List.of("pendingOfferLevel")),
-            Map.entry("withPublicListed", List.of("publicListed")),
-            Map.entry("withFuel", List.of("fuel")),
-            Map.entry("withRoomName", List.of("roomName")),
-            Map.entry("withThemeProgress", List.of("completedThemes", "currentTheme", "depth")),
-            Map.entry("withExtractedPowers", List.of("extractedPowers")),
-            Map.entry("withUnlockedShells", List.of("unlockedShells")),
-            Map.entry("withRoomCompletions", List.of("roomCompletions")),
-            Map.entry("withRecentVisitors", List.of("recentVisitors")),
-            Map.entry("withDiaryBandsSeen", List.of("diaryBandsSeen")),
-            Map.entry("withKeyProgress", List.of("keyProgress")),
-            Map.entry("withKitGranted", List.of("kitGranted")),
-            Map.entry("withBag", List.of("bag")),
-            Map.entry("withCampaign", List.of("campaign")),
-            Map.entry("withDungeonsFinished", List.of("dungeonsFinished")),
-            Map.entry("withCompass", List.of("highestCharts", "chartProgress")),
-            Map.entry("withHaul", List.of("haul")),
-            Map.entry("withHaulIntroSeen", List.of("haulIntroSeen")));
+    private static final UUID PLAYER = UUID.fromString("00000000-0000-0000-0000-00000000000a");
 
-    public static void main(String[] args) throws Exception {
-        RecordComponent[] components = DungeonLog.Entry.class.getRecordComponents();
-        DungeonLog.Entry base = build(components, 1);
+    public static void main(String[] args) throws IOException {
+        DungeonLog log = DungeonLogGoldenTest.decode(DungeonLogGoldenTest.read("full_current.json"));
+        DungeonLog.Entry base = log.get(PLAYER);
 
-        int withers = 0;
-        for (Method method : DungeonLog.Entry.class.getDeclaredMethods()) {
-            if (!method.getName().startsWith("with")) {
-                continue;
-            }
-            withers++;
-            List<String> changed = CHANGES.get(method.getName());
-            check(changed != null, method.getName() + " is a wither with no row in EntryWitherTest.CHANGES");
-            check(method.getParameterCount() == changed.size(),
-                    method.getName() + " takes " + method.getParameterCount() + " parameters but CHANGES lists "
-                            + changed.size());
-            method.setAccessible(true);
-            Object[] arguments = new Object[changed.size()];
-            for (int i = 0; i < arguments.length; i++) {
-                arguments[i] = value(component(components, changed.get(i)), 2);
-            }
-            DungeonLog.Entry result = (DungeonLog.Entry) method.invoke(base, arguments);
-            for (RecordComponent component : components) {
-                Object got = component.getAccessor().invoke(result);
-                Object was = component.getAccessor().invoke(base);
-                if (changed.contains(component.getName())) {
-                    Object wanted = value(component, 2);
-                    check(Objects.equals(got, wanted), method.getName() + " should set " + component.getName()
-                            + " to " + wanted + " but it is " + got);
-                } else {
-                    check(Objects.equals(got, was), method.getName() + " changed " + component.getName()
-                            + " from " + was + " to " + got + "; it should touch only " + changed);
-                }
-            }
-        }
-        check(withers == CHANGES.size(), "CHANGES lists " + CHANGES.size() + " withers but the record has " + withers);
-        System.out.println("EntryWitherTest passed (" + withers + " withers, " + components.length + " components)");
+        diff("withRunStats", base, base.withRunStats(1, 2, 3),
+                "runs=1", "bestPath=2", "bestKeystone=3");
+        diff("withKeystone", base, base.withKeystone(5, "fragile"), "keystone=5", "affix=fragile");
+        diff("withPendingOfferLevel", base, base.withPendingOfferLevel(9), "pending=9");
+        diff("withPublicListed", base, base.withPublicListed(false), "publicListed=false");
+        diff("withFuel", base, base.withFuel(3), "fuel=3");
+        diff("withRoomName", base, base.withRoomName("Annex"), "roomName=Annex");
+        diff("withThemeProgress", base, base.withThemeProgress(Map.of("zz", 1), "yy", 7),
+                "completed={zz=1}", "currentTheme=yy", "depth=7");
+        diff("withExtractedPowers", base, base.withExtractedPowers(Set.of("p")), "powers=[p]");
+        diff("withUnlockedShells", base, base.withUnlockedShells(Set.of("s")), "shells=[s]");
+        diff("withRoomCompletions", base, base.withRoomCompletions(9), "roomCompletions=9");
+        diff("withRecentVisitors", base,
+                base.withRecentVisitors(List.of(new DungeonLog.VisitorEntry("Zed", 5L))),
+                "visitors=[Zed@5]");
+        diff("withDiaryBandsSeen", base, base.withDiaryBandsSeen(Set.of(7)), "diary=[7]");
+        diff("withKeyProgress", base, base.withKeyProgress(4), "keyProgress=4");
+        diff("withKitGranted", base, base.withKitGranted(false), "kitGranted=false");
+        diff("withBag", base, base.withBag("scout"), "bag=scout");
+        diff("withCampaign", base, base.withCampaign(
+                        new DungeonLog.Campaign(Set.of(1), true, false, 1, false, Set.of(), 2)),
+                "acts=[1]", "campaignComplete=false", "trips=1", "whitelist=false", "decideList=[]",
+                "deepestMine=2");
+        diff("withDungeonsFinished", base, base.withDungeonsFinished(Set.of("d")), "finished=[d]");
+        diff("withCompass", base, base.withCompass(20, 2), "highestCharts=20", "chartProgress=2");
+        diff("withHaul", base, base.withHaul(1), "haul=1");
+        diff("withHaulIntroSeen", base, base.withHaulIntroSeen(false), "haulIntroSeen=false");
+
+        // The record's own clamps hold through a wither.
+        diff("withFuel clamps", base, base.withFuel(-4), "fuel=0");
+        diff("withHaul clamps", base, base.withHaul(-4), "haul=0");
+        diff("withRoomCompletions clamps", base, base.withRoomCompletions(-4), "roomCompletions=0");
+        diff("withKeyProgress clamps", base, base.withKeyProgress(-4), "keyProgress=0");
+        // A bar holding whole levels settles into the compass: 9 at compass 2 pays 4 then 5.
+        diff("withCompass settles", base, base.withCompass(2, 9), "highestCharts=4", "chartProgress=0");
+
+        // A wither does not touch the receiver.
+        check(DungeonLogGoldenTest.snapshot(base), DungeonLogGoldenTest.snapshot(log.get(PLAYER)),
+                "the base entry is unchanged by the withers above");
+
+        // resetCampaign keeps the room settings, unlocks and campaign, and zeroes the rest.
+        DungeonLog resetLog = DungeonLogGoldenTest.decode(DungeonLogGoldenTest.read("full_current.json"));
+        resetLog.resetCampaign(PLAYER);
+        diff("resetCampaign", base, resetLog.get(PLAYER),
+                "runs=0", "bestPath=0", "bestKeystone=0", "keystone=0", "affix=", "pending=0",
+                "recentThemes=[]", "completed={}", "currentTheme=", "depth=0", "powers=[]", "fuel=0",
+                "roomCompletions=0", "bag=", "keyProgress=0", "kitGranted=false", "highestCharts=0",
+                "chartProgress=0", "haul=0", "haulIntroSeen=false");
+
+        // The empty entry every unknown player reads as.
+        check(DungeonLogGoldenTest.snapshot(new DungeonLog().get(PLAYER)),
+                DungeonLogGoldenTest.snapshot(DungeonLog.NONE), "unknown player reads as NONE");
+        check(DungeonLog.NONE.campaign(), DungeonLog.Campaign.FRESH, "NONE carries the fresh campaign");
+
+        System.out.println("EntryWitherTest passed");
     }
 
-    private static DungeonLog.Entry build(RecordComponent[] components, int seed) throws Exception {
-        Class<?>[] types = new Class<?>[components.length];
-        Object[] values = new Object[components.length];
-        for (int i = 0; i < components.length; i++) {
-            types[i] = components[i].getType();
-            values[i] = value(components[i], seed);
+    /** {@code next} differs from {@code base} in exactly the snapshot lines named in {@code changes}. */
+    private static void diff(String what, DungeonLog.Entry base, DungeonLog.Entry next, String... changes) {
+        Map<String, String> before = lines(DungeonLogGoldenTest.snapshot(base));
+        Map<String, String> after = lines(DungeonLogGoldenTest.snapshot(next));
+        Map<String, String> expected = new LinkedHashMap<>(before);
+        for (String change : changes) {
+            int eq = change.indexOf('=');
+            String key = change.substring(0, eq);
+            if (!expected.containsKey(key)) {
+                throw new AssertionError(what + ": unknown snapshot key " + key);
+            }
+            expected.put(key, change);
         }
-        Constructor<DungeonLog.Entry> constructor = DungeonLog.Entry.class.getDeclaredConstructor(types);
-        constructor.setAccessible(true);
-        return constructor.newInstance(values);
+        check(after, expected, what + ": changed exactly " + List.of(changes));
     }
 
-    private static RecordComponent component(RecordComponent[] components, String name) {
-        for (RecordComponent component : components) {
-            if (component.getName().equals(name)) {
-                return component;
-            }
+    private static Map<String, String> lines(String snapshot) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String line : snapshot.split("\n")) {
+            out.put(line.substring(0, line.indexOf('=')), line);
         }
-        throw new AssertionError("Entry has no component named " + name);
+        return out;
     }
 
-    /** A value of the component's type that differs between seeds and survives the record's clamps. */
-    private static Object value(RecordComponent component, int seed) {
-        String name = component.getName();
-        Class<?> type = component.getType();
-        if (type == int.class) {
-            // The compass pair must not meet the price of a level, or the record settles it.
-            if (name.equals("highestCharts")) {
-                return seed + 10;
-            }
-            if (name.equals("chartProgress")) {
-                return seed;
-            }
-            return seed * 3 + 1;
-        }
-        if (type == boolean.class) {
-            return seed % 2 == 0;
-        }
-        if (type == String.class) {
-            return "s" + seed + name;
-        }
-        if (type == DungeonLog.Campaign.class) {
-            return new DungeonLog.Campaign(Set.of(1), true, seed % 2 == 0, seed, seed % 2 == 0, Set.of(), seed);
-        }
-        Type generic = component.getGenericType();
-        if (generic instanceof ParameterizedType parameterized) {
-            Type[] arguments = parameterized.getActualTypeArguments();
-            if (type == List.class && arguments[0] == String.class) {
-                return List.of("a" + seed);
-            }
-            if (type == List.class && arguments[0] == DungeonLog.VisitorEntry.class) {
-                return List.of(new DungeonLog.VisitorEntry("v" + seed, seed));
-            }
-            if (type == Set.class && arguments[0] == String.class) {
-                return Set.of("a" + seed);
-            }
-            if (type == Set.class && arguments[0] == Integer.class) {
-                return Set.of(seed);
-            }
-            if (type == Map.class) {
-                return Map.of("t" + seed, seed);
-            }
-        }
-        throw new AssertionError("EntryWitherTest has no sample value for " + name + " (" + generic + "); add one");
-    }
-
-    private static void check(boolean ok, String what) {
-        if (!ok) {
-            throw new AssertionError(what);
+    private static void check(Object actual, Object expected, String what) {
+        if (!expected.equals(actual)) {
+            throw new AssertionError(what + ":\nexpected " + expected + "\nbut was  " + actual);
         }
     }
 }
