@@ -30,6 +30,147 @@ import java.util.UUID;
 final class DungeonLog extends SavedData {
 
     /**
+     * A player's save record, grouped by what changes together. The six groups are the in memory
+     * shape only: {@code ENTRY_CODEC} still reads and writes one flat set of top level keys, so the
+     * saved form did not move when the record was regrouped (the golden fixtures in
+     * {@code DungeonLogGoldenTest} pin it). Every accessor of the old flat record is still here, so
+     * callers read {@code entry.runsCompleted()} as before; a wither copies one group, not every field.
+     *
+     * @param ladder   runs, best path and the keystone ladder; see {@link Ladder}
+     * @param themes   the theme trail; see {@link ThemeTrail}
+     * @param compass  the compass, its bar and the trip haul; see {@link Compass}
+     * @param room     the room settings; see {@link RoomSettings}
+     * @param unlocks  permanent unlocks, the bag and the legacy fuel; see {@link Unlocks}
+     * @param campaign          (dungeon structure W3) acts unlocked, the trip counter and the
+     *                          party decide whitelist; see {@link Campaign}.
+     */
+    record Entry(Ladder ladder, ThemeTrail themes, Compass compass, RoomSettings room,
+                 Unlocks unlocks, Campaign campaign) {
+        Entry {
+            campaign = campaign == null ? Campaign.FRESH : campaign;
+        }
+
+        // The flat accessors of the record this replaced, so no caller changes.
+        int runsCompleted() { return ladder.runsCompleted(); }
+        int bestPathLength() { return ladder.bestPathLength(); }
+        int bestKeystoneLevel() { return ladder.bestKeystoneLevel(); }
+        int keystoneLevel() { return ladder.keystoneLevel(); }
+        String keystoneAffix() { return ladder.keystoneAffix(); }
+        int pendingOfferLevel() { return ladder.pendingOfferLevel(); }
+        int keyProgress() { return ladder.keyProgress(); }
+        List<String> recentThemes() { return themes.recentThemes(); }
+        Map<String, Integer> completedThemes() { return themes.completedThemes(); }
+        String currentTheme() { return themes.currentTheme(); }
+        int depth() { return themes.depth(); }
+        int highestCharts() { return compass.highestCharts(); }
+        int chartProgress() { return compass.chartProgress(); }
+        int haul() { return compass.haul(); }
+        boolean haulIntroSeen() { return compass.haulIntroSeen(); }
+        boolean publicListed() { return room.publicListed(); }
+        String roomName() { return room.roomName(); }
+        int roomCompletions() { return room.roomCompletions(); }
+        List<VisitorEntry> recentVisitors() { return room.recentVisitors(); }
+        Set<String> extractedPowers() { return unlocks.extractedPowers(); }
+        Set<String> unlockedShells() { return unlocks.unlockedShells(); }
+        Set<Integer> diaryBandsSeen() { return unlocks.diaryBandsSeen(); }
+        Set<String> dungeonsFinished() { return unlocks.dungeonsFinished(); }
+        String bag() { return unlocks.bag(); }
+        boolean kitGranted() { return unlocks.kitGranted(); }
+        int fuel() { return unlocks.fuel(); }
+
+        /*
+         * M43.6: one wither per group of fields a DungeonLog mutator actually changes together.
+         * Each hands the change to the group that owns the fields, so a wither copies one small
+         * record and the other five groups are shared as they are.
+         */
+
+        Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
+            return new Entry(ladder.withRunStats(runsCompleted, bestPathLength, bestKeystoneLevel), themes, compass, room, unlocks, campaign);
+        }
+
+        Entry withKeystone(int keystoneLevel, String keystoneAffix) {
+            return new Entry(ladder.withKeystone(keystoneLevel, keystoneAffix), themes, compass, room, unlocks, campaign);
+        }
+
+        Entry withPendingOfferLevel(int pendingOfferLevel) {
+            return new Entry(ladder.withPendingOfferLevel(pendingOfferLevel), themes, compass, room, unlocks, campaign);
+        }
+
+        Entry withPublicListed(boolean publicListed) {
+            return new Entry(ladder, themes, compass, room.withPublicListed(publicListed), unlocks, campaign);
+        }
+
+        Entry withFuel(int fuel) {
+            return new Entry(ladder, themes, compass, room, unlocks.withFuel(fuel), campaign);
+        }
+
+        Entry withRoomName(String roomName) {
+            return new Entry(ladder, themes, compass, room.withRoomName(roomName), unlocks, campaign);
+        }
+
+        Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
+            return new Entry(ladder, themes.withThemeProgress(completedThemes, currentTheme, depth), compass, room, unlocks, campaign);
+        }
+
+        Entry withExtractedPowers(Set<String> extractedPowers) {
+            return new Entry(ladder, themes, compass, room, unlocks.withExtractedPowers(extractedPowers), campaign);
+        }
+
+        Entry withUnlockedShells(Set<String> unlockedShells) {
+            return new Entry(ladder, themes, compass, room, unlocks.withUnlockedShells(unlockedShells), campaign);
+        }
+
+        Entry withRoomCompletions(int roomCompletions) {
+            return new Entry(ladder, themes, compass, room.withRoomCompletions(roomCompletions), unlocks, campaign);
+        }
+
+        Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
+            return new Entry(ladder, themes, compass, room.withRecentVisitors(recentVisitors), unlocks, campaign);
+        }
+
+        Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
+            return new Entry(ladder, themes, compass, room, unlocks.withDiaryBandsSeen(diaryBandsSeen), campaign);
+        }
+
+        Entry withKeyProgress(int keyProgress) {
+            return new Entry(ladder.withKeyProgress(keyProgress), themes, compass, room, unlocks, campaign);
+        }
+
+        Entry withKitGranted(boolean kitGranted) {
+            return new Entry(ladder, themes, compass, room, unlocks.withKitGranted(kitGranted), campaign);
+        }
+
+        Entry withBag(String bag) {
+            return new Entry(ladder, themes, compass, room, unlocks.withBag(bag), campaign);
+        }
+
+        Entry withCampaign(Campaign campaign) {
+            return new Entry(ladder, themes, compass, room, unlocks, campaign);
+        }
+
+        Entry withDungeonsFinished(Set<String> dungeonsFinished) {
+            return new Entry(ladder, themes, compass, room, unlocks.withDungeonsFinished(dungeonsFinished), campaign);
+        }
+
+        Entry withCompass(int highestCharts, int chartProgress) {
+            return new Entry(ladder, themes, compass.withCompass(highestCharts, chartProgress), room, unlocks, campaign);
+        }
+
+        Entry withHaul(int haul) {
+            return new Entry(ladder, themes, compass.withHaul(haul), room, unlocks, campaign);
+        }
+
+        Entry withHaulIntroSeen(boolean haulIntroSeen) {
+            return new Entry(ladder, themes, compass.withHaulIntroSeen(haulIntroSeen), room, unlocks, campaign);
+        }
+    }
+
+    /**
+     * The keystone ladder: how far a player has run and climbed. Part of {@link Entry}.
+     *
+     * @param runsCompleted      how many dungeons this player has finished
+     * @param bestPathLength      the longest path of any finished dungeon
+     * @param bestKeystoneLevel  the highest keystone level a run was completed at
      * @param keystoneLevel      <strong>the player's keystone.</strong> {@code 0}
      *                           means they have never minted one. This is the
      *                           authority: the item in their inventory is a
@@ -54,6 +195,46 @@ final class DungeonLog extends SavedData {
      *                           Persisted so it survives a logout, a restart, or
      *                           losing the compass -- the selector room is not
      *                           the authority, this is (U8 Stage 3).
+     * @param keyProgress       (audit wave 2b) door steps banked toward the
+     *                          next keystone level and not yet spent on one:
+     *                          the remainder of {@link IntervalBanking}'s
+     *                          average-of-doors rule, carried from one interval
+     *                          to the next. Optional in the codec with a
+     *                          default of 0, so an older save loads with no
+     *                          partial progress.
+     */
+    record Ladder(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
+                  int keystoneLevel, String keystoneAffix, int pendingOfferLevel, int keyProgress) {
+        static final Ladder EMPTY = new Ladder(0, 0, 0, 0, "", 0, 0);
+
+        Ladder {
+            keyProgress = Math.max(0, keyProgress);
+        }
+
+        Ladder withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
+            return new Ladder(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, keyProgress);
+        }
+
+        Ladder withKeystone(int keystoneLevel, String keystoneAffix) {
+            return new Ladder(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, keyProgress);
+        }
+
+        Ladder withPendingOfferLevel(int pendingOfferLevel) {
+            return new Ladder(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, keyProgress);
+        }
+
+        Ladder withKeyProgress(int keyProgress) {
+            return new Ladder(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
+                    pendingOfferLevel, keyProgress);
+        }
+    }
+
+    /**
+     * The theme trail, almost all of it superseded but still saved. Part of {@link Entry}.
+     *
      * @param recentThemes       superseded (M11): the recipe system's 3-deep
      *                           ordered window, replaced by {@code currentTheme}
      *                           below. {@code RecipeMatcher}/{@code DungeonRecipes}
@@ -61,6 +242,7 @@ final class DungeonLog extends SavedData {
      *                           the field and its codec entry stay so a pre-M11
      *                           save still loads, until a migration confirms no
      *                           live save carries the old data.
+     * @param completedThemes    how many times each theme has been completed; never shrinks
      * @param currentTheme       superseded (dungeon structure W2): doors no longer
      *                           read this; a trip's position lives on
      *                           {@code IntervalState} and the doors are the current
@@ -85,17 +267,67 @@ final class DungeonLog extends SavedData {
      *                           across the instance watcher's reconciliations;
      *                           does not yet reweight the pick itself (see
      *                           {@link AdventureGraph}'s class note).
-     * @param extractedPowers    (M17) every power id the Herobrine Cube has
-     *                           permanently unlocked for this player, one entry
-     *                           per extraction, never truncated: the same
-     *                           never-shrinks shape as {@code completedThemes}.
-     *                           A power id names an {@link AdventureGraph.Node}
-     *                           reward ({@link AdventureGraph.Node#reward}), so
-     *                           it is stable across a reload as long as the node
-     *                           keeps the same reward id. Extraction was
-     *                           designed irreversible, so this set only
-     *                           grows; whatever undo ritual removes an entry
-     *                           is trusted to do so deliberately.
+     */
+    record ThemeTrail(List<String> recentThemes, Map<String, Integer> completedThemes,
+                      String currentTheme, int depth) {
+        static final ThemeTrail EMPTY = new ThemeTrail(List.of(), Map.of(), "", 0);
+
+        ThemeTrail {
+            recentThemes = List.copyOf(recentThemes);
+            completedThemes = Map.copyOf(completedThemes);
+            currentTheme = currentTheme == null ? "" : currentTheme;
+            depth = Math.max(0, depth);
+        }
+
+        ThemeTrail withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
+            return new ThemeTrail(recentThemes, completedThemes, currentTheme, depth);
+        }
+    }
+
+    /**
+     * The compass, its bar and the trip haul. Part of {@link Entry}.
+     *
+     * @param highestCharts     the compass: the highest level this member has ever
+     *                          reached ({@link ScrapMath}); permanent, only ever rises.
+     *                          Optional in the codec with a default of 0.
+     * @param chartProgress     banked scrap toward the next compass level, 0 to 4.
+     *                          Optional in the codec; an absent value migrates from the
+     *                          old scrap pool ({@link ScrapMath#migratedProgress}).
+     * @param haul              scrap carried on the current trip: paid at each floor
+     *                          clear, banked at home or a finish, half lost to a failed
+     *                          dungeon. Optional in the codec with a default of 0.
+     * @param haulIntroSeen     whether the one time "scrap rides in your haul now"
+     *                          message was shown. Optional in the codec.
+     */
+    record Compass(int highestCharts, int chartProgress, int haul, boolean haulIntroSeen) {
+        static final Compass EMPTY = new Compass(0, 0, 0, false);
+
+        Compass {
+            highestCharts = Math.max(0, highestCharts);
+            // A bar can never hold a full level (design pass 2026-10-09: the price of a level changed, so a
+            // saved bar can already meet it). Settle any whole levels it holds; the compass only rises.
+            ScrapMath.Banked settled = ScrapMath.bank(highestCharts, chartProgress, 0);
+            highestCharts = settled.compass();
+            chartProgress = settled.progress();
+            haul = Math.max(0, haul);
+        }
+
+        Compass withCompass(int highestCharts, int chartProgress) {
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+        }
+
+        Compass withHaul(int haul) {
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+        }
+
+        Compass withHaulIntroSeen(boolean haulIntroSeen) {
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+        }
+    }
+
+    /**
+     * The room settings and visit history. Part of {@link Entry}.
+     *
      * @param publicListed      (M20) whether this player's room appears in the
      *                           lobby directory ({@link DialogScreens#lobbyBrowser}).
      *                           Defaults to {@code false}: a room is listed only
@@ -108,19 +340,6 @@ final class DungeonLog extends SavedData {
      *                           the owner's player name instead. A label, not an
      *                           address: the directory routes on the owner UUID
      *                           carried in the button payload, never on this.
-     * @param fuel               superseded by J1 (2026-10-06): the echo shards
-     *                           this player had banked in the engine terminal.
-     *                           The Fuel currency is gone entirely; a leftover
-     *                           balance is simply ignored, per the owner's call
-     *                           that banked shards get no migration. The codec
-     *                           field stays (CONVENTIONS.md).
-     * @param unlockedShells     (M24) every shell palette this player has
-     *                           permanently unlocked, one entry per unlock name
-     *                           (see {@code RoomBuilder.SHELL_PALETTES}),
-     *                           never truncated: the same never-shrinks shape
-     *                           as {@code completedThemes}. Held per player,
-     *                           not per room: the unlocks are the campaign, and
-     *                           a player carries them across room resets.
      * @param roomCompletions    (M24) how many runs this player has completed
      *                           while holding the same room without resetting
      *                           it. The prestige count: holding one room is
@@ -134,6 +353,55 @@ final class DungeonLog extends SavedData {
      *                           drops the oldest entry. Host-visible only, from
      *                           the wall terminal's Recent visitors option; a
      *                           visitor never sees who else has been here.
+     */
+    record RoomSettings(boolean publicListed, String roomName, int roomCompletions,
+                        List<VisitorEntry> recentVisitors) {
+        static final RoomSettings EMPTY = new RoomSettings(false, "", 0, List.of());
+
+        RoomSettings {
+            roomName = roomName == null ? "" : roomName;
+            roomCompletions = Math.max(0, roomCompletions);
+            recentVisitors = List.copyOf(recentVisitors);
+        }
+
+        RoomSettings withPublicListed(boolean publicListed) {
+            return new RoomSettings(publicListed, roomName, roomCompletions, recentVisitors);
+        }
+
+        RoomSettings withRoomName(String roomName) {
+            return new RoomSettings(publicListed, roomName, roomCompletions, recentVisitors);
+        }
+
+        RoomSettings withRoomCompletions(int roomCompletions) {
+            return new RoomSettings(publicListed, roomName, roomCompletions, recentVisitors);
+        }
+
+        RoomSettings withRecentVisitors(List<VisitorEntry> recentVisitors) {
+            return new RoomSettings(publicListed, roomName, roomCompletions, recentVisitors);
+        }
+    }
+
+    /**
+     * What a player has permanently unlocked or chosen. Part of {@link Entry}.
+     *
+     * @param extractedPowers    (M17) every power id the Herobrine Cube has
+     *                           permanently unlocked for this player, one entry
+     *                           per extraction, never truncated: the same
+     *                           never-shrinks shape as {@code completedThemes}.
+     *                           A power id names an {@link AdventureGraph.Node}
+     *                           reward ({@link AdventureGraph.Node#reward}), so
+     *                           it is stable across a reload as long as the node
+     *                           keeps the same reward id. Extraction was
+     *                           designed irreversible, so this set only
+     *                           grows; whatever undo ritual removes an entry
+     *                           is trusted to do so deliberately.
+     * @param unlockedShells     (M24) every shell palette this player has
+     *                           permanently unlocked, one entry per unlock name
+     *                           (see {@code RoomBuilder.SHELL_PALETTES}),
+     *                           never truncated: the same never-shrinks shape
+     *                           as {@code completedThemes}. Held per player,
+     *                           not per room: the unlocks are the campaign, and
+     *                           a player carries them across room resets.
      * @param diaryBandsSeen     (M26) every intensifier band index ({@link
      *                           AffixMath#intensifierBandIndex}) this player
      *                           has already received a diary book for, one
@@ -142,6 +410,7 @@ final class DungeonLog extends SavedData {
      *                           and {@code unlockedShells}. Guards the drop in
      *                           {@code RunLifecycle.completeRun} against
      *                           handing the same band's book out twice.
+     * @param dungeonsFinished   (dungeon structure W2) every dungeon id this player has cleared a final floor of; never truncated
      * @param bag               (M48) this player's chosen bag id, or {@code ""}
      *                          for none yet. A bag is the player's class: a
      *                          starting inventory chosen once via the bag chest
@@ -150,13 +419,6 @@ final class DungeonLog extends SavedData {
      *                          {@link #resetCampaign}. Empty is the pre-choice
      *                          state and the post-reset state; it is never the
      *                          Pilgrim default, because Pilgrim is a choice.
-     * @param keyProgress       (audit wave 2b) door steps banked toward the
-     *                          next keystone level and not yet spent on one:
-     *                          the remainder of {@link IntervalBanking}'s
-     *                          average-of-doors rule, carried from one interval
-     *                          to the next. Optional in the codec with a
-     *                          default of 0, so an older save loads with no
-     *                          partial progress.
      * @param kitGranted        (audit wave 2c) whether this player's bag kit
      *                          has been handed over under the grant-once model:
      *                          set when the bag is chosen, cleared with the bag
@@ -165,184 +427,52 @@ final class DungeonLog extends SavedData {
      *                          being reapplied on entry, and gets one migration
      *                          grant on their next entry. Optional in the codec
      *                          with a default of {@code false}.
-     * @param campaign          (dungeon structure W3) acts unlocked, the trip counter and the
-     *                          party decide whitelist; see {@link Campaign}.
-     * @param highestCharts     the compass: the highest level this member has ever
-     *                          reached ({@link ScrapMath}); permanent, only ever rises.
-     *                          Optional in the codec with a default of 0.
-     * @param chartProgress     banked scrap toward the next compass level, 0 to 4.
-     *                          Optional in the codec; an absent value migrates from the
-     *                          old scrap pool ({@link ScrapMath#migratedProgress}).
-     * @param haul              scrap carried on the current trip: paid at each floor
-     *                          clear, banked at home or a finish, half lost to a failed
-     *                          dungeon. Optional in the codec with a default of 0.
-     * @param haulIntroSeen     whether the one time "scrap rides in your haul now"
-     *                          message was shown. Optional in the codec.
+     * @param fuel               superseded by J1 (2026-10-06): the echo shards
+     *                           this player had banked in the engine terminal.
+     *                           The Fuel currency is gone entirely; a leftover
+     *                           balance is simply ignored, per the owner's call
+     *                           that banked shards get no migration. The codec
+     *                           field stays (CONVENTIONS.md).
      */
-    record Entry(int runsCompleted, int bestPathLength, int bestKeystoneLevel,
-                 int keystoneLevel, String keystoneAffix, int pendingOfferLevel,
-                 List<String> recentThemes, Map<String, Integer> completedThemes,
-                 String currentTheme, int depth, Set<String> extractedPowers,
-                 boolean publicListed, String roomName, int fuel,
-                 Set<String> unlockedShells, int roomCompletions,
-                 List<VisitorEntry> recentVisitors, Set<Integer> diaryBandsSeen,
-                 String bag, int keyProgress, boolean kitGranted, Set<String> dungeonsFinished,
-                 Campaign campaign, int highestCharts, int chartProgress, int haul,
-                 boolean haulIntroSeen) {
-        Entry {
-            recentThemes = List.copyOf(recentThemes);
-            completedThemes = Map.copyOf(completedThemes);
-            currentTheme = currentTheme == null ? "" : currentTheme;
-            depth = Math.max(0, depth);
+    record Unlocks(Set<String> extractedPowers, Set<String> unlockedShells, Set<Integer> diaryBandsSeen,
+                   Set<String> dungeonsFinished, String bag, boolean kitGranted, int fuel) {
+        static final Unlocks EMPTY = new Unlocks(Set.of(), Set.of(), Set.of(), Set.of(), "", false, 0);
+
+        Unlocks {
             extractedPowers = Set.copyOf(extractedPowers);
-            roomName = roomName == null ? "" : roomName;
-            fuel = Math.max(0, fuel);
             unlockedShells = Set.copyOf(unlockedShells);
-            roomCompletions = Math.max(0, roomCompletions);
-            recentVisitors = List.copyOf(recentVisitors);
             diaryBandsSeen = Set.copyOf(diaryBandsSeen);
-            bag = bag == null ? "" : bag;
-            keyProgress = Math.max(0, keyProgress);
             dungeonsFinished = Set.copyOf(dungeonsFinished);
-            campaign = campaign == null ? Campaign.FRESH : campaign;
-            highestCharts = Math.max(0, highestCharts);
-            // A bar can never hold a full level (design pass 2026-10-09: the price of a level changed, so a
-            // saved bar can already meet it). Settle any whole levels it holds; the compass only rises.
-            ScrapMath.Banked settled = ScrapMath.bank(highestCharts, chartProgress, 0);
-            highestCharts = settled.compass();
-            chartProgress = settled.progress();
-            haul = Math.max(0, haul);
+            bag = bag == null ? "" : bag;
+            fuel = Math.max(0, fuel);
         }
 
-        /*
-         * M43.6: one wither per group of fields a DungeonLog mutator actually
-         * changes together, so a mutator states only what it is changing
-         * instead of restating all 16 other fields by hand. Grouped by call
-         * site rather than one-wither-per-field: recordCompletion changes
-         * three run-stat fields at once, recordTheme changes three
-         * theme-progress fields at once, and a wither per individual field
-         * would still leave those two call sites building an intermediate
-         * Entry (or passing four separate withX calls) for no benefit.
-         */
-
-        Entry withRunStats(int runsCompleted, int bestPathLength, int bestKeystoneLevel) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withFuel(int fuel) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withKeystone(int keystoneLevel, String keystoneAffix) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withExtractedPowers(Set<String> extractedPowers) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withPendingOfferLevel(int pendingOfferLevel) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withUnlockedShells(Set<String> unlockedShells) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withPublicListed(boolean publicListed) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withFuel(int fuel) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withDungeonsFinished(Set<String> dungeonsFinished) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withRoomName(String roomName) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withBag(String bag) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
 
-        Entry withThemeProgress(Map<String, Integer> completedThemes, String currentTheme, int depth) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withExtractedPowers(Set<String> extractedPowers) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withUnlockedShells(Set<String> unlockedShells) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withRoomCompletions(int roomCompletions) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withRecentVisitors(List<VisitorEntry> recentVisitors) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withDiaryBandsSeen(Set<Integer> diaryBandsSeen) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withKeyProgress(int keyProgress) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withKitGranted(boolean kitGranted) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withBag(String bag) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withCampaign(Campaign campaign) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withDungeonsFinished(Set<String> dungeonsFinished) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withCompass(int highestCharts, int chartProgress) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withHaul(int haul) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
-        }
-
-        Entry withHaulIntroSeen(boolean haulIntroSeen) {
-            return new Entry(runsCompleted, bestPathLength, bestKeystoneLevel, keystoneLevel, keystoneAffix,
-                    pendingOfferLevel, recentThemes, completedThemes, currentTheme, depth, extractedPowers,
-                    publicListed, roomName, fuel, unlockedShells, roomCompletions, recentVisitors, diaryBandsSeen, bag, keyProgress, kitGranted, dungeonsFinished, campaign, highestCharts, chartProgress, haul, haulIntroSeen);
+        Unlocks withKitGranted(boolean kitGranted) {
+            return new Unlocks(extractedPowers, unlockedShells, diaryBandsSeen, dungeonsFinished, bag, kitGranted, fuel);
         }
     }
 
@@ -428,8 +558,8 @@ final class DungeonLog extends SavedData {
 
     static final int MAX_RECENT_VISITORS = 10;
 
-    static final Entry NONE = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-            false, "", 0, Set.of(), 0, List.of(), Set.of(), "", 0, false, Set.of(), Campaign.FRESH, 0, 0, 0, false);
+    static final Entry NONE = new Entry(Ladder.EMPTY, ThemeTrail.EMPTY, Compass.EMPTY, RoomSettings.EMPTY,
+            Unlocks.EMPTY, Campaign.FRESH);
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -691,20 +821,21 @@ final class DungeonLog extends SavedData {
                 PartB b = outer.getFirst().getSecond();
                 PartC c = outer.getSecond();
                 int compass = Math.max(b.highestCharts(), a.keystoneLevel());
-                return new Entry(a.runsCompleted(), a.bestPathLength(), a.bestKeystoneLevel(),
-                        a.keystoneLevel(), a.keystoneAffix(), a.pendingOfferLevel(), a.recentThemes(),
-                        a.completedThemes(), a.currentTheme(), b.depth(), b.extractedPowers(),
-                        b.publicListed(), b.roomName(), b.fuel(), b.unlockedShells(),
-                        b.roomCompletions(), b.recentVisitors(), b.diaryBandsSeen(), b.bag(),
-                        b.keyProgress(), b.kitGranted(), b.dungeonsFinished(),
+                return new Entry(
+                        new Ladder(a.runsCompleted(), a.bestPathLength(), a.bestKeystoneLevel(),
+                                a.keystoneLevel(), a.keystoneAffix(), a.pendingOfferLevel(), b.keyProgress()),
+                        new ThemeTrail(a.recentThemes(), a.completedThemes(), a.currentTheme(), b.depth()),
+                        // A pre-scrap save keeps its keystone as the permanent compass. The bar
+                        // is the stored one, else what the old pool held past the compass.
+                        new Compass(compass, c.chartProgress().orElse(ScrapMath.migratedProgress(b.legacyScrap(), compass)),
+                                c.haul(), c.haulIntroSeen()),
+                        new RoomSettings(b.publicListed(), b.roomName(), b.roomCompletions(), b.recentVisitors()),
+                        new Unlocks(b.extractedPowers(), b.unlockedShells(), b.diaryBandsSeen(),
+                                b.dungeonsFinished(), b.bag(), b.kitGranted(), b.fuel()),
                         new Campaign(c.actsUnlocked(), c.actsMigrated(), c.campaignComplete(),
                                 c.tripCounter(), c.decideWhitelist(), uuids(c.decideList()),
                                 c.deepestMineFloor())
-                                .migratedFor(a.keystoneLevel()),
-                        // A pre-scrap save keeps its keystone as the permanent compass. The bar
-                        // is the stored one, else what the old pool held past the compass.
-                        compass, c.chartProgress().orElse(ScrapMath.migratedProgress(b.legacyScrap(), compass)),
-                        c.haul(), c.haulIntroSeen());
+                                .migratedFor(a.keystoneLevel()));
             },
             entry -> com.mojang.datafixers.util.Pair.of(com.mojang.datafixers.util.Pair.of(
                     new PartA(entry.runsCompleted(), entry.bestPathLength(), entry.bestKeystoneLevel(),
@@ -1702,10 +1833,11 @@ final class DungeonLog extends SavedData {
      */
     void resetCampaign(UUID player) {
         Entry previous = get(player);
-        Entry reset = new Entry(0, 0, 0, 0, "", 0, List.of(), Map.of(), "", 0, Set.of(),
-                previous.publicListed(), previous.roomName(), 0, previous.unlockedShells(),
-                0, previous.recentVisitors(), previous.diaryBandsSeen(), "", 0, false,
-                previous.dungeonsFinished(), previous.campaign(), 0, 0, 0, false);
+        Entry reset = new Entry(Ladder.EMPTY, ThemeTrail.EMPTY, Compass.EMPTY,
+                previous.room().withRoomCompletions(0),
+                new Unlocks(Set.of(), previous.unlockedShells(), previous.diaryBandsSeen(),
+                        previous.dungeonsFinished(), "", false, 0),
+                previous.campaign());
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
