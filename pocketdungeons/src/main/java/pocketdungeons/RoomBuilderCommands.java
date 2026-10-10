@@ -116,7 +116,7 @@ final class RoomBuilderCommands {
      */
     private static int newBuildRoom(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        int slot = Instances.adminBuildRoom(source.getServer(), player);
+        int slot = InstanceAdmin.adminBuildRoom(source.getServer(), player);
         if (slot == -2) {
             source.sendFailure(Component.literal(
                     "You are inside a live instance. Leave it before opening a build room."));
@@ -154,7 +154,7 @@ final class RoomBuilderCommands {
         }
 
         // Open a build shell first (same path as newBuildRoom).
-        int slot = Instances.adminBuildRoom(server, player);
+        int slot = InstanceAdmin.adminBuildRoom(server, player);
         if (slot == -2) {
             source.sendFailure(Component.literal(
                     "You are inside a live instance. Leave it before opening a build room."));
@@ -516,7 +516,7 @@ final class RoomBuilderCommands {
                     if (server == null) {
                         return;
                     }
-                    int slot = Instances.adminBuildRoom(server, player);
+                    int slot = InstanceAdmin.adminBuildRoom(server, player);
                     if (slot < 0) {
                         player.sendSystemMessage(Component.literal(
                                 "Could not open a build room.")

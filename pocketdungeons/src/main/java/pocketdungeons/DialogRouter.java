@@ -348,7 +348,7 @@ public final class DialogRouter {
                     .withStyle(ChatFormatting.RED));
             return;
         }
-        Instances.adminPurgeByOwner(server, owner.getUUID());
+        InstanceAdmin.adminPurgeByOwner(server, owner.getUUID());
         RoomStore.reset(server, owner.getUUID());
         DungeonLog.forServer(server).setRoomCompletions(owner.getUUID(), 0);
         owner.sendOverlayMessage(Component.literal("Room reset.").withStyle(ChatFormatting.YELLOW));

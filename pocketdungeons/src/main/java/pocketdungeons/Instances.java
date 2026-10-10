@@ -10,7 +10,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -29,10 +28,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -47,7 +42,6 @@ import net.minecraft.world.phys.Vec3;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -213,7 +207,7 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 // The dungeon\u0027s uniform (design pass 2026-10-09, Q5): the Copper Works crew wears copper.
                 DungeonDef uniformOf = TripView.def(record);
                 if (uniformOf != null && uniformOf.mobUniform() != null) {
@@ -2180,7 +2174,7 @@ final class Instances {
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
                 mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
-                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
         }
@@ -2981,16 +2975,6 @@ final class Instances {
         return null;
     }
 
-    // ---- mob scaling (M10) ---------------------------------------------------
-
-    /** The one shown by {@code AttributeInstance}'s modifier map, stable across reapplications. */
-    private static final Identifier MOB_SCALE_ID = Identifier.fromNamespaceAndPath(
-            PocketDungeonsMod.MOD_ID, "difficulty_scale");
-
-    /** Separate modifier id for the Breeze HP override, so it does not collide with the level scaler. */
-    private static final Identifier BREEZE_HP_ID = Identifier.fromNamespaceAndPath(
-            PocketDungeonsMod.MOD_ID, "breeze_hp_override");
-
     /**
      * The live instance whose bounds contain {@code pos}, or {@code null}. Used
      * for mob scaling rather than a cell/chunk lookup because a mob's spawn
@@ -3012,350 +2996,6 @@ final class Instances {
             }
         }
         return null;
-    }
-
-    /**
-     * +0.8% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
-     * level, on max health, attack damage and movement speed: a level-100 run's
-     * mobs land at roughly 1.45x strength. {@code ADD_MULTIPLIED_TOTAL} so the
-     * bonus scales whatever base value the mob already has rather than adding a
-     * flat number that means nothing on a skeleton and everything on a bee.
-     *
-     * <p>Package-visible rather than {@code private}: {@link FeralContent}'s
-     * wolves are spawned directly at stamp time, before {@code ENTITY_LOAD} would
-     * ever find an {@link InstanceRecord} whose layout matches (the record still
-     * carries the lobby's tiny one-cell layout at that point), so they cannot
-     * rely on the listener below and call this straight from the spawn callback
-     * where the run's keystone level is already known.
-     *
-     * <p>Idempotent under the same modifier id: a repeat call for the same
-     * entity (a chunk reload's {@code ENTITY_LOAD} firing again, or the listener
-     * and a direct caller both reaching the same mob) replaces the modifier
-     * rather than stacking it. Health is topped up only when the mob was at full
-     * health <em>before</em> this ran: a fresh spawn always is, and topping it
-     * up is what keeps it from reading as already-damaged the instant it
-     * appears. A mob re-entering tracking mid-fight is not, and must keep
-     * whatever damage it already has.
-     */
-    static void applyMobScale(Mob mob, int keystoneLevel) {
-        applyMobScale(mob, keystoneLevel, 0);
-    }
-
-    static void applyMobScale(Mob mob, int keystoneLevel, int omen) {
-        double omenBonus = Omen.clamp(omen) * PocketDungeonsConfig.omenDangerScalePerOmen();
-        applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
-                PocketDungeonsConfig.mobScalePerLevel(),
-                PocketDungeonsConfig.mobScaleBase()) - 1.0 + omenBonus);
-        // Breezes are disproportionately tedious to kill for their threat level:
-        // high HP plus high mobility means a player spends most of the fight
-        // chasing, not hitting. An additional HP-only cut on top of the level
-        // scaling brings them in line with everything else on the spawner roster.
-        if (mob.getType() == EntityTypes.BREEZE) {
-            double multiplier = PocketDungeonsConfig.breezeHpMultiplier();
-            if (multiplier > 0.0 && multiplier != 1.0) {
-                boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
-                AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
-                if (health != null) {
-                    health.addOrUpdateTransientModifier(new AttributeModifier(
-                            BREEZE_HP_ID, multiplier - 1.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-                    if (wasFullHealth) {
-                        mob.setHealth(mob.getMaxHealth());
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * The bonus-taking half of {@link #applyMobScale}, exposed separately for
-     * {@link BossContent}: a boss run's mob wants a steeper bonus than the
-     * ordinary {@code mobScalePerLevel} curve, not the same one.
-     */
-    static void applyMobScaleBonus(Mob mob, double bonus) {
-        if (bonus == 0.0) {
-            return;
-        }
-        boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
-        boolean scaledHealth = scaleAttribute(mob, Attributes.MAX_HEALTH, bonus);
-        scaleAttribute(mob, Attributes.ATTACK_DAMAGE, bonus);
-        scaleAttribute(mob, Attributes.MOVEMENT_SPEED, bonus);
-        if (scaledHealth && wasFullHealth) {
-            mob.setHealth(mob.getMaxHealth());
-        }
-    }
-
-    private static boolean scaleAttribute(Mob mob, Holder<Attribute> attribute, double bonus) {
-        AttributeInstance instance = mob.getAttribute(attribute);
-        if (instance == null) {
-            return false;
-        }
-        instance.addOrUpdateTransientModifier(new AttributeModifier(
-                MOB_SCALE_ID, bonus, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-        return true;
-    }
-
-    // ---- admin (spec section 10) --------------------------------------------
-
-    /**
-     * Stamps an unowned instance. This is how the build is verified without a
-     * client attached -- the console can build one, inspect it with
-     * {@code /execute if block}, and purge it again.
-     *
-     * <p>A memberless record is registered for the built slot so teardown knows
-     * the layout it has to clear. {@code InstanceRegistry.bySlot} already documents that it holds
-     * instances which momentarily have no members, and nothing purges an empty
-     * instance on its own, so the record is stable until an operator purges it.
-     *
-     * @param seed the layout seed, or null to roll one
-     * @return the slot, or -1 if the dimension is missing or stamping failed
-     */
-    static int adminBuild(MinecraftServer server, Long seed) {
-        return adminBuild(server, seed, 0, false);
-    }
-
-    /**
-     * Same, at a chosen keystone level and ominous flag, so U6's and U7's tier and
-     * ominous behaviour can be inspected headlessly without a player, a keystone,
-     * or a lodestone.
-     */
-    static int adminBuild(MinecraftServer server, Long seed, int keystoneLevel, boolean ominous) {
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return -1;
-        }
-        int slot = InstanceRegistry.allocateSlot();
-        BlockPos origin = InstanceRegistry.originForSlot(slot);
-
-        InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel,
-                ominous ? Set.of(AffixIds.OMINOUS) : Set.of(), null, null);
-        if (layout == null) {
-            // Slot release is deferred to the clear buildLayout already queued
-            // for whatever it wrote -- see buildLayout's note.
-            return -1;
-        }
-
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Set.of(), null, false);
-        InstanceRegistry.bySlot.put(slot, record);
-        return slot;
-    }
-
-    /**
-     * Opens the operator's hand-authoring shell for {@code /dungeon admin
-     * buildroom}: one empty cell in the dungeon dimension, stamped with just
-     * {@link RoomBuilder#buildShell}: no doors, no keystone, no
-     * protection, and no room-store capture. The cell is a template under
-     * construction; {@link #adminSaveRoom} captures it out.
-     *
-     * <p>One build room per player: an existing one is torn down first,
-     * whatever state it is in.
-     *
-     * @return the slot, or -1 if the dimension is missing or stamping failed,
-     *         or -2 if the player is already inside a live instance
-     */
-    static int adminBuildRoom(MinecraftServer server, ServerPlayer player) {
-        if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
-            return -2;
-        }
-        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (record.adminBuild && player.getUUID().equals(record.owner)) {
-                InstanceTeardown.purge(server, record, "replaced by a fresh build room");
-            }
-        }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return -1;
-        }
-        int slot = InstanceRegistry.allocateSlot();
-        BlockPos origin = InstanceRegistry.originForSlot(slot);
-        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
-        try {
-            RoomBuilder.buildShell(level, origin, RoomBuilder.FLOOR);
-        } catch (RuntimeException e) {
-            // Same as stampLobby: sweep the partial shell through a teardown,
-            // which releases the ticket and the slot once its clear finishes.
-            PocketDungeonsMod.LOG.error("Could not stamp a build room for {}; clearing whatever was written",
-                    player.getUUID(), e);
-            InstanceTeardown.teardown(server, slot, origin, lobbyLayout(origin), "build room stamp failed");
-            return -1;
-        }
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), lobbyLayout(origin),
-                Set.of(), player.getUUID(), false, true);
-        InstanceRegistry.bySlot.put(slot, record);
-        admit(server, record, player);
-        // admit lands on the lobby layout's corner entrance; centre the author.
-        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
-                Vec3.atBottomCenterOf(RoomBuilder.cellCentre(origin, 0, 0)), 0.0f, 0.0f);
-        // Issue the Room Editor Kit automatically on entry.
-        RoomEditorKit.issueKit(player);
-        return slot;
-    }
-
-    /**
-     * Captures the player's build room to a hand-authored template file for
-     * {@code /dungeon admin saveroom}, returns them to the overworld spawn,
-     * and tears the room down. The capture runs first, while the cell is still
-     * standing: the teardown queues a tick-spread clear that would otherwise
-     * race it (PD-8's shape).
-     *
-     * @return the path of the written file, or {@code null} if the player has
-     *         no build room open or the save failed
-     */
-    static String adminSaveRoom(MinecraftServer server, ServerPlayer player, String name) {
-        InstanceRecord record = null;
-        for (InstanceRecord r : InstanceRegistry.bySlot.values()) {
-            if (r.adminBuild && player.getUUID().equals(r.owner)) {
-                record = r;
-                break;
-            }
-        }
-        if (record == null) {
-            return null;
-        }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return null;
-        }
-        Path saved = RoomTemplateGenerator.captureRoomToFile(level, record.origin, name,
-                player.getName().getString(), player.getUUID());
-        if (saved == null) {
-            return null;
-        }
-        // Drop the member before purging so the teardown has nobody to eject
-        // (and therefore nothing to teleport back to the old return point),
-        // then put the author at world spawn and clear the slot.
-        RunLifecycle.dropMember(server, record, player.getUUID(), player, "build room saved");
-        sendToWorldSpawn(server, player);
-        InstanceTeardown.purge(server, record, "build room saved");
-        return saved.toString();
-    }
-
-    /** The layout of a built slot, for admin reporting. Null if the slot is unknown. */
-    static InstanceLayout adminLayout(int slot) {
-        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-        return record != null ? record.layout : null;
-    }
-
-    /** Force teardown by slot, whether or not anyone is inside it. */
-    static boolean adminPurge(MinecraftServer server, int slot) {
-        if (!InstanceRegistry.usedSlots.contains(slot)) {
-            return false;
-        }
-        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-        if (record != null) {
-            InstanceTeardown.purge(server, record, "purged by an operator");
-        } else {
-            InstanceTeardown.teardown(server, slot, InstanceRegistry.originForSlot(slot), null, "purged by an operator");
-        }
-        return true;
-    }
-
-    /**
-     * Purges every live instance {@code owner} has open right now: their
-     * lobby, an active run, and any visit instance of their
-     * room (a stale copy of the room {@code /dungeon admin resetroom} is about
-     * to delete, so it has no reason to keep standing). For
-     * {@code /dungeon admin resetroom}, ahead of wiping the saved blob: a room
-     * still open in the world would otherwise get re-captured out from under
-     * the reset the next time its owner leaves it.
-     *
-     * @return how many slots were purged
-     */
-    static int adminPurgeByOwner(MinecraftServer server, UUID owner) {
-        int purged = 0;
-        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (owner.equals(record.owner)) {
-                InstanceTeardown.purge(server, record, "room reset by an operator");
-                // PD-5: prevent the deferred saveRoom queued by purge from
-                // overwriting the file reset is about to delete. saveRoom
-                // checks roomCellOrigin == null at execution time and returns
-                // early, so no capture runs after the reset.
-                record.roomCellOrigin = null;
-                purged++;
-            }
-        }
-        return purged;
-    }
-
-    /** One line per live instance, for {@code /dungeon admin list}. */
-    static List<String> adminList(MinecraftServer server) {
-        List<String> lines = new ArrayList<>();
-        for (int slot : InstanceRegistry.usedSlots) {
-            BlockPos origin = InstanceRegistry.originForSlot(slot);
-            InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-            if (record == null) {
-                lines.add("slot " + slot + " at " + origin.toShortString() + ": unowned (admin build)");
-                continue;
-            }
-            List<String> names = new ArrayList<>();
-            for (UUID member : record.members.keySet()) {
-                ServerPlayer player = server.getPlayerList().getPlayer(member);
-                names.add(player != null ? player.getName().getString() : member.toString());
-            }
-            long ageSeconds = (server.overworld().getGameTime() - record.createdAtTick) / 20L;
-            InstanceLayout layout = record.layout;
-            String who = names.isEmpty() ? "unowned (admin build)"
-                    : String.join(", ", names) + " (" + names.size() + ")";
-            lines.add("slot " + slot + " at " + origin.toShortString()
-                    + (record.untimed ? " (UNTIMED, never expires)" : "")
-                    + (record.adminBuild ? " (BUILD ROOM)" : "")
-                    + ": " + who + ", " + ageSeconds + "s old, "
-                    + layout.roomCount() + " rooms, path " + layout.pathLength()
-                    + ", tier " + layout.lootTier()
-                    + (layout.procedural() ? ", seed " + layout.seed() : ", STATIC FALLBACK"));
-        }
-        return lines;
-    }
-
-    /**
-     * M76: the operating-envelope summary {@code /dungeon admin diagnostics}
-     * prints. One line per metric against its cap, plus the heap, chunk and
-     * entity counts an operator needs to judge how close the server is to its
-     * limits. No player-facing output, no external telemetry: this is the
-     * one command an operator runs instead of attaching a profiler.
-     */
-    static List<String> adminDiagnostics(MinecraftServer server) {
-        List<String> lines = new ArrayList<>();
-        int live = InstanceRegistry.liveInstanceCount();
-        int visits = InstanceRegistry.visitCount();
-        int previews = InstanceRegistry.previewCount();
-        int queuedClears = InstanceTeardown.pendingClearCountForTesting();
-        int used = InstanceRegistry.usedSlots.size();
-        lines.add("instances: " + live + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentInstances()));
-        lines.add("visits: " + visits + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentVisits()));
-        lines.add("previews: " + previews + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentPreviews()));
-        lines.add("queued clears: " + queuedClears);
-        lines.add("used slots: " + used);
-
-        Runtime rt = Runtime.getRuntime();
-        long usedHeap = rt.totalMemory() - rt.freeMemory();
-        lines.add("heap: " + (usedHeap / 1024 / 1024) + " MB used / "
-                + (rt.maxMemory() / 1024 / 1024) + " MB max");
-
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level != null) {
-            it.unimi.dsi.fastutil.longs.LongSet forced = level.getChunkSource().getForceLoadedChunks();
-            int entityCount = level.getEntitiesOfClass(
-                    net.minecraft.world.entity.Entity.class,
-                    new AABB(level.getWorldBorder().getMinX(), level.getMinY(),
-                            level.getWorldBorder().getMinZ(),
-                            level.getWorldBorder().getMaxX(), level.getMaxY(),
-                            level.getWorldBorder().getMaxZ()),
-                    e -> !(e instanceof ServerPlayer)).size();
-            lines.add("dungeon chunks force-loaded: " + forced.size());
-            lines.add("dungeon entities (excl. players): " + entityCount);
-        } else {
-            lines.add("dungeon level: not loaded");
-        }
-        return lines;
-    }
-
-    private static String capOrUnlimited(int cap) {
-        return cap > 0 ? String.valueOf(cap) : "unlimited";
     }
 
     // ---- helpers ------------------------------------------------------------

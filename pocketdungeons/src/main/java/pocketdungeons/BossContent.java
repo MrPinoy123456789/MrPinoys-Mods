@@ -64,7 +64,7 @@ final class BossContent {
         double bonus = Math.max(0.0, (DifficultyProfile.mobScale(keystoneLevel,
                 PocketDungeonsConfig.mobScalePerLevel(), PocketDungeonsConfig.mobScaleBase()) - 1.0)
                 * BOSS_SCALE_FACTOR);
-        Instances.applyMobScaleBonus(boss, bonus);
+        MobScaling.applyMobScaleBonus(boss, bonus);
     }
 
     /**

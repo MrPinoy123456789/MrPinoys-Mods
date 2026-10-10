@@ -466,7 +466,7 @@ final class PressureSources {
      * A trigger answered: journal it, send the lootless wave, play the cue.
      * The wave's size follows the lives already lost, so a shaken trip is
      * punished harder (danger still scales with omen in
-     * {@code Instances#applyMobScale}).
+     * {@code MobScaling#applyMobScale}).
      */
     private static void trigger(MinecraftServer server, InstanceRecord record, Omen.Source source,
                                 BlockPos at) {

@@ -102,7 +102,7 @@ final class FeralContent {
      * the fallback the affix would produce nothing on some templates and everything
      * on others, which reads as a bug rather than as variance.
      *
-     * <p>M10: scaled directly here through {@link Instances#applyMobScale}, not
+     * <p>M10: scaled directly here through {@link MobScaling#applyMobScale}, not
      * left to the {@code ENTITY_LOAD} listener. These wolves spawn synchronously
      * at stamp time, before the run's {@link InstanceRecord} carries anything but
      * the lobby's placeholder layout, so the listener's registry lookup would
@@ -146,7 +146,7 @@ final class FeralContent {
             // sealed cell envelope and Instances.clearCellSync's 1 block margin
             // already keep a wolf in the cell without fighting its own AI.
             wolf.stopBeingAngry();
-            Instances.applyMobScale(wolf, keystoneLevel);
+            MobScaling.applyMobScale(wolf, keystoneLevel);
             Optional<Holder.Reference<WolfVariant>> coat =
                     variants.get(coats.get(coatRandom.nextInt(coats.size())));
             coat.ifPresent(holder -> wolf.setComponent(DataComponents.WOLF_VARIANT, holder));
