@@ -1236,7 +1236,7 @@ public final class HandlerGameTest {
                 origins.add(origin);
                 level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
                 Instances.stampStagingRoom(level, origin, walls[i]);
-                BlockPos chest = RoomTemplateGenerator.runStoragePos(origin, walls[i]);
+                BlockPos chest = StagingFurniture.runStoragePos(origin, walls[i]);
                 BlockState state = level.getBlockState(chest);
                 helper.assertTrue(state.is(Blocks.ENDER_CHEST), walls[i] + ": the ender chest is in the wall, found " + state);
                 helper.assertTrue(RunStorage.matchesStation(state), walls[i] + ": the chest opens run storage");

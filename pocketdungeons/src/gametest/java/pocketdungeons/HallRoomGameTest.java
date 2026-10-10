@@ -35,20 +35,20 @@ public final class HallRoomGameTest {
                 int[] alongs = HallOffers.absoluteAlongs(wall, hall.doors().size(), hall.specials().size());
                 for (int slot = 1; slot <= alongs.length; slot++) {
                     int along = alongs[slot - 1];
-                    BlockState lower = level.getBlockState(RoomTemplateGenerator.hallDoorPos(o, wall, along));
+                    BlockState lower = level.getBlockState(StagingFurniture.hallDoorPos(o, wall, along));
                     helper.assertTrue(lower.getBlock() instanceof DoorBlock, wall + " slot " + slot + " has a door");
                     String path = BuiltInRegistries.BLOCK.getKey(lower.getBlock()).getPath();
                     boolean locked = hall.dungeon(slot) != null && hall.status(slot).locked();
                     helper.assertTrue(locked == path.equals("iron_door"),
                             wall + " slot " + slot + " is iron exactly when locked, was " + path);
-                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallFrontPos(o, wall, along, 1))
+                    helper.assertTrue(level.getBlockState(StagingFurniture.hallFrontPos(o, wall, along, 1))
                             .getBlock() instanceof StandingSignBlock, wall + " slot " + slot + " has a name sign");
                     helper.assertTrue(HallRoom.slotAt(server, recordFor(owner, o, wall, level), along) != null
                             || true, "clickable");
                 }
                 // The doorway slot and the levers stay clear.
                 for (int along : new int[]{7, 8}) {
-                    helper.assertTrue(!(level.getBlockState(RoomTemplateGenerator.hallDoorPos(o, wall, along))
+                    helper.assertTrue(!(level.getBlockState(StagingFurniture.hallDoorPos(o, wall, along))
                             .getBlock() instanceof DoorBlock), wall + " the doorway slot " + along + " has no door");
                 }
                 // The astrolabe: a plinth and its tagged parts.
@@ -65,9 +65,9 @@ public final class HallRoomGameTest {
             HallOffers.Hall hall = HallOffers.build(server, owner, 0);
             int[] alongs = HallOffers.absoluteAlongs(wall, hall.doors().size(), hall.specials().size());
             for (int along : alongs) {
-                helper.assertTrue(!(level.getBlockState(RoomTemplateGenerator.hallDoorPos(o, wall, along))
+                helper.assertTrue(!(level.getBlockState(StagingFurniture.hallDoorPos(o, wall, along))
                         .getBlock() instanceof DoorBlock), wall + " dismantled: no door at " + along);
-                helper.assertTrue(!(level.getBlockState(RoomTemplateGenerator.hallFrontPos(o, wall, along, 1))
+                helper.assertTrue(!(level.getBlockState(StagingFurniture.hallFrontPos(o, wall, along, 1))
                         .getBlock() instanceof StandingSignBlock), wall + " dismantled: no sign at " + along);
             }
             helper.assertTrue(level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(o),
@@ -197,7 +197,7 @@ public final class HallRoomGameTest {
                 HallRoom.arm(server, level, staging, wall, owner, record);
                 helper.assertValueEqual(record.interval.hallLeverAlong, 0, wall + ": no lever before a door is selected");
                 for (int along : HallLayout.LEVER_SPACES) {
-                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along)).isAir(),
+                    helper.assertTrue(level.getBlockState(StagingFurniture.hallLeverPos(staging, wall, along)).isAir(),
                             wall + ": no lever at " + along + " with nothing selected");
                 }
                 HallOffers.Hall hall = HallOffers.of(server, record);
@@ -208,13 +208,13 @@ public final class HallRoomGameTest {
                     HallRoom.paintBulbs(server, level, record);
                     int along = record.interval.hallLeverAlong;
                     helper.assertTrue(HallLayout.isLeverAlong(along), wall + " slot " + slot + ": the lever stands at a lever place");
-                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along))
+                    helper.assertTrue(level.getBlockState(StagingFurniture.hallLeverPos(staging, wall, along))
                             .getBlock() instanceof net.minecraft.world.level.block.LeverBlock, wall + " slot " + slot + ": a lever");
-                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along).above())
+                    helper.assertTrue(level.getBlockState(StagingFurniture.hallLeverPos(staging, wall, along).above())
                             .getBlock() instanceof net.minecraft.world.level.block.WallSignBlock, wall + " slot " + slot + ": a sign above it");
                     int levers = 0;
                     for (int other : HallLayout.LEVER_SPACES) {
-                        if (level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, other)).getBlock()
+                        if (level.getBlockState(StagingFurniture.hallLeverPos(staging, wall, other)).getBlock()
                                 instanceof net.minecraft.world.level.block.LeverBlock) {
                             levers++;
                         }
@@ -225,7 +225,7 @@ public final class HallRoomGameTest {
                 HallRoom.paintBulbs(server, level, record);
                 helper.assertValueEqual(record.interval.hallLeverAlong, 0, wall + ": deselecting takes the lever away");
                 for (int along : HallLayout.LEVER_SPACES) {
-                    helper.assertTrue(level.getBlockState(RoomTemplateGenerator.hallLeverPos(staging, wall, along)).isAir(),
+                    helper.assertTrue(level.getBlockState(StagingFurniture.hallLeverPos(staging, wall, along)).isAir(),
                             wall + ": the lever place " + along + " is empty again");
                 }
             } finally {

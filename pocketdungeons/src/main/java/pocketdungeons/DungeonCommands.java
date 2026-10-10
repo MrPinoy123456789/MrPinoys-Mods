@@ -1083,7 +1083,7 @@ final class DungeonCommands {
     // ---- admin --------------------------------------------------------------
 
     private static int list(CommandSourceStack source) {
-        List<String> lines = Instances.adminList(source.getServer());
+        List<String> lines = InstanceAdmin.adminList(source.getServer());
         if (lines.isEmpty()) {
             source.sendSuccess(() -> Component.literal("No dungeon instances are open."), false);
             return 0;
@@ -1101,7 +1101,7 @@ final class DungeonCommands {
      * see how close the server is to its limits without a profiler attached.
      */
     private static int diagnostics(CommandSourceStack source) {
-        for (String line : Instances.adminDiagnostics(source.getServer())) {
+        for (String line : InstanceAdmin.adminDiagnostics(source.getServer())) {
             source.sendSuccess(() -> Component.literal(line), false);
         }
         return 1;
@@ -1130,7 +1130,7 @@ final class DungeonCommands {
      */
     private static int buildRoom(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        int slot = Instances.adminBuildRoom(source.getServer(), player);
+        int slot = InstanceAdmin.adminBuildRoom(source.getServer(), player);
         if (slot == -2) {
             source.sendFailure(Component.literal(
                     "You are inside a live instance. Leave it before opening a build room."));
@@ -1155,7 +1155,7 @@ final class DungeonCommands {
      */
     private static int saveRoom(CommandSourceStack source, String name) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        String path = Instances.adminSaveRoom(source.getServer(), player, name);
+        String path = InstanceAdmin.adminSaveRoom(source.getServer(), player, name);
         if (path == null) {
             source.sendFailure(Component.literal(
                     "No build room is open for you. Open one with /dungeon admin buildroom."));
@@ -1178,14 +1178,14 @@ final class DungeonCommands {
     private static int build(CommandSourceStack source, Long seed, int keystoneLevel,
                              boolean ominous) {
         MinecraftServer server = source.getServer();
-        int slot = Instances.adminBuild(server, seed, keystoneLevel, ominous);
+        int slot = InstanceAdmin.adminBuild(server, seed, keystoneLevel, ominous);
         if (slot < 0) {
             source.sendFailure(Component.literal(
                     "Could not build: the dungeon dimension is missing or stamping failed."));
             return 0;
         }
         BlockPos origin = InstanceRegistry.slotOrigin(slot);
-        InstanceLayout layout = Instances.adminLayout(slot);
+        InstanceLayout layout = InstanceAdmin.adminLayout(slot);
         source.sendSuccess(() -> Component.literal(
                 "Built slot " + slot + ": origin " + origin.toShortString()
                         + ", entrance " + layout.entrance().toShortString()
@@ -1221,13 +1221,13 @@ final class DungeonCommands {
      */
     private static int stampTest(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
-        int slot = Instances.adminBuild(server, null);
+        int slot = InstanceAdmin.adminBuild(server, null);
         if (slot < 0) {
             source.sendFailure(Component.literal("Could not allocate a slot to stamp into."));
             return 0;
         }
         // Purge the layout that build just made; this command wants the bare slot.
-        Instances.adminPurge(server, slot);
+        InstanceAdmin.adminPurge(server, slot);
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null) {
@@ -1322,7 +1322,7 @@ final class DungeonCommands {
             source.sendFailure(Component.literal("The dungeon dimension is not loaded."));
             return 0;
         }
-        InstanceLayout layout = Instances.adminLayout(slot);
+        InstanceLayout layout = InstanceAdmin.adminLayout(slot);
         if (layout == null) {
             source.sendFailure(Component.literal("Slot " + slot + " is not allocated."));
             return 0;
@@ -1444,7 +1444,7 @@ final class DungeonCommands {
     }
 
     private static int purge(CommandSourceStack source, int slot) {
-        if (!Instances.adminPurge(source.getServer(), slot)) {
+        if (!InstanceAdmin.adminPurge(source.getServer(), slot)) {
             source.sendFailure(Component.literal("Slot " + slot + " is not allocated."));
             return 0;
         }
@@ -1521,7 +1521,7 @@ final class DungeonCommands {
         MinecraftServer server = source.getServer();
         int handled = 0;
         for (net.minecraft.server.players.NameAndId target : targets) {
-            int purged = Instances.adminPurgeByOwner(server, target.id());
+            int purged = InstanceAdmin.adminPurgeByOwner(server, target.id());
             boolean hadRoom = RoomStore.reset(server, target.id());
             if (!hadRoom && purged == 0) {
                 source.sendFailure(Component.literal(

@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Why {@code adminBuild} and not a real {@code /dungeon}: a real entry goes
  * through a player, a keystone, a lobby and a door choice, none of which a
- * headless server has. {@link Instances#adminBuild} plans and stamps the same
+ * headless server has. {@link InstanceAdmin#adminBuild} plans and stamps the same
  * procedural layout the real path stamps, against the same room manifest and
  * the same force-load and bedrock-envelope code, so the world work it measures
  * is the production work. It deliberately bypasses the M76 instance cap: the
@@ -191,7 +191,7 @@ public final class DungeonLoadTestEntrypoint implements ModInitializer {
         private void buildOne() {
             long seed = server.overworld().getRandom().nextLong();
             long t0 = System.nanoTime();
-            int slot = Instances.adminBuild(server, seed, 1, false);
+            int slot = InstanceAdmin.adminBuild(server, seed, 1, false);
             long elapsed = System.nanoTime() - t0;
             if (slot >= 0) {
                 liveSlots.add(slot);
@@ -220,7 +220,7 @@ public final class DungeonLoadTestEntrypoint implements ModInitializer {
         private void purgeAll() {
             purgeStartMillis = System.currentTimeMillis();
             for (int slot : new ArrayList<>(liveSlots)) {
-                Instances.adminPurge(server, slot);
+                InstanceAdmin.adminPurge(server, slot);
             }
             phase = Phase.CLEAR;
         }

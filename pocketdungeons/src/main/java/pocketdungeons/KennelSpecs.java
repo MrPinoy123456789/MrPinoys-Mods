@@ -222,7 +222,7 @@ final class KennelSpecs {
             if (perch != null) {
                 RoomContent.spawnMobs(level, o, EntityTypes.PILLAGER, 1, List.of(perch), seed, guard -> {
                     if (guard instanceof net.minecraft.world.entity.Mob mob) {
-                        Instances.applyMobScale(mob, profile.keystoneLevel());
+                        MobScaling.applyMobScale(mob, profile.keystoneLevel());
                         HostileWolves.guard(o, mob);
                     }
                 });

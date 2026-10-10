@@ -14,7 +14,7 @@ import java.util.stream.Stream;
  * PD-201: state keyed by a cell origin must be dropped whenever the cell is cleared, not only when the
  * whole instance is torn down. Every class that declares a cell keyed {@code static void clear(BlockPos)}
  * has to be called from {@code InstanceTeardown.forgetCellState}, and both {@code teardown} and
- * {@code Instances.clearCells} (how a floor ends) have to call that method.
+ * {@code InstanceTeardown.clearCells} (how a floor ends) have to call that method.
  */
 public class CellStateForgetTest {
 
@@ -44,12 +44,11 @@ public class CellStateForgetTest {
         check(owners.size() >= 6, "found only " + owners.size() + " cell keyed clears: " + owners);
 
         check(teardown.contains("forgetCellState(cellOrigin)"), "teardown must call forgetCellState per cell");
-        String instances = Files.readString(SOURCES.resolve("Instances.java"));
-        int clearCells = instances.indexOf("static void clearCells(");
-        check(clearCells >= 0, "Instances.clearCells is missing");
-        String clearBody = instances.substring(clearCells, instances.indexOf("\n    }", clearCells));
-        check(clearBody.contains("InstanceTeardown.forgetCellState("),
-                "Instances.clearCells (a floor ending) must call InstanceTeardown.forgetCellState");
+        int clearCells = teardown.indexOf("static void clearCells(");
+        check(clearCells >= 0, "InstanceTeardown.clearCells is missing");
+        String clearBody = teardown.substring(clearCells, teardown.indexOf("\n    }", clearCells));
+        check(clearBody.contains("forgetCellState("),
+                "InstanceTeardown.clearCells (a floor ending) must call forgetCellState");
         System.out.println("CellStateForgetTest passed (" + owners.size() + " cell keyed clears: " + owners + ")");
     }
 

@@ -146,7 +146,7 @@ final class DungeonScreen {
      * Each sheet is 5 blocks wide, 62.5 percent of the 8 block board it
      * replaces (the brief: at most 70). Their centres sit 2.5 blocks either side
      * of the old board's centre, so the pair spans 10 blocks centred on it,
-     * exactly the backdrop ({@link RoomTemplateGenerator#DOOR_SCREEN_ALONG_MIN}
+     * exactly the backdrop ({@link StagingFurniture#DOOR_SCREEN_ALONG_MIN}
      * to {@code MAX}).
      */
     static final double SHEET_WIDTH = 5.0;
@@ -170,7 +170,7 @@ final class DungeonScreen {
     private static final double HISTORY_SCREEN_ALONG = 8.0;
     /**
      * The go-home screen sits on the selector wall's 3x3 backdrop at along
-     * 3..5, Y=1..3 ({@link RoomTemplateGenerator#HOME_LEVER_ALONG}): its
+     * 3..5, Y=1..3 ({@link StagingFurniture#HOME_LEVER_ALONG}): its
      * middle is the centre of block 4 and the middle of row 2. A little
      * small enough that its three lines stay on the panel.
      */

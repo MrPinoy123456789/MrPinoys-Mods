@@ -10,7 +10,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -29,10 +28,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -47,9 +42,7 @@ import net.minecraft.world.phys.Vec3;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -213,7 +206,7 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 // The dungeon\u0027s uniform (design pass 2026-10-09, Q5): the Copper Works crew wears copper.
                 DungeonDef uniformOf = TripView.def(record);
                 if (uniformOf != null && uniformOf.mobUniform() != null) {
@@ -706,9 +699,9 @@ final class Instances {
         RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
         BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
         RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
-        RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-        RoomTemplateGenerator.placeWallLodestone(level, origin);
-        RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
+        StagingFurniture.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
+        StagingFurniture.placeWallLodestone(level, origin);
+        StagingFurniture.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
     }
 
     /**
@@ -773,10 +766,10 @@ final class Instances {
         Set<DoorMask.Direction> reserved = new HashSet<>(standingSides);
         reserved.add(safeDir);
         BedrockEnvelope.applyToCell(level, origin, reserved);
-        RoomTemplateGenerator.placeSelectorDoors(level, origin, dungeonDir);
-        RoomTemplateGenerator.placeWallLodestone(level, origin);
-        RoomTemplateGenerator.placeFurniture(level, origin, dungeonDir, true);
-        RoomTemplateGenerator.placeRunStorage(level, origin, dungeonDir);
+        StagingFurniture.placeSelectorDoors(level, origin, dungeonDir);
+        StagingFurniture.placeWallLodestone(level, origin);
+        StagingFurniture.placeFurniture(level, origin, dungeonDir, true);
+        StagingFurniture.placeRunStorage(level, origin, dungeonDir);
     }
 
     /**
@@ -794,7 +787,7 @@ final class Instances {
         if (record.roomCellOrigin == null) {
             return;
         }
-        clearCells(level, record, List.of(record.roomCellOrigin));
+        InstanceTeardown.clearCells(level, record, List.of(record.roomCellOrigin));
         record.roomCellOrigin = null;
     }
 
@@ -991,10 +984,10 @@ final class Instances {
         }
         if (HallRoom.isHallStaging(record)) {
             // The Astrolabe Room's lever stands beside the selected door, wherever that is.
-            return record.interval.hallLeverAlong > 0 && RoomTemplateGenerator.hallLeverPos(
+            return record.interval.hallLeverAlong > 0 && StagingFurniture.hallLeverPos(
                     record.stagingCellOrigin, record.roomDungeonDoor, record.interval.hallLeverAlong).equals(pos);
         }
-        return RoomTemplateGenerator.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+        return StagingFurniture.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -1018,7 +1011,7 @@ final class Instances {
             return;
         }
         for (int step = 1; step <= 3; step++) {
-            RoomTemplateGenerator.hideSelectorDoor(level, o, wall, step);
+            StagingFurniture.hideSelectorDoor(level, o, wall, step);
         }
     }
 
@@ -1033,7 +1026,7 @@ final class Instances {
                 || !record.inFloorLoop()) {
             return false;
         }
-        return RoomTemplateGenerator.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
+        return StagingFurniture.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
     }
 
     /**
@@ -1047,7 +1040,7 @@ final class Instances {
         if (record == null || record.stagingCellOrigin == null || !RunLifecycle.betweenFloors(record)) {
             return false;
         }
-        return RoomTemplateGenerator.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+        return StagingFurniture.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -1267,7 +1260,7 @@ final class Instances {
                     effectiveThemeId, LootBands.forFloor(record, offer, mineFloor), nodeCtx, record.floor.previewNodes);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Preview stamp failed for door {}", step, e);
-            clearCells(level, record, List.of(entranceOrigin));
+            InstanceTeardown.clearCells(level, record, List.of(entranceOrigin));
             return false;
         }
 
@@ -1293,7 +1286,7 @@ final class Instances {
      */
     static void windowPreview(ServerLevel level, InstanceRecord record, BlockPos entranceOrigin,
                               DoorMask.Direction dungeonDoor) {
-        BedrockEnvelope.applyToCell(level, entranceOrigin, standingSides(record, entranceOrigin));
+        BedrockEnvelope.applyToCell(level, entranceOrigin, InstanceTeardown.standingSides(record, entranceOrigin));
         // Replace the selected door with a glass window. The selector
         // door for this step is at a fixed offset within the door slot; the
         // simplest approach is to fill the entire door slot with glass, since
@@ -1354,7 +1347,7 @@ final class Instances {
         if (record.floor.previewCellOrigin == null) {
             return;
         }
-        clearCells(level, record, List.of(record.floor.previewCellOrigin));
+        InstanceTeardown.clearCells(level, record, List.of(record.floor.previewCellOrigin));
         // The window filled the door slot itself, and the selector doors stand
         // one block inside the room, so re-placing them never covered it: seal
         // the slot back to wall (the clear already put the bedrock behind it).
@@ -1366,7 +1359,7 @@ final class Instances {
         }
         record.floor.previewWallOriginal.clear();
         if (!HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner)) {
-            RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
+            StagingFurniture.placeSelectorDoors(level, record.stagingCellOrigin,
                     record.roomDungeonDoor);
             hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
         }
@@ -1520,7 +1513,7 @@ final class Instances {
                     record.stagingCellOrigin.toShortString(), e);
             List<BlockPos> attempted = new ArrayList<>(geometry.cellOrigins());
             attempted.remove(record.stagingCellOrigin);
-            clearCells(level, record, attempted);
+            InstanceTeardown.clearCells(level, record, attempted);
             return false;
         }
 
@@ -1612,7 +1605,7 @@ final class Instances {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
-        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
+        StagingFurniture.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
         for (UUID member : record.members.keySet()) {
@@ -1661,11 +1654,11 @@ final class Instances {
         sealPreviewSideWindow(level, stagingOrigin, dungeonDoor);
         RoomBuilder.sealPreviewSideWindowLikeBeside(level, entranceOrigin,
                 mcDirection(CellGeometry.opposite(dungeonDoor)));
-        RoomTemplateGenerator.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
         HallRoom.dismantle(level, stagingOrigin, dungeonDoor);
-        RoomTemplateGenerator.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
         // The choosing is over, and so is the way home from this checkpoint.
-        RoomTemplateGenerator.clearHomeControl(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.clearHomeControl(level, stagingOrigin, dungeonDoor);
         DungeonScreen.clearHome(level, stagingOrigin, dungeonDoor);
     }
 
@@ -1739,7 +1732,7 @@ final class Instances {
         if (!roomSaved) {
             clearing.remove(standingRoom);
         }
-        clearCells(level, record, clearing);
+        InstanceTeardown.clearCells(level, record, clearing);
         record.leftBehind.clear();
         record.homecoming = null;
         record.stagingCellOrigin = null;
@@ -1749,8 +1742,8 @@ final class Instances {
         BlockPos safeOrigin = record.origin;
         DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
         if (roomSaved) {
-            clearCellSync(level, safeOrigin, List.of());
-            holdCell(level, safeOrigin);
+            InstanceTeardown.clearCellSync(level, safeOrigin, List.of());
+            InstanceTeardown.holdCell(level, safeOrigin);
             stampSafeRoom(level, server, record.owner, safeOrigin);
             record.roomCellOrigin = safeOrigin;
             record.roomDungeonDoor = dungeonDir;
@@ -1761,7 +1754,7 @@ final class Instances {
 
         // Stamp a fresh staging room adjacent to the safe room.
         BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
-        holdCell(level, stagingOrigin);
+        InstanceTeardown.holdCell(level, stagingOrigin);
         stampStagingRoom(level, stagingOrigin, dungeonDir);
         RoomBuilder.openDoor(level, safeOrigin, mcDirection(dungeonDir));
         BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
@@ -1810,137 +1803,6 @@ final class Instances {
     }
 
     // ---- exit ---------------------------------------------------------------
-
-    /**
-     * Clears one cell and the one-block margin around it -- the margin is where
-     * the bedrock envelope lives, so a clear that stopped at the cell wall would
-     * leave the shell standing.
-     *
-     * <p>{@code keepCells} are cell origins whose own 16x16 volume must survive.
-     * That margin is not empty space: offset {@code CELL} from one cell origin is
-     * the <em>neighbouring</em> cell's local 0 -- its wall column. Clearing it
-     * unconditionally erases a live neighbour's entire wall, leaving only
-     * whatever is written back afterwards (a resealed door slot reads as an
-     * inside-out wall: stone exactly where the doorway was, air everywhere
-     * else). Any cell that is still standing when this runs has to be named
-     * here.
-     *
-     * <p>A kept cell's own bedrock is kept with it where the margin reaches
-     * it outside this cell: its over-ceiling row along the seam and the two
-     * ring columns at either end of the seam. Its ring on the face towards
-     * this cell sits in this cell's wall column and goes with the clear;
-     * {@link #clearCells} puts it back.
-     */
-    static void clearCellSync(ServerLevel level, BlockPos origin, List<BlockPos> keepCells) {
-        // M61: clear below any lower story a cell may own. Over-clearing a
-        // single-story cell is harmless: the extra volume is dungeon void.
-        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
-        for (int x = -1; x <= RoomGeometry.CELL; x++) {
-            for (int y = -1 - maxOffset; y <= RoomGeometry.CEILING_Y + 1; y++) {
-                for (int z = -1; z <= RoomGeometry.CELL; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    boolean ownFootprint = x >= 0 && x < RoomGeometry.CELL && z >= 0 && z < RoomGeometry.CELL;
-                    if (ownFootprint ? CellGeometry.insideAnyCell(pos, keepCells)
-                            : CellGeometry.inAnyShell(pos, keepCells)) {
-                        continue;
-                    }
-                    level.setBlock(pos, Blocks.AIR.defaultBlockState(),
-                            Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
-                                    | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
-                }
-            }
-        }
-        AABB bounds = new AABB(origin.getX() - 1, origin.getY() - 1 - maxOffset, origin.getZ() - 1,
-                origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
-                origin.getZ() + RoomGeometry.CELL + 1);
-        for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
-                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e)
-                        && !CellGeometry.insideAnyCell(e.blockPosition(), keepCells))) {
-            entity.discard();
-        }
-    }
-
-    // ---- live cells: clears, envelopes and tickets ---------------------------
-
-    /**
-     * Clears {@code cells} of {@code record}'s instance with every other cell
-     * it has standing kept, puts each kept neighbour's bedrock back on the face
-     * that looked into a cleared cell, and releases the cleared cells' tickets.
-     *
-     * <p>What a kept neighbour's doorway on that face becomes is the caller's
-     * call: sealed when nothing will stand there again, left open when a cell
-     * is about to be stamped in the cleared spot. Either way the ring means a
-     * doorway left open shows bedrock, never the void.
-     */
-    static void clearCells(ServerLevel level, InstanceRecord record, Collection<BlockPos> cells) {
-        Set<BlockPos> clearing = new LinkedHashSet<>(cells);
-        List<BlockPos> keep = new ArrayList<>(record.liveCells());
-        keep.removeAll(clearing);
-        for (BlockPos cell : clearing) {
-            clearCellSync(level, cell, keep);
-            InstanceTeardown.forgetCellState(cell);
-        }
-        for (BlockPos kept : keep) {
-            for (DoorMask.Direction face : DoorMask.Direction.values()) {
-                if (clearing.contains(CellGeometry.offsetInDirection(kept, face, RoomGeometry.CELL))) {
-                    BedrockEnvelope.applyFace(level, kept, face, storyDepth(record, kept));
-                }
-            }
-        }
-        releaseCells(level, clearing, keep);
-    }
-
-    /**
-     * How far below its floor a cell's ring has to reach: the layout's deepest
-     * lower story for one of its cells, nothing for a staging room or a room.
-     */
-    private static int storyDepth(InstanceRecord record, BlockPos cell) {
-        if (record.layout != null && record.layout.geometry() != null
-                && record.layout.geometry().cellOrigins().contains(cell)) {
-            return record.layout.geometry().storyFloorOffset();
-        }
-        return 0;
-    }
-
-    /**
-     * The sides of {@code origin} where another cell of the instance already
-     * stands. An envelope applied to {@code origin} has to leave these off: its
-     * ring would land in that neighbour's wall column and replace it.
-     */
-    static Set<DoorMask.Direction> standingSides(InstanceRecord record, BlockPos origin) {
-        Set<BlockPos> live = record.liveCells();
-        Set<DoorMask.Direction> sides = new HashSet<>();
-        for (DoorMask.Direction face : DoorMask.Direction.values()) {
-            BlockPos beside = CellGeometry.offsetInDirection(origin, face, RoomGeometry.CELL);
-            if (!beside.equals(origin) && live.contains(beside)) {
-                sides.add(face);
-            }
-        }
-        return sides;
-    }
-
-    /** Force-loads the chunk under a cell about to be stamped: writes to an unloaded chunk are dropped. */
-    static void holdCell(ServerLevel level, BlockPos cell) {
-        level.setChunkForced(cell.getX() >> 4, cell.getZ() >> 4, true);
-    }
-
-    /**
-     * Drops the force-load ticket under each of {@code cleared}, unless one of
-     * {@code stillLive} sits in the same chunk. A ticket is a flag per chunk,
-     * not a count, so releasing a chunk a live cell still needs would release
-     * it for that cell too. A cell is exactly one chunk ({@link PlanGeometry}).
-     */
-    static void releaseCells(ServerLevel level, Collection<BlockPos> cleared, Collection<BlockPos> stillLive) {
-        Set<ChunkPos> held = new HashSet<>();
-        for (BlockPos cell : stillLive) {
-            held.add(new ChunkPos(cell.getX() >> 4, cell.getZ() >> 4));
-        }
-        for (BlockPos cell : cleared) {
-            if (!held.contains(new ChunkPos(cell.getX() >> 4, cell.getZ() >> 4))) {
-                level.setChunkForced(cell.getX() >> 4, cell.getZ() >> 4, false);
-            }
-        }
-    }
 
     /** Cancelling a death leaves the player standing at zero hearts; this resets them so they live. */
     private static void revive(ServerPlayer player) {
@@ -2180,7 +2042,7 @@ final class Instances {
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
                 mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
-                applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
         }
@@ -2379,7 +2241,7 @@ final class Instances {
         // gets its ring back on every face that looked into a cleared cell.
         Set<BlockPos> leftovers = record.liveCells();
         leftovers.remove(record.roomCellOrigin);
-        clearCells(level, record, leftovers);
+        InstanceTeardown.clearCells(level, record, leftovers);
         record.leftBehind.clear();
         record.homecoming = null;
 
@@ -2389,7 +2251,7 @@ final class Instances {
         DoorMask.Direction newDungeonDir = record.roomDungeonDoor;
         BlockPos newStagingOrigin = CellGeometry.offsetInDirection(
                 record.roomCellOrigin, newDungeonDir, RoomGeometry.CELL);
-        holdCell(level, newStagingOrigin);
+        InstanceTeardown.holdCell(level, newStagingOrigin);
         stampStagingRoom(level, newStagingOrigin, newDungeonDir);
         RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(newDungeonDir));
         BedrockEnvelope.clearFace(level, record.roomCellOrigin, newDungeonDir);
@@ -2732,7 +2594,7 @@ final class Instances {
         }
     }
 
-    // ---- teardown -----------------------------------------------------------
+    // ---- spawner clears (M22) -----------------------------------------------
 
     /**
      * M22: fires the spawner-cleared cue for a run, and records the
@@ -2793,7 +2655,7 @@ final class Instances {
         }
     }
 
-    // ---- teardown -----------------------------------------------------------
+    // ---- positions: exit pads, rooms and dungeon cells ----------------------
 
     /**
      * Whether the player is standing on an exit pad -- the terminal cell's, or
@@ -2981,16 +2843,6 @@ final class Instances {
         return null;
     }
 
-    // ---- mob scaling (M10) ---------------------------------------------------
-
-    /** The one shown by {@code AttributeInstance}'s modifier map, stable across reapplications. */
-    private static final Identifier MOB_SCALE_ID = Identifier.fromNamespaceAndPath(
-            PocketDungeonsMod.MOD_ID, "difficulty_scale");
-
-    /** Separate modifier id for the Breeze HP override, so it does not collide with the level scaler. */
-    private static final Identifier BREEZE_HP_ID = Identifier.fromNamespaceAndPath(
-            PocketDungeonsMod.MOD_ID, "breeze_hp_override");
-
     /**
      * The live instance whose bounds contain {@code pos}, or {@code null}. Used
      * for mob scaling rather than a cell/chunk lookup because a mob's spawn
@@ -3012,350 +2864,6 @@ final class Instances {
             }
         }
         return null;
-    }
-
-    /**
-     * +0.8% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
-     * level, on max health, attack damage and movement speed: a level-100 run's
-     * mobs land at roughly 1.45x strength. {@code ADD_MULTIPLIED_TOTAL} so the
-     * bonus scales whatever base value the mob already has rather than adding a
-     * flat number that means nothing on a skeleton and everything on a bee.
-     *
-     * <p>Package-visible rather than {@code private}: {@link FeralContent}'s
-     * wolves are spawned directly at stamp time, before {@code ENTITY_LOAD} would
-     * ever find an {@link InstanceRecord} whose layout matches (the record still
-     * carries the lobby's tiny one-cell layout at that point), so they cannot
-     * rely on the listener below and call this straight from the spawn callback
-     * where the run's keystone level is already known.
-     *
-     * <p>Idempotent under the same modifier id: a repeat call for the same
-     * entity (a chunk reload's {@code ENTITY_LOAD} firing again, or the listener
-     * and a direct caller both reaching the same mob) replaces the modifier
-     * rather than stacking it. Health is topped up only when the mob was at full
-     * health <em>before</em> this ran: a fresh spawn always is, and topping it
-     * up is what keeps it from reading as already-damaged the instant it
-     * appears. A mob re-entering tracking mid-fight is not, and must keep
-     * whatever damage it already has.
-     */
-    static void applyMobScale(Mob mob, int keystoneLevel) {
-        applyMobScale(mob, keystoneLevel, 0);
-    }
-
-    static void applyMobScale(Mob mob, int keystoneLevel, int omen) {
-        double omenBonus = Omen.clamp(omen) * PocketDungeonsConfig.omenDangerScalePerOmen();
-        applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
-                PocketDungeonsConfig.mobScalePerLevel(),
-                PocketDungeonsConfig.mobScaleBase()) - 1.0 + omenBonus);
-        // Breezes are disproportionately tedious to kill for their threat level:
-        // high HP plus high mobility means a player spends most of the fight
-        // chasing, not hitting. An additional HP-only cut on top of the level
-        // scaling brings them in line with everything else on the spawner roster.
-        if (mob.getType() == EntityTypes.BREEZE) {
-            double multiplier = PocketDungeonsConfig.breezeHpMultiplier();
-            if (multiplier > 0.0 && multiplier != 1.0) {
-                boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
-                AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
-                if (health != null) {
-                    health.addOrUpdateTransientModifier(new AttributeModifier(
-                            BREEZE_HP_ID, multiplier - 1.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-                    if (wasFullHealth) {
-                        mob.setHealth(mob.getMaxHealth());
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * The bonus-taking half of {@link #applyMobScale}, exposed separately for
-     * {@link BossContent}: a boss run's mob wants a steeper bonus than the
-     * ordinary {@code mobScalePerLevel} curve, not the same one.
-     */
-    static void applyMobScaleBonus(Mob mob, double bonus) {
-        if (bonus == 0.0) {
-            return;
-        }
-        boolean wasFullHealth = mob.getHealth() >= mob.getMaxHealth();
-        boolean scaledHealth = scaleAttribute(mob, Attributes.MAX_HEALTH, bonus);
-        scaleAttribute(mob, Attributes.ATTACK_DAMAGE, bonus);
-        scaleAttribute(mob, Attributes.MOVEMENT_SPEED, bonus);
-        if (scaledHealth && wasFullHealth) {
-            mob.setHealth(mob.getMaxHealth());
-        }
-    }
-
-    private static boolean scaleAttribute(Mob mob, Holder<Attribute> attribute, double bonus) {
-        AttributeInstance instance = mob.getAttribute(attribute);
-        if (instance == null) {
-            return false;
-        }
-        instance.addOrUpdateTransientModifier(new AttributeModifier(
-                MOB_SCALE_ID, bonus, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-        return true;
-    }
-
-    // ---- admin (spec section 10) --------------------------------------------
-
-    /**
-     * Stamps an unowned instance. This is how the build is verified without a
-     * client attached -- the console can build one, inspect it with
-     * {@code /execute if block}, and purge it again.
-     *
-     * <p>A memberless record is registered for the built slot so teardown knows
-     * the layout it has to clear. {@code InstanceRegistry.bySlot} already documents that it holds
-     * instances which momentarily have no members, and nothing purges an empty
-     * instance on its own, so the record is stable until an operator purges it.
-     *
-     * @param seed the layout seed, or null to roll one
-     * @return the slot, or -1 if the dimension is missing or stamping failed
-     */
-    static int adminBuild(MinecraftServer server, Long seed) {
-        return adminBuild(server, seed, 0, false);
-    }
-
-    /**
-     * Same, at a chosen keystone level and ominous flag, so U6's and U7's tier and
-     * ominous behaviour can be inspected headlessly without a player, a keystone,
-     * or a lodestone.
-     */
-    static int adminBuild(MinecraftServer server, Long seed, int keystoneLevel, boolean ominous) {
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return -1;
-        }
-        int slot = InstanceRegistry.allocateSlot();
-        BlockPos origin = InstanceRegistry.originForSlot(slot);
-
-        InstanceLayout layout = buildLayout(server, level, slot, origin,
-                seed != null ? seed : level.getRandom().nextLong(), keystoneLevel,
-                ominous ? Set.of(AffixIds.OMINOUS) : Set.of(), null, null);
-        if (layout == null) {
-            // Slot release is deferred to the clear buildLayout already queued
-            // for whatever it wrote -- see buildLayout's note.
-            return -1;
-        }
-
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), layout,
-                Set.of(), null, false);
-        InstanceRegistry.bySlot.put(slot, record);
-        return slot;
-    }
-
-    /**
-     * Opens the operator's hand-authoring shell for {@code /dungeon admin
-     * buildroom}: one empty cell in the dungeon dimension, stamped with just
-     * {@link RoomBuilder#buildShell}: no doors, no keystone, no
-     * protection, and no room-store capture. The cell is a template under
-     * construction; {@link #adminSaveRoom} captures it out.
-     *
-     * <p>One build room per player: an existing one is torn down first,
-     * whatever state it is in.
-     *
-     * @return the slot, or -1 if the dimension is missing or stamping failed,
-     *         or -2 if the player is already inside a live instance
-     */
-    static int adminBuildRoom(MinecraftServer server, ServerPlayer player) {
-        if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
-            return -2;
-        }
-        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (record.adminBuild && player.getUUID().equals(record.owner)) {
-                InstanceTeardown.purge(server, record, "replaced by a fresh build room");
-            }
-        }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return -1;
-        }
-        int slot = InstanceRegistry.allocateSlot();
-        BlockPos origin = InstanceRegistry.originForSlot(slot);
-        level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
-        try {
-            RoomBuilder.buildShell(level, origin, RoomBuilder.FLOOR);
-        } catch (RuntimeException e) {
-            // Same as stampLobby: sweep the partial shell through a teardown,
-            // which releases the ticket and the slot once its clear finishes.
-            PocketDungeonsMod.LOG.error("Could not stamp a build room for {}; clearing whatever was written",
-                    player.getUUID(), e);
-            InstanceTeardown.teardown(server, slot, origin, lobbyLayout(origin), "build room stamp failed");
-            return -1;
-        }
-        InstanceRecord record = new InstanceRecord(slot, origin, level.getGameTime(), lobbyLayout(origin),
-                Set.of(), player.getUUID(), false, true);
-        InstanceRegistry.bySlot.put(slot, record);
-        admit(server, record, player);
-        // admit lands on the lobby layout's corner entrance; centre the author.
-        teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL,
-                Vec3.atBottomCenterOf(RoomBuilder.cellCentre(origin, 0, 0)), 0.0f, 0.0f);
-        // Issue the Room Editor Kit automatically on entry.
-        RoomEditorKit.issueKit(player);
-        return slot;
-    }
-
-    /**
-     * Captures the player's build room to a hand-authored template file for
-     * {@code /dungeon admin saveroom}, returns them to the overworld spawn,
-     * and tears the room down. The capture runs first, while the cell is still
-     * standing: the teardown queues a tick-spread clear that would otherwise
-     * race it (PD-8's shape).
-     *
-     * @return the path of the written file, or {@code null} if the player has
-     *         no build room open or the save failed
-     */
-    static String adminSaveRoom(MinecraftServer server, ServerPlayer player, String name) {
-        InstanceRecord record = null;
-        for (InstanceRecord r : InstanceRegistry.bySlot.values()) {
-            if (r.adminBuild && player.getUUID().equals(r.owner)) {
-                record = r;
-                break;
-            }
-        }
-        if (record == null) {
-            return null;
-        }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return null;
-        }
-        Path saved = RoomTemplateGenerator.captureRoomToFile(level, record.origin, name,
-                player.getName().getString(), player.getUUID());
-        if (saved == null) {
-            return null;
-        }
-        // Drop the member before purging so the teardown has nobody to eject
-        // (and therefore nothing to teleport back to the old return point),
-        // then put the author at world spawn and clear the slot.
-        RunLifecycle.dropMember(server, record, player.getUUID(), player, "build room saved");
-        sendToWorldSpawn(server, player);
-        InstanceTeardown.purge(server, record, "build room saved");
-        return saved.toString();
-    }
-
-    /** The layout of a built slot, for admin reporting. Null if the slot is unknown. */
-    static InstanceLayout adminLayout(int slot) {
-        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-        return record != null ? record.layout : null;
-    }
-
-    /** Force teardown by slot, whether or not anyone is inside it. */
-    static boolean adminPurge(MinecraftServer server, int slot) {
-        if (!InstanceRegistry.usedSlots.contains(slot)) {
-            return false;
-        }
-        InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-        if (record != null) {
-            InstanceTeardown.purge(server, record, "purged by an operator");
-        } else {
-            InstanceTeardown.teardown(server, slot, InstanceRegistry.originForSlot(slot), null, "purged by an operator");
-        }
-        return true;
-    }
-
-    /**
-     * Purges every live instance {@code owner} has open right now: their
-     * lobby, an active run, and any visit instance of their
-     * room (a stale copy of the room {@code /dungeon admin resetroom} is about
-     * to delete, so it has no reason to keep standing). For
-     * {@code /dungeon admin resetroom}, ahead of wiping the saved blob: a room
-     * still open in the world would otherwise get re-captured out from under
-     * the reset the next time its owner leaves it.
-     *
-     * @return how many slots were purged
-     */
-    static int adminPurgeByOwner(MinecraftServer server, UUID owner) {
-        int purged = 0;
-        for (InstanceRecord record : new ArrayList<>(InstanceRegistry.bySlot.values())) {
-            if (owner.equals(record.owner)) {
-                InstanceTeardown.purge(server, record, "room reset by an operator");
-                // PD-5: prevent the deferred saveRoom queued by purge from
-                // overwriting the file reset is about to delete. saveRoom
-                // checks roomCellOrigin == null at execution time and returns
-                // early, so no capture runs after the reset.
-                record.roomCellOrigin = null;
-                purged++;
-            }
-        }
-        return purged;
-    }
-
-    /** One line per live instance, for {@code /dungeon admin list}. */
-    static List<String> adminList(MinecraftServer server) {
-        List<String> lines = new ArrayList<>();
-        for (int slot : InstanceRegistry.usedSlots) {
-            BlockPos origin = InstanceRegistry.originForSlot(slot);
-            InstanceRecord record = InstanceRegistry.bySlot.get(slot);
-            if (record == null) {
-                lines.add("slot " + slot + " at " + origin.toShortString() + ": unowned (admin build)");
-                continue;
-            }
-            List<String> names = new ArrayList<>();
-            for (UUID member : record.members.keySet()) {
-                ServerPlayer player = server.getPlayerList().getPlayer(member);
-                names.add(player != null ? player.getName().getString() : member.toString());
-            }
-            long ageSeconds = (server.overworld().getGameTime() - record.createdAtTick) / 20L;
-            InstanceLayout layout = record.layout;
-            String who = names.isEmpty() ? "unowned (admin build)"
-                    : String.join(", ", names) + " (" + names.size() + ")";
-            lines.add("slot " + slot + " at " + origin.toShortString()
-                    + (record.untimed ? " (UNTIMED, never expires)" : "")
-                    + (record.adminBuild ? " (BUILD ROOM)" : "")
-                    + ": " + who + ", " + ageSeconds + "s old, "
-                    + layout.roomCount() + " rooms, path " + layout.pathLength()
-                    + ", tier " + layout.lootTier()
-                    + (layout.procedural() ? ", seed " + layout.seed() : ", STATIC FALLBACK"));
-        }
-        return lines;
-    }
-
-    /**
-     * M76: the operating-envelope summary {@code /dungeon admin diagnostics}
-     * prints. One line per metric against its cap, plus the heap, chunk and
-     * entity counts an operator needs to judge how close the server is to its
-     * limits. No player-facing output, no external telemetry: this is the
-     * one command an operator runs instead of attaching a profiler.
-     */
-    static List<String> adminDiagnostics(MinecraftServer server) {
-        List<String> lines = new ArrayList<>();
-        int live = InstanceRegistry.liveInstanceCount();
-        int visits = InstanceRegistry.visitCount();
-        int previews = InstanceRegistry.previewCount();
-        int queuedClears = InstanceTeardown.pendingClearCountForTesting();
-        int used = InstanceRegistry.usedSlots.size();
-        lines.add("instances: " + live + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentInstances()));
-        lines.add("visits: " + visits + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentVisits()));
-        lines.add("previews: " + previews + "/"
-                + capOrUnlimited(PocketDungeonsConfig.maxConcurrentPreviews()));
-        lines.add("queued clears: " + queuedClears);
-        lines.add("used slots: " + used);
-
-        Runtime rt = Runtime.getRuntime();
-        long usedHeap = rt.totalMemory() - rt.freeMemory();
-        lines.add("heap: " + (usedHeap / 1024 / 1024) + " MB used / "
-                + (rt.maxMemory() / 1024 / 1024) + " MB max");
-
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level != null) {
-            it.unimi.dsi.fastutil.longs.LongSet forced = level.getChunkSource().getForceLoadedChunks();
-            int entityCount = level.getEntitiesOfClass(
-                    net.minecraft.world.entity.Entity.class,
-                    new AABB(level.getWorldBorder().getMinX(), level.getMinY(),
-                            level.getWorldBorder().getMinZ(),
-                            level.getWorldBorder().getMaxX(), level.getMaxY(),
-                            level.getWorldBorder().getMaxZ()),
-                    e -> !(e instanceof ServerPlayer)).size();
-            lines.add("dungeon chunks force-loaded: " + forced.size());
-            lines.add("dungeon entities (excl. players): " + entityCount);
-        } else {
-            lines.add("dungeon level: not loaded");
-        }
-        return lines;
-    }
-
-    private static String capOrUnlimited(int cap) {
-        return cap > 0 ? String.valueOf(cap) : "unlimited";
     }
 
     // ---- helpers ------------------------------------------------------------
