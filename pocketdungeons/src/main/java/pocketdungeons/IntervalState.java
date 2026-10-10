@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;

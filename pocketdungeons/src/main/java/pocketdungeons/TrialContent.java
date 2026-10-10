@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

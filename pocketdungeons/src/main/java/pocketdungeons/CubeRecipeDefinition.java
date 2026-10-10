@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import java.util.List;
 
 /**
  * M71: one data-driven Cube recipe definition. Replaces the {@link CubeRecipe}

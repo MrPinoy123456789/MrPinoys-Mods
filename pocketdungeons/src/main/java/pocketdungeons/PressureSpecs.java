@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 
 import static pocketdungeons.RoomTemplateGenerator.CELL;
 

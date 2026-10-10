@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.monster.spider.Spider;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
 
