@@ -31,6 +31,7 @@ House rule for everything you write: no em dashes and no spaced double hyphens a
 
 1. Be on a clean, tested tree: `gradlew test runGameTest` green (see `add-tests`). Commit first if the owner
    asked to "commit and deploy" (commit message ends with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`).
+2. Shortcut: `tools/ship.sh --deploy` (from `pocketdungeons`) does steps 1 to 5 in one call: lock, `clean test runGameTest dist`, refuses a dirty tree, a stale jar or players online, deploys with `--restart`, runs `validate`. The manual steps follow.
 2. Build the jar into `A:\MrPinoys Mods\dist`: `.\gradlew.bat dist --console=plain` (from `pocketdungeons`).
    `deploy` needs exactly one `MrPinoys_Pocket_Dungeons-*.jar` there (not `-sources`); delete stale ones first.
 3. Check state: `node tools/server/pdserver.mjs status` (from `pocketdungeons`). Note players online.
