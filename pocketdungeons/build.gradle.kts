@@ -361,6 +361,8 @@ for ((taskName, testClass) in mapOf(
     // the capstone start omen, and the shipped W7b rooms, legacy theme lists and diary pages.
     "bossRulesTest" to "BossRulesTest",
     "dungeonLogTest" to "DungeonLogTest",
+    "dungeonLogGoldenTest" to "DungeonLogGoldenTest",
+    "entrySubRecordTest" to "EntrySubRecordTest",
     "stationTutorialTest" to "StationTutorialTest",
     // Playtest 2026-10-03 (A5): the first-visit tour.
     "firstVisitTutorialTest" to "FirstVisitTutorialTest",
@@ -483,6 +485,8 @@ tasks.test {
     dependsOn("roomEligibilityTest")
     dependsOn("bossRulesTest")
     dependsOn("dungeonLogTest")
+    dependsOn("dungeonLogGoldenTest")
+    dependsOn("entrySubRecordTest")
     dependsOn("stationTutorialTest")
     dependsOn("firstVisitTutorialTest")
     dependsOn("roomScanTest")

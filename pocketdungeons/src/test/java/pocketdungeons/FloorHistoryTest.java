@@ -81,7 +81,10 @@ public class FloorHistoryTest {
         check(entry(1, FloorHistory.CLEARED).layers(), 0, "the short constructor means no dungeon");
     }
 
-    /** Task progress still round trips, and a save's bounty states load and save unchanged. */
+    /**
+     * Task progress still round trips, and a save's bounty states still load. The weekly bounties
+     * are gone, so the next save is written without them (the old shape stays readable).
+     */
     private static void testLegacySidecarsSurvive() {
         DungeonLog log = new DungeonLog();
         log.setTaskProgress(PLAYER, "station_salvage", 1);
@@ -104,7 +107,7 @@ public class FloorHistoryTest {
 
         DungeonLog loaded = DungeonLog.CODEC.decode(JsonOps.INSTANCE, save).result().orElseThrow().getFirst();
         JsonElement saved = DungeonLog.CODEC.encodeStart(JsonOps.INSTANCE, loaded).result().orElseThrow();
-        check(saved.getAsJsonObject().get("bounties"), bounties, "old bounty states are kept as they were");
+        check(saved.getAsJsonObject().get("bounties"), null, "old bounty states load and are not written back");
     }
 
     private static DungeonLog roundTrip(DungeonLog log) {

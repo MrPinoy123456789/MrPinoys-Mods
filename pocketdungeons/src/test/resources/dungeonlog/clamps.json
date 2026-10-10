@@ -1,0 +1,23 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 1,
+        "best_path": 1,
+        "keystone": 2,
+        "depth": -4,
+        "fuel": -9,
+        "room_completions": -2,
+        "key_progress": -1,
+        "highest_charts": 2,
+        "chart_progress": 9,
+        "haul": -7,
+        "trip_counter": -5,
+        "deepest_mine_floor": -6,
+        "acts_migrated": true,
+        "decide_list": ["not-a-uuid", "00000000-0000-0000-0000-0000000000b1"]
+      }
+    }
+  ]
+}

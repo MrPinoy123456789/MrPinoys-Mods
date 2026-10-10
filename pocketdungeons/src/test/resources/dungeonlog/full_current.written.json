@@ -1,0 +1,85 @@
+{
+  "players": [
+    {
+      "entry": {
+        "acts_migrated": true,
+        "acts_unlocked": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "bag": "pilgrim",
+        "best_keystone": 14,
+        "best_path": 9,
+        "campaign_complete": true,
+        "chart_progress": 3,
+        "completed_themes": {
+          "deepslate": 3,
+          "prismarine": 1
+        },
+        "current_theme": "frost",
+        "decide_list": [
+          "00000000-0000-0000-0000-0000000000b1",
+          "00000000-0000-0000-0000-0000000000b2"
+        ],
+        "decide_whitelist": true,
+        "deepest_mine_floor": 21,
+        "depth": 4,
+        "diary_bands_seen": [
+          1,
+          3
+        ],
+        "dungeons_finished": [
+          "pocketdungeons:frostworks"
+        ],
+        "extracted_powers": [
+          "power_a",
+          "power_b"
+        ],
+        "fuel": 17,
+        "haul": 6,
+        "haul_intro_seen": true,
+        "highest_charts": 13,
+        "key_progress": 2,
+        "keystone": 11,
+        "keystone_affix": "ominous",
+        "kit_granted": true,
+        "pending_offer": 6,
+        "public_listed": true,
+        "recent_themes": [
+          "deepslate",
+          "prismarine",
+          "frost"
+        ],
+        "recent_visitors": [
+          {
+            "name": "Bob",
+            "time": 1700000000000
+          },
+          {
+            "name": "Cy",
+            "time": 1699999999999
+          }
+        ],
+        "room_completions": 5,
+        "room_name": "The Vault",
+        "runs": 12,
+        "trip_counter": 8,
+        "unlocked_shells": [
+          "prestige",
+          "sandstone"
+        ]
+      },
+      "player": "00000000-0000-0000-0000-00000000000a"
+    }
+  ],
+  "task_progress": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "progress": {
+        "station_a": 2
+      }
+    }
+  ]
+}
