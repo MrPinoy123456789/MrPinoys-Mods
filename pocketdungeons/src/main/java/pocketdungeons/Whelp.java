@@ -27,7 +27,7 @@ final class Whelp {
     /** Marks a whelp: {@code SonicBoomWhelpMixin} keeps it from firing. */
     static final String TAG = PocketDungeonsMod.MOD_ID + ".whelp";
     /** The no-loot tag {@code OmenWaveNoDropsMixin} already honours. */
-    private static final String NO_LOOT_TAG = "pocketdungeons_omen_wave";
+    private static final String NO_LOOT_TAG = PocketDungeonsMod.OMEN_WAVE_TAG;
     /** Half a Warden's size. */
     private static final double SCALE = 0.5;
 

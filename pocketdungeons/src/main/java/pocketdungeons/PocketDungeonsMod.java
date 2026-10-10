@@ -23,6 +23,12 @@ public final class PocketDungeonsMod implements ModInitializer {
     public static final String MOD_ID = "pocketdungeons";
     public static final Logger LOG = LoggerFactory.getLogger("PocketDungeons");
 
+    /**
+     * Entity tag on every mob an omen wave sends (and on a Warden whelp): {@code OmenWaveNoDropsMixin} cancels the
+     * death loot of anything that carries it. One constant so the tagging and the mixin cannot drift apart.
+     */
+    public static final String OMEN_WAVE_TAG = "pocketdungeons_omen_wave";
+
     /** The void dimension declared by {@code data/pocketdungeons/dimension/void.json}. */
     public static final ResourceKey<Level> DUNGEON_LEVEL = ResourceKey.create(
             Registries.DIMENSION, Identifier.fromNamespaceAndPath(MOD_ID, "void"));

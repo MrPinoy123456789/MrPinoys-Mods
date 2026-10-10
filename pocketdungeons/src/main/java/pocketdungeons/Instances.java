@@ -2176,7 +2176,7 @@ final class Instances {
                 }
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
-                mob.addTag("pocketdungeons_omen_wave");
+                mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
                 applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
