@@ -381,15 +381,7 @@ final class DungeonScreen {
         String dungeonName = def == null ? "" : def.name();
         int floorNumber = record.interval.floorIndex + 1;
 
-        // Title: the dungeon and where this floor sits in it.
-        String header;
-        if (mine) {
-            header = BoardText.endlessTitle(dungeonName.isEmpty() ? "Endless Mine" : dungeonName, floorNumber);
-        } else if (def != null && node != null) {
-            header = BoardText.titleLine(dungeonName, node.layer(), def.layers());
-        } else {
-            header = OmenBarText.previewFloor(floorNumber, dungeonName, false, false);
-        }
+        String header = previewHeader(mine, def, node, dungeonName, floorNumber);
         Component title = Component.literal(header).withStyle(ChatFormatting.YELLOW);
 
         List<Component> lines = new ArrayList<>();
@@ -402,9 +394,62 @@ final class DungeonScreen {
         }
         lines.add(nameLine);
 
-        // What you get: only the parts the floor has. J1: at or below the
-        // floor's level the step is scrap; above it, emeralds at the
-        // over-level rate (permanent charts, not the compass reading).
+        MutableComponent gets = previewGets(level, record, entry, offer, def, node, oreHonest);
+        if (!gets.getString().isEmpty()) {
+            lines.add(gets);
+        }
+
+        // The loot rolls, then the door's price when it has one.
+        int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
+        MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
+        if (offer.cost() > 0) {
+            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(offer.cost()))
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+        lines.add(loot);
+
+        List<Component> deal = dealSheet(name, effective, gets, loot);
+        addNoticeLines(lines, deal, node, offer, offerLevel, owner);
+
+        // The floor info sheet: the dungeon, the floor, and one sentence of what to expect.
+        Component[] names = previewNames(mine, def, node, dungeonName, header, floorNumber);
+        boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
+        List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
+        // The dungeon's note speaks on its entry floor (the first door is the choice of dungeon); a deeper
+        // floor speaks for itself. Both are the reason to pick this door over the next.
+        String authored = def == null || node == null ? ""
+                : node.layer() == 1 && !def.notes().isEmpty() ? def.notes() : node.notes();
+        String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
+                node != null && node.isFinal(), def != null && showsNodes(def, node) && oreHonest ? ores : List.of(),
+                def != null && showsNodes(def, node) && oreHonest, authored);
+        Sheets sheets = new Sheets(
+                names[0].copy().withStyle(ChatFormatting.YELLOW),
+                names[1].copy().withStyle(ChatFormatting.YELLOW),
+                Component.literal(notes).withStyle(ChatFormatting.GRAY),
+                joinLines(deal));
+        return new Board(title, joinLines(lines), sheets);
+    }
+
+    /** Title: the dungeon and where this floor sits in it. */
+    private static String previewHeader(boolean mine, DungeonDef def, DungeonDef.Node node,
+                                        String dungeonName, int floorNumber) {
+        if (mine) {
+            return BoardText.endlessTitle(dungeonName.isEmpty() ? "Endless Mine" : dungeonName, floorNumber);
+        } else if (def != null && node != null) {
+            return BoardText.titleLine(dungeonName, node.layer(), def.layers());
+        } else {
+            return OmenBarText.previewFloor(floorNumber, dungeonName, false, false);
+        }
+    }
+
+    /**
+     * What you get: only the parts the floor has. J1: at or below the
+     * floor's level the step is scrap; above it, emeralds at the
+     * over-level rate (permanent charts, not the compass reading).
+     */
+    private static MutableComponent previewGets(ServerLevel level, InstanceRecord record, DungeonLog.Entry entry,
+                                                Keystone.Offer offer, DungeonDef def, DungeonDef.Node node,
+                                                boolean oreHonest) {
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
             int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
@@ -439,22 +484,14 @@ final class DungeonScreen {
                 }
             }
         }
-        if (!gets.getString().isEmpty()) {
-            lines.add(gets);
-        }
+        return gets;
+    }
 
-        // The loot rolls, then the door's price when it has one.
-        int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
-        MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
-        if (offer.cost() > 0) {
-            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(offer.cost()))
-                    .withStyle(ChatFormatting.YELLOW));
-        }
-        lines.add(loot);
-
-        // The deal sheet (what the random deal decided): the floor's name, its affixes on a line of their
-        // own, the pay, the loot and cost, and the caution and tutorial lines. The notes the floor itself
-        // carries (dark, sculk, ore) belong to the info sheet.
+    // The deal sheet (what the random deal decided): the floor's name, its affixes on a line of their
+    // own, the pay, the loot and cost, and the caution and tutorial lines. The notes the floor itself
+    // carries (dark, sculk, ore) belong to the info sheet.
+    private static List<Component> dealSheet(String name, Set<String> effective,
+                                             MutableComponent gets, MutableComponent loot) {
         List<Component> deal = new ArrayList<>();
         deal.add(Component.literal(name).withStyle(ChatFormatting.WHITE));
         MutableComponent affixLine = Component.empty();
@@ -468,7 +505,12 @@ final class DungeonScreen {
             deal.add(gets);
         }
         deal.add(loot);
+        return deal;
+    }
 
+    /** The light warning, the experimental flag, the lever tutorial and the bias note, onto the lines and the deal sheet. */
+    private static void addNoticeLines(List<Component> lines, List<Component> deal, DungeonDef.Node node,
+                                       Keystone.Offer offer, int offerLevel, UUID owner) {
         // PD-154: a dark floor was a surprise after the lever. One short line warns it.
         if (node != null && DungeonDef.Node.LIGHT_DARK.equals(node.light())) {
             lines.add(Component.literal("dark: bring torches").withStyle(ChatFormatting.GOLD));
@@ -489,8 +531,11 @@ final class DungeonScreen {
             lines.add(bias);
             deal.add(bias);
         }
+    }
 
-        // The floor info sheet: the dungeon, the floor, and one sentence of what to expect.
+    /** The info sheet's dungeon line and floor line, in that order. */
+    private static Component[] previewNames(boolean mine, DungeonDef def, DungeonDef.Node node,
+                                            String dungeonName, String header, int floorNumber) {
         Component dungeonLine;
         Component floorLine;
         if (mine) {
@@ -503,21 +548,7 @@ final class DungeonScreen {
             dungeonLine = Component.literal(header);
             floorLine = Component.empty();
         }
-        boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
-        List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
-        // The dungeon's note speaks on its entry floor (the first door is the choice of dungeon); a deeper
-        // floor speaks for itself. Both are the reason to pick this door over the next.
-        String authored = def == null || node == null ? ""
-                : node.layer() == 1 && !def.notes().isEmpty() ? def.notes() : node.notes();
-        String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
-                node != null && node.isFinal(), def != null && showsNodes(def, node) && oreHonest ? ores : List.of(),
-                def != null && showsNodes(def, node) && oreHonest, authored);
-        Sheets sheets = new Sheets(
-                dungeonLine.copy().withStyle(ChatFormatting.YELLOW),
-                floorLine.copy().withStyle(ChatFormatting.YELLOW),
-                Component.literal(notes).withStyle(ChatFormatting.GRAY),
-                joinLines(deal));
-        return new Board(title, joinLines(lines), sheets);
+        return new Component[] {dungeonLine, floorLine};
     }
 
     /** Appends {@code text} to {@code line}, behind a separator when the line already has a part. */
