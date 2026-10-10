@@ -335,6 +335,8 @@ for ((taskName, testClass) in mapOf(
     "rubbleRulesTest" to "RubbleRulesTest",
     // PD-198: every DISCONNECT handler defers its work onto the server thread.
     "disconnectHandlerTest" to "DisconnectHandlerTest",
+    // PD-199: leaving an instance forgets the Silenced consumable count.
+    "pressureForgetTest" to "PressureForgetTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -455,6 +457,7 @@ tasks.test {
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
     dependsOn("disconnectHandlerTest")
+    dependsOn("pressureForgetTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
