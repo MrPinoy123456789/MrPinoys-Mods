@@ -1,0 +1,903 @@
+## partial file with a retired key, an unknown key and an invalid value
+logs
+  INFO pocketdungeons.json still sets timerBaseSeconds, which no longer do anything (retired keys); ignoring them
+  ERROR pocketdungeons.json field 'slotPitch' has invalid value 100; must be > 0 and a multiple of 16; using default 2048
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json updated: missing keys added at their defaults, retired keys dropped, every other value kept
+file (rewritten)
+{
+  "slotPitch": 100,
+  "slotsPerRow": 64,
+  "watchIntervalTicks": 20,
+  "voidGuardDepth": 10,
+  "maxPartyMembers": 6,
+  "inviteTtlSeconds": 120,
+  "ownerReconnectGraceSeconds": 120,
+  "maxConcurrentInstances": 32,
+  "maxConcurrentVisits": 16,
+  "maxConcurrentPreviews": 16,
+  "playtestJournal": true,
+  "lemonIdleSeconds": 20,
+  "lemonAskIdleSeconds": 120,
+  "lemonLlmLapseSeconds": 300,
+  "lemonFallbackSeconds": 45,
+  "lemonLingerSeconds": 4,
+  "lemonThinkSeconds": 90,
+  "omenDangerScalePerOmen": 0.15,
+  "pathLengthMin": 8,
+  "pathLengthMax": 12,
+  "firstFloorMaxEncounters": 2,
+  "branchProbability": 0.55,
+  "loopProbability": 0.3,
+  "planAttemptBudget": 32,
+  "maxGridSpan": 12,
+  "clearBlocksPerTick": 8192,
+  "floorsPerSafeVisit": 4,
+  "endlessMineUnlockLevel": 3,
+  "ritualEnabled": true,
+  "payoutCommand": "",
+  "vaultKeyItem": "minecraft:trial_key",
+  "ominousVaultKeyItem": "minecraft:ominous_trial_key",
+  "trialSpawnerCooldownTicks": 36000,
+  "keystoneItem": "minecraft:recovery_compass",
+  "keystoneMaxLevel": 100,
+  "rewardRoomGraceSeconds": 600,
+  "afkSeconds": 300,
+  "timedOutDepletion": 1,
+  "overclockedCooldownFactor": 0.4,
+  "swarmingMobFactor": 1.5,
+  "chaoticSpawnerChance": 0.05,
+  "silencedPlayerRange": 6,
+  "silencedConsumablesPerOmen": 3,
+  "fountainChance": 0.15,
+  "finishEmeralds": 8,
+  "finishVaultChests": 2,
+  "failHaulKeepPercent": 50,
+  "ordealEmeraldChance": 0.25,
+  "moltenHazardsPerCell": 4,
+  "feralWolvesPerCell": 2,
+  "explosiveHazardsPerCell": 4,
+  "voidedCellChance": 0.3,
+  "mobScalePerLevel": 0.008,
+  "mobScaleBase": 0.65,
+  "breezeHpMultiplier": 0.5,
+  "spawnerClearThreshold": 0.75,
+  "pocket2TimerSeconds": 60,
+  "pocket2DoorChance": 0.2,
+  "anomalyRoomChance": 0.08,
+  "rerollBlock": "minecraft:enchanting_table",
+  "rerollLapisPerTier": 4,
+  "trimBonuses": [
+    {
+      "material": "minecraft:diamond",
+      "attribute": "minecraft:armor_toughness",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:netherite",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:gold",
+      "attribute": "minecraft:movement_speed",
+      "amount": 0.02,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:iron",
+      "attribute": "minecraft:armor",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:copper",
+      "attribute": "minecraft:mining_efficiency",
+      "amount": 0.5,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:redstone",
+      "attribute": "minecraft:attack_speed",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:emerald",
+      "attribute": "minecraft:luck",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:lapis",
+      "attribute": "minecraft:safe_fall_distance",
+      "amount": 3.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:amethyst",
+      "attribute": "minecraft:entity_interaction_range",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:quartz",
+      "attribute": "minecraft:max_health",
+      "amount": 2.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:resin",
+      "attribute": "minecraft:fall_damage_multiplier",
+      "amount": -0.1,
+      "operation": "add_value"
+    }
+  ],
+  "trimBonusDungeonOnly": false,
+  "storageBlock": "minecraft:ender_chest",
+  "salvageBlock": "minecraft:grindstone",
+  "salvageEmeraldsPerTier": 1,
+  "salvageKeyEmeralds": 1,
+  "salvageOminousKeyEmeralds": 3,
+  "salvageMaterialBonus": 1,
+  "lootDurabilityPercent": 110,
+  "craftedDurabilityPercent": 110,
+  "poisonMaxSeconds": 10,
+  "witherMaxSeconds": 8,
+  "sidebarEnabled": true,
+  "scrapCostBase": 4,
+  "scrapCostEvery": 3,
+  "scrapPerAct": 1,
+  "scrapFinalBonus": 1,
+  "belowCompassPercent": 50,
+  "endlessDepthEvery": 4,
+  "endlessDepthMax": 4,
+  "sculkHeardMax": 4,
+  "sculkHeardMaxAncient": 2,
+  "sculkUnheardScrap": 1,
+  "whelpHealth": 20.0,
+  "whelpDamage": 4.0,
+  "whelpSpeed": 0.3,
+  "whelpSeconds": 15,
+  "ancientWardenAnswers": 2,
+  "petCap": 3,
+  "finaleEnabled": true,
+  "finaleRewardChests": 1,
+  "finaleCountdownSeconds": 3,
+  "finaleEliteHealthPercentPerMember": 50,
+  "mobUniformEnabled": true,
+  "hallEnabled": true,
+  "repeatFinishEmeraldPercent": 50,
+  "sidebarRepaintTicks": 20,
+  "slownessMaxSeconds": 6,
+  "miningFatigueMaxSeconds": 30,
+  "powerBonuses": [
+    {
+      "id": "warden_ward",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.2,
+      "operation": "add_value"
+    }
+  ],
+  "modules": {},
+  "equipCap": 3,
+  "someFutureKey": "kept"
+}
+floorsPerSafeVisit 4 slotPitch 2048
+
+## complete file carrying retired keys and an unknown key
+logs
+  INFO pocketdungeons.json still sets timerBaseSeconds, fuelItem, cubeBlock, overlevelEmeraldsPerScrap, which no longer do anything (retired keys); ignoring them
+  INFO pocketdungeons.json updated: missing keys added at their defaults, retired keys dropped, every other value kept
+file (rewritten)
+{
+  "slotPitch": 2048,
+  "slotsPerRow": 64,
+  "watchIntervalTicks": 20,
+  "voidGuardDepth": 10,
+  "maxPartyMembers": 6,
+  "inviteTtlSeconds": 120,
+  "ownerReconnectGraceSeconds": 120,
+  "maxConcurrentInstances": 32,
+  "maxConcurrentVisits": 16,
+  "maxConcurrentPreviews": 16,
+  "playtestJournal": true,
+  "lemonIdleSeconds": 20,
+  "lemonAskIdleSeconds": 120,
+  "lemonLlmLapseSeconds": 300,
+  "lemonFallbackSeconds": 45,
+  "lemonLingerSeconds": 4,
+  "lemonThinkSeconds": 90,
+  "omenDangerScalePerOmen": 0.15,
+  "pathLengthMin": 8,
+  "pathLengthMax": 12,
+  "firstFloorMaxEncounters": 2,
+  "branchProbability": 0.55,
+  "loopProbability": 0.3,
+  "planAttemptBudget": 32,
+  "maxGridSpan": 12,
+  "clearBlocksPerTick": 8192,
+  "floorsPerSafeVisit": 9,
+  "endlessMineUnlockLevel": 3,
+  "ritualEnabled": true,
+  "payoutCommand": "",
+  "vaultKeyItem": "minecraft:trial_key",
+  "ominousVaultKeyItem": "minecraft:ominous_trial_key",
+  "trialSpawnerCooldownTicks": 36000,
+  "keystoneItem": "minecraft:recovery_compass",
+  "keystoneMaxLevel": 100,
+  "rewardRoomGraceSeconds": 600,
+  "afkSeconds": 300,
+  "timedOutDepletion": 1,
+  "overclockedCooldownFactor": 0.4,
+  "swarmingMobFactor": 1.5,
+  "chaoticSpawnerChance": 0.05,
+  "silencedPlayerRange": 6,
+  "silencedConsumablesPerOmen": 3,
+  "fountainChance": 0.15,
+  "finishEmeralds": 8,
+  "finishVaultChests": 2,
+  "failHaulKeepPercent": 50,
+  "ordealEmeraldChance": 0.25,
+  "moltenHazardsPerCell": 4,
+  "feralWolvesPerCell": 2,
+  "explosiveHazardsPerCell": 4,
+  "voidedCellChance": 0.3,
+  "mobScalePerLevel": 0.008,
+  "mobScaleBase": 0.65,
+  "breezeHpMultiplier": 0.5,
+  "spawnerClearThreshold": 0.75,
+  "pocket2TimerSeconds": 60,
+  "pocket2DoorChance": 0.2,
+  "anomalyRoomChance": 0.08,
+  "rerollBlock": "minecraft:enchanting_table",
+  "rerollLapisPerTier": 4,
+  "trimBonuses": [
+    {
+      "material": "minecraft:diamond",
+      "attribute": "minecraft:armor_toughness",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:netherite",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:gold",
+      "attribute": "minecraft:movement_speed",
+      "amount": 0.02,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:iron",
+      "attribute": "minecraft:armor",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:copper",
+      "attribute": "minecraft:mining_efficiency",
+      "amount": 0.5,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:redstone",
+      "attribute": "minecraft:attack_speed",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:emerald",
+      "attribute": "minecraft:luck",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:lapis",
+      "attribute": "minecraft:safe_fall_distance",
+      "amount": 3.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:amethyst",
+      "attribute": "minecraft:entity_interaction_range",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:quartz",
+      "attribute": "minecraft:max_health",
+      "amount": 2.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:resin",
+      "attribute": "minecraft:fall_damage_multiplier",
+      "amount": -0.1,
+      "operation": "add_value"
+    }
+  ],
+  "trimBonusDungeonOnly": false,
+  "storageBlock": "minecraft:ender_chest",
+  "salvageBlock": "minecraft:grindstone",
+  "salvageEmeraldsPerTier": 1,
+  "salvageKeyEmeralds": 1,
+  "salvageOminousKeyEmeralds": 3,
+  "salvageMaterialBonus": 1,
+  "lootDurabilityPercent": 110,
+  "craftedDurabilityPercent": 110,
+  "poisonMaxSeconds": 10,
+  "witherMaxSeconds": 8,
+  "sidebarEnabled": true,
+  "scrapCostBase": 4,
+  "scrapCostEvery": 3,
+  "scrapPerAct": 1,
+  "scrapFinalBonus": 1,
+  "belowCompassPercent": 50,
+  "endlessDepthEvery": 4,
+  "endlessDepthMax": 4,
+  "sculkHeardMax": 4,
+  "sculkHeardMaxAncient": 2,
+  "sculkUnheardScrap": 1,
+  "whelpHealth": 20.0,
+  "whelpDamage": 4.0,
+  "whelpSpeed": 0.3,
+  "whelpSeconds": 15,
+  "ancientWardenAnswers": 2,
+  "petCap": 3,
+  "finaleEnabled": true,
+  "finaleRewardChests": 1,
+  "finaleCountdownSeconds": 3,
+  "finaleEliteHealthPercentPerMember": 50,
+  "mobUniformEnabled": true,
+  "hallEnabled": true,
+  "repeatFinishEmeraldPercent": 50,
+  "sidebarRepaintTicks": 20,
+  "slownessMaxSeconds": 6,
+  "miningFatigueMaxSeconds": 30,
+  "powerBonuses": [
+    {
+      "id": "warden_ward",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.2,
+      "operation": "add_value"
+    }
+  ],
+  "modules": {},
+  "equipCap": 3,
+  "typoKey": 1
+}
+floorsPerSafeVisit 9 slotPitch 2048
+
+## complete file with nothing to add or drop
+logs
+file (unchanged)
+floorsPerSafeVisit 3 slotPitch 2048
+
+## file that is not JSON
+logs
+  ERROR pocketdungeons.json could not be read; using defaults and leaving the file alone
+file (unchanged)
+floorsPerSafeVisit 3 slotPitch 2048
+
+## empty file
+logs
+  ERROR pocketdungeons.json could not be read; using defaults and leaving the file alone
+file (unchanged)
+floorsPerSafeVisit 3 slotPitch 2048
+
+## JSON that is not an object
+logs
+  ERROR pocketdungeons.json could not be read; using defaults and leaving the file alone
+file (unchanged)
+floorsPerSafeVisit 3 slotPitch 2048
+
+## pathLengthMax below pathLengthMin
+pathLengthMin = 10
+pathLengthMax = 10
+overrides {}
+logs
+  ERROR pocketdungeons.json pathLengthMax (5) is below pathLengthMin (10); using pathLengthMax = pathLengthMin
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## path longer than the grid holds
+maxGridSpan = 3
+pathLengthMin = 9
+pathLengthMax = 9
+overrides {}
+logs
+  ERROR pocketdungeons.json pathLengthMax (30) cannot fit inside a maxGridSpan of 3 (9 cells at most); clamping pathLengthMax to 9
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## grid clamp lowers pathLengthMin too
+maxGridSpan = 3
+pathLengthMin = 8
+pathLengthMax = 9
+overrides {}
+logs
+  ERROR pocketdungeons.json pathLengthMax (12) cannot fit inside a maxGridSpan of 3 (9 cells at most); clamping pathLengthMax to 9
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## reroll block was the smithing table
+rerollBlock = minecraft:enchanting_table
+overrides {}
+logs
+  WARN rerollBlock was the smithing table, which is not a station any more; using minecraft:enchanting_table for rerolls instead.
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## storage block was the copper chest
+storageBlock = minecraft:ender_chest
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  WARN storageBlock was the waxed oxidized copper chest, which is the bag chest now; using minecraft:ender_chest for run storage instead.
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## payoutCommand empty is meaningful
+payoutCommand = 
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## vaultKeyItem empty is a mistake
+vaultKeyItem = minecraft:trial_key
+overrides {}
+logs
+  ERROR pocketdungeons.json field 'vaultKeyItem' must not be empty; using default 'minecraft:trial_key'
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## trimBonuses with one good and one malformed entry
+trimBonuses = [TrimBonusEntry[material=minecraft:stone, attribute=minecraft:luck, amount=1.5, operation=add_value]]
+overrides {}
+logs
+  ERROR pocketdungeons.json field 'trimBonuses[1]' is malformed and was skipped
+  ERROR pocketdungeons.json field 'trimBonuses[2]' is malformed and was skipped
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## trimBonuses with no valid entry
+trimBonuses = [TrimBonusEntry[material=minecraft:diamond, attribute=minecraft:armor_toughness, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:netherite, attribute=minecraft:knockback_resistance, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:gold, attribute=minecraft:movement_speed, amount=0.02, operation=add_value], TrimBonusEntry[material=minecraft:iron, attribute=minecraft:armor, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:copper, attribute=minecraft:mining_efficiency, amount=0.5, operation=add_value], TrimBonusEntry[material=minecraft:redstone, attribute=minecraft:attack_speed, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:emerald, attribute=minecraft:luck, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:lapis, attribute=minecraft:safe_fall_distance, amount=3.0, operation=add_value], TrimBonusEntry[material=minecraft:amethyst, attribute=minecraft:entity_interaction_range, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:quartz, attribute=minecraft:max_health, amount=2.0, operation=add_value], TrimBonusEntry[material=minecraft:resin, attribute=minecraft:fall_damage_multiplier, amount=-0.1, operation=add_value]]
+overrides {}
+logs
+  ERROR pocketdungeons.json field 'trimBonuses[0]' is malformed and was skipped
+  ERROR pocketdungeons.json field 'trimBonuses' has no valid entries; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## trimBonuses empty array
+trimBonuses = [TrimBonusEntry[material=minecraft:diamond, attribute=minecraft:armor_toughness, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:netherite, attribute=minecraft:knockback_resistance, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:gold, attribute=minecraft:movement_speed, amount=0.02, operation=add_value], TrimBonusEntry[material=minecraft:iron, attribute=minecraft:armor, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:copper, attribute=minecraft:mining_efficiency, amount=0.5, operation=add_value], TrimBonusEntry[material=minecraft:redstone, attribute=minecraft:attack_speed, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:emerald, attribute=minecraft:luck, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:lapis, attribute=minecraft:safe_fall_distance, amount=3.0, operation=add_value], TrimBonusEntry[material=minecraft:amethyst, attribute=minecraft:entity_interaction_range, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:quartz, attribute=minecraft:max_health, amount=2.0, operation=add_value], TrimBonusEntry[material=minecraft:resin, attribute=minecraft:fall_damage_multiplier, amount=-0.1, operation=add_value]]
+overrides {}
+logs
+  ERROR pocketdungeons.json field 'trimBonuses' has no valid entries; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## trimBonuses not an array
+trimBonuses = [TrimBonusEntry[material=minecraft:diamond, attribute=minecraft:armor_toughness, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:netherite, attribute=minecraft:knockback_resistance, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:gold, attribute=minecraft:movement_speed, amount=0.02, operation=add_value], TrimBonusEntry[material=minecraft:iron, attribute=minecraft:armor, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:copper, attribute=minecraft:mining_efficiency, amount=0.5, operation=add_value], TrimBonusEntry[material=minecraft:redstone, attribute=minecraft:attack_speed, amount=0.1, operation=add_value], TrimBonusEntry[material=minecraft:emerald, attribute=minecraft:luck, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:lapis, attribute=minecraft:safe_fall_distance, amount=3.0, operation=add_value], TrimBonusEntry[material=minecraft:amethyst, attribute=minecraft:entity_interaction_range, amount=1.0, operation=add_value], TrimBonusEntry[material=minecraft:quartz, attribute=minecraft:max_health, amount=2.0, operation=add_value], TrimBonusEntry[material=minecraft:resin, attribute=minecraft:fall_damage_multiplier, amount=-0.1, operation=add_value]]
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## powerBonuses with one good and one malformed entry
+powerBonuses = [PowerBonusEntry[id=p, attribute=minecraft:luck, amount=2.0, operation=add_value]]
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  ERROR pocketdungeons.json field 'powerBonuses[1]' is malformed and was skipped
+
+## powerBonuses with no valid entry
+powerBonuses = [PowerBonusEntry[id=warden_ward, attribute=minecraft:knockback_resistance, amount=0.2, operation=add_value]]
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  ERROR pocketdungeons.json field 'powerBonuses[0]' is malformed and was skipped
+  ERROR pocketdungeons.json field 'powerBonuses' has no valid entries; using defaults
+
+## powerBonuses not an array
+powerBonuses = [PowerBonusEntry[id=warden_ward, attribute=minecraft:knockback_resistance, amount=0.2, operation=add_value]]
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## module overrides, qualified and bare ids, one bad value
+overrides {other:thing=true, pocketdungeons:alchemy=true, pocketdungeons:cows=false}
+logs
+  WARN pocketdungeons.json modules.bad must be true or false; ignoring
+  WARN pocketdungeons.json modules.worse must be true or false; ignoring
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## modules not an object
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## no modules key clears earlier overrides
+overrides {}
+logs
+  INFO pocketdungeons.json field 'trimBonuses' is missing or not an array; using defaults
+  INFO pocketdungeons.json field 'powerBonuses' is missing or not an array; using defaults
+
+## setModuleOverride adds one
+{
+  "slotPitch": 2048,
+  "slotsPerRow": 64,
+  "watchIntervalTicks": 20,
+  "voidGuardDepth": 10,
+  "maxPartyMembers": 6,
+  "inviteTtlSeconds": 120,
+  "ownerReconnectGraceSeconds": 120,
+  "maxConcurrentInstances": 32,
+  "maxConcurrentVisits": 16,
+  "maxConcurrentPreviews": 16,
+  "playtestJournal": true,
+  "lemonIdleSeconds": 20,
+  "lemonAskIdleSeconds": 120,
+  "lemonLlmLapseSeconds": 300,
+  "lemonFallbackSeconds": 45,
+  "lemonLingerSeconds": 4,
+  "lemonThinkSeconds": 90,
+  "omenDangerScalePerOmen": 0.15,
+  "pathLengthMin": 8,
+  "pathLengthMax": 12,
+  "firstFloorMaxEncounters": 2,
+  "branchProbability": 0.55,
+  "loopProbability": 0.3,
+  "planAttemptBudget": 32,
+  "maxGridSpan": 12,
+  "clearBlocksPerTick": 8192,
+  "floorsPerSafeVisit": 4,
+  "endlessMineUnlockLevel": 3,
+  "ritualEnabled": true,
+  "payoutCommand": "",
+  "vaultKeyItem": "minecraft:trial_key",
+  "ominousVaultKeyItem": "minecraft:ominous_trial_key",
+  "trialSpawnerCooldownTicks": 36000,
+  "keystoneItem": "minecraft:recovery_compass",
+  "keystoneMaxLevel": 100,
+  "rewardRoomGraceSeconds": 600,
+  "afkSeconds": 300,
+  "timedOutDepletion": 1,
+  "overclockedCooldownFactor": 0.4,
+  "swarmingMobFactor": 1.5,
+  "chaoticSpawnerChance": 0.05,
+  "silencedPlayerRange": 6,
+  "silencedConsumablesPerOmen": 3,
+  "fountainChance": 0.15,
+  "finishEmeralds": 8,
+  "finishVaultChests": 2,
+  "failHaulKeepPercent": 50,
+  "ordealEmeraldChance": 0.25,
+  "moltenHazardsPerCell": 4,
+  "feralWolvesPerCell": 2,
+  "explosiveHazardsPerCell": 4,
+  "voidedCellChance": 0.3,
+  "mobScalePerLevel": 0.008,
+  "mobScaleBase": 0.65,
+  "breezeHpMultiplier": 0.5,
+  "spawnerClearThreshold": 0.75,
+  "pocket2TimerSeconds": 60,
+  "pocket2DoorChance": 0.2,
+  "anomalyRoomChance": 0.08,
+  "rerollBlock": "minecraft:enchanting_table",
+  "rerollLapisPerTier": 4,
+  "trimBonuses": [
+    {
+      "material": "minecraft:diamond",
+      "attribute": "minecraft:armor_toughness",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:netherite",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:gold",
+      "attribute": "minecraft:movement_speed",
+      "amount": 0.02,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:iron",
+      "attribute": "minecraft:armor",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:copper",
+      "attribute": "minecraft:mining_efficiency",
+      "amount": 0.5,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:redstone",
+      "attribute": "minecraft:attack_speed",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:emerald",
+      "attribute": "minecraft:luck",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:lapis",
+      "attribute": "minecraft:safe_fall_distance",
+      "amount": 3.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:amethyst",
+      "attribute": "minecraft:entity_interaction_range",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:quartz",
+      "attribute": "minecraft:max_health",
+      "amount": 2.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:resin",
+      "attribute": "minecraft:fall_damage_multiplier",
+      "amount": -0.1,
+      "operation": "add_value"
+    }
+  ],
+  "trimBonusDungeonOnly": false,
+  "storageBlock": "minecraft:ender_chest",
+  "salvageBlock": "minecraft:grindstone",
+  "salvageEmeraldsPerTier": 1,
+  "salvageKeyEmeralds": 1,
+  "salvageOminousKeyEmeralds": 3,
+  "salvageMaterialBonus": 1,
+  "lootDurabilityPercent": 110,
+  "craftedDurabilityPercent": 110,
+  "poisonMaxSeconds": 10,
+  "witherMaxSeconds": 8,
+  "sidebarEnabled": true,
+  "scrapCostBase": 4,
+  "scrapCostEvery": 3,
+  "scrapPerAct": 1,
+  "scrapFinalBonus": 1,
+  "belowCompassPercent": 50,
+  "endlessDepthEvery": 4,
+  "endlessDepthMax": 4,
+  "sculkHeardMax": 4,
+  "sculkHeardMaxAncient": 2,
+  "sculkUnheardScrap": 1,
+  "whelpHealth": 20.0,
+  "whelpDamage": 4.0,
+  "whelpSpeed": 0.3,
+  "whelpSeconds": 15,
+  "ancientWardenAnswers": 2,
+  "petCap": 3,
+  "finaleEnabled": true,
+  "finaleRewardChests": 1,
+  "finaleCountdownSeconds": 3,
+  "finaleEliteHealthPercentPerMember": 50,
+  "mobUniformEnabled": true,
+  "hallEnabled": true,
+  "repeatFinishEmeraldPercent": 50,
+  "sidebarRepaintTicks": 20,
+  "slownessMaxSeconds": 6,
+  "miningFatigueMaxSeconds": 30,
+  "powerBonuses": [
+    {
+      "id": "warden_ward",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.2,
+      "operation": "add_value"
+    }
+  ],
+  "modules": {
+    "pocketdungeons:alchemy": true,
+    "pocketdungeons:cows": false
+  },
+  "equipCap": 3,
+  "someFutureKey": 1
+}
+overrides {pocketdungeons:alchemy=true, pocketdungeons:cows=false}
+
+## setModuleOverride clears one
+{
+  "slotPitch": 2048,
+  "slotsPerRow": 64,
+  "watchIntervalTicks": 20,
+  "voidGuardDepth": 10,
+  "maxPartyMembers": 6,
+  "inviteTtlSeconds": 120,
+  "ownerReconnectGraceSeconds": 120,
+  "maxConcurrentInstances": 32,
+  "maxConcurrentVisits": 16,
+  "maxConcurrentPreviews": 16,
+  "playtestJournal": true,
+  "lemonIdleSeconds": 20,
+  "lemonAskIdleSeconds": 120,
+  "lemonLlmLapseSeconds": 300,
+  "lemonFallbackSeconds": 45,
+  "lemonLingerSeconds": 4,
+  "lemonThinkSeconds": 90,
+  "omenDangerScalePerOmen": 0.15,
+  "pathLengthMin": 8,
+  "pathLengthMax": 12,
+  "firstFloorMaxEncounters": 2,
+  "branchProbability": 0.55,
+  "loopProbability": 0.3,
+  "planAttemptBudget": 32,
+  "maxGridSpan": 12,
+  "clearBlocksPerTick": 8192,
+  "floorsPerSafeVisit": 4,
+  "endlessMineUnlockLevel": 3,
+  "ritualEnabled": true,
+  "payoutCommand": "",
+  "vaultKeyItem": "minecraft:trial_key",
+  "ominousVaultKeyItem": "minecraft:ominous_trial_key",
+  "trialSpawnerCooldownTicks": 36000,
+  "keystoneItem": "minecraft:recovery_compass",
+  "keystoneMaxLevel": 100,
+  "rewardRoomGraceSeconds": 600,
+  "afkSeconds": 300,
+  "timedOutDepletion": 1,
+  "overclockedCooldownFactor": 0.4,
+  "swarmingMobFactor": 1.5,
+  "chaoticSpawnerChance": 0.05,
+  "silencedPlayerRange": 6,
+  "silencedConsumablesPerOmen": 3,
+  "fountainChance": 0.15,
+  "finishEmeralds": 8,
+  "finishVaultChests": 2,
+  "failHaulKeepPercent": 50,
+  "ordealEmeraldChance": 0.25,
+  "moltenHazardsPerCell": 4,
+  "feralWolvesPerCell": 2,
+  "explosiveHazardsPerCell": 4,
+  "voidedCellChance": 0.3,
+  "mobScalePerLevel": 0.008,
+  "mobScaleBase": 0.65,
+  "breezeHpMultiplier": 0.5,
+  "spawnerClearThreshold": 0.75,
+  "pocket2TimerSeconds": 60,
+  "pocket2DoorChance": 0.2,
+  "anomalyRoomChance": 0.08,
+  "rerollBlock": "minecraft:enchanting_table",
+  "rerollLapisPerTier": 4,
+  "trimBonuses": [
+    {
+      "material": "minecraft:diamond",
+      "attribute": "minecraft:armor_toughness",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:netherite",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:gold",
+      "attribute": "minecraft:movement_speed",
+      "amount": 0.02,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:iron",
+      "attribute": "minecraft:armor",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:copper",
+      "attribute": "minecraft:mining_efficiency",
+      "amount": 0.5,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:redstone",
+      "attribute": "minecraft:attack_speed",
+      "amount": 0.1,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:emerald",
+      "attribute": "minecraft:luck",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:lapis",
+      "attribute": "minecraft:safe_fall_distance",
+      "amount": 3.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:amethyst",
+      "attribute": "minecraft:entity_interaction_range",
+      "amount": 1.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:quartz",
+      "attribute": "minecraft:max_health",
+      "amount": 2.0,
+      "operation": "add_value"
+    },
+    {
+      "material": "minecraft:resin",
+      "attribute": "minecraft:fall_damage_multiplier",
+      "amount": -0.1,
+      "operation": "add_value"
+    }
+  ],
+  "trimBonusDungeonOnly": false,
+  "storageBlock": "minecraft:ender_chest",
+  "salvageBlock": "minecraft:grindstone",
+  "salvageEmeraldsPerTier": 1,
+  "salvageKeyEmeralds": 1,
+  "salvageOminousKeyEmeralds": 3,
+  "salvageMaterialBonus": 1,
+  "lootDurabilityPercent": 110,
+  "craftedDurabilityPercent": 110,
+  "poisonMaxSeconds": 10,
+  "witherMaxSeconds": 8,
+  "sidebarEnabled": true,
+  "scrapCostBase": 4,
+  "scrapCostEvery": 3,
+  "scrapPerAct": 1,
+  "scrapFinalBonus": 1,
+  "belowCompassPercent": 50,
+  "endlessDepthEvery": 4,
+  "endlessDepthMax": 4,
+  "sculkHeardMax": 4,
+  "sculkHeardMaxAncient": 2,
+  "sculkUnheardScrap": 1,
+  "whelpHealth": 20.0,
+  "whelpDamage": 4.0,
+  "whelpSpeed": 0.3,
+  "whelpSeconds": 15,
+  "ancientWardenAnswers": 2,
+  "petCap": 3,
+  "finaleEnabled": true,
+  "finaleRewardChests": 1,
+  "finaleCountdownSeconds": 3,
+  "finaleEliteHealthPercentPerMember": 50,
+  "mobUniformEnabled": true,
+  "hallEnabled": true,
+  "repeatFinishEmeraldPercent": 50,
+  "sidebarRepaintTicks": 20,
+  "slownessMaxSeconds": 6,
+  "miningFatigueMaxSeconds": 30,
+  "powerBonuses": [
+    {
+      "id": "warden_ward",
+      "attribute": "minecraft:knockback_resistance",
+      "amount": 0.2,
+      "operation": "add_value"
+    }
+  ],
+  "modules": {
+    "pocketdungeons:cows": false
+  },
+  "equipCap": 3,
+  "someFutureKey": 1
+}
+overrides {pocketdungeons:cows=false}
+
