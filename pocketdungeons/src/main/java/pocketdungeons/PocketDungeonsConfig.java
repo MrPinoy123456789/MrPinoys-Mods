@@ -13,10 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.DoublePredicate;
 import java.util.function.IntPredicate;
+import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Config at {@code config/pocketdungeons.json}. Suite's readOrCreate contract: missing
@@ -413,31 +415,28 @@ public final class PocketDungeonsConfig {
         try {
             Files.createDirectories(configDir);
             if (!Files.exists(file)) {
-                try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                    GSON.toJson(defaultsJson(), w);
-                }
+                writeAtomically(file, defaultsJson());
                 PocketDungeonsMod.LOG.info("Created default pocketdungeons.json");
                 applyDefaults();
                 return;
             }
+            JsonObject parsed;
             try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                JsonObject parsed = GSON.fromJson(r, JsonObject.class);
-                if (parsed == null) {
-                    throw new IllegalStateException("pocketdungeons.json is empty");
-                }
-                apply(parsed);
-                // Keys added since the file was written are filled in so the
-                // file stays a complete reference, but what the operator set
-                // is written back as they set it: rewriting with the defaults
-                // would undo every edit on the next boot.
-                JsonObject rewrite = effectiveForSave(parsed);
-                if (rewrite != null) {
-                    try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                        GSON.toJson(rewrite, w);
-                    }
-                    PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
-                            + "their defaults, retired keys dropped, every other value kept");
-                }
+                parsed = GSON.fromJson(r, JsonObject.class);
+            }
+            if (parsed == null) {
+                throw new IllegalStateException("pocketdungeons.json is empty");
+            }
+            apply(parsed);
+            // Keys added since the file was written are filled in so the
+            // file stays a complete reference, but what the operator set
+            // is written back as they set it: rewriting with the defaults
+            // would undo every edit on the next boot.
+            JsonObject rewrite = effectiveForSave(parsed);
+            if (rewrite != null) {
+                writeAtomically(file, rewrite);
+                PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
+                        + "their defaults, retired keys dropped, every other value kept");
             }
         } catch (Exception e) {
             // Defaults in memory, file untouched -- an operator's broken-but-
@@ -446,6 +445,18 @@ public final class PocketDungeonsConfig {
                     + "leaving the file alone", e);
             applyDefaults();
         }
+    }
+
+    /**
+     * PD-200: writes {@code json} to {@code file} through a sibling temp file and an atomic move, so a kill
+     * part way through the write leaves the old file whole instead of a truncated one.
+     */
+    private static void writeAtomically(Path file, JsonObject json) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            GSON.toJson(json, w);
+        }
+        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
     public static int slotPitch() {
@@ -1443,9 +1454,7 @@ public final class PocketDungeonsConfig {
                 modules.addProperty(entry.getKey(), entry.getValue());
             }
             parsed.add("modules", modules);
-            try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                GSON.toJson(parsed, w);
-            }
+            writeAtomically(file, parsed);
         } catch (Exception e) {
             PocketDungeonsMod.LOG.error("pocketdungeons.json could not record module override {}", id, e);
         }
