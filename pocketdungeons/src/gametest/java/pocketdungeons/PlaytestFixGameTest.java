@@ -418,6 +418,9 @@ public final class PlaytestFixGameTest {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
             int cap = stack.isEmpty() ? -1 : DungeonTools.durabilityCap(stack.getItem());
+            // The cap table is lifted by the durability knobs (110 percent by default).
+            cap = DungeonTools.scaledCap(cap, Math.max(PocketDungeonsConfig.lootDurabilityPercent(),
+                    PocketDungeonsConfig.craftedDurabilityPercent()));
             if (cap > 0 && stack.getMaxDamage() > cap) {
                 failures.add(stack.getItem() + " has " + stack.getMaxDamage() + ", cap " + cap);
             }
