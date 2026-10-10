@@ -244,6 +244,11 @@ final class IronDoorLatch {
         }
     }
 
+    /** Forgets when a player was last given the latch hint, for a logout. */
+    static void forgetPlayer(UUID player) {
+        lastHint.remove(player);
+    }
+
     /** Test hook: forget every pending close and hint. */
     static void clear() {
         closeAt.clear();

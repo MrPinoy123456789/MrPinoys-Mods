@@ -323,6 +323,9 @@ final class Instances {
      */
     private static void handleDisconnect(MinecraftServer server, ServerPlayer player) {
         PartyService.clearFor(player.getUUID());
+        Locks.forgetPlayer(player.getUUID());
+        IronDoorLatch.forgetPlayer(player.getUUID());
+        PlacementNotice.forgetPlayer(player.getUUID());
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             return;

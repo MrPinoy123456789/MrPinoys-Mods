@@ -30,6 +30,11 @@ public final class PlacementNotice {
 
     private PlacementNotice() {}
 
+    /** Forgets when a player last heard the placement sound, for a logout. */
+    static void forgetPlayer(UUID player) {
+        LAST_SOUND.remove(player);
+    }
+
     /**
      * A block was placed at {@code pos} in the dungeon dimension by {@code player}.
      * Called from {@code BlockItemPlaceMixin} after the placement succeeded.
