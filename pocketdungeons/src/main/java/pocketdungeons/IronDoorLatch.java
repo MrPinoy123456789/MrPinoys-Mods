@@ -67,7 +67,7 @@ final class IronDoorLatch {
 
     /** Lower door halves awaiting closure, mapped to the game tick they close at. */
     private static final Map<BlockPos, Long> closeAt = new HashMap<>();
-    private static final Map<UUID, Long> lastHint = new HashMap<>();
+    private static final Map<UUID, Long> lastHint = SessionState.perPlayer(new HashMap<>());
 
     private IronDoorLatch() {}
 
@@ -81,7 +81,7 @@ final class IronDoorLatch {
         if (level.isClientSide() || hand != InteractionHand.MAIN_HAND
                 || !(player instanceof ServerPlayer serverPlayer)
                 || !(level instanceof ServerLevel serverLevel)
-                || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                || !DungeonWorldRules.inDungeon(level)) {
             return InteractionResult.PASS;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());

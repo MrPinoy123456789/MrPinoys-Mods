@@ -1,5 +1,31 @@
 # Dungeon structure design
 
+> **Current state, 2026-10-10 (freshness pass; the text below is the 2026-10-05 design and was not rewritten).**
+> The structure itself stands: acts, dungeons made of named floors, a graph of doors, capstones, the
+> Endless Mine. What changed since, with the record that decided it:
+>
+> - Scrap, haul and lives replaced echo shards, fuel, bands and "scrap buys side branches" (D5, D11 and the
+>   Banking row): floors pay scrap into a haul, home or a finish banks it whole, a failed dungeon keeps half,
+>   a side door costs 1 or 2 lives and is never sold for the last one
+>   (`docs/decision-2026-10-07-haul-and-blood-doors.md`).
+> - A level costs `4 + floor(compass / 3)` scrap; a floor pays its step, plus 1 per act above the first, plus 1 on
+>   a final floor, and half (at least 1) below the compass (`docs/decision-2026-10-09-playtest-design-pass.md`).
+> - The three-door front offer, the forced capstone door and the Endless Mine on door 3 are replaced by the
+>   Astrolabe Room: pick the act and the dungeon in the world, look through the wide window, pull DESCEND.
+>   Later floors keep three doors.
+> - The Ancient City pulse rules are replaced by the Heard meter: any room with sculk sensors or shriekers
+>   listens, a full meter (4, or 2 in the Ancient City) answers with darkness and a Warden whelp, and the real
+>   Warden wakes only on the second answer on the Ancient City's last floor. `sensor_gallery` is gone (the Hush
+>   Gallery replaced it) and the Barred Vault is a vanilla vault opened with the trial key (no hopper toll).
+> - Most dungeons end in a finale on their last floor; Copper Works mobs wear copper (`mobUniform`).
+> - Feral is retired (Restless replaced it); the Kennels (hostile wolves) is a new Act 1 dungeon.
+> - Leaving a floor in progress fails the dungeon for the leaver, leaving between floors cashes out, and a failed
+>   dungeon returns the party to the Home room. Vault keys last the dungeon and settle for emeralds when the
+>   haul banks. A floor can promise rolled gear (`gear:<slot>:<tier>`).
+>
+> Where this document and those records disagree, the records win. The living reference for the data formats is
+> `docs/INTEGRATION.md` section 1.10; the model in the player's words is `tools/lemon/GUIDE.md`.
+
 Status: built on branch `dungeon-structure` (waves W1 to W7b, verified in W8 on
 2026-10-05), not yet playtested. **Owner decisions D23 to D41 (2026-10-06) in
 `docs/plan-2026-10-06-2.md` change parts of this design** (D5, D8, D11, D12,

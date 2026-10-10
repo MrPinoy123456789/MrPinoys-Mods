@@ -1,6 +1,11 @@
 # Lemon: the player's guide
 
-Status: design approved by the owner on 2026-09-27. Not built.
+Status: design approved by the owner on 2026-09-27. Built since: build order steps 1, 2 and 4
+(the journal and context snapshot, Lemon's body and driver commands, the interviewer hook-up through
+`tools/server/mcp.mjs`). Step 3, guide mode (tutorial moments, stuck hints, hint ladders, the keyed FAQ),
+is mostly not built (the first-visit and station tutorials are separate code): `lemon_hint` and `lemon_tutorial` are not written (`docs/PLAYTEST_EVENTS.md`), and
+`tools/lemon/HINTS.md` is still empty. The operating rules are `docs/LEMON_AGENT.md`; the plain-words
+mechanics Lemon explains are `tools/lemon/GUIDE.md`.
 
 Lemon is a small companion that appears beside the player when it has something
 to say and vanishes when it does not. It is one character with four jobs:
@@ -72,7 +77,7 @@ per player, rebuilt on demand:
   to room map, which each floor keeps from its plan) and **every room on the
   current floor**, each with its role, whether it has been entered, and its spawner
   and lock state;
-- omen and band so far, the spawner gate (cleared, needed, total);
+- omen, lives left and floors counted, the spawner gate (cleared, needed, total);
 - inventory essentials: tool durability, block counts, food, whether the pack is
   near full;
 - the last 20 journal events for the player (format:
@@ -88,8 +93,8 @@ Rule-driven, data-driven, and **never spoils a puzzle**.
 
 - **Tutorial moments** replace the guided-task tutorial's chat lines: first
   entry, first staging room (doors, preview, commit lever), first omen rise, first
-  floor clear, first time home is offered, first go-home, first kit top-up, first
-  keystone level-up, first station use, and so on. Each fires once per player
+  floor clear, first time home is offered, first go-home, first compass level-up
+  (the kit top-up moment is gone with the top-up), first station use, and so on. Each fires once per player
   (tracked in `DungeonLog`), in the mod's terse voice. (The guided task line,
   the weekly bounties and the room's tracker screen were removed 2026-10-02;
   weekly floors and rooms will replace the bounties.)
@@ -113,8 +118,8 @@ Rule-driven, data-driven, and **never spoils a puzzle**.
   and `PackValidator` cover the field. An agent drafts ladders for all shipped
   rooms from their code and specs; the owner reviews them.
 - **Questions in guide mode** are answered from the current room's hints, the
-  situation defaults, and a small FAQ keyed on words (home, bank, omen, keystone,
-  doors, kit, fuel, stations). A question Lemon cannot answer gets an honest "I do
+  situation defaults, and a small FAQ keyed on words (home, bank, lives, compass,
+  doors, kit, stations; fuel is gone). A question Lemon cannot answer gets an honest "I do
   not know that one" and is logged as unanswered.
 
 ## 5. LLM mode (agent connected)

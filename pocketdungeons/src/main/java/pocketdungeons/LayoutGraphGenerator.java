@@ -35,11 +35,6 @@ public final class LayoutGraphGenerator {
     /** Probability that an adjacent-but-unconnected pair of cells becomes a loop edge. */
     private static final double LOOP_PROBABILITY = 0.30;
 
-    /** Role weights for interior critical-path cells, out of 100. */
-    private static final int ENCOUNTER_WEIGHT = 45;
-    private static final int LOOT_WEIGHT = 25;
-    // corridor takes the remaining 30.
-
     /** M70: structural role ids, engine-owned and not loaded from JSON. */
     static final String ROLE_ENTRANCE = RoleIds.ENTRANCE;
     static final String ROLE_EXIT = RoleIds.EXIT;

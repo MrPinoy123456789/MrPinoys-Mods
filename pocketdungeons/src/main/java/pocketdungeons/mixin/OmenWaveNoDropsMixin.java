@@ -15,12 +15,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LivingEntity.class)
 public class OmenWaveNoDropsMixin {
 
-    private static final String TAG = "pocketdungeons_omen_wave";
-
     @Inject(method = "dropAllDeathLoot", at = @At("HEAD"), cancellable = true)
     private void pocketdungeons_cancelOmenWaveDrops(ServerLevel level, DamageSource source, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.entityTags().contains(TAG)) {
+        if (self.entityTags().contains(pocketdungeons.PocketDungeonsMod.OMEN_WAVE_TAG)) {
             ci.cancel();
         }
     }

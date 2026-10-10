@@ -366,11 +366,6 @@ final class InventoryJournal {
         checked.clear();
     }
 
-    /** Test seam: the record path for one player, so a scenario can stage or inspect one. */
-    static Path fileForTesting(MinecraftServer server, UUID player) {
-        return file(dir(server), player);
-    }
-
     /** Test seam: the leave record path for one player. */
     static Path leavingFileForTesting(MinecraftServer server, UUID player) {
         return leavingFile(dir(server), player);

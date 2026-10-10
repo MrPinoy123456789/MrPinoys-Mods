@@ -130,6 +130,9 @@ How it works, through the panel's client API only (no RCON port is opened):
   to act on and where the id came from, since `kinetic.env` redirects every call.
 - `deploy` uploads the Pocket Dungeons jar from the workspace's `dist/` folder into
   the server's `mods/`; `deploy --restart` also restarts the server so it loads.
+  `deploy` **never builds**: run `gradlew dist` (from `pocketdungeons`) first, and it needs exactly one
+  `MrPinoys_Pocket_Dungeons-*.jar` (not `-sources`) in `dist/`, so delete stale ones. Uploading a stale jar
+  ships the old build, and a passing `dungeon admin validate` on it proves nothing.
   Fabric, Fabric API and the Minecraft version are set up on the panel by hand.
 
 ## A live interview session

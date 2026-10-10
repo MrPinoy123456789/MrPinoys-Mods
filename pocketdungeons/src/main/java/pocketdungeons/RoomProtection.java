@@ -115,7 +115,7 @@ final class RoomProtection {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.PASS;
         }
-        if (!serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(serverPlayer.level())) {
             return InteractionResult.PASS;
         }
         if (serverPlayer.isCreative()) {

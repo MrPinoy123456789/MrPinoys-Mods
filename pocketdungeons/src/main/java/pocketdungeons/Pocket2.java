@@ -12,11 +12,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.VaultBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.vault.VaultBlockEntity;
@@ -392,7 +390,7 @@ final class Pocket2 {
     static void tickChild(MinecraftServer server, InstanceRecord child, long now, int interval) {
         for (UUID member : new ArrayList<>(child.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player == null || !DungeonWorldRules.inDungeon(player.level())) {
                 child.members.remove(member);
             }
         }

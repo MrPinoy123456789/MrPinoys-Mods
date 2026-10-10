@@ -126,8 +126,8 @@ final class PlaytestJournal {
         });
         ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, origin, destination) ->
                 safely("level change", () -> {
-                    boolean from = origin.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
-                    boolean to = destination.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+                    boolean from = DungeonWorldRules.inDungeon(origin);
+                    boolean to = DungeonWorldRules.inDungeon(destination);
                     if (to && !from) {
                         Hint hint = consume(ENTER_HINTS, player.getUUID());
                         record(player, "enter_dungeon", Map.of("via", hint == null ? "command" : hint.value()));
@@ -907,7 +907,7 @@ final class PlaytestJournal {
     // ---- helpers -----------------------------------------------------------------
 
     private static boolean inDungeon(ServerPlayer player) {
-        return player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        return DungeonWorldRules.inDungeon(player.level());
     }
 
     private static List<String> sorted(Collection<String> values) {

@@ -1,6 +1,14 @@
 # Zones spec: Endless Mine and Woodland Mansion
 
 Status: design, approved in direction by the owner on 2026-09-26. Not built.
+
+> Status 2026-10-10 (freshness pass): the zone rules hook (section 2) is built as the optional `rules`
+> block of a `dungeon_theme` file (`docs/INTEGRATION.md` section 1.6 is the living reference, schema
+> `docs/schema/dungeon_theme.schema.json`). The Endless Mine is built (an `endless` dungeon with sealed layers,
+> hidden ore that deepens with depth and a scrap bonus per `endlessDepthEvery` floors). The Woodland Mansion
+> is not built. Three rows below are gone: `kitTopUpScale` (the kit top-up was removed), fuel (Greater doors
+> and fuel were replaced by scrap and then by lives for side doors) and banking as an average of door steps
+> (a haul now banks whole at home or a finish). Read the rest as the original design.
 Builds on `docs/AUDIT_2026-09.md` and the wave plan recorded there. Zones are
 wave 4; they depend on wave 2b's zone rules hook (section 2).
 

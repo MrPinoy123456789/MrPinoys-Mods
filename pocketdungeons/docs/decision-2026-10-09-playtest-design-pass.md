@@ -35,7 +35,7 @@ order. If the two disagree, the reply wins until this file says otherwise.
 | C | scrap curve (Q2): BUILT 2026-10-09, see PD-182 in `BUGS.md` | levels per trip |
 | D | finales and uniforms (Q4, Q5): BUILT 2026-10-09, see PD-184 and PD-185 in `BUGS.md` | Copper Works finish |
 | E | sculk and toll rooms (Q3, Q6): BUILT 2026-10-09, see PD-183 and PD-186 in `BUGS.md` | Hush Gallery, vault |
-| F | wolves and Restless (Q8): BUILT 2026-10-09, see PD-188 in `BUGS.md` (the wolf floor is Rootworks\u0027 Wolf Hollow, not the Ossuary\u0027s Hound Crypt) | |
+| F | wolves and Restless (Q8): BUILT 2026-10-09, see PD-188 in `BUGS.md` (the wolf floor is Rootworks' Wolf Hollow, not the Ossuary's Hound Crypt) | |
 | G | ore (Q9): BUILT 2026-10-09, see PD-189 in `BUGS.md` | |
 
 ## Supersedes

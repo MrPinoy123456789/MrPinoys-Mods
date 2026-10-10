@@ -28,9 +28,6 @@ final class OmenBarText {
         return outcome(Omen.baseRewardChests());
     }
 
-    /** The omen at which one more death ends the run. */
-    static final int WARN_OMEN = Omen.MAX_OMEN;
-
     /**
      * The bar's colour by the trip's omen: 0 and 1 green (0), 2 and 3 yellow
      * (1), 4 red (2). Four lives or more read green; one life reads red.

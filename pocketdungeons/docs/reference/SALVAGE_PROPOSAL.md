@@ -54,8 +54,7 @@ destroy it. The screen says why.
 **Unlock: level 1.** The surplus starts in the first interval, and before the
 gamble opens at level 10 the merchant already takes emeralds.
 
-**Every rate lives in `pocketdungeons.json`** (`salvageEmeraldsPerTier` 1,
-`salvageKeyEmeralds` 1, `salvageOminousKeyEmeralds` 3, `salvageUnlockLevel` 1,
+**Every rate lives in `pocketdungeons.json`** (`salvageKeyEmeralds` 1, `salvageOminousKeyEmeralds` 3, `salvageUnlockLevel` 1,
 `salvageBlock`), next to the gamble and reroll costs.
 
 ## What it does to income

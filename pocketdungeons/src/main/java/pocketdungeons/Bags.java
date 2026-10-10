@@ -1,15 +1,12 @@
 package pocketdungeons;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -104,54 +101,6 @@ final class Bags {
     static Set<String> tagsFor(String bagId) {
         BagDefinition bag = byId(bagId);
         return bag == null ? Set.of() : bag.tags;
-    }
-
-    /**
-     * The headline items resolved against the item registry, for whoever
-     * fills the door's frames. An id that does not resolve is skipped with a
-     * log line rather than silently becoming air: a bag table and this list
-     * are edited separately and can drift.
-     */
-    static List<Item> headlineItems(String bagId) {
-        BagDefinition bag = byId(bagId);
-        if (bag == null) {
-            return List.of();
-        }
-        List<Item> out = new ArrayList<>(bag.headline.size());
-        for (String itemId : bag.headline) {
-            Identifier parsed = Identifier.tryParse(itemId);
-            Item item = parsed == null ? null : BuiltInRegistries.ITEM.getOptional(parsed).orElse(null);
-            if (item == null) {
-                PocketDungeonsMod.LOG.error("Bag {} lists headline item {}, which is not a registered item",
-                        bagId, itemId);
-                continue;
-            }
-            out.add(item);
-        }
-        return out;
-    }
-
-    /**
-     * The display name for this bag, or the raw id if the bag is unknown.
-     */
-    static Component displayName(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? Component.literal(bagId) : Component.literal(bag.label);
-    }
-
-    /** The blurb for this bag, or empty if the bag is unknown. */
-    static Component blurb(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? Component.literal("") : Component.literal(bag.blurb);
-    }
-
-    /**
-     * The namespaced loot table id for this bag, or {@code null} if the bag
-     * is unknown.
-     */
-    static Identifier tableId(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? null : Identifier.parse(bag.lootTable);
     }
 
     /**

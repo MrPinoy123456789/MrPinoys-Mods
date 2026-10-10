@@ -296,6 +296,19 @@ public class ConfigCharacterizationTest {
         out.append("## setModuleOverride clears one\n").append(sortedModules(file)).append("\n")
                 .append("overrides ").append(new TreeMap<>(ContentModules.overrides())).append("\n\n");
 
+        // PD-200: the rewrite goes through a temp file; when it cannot be written the applied values stay
+        Path blocked = Files.createTempDirectory("pd-config-blocked");
+        Path blockedFile = blocked.resolve("pocketdungeons.json");
+        Files.writeString(blockedFile, "{\"floorsPerSafeVisit\":4}", StandardCharsets.UTF_8);
+        Files.createDirectory(blocked.resolve("pocketdungeons.json.tmp"));
+        PocketDungeonsConfig.load(blocked);
+        check(PocketDungeonsConfig.floorsPerSafeVisit() == 4, "a failed rewrite keeps the values just applied");
+        check(text(blockedFile).equals("{\"floorsPerSafeVisit\":4}"), "a failed rewrite leaves the file as it was");
+        Path clean = Files.createTempDirectory("pd-config-clean");
+        Files.writeString(clean.resolve("pocketdungeons.json"), "{\"floorsPerSafeVisit\":4}", StandardCharsets.UTF_8);
+        PocketDungeonsConfig.load(clean);
+        check(!Files.exists(clean.resolve("pocketdungeons.json.tmp")), "the temp file is moved over the config, not left");
+
         compare("scenarios.txt", out.toString());
     }
 

@@ -87,7 +87,6 @@ final class DialogScreens {
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
     static final String ACTION_LEAVE_CONFIRM = "leave_confirm";
     static final String ACTION_QUIT_DUNGEON = "quit_dungeon";
-    static final String ACTION_QUIT_DUNGEON_CONFIRM = "quit_dungeon_confirm";
     /** Playtest 2026-10-03 (A2): the menu's Reset Key option opens {@link #resetKeyConfirm}. */
     static final String ACTION_RESET_KEY = "reset_key";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
@@ -749,7 +748,7 @@ final class DialogScreens {
             options.add(new MenuOption("Leave", null, ACTION_LEAVE_DUNGEON));
             if (roomOwner && doorChosen) {
                 options.add(new MenuOption("Quit Door",
-                        "Fail the dungeon, downgrade your compass, pick a new door",
+                        "Fail this dungeon and pick a new door",
                         ACTION_QUIT_DUNGEON));
             }
             if (roomOwner) {
@@ -771,14 +770,6 @@ final class DialogScreens {
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY),
                 new MenuOption("View Lobbies", null, ACTION_VIEW_LOBBIES));
-    }
-
-    /**
-     * Start over from scratch (playtest 2026-10-03, A2: "there should also be a
-     * feature to let me reset the run myself"). Last in the menu, behind a confirm.
-     */
-    private static MenuOption resetKeyOption() {
-        return new MenuOption("Reset Compass", null, ACTION_RESET_KEY);
     }
 
     /**
@@ -1249,7 +1240,7 @@ final class DialogScreens {
     /**
      * The lodestone menu's Diaries option: all seven of Alex's entries, in
      * their canonical numeric order. A discovered entry is a button that
-     * opens {@link #diaryReader}; an undiscovered one is a plain grey
+     * opens the entry's reader; an undiscovered one is a plain grey
      * "Entry N: ???" line, the same locked-content shape {@link
      * #shellPicker} already uses for a shell the player has not unlocked --
      * never a clickable dead end.
@@ -1288,24 +1279,6 @@ final class DialogScreens {
             buttons.add(lockedButton(line, null, ACTION_DIARIES, owner));
         }
         return DialogKit.list("Diaries", body, buttons, backToMenuButton(owner));
-    }
-
-    /**
-     * (M26) One diary's reader: its pages in their canonical, unshuffled
-     * order -- the source {@link DiaryDelivery} itself shuffles for the
-     * physical book, never this screen, so a player who lost the book can
-     * still read the real thing here. Back re-opens the list through
-     * {@link DialogRouter} rather than a stored reference to it, so a diary
-     * found while this screen was open shows up discovered the moment the
-     * player backs out.
-     */
-    static Dialog diaryReader(Diaries.Entry entry, UUID owner) {
-        List<DialogBody> body = new ArrayList<>();
-        for (String page : entry.pages()) {
-            body.add(DialogKit.text(page));
-        }
-        return DialogKit.notice("Entry " + entry.number() + ": " + entry.title(), body,
-                backButton("Back", ACTION_DIARIES, owner));
     }
 
     /** A button that swaps to another screen on the client, committing nothing. */

@@ -78,6 +78,8 @@ public class ConfigSaveTest {
         check(!onDisk.has("timerBaseSeconds"), "a retired key is dropped");
         check(onDisk.has("someFutureKey"), "an unknown key is left for the operator to remove");
         check(PocketDungeonsConfig.floorsPerSafeVisit() == 4, "the partial file still applies");
+        // PD-200: the rewrite goes through a temp file and an atomic move, and leaves no temp file behind.
+        check(!Files.exists(dir.resolve("pocketdungeons.json.tmp")), "the temp file is moved over the config");
     }
 
     private static void testInvalidValueIsKeptInTheFile() throws Exception {

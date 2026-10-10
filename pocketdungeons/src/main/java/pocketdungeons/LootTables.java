@@ -65,23 +65,6 @@ final class LootTables {
     static final String PIGLIN_BARTER = "gameplay/piglin_bartering";
 
     /**
-     * M49: the bag tables of SITUATIONS_SPEC 3.2, one per archetype under
-     * {@code bags/}. Listed in {@link #ALL} rather than treated as optional the
-     * way the themed {@code _drowned} suffix is: a missing themed table falls
-     * back to its base, but a missing bag table means a player walks into a run
-     * carrying nothing at all, which is a worse failure than an empty chest and
-     * has no fallback to find.
-     *
-     * <p>The paths come from {@link Bags}, which is where the ids live. That
-     * direction is deliberate and one-way: nothing in {@code Bags}'s
-     * construction may call back into this class, or the two class initialisers
-     * read each other half-built.
-     */
-    static String bagTable(String bagId) {
-        return "bags/" + bagId;
-    }
-
-    /**
      * The equipment slots M13's gear pool is keyed by. {@code weapon} is one
      * slot rather than
      * one per weapon type: a player gambling for "a weapon" wants a weapon, and

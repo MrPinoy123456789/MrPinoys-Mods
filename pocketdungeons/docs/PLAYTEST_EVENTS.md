@@ -57,25 +57,33 @@ at home before the first door.
 | `leave_dungeon` | Crosses out | `reason`: `exit`, `checkpoint_exit`, `disconnect`, `purge`, `rescue_eject`, `other` |
 | `bag_chosen` | Class picked | `bag` |
 | `door_preview` | A door preview is stamped | `step`, `level`, `theme`, `affixes` (array) |
-| `door_commit` | A door is committed | `step`, `level`, `theme`, `affixes`, `fuel_spent`, `rooms` (array of room ids on the floor) |
+| `door_commit` | A door is committed | `step`, `level`, `theme`, `affixes`, `fuel_spent` (the lives a side door cost; the name is from the fuel era, 0 for a free door), `rooms` (array of room ids on the floor) |
 | `dungeon_chosen` | The first door of a trip is committed: the trip's dungeon is picked (dungeon structure W2) | `dungeon` (id), `act`, `kind` (`story`, `resource`, `capstone`), `entry` (node id), `step` |
-| `edge_taken` | A later door is committed: the party takes an edge of the dungeon graph | `dungeon`, `from` (node id), `to` (node id), `step` (the +1 to +3 dealt to that door, 0 in a resource dungeon), `cost` (echo shards, 0 for a main path edge) |
+| `edge_taken` | A later door is committed: the party takes an edge of the dungeon graph | `dungeon`, `from` (node id), `to` (node id), `step` (the +1 to +3 dealt to that door, 0 in a resource dungeon), `cost` (lives the side door took, 0 for a main path edge) |
 | `node_entered` | A committed door opens a floor in a dungeon (written after `dungeon_chosen` or `edge_taken`) | `dungeon`, `node`, `name`, `layer`, `final`, `step`, `path_length` |
 | `room_entered` | First time any member enters a cell on this floor | `room` (room id), `cell` (`"x,z"`) |
-| `omen_rise` | Omen goes up | `source`: `dwell`, `sensor`, `shriek`, `bargain`, `headstart`; `amount`, `total`, `room` |
+| `omen_rise` | Omen goes up | `source`: `death` or `door` (a side door took lives); `amount`, `total` (lives are `5 - total`), `room`. The other triggers write `hazard` |
 | `rescue` | A killing blow is turned into a rescue | `cause` (damage type id), `room` |
 | `floor_complete` | This player is credited with the floor | `seconds`, `omen`, `spawners_cleared`, `spawners_total`, `rescues`, `blocks_placed`, `nodes_mined` (resource nodes this player mined on the floor, dungeon structure W4), `nodes_total` (nodes the floor opened with), `durability_used`, `chests` |
-| `dungeon_finished` | The final floor of a dungeon is cleared, one line per member present (dungeon structure W2) | `dungeon`, `node`, `floors` (the trip's path length), `shards` (the finish shard, 0 for a resource dungeon), `vault_chests`, `first` (this player's first finish of it), `diary` (page id handed over, empty for none) |
+| `dungeon_finished` | The final floor of a dungeon is cleared, one line per member present (dungeon structure W2) | `dungeon`, `node`, `floors` (the trip's path length), `emeralds` (the finish emeralds; half on a repeat finish), `vault_chests`, `first` (this player's first finish of it), `diary` (page id handed over, empty for none) |
 | `act_unlocked` | A capstone clear opened an act for a member present (dungeon structure W3); one line per member who gained it | `dungeon` (the capstone), `act` (the act opened, 0 when none), `campaign_complete` (true for an act 5 capstone) |
-| `bank` | Interval settled for this player | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `band`, `levels_gained`, `carry`, `chests`, `depth_bonus`, `key_level` |
+| `bank` | Interval settled for this player (the reward chests; the scrap is `haul_banked`) | `trigger`: `home_lever`, `checkpoint_exit`, `grace_expiry`; `floors`, `levels_gained` and `scrap_left` (both always 0 now), `chests`, `depth_bonus`, `key_level` |
+| `floor_pay` | A floor clear pays this member (2026-10-07) | `scrap` (into the haul), `emeralds` (0; unused vault keys settle at the bank now) |
+| `haul_banked` | A member's haul is banked (home, finish, fail or a haul left from a trip that ended while away) | `context` (`home`, `finish`, `fail`, `orphan`), `banked`, `lost`, `compass` (level after), `progress` (scrap in the bar after) |
+| `emeralds` | Emeralds granted as a dungeon reward | `amount`, `source` (`dungeon_finish`, `lemon_archive`, ...) |
+| `hazard` | A pressure trigger answered (a wave or a cue; no lives are spent) | `source`: `dwell`, `sensor`, `shriek`, `bargain`, `silence`, `vault`; `room` |
+| `shop_sale` | The player sold a drop to a vendor | `item`, `count`, `emeralds`, `vendor` |
+| `fountain` | A dead end fountain was drunk | `boon` |
+| `diary_handed` | A diary was handed to Lemon | `band`, `count` (diaries she now holds) |
+| `room_scan` | The Home room as the player left it | `stations`, `containers`, `items` |
 | `kit_refill` | Superseded 2026-10-05 (dungeon structure W5, D14): no longer emitted, the refill is gone. Was: the bag chest refilled with a fresh full kit on a trip home | `bag`, `kit` and `overwritten` (each `items` and `gear`, as in `inventory_snapshot`) |
-| `kit_topup` | Kit top-up applied (superseded; no longer emitted) | `band`, `granted` (object item id to count), `tools_replaced` (array) |
+| `kit_topup` | Kit top-up applied (superseded; no longer emitted, the top-up is gone) | `band`, `granted` (object item id to count), `tools_replaced` (array) |
 | `inventory_snapshot` | A floor clear, a bank, an exit or a checkpoint exit (playtest 2026-10-03-2) | `trigger`; `pack`, `run_storage`, `ender_chest`, `kept` (each `items`: item id to count, and `gear`: `item`, `left`, `max`, optional `tier`, `enchants`, `kit`); `survival_stashed` (stack count only) |
 | `shop_purchase` | A Store sale (2026-10-04, PD-142) | `item` (item id), `name` (the listing's name), `price`, `currency` (item id), `vendor` (the villager's name) |
-| `quit_floor` | `/dungeon quit` | `penalty` (levels) |
+| `quit_floor` | `/dungeon quit` (a failed dungeon for the haul since 2026-10-08) | `penalty` (always 0 now; the compass is untouched) |
 | `ordeal` | An Ordeal room is resolved (its lever pulled, or its objective met), written for each player in the room | `ordeal` (`rising_lava`, `collapsing_bridge`, `thicket`, `ice_run`, `hold_the_plate`), `seconds` since the room was armed |
-| `salvage` | The Salvage button at the salvage bench pays out | `gear`, `keys`, `ominous_keys`, `mob_gear` (counts taken); `emeralds`, `fuel`, `xp` (paid) |
-| `run_failed` | A max-omen death fails the whole run | `cause` (damage type id), `floor_omen`, `interval_omen`, `floor`, `slot` |
+| `salvage` | The Salvage button at the salvage bench pays out | `gear`, `mob_gear` (counts taken); `xp` and `materials` (object item id to count; paid). Keys are refused at the bench now |
+| `run_failed` | The fifth death (no lives left) fails the dungeon for the whole party | `cause` (damage type id), `floor_omen`, `interval_omen`, `floor`, `slot` |
 | `owner_hold` | Owner reconnect grace starts, resumes or expires | `state`: `start`, `resume`, `expire` |
 | `checkin` | Player answers the in-game check-in | `prompt` (`after_bank`, `after_quit`, `after_session`), `score` (1 to 5, or null if skipped), `comment` (string, may be empty) |
 | `report` | `/dungeon report <text>` or the check-in's "something broke" | `text`, `pos` (`"x,y,z"`), `room`, `recent` (last 10 `ev` names for this player) |

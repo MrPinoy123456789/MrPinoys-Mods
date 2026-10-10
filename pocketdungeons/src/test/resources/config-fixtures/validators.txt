@@ -766,18 +766,6 @@ salvageBlock [String, default minecraft:grindstone]
   odd empty array -> minecraft:grindstone | ERROR pocketdungeons.json field 'salvageBlock' is not a valid string; using default 'minecraft:grindstone'
   odd null -> minecraft:grindstone | ERROR pocketdungeons.json field 'salvageBlock' is not a valid string; using default 'minecraft:grindstone'
   odd empty object -> minecraft:grindstone | ERROR pocketdungeons.json field 'salvageBlock' is not a valid string; using default 'minecraft:grindstone'
-salvageEmeraldsPerTier [int, default 1]
-  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
-  values 1,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
-  rejected ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' has invalid value -1; must be >= 0; using default 1
-  disturbs (nothing else)
-  odd string abc -> 1 | ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' is not a valid integer; using default 1
-  odd string 7 -> 7 | (no warning)
-  odd boolean true -> 1 | ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' is not a valid integer; using default 1
-  odd number 1.5 -> 1 | (no warning)
-  odd empty array -> 1 | ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' is not a valid integer; using default 1
-  odd null -> 1 | ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' is not a valid integer; using default 1
-  odd empty object -> 1 | ERROR pocketdungeons.json field 'salvageEmeraldsPerTier' is not a valid integer; using default 1
 salvageKeyEmeralds [int, default 1]
   probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
   values 1,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000

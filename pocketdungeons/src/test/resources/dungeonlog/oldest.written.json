@@ -1,0 +1,16 @@
+{
+  "players": [
+    {
+      "entry": {
+        "acts_migrated": true,
+        "acts_unlocked": [
+          1
+        ],
+        "best_path": 7,
+        "chart_progress": 0,
+        "runs": 4
+      },
+      "player": "00000000-0000-0000-0000-00000000000a"
+    }
+  ]
+}

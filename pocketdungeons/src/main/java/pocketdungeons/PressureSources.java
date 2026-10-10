@@ -18,26 +18,28 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * J3 (plan 2026-10-06-2): the floor's pressure triggers, reworked off omen.
  * Death is the only thing that raises omen; everything else here answers in
- * the dungeon's own coin: a lootless wave after the player, darkness on a
- * shriek, a harder floor for the Ominous Bargain.
+ * the dungeon's own coin: a lootless wave after the player, darkness and a
+ * Warden whelp when a sculk room answers, a harder floor for the Ominous Bargain.
  *
- * <p>Five triggers, all polled rather than hooked, which keeps the mod's
- * one-mixin budget intact:
+ * <p>Five triggers, all polled rather than hooked:
  *
  * <ul>
  *   <li><strong>Dwell.</strong> Time a player spends in an unsolved cell: a
  *       wave per 90 seconds past the first 60. A cleared cell and the
  *       staging room are free (spec 5.4).</li>
  *   <li><strong>Sensor pulses.</strong> Sculk sensors going active, counted
- *       on the rising edge: a wave per five pulses, or per pulse on an
- *       Ancient City floor ({@link SculkOmen}), where the final floor's
- *       fourth pulse wakes the Warden.</li>
- *   <li><strong>Shrieks.</strong> Sculk shriekers: darkness, then a wave.</li>
+ *       on the rising edge into the room's Heard meter; a full meter
+ *       ({@code sculkHeardMax}, fewer in the Ancient City, see {@link SculkOmen})
+ *       is an answer: darkness and a Warden whelp. The Ancient City's final
+ *       floor wakes the real Warden at its second answer.</li>
+ *   <li><strong>Shrieks.</strong> Sculk shriekers in a room with no sensors: an
+ *       answer at once. In a room with sensors a shriek only voices them.</li>
  *   <li><strong>The Ominous Bargain.</strong> Once, when its reward is taken:
  *       +2 level for the rest of the floor.</li>
  *   <li><strong>Barred Vault.</strong> Once, when its reward is taken: relief,
@@ -84,8 +86,8 @@ final class PressureSources {
         int wavesPaid;
     }
 
-    private static final Map<BlockPos, Armed> ARMED = new LinkedHashMap<>();
-    private static final Map<UUID, Dwell> DWELL = new HashMap<>();
+    private static final Map<BlockPos, Armed> ARMED = SessionState.clearedAtStop(new LinkedHashMap<>());
+    private static final Map<UUID, Dwell> DWELL = SessionState.clearedAtStop(new HashMap<>());
 
     /** One poll per second. Dwell is measured in 90 second steps; this is ample. */
     private static final int PERIOD = 20;
@@ -168,8 +170,11 @@ final class PressureSources {
         ARMED.put(origin.immutable(), armed);
     }
 
+    /** Content ids of the rooms whose chest is a spur (taking from it spends the room's patience). */
+    static final Set<String> SPUR_ROOMS = Set.of("ominous_bargain", "barred_vault");
+
     private static boolean isSpur(String content) {
-        return "ominous_bargain".equals(content) || "barred_vault".equals(content);
+        return content != null && SPUR_ROOMS.contains(content);
     }
 
     /** Drops the triggers for one cell. Called from teardown alongside {@link Locks#clear}. */
@@ -177,9 +182,13 @@ final class PressureSources {
         ARMED.remove(cellOrigin);
     }
 
-    /** Forgets a player's dwell, for a logout or a return to the safe room. */
+    /**
+     * Forgets a player's dwell and their count of Silenced consumable uses, for a logout or a return to
+     * the safe room. PD-199: the use count used to outlive the run it was counted in.
+     */
     static void forget(UUID player) {
         DWELL.remove(player);
+        SILENCED_USES.remove(player);
     }
 
     private static void tick(MinecraftServer server) {
@@ -437,7 +446,7 @@ final class PressureSources {
     }
 
     /** Consumables used so far by each Silenced player; every {@code silencedConsumablesPerOmen}-th spawns a wave. */
-    private static final Map<UUID, Integer> SILENCED_USES = new HashMap<>();
+    private static final Map<UUID, Integer> SILENCED_USES = SessionState.clearedAtStop(new HashMap<>());
 
     /**
      * A Silenced member used a consumable (playtest 2026-10-02-1: Silence no

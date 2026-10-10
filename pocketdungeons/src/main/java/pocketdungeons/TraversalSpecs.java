@@ -2,10 +2,8 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,8 +19,6 @@ import static pocketdungeons.RoomGeometry.CELL;
 import static pocketdungeons.RoomGeometry.DOOR_MAX;
 import static pocketdungeons.RoomGeometry.DOOR_MIN;
 import static pocketdungeons.RoomGeometry.WALL_HEIGHT;
-import static pocketdungeons.RoomTemplateGenerator.QUAD_SPAWNS;
-import static pocketdungeons.RoomTemplateGenerator.concat;
 
 /**
  * M50: the traversal family's room templates.
@@ -317,17 +313,6 @@ final class TraversalSpecs {
             case SOUTH -> o.offset(i, y, CELL - 1);
             case WEST -> o.offset(0, y, i);
             case EAST -> o.offset(CELL - 1, y, i);
-            default -> throw new IllegalArgumentException("wall must be horizontal: " + wall);
-        };
-    }
-
-    /** A position one block inside the room from {@code wall}, at column {@code i}, height {@code y}. */
-    private static BlockPos insidePos(BlockPos o, Direction wall, int i, int y) {
-        return switch (wall) {
-            case NORTH -> o.offset(i, y, 1);
-            case SOUTH -> o.offset(i, y, CELL - 2);
-            case WEST -> o.offset(1, y, i);
-            case EAST -> o.offset(CELL - 2, y, i);
             default -> throw new IllegalArgumentException("wall must be horizontal: " + wall);
         };
     }

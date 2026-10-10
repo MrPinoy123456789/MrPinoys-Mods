@@ -58,11 +58,6 @@ final class SidebarDisplay {
         });
     }
 
-    /** Whether the member has hidden their sidebar. */
-    static boolean isHidden(UUID member) {
-        return HIDDEN.contains(member);
-    }
-
     /** {@code /dungeon display on|off}. */
     static void setHidden(ServerPlayer player, boolean hidden) {
         if (hidden) {
@@ -83,7 +78,7 @@ final class SidebarDisplay {
                 for (UUID member : record.members.keySet()) {
                     ServerPlayer player = server.getPlayerList().getPlayer(member);
                     if (player == null || HIDDEN.contains(member)
-                            || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                            || !DungeonWorldRules.inDungeon(player.level())) {
                         continue;
                     }
                     paint(server, record, player);

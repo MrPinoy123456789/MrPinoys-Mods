@@ -361,7 +361,7 @@ public final class DialogRouter {
      * exactly as it does when they right-click the wall lodestone.
      */
     private static void backToMenu(ServerPlayer player) {
-        boolean inDungeon = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean inDungeon = DungeonWorldRules.inDungeon(player.level());
         DialogKit.show(player, DialogScreens.lodestoneMenu(player, inDungeon));
     }
 
@@ -628,7 +628,7 @@ public final class DialogRouter {
         BagDefinition bag = Bags.byId(bagId);
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (bag == null || bag.hidden || record == null || record.visitInstance || record.roomCellOrigin == null
-                || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                || !DungeonWorldRules.inDungeon(player.level())) {
             Chime.refused(player);
             return;
         }

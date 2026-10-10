@@ -4537,3 +4537,44 @@ Old saves need no migration beyond defaults for new fields.
 
 See `docs/playtests/LIVE_CHECKS.md` sections L45 to L53. Deployment to the
 Kinetic test server is an owner step.
+
+## Haul, the Astrolabe Room and the 2026-10-09 design pass (2026-10-07 to 2026-10-10)
+
+Added by the 2026-10-10 freshness pass from `docs/reference/BUGS.md` (PD-161 to PD-197), the two decision records
+(`docs/decision-2026-10-07-haul-and-blood-doors.md`, `docs/decision-2026-10-09-playtest-design-pass.md`) and the code.
+Test counts were not re-run for this entry; each PD entry names its tests. Everything after the haul model was built
+but not yet played; the owed checks are `docs/playtests/LIVE_CHECKS.md` L54 to L65.
+
+- **Haul and Blood Doors.** The spendable scrap pool became a per-trip haul that banks into the compass at home or a
+  finish (`ScrapMath`, `DungeonLog.Entry`, `RunLifecycle.bankHaul`); a failed dungeon banks `failHaulKeepPercent` (50).
+  A side door costs 1 or 2 lives from the party's five (`DoorLives`), never the last. `cost` on an edge is rejected.
+- **Astrolabe Room.** The first staging room of a trip shows one act's dungeons as a row of 1 by 2 doors (`HallLayout`,
+  `HallOffers`, `HallRoom`): turn the astrolabe for the act, a sign, doormat and copper bulb per door, a 14 by 3 wall
+  that is the preview window, a DESCEND lever that glints beside the selected door, and `Play again` on a finished
+  dungeon. `hallEnabled` off restores three random doors; a repeat finish pays `repeatFinishEmeraldPercent` of the emeralds.
+- **Scrap curve.** A level costs `scrapCostBase + floor(compass / scrapCostEvery)` (4 and 3); a floor pays its step plus
+  `scrapPerAct` per act above the first plus `scrapFinalBonus`, and half (at least 1) below the compass.
+- **Sidebar and effect caps.** `SidebarDisplay` shows floor, lives, spawners, haul and compass; poison, wither, slowness
+  and mining fatigue are capped (`EffectCaps`).
+- **Sculk.** Any room with a sensor or shrieker listens (`PressureSources`): a Heard meter (`sculkHeardMax` 4, Ancient
+  City 2), a full meter answers with darkness and a Warden whelp (`Whelp`: 15 s, one at a time, melee only), a clean
+  clear pays `sculkUnheardScrap`. The Hush Gallery replaced `sensor_gallery`; the Barred Vault is a vanilla vault
+  (`SpurVault`) and `SpurToll` is retired.
+- **Finales and uniforms.** `finale` in a dungeon's JSON ends its last floor in a wave (`FinaleWave`, `FinaleRules`),
+  with a named elite from Act 2; `mobUniform` dresses Copper Works mobs (`MobUniforms`).
+- **Restless and wolves.** Restless (`Restless`) replaced Feral. The Kennels is an Act 1 dungeon where every untamed
+  wolf is hostile (`HostileWolves`, `KennelSpecs`: `kennel_run`, `guard_tower`, `alphas_den`); Wolf Hollow and the Lost
+  Dog are the friendly wolves; `petCap` 3 (`PetCap`).
+- **Endless Mine ore.** `hiddenOre` with `deepBlocks` and `deepEvery` (`DungeonDef.HiddenOre.atDepth`).
+- **Lodestone menu.** Home: Start Dungeon, Manage Room, Inspect Compass, Manage Party, View Lobbies; Leave is last and
+  asks first; per-owner bans (`RoomBans`) and party history (`RoomCompany`); empty lists are notices.
+- **Leaving.** Leaving a floor in progress fails the dungeon for the leaver; leaving between floors cashes out; a host
+  failing fails everyone; a failed dungeon returns the party to the Home room (`RunLifecycle.leaveSettle`,
+  `settleLeaderLeft`, `Instances.failReturnsHome`; PD-191 to PD-193).
+- **Dimension rules.** `DungeonWorldRules` with `TrialSpawnPlacementMixin` (trial spawners ignore natural spawn rules)
+  and `FireBlockNoSpreadMixin` (fire never spreads) apply only in the dungeon dimension (PD-194, PD-195).
+- **Keys and gear.** Vault keys last the dungeon and settle for emeralds when the haul banks (`redeemKeys` from
+  `bankHaul`; PD-196); a node's `rewards` may promise `gear:<slot>:<tier>` (`PromisedGear`; PD-197).
+- **Small.** The librarian and the Deepslate and Frostworks merchants buy lapis; trimmed armour can be scrapped; the
+  floor history board says FAILED, QUIT or CLEARED; the mixin count is now 18, so the one-mixin budget is gone.
+

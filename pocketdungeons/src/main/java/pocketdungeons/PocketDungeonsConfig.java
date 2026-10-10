@@ -17,10 +17,12 @@ import java.util.function.DoublePredicate;
 import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
+import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Config at {@code config/pocketdungeons.json}. Suite's readOrCreate contract: missing
@@ -312,14 +314,6 @@ public final class PocketDungeonsConfig {
      * grindstone.
      */
     private static final Knob<String> SALVAGE_BLOCK = text("salvageBlock", "minecraft:grindstone", false);
-    /**
-     * Superseded 2026-10-03 (owner request): scrapped gear pays the
-     * grindstone's XP and its materials, never emeralds, so this is no longer
-     * read. Kept so existing pocketdungeons.json files still load. It was the
-     * emeralds per tier for one piece of tagged gear.
-     */
-    private static final Knob<Integer> SALVAGE_EMERALDS_PER_TIER = integer("salvageEmeraldsPerTier", 1,
-            v -> v >= 0, "must be >= 0");
     /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */
     private static final Knob<Integer> SALVAGE_KEY_EMERALDS = integer("salvageKeyEmeralds", 1,
             v -> v >= 0, "must be >= 0");
@@ -640,30 +634,34 @@ public final class PocketDungeonsConfig {
         try {
             Files.createDirectories(configDir);
             if (!Files.exists(file)) {
-                try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                    GSON.toJson(defaultsJson(), w);
-                }
+                writeAtomically(file, defaultsJson());
                 PocketDungeonsMod.LOG.info("Created default pocketdungeons.json");
                 applyDefaults();
                 return;
             }
+            JsonObject parsed;
             try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                JsonObject parsed = GSON.fromJson(r, JsonObject.class);
-                if (parsed == null) {
-                    throw new IllegalStateException("pocketdungeons.json is empty");
-                }
-                apply(parsed);
-                // Keys added since the file was written are filled in so the
-                // file stays a complete reference, but what the operator set
-                // is written back as they set it: rewriting with the defaults
-                // would undo every edit on the next boot.
-                JsonObject rewrite = effectiveForSave(parsed);
-                if (rewrite != null) {
-                    try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                        GSON.toJson(rewrite, w);
-                    }
+                parsed = GSON.fromJson(r, JsonObject.class);
+            }
+            if (parsed == null) {
+                throw new IllegalStateException("pocketdungeons.json is empty");
+            }
+            apply(parsed);
+            // Keys added since the file was written are filled in so the
+            // file stays a complete reference, but what the operator set
+            // is written back as they set it: rewriting with the defaults
+            // would undo every edit on the next boot.
+            JsonObject rewrite = effectiveForSave(parsed);
+            if (rewrite != null) {
+                try {
+                    writeAtomically(file, rewrite);
                     PocketDungeonsMod.LOG.info("pocketdungeons.json updated: missing keys added at "
                             + "their defaults, retired keys dropped, every other value kept");
+                } catch (IOException e) {
+                    // The values just applied are the operator's; a file another program holds open
+                    // (the move cannot replace it) must not send the server back to defaults.
+                    PocketDungeonsMod.LOG.warn("pocketdungeons.json could not be updated with the missing "
+                            + "keys; running on the values it holds", e);
                 }
             }
         } catch (Exception e) {
@@ -673,6 +671,18 @@ public final class PocketDungeonsConfig {
                     + "leaving the file alone", e);
             applyDefaults();
         }
+    }
+
+    /**
+     * PD-200: writes {@code json} to {@code file} through a sibling temp file and an atomic move, so a kill
+     * part way through the write leaves the old file whole instead of a truncated one.
+     */
+    private static void writeAtomically(Path file, JsonObject json) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            GSON.toJson(json, w);
+        }
+        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
     public static int slotPitch() {
@@ -914,10 +924,6 @@ public final class PocketDungeonsConfig {
         return SALVAGE_BLOCK.get();
     }
 
-    public static int salvageEmeraldsPerTier() {
-        return SALVAGE_EMERALDS_PER_TIER.get();
-    }
-
     public static int salvageKeyEmeralds() {
         return SALVAGE_KEY_EMERALDS.get();
     }
@@ -1104,7 +1110,7 @@ public final class PocketDungeonsConfig {
      * the next save.
      */
     private static final List<String> RETIRED_KEYS = List.of(
-            "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds",
+            "timerBaseSeconds", "timerPerRoomSeconds", "door1TimerSeconds", "salvageEmeraldsPerTier",
             "threeChestPercent", "twoChestPercent", "lateCompletionDepletion",
             // J1: the Fuel (echo shard) currency is gone; scrap and emeralds took its places.
             "fuelItem", "fuelCostPerGreaterDoor", "fuelPerFreeRun",
@@ -1428,9 +1434,7 @@ public final class PocketDungeonsConfig {
                 modules.addProperty(entry.getKey(), entry.getValue());
             }
             parsed.add("modules", modules);
-            try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                GSON.toJson(parsed, w);
-            }
+            writeAtomically(file, parsed);
         } catch (Exception e) {
             PocketDungeonsMod.LOG.error("pocketdungeons.json could not record module override {}", id, e);
         }

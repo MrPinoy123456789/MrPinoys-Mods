@@ -7,7 +7,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -91,7 +90,7 @@ final class RitualListener {
         if (level.getBlockState(pos).is(Blocks.VAULT)) {
             TrialContent.bareKey(serverPlayer.getMainHandItem());
             if (level instanceof ServerLevel serverLevel
-                    && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    && DungeonWorldRules.inDungeon(level)) {
                 PartyRewards.vaultClicked(serverPlayer, serverLevel, pos);
             }
         }
@@ -122,7 +121,7 @@ final class RitualListener {
         // contact. Flint and steel or fire charges cannot prime them; the mine
         // itself handles ignition. TNT a player placed is ordinary TNT (the
         // rubble blasts need it), so only registered mines are refused.
-        if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+        if (DungeonWorldRules.inDungeon(level)
                 && level.getBlockState(pos).is(Blocks.TNT)
                 && Instances.dungeonCellOriginAt(pos) != null
                 && RoomContent.isAffixMine(pos)) {
@@ -179,7 +178,7 @@ final class RitualListener {
         // of the denial below and the room permission mask, since every member
         // has their own storage in any room.
         if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
-                level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL))) {
+                DungeonWorldRules.inDungeon(level))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -188,7 +187,7 @@ final class RitualListener {
         // the bag creates: a player with netherite in their ender chest could
         // otherwise take it into a run from inside the room. The block stays
         // where it is and stays a decoration; it just does not open in here.
-        if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+        if (DungeonWorldRules.inDungeon(level)
                 && level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
             return InteractionResult.FAIL;
         }
@@ -384,7 +383,7 @@ final class RitualListener {
         // a room cell. The terminal pad's lodestone at the dungeon's end is a
         // stand-on completion trigger, not a navigation surface, so a
         // right-click there falls through to the pad logic below.
-        boolean inDungeon = serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean inDungeon = DungeonWorldRules.inDungeon(serverPlayer.level());
         if (inDungeon && Instances.roomOriginAt(pos) == null) {
             return InteractionResult.PASS;
         }
@@ -400,7 +399,7 @@ final class RitualListener {
      * {@code /dungeon quit}), so opening it away from the room grants nothing new.
      */
     static void openMenu(ServerPlayer player) {
-        boolean inDungeon = player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean inDungeon = DungeonWorldRules.inDungeon(player.level());
         DialogKit.show(player, DialogScreens.lodestoneMenu(player, inDungeon));
         Chime.menuOpens(player);
     }

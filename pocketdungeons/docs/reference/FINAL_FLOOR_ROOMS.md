@@ -55,3 +55,7 @@ Built, one room per final node, each with `graphRole: ["final"]` and a `roomBias
 (`The Working Face`, low priority). Each is a straight (west and east door) room, so it competes only for straight
 cells; a tee, corner or dead end variant of the most oversold floors would raise how often it appears. None has been
 seen in game; check the look, the ore amounts and how often the room rolls on a final floor.
+
+Update 2026-10-10: the Kennels (added 2026-10-09) end in `alphas_den`. The Endless Mine now hides ore in its walls and
+richer ore as it deepens. Clearing a final floor's spawners now starts the dungeon's finale (a wave, and from Act 2 a
+named elite) before the pad opens, so a final room should leave open ground for it; capstones keep their own fights.

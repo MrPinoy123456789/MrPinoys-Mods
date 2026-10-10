@@ -19,12 +19,13 @@ theme id whose rooms and processors the floors use), `lootBand {min,max}`, `node
 count as mineable nodes), optional `deviation {chance, themes[]}` (a floor sometimes borrows another theme),
 `diary`, `minNodeRooms` (the floor must place that many node-bearing rooms), `hiddenOre`
 (`pocketsMin/Max`, `sizeMin/Max`, optional `blocks[]`; buries ore in solid rock, a block listed twice is
-twice as likely), `nodes[]`, `edges[]`.
+twice as likely; `deepBlocks[]` and `deepEvery` add richer ore and one more pocket every `deepEvery` floors down,
+as the Endless Mine does), `nodes[]`, `edges[]`.
 
 - **Node:** `id`, `name` (shown to the player as the floor name), `layer`, optional `theme` (borrow a
   theme for this floor), `signatureAffix`, `roomBias[]` (rooms drawn at 3x weight here; each must exist),
   `roomCount`, `light` (`lit`/`dim`/`dark`), `rewards[]` (`{item,count}`), `final: true` on the last floor,
-  `merchant`.
+  `merchant`, `level` (pin a floor's level), `minNodeRooms` (override the dungeon's), `notes`.
 - **Edge:** `from`, `to`, and optionally `lives` (0 to 2, default 0). `lives` is what a side door costs in party
   lives (Haul and Blood Doors, 2026-10-07). **The old `cost` key is rejected by the loader**; do not write it.
   A door is refused if it would take the last life.
@@ -37,11 +38,11 @@ twice as likely), `nodes[]`, `edges[]`.
 ## The finale and the mob uniform
 
 - `"finale": { "mobs": [ { "type": "minecraft:husk", "count": 4 } ], "perMemberPercent": 50, "elite": { ... } }` makes the
-  dungeon\u0027s final floor end in a last stand (the pad shuts until the wave and its elite are dead). Counts are for a party of one
-  (at most 30 in all); `elite` is `{ "type", "name" ("The Foreman"), "health" (20 to 200), "mainhand" }` and is for Act 2 and up.
+  dungeon's final floor end in a last stand (the pad shuts until the wave and its elite are dead). Counts are for a party of one
+  (1 to 20 per entry, at most 30 in all; the loader refuses a dash in the elite's name); `elite` is `{ "type", "name" ("The Foreman"), "health" (20 to 200), "mainhand" }` and is for Act 2 and up.
   A capstone takes none. `FinaleDataTest` checks every Act 1 and 2 dungeon has one except the short Cow Pits.
 - `"mobUniform": { "armour": [four item ids], "armourPieces": 1, "rangedArmourPieces": 2, "weapon": "...", "chance": 1.0 }`
-  dresses the dungeon\u0027s mobs; nothing drops. Only melee and ranged humanoids wear it (`MobUniforms.kindOf`).
+  dresses the dungeon's mobs; nothing drops. Only melee and ranged humanoids wear it (`MobUniforms.kindOf`).
 
 ## Where a dungeon stands in the Astrolabe Room
 
@@ -123,9 +124,10 @@ Ominous mode swaps `trial_key` for `ominous_trial_key`. The generators scale mob
 ## Docs to keep in step
 
 A change to a dungeon's economy or rules updates `docs/reference/` (the relevant table or `BUGS.md` status) and,
-for a model change, a dated `docs/decision-<date>-<topic>.md`. The Lemon knowledge pack
-(`tools/lemon/out/pack.md`) and `docs/INTEGRATION.md` still describe the pre-haul scrap model until someone
-updates them; do not copy their scrap wording.
+for a model change, a dated `docs/decision-<date>-<topic>.md`. The Lemon guide (`tools/lemon/GUIDE.md`) and `docs/INTEGRATION.md` section 1.10
+were brought up to the haul model on 2026-10-10; keep them in step, then rebuild the pack with
+`node tools/lemon/build-pack.mjs`. The September owner decisions log inside the pack (`AUDIT_2026-09.md` section 11)
+is stale on bands, top-ups and keys; the guide outranks it.
 
 ## A new dungeon needs an adventure node and a way in
 

@@ -107,7 +107,7 @@ final class CapstoneFights {
         HerobrineFight.register();
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (!(entity.level() instanceof ServerLevel level)
-                    || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    || !DungeonWorldRules.inDungeon(level)
                     || STATES.isEmpty() || !isBroodType(entity)) {
                 return;
             }
@@ -225,7 +225,7 @@ final class CapstoneFights {
         List<ServerPlayer> out = new ArrayList<>();
         for (UUID id : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
-            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                 out.add(player);
             }
         }

@@ -27,7 +27,6 @@ import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -536,7 +535,7 @@ final class DungeonCommands {
      * keystone's own affix.
      */
     private static int enter(ServerPlayer player) {
-        if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (DungeonWorldRules.inDungeon(player.level())) {
             player.sendSystemMessage(Component.literal("You are already inside a dungeon.")
                     .withStyle(ChatFormatting.RED));
             return 0;
@@ -978,7 +977,7 @@ final class DungeonCommands {
     }
 
     private static int join(ServerPlayer player, ServerPlayer leader) {
-        if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (DungeonWorldRules.inDungeon(player.level())) {
             player.sendSystemMessage(Component.literal("You are already inside a dungeon.")
                     .withStyle(ChatFormatting.RED));
             return 0;
@@ -1584,7 +1583,7 @@ final class DungeonCommands {
         // 2. If still in the dungeon dimension, exit to the overworld before
         //    clearing the stash and orphan, so the live inventory swap is not
         //    racing the reset. exit is a no-op (returns false) from the overworld.
-        if (player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (DungeonWorldRules.inDungeon(player.level())) {
             RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
         }
         // 3. Full campaign reset: keystone progress, themes, fuel, run stats,

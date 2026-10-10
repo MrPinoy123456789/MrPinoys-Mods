@@ -180,13 +180,6 @@ public final class RoomEditorKit {
         return hasToolKey(stack, INSPECTOR_KEY);
     }
 
-    /**
-     * Returns true if the given stack is the annotation tool.
-     */
-    static boolean isAnnotationTool(ItemStack stack) {
-        return hasToolKey(stack, ANNOTATION_KEY);
-    }
-
     private static boolean hasToolKey(ItemStack stack, String key) {
         if (stack.isEmpty()) {
             return false;

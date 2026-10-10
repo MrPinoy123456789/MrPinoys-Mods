@@ -131,7 +131,6 @@
   "trimBonusDungeonOnly": false,
   "storageBlock": "minecraft:ender_chest",
   "salvageBlock": "minecraft:grindstone",
-  "salvageEmeraldsPerTier": 1,
   "salvageKeyEmeralds": 1,
   "salvageOminousKeyEmeralds": 3,
   "salvageMaterialBonus": 1,

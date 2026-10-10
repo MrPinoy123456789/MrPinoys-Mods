@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 
 /**
  * Dungeon structure W7b: the Act 4 capstone's Wither never breaks a block in the dungeon dimension.
@@ -27,7 +27,7 @@ public abstract class WitherBossMixin {
 
     @Inject(method = "customServerAiStep", at = @At("HEAD"))
     private void pocketdungeons$noBlockBreaking(ServerLevel level, CallbackInfo ci) {
-        if (level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (DungeonWorldRules.inDungeon(level)) {
             this.destroyBlocksTick = 0;
         }
     }

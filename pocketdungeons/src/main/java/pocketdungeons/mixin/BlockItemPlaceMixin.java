@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pocketdungeons.DungeonTools;
+import pocketdungeons.DungeonWorldRules;
 import pocketdungeons.PlacementNotice;
-import pocketdungeons.PocketDungeonsMod;
 import pocketdungeons.RoomEditorHistory;
 import pocketdungeons.RoomEditorKit;
 
@@ -69,7 +69,7 @@ public class BlockItemPlaceMixin {
         if (!(context.getPlayer() instanceof ServerPlayer player)) {
             return;
         }
-        if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(player.level())) {
             return;
         }
         BlockPos pos = context.getClickedPos();

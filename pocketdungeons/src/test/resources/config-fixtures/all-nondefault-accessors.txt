@@ -66,7 +66,6 @@ rerollLapisPerTier = 0
 rewardRoomGraceSeconds = 0
 ritualEnabled = false
 salvageBlock = minecraft:stone
-salvageEmeraldsPerTier = 0
 salvageKeyEmeralds = 0
 salvageMaterialBonus = 0
 salvageOminousKeyEmeralds = 0

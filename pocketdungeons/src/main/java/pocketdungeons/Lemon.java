@@ -440,11 +440,6 @@ final class Lemon {
         PocketDungeonsMod.LOG.info("Lemon quiet <{}> {}", player.getName().getString(), quiet ? "on" : "off");
     }
 
-    static boolean isQuiet(UUID player) {
-        State state = STATES.get(player);
-        return state != null && (state.quiet || state.agentQuiet);
-    }
-
     // ---- what the agent says ----------------------------------------------------------
 
     /**

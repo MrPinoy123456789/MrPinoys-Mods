@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pocketdungeons.DungeonTools;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 import pocketdungeons.RubbleOrdeal;
 
 
@@ -65,7 +65,7 @@ public class ServerExplosionMixin {
 
     @Inject(method = "calculateExplodedPositions", at = @At("RETURN"), cancellable = true)
     private void pocketdungeons$filterExplosion(CallbackInfoReturnable<List<BlockPos>> cir) {
-        if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(level)) {
             return;
         }
         // A blast that reaches a rubble doorway clears it (RubbleOrdeal) and

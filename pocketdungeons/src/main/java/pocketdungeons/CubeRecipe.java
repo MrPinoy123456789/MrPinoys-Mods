@@ -337,14 +337,6 @@ final class CubeRecipe {
     }
 
     /**
-     * Whether the keystone currently holds any escrowed catalyst. Used by the
-     * preview-switch path to decide whether a true refund is owed.
-     */
-    static boolean hasOutstandingEscrow(ItemStack keystone) {
-        return !escrowOf(keystone).isEmpty();
-    }
-
-    /**
      * M66: Reads the pending catalyst item id from the keystone's escrow, or
      * {@code null} if no catalyst is escrowed. Returns the first entry's
      * catalyst for compatibility with callers that only need to know whether

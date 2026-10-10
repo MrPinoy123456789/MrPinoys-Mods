@@ -7,7 +7,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.LadderBlock;
@@ -23,7 +22,6 @@ import java.util.EnumSet;
 import java.util.List;
 
 import static pocketdungeons.RoomGeometry.CELL;
-import static pocketdungeons.RoomGeometry.WALL_HEIGHT;
 
 /**
  * M74: six situation rooms using private lower stories, not a new layout

@@ -26,7 +26,7 @@ public final class PlacementNotice {
     private static final long SOUND_GAP_TICKS = 20;
 
     /** Player to the game tick their last placement sound played. */
-    private static final Map<UUID, Long> LAST_SOUND = new HashMap<>();
+    private static final Map<UUID, Long> LAST_SOUND = SessionState.perPlayer(new HashMap<>());
 
     private PlacementNotice() {}
 

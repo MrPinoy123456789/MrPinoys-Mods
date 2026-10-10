@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.monster.spider.Spider;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -36,7 +35,7 @@ final class SpiderUnstick {
 
     static void register() {
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            if (entity instanceof Spider spider && level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (entity instanceof Spider spider && DungeonWorldRules.inDungeon(level)) {
                 synchronized (TRACKED) {
                     TRACKED.put(spider, Boolean.TRUE);
                 }

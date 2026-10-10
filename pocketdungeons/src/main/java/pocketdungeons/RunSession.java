@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import java.util.EnumSet;
 import java.util.Set;
 
 /**

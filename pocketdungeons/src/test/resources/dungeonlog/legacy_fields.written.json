@@ -1,0 +1,42 @@
+{
+  "players": [
+    {
+      "entry": {
+        "acts_migrated": true,
+        "acts_unlocked": [
+          1,
+          2,
+          3
+        ],
+        "bag": "scout",
+        "best_keystone": 22,
+        "best_path": 11,
+        "chart_progress": 3,
+        "completed_themes": {
+          "a": 2
+        },
+        "current_theme": "b",
+        "depth": 2,
+        "diary_bands_seen": [
+          2
+        ],
+        "fuel": 12,
+        "highest_charts": 20,
+        "keystone": 20,
+        "keystone_affix": "ominous,fragile",
+        "pending_offer": 20,
+        "recent_themes": [
+          "a",
+          "b",
+          "c"
+        ],
+        "room_completions": 2,
+        "runs": 30,
+        "unlocked_shells": [
+          "sandstone"
+        ]
+      },
+      "player": "00000000-0000-0000-0000-00000000000a"
+    }
+  ]
+}

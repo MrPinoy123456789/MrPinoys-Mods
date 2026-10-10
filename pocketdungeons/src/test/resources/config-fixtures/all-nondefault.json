@@ -63,7 +63,6 @@
   "trimBonusDungeonOnly": true,
   "storageBlock": "minecraft:stone",
   "salvageBlock": "minecraft:stone",
-  "salvageEmeraldsPerTier": 0,
   "salvageKeyEmeralds": 0,
   "salvageOminousKeyEmeralds": 0,
   "salvageMaterialBonus": 0,

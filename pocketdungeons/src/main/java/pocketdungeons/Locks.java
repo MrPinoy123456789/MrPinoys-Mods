@@ -15,7 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
@@ -187,7 +186,7 @@ final class Locks {
     private static final long NEAR_HINT_COOLDOWN = 200;
     /** How close to a toll hopper a player must stand to be told what it wants. */
     private static final double NEAR_HINT_RANGE = 7.0;
-    private static final Map<UUID, Long> NEAR_HINTED = new HashMap<>();
+    private static final Map<UUID, Long> NEAR_HINTED = SessionState.perPlayer(new HashMap<>());
 
     /**
      * PD-170: the hint line only came with using the iron door, and a player who never

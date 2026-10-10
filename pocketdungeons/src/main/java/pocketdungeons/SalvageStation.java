@@ -105,7 +105,7 @@ final class SalvageStation {
         if (stack.isEmpty()) {
             return refuse("empty");
         }
-        // J7: keys never leave their floor; the floor clear buys them back
+        // PD-196: keys last the dungeon and settle for emeralds when the haul banks,
         // at the same rates, so the bench refuses them.
         if (stack.is(TrialContent.keyStack(true).getItem())
                 || stack.is(TrialContent.keyStack(false).getItem())) {
@@ -256,7 +256,7 @@ final class SalvageStation {
     static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
                          ContainerLevelAccess access) {
         return onUse(player, state, hand, access,
-                player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL));
+                DungeonWorldRules.inDungeon(player.level()));
     }
 
     /** As above, with the dimension test supplied so a gametest can stand in the dungeon. */

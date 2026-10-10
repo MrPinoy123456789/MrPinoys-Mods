@@ -64,6 +64,55 @@
         "pressure": { "enum": ["local", "omen"] },
         "access": { "enum": ["open", "gated"], "default": "open" },
         "window": { "enum": ["bars", "glass", "tinted_glass", "none"], "default": "bars" },
+        "dungeons": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "$comment": "Dungeon ids (dungeon/*.json) that use this room as a main room; it draws at five times weight there. Empty falls back to theme."
+        },
+        "acts": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "default": [],
+            "$comment": "Acts the room belongs to; empty allows every act."
+        },
+        "graphRole": {
+            "type": "array",
+            "items": { "enum": ["entry", "any", "side_reward", "final", "capstone"] },
+            "default": [],
+            "$comment": "Where in a dungeon's graph the room may stand. final is only for a dungeon's final floor; capstone is a capstone's boss cell."
+        },
+        "borrowableBy": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "$comment": "Dungeon ids that may borrow this room when a floor deviates to another theme."
+        },
+        "light": { "enum": ["lit", "dim", "dark"], "default": "lit", "$comment": "Dim and dark strip the lamps." },
+        "requiresLight": {
+            "type": "boolean",
+            "default": false,
+            "$comment": "A mechanic in the room needs light (wolves, sculk readability), so it is never stamped dim or dark."
+        },
+        "corridor": { "enum": ["narrow", "wide"], "default": "wide" },
+        "biome": { "type": "string", "$comment": "A biome tag such as lush_cave." },
+        "nodes": {
+            "type": "array",
+            "default": [],
+            "items": {
+                "type": "object",
+                "required": ["block"],
+                "properties": {
+                    "block": { "type": "string" },
+                    "at": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+                    "from": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+                    "to": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+                    "count": { "type": "integer", "$comment": "Absent or -1 fills every air cell in the box." },
+                    "chance": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+                },
+                "$comment": "A resource node box: air cells become the block (up to count, chosen by seed), skipped entirely with probability 1 - chance. Give at, or both from and to."
+            }
+        },
         "spanY": {
             "type": "integer",
             "default": 1,

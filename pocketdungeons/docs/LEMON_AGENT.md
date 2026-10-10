@@ -125,10 +125,10 @@ reach the player.
 
 `server context <p>` prints JSON with these top-level keys: `phase` (HOME,
 PREVIEW, ACTIVE, FLOOR_CLEARED, SAFE_RETURN or NONE), `floor`, `zone`,
-`keystone`, `run_level`, `party`, `dimension`, **`room`** (the room they are
+`keystone` (the compass level), `run_level`, `party`, `dimension`, **`room`** (the room they are
 standing in), `room_cell`, **`rooms`** (every room on the current floor with its
-role, whether it was entered, spawner and lock state), `omen` (floor omen and
-band so far), `spawners` (cleared, needed, total), `inventory` (tool durability,
+role, whether it was entered, spawner and lock state), `omen` (an object: `floor` and `interval` omen,
+`lives` left of five, `floors` counted; say lives to the player, never omen), `spawners` (cleared, needed, total), `inventory` (tool durability,
 blocks, food, pack fullness), `lemon` (Lemon's state), and **`recent`** (their
 last 20 game events), and **`last_bank`** once they have banked (their latest bank event, kept even after it scrolls out of `recent`, so you can say how many levels a trip gained). If a field is missing or odd, say so in your harness notes
 (section 8) and carry on.
@@ -185,9 +185,10 @@ and its behaviour is in the Java source under
 
 ### 5.1 Questions about how the game works
 
-Run `server context <p>` first. Explain mechanics plainly (banking and going
-home, omen and bands, keystone levels, doors, fuel, the one-time kit, stations, the
-home room). When unsure, check the decisions log or the code rather than guess;
+Run `server context <p>` first. Explain mechanics plainly (the haul and banking,
+the compass and what a level costs, lives, the Astrolabe Room and doors, the one-time kit,
+stations, the home room). `tools/lemon/GUIDE.md` is the plain-words guide and wins over
+the older September decisions log; use the player words compass, scrap, haul and lives. When unsure, check the decisions log or the code rather than guess;
 if you still do not know, say "not sure, noting it for the devs" and write it in
 the notes. **Every question is data:** record it (section 6), because it shows
 what the game failed to teach.

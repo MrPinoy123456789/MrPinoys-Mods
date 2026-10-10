@@ -120,7 +120,7 @@ final class DungeonDrops {
         });
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            if (!level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (!DungeonWorldRules.inDungeon(level)) {
                 return;
             }
             if (entity instanceof ItemEntity item) {

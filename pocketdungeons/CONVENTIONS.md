@@ -8,12 +8,16 @@ constraint). This file covers what is specific to pocketdungeons.
 A handoff should say "follow `CONVENTIONS.md`" rather than repeating these
 rules.
 
-## The one-mixin budget
+## The mixin budget (no longer one)
 
-Exactly one mixin class: `mixin/CustomClickMixin`. If a milestone seems to
-need a second mixin, say so in the completion report and exhaust the
-Fabric-event or datapack-recipe route first. `DISCOVERIES.md` traps 14 and 15
-are a worked example of that search paying off.
+The mod began with exactly one mixin, `mixin/CustomClickMixin`, and this rule
+asked every milestone to exhaust the Fabric-event and datapack routes first.
+By 2026-10-10 the budget of one is gone: `pocketdungeons.mixins.json` lists 18
+(accessors for text displays, trial spawners and vaults, plus the click catcher,
+spawn rules, fire, explosions, sculk, the Wither and others). The habit stays:
+add a mixin only when no event, datapack or accessor route does the job, name it
+in the completion report, and keep it small and server-side only.
+`DISCOVERIES.md` traps 14 and 15 are a worked example of that search paying off.
 
 ## Status and progress docs
 

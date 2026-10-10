@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -990,16 +989,6 @@ final class TrialContent {
             case WEST -> Direction.WEST;
             case EAST -> Direction.EAST;
         };
-    }
-
-    private static void placeLootChest(ServerLevel level, BlockPos pos, Direction facing,
-                                       ResourceKey<LootTable> table, long seed) {
-        level.setBlock(pos, Blocks.CHEST.defaultBlockState()
-                .setValue(ChestBlock.FACING, facing), FLAGS);
-        if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-            c.setLootTable(table);
-            c.setLootTableSeed(seed ^ pos.asLong());
-        }
     }
 
     private static void placeVault(ServerLevel level, BlockPos pos, Direction facing,

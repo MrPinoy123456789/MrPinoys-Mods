@@ -22,6 +22,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** players cannot say what their omen was or why it
   rose, or say the bar is noise. Then the bar or the rise cues need rework.
 - **Status:** partial
+- **Note 2026-10-10:** the pressure is lives now (five per trip, a death or a side door spends one) and the trip sidebar shows floor, lives, spawners, haul and compass. Ask whether they read lives and the sidebar; omen is only the internal name.
 - **Evidence:** 2026-09-26-1.md: bar title cluttered; the spawner count is what they track. 2026-09-27-1.md: no model of what raises omen; the band name "calm" is opaque; calm on all 10 floors, so omen never bit (medium).
 - **Changed 2026-09-27:** the bar now leads with the spawner gate (`Spawners 2/3 | Omen 1/4, 3 chests`), a floor clear shows a big "Floor 2 of 3 cleared" title, and the dwell cue says "in an unsolved room". Retest: can they say what raised the omen?
 - **2026-09-27-3.md:** retest failed: omen bit for the first time (sensor rises, 2 chests on F1 and F2) and the player saw the bar fill but not why; guessed "I took a long time". Still reads as noise to a new player; wants spawners as a countdown, omen hidden at 0, a flavour line on each rise. Then rejected omen as a reward penalty: wants it to raise danger, like a wanted level (high).
@@ -42,6 +43,7 @@ mind** (the answer that would make us change the design), status, and evidence.
   same reason (no real decision), or never feel pulled either way. Then the
   depth bonus or head start numbers need tuning.
 - **Status:** partial
+- **Note 2026-10-10:** the reason to go home is the haul, which is at risk until banked (half is lost to a failed dungeon), and the pull is "one more floor with the haul in hand". Bands and the one band worse checkpoint rule are gone; reward chests (a base count plus the zone depth bonus) still roll into the reward barrel on the way home. Leaving a floor in progress now fails the dungeon for the leaver; leaving between floors cashes out in full.
 - **2026-10-04-1.md:** two banks (after 3 floors each), the second when the pack was at 0 free slots. The gain was not understood: "Did my keystone upgrade ... like it was supposed to?" then "I thought I was going to get more levels since I did multiple echo shard / more challenging floors" (medium). Full pack and the keystone result, not the omen, were the pull home.
 - **2026-10-05-1.md:** he quit the Mineshaft on its final floor, but said "I had to go (unrelated to the test or game)". No finish observed, so the shard/vault/page pull (L25) is still unmeasured (low).
 - **2026-10-06-1.md:** first full dungeon finish observed (Mineshaft, 3 floors); he stayed to the end unprompted and the diary page landed. The chart-scrap leftovers warning was understood ("brining X Charts and losing Y" model holds). New wrinkle: a full resource clear paid 0 charts, and his verdict is resource floors should pay like normal floors (medium).
@@ -84,7 +86,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Why:** the top-up by band ties the economy to omen. It only works if players
   notice it and connect it to how the stretch went.
 - **Would change our mind:** players do not notice it, or think it is random.
-- **Status:** partial
+- **Status:** retired 2026-10-05 (dungeon structure W5; the kit is granted once and nothing refills it, so there is no top-up left to be fair or understood). The evidence below stays as the record.
 - **2026-10-04-1.md:** the kit chest refilled on both banks and replaced leftovers. "The kit is good for what it is" but he is thinking of dropping refills: 4 or 5 starting kits, nothing topped up (high; an owner decision, not a player confusion).
 - **Evidence:** 2026-09-27-1.md: not noticed until asked right after a go-home; the one restock seen was a spyglass the player called useless, delivered invisibly to the kept dungeon inventory (medium).
 - **Changed 2026-09-27:** the restock line says where the items went and flashes on the action bar. Retest: noticed unprompted?
@@ -97,6 +99,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** hesitation, wrong lever pulled, or "I did not know
   I could go home".
 - **Status:** partial
+- **Note 2026-10-10:** the first staging room is now the Astrolabe Room (act astrolabe, a row of dungeon doors with a sign, doormat and bulb each, a wide window onto the picked dungeon and a glinting DESCEND lever); later floors keep three doors, a commit lever and the HOME lever. Retest the Astrolabe Room with a fresh player (L55).
 - **Evidence:** 2026-09-27-1.md: levers read correctly unaided, wants HOME as a verb; the home screen and "banks what you carry" were fully opaque; levers swap sides between floors (PD-70) (high).
 - **Changed 2026-09-27:** the lever sign reads GO HOME, the levers no longer swap sides (PD-70), and the screen is in plain words. Retest with a fresh player if one is available.
 - **2026-09-27-3.md:** owner role-played a first login: levers used without hesitation; nothing on join says to type `/dungeon`; the green title prompts "why now?" (medium).
@@ -112,6 +115,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Would change our mind:** players always pick the same door, or cannot say
   why they picked one.
 - **Status:** partial
+- **Note 2026-10-10:** fuel is gone and the front offer is no longer three random doors: the player picks the act and the dungeon in the Astrolabe Room (PD-181). Later doors deal a step (+1 to +3) and side doors cost lives. Ask the choice in those terms.
 - **2026-10-04-1.md:** "I like that I have to gamble my success on the run for more reward" (positive), but themes jump each floor and "the floors in a set seem kind of disconnected". Proposes a dungeon with one entry floor, then an acyclic graph of choice-gated floors (high).
 - **2026-10-05-1.md:** the structure landed: "yes, it felt good" for one-place feel, and he named The Main Drift unprompted. But inside a resource dungeon every door read +0/+0/L2 and spare doors are identical copies, so the choice "feels arbitrary" (PD-151, PD-153) (high).
 - **2026-10-06-1.md:** new unified board seen; he read it fine (asked what "Same as door 1" meant) then ruled: no identical doors, reroll affixes until they differ (PD-153 superseded). Cost now reads per door (`Cost: N echo shards` / `free`), scrap line as "+N chart scrap" style; layout pass (floor count on its own line, smaller text) still pending (high).

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pocketdungeons.DungeonTools;
-import pocketdungeons.PocketDungeonsMod;
+import pocketdungeons.DungeonWorldRules;
 
 /**
  * (M48) Caps the durability of mining tools crafted inside the dungeon
@@ -44,7 +44,7 @@ public class ResultSlotMixin {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
-        if (!serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+        if (!DungeonWorldRules.inDungeon(serverPlayer.level())) {
             return;
         }
         if (DungeonTools.durabilityCap(original.getItem()) <= 0) {

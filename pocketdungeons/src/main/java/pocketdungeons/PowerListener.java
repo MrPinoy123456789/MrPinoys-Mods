@@ -78,8 +78,13 @@ final class PowerListener {
         // for the life of the process, with nothing removing a stale entry.
         // Self-healing on relog (the modifiers themselves are transient), but
         // a real leak in the meantime.
-        ServerPlayConnectionEvents.DISCONNECT.register(
-                (handler, server) -> applied.remove(handler.getPlayer().getUUID()));
+        // PD-198: DISCONNECT can fire on Netty's IO thread (PD-12), and applied is a
+        // plain HashMap the server thread writes every tick, so the removal is
+        // deferred onto the server thread.
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID id = handler.getPlayer().getUUID();
+            server.execute(() -> applied.remove(id));
+        });
     }
 
     static void warmUp() {
@@ -131,21 +136,6 @@ final class PowerListener {
             reconcile(player);
             reconcileLore(player);
         }
-    }
-
-    /**
-     * The power ids currently active on {@code player}'s worn gear, capped at
-     * {@link PocketDungeonsConfig#equipCap()} the same way {@link #reconcile}
-     * applies the attributes for them. Exposed for
-     * {@link CubeStation#sortedUnlocked}, which needs the same answer to
-     * decide what the imbue picker should offer.
-     */
-    static List<String> activePowersOf(ServerPlayer player) {
-        List<String> presentInSlotOrder = new ArrayList<>(POWER_SLOTS.length);
-        for (EquipmentSlot slot : POWER_SLOTS) {
-            presentInSlotOrder.add(CubeStation.powerOf(player.getItemBySlot(slot)));
-        }
-        return PowerEquipMath.activePowers(presentInSlotOrder, PocketDungeonsConfig.equipCap());
     }
 
     private static void reconcile(ServerPlayer player) {

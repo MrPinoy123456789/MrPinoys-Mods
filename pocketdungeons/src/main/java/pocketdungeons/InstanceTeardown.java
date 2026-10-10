@@ -151,6 +151,21 @@ final class InstanceTeardown {
         teardown(server, record.slot, record.origin, record.layout, reason, excludeFromStraySweep, cells);
     }
 
+    /**
+     * PD-201: drops every subsystem's state that is keyed by one cell's origin. A teardown calls it for
+     * every cell it clears, and so does {@link Instances#clearCells}, which is how a floor ends; before,
+     * only the teardown did, so a finished floor's locks, triggers and ordeals outlived its cells.
+     * {@code CellStateForgetTest} fails if a cell-keyed {@code clear(BlockPos)} is added and not called here.
+     */
+    static void forgetCellState(BlockPos cellOrigin) {
+        Locks.clear(cellOrigin);
+        AltarOffering.clear(cellOrigin);
+        PressureSources.clear(cellOrigin);
+        Ordeals.clear(cellOrigin);
+        HostileWolves.clear(cellOrigin);
+        KennelSpecs.clear(cellOrigin);
+    }
+
     static void teardown(MinecraftServer server, int slot, BlockPos origin,
                          InstanceLayout layout, String reason) {
         teardown(server, slot, origin, layout, reason, null, List.of());
@@ -193,10 +208,7 @@ final class InstanceTeardown {
         // that is about to stop existing, and neither can tell a torn-down cell
         // from a cell whose player has simply walked away.
         for (BlockPos cellOrigin : cellOrigins) {
-            Locks.clear(cellOrigin);
-            AltarOffering.clear(cellOrigin);
-            PressureSources.clear(cellOrigin);
-            Ordeals.clear(cellOrigin);
+            forgetCellState(cellOrigin);
         }
 
         ServerLevel level = dungeonLevel(server);

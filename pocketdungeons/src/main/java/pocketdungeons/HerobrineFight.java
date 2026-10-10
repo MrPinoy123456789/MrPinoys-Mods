@@ -159,7 +159,7 @@ final class HerobrineFight {
         ServerLivingEntityEvents.ALLOW_DEATH.addPhaseOrdering(EARLY, Event.DEFAULT_PHASE);
         ServerLivingEntityEvents.ALLOW_DEATH.register(EARLY, (entity, source, amount) -> {
             if (STATES.isEmpty() || !(entity.level() instanceof ServerLevel level)
-                    || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(level)) {
                 return true;
             }
             InstanceRecord record = Instances.dungeonRecordAt(entity.blockPosition());
@@ -189,7 +189,7 @@ final class HerobrineFight {
         // While the scene plays, nothing in the room hurts a member.
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (STATES.isEmpty() || !(entity instanceof ServerPlayer player)
-                    || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(player.level())) {
                 return true;
             }
             InstanceRecord record = Instances.dungeonRecordAt(player.blockPosition());

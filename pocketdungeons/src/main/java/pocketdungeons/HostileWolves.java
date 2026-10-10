@@ -33,7 +33,7 @@ final class HostileWolves {
     private static final double SIGHT = 20.0;
 
     /** Guard tower rooms: the cell origin to the guard that drives the pack. */
-    private static final Map<BlockPos, UUID> GUARDS = new HashMap<>();
+    private static final Map<BlockPos, UUID> GUARDS = SessionState.clearedAtStop(new HashMap<>());
     private static boolean registered;
 
     private HostileWolves() {}
@@ -55,6 +55,11 @@ final class HostileWolves {
     /** A guard now drives the pack in the room at {@code origin}; the pack calms when the guard dies. */
     static void guard(BlockPos origin, Mob guard) {
         GUARDS.put(origin.immutable(), guard.getUUID());
+    }
+
+    /** Drops the guard of the room at {@code origin}, when that room is cleared. */
+    static void clear(BlockPos origin) {
+        GUARDS.remove(origin);
     }
 
     /** Whether a wolf should be after the party right now. */

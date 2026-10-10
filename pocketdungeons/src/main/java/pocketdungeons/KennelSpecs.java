@@ -175,7 +175,12 @@ final class KennelSpecs {
     private static boolean handlersRegistered;
 
     /** The Lost Dog\u0027s wolf in each cell: its cell origin to the wolf. */
-    private static final Map<BlockPos, UUID> LOST_DOGS = new HashMap<>();
+    private static final Map<BlockPos, UUID> LOST_DOGS = SessionState.clearedAtStop(new HashMap<>());
+
+    /** Drops the Lost Dog of the room at {@code origin}, when that room is cleared. */
+    static void clear(BlockPos origin) {
+        LOST_DOGS.remove(origin);
+    }
 
     /** Registers the wolf room situations. Called once from {@link TrialContent#warmUp()}. */
     static void registerHandlers() {

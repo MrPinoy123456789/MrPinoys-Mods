@@ -78,6 +78,25 @@ glowstone stay lit. Colored blocks use collection accessors in 26.2 (`Blocks.CON
 - Spawn points are jigsaw blocks that replace whatever the decor put there. Do not put one inside
   solid decor.
 
+## Rules the dungeon applies to every room (2026-10-10)
+
+Things that act on a room whatever its manifest says, so a template can surprise its author:
+
+- **Sculk listens.** Any room whose template holds a sculk sensor, calibrated sensor or shrieker is armed
+  (`PressureSources`; sensors hear only players and the arrows they shoot): each sensor pulse fills the room's Heard meter (4, or 2 in the Ancient City) and only a full
+  meter answers, with darkness and a Warden whelp. A room with a shrieker and no sensors answers at once when it
+  shrieks. Do not drop one in as decoration; use `sculk` or `sculk_vein` blocks instead, or mean it. Clearing a sculk
+  room's spawner without an answer pays +1 scrap.
+- **Spawn rules are off for trial spawners.** In the dungeon dimension a trial spawner ignores natural placement rules
+  (grass, light), so a wolf or other restricted mob spawns on stone. Free space and line of sight are still checked.
+- **Fire never spreads.** Torches, campfires and fire charges can sit in a wooden room. Lava is still Molten only.
+- **Wolves in the Kennels are hostile.** Every untamed wolf in a Kennels dungeon goes for the party (`HostileWolves`);
+  rooms outside it can mark a wolf hostile or calm with the `hostile_wolf` and `calm_wolf` tags. Only the Lost Dog
+  room and Wolf Hollow are friendly. Nothing feeds a wolf.
+- **A final floor ends in a finale.** Leave open ground for a wave and, from Act 2, a named elite; the exit pad stays
+  shut until they are dead. Capstones keep their own fights.
+- **A uniform may dress your mobs.** A dungeon with `mobUniform` (Copper Works) puts its gear on mobs as they load.
+
 ## Resource nodes (ore and other mineable pickups)
 
 Manifest `nodes`: `{ "block", "from":[x,y,z], "to":[x,y,z], "count", "chance" }`. At stamp time the
