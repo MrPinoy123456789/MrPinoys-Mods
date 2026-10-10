@@ -45,7 +45,7 @@ command).
 
 ## Existing runtime knobs (layer 1)
 
-All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc says more. Grouped by what a tuner wants.
+All are in `PocketDungeonsConfig.java` with their default; the knob declaration's Javadoc says more. Grouped by what a tuner wants.
 
 - **Economy and rewards:** `finishEmeralds` 8, `finishVaultChests` 2, `failHaulKeepPercent` 50 (share of the haul a failed
   dungeon keeps), `salvageKeyEmeralds` 1, `salvageOminousKeyEmeralds` 3, `salvageMaterialBonus` 1, `ordealEmeraldChance` 0.25,
@@ -126,14 +126,22 @@ Not knobs today. Each is a `static final` or a literal; promote one with the rec
 4. Record it: a line in `docs/playtests/BALANCE.md` (what, old, new, why) and, for a model change, a `design-brief` decision doc.
 5. Deploy with `deploy-test-server` and add a live check to `docs/playtests/LIVE_CHECKS.md` when the effect can only be felt in play.
 
-## Adding a layer-1 knob (five places in `PocketDungeonsConfig.java`)
+## Adding a layer-1 knob (one declaration and one accessor in `PocketDungeonsConfig.java`)
 
-1. the `private static int name = DEFAULT;` field with a Javadoc line saying what it does and the unit;
-2. the public getter;
-3. the reset block (`name = DEFAULT;` where the other defaults reset);
-4. the read: `name = readInt(root, "name", DEFAULT, v -> v >= LOW && v <= HIGH, "must be LOW to HIGH");` (`readDouble`,
-   `readBoolean`, `readString` exist);
-5. the defaults writer: `root.addProperty("name", DEFAULT);`.
-Then use the getter where the constant was, and add a pure test for the arithmetic (a `static` method on plain ints, as
-`SalvageMath.withBonus` and `DungeonTools.scaledCap` are). A retired knob goes into `RETIRED_KEYS` instead of being deleted
-so old config files still load.
+Each knob is a `Knob` constant. Its key, default, validator and message are written once, and loading, the reset to
+defaults and the file a first boot writes all walk the one list, so there is no second copy to keep in step.
+
+1. Declare it where its group sits (declaration order is the order keys are written to a new config file):
+   `private static final Knob<Integer> NAME = integer("name", DEFAULT, v -> v >= LOW && v <= HIGH, "must be LOW to HIGH");`
+   (`decimal` for a double, `flag("name", DEFAULT)` for a boolean, `text("name", DEFAULT, allowEmpty)` for a string), with a
+   Javadoc line saying what it does and the unit;
+2. add the accessor, named exactly like the key: `public static int name() { return NAME.get(); }`.
+Then use the accessor where the constant was, and add a pure test for the arithmetic (a `static` method on plain ints, as
+`SalvageMath.withBonus` and `DungeonTools.scaledCap` are). `ConfigKnobsTest` fails if a knob has no accessor of the right
+type, if it is missing from the written defaults, or if a setting is read by hand outside the list. Run `configKnobsTest`
+and `configCharacterizationTest`; the second pins every default, the first-boot file and every validator bound as fixtures
+in `src/test/resources/config-fixtures`, so adding a knob changes `defaults-written.json`, `defaults-accessors.txt` and
+`validators.txt` and nothing else; regenerate those three with `PD_CONFIG_REGEN=<that directory>` and review the diff.
+A check that needs another knob (`pathLengthMax` against `pathLengthMin`) is an `.after(...)` hook on the later knob, and a
+saved value that must be remapped is `.normalising(...)`. A retired knob goes into `RETIRED_KEYS` instead of being deleted
+so old config files still load. Changing a default is a one-token edit on the declaration; also update the fixtures.

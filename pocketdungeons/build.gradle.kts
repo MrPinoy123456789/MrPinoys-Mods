@@ -412,6 +412,10 @@ for ((taskName, testClass) in mapOf(
     "cowPitsTest" to "CowPitsTest",
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
+    // Config refactor: characterizes every knob, the written defaults and the rewrite rules.
+    "configCharacterizationTest" to "ConfigCharacterizationTest",
+    // The one-place knob list: every knob is written, has a typed accessor, and none hides outside the list.
+    "configKnobsTest" to "ConfigKnobsTest",
     // The shipped default config file matches the defaults the code writes.
     "defaultConfigFileTest" to "DefaultConfigFileTest",
     "zoneRulesTest" to "ZoneRulesTest",
@@ -542,6 +546,8 @@ tasks.test {
     dependsOn("capstoneRulesTest")
     dependsOn("cowPitsTest")
     dependsOn("configSaveTest")
+    dependsOn("configCharacterizationTest")
+    dependsOn("configKnobsTest")
     dependsOn("defaultConfigFileTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
