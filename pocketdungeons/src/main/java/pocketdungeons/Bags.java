@@ -107,29 +107,6 @@ final class Bags {
     }
 
     /**
-     * The display name for this bag, or the raw id if the bag is unknown.
-     */
-    static Component displayName(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? Component.literal(bagId) : Component.literal(bag.label);
-    }
-
-    /** The blurb for this bag, or empty if the bag is unknown. */
-    static Component blurb(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? Component.literal("") : Component.literal(bag.blurb);
-    }
-
-    /**
-     * The namespaced loot table id for this bag, or {@code null} if the bag
-     * is unknown.
-     */
-    static Identifier tableId(String bagId) {
-        BagDefinition bag = byId(bagId);
-        return bag == null ? null : Identifier.parse(bag.lootTable);
-    }
-
-    /**
      * Rolls this bag's loot table into {@code player}'s inventory, leaving
      * hotbar slot zero alone, and hands back whatever did not fit.
      *

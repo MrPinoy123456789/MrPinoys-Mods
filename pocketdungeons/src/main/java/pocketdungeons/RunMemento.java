@@ -220,20 +220,4 @@ final class RunMemento {
         }
         return data.copyTag().getCompound(ROOT).orElse(null);
     }
-
-    /** Whether {@code stack} is one of our mementos. */
-    static boolean isMemento(ItemStack stack) {
-        CompoundTag mine = mine(stack);
-        return mine != null && mine.getIntOr("memento", 0) == 1;
-    }
-
-    /**
-     * The discovery id on this stack, or empty if it is not one of ours.
-     * Used to look up the backing {@link RunRecord} while the item is still
-     * in an inventory; a placed book is decor and carries no durable claim.
-     */
-    static String discoveryIdOf(ItemStack stack) {
-        CompoundTag mine = mine(stack);
-        return mine == null ? "" : mine.getStringOr("discovery_id", "");
-    }
 }
