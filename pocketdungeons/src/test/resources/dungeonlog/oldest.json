@@ -1,0 +1,15 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 4,
+        "best_path": 7,
+        "streak": 3,
+        "last_completed": "2026-08-30",
+        "some_future_field": {"nested": [1, 2, 3]}
+      }
+    }
+  ],
+  "some_future_top_level": true
+}
