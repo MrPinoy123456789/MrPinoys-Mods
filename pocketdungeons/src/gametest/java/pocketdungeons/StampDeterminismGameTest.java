@@ -19,11 +19,11 @@ import java.util.Set;
 public final class StampDeterminismGameTest {
 
     /**
-     * The block states over the stamped layouts folded to one number, taken before
-     * the stamper's parameter record refactor. Zero means "not pinned yet": the test
-     * then only checks that two stamps agree and logs the value.
+     * The block states over the stamped layouts folded to one number, taken on the
+     * stamper before its parameter record refactor (and matched after it). Zero would
+     * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = 0;
+    private static final int STAMP_FINGERPRINT = 935166682;
 
     /**
      * One plan stamped twice at one origin builds the same blocks, with and without
