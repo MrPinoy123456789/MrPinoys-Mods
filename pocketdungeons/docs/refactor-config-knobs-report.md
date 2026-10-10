@@ -91,7 +91,7 @@ is left as it was, and a normal rewrite leaves no temp file. There are now 102 k
 
 ## Tests
 
-Before: 241 required gametests passed (plus the pure suites). After: see the tip result below.
+Before: 241 required gametests passed, plus the pure suites. After the merge, at the branch tip: `./gradlew.bat test runGameTest` BUILD SUCCESSFUL, "All 241 required tests passed" (the new config tests are pure `main()` tasks under `test`, so the gametest count is unchanged), with `ConfigCharacterizationTest`, `ConfigKnobsTest`, `ConfigSaveTest` and `DefaultConfigFileTest` all passing.
 
 Cannot be verified without a live server: nothing in this change touches the world; the one runtime path is boot-time
 `PocketDungeonsConfig.load` on a real operator file, which the fixtures exercise.
