@@ -29,6 +29,9 @@ public final class PocketDungeonsMod implements ModInitializer {
      */
     public static final String OMEN_WAVE_TAG = "pocketdungeons_omen_wave";
 
+    /** Entity tag on a Warden whelp: {@code SonicBoomWhelpMixin} keeps anything that carries it from firing. */
+    public static final String WHELP_TAG = MOD_ID + ".whelp";
+
     /** The void dimension declared by {@code data/pocketdungeons/dimension/void.json}. */
     public static final ResourceKey<Level> DUNGEON_LEVEL = ResourceKey.create(
             Registries.DIMENSION, Identifier.fromNamespaceAndPath(MOD_ID, "void"));

@@ -25,7 +25,7 @@ import net.minecraft.world.phys.Vec3;
 final class Whelp {
 
     /** Marks a whelp: {@code SonicBoomWhelpMixin} keeps it from firing. */
-    static final String TAG = PocketDungeonsMod.MOD_ID + ".whelp";
+    static final String TAG = PocketDungeonsMod.WHELP_TAG;
     /** The no-loot tag {@code OmenWaveNoDropsMixin} already honours. */
     private static final String NO_LOOT_TAG = PocketDungeonsMod.OMEN_WAVE_TAG;
     /** Half a Warden's size. */
