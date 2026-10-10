@@ -43,7 +43,6 @@ import net.minecraft.world.phys.Vec3;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -788,7 +787,7 @@ final class Instances {
         if (record.roomCellOrigin == null) {
             return;
         }
-        clearCells(level, record, List.of(record.roomCellOrigin));
+        InstanceTeardown.clearCells(level, record, List.of(record.roomCellOrigin));
         record.roomCellOrigin = null;
     }
 
@@ -1261,7 +1260,7 @@ final class Instances {
                     effectiveThemeId, LootBands.forFloor(record, offer, mineFloor), nodeCtx, record.floor.previewNodes);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Preview stamp failed for door {}", step, e);
-            clearCells(level, record, List.of(entranceOrigin));
+            InstanceTeardown.clearCells(level, record, List.of(entranceOrigin));
             return false;
         }
 
@@ -1287,7 +1286,7 @@ final class Instances {
      */
     static void windowPreview(ServerLevel level, InstanceRecord record, BlockPos entranceOrigin,
                               DoorMask.Direction dungeonDoor) {
-        BedrockEnvelope.applyToCell(level, entranceOrigin, standingSides(record, entranceOrigin));
+        BedrockEnvelope.applyToCell(level, entranceOrigin, InstanceTeardown.standingSides(record, entranceOrigin));
         // Replace the selected door with a glass window. The selector
         // door for this step is at a fixed offset within the door slot; the
         // simplest approach is to fill the entire door slot with glass, since
@@ -1348,7 +1347,7 @@ final class Instances {
         if (record.floor.previewCellOrigin == null) {
             return;
         }
-        clearCells(level, record, List.of(record.floor.previewCellOrigin));
+        InstanceTeardown.clearCells(level, record, List.of(record.floor.previewCellOrigin));
         // The window filled the door slot itself, and the selector doors stand
         // one block inside the room, so re-placing them never covered it: seal
         // the slot back to wall (the clear already put the bedrock behind it).
@@ -1514,7 +1513,7 @@ final class Instances {
                     record.stagingCellOrigin.toShortString(), e);
             List<BlockPos> attempted = new ArrayList<>(geometry.cellOrigins());
             attempted.remove(record.stagingCellOrigin);
-            clearCells(level, record, attempted);
+            InstanceTeardown.clearCells(level, record, attempted);
             return false;
         }
 
@@ -1733,7 +1732,7 @@ final class Instances {
         if (!roomSaved) {
             clearing.remove(standingRoom);
         }
-        clearCells(level, record, clearing);
+        InstanceTeardown.clearCells(level, record, clearing);
         record.leftBehind.clear();
         record.homecoming = null;
         record.stagingCellOrigin = null;
@@ -1743,8 +1742,8 @@ final class Instances {
         BlockPos safeOrigin = record.origin;
         DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
         if (roomSaved) {
-            clearCellSync(level, safeOrigin, List.of());
-            holdCell(level, safeOrigin);
+            InstanceTeardown.clearCellSync(level, safeOrigin, List.of());
+            InstanceTeardown.holdCell(level, safeOrigin);
             stampSafeRoom(level, server, record.owner, safeOrigin);
             record.roomCellOrigin = safeOrigin;
             record.roomDungeonDoor = dungeonDir;
@@ -1755,7 +1754,7 @@ final class Instances {
 
         // Stamp a fresh staging room adjacent to the safe room.
         BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
-        holdCell(level, stagingOrigin);
+        InstanceTeardown.holdCell(level, stagingOrigin);
         stampStagingRoom(level, stagingOrigin, dungeonDir);
         RoomBuilder.openDoor(level, safeOrigin, mcDirection(dungeonDir));
         BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);
@@ -1804,137 +1803,6 @@ final class Instances {
     }
 
     // ---- exit ---------------------------------------------------------------
-
-    /**
-     * Clears one cell and the one-block margin around it -- the margin is where
-     * the bedrock envelope lives, so a clear that stopped at the cell wall would
-     * leave the shell standing.
-     *
-     * <p>{@code keepCells} are cell origins whose own 16x16 volume must survive.
-     * That margin is not empty space: offset {@code CELL} from one cell origin is
-     * the <em>neighbouring</em> cell's local 0 -- its wall column. Clearing it
-     * unconditionally erases a live neighbour's entire wall, leaving only
-     * whatever is written back afterwards (a resealed door slot reads as an
-     * inside-out wall: stone exactly where the doorway was, air everywhere
-     * else). Any cell that is still standing when this runs has to be named
-     * here.
-     *
-     * <p>A kept cell's own bedrock is kept with it where the margin reaches
-     * it outside this cell: its over-ceiling row along the seam and the two
-     * ring columns at either end of the seam. Its ring on the face towards
-     * this cell sits in this cell's wall column and goes with the clear;
-     * {@link #clearCells} puts it back.
-     */
-    static void clearCellSync(ServerLevel level, BlockPos origin, List<BlockPos> keepCells) {
-        // M61: clear below any lower story a cell may own. Over-clearing a
-        // single-story cell is harmless: the extra volume is dungeon void.
-        int maxOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
-        for (int x = -1; x <= RoomGeometry.CELL; x++) {
-            for (int y = -1 - maxOffset; y <= RoomGeometry.CEILING_Y + 1; y++) {
-                for (int z = -1; z <= RoomGeometry.CELL; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    boolean ownFootprint = x >= 0 && x < RoomGeometry.CELL && z >= 0 && z < RoomGeometry.CELL;
-                    if (ownFootprint ? CellGeometry.insideAnyCell(pos, keepCells)
-                            : CellGeometry.inAnyShell(pos, keepCells)) {
-                        continue;
-                    }
-                    level.setBlock(pos, Blocks.AIR.defaultBlockState(),
-                            Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS
-                                    | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
-                }
-            }
-        }
-        AABB bounds = new AABB(origin.getX() - 1, origin.getY() - 1 - maxOffset, origin.getZ() - 1,
-                origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
-                origin.getZ() + RoomGeometry.CELL + 1);
-        for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
-                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e)
-                        && !CellGeometry.insideAnyCell(e.blockPosition(), keepCells))) {
-            entity.discard();
-        }
-    }
-
-    // ---- live cells: clears, envelopes and tickets ---------------------------
-
-    /**
-     * Clears {@code cells} of {@code record}'s instance with every other cell
-     * it has standing kept, puts each kept neighbour's bedrock back on the face
-     * that looked into a cleared cell, and releases the cleared cells' tickets.
-     *
-     * <p>What a kept neighbour's doorway on that face becomes is the caller's
-     * call: sealed when nothing will stand there again, left open when a cell
-     * is about to be stamped in the cleared spot. Either way the ring means a
-     * doorway left open shows bedrock, never the void.
-     */
-    static void clearCells(ServerLevel level, InstanceRecord record, Collection<BlockPos> cells) {
-        Set<BlockPos> clearing = new LinkedHashSet<>(cells);
-        List<BlockPos> keep = new ArrayList<>(record.liveCells());
-        keep.removeAll(clearing);
-        for (BlockPos cell : clearing) {
-            clearCellSync(level, cell, keep);
-            InstanceTeardown.forgetCellState(cell);
-        }
-        for (BlockPos kept : keep) {
-            for (DoorMask.Direction face : DoorMask.Direction.values()) {
-                if (clearing.contains(CellGeometry.offsetInDirection(kept, face, RoomGeometry.CELL))) {
-                    BedrockEnvelope.applyFace(level, kept, face, storyDepth(record, kept));
-                }
-            }
-        }
-        releaseCells(level, clearing, keep);
-    }
-
-    /**
-     * How far below its floor a cell's ring has to reach: the layout's deepest
-     * lower story for one of its cells, nothing for a staging room or a room.
-     */
-    private static int storyDepth(InstanceRecord record, BlockPos cell) {
-        if (record.layout != null && record.layout.geometry() != null
-                && record.layout.geometry().cellOrigins().contains(cell)) {
-            return record.layout.geometry().storyFloorOffset();
-        }
-        return 0;
-    }
-
-    /**
-     * The sides of {@code origin} where another cell of the instance already
-     * stands. An envelope applied to {@code origin} has to leave these off: its
-     * ring would land in that neighbour's wall column and replace it.
-     */
-    static Set<DoorMask.Direction> standingSides(InstanceRecord record, BlockPos origin) {
-        Set<BlockPos> live = record.liveCells();
-        Set<DoorMask.Direction> sides = new HashSet<>();
-        for (DoorMask.Direction face : DoorMask.Direction.values()) {
-            BlockPos beside = CellGeometry.offsetInDirection(origin, face, RoomGeometry.CELL);
-            if (!beside.equals(origin) && live.contains(beside)) {
-                sides.add(face);
-            }
-        }
-        return sides;
-    }
-
-    /** Force-loads the chunk under a cell about to be stamped: writes to an unloaded chunk are dropped. */
-    static void holdCell(ServerLevel level, BlockPos cell) {
-        level.setChunkForced(cell.getX() >> 4, cell.getZ() >> 4, true);
-    }
-
-    /**
-     * Drops the force-load ticket under each of {@code cleared}, unless one of
-     * {@code stillLive} sits in the same chunk. A ticket is a flag per chunk,
-     * not a count, so releasing a chunk a live cell still needs would release
-     * it for that cell too. A cell is exactly one chunk ({@link PlanGeometry}).
-     */
-    static void releaseCells(ServerLevel level, Collection<BlockPos> cleared, Collection<BlockPos> stillLive) {
-        Set<ChunkPos> held = new HashSet<>();
-        for (BlockPos cell : stillLive) {
-            held.add(new ChunkPos(cell.getX() >> 4, cell.getZ() >> 4));
-        }
-        for (BlockPos cell : cleared) {
-            if (!held.contains(new ChunkPos(cell.getX() >> 4, cell.getZ() >> 4))) {
-                level.setChunkForced(cell.getX() >> 4, cell.getZ() >> 4, false);
-            }
-        }
-    }
 
     /** Cancelling a death leaves the player standing at zero hearts; this resets them so they live. */
     private static void revive(ServerPlayer player) {
@@ -2373,7 +2241,7 @@ final class Instances {
         // gets its ring back on every face that looked into a cleared cell.
         Set<BlockPos> leftovers = record.liveCells();
         leftovers.remove(record.roomCellOrigin);
-        clearCells(level, record, leftovers);
+        InstanceTeardown.clearCells(level, record, leftovers);
         record.leftBehind.clear();
         record.homecoming = null;
 
@@ -2383,7 +2251,7 @@ final class Instances {
         DoorMask.Direction newDungeonDir = record.roomDungeonDoor;
         BlockPos newStagingOrigin = CellGeometry.offsetInDirection(
                 record.roomCellOrigin, newDungeonDir, RoomGeometry.CELL);
-        holdCell(level, newStagingOrigin);
+        InstanceTeardown.holdCell(level, newStagingOrigin);
         stampStagingRoom(level, newStagingOrigin, newDungeonDir);
         RoomBuilder.openDoor(level, record.roomCellOrigin, mcDirection(newDungeonDir));
         BedrockEnvelope.clearFace(level, record.roomCellOrigin, newDungeonDir);
@@ -2726,7 +2594,7 @@ final class Instances {
         }
     }
 
-    // ---- teardown -----------------------------------------------------------
+    // ---- spawner clears (M22) -----------------------------------------------
 
     /**
      * M22: fires the spawner-cleared cue for a run, and records the
@@ -2787,7 +2655,7 @@ final class Instances {
         }
     }
 
-    // ---- teardown -----------------------------------------------------------
+    // ---- positions: exit pads, rooms and dungeon cells ----------------------
 
     /**
      * Whether the player is standing on an exit pad -- the terminal cell's, or

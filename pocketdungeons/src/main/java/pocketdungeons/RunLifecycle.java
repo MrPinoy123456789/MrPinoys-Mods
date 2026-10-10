@@ -870,7 +870,7 @@ final class RunLifecycle {
         Set<BlockPos> previous = record.liveCells();
         previous.remove(stagingOrigin);
         previous.remove(record.floor.previewCellOrigin);
-        Instances.clearCells(level, record, previous);
+        InstanceTeardown.clearCells(level, record, previous);
         record.leftBehind.clear();
         record.homecoming = null;
         // The previous floor is gone. Until the commit adopts the new one, the
@@ -1455,9 +1455,9 @@ final class RunLifecycle {
         record.leftBehind.add(oldStagingOrigin);
 
         BlockPos newStagingOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
-        Instances.holdCell(level, newStagingOrigin);
+        InstanceTeardown.holdCell(level, newStagingOrigin);
         Instances.stampStagingRoom(level, newStagingOrigin, farWall,
-                Instances.standingSides(record, newStagingOrigin));
+                InstanceTeardown.standingSides(record, newStagingOrigin));
         record.stagingCellOrigin = newStagingOrigin;
         record.roomDungeonDoor = farWall;
         CellGeometry.openDoorOnWall(level, terminalOrigin, farWall);
@@ -2011,16 +2011,16 @@ final class RunLifecycle {
         DoorMask.Direction dungeonDir = record.roomDungeonDoor;
         BlockPos safeOrigin = CellGeometry.offsetInDirection(
                 record.stagingCellOrigin, dungeonDir, RoomGeometry.CELL);
-        Instances.holdCell(level, safeOrigin);
+        InstanceTeardown.holdCell(level, safeOrigin);
 
         // Stamp the saved room while the door is still closed.
         try {
-            Set<DoorMask.Direction> standing = new LinkedHashSet<>(Instances.standingSides(record, safeOrigin));
+            Set<DoorMask.Direction> standing = new LinkedHashSet<>(InstanceTeardown.standingSides(record, safeOrigin));
             standing.add(CellGeometry.opposite(dungeonDir));
             Instances.stampSafeRoom(level, server, record.owner, safeOrigin, standing);
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Silent homecoming room stamp failed", e);
-            Instances.clearCells(level, record, List.of(safeOrigin));
+            InstanceTeardown.clearCells(level, record, List.of(safeOrigin));
             return false;
         }
 
@@ -2066,21 +2066,21 @@ final class RunLifecycle {
                                                        InstanceRecord record, ServerPlayer player) {
         // Clear every cell the run has standing (the floor, the staging room,
         // the liminal cells beside the floors) and release their tickets.
-        Instances.clearCells(level, record, record.liveCells());
+        InstanceTeardown.clearCells(level, record, record.liveCells());
         record.leftBehind.clear();
         record.stagingCellOrigin = null;
 
         // Re-stamp the safe room at the slot origin from RoomStore.
         BlockPos safeOrigin = record.origin;
         DoorMask.Direction dungeonDir = DoorMask.Direction.SOUTH;
-        Instances.holdCell(level, safeOrigin);
+        InstanceTeardown.holdCell(level, safeOrigin);
         Instances.stampSafeRoom(level, server, record.owner, safeOrigin);
         record.roomCellOrigin = safeOrigin;
         record.roomDungeonDoor = dungeonDir;
 
         // Stamp a fresh staging room adjacent to the safe room.
         BlockPos stagingOrigin = CellGeometry.offsetInDirection(safeOrigin, dungeonDir, RoomGeometry.CELL);
-        Instances.holdCell(level, stagingOrigin);
+        InstanceTeardown.holdCell(level, stagingOrigin);
         Instances.stampStagingRoom(level, stagingOrigin, dungeonDir);
         RoomBuilder.openDoor(level, safeOrigin, Instances.mcDirection(dungeonDir));
         BedrockEnvelope.clearFace(level, safeOrigin, dungeonDir);

@@ -93,7 +93,7 @@ final class FeralContent {
      * anything, hits the boundary, and turns back before ever closing to melee
      * range, the sluggish, glitchy behaviour that pin existed to prevent players
      * from wandering out of. The sealed cell walls and doors already keep a wolf
-     * in, and {@link Instances#clearCellSync}'s 1 block margin still catches one
+     * in, and {@link InstanceTeardown#clearCellSync}'s 1 block margin still catches one
      * that slips through an open door at teardown.
      *
      * <p>Falls back to the cell centre when a template carries no spawn anchors at

@@ -177,7 +177,7 @@ public final class SeamGameTest {
             PlanGeometry geometry = PlanGeometry.of(entrance, List.of(e, f, t, g, h, j));
             for (PlanCell cell : List.of(f, t, g, h, j)) {
                 BlockPos at = geometry.cellOrigin(cell);
-                Instances.holdCell(level, at);
+                InstanceTeardown.holdCell(level, at);
                 RoomBuilder.buildShell(level, at, RoomBuilder.FLOOR);
             }
             join(geometry, e, f);
@@ -227,7 +227,7 @@ public final class SeamGameTest {
         BlockPos preview() {
             DoorMask.Direction dir = record.roomDungeonDoor;
             BlockPos entrance = CellGeometry.offsetInDirection(record.stagingCellOrigin, dir, CELL);
-            Instances.holdCell(level, entrance);
+            InstanceTeardown.holdCell(level, entrance);
             RoomBuilder.buildShell(level, entrance, RoomBuilder.FLOOR);
             Instances.windowPreview(level, record, entrance, dir);
             record.floor.previewCellOrigin = entrance;
