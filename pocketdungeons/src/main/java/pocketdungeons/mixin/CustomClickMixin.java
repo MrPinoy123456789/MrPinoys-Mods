@@ -21,8 +21,7 @@ import pocketdungeons.PocketDungeonsMod;
  * and vanilla's own {@code MinecraftServer.handleCustomClickAction} is a lone
  * debug log -- a deliberate extension point, but one that has already thrown away
  * which player clicked. The packet listener still knows, so the hook goes here.
- * The whole mod's only mixin, and the only reason this mod has a
- * {@code pocketdungeons.mixins.json} at all.
+ * It was the mod's first mixin; {@code pocketdungeons.mixins.json} lists the rest.
  *
  * <p>Shape copied from {@code quizengine.mc.mixin.CustomClickMixin}, which shipped
  * against this packet first.

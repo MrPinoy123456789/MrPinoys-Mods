@@ -104,8 +104,4 @@ final class Restless {
         return best;
     }
 
-    /** Whatever is waiting to rise is forgotten when the server stops. */
-    static void clear() {
-        PENDING.clear();
-    }
 }
