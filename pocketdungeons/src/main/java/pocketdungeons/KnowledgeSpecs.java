@@ -193,41 +193,6 @@ final class KnowledgeSpecs {
         }
     }
 
-    /**
-     * Drops the exit passage to two blocks high by walling y=3 one block inside
-     * the doorway. Used by Don't Look: an enderman (3 tall) cannot path through,
-     * a crouching player can.
-     *
-     * <p>The wall goes at x=14, not in the doorway plane at x=15, because the
-     * doorway's three jigsaw blocks are what {@link RoomManifest} reads the door
-     * mask from. Writing over the y=3 jigsaw leaves a partial door, which the
-     * manifest rejects outright, and the room never loads at all.
-     */
-    private static void fillDoorwayTop(ServerLevel level, BlockPos o) {
-        for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-            RoomBuilder.set(level, o.offset(WALL_X - 1, 3, z), RoomBuilder.WALL);
-        }
-    }
-
-    /**
-     * Plugs the exit passage with {@code material}, one block inside the doorway
-     * (x=14, y=1..3, z=7..8). Used by gated knowledge rooms (Elder's Chamber,
-     * Infested Wall) whose gate is a soft wall the player mines through.
-     *
-     * <p>The plug goes at x=14 rather than in the doorway plane at x=15 so the
-     * doorway's jigsaw blocks survive. They are what {@link RoomManifest} reads
-     * the door mask from: sealing over them ships a room the planner believes
-     * has no east door, which places it as a dead end and makes the soft wall
-     * a wall around nothing.
-     */
-    private static void sealExitDoorway(ServerLevel level, BlockPos o, BlockState material) {
-        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
-            for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                RoomBuilder.set(level, o.offset(WALL_X - 1, y, z), material);
-            }
-        }
-    }
-
     /** A decorated pot at {@code pos} with {@code item} inside, for Infested Wall. */
     private static void placePot(ServerLevel level, BlockPos pos, ItemStack item) {
         RoomBuilder.set(level, pos, Blocks.DECORATED_POT.defaultBlockState());

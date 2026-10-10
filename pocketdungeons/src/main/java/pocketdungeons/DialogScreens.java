@@ -87,7 +87,6 @@ final class DialogScreens {
     static final String ACTION_LEAVE_DUNGEON = "leave_dungeon";
     static final String ACTION_LEAVE_CONFIRM = "leave_confirm";
     static final String ACTION_QUIT_DUNGEON = "quit_dungeon";
-    static final String ACTION_QUIT_DUNGEON_CONFIRM = "quit_dungeon_confirm";
     /** Playtest 2026-10-03 (A2): the menu's Reset Key option opens {@link #resetKeyConfirm}. */
     static final String ACTION_RESET_KEY = "reset_key";
     static final String ACTION_SET_ROOM_NAME = "set_room_name";
@@ -771,14 +770,6 @@ final class DialogScreens {
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
                 new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY),
                 new MenuOption("View Lobbies", null, ACTION_VIEW_LOBBIES));
-    }
-
-    /**
-     * Start over from scratch (playtest 2026-10-03, A2: "there should also be a
-     * feature to let me reset the run myself"). Last in the menu, behind a confirm.
-     */
-    private static MenuOption resetKeyOption() {
-        return new MenuOption("Reset Compass", null, ACTION_RESET_KEY);
     }
 
     /**

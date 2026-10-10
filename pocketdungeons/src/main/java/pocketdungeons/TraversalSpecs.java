@@ -321,17 +321,6 @@ final class TraversalSpecs {
         };
     }
 
-    /** A position one block inside the room from {@code wall}, at column {@code i}, height {@code y}. */
-    private static BlockPos insidePos(BlockPos o, Direction wall, int i, int y) {
-        return switch (wall) {
-            case NORTH -> o.offset(i, y, 1);
-            case SOUTH -> o.offset(i, y, CELL - 2);
-            case WEST -> o.offset(1, y, i);
-            case EAST -> o.offset(CELL - 2, y, i);
-            default -> throw new IllegalArgumentException("wall must be horizontal: " + wall);
-        };
-    }
-
     /** Fallback spawn anchors if the template carried none. */
     private static List<BlockPos> defaultDrownedSpawns(BlockPos o) {
         return List.of(o.offset(5, 1, 7), o.offset(10, 1, 8));

@@ -796,27 +796,6 @@ final class Instances {
         record.roomCellOrigin = null;
     }
 
-    /**
-     * (M55) Re-stamps the safe room from {@link RoomStore} at the slot origin
-     * and reconnects it to the staging room (if one is active). Called on
-     * return from a dungeon: the blob is restored, both walls sealed, and a
-     * full bedrock envelope applied. If a staging room is active, the safe
-     * room's dungeon wall is opened and its bedrock face cleared so the two
-     * cells connect.
-     */
-    static void restoreSafeRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
-        BlockPos origin = record.origin;
-        holdCell(level, origin);
-        stampSafeRoom(level, server, record.owner, origin, standingSides(record, origin));
-        record.roomCellOrigin = origin;
-        // If a staging room is active, connect the safe room to it.
-        if (record.stagingCellOrigin != null) {
-            DoorMask.Direction dungeonDir = record.roomDungeonDoor;
-            RoomBuilder.openDoor(level, origin, mcDirection(dungeonDir));
-            BedrockEnvelope.clearFace(level, origin, dungeonDir);
-        }
-    }
-
     // ---- M48: the bag chest (the player's class selection) -----------------
 
     /**

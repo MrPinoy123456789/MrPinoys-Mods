@@ -93,15 +93,6 @@ final class RoomManifest {
         return loaded;
     }
 
-    /** M35: loads the anomaly room set from {@code data/<namespace>/anomaly_room/*.json}. */
-    static RoomManifest loadAnomaly(MinecraftServer server) {
-        RoomManifest loaded = loadFrom(server, server.getResourceManager(), ANOMALY_PATH);
-        currentAnomaly = loaded;
-        PocketDungeonsMod.LOG.info("Loaded {} anomaly rooms ({} rejected)",
-                loaded.rooms.size(), loaded.rejections.size());
-        return loaded;
-    }
-
     /**
      * M68: commits a resolved room manifest and anomaly manifest as the live
      * {@link #current} / {@link #currentAnomaly} in one step, the publish half
