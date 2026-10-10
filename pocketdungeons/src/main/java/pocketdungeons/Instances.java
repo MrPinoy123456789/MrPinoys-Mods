@@ -310,6 +310,9 @@ final class Instances {
             // now. A force-load ticket that never gets released pins its chunks
             // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
+            // Statics outlive a server in one JVM (an integrated server loading a second world).
+            pendingReturns.clear();
+            pendingJoinRecoveries.clear();
         });
     }
 
@@ -1874,6 +1877,7 @@ final class Instances {
         keep.removeAll(clearing);
         for (BlockPos cell : clearing) {
             clearCellSync(level, cell, keep);
+            InstanceTeardown.forgetCellState(cell);
         }
         for (BlockPos kept : keep) {
             for (DoorMask.Direction face : DoorMask.Direction.values()) {

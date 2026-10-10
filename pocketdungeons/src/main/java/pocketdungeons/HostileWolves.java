@@ -57,6 +57,11 @@ final class HostileWolves {
         GUARDS.put(origin.immutable(), guard.getUUID());
     }
 
+    /** Drops the guard of the room at {@code origin}, when that room is cleared. */
+    static void clear(BlockPos origin) {
+        GUARDS.remove(origin);
+    }
+
     /** Whether a wolf should be after the party right now. */
     static boolean hostile(Wolf wolf, boolean inKennels) {
         if (wolf.isTame() || wolf.entityTags().contains(CALM)) {

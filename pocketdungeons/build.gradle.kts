@@ -341,6 +341,8 @@ for ((taskName, testClass) in mapOf(
     "entryWitherTest" to "EntryWitherTest",
     // Code audit 2026-10-10: every room family class is added to RoomTemplateGenerator.specs().
     "roomSpecRegistryTest" to "RoomSpecRegistryTest",
+    // PD-201: cell keyed state is dropped whenever a cell is cleared, not only at teardown.
+    "cellStateForgetTest" to "CellStateForgetTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -464,6 +466,7 @@ tasks.test {
     dependsOn("pressureForgetTest")
     dependsOn("entryWitherTest")
     dependsOn("roomSpecRegistryTest")
+    dependsOn("cellStateForgetTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
