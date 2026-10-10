@@ -1,0 +1,26 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 30,
+        "best_path": 11,
+        "best_keystone": 22,
+        "keystone": 20,
+        "keystone_affix": "ominous,fragile",
+        "pending_offer": 20,
+        "recent_themes": ["a", "b", "c"],
+        "completed_themes": {"a": 2},
+        "current_theme": "b",
+        "depth": 2,
+        "fuel": 12,
+        "scrap": 103,
+        "bag": "scout",
+        "kit_granted": false,
+        "unlocked_shells": ["sandstone"],
+        "room_completions": 2,
+        "diary_bands_seen": [2]
+      }
+    }
+  ]
+}

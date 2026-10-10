@@ -1,0 +1,21 @@
+{
+  "players": [
+    {
+      "entry": {
+        "acts_migrated": true,
+        "acts_unlocked": [
+          1
+        ],
+        "best_path": 1,
+        "chart_progress": 0,
+        "decide_list": [
+          "00000000-0000-0000-0000-0000000000b1"
+        ],
+        "highest_charts": 4,
+        "keystone": 2,
+        "runs": 1
+      },
+      "player": "00000000-0000-0000-0000-00000000000a"
+    }
+  ]
+}

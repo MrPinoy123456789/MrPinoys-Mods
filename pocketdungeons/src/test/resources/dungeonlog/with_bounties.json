@@ -1,0 +1,31 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 2,
+        "best_path": 3,
+        "keystone": 5,
+        "highest_charts": 5,
+        "chart_progress": 1,
+        "acts_unlocked": [1],
+        "acts_migrated": true
+      }
+    }
+  ],
+  "task_progress": [
+    {"player": "00000000-0000-0000-0000-00000000000a", "progress": {"station_a": 2, "station_b": 1}}
+  ],
+  "bounties": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "bounties": [
+        {"week": "2026-W30", "bounty": "slay_ten", "progress": 7, "completed": false},
+        {"week": "2026-W31", "bounty": "dive_deep"}
+      ]
+    }
+  ],
+  "storage_returns": [
+    {"player": "00000000-0000-0000-0000-00000000000a", "stacks": 3}
+  ]
+}
