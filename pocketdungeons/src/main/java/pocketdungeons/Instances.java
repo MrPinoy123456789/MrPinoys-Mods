@@ -1542,7 +1542,7 @@ final class Instances {
 
         // M2/M3: clear the previous dungeon before generating the next one.
         // PD-13: its force-load tickets go with its cells.
-        RunLifecycle.resetForNextDungeon(server, record);
+        RunLifecycle.resetForNextDungeon(server, level, record);
 
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         CommitAffixes dealt = commitAffixes(level, record, offer);
@@ -1556,6 +1556,11 @@ final class Instances {
         InstanceLayout layout = stampBehindStaging(level, record, offer, plan, planOrigin, geometry, affixes,
                 effectiveThemeId, openingMine);
         if (layout == null) {
+            // The safe room is despawned and the previous floor cleared by now, and nothing stands in
+            // their place: put the lobby back (the path /dungeon quit takes, which restores the saved room
+            // blob and re-arms the doors) instead of leaving the record in PREVIEW with no room. The
+            // preview is cancelled with it, which refunds the escrowed catalyst.
+            resetToLobby(server, level, record, false);
             return false;
         }
 

@@ -36,6 +36,12 @@ final class LayoutStamper {
     static final Identifier SPAWN_NAME = Identifier.fromNamespaceAndPath(
             PocketDungeonsMod.MOD_ID, "spawn");
 
+    /**
+     * Test hook: when true, {@link #stampBehindLobby} throws before it writes anything, as a stamp that
+     * fails would. Always false in production; only a gametest sets it, and clears it in a {@code finally}.
+     */
+    static volatile boolean failBehindLobbyForTesting;
+
     private LayoutStamper() {}
 
     /**
@@ -101,6 +107,9 @@ final class LayoutStamper {
                                            int keystoneLevel, Set<String> affixes, UUID owner,
                                            String theme, Set<BlockPos> standingCells,
                                            DungeonDef.LootBand lootBand, NodeStamper.Context nodeCtx) {
+        if (failBehindLobbyForTesting) {
+            throw new IllegalStateException("stamp failure injected by a test");
+        }
         return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, owner, true, theme,
                 standingCells, lootBand, nodeCtx));
     }

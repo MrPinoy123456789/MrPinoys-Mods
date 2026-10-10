@@ -671,7 +671,7 @@ final class RunLifecycle {
      *
      * @return whether the room was despawned; {@code false} means the commit is refused and the room stands
      */
-    private static boolean saveAndDespawnRoom(ServerPlayer player, MinecraftServer server, ServerLevel level,
+    static boolean saveAndDespawnRoom(ServerPlayer player, MinecraftServer server, ServerLevel level,
                                               InstanceRecord record) {
         DoorMask.Direction dungeonDir = record.roomDungeonDoor;
         RoomBuilder.sealDoor(level, record.roomCellOrigin,
@@ -728,6 +728,14 @@ final class RunLifecycle {
      * On failure the catalyst is restored (M66: the player is not charged for nothing) and the player is
      * told so.
      *
+     * <p>The commit does irreversible work before the stamp can fail: the safe room is despawned
+     * ({@link #saveAndDespawnRoom}) and {@link Instances#commitDoor} clears the previous floor. A stamp that
+     * throws puts the lobby back inside {@link Instances#commitDoor} ({@link Instances#resetToLobby}, the path
+     * {@code /dungeon quit} uses, which restores the saved room blob and re-arms the doors). Any other refusal
+     * that comes after the room went (a content reload in flight, a stale preview) is caught here: if the room
+     * is still gone, the lobby is put back the same way, so the party is never left in {@code PREVIEW} with no
+     * room.
+     *
      * @param leavingRoom whether {@link #saveAndDespawnRoom} despawned the safe room for this commit
      * @return whether the dungeon was stamped and the run started
      */
@@ -742,6 +750,9 @@ final class RunLifecycle {
         if (keystone != null) {
             CubeRecipe.restoreCatalyst(player, keystone);
             CubeRecipe.clearRecipes(keystone);
+        }
+        if (leavingRoom && record.roomCellOrigin == null) {
+            Instances.resetToLobby(server, level, record, true);
         }
         player.sendSystemMessage(Component.literal(
                 "The dungeon failed to build. Try another door.")
