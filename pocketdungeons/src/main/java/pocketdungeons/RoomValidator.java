@@ -30,10 +30,6 @@ final class RoomValidator {
      * are no errors (safe to save), false otherwise.
      */
     static boolean validateAndReport(ServerPlayer player) {
-        List<String> errors = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
-        List<String> info = new ArrayList<>();
-
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.adminBuild) {
             player.sendSystemMessage(Component.literal(
@@ -52,7 +48,24 @@ final class RoomValidator {
         BlockPos origin = record.origin;
         RoomEditorMetadata.EditorMeta meta = RoomEditorMetadata.state(player.getUUID());
 
-        // Count gameplay objects in the cell.
+        CellCounts counts = countGameplayObjects(level, origin);
+        Findings findings = new Findings();
+        runChecks(level, origin, meta, counts, findings);
+        return report(player, findings);
+    }
+
+    /** What the cell holds that the checks care about. */
+    private record CellCounts(int spawners, int vaults, int chests, int doorJigsaws, int entities) {}
+
+    /** The messages the checks collect, by severity. */
+    private record Findings(List<String> errors, List<String> warnings, List<String> info) {
+        Findings() {
+            this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        }
+    }
+
+    /** Count gameplay objects in the cell: block entities, door jigsaws, then entities. */
+    private static CellCounts countGameplayObjects(ServerLevel level, BlockPos origin) {
         int spawnerCount = 0;
         int vaultCount = 0;
         int chestCount = 0;
@@ -105,6 +118,20 @@ final class RoomValidator {
                         origin.getX() + RoomGeometry.CELL, origin.getY() + RoomGeometry.CEILING_Y + 1,
                         origin.getZ() + RoomGeometry.CELL));
         entityCount = entities.size();
+        return new CellCounts(spawnerCount, vaultCount, chestCount, doorJigsawCount, entityCount);
+    }
+
+    /** The seven checks, in order. */
+    private static void runChecks(ServerLevel level, BlockPos origin, RoomEditorMetadata.EditorMeta meta,
+                                  CellCounts counts, Findings findings) {
+        List<String> errors = findings.errors();
+        List<String> warnings = findings.warnings();
+        List<String> info = findings.info();
+        int spawnerCount = counts.spawners();
+        int vaultCount = counts.vaults();
+        int chestCount = counts.chests();
+        int doorJigsawCount = counts.doorJigsaws();
+        int entityCount = counts.entities();
 
         // Check 1: at least one role.
         if (meta.roles.isEmpty()) {
@@ -119,22 +146,7 @@ final class RoomValidator {
 
         // Check 3: encounter role with no spawner or spawn jigsaw.
         if (meta.roles.contains(RoleIds.ENCOUNTER) && spawnerCount == 0) {
-            // Check for spawn jigsaws too.
-            boolean hasSpawnJigsaw = false;
-            for (int x = 0; x < RoomGeometry.CELL && !hasSpawnJigsaw; x++) {
-                for (int y = 1; y <= RoomGeometry.CEILING_Y && !hasSpawnJigsaw; y++) {
-                    for (int z = 0; z < RoomGeometry.CELL && !hasSpawnJigsaw; z++) {
-                        var be = level.getBlockEntity(origin.offset(x, y, z));
-                        if (be != null) {
-                            var tag = be.saveWithoutMetadata(level.registryAccess());
-                            if ("pocketdungeons:spawn".equals(tag.getStringOr("name", ""))) {
-                                hasSpawnJigsaw = true;
-                            }
-                        }
-                    }
-                }
-            }
-            if (!hasSpawnJigsaw) {
+            if (!hasSpawnJigsaw(level, origin)) {
                 warnings.add("Encounter room has no spawner or spawn anchor. Stamp will skip the encounter.");
             }
         }
@@ -158,17 +170,39 @@ final class RoomValidator {
         if (entityCount > 50) {
             warnings.add("Room has " + entityCount + " entities. High entity counts may cause lag when stamped.");
         }
+    }
 
-        // Report.
+    /** Check for spawn jigsaws, the alternative to a trial spawner in an encounter room. */
+    private static boolean hasSpawnJigsaw(ServerLevel level, BlockPos origin) {
+        boolean hasSpawnJigsaw = false;
+        for (int x = 0; x < RoomGeometry.CELL && !hasSpawnJigsaw; x++) {
+            for (int y = 1; y <= RoomGeometry.CEILING_Y && !hasSpawnJigsaw; y++) {
+                for (int z = 0; z < RoomGeometry.CELL && !hasSpawnJigsaw; z++) {
+                    var be = level.getBlockEntity(origin.offset(x, y, z));
+                    if (be != null) {
+                        var tag = be.saveWithoutMetadata(level.registryAccess());
+                        if ("pocketdungeons:spawn".equals(tag.getStringOr("name", ""))) {
+                            hasSpawnJigsaw = true;
+                        }
+                    }
+                }
+            }
+        }
+        return hasSpawnJigsaw;
+    }
+
+    /** Sends the findings to the player and returns true when there were no errors. */
+    private static boolean report(ServerPlayer player, Findings findings) {
+        List<String> errors = findings.errors();
         for (String error : errors) {
             player.sendSystemMessage(Component.literal("[Error] " + error)
                     .withStyle(ChatFormatting.RED));
         }
-        for (String warning : warnings) {
+        for (String warning : findings.warnings()) {
             player.sendSystemMessage(Component.literal("[Warning] " + warning)
                     .withStyle(ChatFormatting.YELLOW));
         }
-        for (String msg : info) {
+        for (String msg : findings.info()) {
             player.sendSystemMessage(Component.literal("[Info] " + msg)
                     .withStyle(ChatFormatting.GRAY));
         }
