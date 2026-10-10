@@ -11,7 +11,9 @@ import java.util.stream.Stream;
  * Code audit 2026-10-10: {@link RoomSelector#ENCOUNTER_ROOMS} names rooms by their content id, and
  * {@code RubbleRulesTest} only proves each still has a handler in the sources. This ties the list to the
  * room manifests: each id must be the {@code content} of a shipped room, or sit in {@link #RETIRED}
- * with the reason it is allowed to linger (its handler stays for the situation tests).
+ * with the reason it is allowed to linger (its handler stays for the situation tests). The same holds for
+ * the other room id lists in the code: {@link PressureSources#SPUR_ROOMS} (RoomSelector has no further
+ * special case list of room ids; its other sets name tags, not rooms).
  */
 public class EncounterRoomsShipTest {
 
@@ -31,13 +33,20 @@ public class EncounterRoomsShipTest {
             }
         }
         String all = manifests.toString();
-        for (String id : RoomSelector.ENCOUNTER_ROOMS) {
-            boolean ships = all.contains("\"content\": \"" + id + "\"") || all.contains("\"content\":\"" + id + "\"");
+        checkShips("ENCOUNTER_ROOMS", RoomSelector.ENCOUNTER_ROOMS, all);
+        checkShips("PressureSources.SPUR_ROOMS", PressureSources.SPUR_ROOMS, all);
+        System.out.println("EncounterRoomsShipTest passed (" + RoomSelector.ENCOUNTER_ROOMS.size() + " encounter ids, "
+                + PressureSources.SPUR_ROOMS.size() + " spur ids)");
+    }
+
+    private static void checkShips(String list, Set<String> ids, String manifests) {
+        for (String id : ids) {
+            boolean ships = manifests.contains("\"content\": \"" + id + "\"")
+                    || manifests.contains("\"content\":\"" + id + "\"");
             check(ships || RETIRED.contains(id),
-                    id + " is in ENCOUNTER_ROOMS but no shipped room has that content id (retire it on purpose in RETIRED)");
+                    id + " is in " + list + " but no shipped room has that content id (retire it on purpose in RETIRED)");
             check(!(ships && RETIRED.contains(id)), id + " is listed as retired but a room ships it");
         }
-        System.out.println("EncounterRoomsShipTest passed (" + RoomSelector.ENCOUNTER_ROOMS.size() + " ids)");
     }
 
     private static void check(boolean ok, String what) {
