@@ -46,7 +46,10 @@ public final class VendorGameTest {
             } else {
                 gear++;
                 helper.assertValueEqual(offer.getMaxUses(), 1, "a gear offer is one use");
-                int cap = DungeonTools.durabilityCap(result.getItem());
+                // The cap table is lifted by the durability knobs (110 percent by default).
+                int cap = DungeonTools.scaledCap(DungeonTools.durabilityCap(result.getItem()),
+                        Math.max(PocketDungeonsConfig.lootDurabilityPercent(),
+                                PocketDungeonsConfig.craftedDurabilityPercent()));
                 if (cap > 0 && result.isDamageableItem()) {
                     helper.assertTrue(result.getMaxDamage() <= cap,
                             result.getItem() + " carries the dungeon durability cap");

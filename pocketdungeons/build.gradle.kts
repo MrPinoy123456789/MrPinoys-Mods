@@ -333,6 +333,18 @@ for ((taskName, testClass) in mapOf(
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
     "rubbleRulesTest" to "RubbleRulesTest",
+    // PD-198: every DISCONNECT handler defers its work onto the server thread.
+    "disconnectHandlerTest" to "DisconnectHandlerTest",
+    // PD-199: leaving an instance forgets the Silenced consumable count.
+    "pressureForgetTest" to "PressureForgetTest",
+    // Code audit 2026-10-10: each DungeonLog.Entry wither changes only the components it names.
+    "entryWitherTest" to "EntryWitherTest",
+    // Code audit 2026-10-10: every room family class is added to RoomTemplateGenerator.specs().
+    "roomSpecRegistryTest" to "RoomSpecRegistryTest",
+    // PD-201: cell keyed state is dropped whenever a cell is cleared, not only at teardown.
+    "cellStateForgetTest" to "CellStateForgetTest",
+    // Code audit 2026-10-10: every ENCOUNTER_ROOMS id is a shipped room's content id or retired on purpose.
+    "encounterRoomsShipTest" to "EncounterRoomsShipTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -452,6 +464,12 @@ tasks.test {
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
+    dependsOn("disconnectHandlerTest")
+    dependsOn("pressureForgetTest")
+    dependsOn("entryWitherTest")
+    dependsOn("roomSpecRegistryTest")
+    dependsOn("cellStateForgetTest")
+    dependsOn("encounterRoomsShipTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")

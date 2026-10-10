@@ -3,7 +3,6 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.item.ItemStack;
@@ -49,7 +48,6 @@ final class KnowledgeSpecs {
 
     private static final Direction ENTRANCE = Direction.WEST;
     private static final Direction EXIT = Direction.EAST;
-    private static final int WALL_X = CELL - 1;
     private static final int CEILING_Y = RoomGeometry.CEILING_Y;
 
     /** The four ceiling-lamp positions placed by {@link RoomBuilder#stampShell}. */
@@ -190,41 +188,6 @@ final class KnowledgeSpecs {
             RoomBuilder.set(level, o.offset(lx - 1, CEILING_Y, lz), replacement);
             RoomBuilder.set(level, o.offset(lx, CEILING_Y, lz + 1), replacement);
             RoomBuilder.set(level, o.offset(lx, CEILING_Y, lz - 1), replacement);
-        }
-    }
-
-    /**
-     * Drops the exit passage to two blocks high by walling y=3 one block inside
-     * the doorway. Used by Don't Look: an enderman (3 tall) cannot path through,
-     * a crouching player can.
-     *
-     * <p>The wall goes at x=14, not in the doorway plane at x=15, because the
-     * doorway's three jigsaw blocks are what {@link RoomManifest} reads the door
-     * mask from. Writing over the y=3 jigsaw leaves a partial door, which the
-     * manifest rejects outright, and the room never loads at all.
-     */
-    private static void fillDoorwayTop(ServerLevel level, BlockPos o) {
-        for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-            RoomBuilder.set(level, o.offset(WALL_X - 1, 3, z), RoomBuilder.WALL);
-        }
-    }
-
-    /**
-     * Plugs the exit passage with {@code material}, one block inside the doorway
-     * (x=14, y=1..3, z=7..8). Used by gated knowledge rooms (Elder's Chamber,
-     * Infested Wall) whose gate is a soft wall the player mines through.
-     *
-     * <p>The plug goes at x=14 rather than in the doorway plane at x=15 so the
-     * doorway's jigsaw blocks survive. They are what {@link RoomManifest} reads
-     * the door mask from: sealing over them ships a room the planner believes
-     * has no east door, which places it as a dead end and makes the soft wall
-     * a wall around nothing.
-     */
-    private static void sealExitDoorway(ServerLevel level, BlockPos o, BlockState material) {
-        for (int y = 1; y <= RoomGeometry.DOOR_HEIGHT; y++) {
-            for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
-                RoomBuilder.set(level, o.offset(WALL_X - 1, y, z), material);
-            }
         }
     }
 

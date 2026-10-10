@@ -177,9 +177,13 @@ final class PressureSources {
         ARMED.remove(cellOrigin);
     }
 
-    /** Forgets a player's dwell, for a logout or a return to the safe room. */
+    /**
+     * Forgets a player's dwell and their count of Silenced consumable uses, for a logout or a return to
+     * the safe room. PD-199: the use count used to outlive the run it was counted in.
+     */
     static void forget(UUID player) {
         DWELL.remove(player);
+        SILENCED_USES.remove(player);
     }
 
     private static void tick(MinecraftServer server) {

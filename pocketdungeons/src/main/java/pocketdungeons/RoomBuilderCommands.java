@@ -33,7 +33,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 /**
  * {@code /dungeon roombuilder}: an operator-only command subtree for creating,
@@ -58,7 +57,6 @@ final class RoomBuilderCommands {
 
     /** Slots per page in the rooms GUI (5 rows of 9, minus borders). */
     private static final int ROOMS_PER_PAGE = 45;
-    private static final int GUI_ROWS = 6;
 
     /** Registers the {@code /dungeon roombuilder} subtree. Operator-only. */
     static LiteralArgumentBuilder<CommandSourceStack> branch() {

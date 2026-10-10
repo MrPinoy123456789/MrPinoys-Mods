@@ -12,24 +12,17 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.ComparatorBlock;
-import net.minecraft.world.level.block.DispenserBlock;
-import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.DropperBlock;
 import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ComparatorMode;
-import net.minecraft.world.level.block.state.properties.DoorHingeSide;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * M53: the spur family's room templates (spec 4.5).
@@ -126,15 +119,6 @@ final class SpurSpecs {
         set(level, o, x, y, z, Blocks.REDSTONE_WIRE.defaultBlockState());
     }
 
-    /** A wall across the whole room at z={@code zLine}, floor to the last interior row (the door replaces its part). */
-    private static void placePartition(ServerLevel level, BlockPos o, int zLine) {
-        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
-            for (int y = 1; y < RoomGeometry.CEILING_Y; y++) {
-                set(level, o, x, y, zLine, RoomBuilder.WALL);
-            }
-        }
-    }
-
     /**
      * Places a chest facing {@code facing} and sets its loot table to the spur
      * table named by {@code tablePath}. The chest behind the iron door is the
@@ -147,31 +131,6 @@ final class SpurSpecs {
         if (be instanceof RandomizableContainer container) {
             container.setLootTable(ResourceKey.create(Registries.LOOT_TABLE,
                     Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, tablePath)));
-        }
-    }
-
-    /**
-     * Places an iron door pair across the room at z={@code zLine}, x=7..8
-     * (the through-lane), with the y=3 lintel. Unlike the mechanism family's
-     * exit door this one is interior: it separates the spur's entrance area
-     * from the reward chest, not a cell boundary.
-     */
-    private static void placeInteriorDoor(ServerLevel level, BlockPos o, int zLine) {
-        BlockState lower = Blocks.IRON_DOOR.defaultBlockState()
-                .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
-                .setValue(DoorBlock.FACING, Direction.NORTH)
-                .setValue(DoorBlock.OPEN, false);
-        for (int x = RoomGeometry.DOOR_MIN; x <= RoomGeometry.DOOR_MAX; x++) {
-            DoorHingeSide hinge = x == RoomGeometry.DOOR_MIN ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
-            set(level, o, x, 1, zLine, lower.setValue(DoorBlock.HINGE, hinge));
-            set(level, o, x, 2, zLine,
-                    lower.setValue(DoorBlock.HINGE, hinge).setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-            set(level, o, x, 3, zLine, RoomBuilder.WALL);
-            // Doorframe: wall blocks either side of the 2-wide opening at y=1..3.
-            for (int y = 1; y <= 3; y++) {
-                set(level, o, RoomGeometry.DOOR_MIN - 1, y, zLine, RoomBuilder.WALL);
-                set(level, o, RoomGeometry.DOOR_MAX + 1, y, zLine, RoomBuilder.WALL);
-            }
         }
     }
 

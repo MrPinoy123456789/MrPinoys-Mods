@@ -4,7 +4,6 @@ import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.IOException;

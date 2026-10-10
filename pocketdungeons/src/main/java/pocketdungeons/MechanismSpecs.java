@@ -3,7 +3,6 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
@@ -17,7 +16,6 @@ import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ComparatorMode;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
@@ -70,8 +68,6 @@ final class MechanismSpecs {
     /** The two z-columns the east doorway occupies. */
     private static final int DOOR_Z0 = RoomGeometry.DOOR_MIN;
     private static final int DOOR_Z1 = RoomGeometry.DOOR_MAX;
-    /** The east wall's x coordinate. */
-    private static final int WALL_X = CELL - 1;
     /** Where a gated room's iron door stands: one block inside the east doorway. */
     private static final int DOOR_X = CELL - 2;
 
@@ -175,13 +171,6 @@ final class MechanismSpecs {
     private static void placeHopper(ServerLevel level, BlockPos pos, Direction facing) {
         RoomBuilder.set(level, pos, Blocks.HOPPER.defaultBlockState()
                 .setValue(HopperBlock.FACING, facing));
-    }
-
-    /** A comparator in compare mode facing {@code facing} (output direction). */
-    private static void placeComparator(ServerLevel level, BlockPos pos, Direction facing) {
-        RoomBuilder.set(level, pos, Blocks.COMPARATOR.defaultBlockState()
-                .setValue(ComparatorBlock.FACING, facing)
-                .setValue(ComparatorBlock.MODE, ComparatorMode.COMPARE));
     }
 
     /**

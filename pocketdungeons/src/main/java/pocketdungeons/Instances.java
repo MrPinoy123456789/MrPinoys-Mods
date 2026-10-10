@@ -134,12 +134,11 @@ final class Instances {
             InstanceTeardown.processClears(server);
             onTick(server);
             processJoinRecoveries(server);
-            // M45 seam: empty until M46's stash and swap (spec 11).
             InventorySwap.reconcileAll(server);
         });
 
-        // M45 seam for M46: crossing into or out of the dungeon dimension is
-        // the edge a swap is owed on. Verified against fabric-entity-events-v1
+        // Crossing into or out of the dungeon dimension is the edge an
+        // inventory swap is owed on. Verified against fabric-entity-events-v1
         // 5.0.5 in the 26.2 build: the event is
         // ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL and its
         // callback is afterChangeLevel(ServerPlayer, ServerLevel origin,
@@ -261,8 +260,7 @@ final class Instances {
                     player.getUUID(), point, left, JOIN_RECOVERY_DELAY_TICKS));
         });
 
-        // M45 seam: a player who logged out inside a run and came back. Empty
-        // until M46.
+        // A player who logged out inside a run and came back.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 InventorySwap.reconcile(handler.getPlayer()));
 
@@ -312,6 +310,9 @@ final class Instances {
             // now. A force-load ticket that never gets released pins its chunks
             // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
+            // Statics outlive a server in one JVM (an integrated server loading a second world).
+            pendingReturns.clear();
+            pendingJoinRecoveries.clear();
         });
     }
 
@@ -322,6 +323,9 @@ final class Instances {
      */
     private static void handleDisconnect(MinecraftServer server, ServerPlayer player) {
         PartyService.clearFor(player.getUUID());
+        Locks.forgetPlayer(player.getUUID());
+        IronDoorLatch.forgetPlayer(player.getUUID());
+        PlacementNotice.forgetPlayer(player.getUUID());
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             return;
@@ -794,27 +798,6 @@ final class Instances {
         }
         clearCells(level, record, List.of(record.roomCellOrigin));
         record.roomCellOrigin = null;
-    }
-
-    /**
-     * (M55) Re-stamps the safe room from {@link RoomStore} at the slot origin
-     * and reconnects it to the staging room (if one is active). Called on
-     * return from a dungeon: the blob is restored, both walls sealed, and a
-     * full bedrock envelope applied. If a staging room is active, the safe
-     * room's dungeon wall is opened and its bedrock face cleared so the two
-     * cells connect.
-     */
-    static void restoreSafeRoom(ServerLevel level, MinecraftServer server, InstanceRecord record) {
-        BlockPos origin = record.origin;
-        holdCell(level, origin);
-        stampSafeRoom(level, server, record.owner, origin, standingSides(record, origin));
-        record.roomCellOrigin = origin;
-        // If a staging room is active, connect the safe room to it.
-        if (record.stagingCellOrigin != null) {
-            DoorMask.Direction dungeonDir = record.roomDungeonDoor;
-            RoomBuilder.openDoor(level, origin, mcDirection(dungeonDir));
-            BedrockEnvelope.clearFace(level, origin, dungeonDir);
-        }
     }
 
     // ---- M48: the bag chest (the player's class selection) -----------------
@@ -1897,6 +1880,7 @@ final class Instances {
         keep.removeAll(clearing);
         for (BlockPos cell : clearing) {
             clearCellSync(level, cell, keep);
+            InstanceTeardown.forgetCellState(cell);
         }
         for (BlockPos kept : keep) {
             for (DoorMask.Direction face : DoorMask.Direction.values()) {
@@ -2197,7 +2181,7 @@ final class Instances {
                 }
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
-                mob.addTag("pocketdungeons_omen_wave");
+                mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
                 applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
                 level.addFreshEntity(mob);
             }
