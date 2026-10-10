@@ -1214,13 +1214,15 @@ final class Instances {
             long seed = level.getRandom().nextLong();
             final String roomTheme = theme == null ? null : theme.meta().roomTheme;
             LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(nodeBias, () -> LayoutPlanner.plan(
-                    seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
-                    minPath, maxPath,
-                    PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                    PocketDungeonsConfig.maxGridSpan(), roomTheme,
-                    dungeonDoor, bagTags, recipePlan,
-                    record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0,
-                    roomFloor));
+                    new LayoutPlanner.PlanRequest(
+                            seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
+                            new LayoutPlanner.PathProfile(minPath, maxPath,
+                                    PocketDungeonsConfig.branchProbability(),
+                                    PocketDungeonsConfig.loopProbability(),
+                                    PocketDungeonsConfig.maxGridSpan()),
+                            roomTheme, dungeonDoor, bagTags, recipePlan,
+                            record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0,
+                            roomFloor)));
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();
             lastAttempts = outcome.attemptsUsed();

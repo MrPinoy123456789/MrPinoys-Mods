@@ -152,9 +152,9 @@ final class LayoutPlanner {
                         double branchProbability, double loopProbability,
                         int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
                         Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters) {
-        return plan(seed, manifest, attemptBudget, minPath, maxPath,
-                branchProbability, loopProbability, maxGridSpan, theme,
-                requiredEntranceDirection, bagTags, recipePlan, maxEncounters, null);
+        return plan(new PlanRequest(seed, manifest, attemptBudget,
+                new PathProfile(minPath, maxPath, branchProbability, loopProbability, maxGridSpan),
+                theme, requiredEntranceDirection, bagTags, recipePlan, maxEncounters, null));
     }
 
     /**
@@ -165,7 +165,7 @@ final class LayoutPlanner {
                        int maxGridSpan) {}
 
     /**
-     * Everything one plan asks for; the long {@code plan} overloads below build
+     * Everything one plan asks for; the long {@code plan} overloads above build
      * one and delegate to {@link #plan(PlanRequest)}.
      *
      * @param requiredEntranceDirection rotates the shape so its entrance faces this way, or {@code null}
@@ -177,23 +177,6 @@ final class LayoutPlanner {
     record PlanRequest(long seed, RoomManifest manifest, int attemptBudget, PathProfile path, String theme,
                        DoorMask.Direction requiredEntranceDirection, Set<String> bagTags,
                        RunRecipePlan recipePlan, int maxEncounters, RoomEligibility.Floor floor) {}
-
-    /**
-     * Dungeon structure W5: as above, with the floor's dungeon context so room selection reads
-     * the room metadata ({@link RoomEligibility}); {@code null} is the legacy theme-only filter.
-     * The loose parameters are kept for the callers that still pass them; the
-     * record form is {@link #plan(PlanRequest)}.
-     */
-    static Outcome plan(long seed, RoomManifest manifest, int attemptBudget,
-                        int minPath, int maxPath,
-                        double branchProbability, double loopProbability,
-                        int maxGridSpan, String theme, DoorMask.Direction requiredEntranceDirection,
-                        Set<String> bagTags, RunRecipePlan recipePlan, int maxEncounters,
-                        RoomEligibility.Floor floor) {
-        return plan(new PlanRequest(seed, manifest, attemptBudget,
-                new PathProfile(minPath, maxPath, branchProbability, loopProbability, maxGridSpan),
-                theme, requiredEntranceDirection, bagTags, recipePlan, maxEncounters, floor));
-    }
 
     /** Plans one request, trying consecutive seeds up to its attempt budget. */
     static Outcome plan(PlanRequest request) {

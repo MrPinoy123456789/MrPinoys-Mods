@@ -866,19 +866,6 @@ final class TrialContent {
     record RewardLoot(boolean ominous, long seed, String lootSuffix, String lootTableOverride) {}
 
     /**
-     * As the record form, from the loose parameters {@code RunLifecycle} still
-     * passes; the record form is the one to call from anywhere else.
-     */
-    static void placeRewardContainers(ServerLevel level, BlockPos origin,
-                                        DoorMask.Direction entranceDir, int rolls,
-                                        int tier, int vaultRolls, int vaultTier,
-                                        boolean ominous, long seed, String lootSuffix,
-                                        String lootTableOverride, List<ItemStack> promised) {
-        placeRewardContainers(level, origin, entranceDir, new RewardRolls(rolls, tier, vaultRolls, vaultTier),
-                new RewardLoot(ominous, seed, lootSuffix, lootTableOverride), promised);
-    }
-
-    /**
      * The reward corner of a cleared floor's terminal cell (2026-10-05 rework):
      * two containers, nothing more. A barrel holds every loot roll the floor
      * earned (the old three chests' rolls, and a finished dungeon's vault

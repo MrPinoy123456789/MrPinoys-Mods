@@ -1290,11 +1290,13 @@ final class RunLifecycle {
                 ? PocketDungeonsConfig.finishVaultChests() : 0;
         int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
                 : tripDef.lootBand().max();
-        TrialContent.placeRewardContainers(level, terminalOrigin, entranceDir, chests,
-                LootBands.floorTier(record, rules, floorsCleared), vaultRolls, vaultTier,
-                record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
-                completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                completionTheme == null ? null : completionTheme.meta().lootTable,
+        TrialContent.placeRewardContainers(level, terminalOrigin, entranceDir,
+                new TrialContent.RewardRolls(chests, LootBands.floorTier(record, rules, floorsCleared),
+                        vaultRolls, vaultTier),
+                new TrialContent.RewardLoot(record.floor.affixes.contains(AffixIds.OMINOUS),
+                        record.layout.seed(),
+                        completionTheme == null ? null : completionTheme.meta().lootSuffix,
+                        completionTheme == null ? null : completionTheme.meta().lootTable),
                 promisedItems(level, tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);

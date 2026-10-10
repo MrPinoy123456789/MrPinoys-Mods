@@ -117,12 +117,14 @@ public final class FloorSoakGameTest {
                 for (int s = 0; s < seedsPerFloor; s++) {
                     long seed = 100_000L * nodeIndex + 1_000L * (side ? 1 : 0) + s * 7919L + 13;
                     String where = id + "/" + node.id() + (side ? "(side)" : "") + " seed " + seed;
-                    LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(node.roomBias(), () -> LayoutPlanner.plan(
+                    LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(node.roomBias(), () -> LayoutPlanner.plan(new LayoutPlanner.PlanRequest(
                             seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
-                            PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
-                            PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
-                            PocketDungeonsConfig.maxGridSpan(), roomTheme, null, BagTags.pilgrim(1), null,
-                            node.layer() == 1 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0, floor));
+                            new LayoutPlanner.PathProfile(
+                                    PocketDungeonsConfig.pathLengthMin(), PocketDungeonsConfig.pathLengthMax(),
+                                    PocketDungeonsConfig.branchProbability(), PocketDungeonsConfig.loopProbability(),
+                                    PocketDungeonsConfig.maxGridSpan()),
+                            roomTheme, null, BagTags.pilgrim(1), null,
+                            node.layer() == 1 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0, floor)));
                     plans++;
                     DungeonPlan plan = outcome.plan();
                     if (plan == null) {
