@@ -343,6 +343,8 @@ for ((taskName, testClass) in mapOf(
     "roomSpecRegistryTest" to "RoomSpecRegistryTest",
     // PD-201: cell keyed state is dropped whenever a cell is cleared, not only at teardown.
     "cellStateForgetTest" to "CellStateForgetTest",
+    // Code audit 2026-10-10: every ENCOUNTER_ROOMS id is a shipped room's content id or retired on purpose.
+    "encounterRoomsShipTest" to "EncounterRoomsShipTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -467,6 +469,7 @@ tasks.test {
     dependsOn("entryWitherTest")
     dependsOn("roomSpecRegistryTest")
     dependsOn("cellStateForgetTest")
+    dependsOn("encounterRoomsShipTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
