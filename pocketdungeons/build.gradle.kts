@@ -333,6 +333,8 @@ for ((taskName, testClass) in mapOf(
     "floorTitleTest" to "FloorTitleTest",
     // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
     "rubbleRulesTest" to "RubbleRulesTest",
+    // PD-198: every DISCONNECT handler defers its work onto the server thread.
+    "disconnectHandlerTest" to "DisconnectHandlerTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
@@ -452,6 +454,7 @@ tasks.test {
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
+    dependsOn("disconnectHandlerTest")
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")

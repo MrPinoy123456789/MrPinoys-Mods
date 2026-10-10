@@ -89,8 +89,13 @@ final class TrimListener {
         // for the life of the process, with nothing removing a stale entry.
         // Self-healing on relog (the modifiers themselves are transient), but
         // a real leak in the meantime.
-        ServerPlayConnectionEvents.DISCONNECT.register(
-                (handler, server) -> applied.remove(handler.getPlayer().getUUID()));
+        // PD-198: DISCONNECT can fire on Netty's IO thread (PD-12), and applied is a
+        // plain HashMap the server thread writes every tick, so the removal is
+        // deferred onto the server thread.
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID id = handler.getPlayer().getUUID();
+            server.execute(() -> applied.remove(id));
+        });
     }
 
     /** Resolves every configured material/attribute pair once, so a typo is a boot-time log line. */
