@@ -56,7 +56,8 @@
       "pocketdungeons.IronDoorGameTest",
       "pocketdungeons.BoardGameTest",
       "pocketdungeons.HiddenOreGameTest",
-      "pocketdungeons.DungeonStorageGameTest"
+      "pocketdungeons.DungeonStorageGameTest",
+      "pocketdungeons.StampDeterminismGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",
