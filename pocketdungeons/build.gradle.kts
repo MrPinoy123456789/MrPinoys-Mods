@@ -349,6 +349,8 @@ for ((taskName, testClass) in mapOf(
     "dimensionCheckTest" to "DimensionCheckTest",
     // Cleanup sweep: per player and per slot statics register with SessionState (disconnect and server stop).
     "sessionStateTest" to "SessionStateTest",
+    // Cleanup sweep: the room editor save and lost and found entries write through a temp file and an atomic move.
+    "atomicFilesTest" to "AtomicFilesTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
