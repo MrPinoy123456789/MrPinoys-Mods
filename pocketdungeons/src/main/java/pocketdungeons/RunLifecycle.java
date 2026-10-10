@@ -1299,7 +1299,7 @@ final class RunLifecycle {
                 record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable,
-                promisedItems(tripDef, record));
+                promisedItems(level, tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
         }
@@ -1340,13 +1340,20 @@ final class RunLifecycle {
      * chest. Unknown item ids are logged and skipped, a content typo never
      * failing a floor's rewards.
      */
-    private static List<ItemStack> promisedItems(DungeonDef def, InstanceRecord record) {
+    private static List<ItemStack> promisedItems(ServerLevel level, DungeonDef def, InstanceRecord record) {
         DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
         List<ItemStack> promised = new ArrayList<>();
         if (node == null) {
             return promised;
         }
         for (DungeonDef.Node.Reward reward : node.rewards()) {
+            if (PromisedGear.isGear(reward.item())) {
+                ItemStack gear = PromisedGear.roll(level, record.owner, record.interval, node.id(), reward.item());
+                if (!gear.isEmpty()) {
+                    promised.add(gear);
+                }
+                continue;
+            }
             net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM
                     .getValue(net.minecraft.resources.Identifier.parse(reward.item()));
             if (item == null || item == net.minecraft.world.item.Items.AIR) {
@@ -1492,21 +1499,14 @@ final class RunLifecycle {
                 Chime.scrapEarned(memberPlayer);
             }
             Keystone.showCompass(memberPlayer, log.get(member), true);
-            // J7: unused trial keys never leave their floor; they settle for
-            // emeralds on the same clear line at the salvage rates.
-            int keyEmeralds = redeemKeys(memberPlayer);
+            // PD-196 (owner ruling 2026-10-10): unused trial keys last the dungeon's life; they settle for
+            // emeralds when the haul banks, the same moment scrap is paid out ({@link #bankHaul}).
+            int keyEmeralds = 0;
             StringBuilder line = new StringBuilder();
             if (pay > 0) {
                 line.append(floorLevel >= compass ? "+" + pay + " scrap."
                         : "+" + pay + " scrap (below your compass).");
                 line.append(" Haul ").append(log.get(member).haul()).append(".");
-            }
-            if (keyEmeralds > 0) {
-                if (!line.isEmpty()) {
-                    line.append(" ");
-                }
-                line.append("+").append(keyEmeralds).append(keyEmeralds == 1 ? " emerald" : " emeralds")
-                        .append(" for vault keys.");
             }
             if (!line.isEmpty()) {
                 memberPlayer.sendSystemMessage(Component.literal(line.toString())
@@ -1600,6 +1600,12 @@ final class RunLifecycle {
         if (player == null) {
             return result;
         }
+        // PD-196: keys settle for emeralds when scrap is paid out; a failed dungeon pays the same share it keeps.
+        int keyEmeralds = redeemKeys(player, keep);
+        if (keyEmeralds > 0) {
+            player.sendSystemMessage(Component.literal("+" + keyEmeralds + (keyEmeralds == 1 ? " emerald" : " emeralds")
+                    + " for vault keys.").withStyle(ChatFormatting.AQUA));
+        }
         int total = result.banked() + result.lost();
         if (total > 0) {
             String bar = "compass " + result.compassAfter() + ", " + result.progress() + "/"
@@ -1638,10 +1644,15 @@ final class RunLifecycle {
      * J7: buys back every trial key {@code player} still holds at the salvage
      * rates (plain keys at {@code salvageKeyEmeralds}, ominous at
      * {@code salvageOminousKeyEmeralds}), removes them, and returns the
-     * emeralds paid; 0 when there were none. Keys never leave their floor.
+     * emeralds paid; 0 when there were none. Keys last the dungeon and settle when the haul banks (PD-196).
      * Package private so a gametest can drive it without a floor clear.
      */
     static int redeemKeys(ServerPlayer player) {
+        return redeemKeys(player, 100);
+    }
+
+    /** {@link #redeemKeys(ServerPlayer)} paying only {@code keepPercent} of the emeralds (a failed dungeon). */
+    static int redeemKeys(ServerPlayer player, int keepPercent) {
         int keys = 0, ominous = 0;
         for (int i = 0; i < InventorySwap.LIVE_SLOTS; i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -1653,8 +1664,9 @@ final class RunLifecycle {
                 player.getInventory().setItem(i, ItemStack.EMPTY);
             }
         }
-        int emeralds = SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds())
-                + SalvageMath.keyEmeralds(ominous, PocketDungeonsConfig.salvageOminousKeyEmeralds());
+        int emeralds = (SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds())
+                + SalvageMath.keyEmeralds(ominous, PocketDungeonsConfig.salvageOminousKeyEmeralds()))
+                * Math.clamp(keepPercent, 0, 100) / 100;
         int left = emeralds;
         int max = new ItemStack(Items.EMERALD).getMaxStackSize();
         while (left > 0) {

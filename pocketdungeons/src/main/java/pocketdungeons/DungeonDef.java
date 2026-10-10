@@ -387,6 +387,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
 
             /** {@code "echo shard"} style words for the board, from the item id's path. */
             String displayName() {
+                if (PromisedGear.isGear(item)) {
+                    return "gear";
+                }
                 String path = item.substring(item.indexOf(':') + 1);
                 return (count > 1 ? count + " " : "") + path.replace('_', ' ');
             }

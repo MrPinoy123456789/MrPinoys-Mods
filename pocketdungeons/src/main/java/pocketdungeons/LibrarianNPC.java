@@ -250,6 +250,11 @@ final class LibrarianNPC {
      * clamps durability like every other piece of dungeon gear (PD-146).
      */
     private static ItemStack rollGear(ServerLevel level, String tablePath) {
+        return rollGear(level, tablePath, level.getRandom().nextLong());
+    }
+
+    /** {@link #rollGear(ServerLevel, String)} with the roll\u0027s seed given, so the same seed rolls the same piece. */
+    static ItemStack rollGear(ServerLevel level, String tablePath, long seed) {
         Identifier id = Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, tablePath);
         ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, id);
         if (!LootTables.exists(level.getServer(), key)) {
@@ -260,7 +265,7 @@ final class LibrarianNPC {
         LootParams params = new LootParams.Builder(level)
                 .withParameter(LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
                 .create(LootContextParamSets.CHEST);
-        ObjectArrayList<ItemStack> rolled = table.getRandomItems(params, level.getRandom().nextLong());
+        ObjectArrayList<ItemStack> rolled = table.getRandomItems(params, seed);
         if (rolled.size() > 1) {
             PocketDungeonsMod.LOG.warn("Vendor gear table {} rolled {} items; only the first is stocked, "
                     + "the rest are lost. Author it with a single roll.", id, rolled.size());

@@ -109,7 +109,7 @@ final class SalvageStation {
         // at the same rates, so the bench refuses them.
         if (stack.is(TrialContent.keyStack(true).getItem())
                 || stack.is(TrialContent.keyStack(false).getItem())) {
-            return refuse("vault keys settle when the floor clears");
+            return refuse("vault keys cash in when you bank");
         }
         // Owner request (2026-10-03): kit can be scrapped like any other gear;
         // the safe room tops the kit back up. Only the keystone is kept.

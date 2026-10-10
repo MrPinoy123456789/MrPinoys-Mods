@@ -1,7 +1,27 @@
 {
   "name": "Frostworks",
-  "token": { "mat": "minecraft:blue_ice" },
-  "finale": {"mobs": [{"type": "minecraft:stray", "count": 5}, {"type": "minecraft:zombie", "count": 2}], "perMemberPercent": 50, "elite": {"type": "minecraft:stray", "name": "The Frost Warden", "health": 50, "mainhand": "minecraft:bow"}},
+  "token": {
+    "mat": "minecraft:blue_ice"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:stray",
+        "count": 5
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:stray",
+      "name": "The Frost Warden",
+      "health": 50,
+      "mainhand": "minecraft:bow"
+    }
+  },
   "notes": "Ice and powder snow. Iron, lapis and diamond.",
   "act": 2,
   "baseLevel": 10,
@@ -75,6 +95,10 @@
         {
           "item": "emerald",
           "count": 3
+        },
+        {
+          "item": "gear:tool:2",
+          "count": 1
         }
       ]
     },
@@ -103,7 +127,9 @@
       "notes": "The last floor. A frozen cascade of lapis and diamond.",
       "layer": 5,
       "final": true,
-      "roomBias": ["big_freeze"]
+      "roomBias": [
+        "big_freeze"
+      ]
     }
   ],
   "edges": [

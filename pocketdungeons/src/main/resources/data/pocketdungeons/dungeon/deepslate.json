@@ -1,7 +1,27 @@
 {
   "name": "Deepslate",
-  "token": { "mat": "minecraft:polished_deepslate" },
-  "finale": {"mobs": [{"type": "minecraft:skeleton", "count": 4}, {"type": "minecraft:zombie", "count": 3}], "perMemberPercent": 50, "elite": {"type": "minecraft:skeleton", "name": "The Deep Sentry", "health": 50, "mainhand": "minecraft:bow"}},
+  "token": {
+    "mat": "minecraft:polished_deepslate"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:skeleton",
+        "count": 4
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 3
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:skeleton",
+      "name": "The Deep Sentry",
+      "health": 50,
+      "mainhand": "minecraft:bow"
+    }
+  },
   "notes": "Deep ore: iron, lapis, redstone and a chance of diamond.",
   "act": 2,
   "baseLevel": 6,
@@ -95,6 +115,10 @@
         {
           "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:weapon:2",
+          "count": 1
         }
       ]
     },
@@ -104,7 +128,9 @@
       "notes": "The last floor. A silent hall of lapis, iron and diamond.",
       "layer": 5,
       "final": true,
-      "roomBias": ["silent_deep"]
+      "roomBias": [
+        "silent_deep"
+      ]
     }
   ],
   "edges": [

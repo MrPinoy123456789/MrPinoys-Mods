@@ -1,7 +1,21 @@
 {
   "name": "Ossuary",
-  "token": { "mat": "minecraft:bone_block" },
-  "finale": {"mobs": [{"type": "minecraft:skeleton", "count": 5}, {"type": "minecraft:zombie", "count": 2}], "perMemberPercent": 50},
+  "token": {
+    "mat": "minecraft:bone_block"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:skeleton",
+        "count": 5
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50
+  },
   "notes": "A catacomb of skeletons. Bone meal, coal and iron.",
   "act": 1,
   "baseLevel": 4,
@@ -62,6 +76,10 @@
         {
           "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:weapon:1",
+          "count": 1
         }
       ]
     },
@@ -71,7 +89,9 @@
       "notes": "The last floor. A burial hall of bone, coal and iron.",
       "layer": 3,
       "final": true,
-      "roomBias": ["last_rest"]
+      "roomBias": [
+        "last_rest"
+      ]
     }
   ],
   "edges": [

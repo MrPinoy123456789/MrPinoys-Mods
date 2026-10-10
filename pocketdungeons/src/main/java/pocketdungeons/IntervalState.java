@@ -30,6 +30,11 @@ final class IntervalState {
 
     /** Where the DESCEND lever stands along the selector wall in the Astrolabe Room, or 0 with no door selected. */
     int hallLeverAlong;
+    /**
+     * Seeds a floor\u0027s promised gear (see {@link PromisedGear}): fixed for the trip, so the door board and the
+     * copper chest agree, and new for each trip, so the same floor does not always promise the same sword.
+     */
+    final long rewardSalt = java.util.concurrent.ThreadLocalRandom.current().nextLong();
 
     /** Floors cleared since the last safe visit. The next floor is {@code floorIndex + 1}. */
     int floorIndex;

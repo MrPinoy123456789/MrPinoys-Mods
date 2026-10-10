@@ -423,7 +423,12 @@ final class DungeonScreen {
         }
         if (node != null) {
             for (DungeonDef.Node.Reward reward : node.rewards()) {
-                addPart(gets, reward.displayName(), ChatFormatting.AQUA);
+                if (PromisedGear.isGear(reward.item())) {
+                    addPart(gets, PromisedGear.describe(PromisedGear.roll(level, record.owner, record.interval,
+                            offer.nodeId(), reward.item())), ChatFormatting.AQUA);
+                } else {
+                    addPart(gets, reward.displayName(), ChatFormatting.AQUA);
+                }
             }
             if (node.isFinal()) {
                 int emeralds = PocketDungeonsConfig.finishEmeralds();

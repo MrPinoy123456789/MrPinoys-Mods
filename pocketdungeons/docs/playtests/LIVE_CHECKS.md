@@ -572,3 +572,8 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?
 - Lost wolves (Wolf Hollow, Lost Dog): still friendly and tameable?
 - Warden whelp (L58): does it skip the roar, is 0.3 speed about the player, does the Heard meter hold while it is out?
+
+## L62: promised gear and carried keys (2026-10-10)
+- Deepslate Collapsed Landing's door names an enchanted weapon beside its 2 emeralds; the copper chest holds that same piece after the clear.
+- A vault key found on floor 2 opens a vault on floor 3 of the same dungeon, and is paid as emeralds when you bank (Home or finish), not at the floor clear.
+- A failed dungeon pays half the key emeralds, matching the haul share.

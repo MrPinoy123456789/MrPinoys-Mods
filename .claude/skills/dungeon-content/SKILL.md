@@ -133,3 +133,9 @@ Every `dungeon_theme` needs a `dungeon_adventure/<id>.json` (a `kind` and a `nex
 `next` must lead to it, or the server validator reports "theme has no adventure node" or "node is not reachable".
 Neither finding shows in `gradlew test runGameTest`; only `dungeon admin validate` on a fresh deploy catches it
 (the Kennels shipped without one until 2026-10-09). Add the node and an inbound transition in the same change.
+
+## A floor can promise gear
+
+A node's `rewards` entry may be `{"item": "gear:<slot>:<tier>", "count": 1}` (slots `weapon`, `tool`, `armour`; tiers as the
+`loot_table/gear/` files). The piece is rolled when the door is generated, named on the door board, and paid into the copper
+chest at the clear (`PromisedGear`). Nothing is stored; the seed is the owner, the trip and the node.
