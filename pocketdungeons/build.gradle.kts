@@ -345,6 +345,7 @@ for ((taskName, testClass) in mapOf(
     "dungeonLogTest" to "DungeonLogTest",
     "dungeonLogGoldenTest" to "DungeonLogGoldenTest",
     "entryWitherTest" to "EntryWitherTest",
+    "entrySubRecordTest" to "EntrySubRecordTest",
     "stationTutorialTest" to "StationTutorialTest",
     // Playtest 2026-10-03 (A5): the first-visit tour.
     "firstVisitTutorialTest" to "FirstVisitTutorialTest",
@@ -461,6 +462,7 @@ tasks.test {
     dependsOn("dungeonLogTest")
     dependsOn("dungeonLogGoldenTest")
     dependsOn("entryWitherTest")
+    dependsOn("entrySubRecordTest")
     dependsOn("stationTutorialTest")
     dependsOn("firstVisitTutorialTest")
     dependsOn("roomScanTest")
