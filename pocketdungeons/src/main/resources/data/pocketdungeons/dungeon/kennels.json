@@ -62,7 +62,7 @@
     {
       "id": "bone_yard",
       "name": "Bone Yard",
-      "notes": "Skeletons drop the bones the hounds want.",
+      "notes": "Skeletons in the yard and hounds at your back.",
       "layer": 2,
       "roomBias": [
         "charnel_niches"

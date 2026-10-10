@@ -1,5 +1,24 @@
 # Vanilla dialogs in Pocket Dungeons
 
+> **Current screens, 2026-10-10 (freshness pass; the sections below record the first build).** The wall
+> lodestone opens one menu, built by `DialogScreens.menuOptions` and routed by `DialogRouter`:
+>
+> - **Home:** Start Dungeon, Manage Room, Inspect Compass, Manage Party, View Lobbies. Esc closes.
+> - **In a dungeon:** Manage Room, Inspect Compass, Manage Party and View Lobbies for the room's owner (View
+>   Lobbies only before a door is chosen), Quit Door for the owner once a door is chosen (it fails the dungeon for
+>   the haul share and returns the party to the Home room; it does not touch the compass), and Leave **last**,
+>   which asks first (`leaveConfirm`). Esc only closes.
+> - **Manage Room:** name, Public or Private, Shell, Visitors (the recent visitors list), Reset Room (confirm).
+> - **Inspect Compass:** the compass lore, Diaries (found first, the rest grey), Reset Compass (room owner, confirm).
+> - **Manage Party:** Invite (online players not banned), Banned (tap to unban), then everyone in the party and everyone
+>   who played with you (green here now, grey before, a yellow star for builders). A person opens Can build (confirm
+>   before giving it) and Ban (confirm). A ban removes them from the party and the building list and blocks
+>   invites, joining and visits (`RoomBans`).
+> - **View Lobbies:** public rooms and friends' rooms.
+> - The door offer, the party roster and the first whitelist screens in this file are older shapes; the door choice is
+>   now the Astrolabe Room, a world object, not a dialog. Rules for adding a screen are in
+>   `.claude/skills/dialog-screens/SKILL.md`.
+
 Implements [`DIALOGS_SPEC.md`](DIALOGS_SPEC.md) §1–§6, against Part 0 and Part 1 of
 [`DIALOGS_SPEC.md`](DIALOGS_SPEC.md). §7 (the elevator) is **not**
 built — see "What was left out" below.

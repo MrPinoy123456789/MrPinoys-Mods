@@ -1,5 +1,9 @@
 # Pocket Dungeons — vanilla dialogs spec
 
+> Freshness note 2026-10-10: this is the original spec. What was built, and the menu as it stands now (Home menu,
+> Manage Room, Inspect Compass, Manage Party, View Lobbies), is `docs/reference/DIALOGS.md`. The door offer in section 1
+> was replaced by the Astrolabe Room.
+
 > **Status: §1–§7 are all built, none in exactly the form described below.**
 > See [`DIALOGS.md`](reference/DIALOGS.md) for what shipped, the decisions
 > this document deferred and how they were settled, and what has not been

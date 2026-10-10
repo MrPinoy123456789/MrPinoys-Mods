@@ -62,6 +62,8 @@ bite.
    events. If you think you need a second mixin, you have probably taken a wrong
    turn: say so in your report and look for the event or the datapack route
    first. (Traps 14 and 15 are a worked example of that search paying off.)
+   *Update 2026-10-10: the budget of one no longer holds; `pocketdungeons.mixins.json` lists 18 (see
+   `CONVENTIONS.md`). The advice to look for the event or datapack route first still stands.*
 
 10. **Headless testing cannot right-click anything.** Anything involving a click,
     a GUI, or a player standing somewhere goes in `LIVE_TEST_PASS.md` as

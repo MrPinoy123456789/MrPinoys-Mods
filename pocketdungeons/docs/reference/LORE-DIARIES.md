@@ -1,5 +1,12 @@
 # Alex's Diaries
 
+> Freshness note 2026-10-10: this file holds the drafted text of entries 1 to 7
+> only. The shipped set is 26 entries in
+> `src/main/resources/data/pocketdungeons/diary/entry_1..26.json` (8 onward
+> follow the dungeons and the late story; 26 is The Lodge, the Kennels diary,
+> band 10). The JSON is the
+> source of truth for wording.
+
 *Found out of order. Written over the course of Alex's expedition.*
 
 ---

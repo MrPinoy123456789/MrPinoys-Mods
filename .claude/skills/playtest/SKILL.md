@@ -137,7 +137,8 @@ many times, a zone they never saw), ask about it.
    heading, continuing its `PD-n` numbering (read the highest number first).
 4. Append one row per floor to `pocketdungeons/docs/playtests/BALANCE.md`
    (create it with a header if missing): date, zone, floor, party, seconds,
-   omen, rescues, blocks, durability, chests, band at bank, rating.
+   omen, rescues, blocks, durability, chests, how it ended (banked, abandoned, failed or finished, with the scrap
+   from `floor_pay` and `haul_banked`; the column is still headed "Band at bank"), rating.
 
 ## 6. Live mode: interviewing in Minecraft chat
 

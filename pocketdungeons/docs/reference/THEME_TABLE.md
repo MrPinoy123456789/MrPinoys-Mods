@@ -45,11 +45,12 @@ Each config is a normal and an ominous file. Tiered configs exist for tiers 1 to
 | `rootworks_tier_N` | spider/cave spider, witch | Rootworks |
 | `ender_archive_tier_N` | enderman, silverfish | Ender Archive |
 | `basalt_foundry_tier_N` | blaze, magma cube | Basalt Foundry |
+| `kennels_tier_N` | pillager, wolf, vindicator from tier 2 (added 2026-10-09, not in the original table) | Kennels |
 
 Room-specific configs: `blaze_cellar` (blaze), `creeper_kennel` (creeper),
 `slime_pit` (slime), `wither_loft` (wither skeleton), `kennel_crossing` (wolf),
 `breeze_arena` and `ice_run` (breeze), `thicket` (cave spider), `bogged_marsh`
-(bogged), `ledge_archers` (skeleton), `sensor_gallery` (zombie), `hold_the_plate`
+(bogged), `ledge_archers` (skeleton), `sensor_gallery` (zombie; retired 2026-10-09, the Hush Gallery replaced it), `hold_the_plate`
 and `barred_vault` (zombie, skeleton), `the_raid` (vindicator, evoker).
 
 Equipment: spawner mobs wear our own `equipment/tier_1..3_*` tables (untrimmed).

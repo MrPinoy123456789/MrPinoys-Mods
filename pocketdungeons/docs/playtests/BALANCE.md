@@ -5,6 +5,10 @@ from the previous floor completion in the same interval (blank when the interval
 start was not logged). Omen, rescues, blocks and durability come from the
 playtest journal once it exists; blank means not recorded.
 
+The "Band at bank" column kept its name but bands are gone (a trip banks whole): read it as how the floor ended
+(banked, abandoned, failed or finished) plus the scrap or compass change, and the "Chests" column as reward chests.
+The journal's `floor_pay` and `haul_banked` events carry the scrap numbers.
+
 | Date | Zone | Floor | Party | Seconds | Omen | Rescues | Blocks | Durability | Chests | Band at bank | Rating | Source |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-26 | slot 0, tier 1 | 1 | solo | | | | | | 3 | not banked (quit) | | 2026-09-26-1.md |

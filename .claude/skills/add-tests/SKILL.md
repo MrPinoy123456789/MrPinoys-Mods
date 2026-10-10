@@ -65,7 +65,7 @@ object (it did, and crashed the first version).
   that needs `DUNGEON_LEVEL` cannot be exercised end to end. Test the pieces (`LibrarianNPC.restock(level, record)`
   was added for this reason).
 - Placing blocks: use `helper.absolutePos(BlockPos.ZERO)` for a cell origin and clear what you place. For a far
-  location, force chunks (`level.setChunkForced`) and release them in `finally` (`TollRoomGameTest`).
+  location, force chunks (`level.setChunkForced`) and release them in `finally` (`HiddenOreGameTest` or `SeamGameTest`; `TollRoomGameTest` was retired with the toll rooms).
 - Lemon: `Lemon.setMode(player, true)` then `Lemon.heard(...)`; `Lemon.view(player)` reads pending state.
 - Ordeals and locks tick on their own period; call `INSTANCE.tickDanger(level, origin, state)` directly in a loop
   (`PlateRelayGameTest`) instead of waiting game time.

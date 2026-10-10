@@ -55,7 +55,8 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
   `firstFloorMaxEncounters` 2.
 - **Affix strength:** `swarmingMobFactor` 1.5, `overclockedCooldownFactor` 0.4, `silencedConsumablesPerOmen` 3,
   `silencedPlayerRange` 6, `chaoticSpawnerChance` 0.05, `moltenHazardsPerCell` 4, `explosiveHazardsPerCell` 4,
-  `feralWolvesPerCell` 2, `voidedCellChance` 0.3.
+  `voidedCellChance` 0.3, and `feralWolvesPerCell` 2 (read only when a floor carries the retired Feral affix, which is
+  never rolled now; the Kennels' wolves are set in `KennelSpecs`).
 - **Floor shape and rarity:** `pathLengthMin` 8, `pathLengthMax` 12, `branchProbability` 0.55, `loopProbability` 0.30,
   `maxGridSpan` 12, `planAttemptBudget` 32, `anomalyRoomChance` 0.08, `fountainChance` 0.15, `pocket2DoorChance` 0.2.
 - **Pacing and progress:** `floorsPerSafeVisit` 3, `endlessMineUnlockLevel` 3, `timedOutDepletion` (superseded by the quit
@@ -69,7 +70,8 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
   blocks and a room may bury one more pocket).
 - **Sculk (`PressureSources`, `SculkOmen`):** `sculkHeardMax` 4 and `sculkHeardMaxAncient` 2 (pulses that fill a room's Heard meter before it
   answers), `sculkUnheardScrap` 1 (paid for clearing a sculk room's spawner without it answering), `ancientWardenAnswers` 2 (answers on the Ancient
-  City's final floor that wake the Warden).
+  City's final floor that wake the Warden). The Warden whelp that a full meter sends: `whelpHealth` 20, `whelpDamage` 4,
+  `whelpSpeed` 0.3 and `whelpSeconds` 15 (`Whelp`; one at a time, the Heard meter holds still while it is out).
 - **Finale and mob uniform:** `finaleEnabled` true, `finaleRewardChests` 1, `finaleCountdownSeconds` 3,
   `finaleEliteHealthPercentPerMember` 50 (`FinaleWave`, `FinaleRules`); `mobUniformEnabled` true (`MobUniforms`). Per dungeon, in its
   JSON: `finale.mobs[].count`, `finale.perMemberPercent`, `finale.elite.health`; `mobUniform.armourPieces`, `rangedArmourPieces`, `chance`.
@@ -97,7 +99,8 @@ All are in `PocketDungeonsConfig.java` with their default; the field's Javadoc s
 ## Hard-coded values worth promoting to knobs
 
 Not knobs today. Each is a `static final` or a literal; promote one with the recipe below when the owner asks to move it.
-- `ScrapMath.SCRAP_PER_CHART` 5 (scrap per compass level), `ScrapMath.floorPay` (the step at or above the compass, else 1).
+- `ScrapMath.LEGACY_SCRAP_PER_CHART` 5 (only the pool-era migration reads it; the live price is the `scrapCost*` knobs above),
+  `ScrapMath.FAIL_KEEP_PERCENT` 50 (the default behind `failHaulKeepPercent`).
 - `Omen.LIVES` 5 and `DoorLives.MAX_LIVES` 2 (party lives and the most a door can cost); lives scaling with party size is a
   standing player ask.
 - `PlateRelayOrdeal`: `CHARGE_SECONDS` 3, `LIVE_SECONDS` 15, `BASE_CHARGES` 5, `MAX_CHARGES` 8, `ALIVE_CAP` 6, `SPAWN_CAP` 16.
