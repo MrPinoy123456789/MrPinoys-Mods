@@ -394,6 +394,8 @@ for ((taskName, testClass) in mapOf(
     "configSaveTest" to "ConfigSaveTest",
     // Config refactor: characterizes every knob, the written defaults and the rewrite rules.
     "configCharacterizationTest" to "ConfigCharacterizationTest",
+    // The one-place knob list: every knob is written, has a typed accessor, and none hides outside the list.
+    "configKnobsTest" to "ConfigKnobsTest",
     "zoneRulesTest" to "ZoneRulesTest",
     "intervalBankingTest" to "IntervalBankingTest",
     // Lemon steps 1 and 2: the playtest journal line format, the context
@@ -515,6 +517,7 @@ tasks.test {
     dependsOn("cowPitsTest")
     dependsOn("configSaveTest")
     dependsOn("configCharacterizationTest")
+    dependsOn("configKnobsTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
     dependsOn("journalFormatTest")
